@@ -63,16 +63,10 @@ final class AtollService {
                 ]
             )
             return health(version: version, authorized: true, testPresented: true)
+        } catch let error as AtollError {
+            return Self.failureHealth(for: error)
         } catch {
-            return SourceHealth(
-                id: .atoll,
-                title: "Atoll",
-                eyebrow: "Intervention",
-                state: .attention,
-                detail: "Atoll test activity was not accepted",
-                evidence: "Open Atoll and review its extension authorization prompt",
-                actionTitle: "Retry"
-            )
+            return Self.failureHealth(for: .remote(error.localizedDescription))
         }
     }
 
@@ -163,9 +157,34 @@ final class AtollService {
             actionTitle: "Authorize"
         )
     }
+
+    static func failureHealth(for error: AtollError) -> SourceHealth {
+        if case let .remote(message) = error,
+           message.localizedCaseInsensitiveContains("extensions are disabled") {
+            return SourceHealth(
+                id: .atoll,
+                title: "Atoll",
+                eyebrow: "Intervention",
+                state: .attention,
+                detail: "Atoll third-party extensions are disabled",
+                evidence: "In Atoll Settings, enable third-party extensions, then retry",
+                actionTitle: "Retry"
+            )
+        }
+
+        return SourceHealth(
+            id: .atoll,
+            title: "Atoll",
+            eyebrow: "Intervention",
+            state: .attention,
+            detail: "Atoll test activity was not accepted",
+            evidence: "Open Atoll and review its extension authorization prompt",
+            actionTitle: "Retry"
+        )
+    }
 }
 
-private enum AtollError: Error {
+enum AtollError: Error {
     case invalidResponse
     case remote(String)
     case timedOut
