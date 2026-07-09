@@ -7,7 +7,9 @@ final class AppModel: ObservableObject {
     @Published var coachingState: CoachingState = .observation
     @Published var sources: [SourceHealth] = SourceHealth.initial
     @Published var reminderTasks: [ReminderTask] = []
+    @Published var dailyPlan: [DailyPlanEntry] = []
     @Published var isLoadingReminderTasks = false
+    @Published private(set) var isLoadingDailyPlan = true
     @Published var reminderTaskError: String?
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
@@ -15,6 +17,8 @@ final class AppModel: ObservableObject {
     private let remindersService: RemindersService
     private let atollService: AtollService
     private let eventStore: EventStore
+    private var reminderTasksAreAvailable = false
+    private var planWriteTask: Task<Void, Never>?
 
     init(
         screenwatchReader: ScreenwatchReader = ScreenwatchReader(),
@@ -29,6 +33,7 @@ final class AppModel: ObservableObject {
         Task {
             await refreshAllSources()
             await refreshReminderTasks()
+            await reloadDailyPlan()
         }
     }
 
@@ -88,10 +93,72 @@ final class AppModel: ObservableObject {
             let completed = await remindersService.completeTask(id: task.id)
             if completed {
                 await refreshReminderTasks()
+                dailyPlan.removeAll { $0.reminderID == task.id }
+                persistDailyPlan()
             } else {
                 reminderTaskError = "Could not complete \"\(task.title)\". Refresh and try again."
             }
         }
+    }
+
+    func addToDailyPlan(_ task: ReminderTask) {
+        guard !isLoadingDailyPlan,
+              dailyPlan.count < 3,
+              !dailyPlan.contains(where: { $0.reminderID == task.id })
+        else { return }
+        dailyPlan.append(
+            DailyPlanEntry(
+                reminderID: task.id,
+                rank: (dailyPlan.map(\.rank).max() ?? 0) + 1,
+                isMainObjective: dailyPlan.isEmpty,
+                estimateMinutes: nil
+            )
+        )
+        persistDailyPlan()
+    }
+
+    func removeFromDailyPlan(_ entry: DailyPlanEntry) {
+        guard !isLoadingDailyPlan else { return }
+        dailyPlan.removeAll { $0.reminderID == entry.reminderID }
+        dailyPlan = dailyPlan.enumerated().map { index, entry in
+            DailyPlanEntry(
+                reminderID: entry.reminderID,
+                rank: index + 1,
+                isMainObjective: entry.isMainObjective,
+                estimateMinutes: entry.estimateMinutes
+            )
+        }
+        if !dailyPlan.contains(where: \.isMainObjective), !dailyPlan.isEmpty {
+            setMainObjective(dailyPlan[0])
+        } else {
+            persistDailyPlan()
+        }
+    }
+
+    func setMainObjective(_ entry: DailyPlanEntry) {
+        guard !isLoadingDailyPlan else { return }
+        dailyPlan = dailyPlan.map {
+            DailyPlanEntry(
+                reminderID: $0.reminderID,
+                rank: $0.rank,
+                isMainObjective: $0.reminderID == entry.reminderID,
+                estimateMinutes: $0.estimateMinutes
+            )
+        }
+        persistDailyPlan()
+    }
+
+    func setEstimate(_ minutes: Int, for entry: DailyPlanEntry) {
+        guard !isLoadingDailyPlan else { return }
+        dailyPlan = dailyPlan.map {
+            DailyPlanEntry(
+                reminderID: $0.reminderID,
+                rank: $0.rank,
+                isMainObjective: $0.isMainObjective,
+                estimateMinutes: $0.reminderID == entry.reminderID ? minutes : $0.estimateMinutes
+            )
+        }
+        persistDailyPlan()
     }
 
     private func refreshAllSources() async {
@@ -113,12 +180,55 @@ final class AppModel: ObservableObject {
     private func refreshReminderTasks() async {
         switch await remindersService.fetchIncompleteTasks() {
         case let .available(tasks):
+            reminderTasksAreAvailable = true
             reminderTasks = tasks
+            reconcileDailyPlan(with: tasks)
         case .unavailable:
+            reminderTasksAreAvailable = false
             reminderTasks = []
             reminderTaskError = "Apple Reminders access is unavailable. Connect it from Source health, then refresh tasks."
         }
         isLoadingReminderTasks = false
+    }
+
+    private func reloadDailyPlan() async {
+        dailyPlan = await eventStore.loadDailyPlan()
+        if reminderTasksAreAvailable {
+            reconcileDailyPlan(with: reminderTasks)
+        }
+        isLoadingDailyPlan = false
+    }
+
+    private func reconcileDailyPlan(with tasks: [ReminderTask]) {
+        let incompleteIDs = Set(tasks.map(\.id))
+        let reconciledPlan = dailyPlan.filter { incompleteIDs.contains($0.reminderID) }
+        guard reconciledPlan != dailyPlan else { return }
+        dailyPlan = reconciledPlan.enumerated().map { index, entry in
+            DailyPlanEntry(
+                reminderID: entry.reminderID,
+                rank: index + 1,
+                isMainObjective: entry.isMainObjective,
+                estimateMinutes: entry.estimateMinutes
+            )
+        }
+        if !dailyPlan.contains(where: \.isMainObjective), !dailyPlan.isEmpty {
+            dailyPlan[0] = DailyPlanEntry(
+                reminderID: dailyPlan[0].reminderID,
+                rank: dailyPlan[0].rank,
+                isMainObjective: true,
+                estimateMinutes: dailyPlan[0].estimateMinutes
+            )
+        }
+        persistDailyPlan()
+    }
+
+    private func persistDailyPlan() {
+        let entries = dailyPlan
+        let previousWrite = planWriteTask
+        planWriteTask = Task { [eventStore] in
+            await previousWrite?.value
+            await eventStore.replaceDailyPlan(entries)
+        }
     }
 
     private func updateSource(_ result: SourceHealth) {

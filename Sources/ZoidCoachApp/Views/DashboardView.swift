@@ -43,7 +43,7 @@ private struct TodayCommandView: View {
                         .font(Sumi.label(9))
                         .sumiLabelTracking()
                         .foregroundStyle(Sumi.seal)
-                    Text("Real Apple Reminders")
+                    Text("A deliberate day, grounded in real reminders")
                         .font(Sumi.body(13))
                         .foregroundStyle(Sumi.muted)
                 }
@@ -75,15 +75,15 @@ private struct TodayCommandView: View {
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("READY TO DECIDE")
+                Text("PLAN BEFORE MOTION")
                     .font(Sumi.label(10))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
-                Text("Choose what matters\nbefore the day chooses for you.")
+                Text("Three commitments.\nOne clear objective.")
                     .font(Sumi.display(40))
                     .tracking(-1.2)
                     .foregroundStyle(Sumi.ink)
-                Text("These are your incomplete Apple Reminders. Completing an item here marks the same reminder complete in Apple Reminders.")
+                Text("Select the work that deserves the day, add a realistic estimate, then let the remaining inbox stay quiet until it earns attention.")
                     .font(Sumi.body(15))
                     .foregroundStyle(Sumi.muted)
                     .lineSpacing(4)
@@ -92,13 +92,15 @@ private struct TodayCommandView: View {
             .padding(.horizontal, 28)
             .padding(.vertical, 34)
 
+            DailyPlanLedger()
+
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("INCOMPLETE TASKS")
+                    Text("UNPLANNED REMINDERS")
                         .font(Sumi.label(10))
                         .sumiLabelTracking()
                     Spacer()
-                    Text("\(model.reminderTasks.count) AVAILABLE")
+                    Text("\(unplannedTasks.count) AVAILABLE")
                         .font(Sumi.label(9))
                         .sumiLabelTracking()
                         .foregroundStyle(Sumi.muted)
@@ -117,22 +119,158 @@ private struct TodayCommandView: View {
                 } else if model.isLoadingReminderTasks && model.reminderTasks.isEmpty {
                     ProgressView("Loading your incomplete reminders")
                         .padding(28)
-                } else if model.reminderTasks.isEmpty {
+                } else if unplannedTasks.isEmpty {
                     Text("No incomplete reminders are available. Connect Apple Reminders from Source health if access has not been granted.")
                         .font(Sumi.body(14))
                         .foregroundStyle(Sumi.muted)
                         .padding(28)
                 } else {
-                    ForEach(model.reminderTasks) { task in
-                        ReminderTaskRow(task: task)
+                    ForEach(unplannedTasks) { task in
+                        InboxReminderTaskRow(task: task)
                     }
                 }
             }
         }
     }
+
+    private var unplannedTasks: [ReminderTask] {
+        model.reminderTasks.filter { task in
+            !model.dailyPlan.contains { $0.reminderID == task.id }
+        }
+    }
 }
 
-private struct ReminderTaskRow: View {
+private struct DailyPlanLedger: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        let entries = model.dailyPlan.sorted { $0.rank < $1.rank }
+        let mainObjective = entries.first(where: \.isMainObjective)
+
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("TODAY'S COMMITMENT")
+                    .font(Sumi.label(10))
+                    .sumiLabelTracking()
+                Spacer()
+                Text(model.isLoadingDailyPlan ? "LOADING PLAN" : "\(entries.count) / 3 SELECTED")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 12)
+            .background(Sumi.ink)
+            .foregroundStyle(Sumi.paper)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("MAIN OBJECTIVE")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Text(task(for: mainObjective)?.title ?? "Choose the outcome that makes today successful.")
+                    .font(Sumi.display(27))
+                    .foregroundStyle(mainObjective == nil ? Sumi.muted : Sumi.ink)
+            }
+            .padding(28)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Sumi.sealWash)
+            .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+            ForEach(entries) { entry in
+                if let task = task(for: entry) {
+                    PlannedReminderRow(entry: entry, task: task)
+                }
+            }
+
+            if entries.count < 3 {
+                Text("Select \(3 - entries.count) more reminder\(entries.count == 2 ? "" : "s") from the queue below. Estimates are required before the plan can become active.")
+                    .font(Sumi.body(13))
+                    .foregroundStyle(Sumi.muted)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.softPaper)
+            }
+        }
+        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+    }
+
+    private func task(for entry: DailyPlanEntry?) -> ReminderTask? {
+        guard let entry else { return nil }
+        return model.reminderTasks.first { $0.id == entry.reminderID }
+    }
+}
+
+private struct PlannedReminderRow: View {
+    @EnvironmentObject private var model: AppModel
+    let entry: DailyPlanEntry
+    let task: ReminderTask
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Text(String(format: "%02d", entry.rank))
+                .font(Sumi.label(10))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+                .frame(width: 28, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 9) {
+                HStack {
+                    Text(task.title)
+                        .font(Sumi.body(16))
+                        .foregroundStyle(Sumi.ink)
+                    Spacer()
+                    if entry.isMainObjective {
+                        Text("MAIN")
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.paper)
+                            .padding(.horizontal, 7)
+                            .frame(height: 22)
+                            .background(Sumi.seal)
+                    }
+                }
+
+                HStack(spacing: 7) {
+                    Text(entry.estimateMinutes.map { "\($0) MIN" } ?? "ADD ESTIMATE")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(entry.estimateMinutes == nil ? Sumi.seal : Sumi.muted)
+                    ForEach([15, 30, 45, 60, 90], id: \.self) { minutes in
+                        Button("\(minutes)") {
+                            model.setEstimate(minutes, for: entry)
+                        }
+                        .font(Sumi.label(8))
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Sumi.ink)
+                        .padding(.horizontal, 5)
+                        .frame(height: 22)
+                        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+                        .accessibilityLabel("Set \(task.title) estimate to \(minutes) minutes")
+                    }
+                    Spacer()
+                    Button("MAKE MAIN") { model.setMainObjective(entry) }
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Sumi.ink)
+                        .disabled(entry.isMainObjective)
+                    Button("REMOVE") { model.removeFromDailyPlan(entry) }
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Sumi.seal)
+                }
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 16)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+    }
+}
+
+private struct InboxReminderTaskRow: View {
     @EnvironmentObject private var model: AppModel
     let task: ReminderTask
 
@@ -167,6 +305,19 @@ private struct ReminderTaskRow: View {
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
             }
+
+            Button("PLAN") {
+                model.addToDailyPlan(task)
+            }
+            .font(Sumi.label(8))
+            .sumiLabelTracking()
+            .buttonStyle(.plain)
+            .foregroundStyle(Sumi.paper)
+            .padding(.horizontal, 9)
+            .frame(height: 26)
+            .background(Sumi.ink)
+            .disabled(model.dailyPlan.count >= 3 || model.isLoadingDailyPlan)
+            .accessibilityLabel("Add \(task.title) to today's plan")
         }
         .padding(.horizontal, 28)
         .frame(minHeight: 64)

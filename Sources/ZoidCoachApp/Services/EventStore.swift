@@ -10,6 +10,15 @@ struct StoredSourceCheck: Equatable, Sendable {
     let checkedAt: Date
 }
 
+struct DailyPlanEntry: Identifiable, Equatable, Sendable {
+    let reminderID: String
+    let rank: Int
+    let isMainObjective: Bool
+    let estimateMinutes: Int?
+
+    var id: String { reminderID }
+}
+
 actor EventStore {
     private let handle: SQLiteDatabaseHandle?
     private let dateFormatter = ISO8601DateFormatter()
@@ -48,6 +57,63 @@ actor EventStore {
         return records
     }
 
+    func replaceDailyPlan(_ entries: [DailyPlanEntry], for day: Date = Date()) {
+        guard let database = handle?.pointer else { return }
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else { return }
+        var shouldCommit = false
+        defer {
+            _ = sqlite3_exec(database, shouldCommit ? "COMMIT;" : "ROLLBACK;", nil, nil, nil)
+        }
+        let dayKey = Self.dayKey(for: day)
+        guard let delete = prepare("DELETE FROM daily_plan_entries WHERE day_key = ?;", database: database) else { return }
+        defer { sqlite3_finalize(delete) }
+        bind(dayKey, to: delete, index: 1)
+        guard sqlite3_step(delete) == SQLITE_DONE else { return }
+
+        let sql = "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, updated_at) VALUES (?, ?, ?, ?, ?, ?);"
+        for entry in entries {
+            guard let statement = prepare(sql, database: database) else { return }
+            bind(dayKey, to: statement, index: 1)
+            bind(entry.reminderID, to: statement, index: 2)
+            sqlite3_bind_int(statement, 3, Int32(entry.rank))
+            sqlite3_bind_int(statement, 4, entry.isMainObjective ? 1 : 0)
+            if let estimateMinutes = entry.estimateMinutes {
+                sqlite3_bind_int(statement, 5, Int32(estimateMinutes))
+            } else {
+                sqlite3_bind_null(statement, 5)
+            }
+            bind(dateFormatter.string(from: Date()), to: statement, index: 6)
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                sqlite3_finalize(statement)
+                return
+            }
+            sqlite3_finalize(statement)
+        }
+        shouldCommit = true
+    }
+
+    func loadDailyPlan(for day: Date = Date()) -> [DailyPlanEntry] {
+        guard let database = handle?.pointer else { return [] }
+        let sql = "SELECT reminder_id, rank, is_main_objective, estimate_minutes FROM daily_plan_entries WHERE day_key = ? ORDER BY rank ASC;"
+        guard let statement = prepare(sql, database: database) else { return [] }
+        defer { sqlite3_finalize(statement) }
+        bind(Self.dayKey(for: day), to: statement, index: 1)
+        var entries: [DailyPlanEntry] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let reminderID = columnText(statement, index: 0) else { continue }
+            let estimateMinutes = sqlite3_column_type(statement, 3) == SQLITE_NULL ? nil : Int(sqlite3_column_int(statement, 3))
+            entries.append(
+                DailyPlanEntry(
+                    reminderID: reminderID,
+                    rank: Int(sqlite3_column_int(statement, 1)),
+                    isMainObjective: sqlite3_column_int(statement, 2) == 1,
+                    estimateMinutes: estimateMinutes
+                )
+            )
+        }
+        return entries
+    }
+
     private nonisolated static func migrate(database: OpaquePointer?) {
         guard let database else { return }
         let schema = """
@@ -62,6 +128,16 @@ actor EventStore {
             checked_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS source_checkpoints_source_time ON source_checkpoints(source_id, checked_at);
+        CREATE TABLE IF NOT EXISTS daily_plan_entries (
+            day_key TEXT NOT NULL,
+            reminder_id TEXT NOT NULL,
+            rank INTEGER NOT NULL,
+            is_main_objective INTEGER NOT NULL,
+            estimate_minutes INTEGER,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (day_key, reminder_id)
+        );
+        CREATE INDEX IF NOT EXISTS daily_plan_entries_day_rank ON daily_plan_entries(day_key, rank);
         INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (1, CURRENT_TIMESTAMP);
         """
         _ = sqlite3_exec(database, schema, nil, nil, nil)
@@ -85,6 +161,11 @@ actor EventStore {
     private static func defaultDatabaseURL() -> URL {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return support.appendingPathComponent("Zoid Coach", isDirectory: true).appendingPathComponent("zoid-coach.sqlite")
+    }
+
+    private static func dayKey(for date: Date) -> String {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
     }
 }
 

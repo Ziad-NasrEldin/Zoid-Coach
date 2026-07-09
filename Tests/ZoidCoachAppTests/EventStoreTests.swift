@@ -19,3 +19,19 @@ func eventStoreReplaysImmutableSourceCheckSequence() async throws {
     #expect(replay.map(\.detail) == ["9 records parsed", "Stream stale"])
     #expect(replay.map(\.checkedAt) == [firstDate, secondDate])
 }
+
+@Test
+func eventStorePersistsDailyPlanEntries() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-daily-plan-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let store = EventStore(databaseURL: databaseURL)
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let entries = [
+        DailyPlanEntry(reminderID: "first", rank: 1, isMainObjective: true, estimateMinutes: 45),
+        DailyPlanEntry(reminderID: "second", rank: 2, isMainObjective: false, estimateMinutes: nil)
+    ]
+
+    await store.replaceDailyPlan(entries, for: day)
+
+    #expect(await store.loadDailyPlan(for: day) == entries)
+}
