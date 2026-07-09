@@ -9,11 +9,22 @@ final class AppModel: ObservableObject {
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
+    private let remindersService: RemindersService
+    private let atollService: AtollService
+    private let eventStore: EventStore
 
-    init(screenwatchReader: ScreenwatchReader = ScreenwatchReader()) {
+    init(
+        screenwatchReader: ScreenwatchReader = ScreenwatchReader(),
+        remindersService: RemindersService = RemindersService(),
+        atollService: AtollService = AtollService(),
+        eventStore: EventStore = EventStore()
+    ) {
         self.screenwatchReader = screenwatchReader
+        self.remindersService = remindersService
+        self.atollService = atollService
+        self.eventStore = eventStore
         Task {
-            await refreshScreenwatch()
+            await refreshAllSources()
         }
     }
 
@@ -21,7 +32,6 @@ final class AppModel: ObservableObject {
         guard !isCheckingSources else { return }
 
         isCheckingSources = true
-        let sourcesBeforeCheck = sources
         sources = sources.map { source in
             var copy = source
             copy.state = .checking
@@ -30,14 +40,13 @@ final class AppModel: ObservableObject {
         }
 
         Task {
-            async let screenwatch = screenwatchReader.inspect()
             try? await Task.sleep(for: .milliseconds(320))
-
-            var nextSources = sourcesBeforeCheck.filter { $0.id != .screenwatch }
-            nextSources.append(await screenwatch)
-            sources = SourceID.allCases.compactMap { id in
-                nextSources.first { $0.id == id }
-            }
+            let reminders = await remindersService.inspect()
+            updateSource(reminders)
+            let screenwatch = await screenwatchReader.inspect()
+            updateSource(screenwatch)
+            let atoll = await atollService.inspect()
+            updateSource(atoll)
             lastCheckAt = Date()
             isCheckingSources = false
         }
@@ -47,16 +56,40 @@ final class AppModel: ObservableObject {
         switch sourceID {
         case .screenwatch:
             Task { await refreshScreenwatch() }
-        case .reminders, .atoll:
-            runSourceCheck()
+        case .reminders:
+            Task {
+                let result = await remindersService.requestAccessAndInspect()
+                updateSource(result)
+            }
+        case .atoll:
+            Task {
+                let result = await atollService.authorizeAndPresentTest()
+                updateSource(result)
+            }
         }
+    }
+
+    private func refreshAllSources() async {
+        let reminders = await remindersService.inspect()
+        updateSource(reminders)
+        let screenwatch = await screenwatchReader.inspect()
+        updateSource(screenwatch)
+        let atoll = await atollService.inspect()
+        updateSource(atoll)
+        lastCheckAt = Date()
     }
 
     private func refreshScreenwatch() async {
         let result = await screenwatchReader.inspect()
-        guard let index = sources.firstIndex(where: { $0.id == .screenwatch }) else { return }
+        updateSource(result)
+        lastCheckAt = Date()
+    }
+
+    private func updateSource(_ result: SourceHealth) {
+        guard let index = sources.firstIndex(where: { $0.id == result.id }) else { return }
         sources[index] = result
         lastCheckAt = Date()
+        Task { await eventStore.recordSourceCheck(result) }
     }
 }
 
