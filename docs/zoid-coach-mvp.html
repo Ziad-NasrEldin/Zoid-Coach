@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zoid Coach MVP</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --panel-2: #1f232d;
+      --ink: #f4f1e8;
+      --muted: #a8adba;
+      --line: #303544;
+      --accent: #8b5cf6;
+      --accent-2: #38bdf8;
+      --danger: #fb7185;
+      --good: #34d399;
+      --warn: #fbbf24;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(139, 92, 246, .22), transparent 32rem),
+        radial-gradient(circle at top right, rgba(56, 189, 248, .16), transparent 28rem),
+        var(--bg);
+      line-height: 1.55;
+    }
+
+    header {
+      padding: 56px 24px 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .wrap {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .eyebrow {
+      color: var(--accent-2);
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(42px, 8vw, 92px);
+      line-height: .88;
+      letter-spacing: -.07em;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 20px;
+      margin-top: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 24px;
+      padding: 30px 0 70px;
+    }
+
+    nav {
+      position: sticky;
+      top: 16px;
+      align-self: start;
+      background: rgba(23, 26, 33, .82);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    nav a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    nav a:hover { color: var(--ink); background: var(--panel-2); }
+
+    main {
+      display: grid;
+      gap: 18px;
+    }
+
+    section {
+      background: rgba(23, 26, 33, .88);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 20px 80px rgba(0,0,0,.24);
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 28px;
+      letter-spacing: -.035em;
+    }
+
+    h3 {
+      margin: 22px 0 8px;
+      color: var(--ink);
+    }
+
+    p { color: var(--muted); margin: 8px 0; }
+    li { margin: 6px 0; color: var(--muted); }
+    strong { color: var(--ink); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--muted);
+      font-size: 13px;
+      margin: 4px 6px 4px 0;
+      background: rgba(255,255,255,.03);
+    }
+
+    .tag.good { color: var(--good); }
+    .tag.warn { color: var(--warn); }
+    .tag.bad { color: var(--danger); }
+    .tag.accent { color: var(--accent-2); }
+
+    pre {
+      overflow: auto;
+      background: #0a0c10;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      color: #d7dee9;
+      font-size: 13px;
+    }
+
+    .hero-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 22px 0 0;
+    }
+
+    .flow-step {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(139, 92, 246, .12);
+      border: 1px solid rgba(139, 92, 246, .35);
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .mock {
+      background: #090b0f;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 18px;
+      margin-top: 14px;
+    }
+
+    .mock-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      color: var(--muted);
+    }
+
+    .mock-row:last-child { border-bottom: 0; }
+    .mock-row b { color: var(--ink); }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .button {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 12px;
+      padding: 9px 12px;
+      color: var(--ink);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .button.primary { background: var(--accent); border-color: var(--accent); }
+
+    footer {
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding: 28px 0 50px;
+      text-align: center;
+    }
+
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+      nav { position: static; }
+      .cards { grid-template-columns: 1fr; }
+      .mock-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="eyebrow">Screenwatch extension concept</div>
+      <h1>Zoid Coach MVP</h1>
+      <p class="subtitle">An interactive AI work coach that combines Apple Reminders, Screenwatch behavior logs, and A-Toll notch prompts to help Ziad finish work before gaming or drifting.</p>
+      <div class="hero-flow">
+        <div class="flow-step">Intent</div>
+        <div class="flow-step">Estimate</div>
+        <div class="flow-step">Observe</div>
+        <div class="flow-step">Nudge</div>
+        <div class="flow-step">Adjust</div>
+        <div class="flow-step">Review</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap grid">
+    <nav>
+      <a href="#thesis">Core thesis</a>
+      <a href="#mvp">MVP scope</a>
+      <a href="#sources">Data sources</a>
+      <a href="#dashboard">Dashboard</a>
+      <a href="#estimates">Estimates</a>
+      <a href="#classification">Classification</a>
+      <a href="#interruptions">Interruption levels</a>
+      <a href="#morning">Morning planning</a>
+      <a href="#tracking">Task tracking</a>
+      <a href="#gaming">Gaming system</a>
+      <a href="#atoll">A-Toll notch</a>
+      <a href="#reviews">Reviews</a>
+      <a href="#phases">Build phases</a>
+    </nav>
+
+    <main>
+      <section id="thesis">
+        <h2>1. Core thesis</h2>
+        <p>Zoid Coach should turn Screenwatch from a passive log into a closed-loop accountability system. It knows what Ziad meant to do, watches what is actually happening, and chooses the smallest useful intervention.</p>
+        <div class="cards">
+          <div class="card"><strong>What should Ziad do?</strong><p>Use Apple Reminders, deadlines, estimates, and priorities.</p></div>
+          <div class="card"><strong>What is happening?</strong><p>Use Screenwatch app/window/URL metadata and screenshots only when needed.</p></div>
+          <div class="card"><strong>Is there drift?</strong><p>Detect gaming, distraction, unclear tasks, and avoidance patterns.</p></div>
+          <div class="card"><strong>What now?</strong><p>Nudge, ask, reschedule, start a sprint, or review.</p></div>
+        </div>
+      </section>
+
+      <section id="mvp">
+        <h2>2. MVP scope</h2>
+        <p>The MVP should be useful immediately without building the whole final system.</p>
+        <span class="tag good">Apple Reminders tasks</span>
+        <span class="tag good">Estimated time per task</span>
+        <span class="tag good">Deadline / urgency</span>
+        <span class="tag good">Current active task</span>
+        <span class="tag good">Working time</span>
+        <span class="tag good">Gaming / distracting time</span>
+        <span class="tag good">AI “Do this next”</span>
+        <span class="tag good">End-of-day review</span>
+        <span class="tag good">A-Toll prompts</span>
+        <span class="tag bad">No focus score for now</span>
+        <span class="tag bad">No default hard blocking</span>
+      </section>
+
+      <section id="sources">
+        <h2>3. Data sources</h2>
+        <h3>Apple Reminders</h3>
+        <p>Source of truth for tasks: title, list/project, due date, status, notes, and priority.</p>
+        <pre>{
+  "title": "Edit video intro",
+  "user_estimate_minutes": 45,
+  "ai_estimate_minutes": 60,
+  "deadline": "today 3pm",
+  "status": "not_started",
+  "actual_minutes": 0
+}</pre>
+        <h3>Screenwatch</h3>
+        <p>Behavior telemetry: app, window, URL, screenshots, idle state, daily log.</p>
+        <h3>Installed app list</h3>
+        <p>Zoid Coach should scan local apps and classify them into work, communication, research, gaming, entertainment, distracting, neutral, and unknown.</p>
+      </section>
+
+      <section id="dashboard">
+        <h2>4. Daily dashboard</h2>
+        <p>A local-first command center showing today’s plan, behavior, and next action.</p>
+        <div class="mock">
+          <h3>Zoid Coach — Today</h3>
+          <p><strong>Main objective:</strong> Finish client edit before 3:00 PM</p>
+          <div class="mock-row"><b>Edit video intro</b><span>45m</span><span>Due today</span></div>
+          <div class="mock-row"><b>Reply to client</b><span>15m</span><span>Due today</span></div>
+          <div class="mock-row"><b>Ship landing page copy</b><span>1h 30m</span><span>Tomorrow</span></div>
+          <p><strong>Active task:</strong> Edit video intro — 18m / 45m</p>
+          <p><strong>Working:</strong> 2h 15m · <strong>Gaming:</strong> 37m · <strong>Idle:</strong> 32m</p>
+          <p><strong>Do this next:</strong> Reply to client. It is short, due today, and will reduce anxiety quickly.</p>
+        </div>
+      </section>
+
+      <section id="estimates">
+        <h2>5. Estimate collection</h2>
+        <p>Whenever a new Reminder has no estimate, Zoid Coach asks:</p>
+        <pre>Ziad, how long do you think this will take?
+“Edit thumbnail pack”</pre>
+        <div class="buttons">
+          <div class="button">15m</div>
+          <div class="button">30m</div>
+          <div class="button">45m</div>
+          <div class="button">1h</div>
+          <div class="button primary">Custom</div>
+        </div>
+        <p>Later, it compares estimated vs actual time and learns calibration patterns.</p>
+      </section>
+
+      <section id="classification">
+        <h2>6. Behavior classification</h2>
+        <p>Zoid Coach uses rules plus AI classification. Rules catch obvious patterns; AI resolves context.</p>
+        <div class="cards">
+          <div class="card"><strong>Gaming</strong><p>League of Legends, Riot Client, Steam, Battle.net, Epic Games, Twitch, gaming-context Discord.</p></div>
+          <div class="card"><strong>Work</strong><p>Cursor, VS Code, Terminal, Hermes, Figma, Notion, Reminders, work browser URLs.</p></div>
+          <div class="card"><strong>Ambiguous</strong><p>YouTube, Discord, browser tabs, Slack, research pages.</p></div>
+          <div class="card"><strong>AI context</strong><p>Use active task, URL/window title, recent app switches, and selected frames when needed.</p></div>
+        </div>
+      </section>
+
+      <section id="interruptions">
+        <h2>7. Interruption levels</h2>
+        <div class="cards">
+          <div class="card"><strong>Level 0 — Observe</strong><p>No interruption. Just log.</p></div>
+          <div class="card"><strong>Level 1 — Gentle nudge</strong><p>“You planned to work on X. Want to start?”</p></div>
+          <div class="card"><strong>Level 2 — Accountability</strong><p>“You’ve been in League for 25m. Is this intentional?”</p></div>
+          <div class="card"><strong>Level 3 — Commit mode</strong><p>“Pick one: 20m sprint or reschedule.”</p></div>
+          <div class="card"><strong>Level 4 — Soft block</strong><p>Stronger notch warning / overlay.</p></div>
+          <div class="card"><strong>Level 5 — Hard block</strong><p>Optional only. Never default.</p></div>
+        </div>
+      </section>
+
+      <section id="morning">
+        <h2>8. Morning planning</h2>
+        <pre>Good morning Ziad. What are the 3 things that would make today successful?</pre>
+        <p>Zoid Coach proposes a plan from Reminders:</p>
+        <pre>1. Finish client task — 90m
+2. Edit video — 45m
+3. Clean inbox — 20m
+
+Total focus: 2h 35m
+Buffer: 1h
+Gaming allowed after: 2 completed tasks</pre>
+      </section>
+
+      <section id="tracking">
+        <h2>9. Task start / stop tracking</h2>
+        <p>Ziad can start a task from the dashboard, notch, or command. Zoid Coach then checks whether active behavior matches the task.</p>
+        <pre>You started “Edit video intro” 4m ago but switched to League.
+Was that intentional?</pre>
+      </section>
+
+      <section id="gaming">
+        <h2>10. Gaming control system</h2>
+        <p>Gaming should be managed as a budget and reward system, not pure punishment.</p>
+        <pre>Gaming budget: 60m/day
+Unlocked after: 2 priority tasks complete
+
+Finish 90m focused work → unlock 30m gaming.</pre>
+        <p>If gaming happens before work:</p>
+        <pre>You used 42m gaming before completing priority work.
+To unlock more, finish one 30m sprint.</pre>
+        <p>Ziad can always override. Overrides are logged without moralizing and reviewed later.</p>
+      </section>
+
+      <section id="atoll">
+        <h2>11. A-Toll / notch integration</h2>
+        <p>A-Toll should be the main interactive surface.</p>
+        <h3>Passive state</h3>
+        <pre>Zoid: Client reply · 15m
+Work: 2h 15m · Gaming: 37m</pre>
+        <h3>Alert</h3>
+        <pre>You’ve been in League for 25m.
+Continue or switch to your 45m video task?</pre>
+        <div class="buttons">
+          <div class="button">5 more min</div>
+          <div class="button primary">Start task</div>
+          <div class="button">Done today</div>
+          <div class="button">Intentional</div>
+        </div>
+      </section>
+
+      <section id="reviews">
+        <h2>12. End-of-day and weekly reviews</h2>
+        <h3>End of day</h3>
+        <pre>Focused work: 2h 15m
+Gaming: 1h 42m
+Idle: 50m
+Tasks completed: 3/7
+
+Main drift:
+League started at 2:14 after opening Discord.
+
+Tomorrow recommendation:
+Do hardest task before opening Discord/League.</pre>
+        <h3>Weekly coach review</h3>
+        <pre>Patterns:
+- You underestimate coding tasks by 1.8x.
+- Gaming usually starts after unclear tasks.
+- You complete more when first task is under 30m.
+
+Recommendation:
+Break vague tasks automatically and require estimates.</pre>
+      </section>
+
+      <section id="phases">
+        <h2>13. MVP implementation phases</h2>
+        <div class="cards">
+          <div class="card"><strong>Phase 1 — Daily Command Center</strong><p>Reminders import, task metadata, estimates, dashboard, active task, work/gaming totals, recommendation.</p></div>
+          <div class="card"><strong>Phase 2 — A-Toll prompts</strong><p>Estimate questions, drift alerts, start/reschedule/snooze buttons.</p></div>
+          <div class="card"><strong>Phase 3 — Classification engine</strong><p>Installed app inventory, rules, unknown app review, AI classifier.</p></div>
+          <div class="card"><strong>Phase 4 — Gaming budget</strong><p>Daily allowance, unlock rules, debt, overrides, soft prompts.</p></div>
+          <div class="card"><strong>Phase 5 — Reviews</strong><p>End-of-day summaries, tomorrow planning, weekly pattern reports.</p></div>
+        </div>
+        <h3>First build target</h3>
+        <pre>If League is active for >10 minutes
+AND top tasks are incomplete
+AND current time is before 8 PM
+→ A-Toll prompt:
+
+“Ziad, you still have ‘Edit video intro’ estimated at 45m.
+Do a 20m sprint now?”</pre>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    Zoid Coach MVP · local-first productivity coach concept · 2026-07-09
+  </footer>
+</body>
+</html>

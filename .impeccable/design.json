@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-09T00:00:00Z",
+  "title": "Design System: Zoid Coach Sumi-Ink Command System",
+  "extensions": {
+    "colorMeta": {
+      "sumi-ink": { "role": "primary", "displayName": "Sumi Ink", "canonical": "#0D0A0A", "tonalRamp": ["#0D0A0A", "#2A2626", "#474343", "#666161", "#878282", "#A9A5A5", "#CCC9C9", "#F1EFEF"] },
+      "sumi-paper": { "role": "neutral", "displayName": "Sumi Paper", "canonical": "#FFFFFF", "tonalRamp": ["#292626", "#494545", "#696565", "#898585", "#AAA6A6", "#CAC7C7", "#E9E7E7", "#FFFFFF"] },
+      "sumi-seal": { "role": "accent", "displayName": "Sumi Seal", "canonical": "#C23A2E", "tonalRamp": ["#3C0B08", "#64150F", "#8B2119", "#B22F25", "#D55347", "#E9877E", "#F3B8B3", "#FBE9E7"] },
+      "sumi-muted": { "role": "neutral", "displayName": "Sumi Muted", "canonical": "#545554", "tonalRamp": ["#202120", "#3A3B3A", "#545554", "#707170", "#8E8F8E", "#ADAEAD", "#CECFCE", "#F0F1F0"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Daily purpose and main objective only." },
+      "headline": { "displayName": "Headline", "purpose": "Major operational sections." },
+      "body": { "displayName": "Body", "purpose": "Coaching copy and explanations." },
+      "label": { "displayName": "Label", "purpose": "Navigation, status, metadata, and controls." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "control", "value": "180ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Button, focus, and status feedback." },
+      { "name": "row", "value": "220ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Ledger row insertion and state update." }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "760px" },
+      { "name": "regular", "value": "1040px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single primary action on a decision surface.",
+      "html": "<button class=\"ds-primary\">START TASK</button>",
+      "css": ".ds-primary { height: 44px; border: 1px solid #0D0A0A; border-radius: 0; padding: 0 14px; background: #0D0A0A; color: #FFFFFF; font-family: Georgia, serif; font-size: 10px; letter-spacing: .14em; } .ds-primary:hover { border-color: #C23A2E; background: #C23A2E; } .ds-primary:focus-visible { outline: 2px solid #C23A2E; outline-offset: 2px; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "A secondary operational action.",
+      "html": "<button class=\"ds-quiet\">OPEN SETTINGS</button>",
+      "css": ".ds-quiet { height: 30px; border: 1px solid #E0E0E0; border-radius: 0; padding: 0 10px; background: #FFFFFF; color: #0D0A0A; font-family: Georgia, serif; font-size: 10px; letter-spacing: .12em; } .ds-quiet:hover { border-color: #0D0A0A; } .ds-quiet:focus-visible { outline: 2px solid #C23A2E; outline-offset: 2px; }"
+    },
+    {
+      "name": "Neutral Field",
+      "kind": "input",
+      "refersTo": "field-neutral",
+      "description": "Square paper field with ink focus.",
+      "html": "<input class=\"ds-field\" value=\"Client edit\" aria-label=\"Task title\">",
+      "css": ".ds-field { min-height: 42px; border: 1px solid #E0E0E0; border-radius: 0; padding: 10px; background: #FFFFFF; color: #0D0A0A; font: 14px/1.5 Georgia, serif; } .ds-field:focus { border-color: #0D0A0A; outline: 2px solid #C23A2E; outline-offset: 1px; }"
+    },
+    {
+      "name": "Health Status",
+      "kind": "chip",
+      "refersTo": "status-attention",
+      "description": "Written health state using ink, seal, or okay fill.",
+      "html": "<span class=\"ds-status\">ATTENTION</span>",
+      "css": ".ds-status { display: inline-block; border: 1px solid #C23A2E; border-radius: 0; padding: 4px 7px; background: #C23A2E; color: #FFFFFF; font-family: Georgia, serif; font-size: 9px; letter-spacing: .14em; }"
+    },
+    {
+      "name": "Health Ledger Row",
+      "kind": "custom",
+      "description": "Ruled source health row for Release 0 diagnostics.",
+      "html": "<div class=\"ds-health\"><strong>SCREENWATCH</strong><span>HEALTHY</span><small>5 seconds ago</small></div>",
+      "css": ".ds-health { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; border-top: 1px solid #EDEDED; border-bottom: 1px solid #EDEDED; padding: 14px 0; color: #0D0A0A; font-family: Georgia, serif; } .ds-health span { padding: 4px 7px; background: #2F3A2F; color: #FFFFFF; font-size: 9px; letter-spacing: .12em; } .ds-health small { color: #545554; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Private Command Ledger",
+    "overview": "White paper, black ink, pale rules, and a single red seal create a quiet operational workspace for daily behavioral coaching.",
+    "keyCharacteristics": ["White paper first", "Black ink structure", "Red seal attention", "Ruled operational rows", "Zero radius controls", "Written state labels"],
+    "rules": [
+      { "name": "The One Seal Rule", "body": "Red seal is the only saturated accent and remains rare enough to signal a decision.", "section": "colors" },
+      { "name": "The Flat Ledger Rule", "body": "Surfaces remain flat and ruled, with no decorative shadow stacks.", "section": "elevation" }
+    ],
+    "dos": ["Do place the active task and next action before analytics.", "Do make missing data visually different from zero."],
+    "donts": ["Don't use blue architecture, decorative gradients, glassmorphism, warm gold, neon accents, or novelty AI styling.", "Don't use shame, guilt, disappointment, or moral labels in coaching copy."]
+  }
+}
