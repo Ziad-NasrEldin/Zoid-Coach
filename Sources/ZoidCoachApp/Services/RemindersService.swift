@@ -4,6 +4,7 @@ import Foundation
 struct ReminderTask: Identifiable, Equatable, Sendable {
     let id: String
     let title: String
+    let listID: String
     let listName: String
     let dueDate: Date?
 
@@ -96,9 +97,10 @@ final class RemindersService {
                 DispatchQueue.main.async {
                     continuation.resume(returning: (reminders ?? []).map {
                         ReminderTask(
-                            id: $0.calendarItemIdentifier,
-                            title: $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled reminder" : $0.title,
-                            listName: $0.calendar.title,
+                        id: $0.calendarItemIdentifier,
+                        title: $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled reminder" : $0.title,
+                        listID: $0.calendar.calendarIdentifier,
+                        listName: $0.calendar.title,
                             dueDate: $0.dueDateComponents.flatMap(Calendar.current.date(from:))
                         )
                     })

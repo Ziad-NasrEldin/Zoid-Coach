@@ -125,8 +125,8 @@ private struct TodayCommandView: View {
                         .foregroundStyle(Sumi.muted)
                         .padding(28)
                 } else {
-                    ForEach(unplannedTasks) { task in
-                        InboxReminderTaskRow(task: task)
+                    ForEach(groupedUnplannedTasks) { group in
+                        ReminderListGroup(group: group)
                     }
                 }
             }
@@ -136,6 +136,50 @@ private struct TodayCommandView: View {
     private var unplannedTasks: [ReminderTask] {
         model.reminderTasks.filter { task in
             !model.dailyPlan.contains { $0.reminderID == task.id }
+        }
+    }
+
+    private var groupedUnplannedTasks: [ReminderTaskGroup] {
+        Dictionary(grouping: unplannedTasks, by: \.listID)
+            .compactMap { listID, tasks in
+                tasks.first.map { ReminderTaskGroup(listID: listID, listName: $0.listName, tasks: tasks) }
+            }
+            .sorted { $0.listName.localizedCaseInsensitiveCompare($1.listName) == .orderedAscending }
+    }
+}
+
+private struct ReminderTaskGroup: Identifiable {
+    let listID: String
+    let listName: String
+    let tasks: [ReminderTask]
+
+    var id: String { listID }
+}
+
+private struct ReminderListGroup: View {
+    let group: ReminderTaskGroup
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(group.listName)
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Spacer()
+                Text("\(group.tasks.count) TASK\(group.tasks.count == 1 ? "" : "S")")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 10)
+            .background(Sumi.softPaper)
+            .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+
+            ForEach(group.tasks) { task in
+                InboxReminderTaskRow(task: task)
+            }
         }
     }
 }
