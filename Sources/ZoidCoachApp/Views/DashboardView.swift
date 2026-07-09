@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct DashboardView: View {
     @EnvironmentObject private var model: AppModel
@@ -125,9 +126,23 @@ private struct TodayCommandView: View {
                         .foregroundStyle(Sumi.muted)
                         .padding(28)
                 } else {
-                    ForEach(groupedUnplannedTasks) { group in
-                        ReminderListGroup(group: group)
+                    let groups = groupedUnplannedTasks
+                    ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                        ReminderListGroup(
+                            group: group,
+                            moveUp: index > 0 ? {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    model.moveReminderList(group.listID, before: groups[index - 1].listID)
+                                }
+                            } : nil,
+                            moveDown: index < groups.count - 1 ? {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    model.moveReminderList(groups[index + 1].listID, before: group.listID)
+                                }
+                            } : nil
+                        )
                     }
+                    ReminderListEndDropTarget()
                 }
             }
         }
@@ -144,7 +159,12 @@ private struct TodayCommandView: View {
             .compactMap { listID, tasks in
                 tasks.first.map { ReminderTaskGroup(listID: listID, listName: $0.listName, tasks: tasks) }
             }
-            .sorted { $0.listName.localizedCaseInsensitiveCompare($1.listName) == .orderedAscending }
+            .sorted { lhs, rhs in
+                let leftIndex = model.reminderListOrder.firstIndex(of: lhs.listID) ?? .max
+                let rightIndex = model.reminderListOrder.firstIndex(of: rhs.listID) ?? .max
+                if leftIndex != rightIndex { return leftIndex < rightIndex }
+                return lhs.listName.localizedCaseInsensitiveCompare(rhs.listName) == .orderedAscending
+            }
     }
 }
 
@@ -157,11 +177,19 @@ private struct ReminderTaskGroup: Identifiable {
 }
 
 private struct ReminderListGroup: View {
+    @EnvironmentObject private var model: AppModel
     let group: ReminderTaskGroup
+    let moveUp: (() -> Void)?
+    let moveDown: (() -> Void)?
+    @State private var isDropTarget = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityHidden(true)
                 Text(group.listName)
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
@@ -171,16 +199,71 @@ private struct ReminderListGroup: View {
                     .font(Sumi.label(8))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
+                if let moveUp {
+                    Button(action: moveUp) {
+                        Image(systemName: "arrow.up")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Sumi.ink)
+                    .accessibilityLabel("Move \(group.listName) up")
+                }
+                if let moveDown {
+                    Button(action: moveDown) {
+                        Image(systemName: "arrow.down")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Sumi.ink)
+                    .accessibilityLabel("Move \(group.listName) down")
+                }
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 10)
-            .background(Sumi.softPaper)
+            .background(isDropTarget ? Sumi.sealWash : Sumi.softPaper)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+            .contentShape(Rectangle())
+            .draggable(group.listID)
+            .dropDestination(for: String.self) { listIDs, _ in
+                guard let listID = listIDs.first else { return false }
+                withAnimation(.easeOut(duration: 0.2)) {
+                    model.moveReminderList(listID, before: group.listID)
+                }
+                return true
+            } isTargeted: { isTargeted in
+                isDropTarget = isTargeted
+            }
+            .allowsHitTesting(!model.isLoadingReminderListOrder)
+            .accessibilityLabel("\(group.listName), \(group.tasks.count) tasks. Drag to reorder this reminder list.")
 
             ForEach(group.tasks) { task in
                 InboxReminderTaskRow(task: task)
             }
         }
+    }
+}
+
+private struct ReminderListEndDropTarget: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var isDropTarget = false
+
+    var body: some View {
+        Text(isDropTarget ? "DROP TO MOVE LIST LAST" : "DRAG A LIST HERE TO MOVE IT LAST")
+            .font(Sumi.label(8))
+            .sumiLabelTracking()
+            .foregroundStyle(isDropTarget ? Sumi.seal : Sumi.muted)
+            .frame(maxWidth: .infinity, minHeight: 34)
+            .background(isDropTarget ? Sumi.sealWash : Sumi.softPaper)
+            .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+            .dropDestination(for: String.self) { listIDs, _ in
+                guard let listID = listIDs.first else { return false }
+                withAnimation(.easeOut(duration: 0.2)) {
+                    model.moveReminderListToEnd(listID)
+                }
+                return true
+            } isTargeted: { isTargeted in
+                isDropTarget = isTargeted
+            }
+            .allowsHitTesting(!model.isLoadingReminderListOrder)
+            .accessibilityLabel("Move reminder list to the final position")
     }
 }
 

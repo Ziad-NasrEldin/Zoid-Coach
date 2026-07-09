@@ -8,8 +8,10 @@ final class AppModel: ObservableObject {
     @Published var sources: [SourceHealth] = SourceHealth.initial
     @Published var reminderTasks: [ReminderTask] = []
     @Published var dailyPlan: [DailyPlanEntry] = []
+    @Published var reminderListOrder: [String] = []
     @Published var isLoadingReminderTasks = false
     @Published private(set) var isLoadingDailyPlan = true
+    @Published private(set) var isLoadingReminderListOrder = true
     @Published var reminderTaskError: String?
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
@@ -19,6 +21,7 @@ final class AppModel: ObservableObject {
     private let eventStore: EventStore
     private var reminderTasksAreAvailable = false
     private var planWriteTask: Task<Void, Never>?
+    private var listOrderWriteTask: Task<Void, Never>?
 
     init(
         screenwatchReader: ScreenwatchReader = ScreenwatchReader(),
@@ -34,6 +37,7 @@ final class AppModel: ObservableObject {
             await refreshAllSources()
             await refreshReminderTasks()
             await reloadDailyPlan()
+            await reloadReminderListOrder()
         }
     }
 
@@ -161,6 +165,35 @@ final class AppModel: ObservableObject {
         persistDailyPlan()
     }
 
+    func moveReminderList(_ listID: String, before destinationID: String) {
+        let knownListIDs = Set(reminderTasks.map(\.listID))
+        guard !isLoadingReminderListOrder,
+              listID != destinationID,
+              knownListIDs.contains(listID),
+              knownListIDs.contains(destinationID)
+        else { return }
+        var order = reminderListOrder
+        if !order.contains(listID) { order.append(listID) }
+        if !order.contains(destinationID) { order.append(destinationID) }
+        order.removeAll { $0 == listID }
+        let destinationIndex = order.firstIndex(of: destinationID) ?? order.endIndex
+        order.insert(listID, at: destinationIndex)
+        reminderListOrder = order
+        persistReminderListOrder()
+    }
+
+    func moveReminderListToEnd(_ listID: String) {
+        guard !isLoadingReminderListOrder,
+              Set(reminderTasks.map(\.listID)).contains(listID)
+        else { return }
+        var order = reminderListOrder
+        if !order.contains(listID) { order.append(listID) }
+        order.removeAll { $0 == listID }
+        order.append(listID)
+        reminderListOrder = order
+        persistReminderListOrder()
+    }
+
     private func refreshAllSources() async {
         let reminders = await remindersService.inspect()
         updateSource(reminders)
@@ -228,6 +261,20 @@ final class AppModel: ObservableObject {
         planWriteTask = Task { [eventStore] in
             await previousWrite?.value
             await eventStore.replaceDailyPlan(entries)
+        }
+    }
+
+    private func reloadReminderListOrder() async {
+        reminderListOrder = await eventStore.loadReminderListOrder()
+        isLoadingReminderListOrder = false
+    }
+
+    private func persistReminderListOrder() {
+        let order = reminderListOrder
+        let previousWrite = listOrderWriteTask
+        listOrderWriteTask = Task { [eventStore] in
+            await previousWrite?.value
+            await eventStore.replaceReminderListOrder(order)
         }
     }
 

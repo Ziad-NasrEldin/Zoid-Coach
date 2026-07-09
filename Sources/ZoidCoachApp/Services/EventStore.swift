@@ -114,6 +114,45 @@ actor EventStore {
         return entries
     }
 
+    func replaceReminderListOrder(_ listIDs: [String]) {
+        guard let database = handle?.pointer else { return }
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else { return }
+        var shouldCommit = false
+        defer {
+            _ = sqlite3_exec(database, shouldCommit ? "COMMIT;" : "ROLLBACK;", nil, nil, nil)
+        }
+        guard let delete = prepare("DELETE FROM reminder_list_order;", database: database) else { return }
+        defer { sqlite3_finalize(delete) }
+        guard sqlite3_step(delete) == SQLITE_DONE else { return }
+
+        let sql = "INSERT INTO reminder_list_order (list_id, position, updated_at) VALUES (?, ?, ?);"
+        for (index, listID) in listIDs.enumerated() {
+            guard let statement = prepare(sql, database: database) else { return }
+            bind(listID, to: statement, index: 1)
+            sqlite3_bind_int(statement, 2, Int32(index))
+            bind(dateFormatter.string(from: Date()), to: statement, index: 3)
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                sqlite3_finalize(statement)
+                return
+            }
+            sqlite3_finalize(statement)
+        }
+        shouldCommit = true
+    }
+
+    func loadReminderListOrder() -> [String] {
+        guard let database = handle?.pointer else { return [] }
+        guard let statement = prepare("SELECT list_id FROM reminder_list_order ORDER BY position ASC;", database: database) else { return [] }
+        defer { sqlite3_finalize(statement) }
+        var listIDs: [String] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let listID = columnText(statement, index: 0) {
+                listIDs.append(listID)
+            }
+        }
+        return listIDs
+    }
+
     private nonisolated static func migrate(database: OpaquePointer?) {
         guard let database else { return }
         let schema = """
@@ -138,7 +177,13 @@ actor EventStore {
             PRIMARY KEY (day_key, reminder_id)
         );
         CREATE INDEX IF NOT EXISTS daily_plan_entries_day_rank ON daily_plan_entries(day_key, rank);
+        CREATE TABLE IF NOT EXISTS reminder_list_order (
+            list_id TEXT PRIMARY KEY,
+            position INTEGER NOT NULL,
+            updated_at TEXT NOT NULL
+        );
         INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (1, CURRENT_TIMESTAMP);
+        INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, CURRENT_TIMESTAMP);
         """
         _ = sqlite3_exec(database, schema, nil, nil, nil)
     }

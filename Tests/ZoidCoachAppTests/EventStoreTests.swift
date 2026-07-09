@@ -35,3 +35,14 @@ func eventStorePersistsDailyPlanEntries() async throws {
 
     #expect(await store.loadDailyPlan(for: day) == entries)
 }
+
+@Test
+func eventStorePersistsReminderListOrder() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-list-order-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let store = EventStore(databaseURL: databaseURL)
+
+    await store.replaceReminderListOrder(["work", "tinker", "later"])
+
+    #expect(await store.loadReminderListOrder() == ["work", "tinker", "later"])
+}
