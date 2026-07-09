@@ -6,6 +6,9 @@ final class AppModel: ObservableObject {
     @Published var selectedSection: AppSection = .diagnostics
     @Published var coachingState: CoachingState = .observation
     @Published var sources: [SourceHealth] = SourceHealth.initial
+    @Published var reminderTasks: [ReminderTask] = []
+    @Published var isLoadingReminderTasks = false
+    @Published var reminderTaskError: String?
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
@@ -25,6 +28,7 @@ final class AppModel: ObservableObject {
         self.eventStore = eventStore
         Task {
             await refreshAllSources()
+            await refreshReminderTasks()
         }
     }
 
@@ -69,6 +73,27 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func refreshReminderTasks() {
+        guard !isLoadingReminderTasks else { return }
+        isLoadingReminderTasks = true
+        reminderTaskError = nil
+
+        Task {
+            await refreshReminderTasks()
+        }
+    }
+
+    func completeReminderTask(_ task: ReminderTask) {
+        Task {
+            let completed = await remindersService.completeTask(id: task.id)
+            if completed {
+                await refreshReminderTasks()
+            } else {
+                reminderTaskError = "Could not complete \"\(task.title)\". Refresh and try again."
+            }
+        }
+    }
+
     private func refreshAllSources() async {
         let reminders = await remindersService.inspect()
         updateSource(reminders)
@@ -83,6 +108,17 @@ final class AppModel: ObservableObject {
         let result = await screenwatchReader.inspect()
         updateSource(result)
         lastCheckAt = Date()
+    }
+
+    private func refreshReminderTasks() async {
+        switch await remindersService.fetchIncompleteTasks() {
+        case let .available(tasks):
+            reminderTasks = tasks
+        case .unavailable:
+            reminderTasks = []
+            reminderTaskError = "Apple Reminders access is unavailable. Connect it from Source health, then refresh tasks."
+        }
+        isLoadingReminderTasks = false
     }
 
     private func updateSource(_ result: SourceHealth) {

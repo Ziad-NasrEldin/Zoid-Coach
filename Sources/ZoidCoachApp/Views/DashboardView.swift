@@ -11,11 +11,17 @@ struct DashboardView: View {
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    CommandHeaderView()
-                    FoundationHeroView()
-                    SourceHealthLedgerView()
-                    LocalFoundationView()
+                Group {
+                    if model.selectedSection == .today {
+                        TodayCommandView()
+                    } else {
+                        VStack(alignment: .leading, spacing: 0) {
+                            CommandHeaderView()
+                            FoundationHeroView()
+                            SourceHealthLedgerView()
+                            LocalFoundationView()
+                        }
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -23,6 +29,148 @@ struct DashboardView: View {
         }
         .background(Sumi.paper)
         .preferredColorScheme(.light)
+    }
+}
+
+private struct TodayCommandView: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("TODAY / INBOX")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Text("Real Apple Reminders")
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.muted)
+                }
+
+                Spacer()
+
+                Button {
+                    model.refreshReminderTasks()
+                } label: {
+                    HStack(spacing: 7) {
+                        if model.isLoadingReminderTasks {
+                            ProgressView().controlSize(.small).tint(Sumi.paper)
+                        }
+                        Text(model.isLoadingReminderTasks ? "LOADING" : "REFRESH TASKS")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                    }
+                    .foregroundStyle(Sumi.paper)
+                    .padding(.horizontal, 14)
+                    .frame(height: 36)
+                    .background(Sumi.seal)
+                }
+                .buttonStyle(.plain)
+                .disabled(model.isLoadingReminderTasks)
+                .accessibilityLabel("Refresh reminders")
+            }
+            .padding(.horizontal, 28)
+            .frame(height: 72)
+            .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("READY TO DECIDE")
+                    .font(Sumi.label(10))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Text("Choose what matters\nbefore the day chooses for you.")
+                    .font(Sumi.display(40))
+                    .tracking(-1.2)
+                    .foregroundStyle(Sumi.ink)
+                Text("These are your incomplete Apple Reminders. Completing an item here marks the same reminder complete in Apple Reminders.")
+                    .font(Sumi.body(15))
+                    .foregroundStyle(Sumi.muted)
+                    .lineSpacing(4)
+                    .frame(maxWidth: 620, alignment: .leading)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 34)
+
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("INCOMPLETE TASKS")
+                        .font(Sumi.label(10))
+                        .sumiLabelTracking()
+                    Spacer()
+                    Text("\(model.reminderTasks.count) AVAILABLE")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.muted)
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 12)
+                .background(Sumi.mist)
+                .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+                if let error = model.reminderTaskError {
+                    Text(error)
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.seal)
+                        .padding(28)
+                } else if model.isLoadingReminderTasks && model.reminderTasks.isEmpty {
+                    ProgressView("Loading your incomplete reminders")
+                        .padding(28)
+                } else if model.reminderTasks.isEmpty {
+                    Text("No incomplete reminders are available. Connect Apple Reminders from Source health if access has not been granted.")
+                        .font(Sumi.body(14))
+                        .foregroundStyle(Sumi.muted)
+                        .padding(28)
+                } else {
+                    ForEach(model.reminderTasks) { task in
+                        ReminderTaskRow(task: task)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct ReminderTaskRow: View {
+    @EnvironmentObject private var model: AppModel
+    let task: ReminderTask
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Button {
+                model.completeReminderTask(task)
+            } label: {
+                Image(systemName: "circle")
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundStyle(Sumi.seal)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Complete \(task.title)")
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(task.title)
+                    .font(Sumi.body(15))
+                    .foregroundStyle(Sumi.ink)
+                Text(task.listName)
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+            }
+
+            Spacer()
+
+            if let dueLabel = task.dueLabel {
+                Text(dueLabel.uppercased())
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+            }
+        }
+        .padding(.horizontal, 28)
+        .frame(minHeight: 64)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
     }
 }
 

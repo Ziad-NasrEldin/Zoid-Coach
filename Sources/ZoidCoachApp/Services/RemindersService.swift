@@ -1,6 +1,23 @@
 import EventKit
 import Foundation
 
+struct ReminderTask: Identifiable, Equatable, Sendable {
+    let id: String
+    let title: String
+    let listName: String
+    let dueDate: Date?
+
+    var dueLabel: String? {
+        guard let dueDate else { return nil }
+        return dueDate.formatted(.dateTime.month(.abbreviated).day())
+    }
+}
+
+enum ReminderTaskLoad: Sendable {
+    case available([ReminderTask])
+    case unavailable
+}
+
 @MainActor
 final class RemindersService {
     private let store: EKEventStore
@@ -66,6 +83,55 @@ final class RemindersService {
         }
     }
 
+    func fetchIncompleteTasks() async -> ReminderTaskLoad {
+        guard hasFullAccess else { return .unavailable }
+
+        let predicate = store.predicateForIncompleteReminders(
+            withDueDateStarting: nil,
+            ending: nil,
+            calendars: nil
+        )
+        let tasks: [ReminderTask] = await withCheckedContinuation { continuation in
+            store.fetchReminders(matching: predicate) { reminders in
+                DispatchQueue.main.async {
+                    continuation.resume(returning: (reminders ?? []).map {
+                        ReminderTask(
+                            id: $0.calendarItemIdentifier,
+                            title: $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled reminder" : $0.title,
+                            listName: $0.calendar.title,
+                            dueDate: $0.dueDateComponents.flatMap(Calendar.current.date(from:))
+                        )
+                    })
+                }
+            }
+        }
+
+        return .available(tasks
+            .sorted { lhs, rhs in
+                switch (lhs.dueDate, rhs.dueDate) {
+                case let (left?, right?): left < right
+                case (_?, nil): true
+                case (nil, _?): false
+                case (nil, nil): lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+                }
+            })
+    }
+
+    func completeTask(id: String) async -> Bool {
+        guard hasFullAccess,
+              let reminder = store.calendarItem(withIdentifier: id) as? EKReminder
+        else { return false }
+
+        do {
+            reminder.isCompleted = true
+            reminder.completionDate = Date()
+            try store.save(reminder, commit: true)
+            return (store.calendarItem(withIdentifier: id) as? EKReminder)?.isCompleted == true
+        } catch {
+            return false
+        }
+    }
+
     private func authorizedHealth() async -> SourceHealth {
         let reminderCount = await fetchIncompleteReminderCount()
         let listCount = store.calendars(for: .reminder).count
@@ -79,6 +145,13 @@ final class RemindersService {
             evidence: "EventKit full access · \(listCount.formatted()) lists discovered",
             actionTitle: "Refresh"
         )
+    }
+
+    private var hasFullAccess: Bool {
+        switch EKEventStore.authorizationStatus(for: .reminder) {
+        case .fullAccess, .authorized: true
+        default: false
+        }
     }
 
     private func fetchIncompleteReminderCount() async -> Int {
