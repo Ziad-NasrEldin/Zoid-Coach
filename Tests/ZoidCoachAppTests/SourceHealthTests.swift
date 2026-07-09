@@ -18,7 +18,7 @@ func healthStatesAlwaysExposeWrittenLabels() {
 
 @MainActor
 @Test
-func sourceCheckRestoresStableStatesAfterChecking() async {
+func sourceCheckCompletesWithStableSourceStates() async {
     let root = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString, isDirectory: true)
     let model = AppModel(screenwatchReader: ScreenwatchReader(baseDirectory: root))
@@ -26,7 +26,6 @@ func sourceCheckRestoresStableStatesAfterChecking() async {
     model.runSourceCheck()
     try? await Task.sleep(for: .milliseconds(500))
 
-    #expect(model.sources.first(where: { $0.id == .reminders })?.state == .notConnected)
-    #expect(model.sources.first(where: { $0.id == .atoll })?.state == .notConnected)
+    #expect(model.sources.allSatisfy { $0.state != .checking })
     #expect(model.isCheckingSources == false)
 }

@@ -50,15 +50,20 @@ final class AtollService {
             _ = try await request(
                 method: "atoll.presentLiveActivity",
                 additionalParameters: [
-                    "activity": [
+                    "descriptor": [
                         "id": activityID,
+                        "bundleIdentifier": bundleIdentifier,
                         "priority": "normal",
                         "title": "Zoid Coach",
                         "subtitle": "Release 0 source check passed",
-                        "leadingIcon": ["symbol": ["name": "checkmark.seal"]],
-                        "accentColor": ["red": 194.0 / 255.0, "green": 58.0 / 255.0, "blue": 46.0 / 255.0],
+                        "leadingIcon": ["symbol": ["name": "checkmark.seal", "size": 16.0, "weight": "regular"]],
+                        "trailingContent": ["none": [:]],
+                        "progress": 0.0,
+                        "accentColor": ["red": 194.0 / 255.0, "green": 58.0 / 255.0, "blue": 46.0 / 255.0, "alpha": 1.0],
                         "allowsMusicCoexistence": true,
-                        "estimatedDuration": 12
+                        "estimatedDuration": 12,
+                        "metadata": [:],
+                        "centerTextStyle": "inheritUser"
                     ]
                 ]
             )
@@ -172,13 +177,23 @@ final class AtollService {
             )
         }
 
+        let evidence: String
+        switch error {
+        case let .remote(message):
+            evidence = message
+        case .timedOut:
+            evidence = "Atoll did not respond within two seconds"
+        case .invalidResponse:
+            evidence = "Atoll returned an invalid extension response"
+        }
+
         return SourceHealth(
             id: .atoll,
             title: "Atoll",
             eyebrow: "Intervention",
             state: .attention,
             detail: "Atoll test activity was not accepted",
-            evidence: "Open Atoll and review its extension authorization prompt",
+            evidence: evidence,
             actionTitle: "Retry"
         )
     }
