@@ -1,1 +1,4 @@
 .lavish/
+.build/
+.swiftpm/
+.DS_Store
