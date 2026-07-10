@@ -28,6 +28,43 @@ func atollCommandCenterExposesTheDailyControlSurface() {
 }
 
 @Test
+func atollCommandCenterRequestsTheExpandedHostSurface() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("atoll-command-center-descriptor-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let promptStore = try PromptInboxStore(databaseURL: databaseURL)
+    let promptHandler = AtollPromptActionHandler(
+        promptStore: promptStore,
+        effectRouter: PromptResponseEffectRouter(
+            outbox: try ActionOutboxStore(databaseURL: databaseURL),
+            meetingArchive: try ScreenwatchArchive(databaseURL: databaseURL)
+        )
+    )
+    let snapshot = commandCenterSnapshot(taskState: .ready)
+    let controller = AtollCommandCenterController(dependencies: .init(
+        snapshot: { snapshot }, prompts: { [] }, policy: { UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo") },
+        applyTask: { _, _ in snapshot }, respondToPrompt: { _, _ in },
+        applyMutation: { _ in AgentMutationReceipt(accepted: true, message: "Accepted") }
+    ))
+    let client = AtollCommandCenterDescriptorCaptureClient()
+    let bridge = AtollCommandCenterBridge(
+        promptActionHandler: promptHandler,
+        controller: controller,
+        rpcClient: client
+    )
+
+    try await bridge.present()
+
+    let descriptor = await client.presentedDescriptor()
+    #expect(descriptor?.metadata["preferredWidth"] == "1400")
+    #expect(descriptor?.metadata["preferredHeight"] == "650")
+    #expect(descriptor?.tab?.preferredHeight == 420)
+    #expect(descriptor?.tab?.webContent?.preferredHeight == 420)
+}
+
+@Test
 func atollCommandCenterRoutesTaskCommandsThroughTheAgent() async throws {
     let capture = AtollCommandCapture()
     let snapshot = commandCenterSnapshot(taskState: .ready)
@@ -136,6 +173,40 @@ func atollCommandCenterRequiresItsPresentationCapability() async throws {
     server.stop()
 }
 
+@Test
+func atollCommandCenterCanStopAndRestartWithoutRetainingAuthorization() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("atoll-lifecycle-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let promptStore = try PromptInboxStore(databaseURL: databaseURL)
+    let handler = AtollPromptActionHandler(
+        promptStore: promptStore,
+        effectRouter: PromptResponseEffectRouter(
+            outbox: try ActionOutboxStore(databaseURL: databaseURL),
+            meetingArchive: try ScreenwatchArchive(databaseURL: databaseURL)
+        )
+    )
+    let snapshot = commandCenterSnapshot(taskState: .ready)
+    let controller = AtollCommandCenterController(dependencies: .init(
+        snapshot: { snapshot }, prompts: { [] }, policy: { UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo") },
+        applyTask: { _, _ in snapshot }, respondToPrompt: { _, _ in },
+        applyMutation: { _ in AgentMutationReceipt(accepted: true, message: "Accepted") }
+    ))
+    let server = AtollPromptLoopbackServer(handler: handler, commandCenterController: controller)
+
+    let firstPort = try await server.start()
+    server.authorizeCommandCenter(presentationCapability: "lifecycle-capability")
+    #expect(try await commandCenterGET(port: firstPort, capability: "lifecycle-capability").0 == 200)
+    server.stop()
+
+    let restartedPort = try await server.start()
+    #expect(try await commandCenterGET(port: restartedPort, capability: "lifecycle-capability").0 == 404)
+    server.authorizeCommandCenter(presentationCapability: "lifecycle-capability")
+    #expect(try await commandCenterGET(port: restartedPort, capability: "lifecycle-capability").0 == 200)
+    server.stop()
+}
+
 private final class AtollCommandCapture: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: (TaskActivityCommand, String)?
@@ -148,6 +219,18 @@ private final class AtollObserveMutationCapture: @unchecked Sendable {
     private var storedCount = 0
     var count: Int { lock.withLock { storedCount } }
     func record() { lock.withLock { storedCount += 1 } }
+}
+
+private actor AtollCommandCenterDescriptorCaptureClient: AtollNotchExperiencePresenting {
+    private var descriptor: AtollNotchExperienceDescriptor?
+
+    func presentNotchExperience(_ descriptor: AtollNotchExperienceDescriptor) async throws {
+        self.descriptor = descriptor
+    }
+
+    func presentedDescriptor() -> AtollNotchExperienceDescriptor? {
+        descriptor
+    }
 }
 
 private func commandCenterSnapshot(taskState: TaskExecutionState) -> TodaySnapshot {

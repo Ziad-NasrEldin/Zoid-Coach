@@ -201,13 +201,13 @@ public actor AtollCommandCenterBridge {
     private let server: AtollPromptLoopbackServer
     private let documentBuilder: AtollCommandCenterDocumentBuilder
     private let bundleIdentifier: String
-    private let rpcClient: AtollRPCClient
+    private let rpcClient: any AtollNotchExperiencePresenting
 
     public init(
         promptActionHandler: AtollPromptActionHandler,
         controller: AtollCommandCenterController,
         documentBuilder: AtollCommandCenterDocumentBuilder = AtollCommandCenterDocumentBuilder(),
-        rpcClient: AtollRPCClient = AtollRPCClient(),
+        rpcClient: any AtollNotchExperiencePresenting = AtollRPCClient(),
         bundleIdentifier: String = "com.ziadnasreldin.ZoidCoach"
     ) {
         server = AtollPromptLoopbackServer(handler: promptActionHandler, commandCenterController: controller)
@@ -227,15 +227,22 @@ public actor AtollCommandCenterBridge {
             bundleIdentifier: bundleIdentifier,
             priority: .normal,
             accentColor: AtollColorDescriptor(red: 194.0 / 255.0, green: 58.0 / 255.0, blue: 46.0 / 255.0),
-            metadata: ["surface": "command-center", "version": "1"],
+            metadata: [
+                "surface": "command-center",
+                "version": "2",
+                // The custom Atoll host reads these backwards-compatible metadata hints.
+                // Stock Atoll safely ignores them and keeps its compact extension sizing.
+                "preferredWidth": "1400",
+                "preferredHeight": "650"
+            ],
             tab: .init(
                 title: "Zoid Coach",
                 iconSymbolName: "checkmark.circle.fill",
-                preferredHeight: 160,
+                preferredHeight: 420,
                 sections: [],
                 webContent: AtollWidgetWebContentDescriptor(
                     html: html,
-                    preferredHeight: 90,
+                    preferredHeight: 420,
                     isTransparent: false,
                     allowLocalhostRequests: true,
                     allowRemoteRequests: false,

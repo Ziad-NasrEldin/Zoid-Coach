@@ -1,7 +1,11 @@
 import AtollExtensionKit
 import Foundation
 
-public struct AtollRPCClient: Sendable {
+public protocol AtollNotchExperiencePresenting: Sendable {
+    func presentNotchExperience(_ descriptor: AtollNotchExperienceDescriptor) async throws
+}
+
+public struct AtollRPCClient: Sendable, AtollNotchExperiencePresenting {
     private let endpoint: URL
     private let timeout: Duration
 
