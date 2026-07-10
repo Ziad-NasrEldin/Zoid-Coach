@@ -31,3 +31,42 @@ func meetingPolicyRoutesOverlapAsConflictAndLowConfidenceWithoutInterruption() {
     #expect(MeetingCandidatePolicy().route(low, existingEvents: []) == .lowConfidence)
     #expect(MeetingCandidatePolicy().fingerprint(candidate) == MeetingCandidatePolicy().fingerprint(candidate))
 }
+
+@Test
+func meetingPolicyRequiresTimeProximityAndTitleOrParticipantEvidenceForDuplicate() {
+    let start = Date(timeIntervalSince1970: 1_800_000_000)
+    let candidate = MeetingCandidate(
+        title: "Roadmap review",
+        start: start,
+        durationMinutes: 30,
+        confidence: .high,
+        requiresClarification: false,
+        sourceText: "",
+        participants: ["Alex"]
+    )
+    let participantMatch = ExistingMeetingEvent(
+        id: "participant",
+        title: "Weekly sync",
+        start: start.addingTimeInterval(120),
+        end: start.addingTimeInterval(1_800),
+        participants: ["Alex"]
+    )
+    let unrelated = ExistingMeetingEvent(
+        id: "unrelated",
+        title: "Dentist",
+        start: start,
+        end: start.addingTimeInterval(1_800),
+        participants: ["Sam"]
+    )
+    let tooFarAway = ExistingMeetingEvent(
+        id: "far",
+        title: "Roadmap review",
+        start: start.addingTimeInterval(3_600),
+        end: start.addingTimeInterval(5_400),
+        participants: ["Alex"]
+    )
+
+    #expect(MeetingCandidatePolicy().route(candidate, existingEvents: [participantMatch]) == .duplicate(existingEventID: "participant"))
+    #expect(MeetingCandidatePolicy().route(candidate, existingEvents: [unrelated]) == .conflict(existingEventID: "unrelated"))
+    #expect(MeetingCandidatePolicy().route(candidate, existingEvents: [tooFarAway]) == .readyForConfirmation)
+}

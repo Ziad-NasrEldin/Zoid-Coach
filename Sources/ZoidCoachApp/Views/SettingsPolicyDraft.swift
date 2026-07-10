@@ -8,6 +8,8 @@ struct SettingsPolicyDraft: Equatable {
     var workEnd: LocalTime
     var quietStart: LocalTime
     var quietEnd: LocalTime
+    var nightlyPlanningTime: LocalTime
+    var morningConfirmationTime: LocalTime
     var capacityPercent: Int
     var visibleCalendarIdentifiers: String
     var schedulingCalendarIdentifier: String
@@ -30,6 +32,8 @@ struct SettingsPolicyDraft: Equatable {
         workEnd = policy.schedule.workWindows.first?.end ?? LocalTime(hour: 18, minute: 0)
         quietStart = policy.schedule.quietHours.start
         quietEnd = policy.schedule.quietHours.end
+        nightlyPlanningTime = policy.schedule.nightlyPlanningTime
+        morningConfirmationTime = policy.schedule.morningConfirmationTime
         capacityPercent = policy.schedule.planningCapacityPercent
         visibleCalendarIdentifiers = policy.calendar.visibleCalendarIdentifiers.joined(separator: ", ")
         schedulingCalendarIdentifier = policy.calendar.schedulingCalendarIdentifier ?? ""
@@ -63,8 +67,8 @@ struct SettingsPolicyDraft: Equatable {
                 timeZoneIdentifier: original.schedule.timeZoneIdentifier,
                 workWindows: workWindows,
                 quietHours: DailyTimeWindow(start: quietStart, end: quietEnd),
-                nightlyPlanningTime: original.schedule.nightlyPlanningTime,
-                morningConfirmationTime: original.schedule.morningConfirmationTime,
+                nightlyPlanningTime: nightlyPlanningTime,
+                morningConfirmationTime: morningConfirmationTime,
                 planningCapacityPercent: capacityPercent
             ),
             calendar: CalendarSelectionPolicy(

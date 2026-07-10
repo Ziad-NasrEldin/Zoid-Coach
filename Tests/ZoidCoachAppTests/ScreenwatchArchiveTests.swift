@@ -106,9 +106,66 @@ func whatsappOCRPersistsEncryptedPositionedEvidenceAndLinksTheCandidate() async 
     #expect(try archiveScalar(databaseURL: databaseURL, sql: "SELECT COUNT(*) FROM meeting_evidence;") == 1)
 }
 
+@Test
+func whatsappOCRSkipsOnlyByteIdenticalFrames() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let day = root.appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let log = """
+    {"t":"09-00-00","epoch":1783663200,"app":"WhatsApp","window":"Chat","url":"","img":true}
+    {"t":"09-00-05","epoch":1783663205,"app":"WhatsApp","window":"Chat","url":"","img":true}
+
+    """
+    try Data(log.utf8).write(to: day.appendingPathComponent("log.jsonl"))
+    try Data([0x01, 0x02]).write(to: day.appendingPathComponent("09-00-00.jpg"))
+    try Data([0x01, 0x02]).write(to: day.appendingPathComponent("09-00-05.jpg"))
+    let databaseURL = root.appendingPathComponent("zoid-coach.sqlite")
+    let archive = try ScreenwatchArchive(databaseURL: databaseURL)
+    _ = try archive.ingestToday(from: root, now: Date(timeIntervalSince1970: 1_783_663_210))
+    let result = ScreenshotOCRResult(blocks: [
+        OCRTextBlock(
+            text: "Meeting tomorrow at 3 pm for 30 minutes",
+            confidence: 0.96,
+            boundingBox: NormalizedBoundingBox(x: 0.1, y: 0.2, width: 0.7, height: 0.1),
+            localeHint: "en"
+        )
+    ])
+    let recognizer = CountingScreenshotRecognizer(result: result)
+    let cipher = try LocalEvidenceCipher(keyData: Data(repeating: 8, count: 32))
+
+    let analysis = try await archive.analyzePendingWhatsAppScreenshots(using: recognizer, cipher: cipher)
+
+    #expect(analysis.screenshotsProcessed == 2)
+    #expect(await recognizer.callCount == 1)
+    #expect(try archiveScalar(databaseURL: databaseURL, sql: "SELECT COUNT(*) FROM screenshot_analyses WHERE outcome = 'content_duplicate';") == 1)
+    #expect(try archiveScalar(databaseURL: databaseURL, sql: "SELECT COUNT(*) FROM extracted_facts WHERE fact_type = 'ocr_text_blocks';") == 1)
+}
+
 private struct FakeScreenshotRecognizer: ScreenshotTextRecognizing {
     let result: ScreenshotOCRResult
     func recognize(in imageURL: URL) async throws -> ScreenshotOCRResult { result }
+}
+
+private actor CountingScreenshotRecognizer: ScreenshotTextRecognizing {
+    let result: ScreenshotOCRResult
+    private(set) var callCount = 0
+
+    init(result: ScreenshotOCRResult) { self.result = result }
+
+    func recognize(in imageURL: URL) async throws -> ScreenshotOCRResult {
+        callCount += 1
+        return result
+    }
+}
+
+private func archiveExecute(databaseURL: URL, sql: String) throws {
+    var database: OpaquePointer?
+    guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK, let database else {
+        throw ArchiveTestError.database
+    }
+    defer { sqlite3_close(database) }
+    guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else { throw ArchiveTestError.database }
 }
 
 private func archiveBlob(databaseURL: URL, sql: String) throws -> Data {

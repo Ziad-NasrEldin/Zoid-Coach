@@ -17,4 +17,9 @@ func plannerTrustGateRequiresSevenDistinctCapacitySafeShadowDays() throws {
     #expect(try store.status().observedCycleCount == 6)
     let ready = try store.recordShadowCycle(localDay: "2026-07-07", planVersion: 7, itemCount: 4, stayedWithinCapacity: true)
     #expect(ready.allowsAutomaticWrites)
+    #expect(ready.allowsWakeWrites == false)
+    for day in 8...14 {
+        _ = try store.recordShadowCycle(localDay: "2026-07-\(day)", planVersion: day, itemCount: 4, stayedWithinCapacity: true)
+    }
+    #expect(try store.status().allowsWakeWrites)
 }

@@ -42,18 +42,35 @@ public final class PrivacyDataService: @unchecked Sendable {
     }
 
     public func deleteExtractedConversationText() throws -> Int {
-        try execute("DELETE FROM extracted_facts WHERE fact_type = 'ocr_text';", bindings: [])
-        return Int(sqlite3_changes(database))
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE;", nil, nil, nil) == SQLITE_OK else { throw PrivacyDataServiceError.write }
+        var changed = 0
+        do {
+            try execute("DELETE FROM extracted_facts WHERE fact_type IN ('ocr_text', 'ocr_text_blocks');", bindings: [])
+            changed += Int(sqlite3_changes(database))
+            try execute("DELETE FROM prompt_response_effects WHERE prompt_id IN (SELECT id FROM prompt_episodes WHERE prompt_type = 'MEETING_CANDIDATE');", bindings: [])
+            changed += Int(sqlite3_changes(database))
+            try execute("DELETE FROM prompt_responses WHERE prompt_id IN (SELECT id FROM prompt_episodes WHERE prompt_type = 'MEETING_CANDIDATE');", bindings: [])
+            changed += Int(sqlite3_changes(database))
+            try execute("DELETE FROM prompt_episodes WHERE prompt_type = 'MEETING_CANDIDATE';", bindings: [])
+            changed += Int(sqlite3_changes(database))
+            try execute("DELETE FROM action_attempts WHERE command_id IN (SELECT id FROM action_commands WHERE action_type = 'createConfirmedMeeting' OR (action_type = 'createReminder' AND entity_id IN (SELECT source_day || ':' || epoch FROM meeting_candidates)));", bindings: [])
+            changed += Int(sqlite3_changes(database))
+            try execute("DELETE FROM action_commands WHERE action_type = 'createConfirmedMeeting' OR (action_type = 'createReminder' AND entity_id IN (SELECT source_day || ':' || epoch FROM meeting_candidates));", bindings: [])
+            changed += Int(sqlite3_changes(database))
+            try execute("UPDATE meeting_candidates SET title = 'Private meeting', participants_json = '[]', start_expression = '', location = NULL, call_link = NULL WHERE title != 'Private meeting' OR COALESCE(participants_json, '[]') != '[]' OR COALESCE(start_expression, '') != '' OR location IS NOT NULL OR call_link IS NOT NULL;", bindings: [])
+            changed += Int(sqlite3_changes(database))
+            guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else { throw PrivacyDataServiceError.write }
+            return changed
+        } catch {
+            sqlite3_exec(database, "ROLLBACK;", nil, nil, nil)
+            throw error
+        }
     }
 
     public func deleteDateRange(start: Date, end: Date) throws -> Int {
         guard start < end else { throw PrivacyDataServiceError.invalidRange }
         let startDay = Self.dayKey(start)
         let endDay = Self.dayKey(end)
-        let paths = try textRows(
-            "SELECT path FROM screenshot_artifacts WHERE behavior_day >= ? AND behavior_day < ?;",
-            bindings: [startDay, endDay]
-        )
         guard sqlite3_exec(database, "BEGIN IMMEDIATE;", nil, nil, nil) == SQLITE_OK else { throw PrivacyDataServiceError.write }
         var deleted = 0
         do {
@@ -69,7 +86,6 @@ public final class PrivacyDataService: @unchecked Sendable {
             sqlite3_exec(database, "ROLLBACK;", nil, nil, nil)
             throw error
         }
-        for path in paths where !path.isEmpty { try? FileManager.default.removeItem(atPath: path) }
         return deleted
     }
 
@@ -90,16 +106,6 @@ public final class PrivacyDataService: @unchecked Sendable {
             result[String(cString: key)] = Int(sqlite3_column_int64(statement, 1))
         }
         return result
-    }
-
-    private func textRows(_ sql: String, bindings: [String]) throws -> [String] {
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw PrivacyDataServiceError.read }
-        defer { sqlite3_finalize(statement) }
-        for (offset, value) in bindings.enumerated() { bind(value, statement, Int32(offset + 1)) }
-        var rows: [String] = []
-        while sqlite3_step(statement) == SQLITE_ROW, let value = sqlite3_column_text(statement, 0) { rows.append(String(cString: value)) }
-        return rows
     }
 
     private func execute(_ sql: String, bindings: [String]) throws {

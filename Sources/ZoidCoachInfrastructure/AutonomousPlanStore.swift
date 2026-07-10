@@ -23,8 +23,12 @@ public struct StoredAutonomousPlanEntry: Equatable, Codable, Sendable {
 public final class AutonomousPlanStore: @unchecked Sendable {
     private let database: OpaquePointer
     private let dateFormatter = ISO8601DateFormatter()
+    private let timeZoneIdentifier: @Sendable () -> String
 
-    public init(databaseURL: URL = ZoidCoachStorage.databaseURL()) throws {
+    public init(
+        databaseURL: URL = ZoidCoachStorage.databaseURL(),
+        timeZoneIdentifier: @escaping @Sendable () -> String = { TimeZone.current.identifier }
+    ) throws {
         try FileManager.default.createDirectory(at: databaseURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
         var handle: OpaquePointer?
@@ -32,6 +36,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
               let handle
         else { throw AutonomousPlanStoreError.openDatabase }
         database = handle
+        self.timeZoneIdentifier = timeZoneIdentifier
     }
 
     deinit { sqlite3_close(database) }
@@ -43,7 +48,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
               let statement
         else { throw AutonomousPlanStoreError.prepare }
         defer { sqlite3_finalize(statement) }
-        bind(Self.dayKey(for: day), to: statement, at: 1)
+        bind(dayKey(for: day), to: statement, at: 1)
         return sqlite3_step(statement) == SQLITE_ROW
     }
 
@@ -55,7 +60,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         defer {
             _ = sqlite3_exec(database, committed ? "COMMIT;" : "ROLLBACK;", nil, nil, nil)
         }
-        let dayKey = Self.dayKey(for: day)
+        let dayKey = dayKey(for: day)
         let previous = try loadDailyPlan(for: day)
         if !previous.isEmpty { try saveRevision(previous, dayKey: dayKey) }
         try execute("DELETE FROM daily_plan_entries WHERE day_key = ?;", binding: dayKey)
@@ -77,6 +82,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
             bind(dateFormatter.string(from: Date()), to: statement, at: 8)
             guard sqlite3_step(statement) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
         }
+        try insertScheduleIntent(dayKey: dayKey)
         committed = true
     }
 
@@ -87,7 +93,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
               let statement
         else { throw AutonomousPlanStoreError.prepare }
         defer { sqlite3_finalize(statement) }
-        bind(Self.dayKey(for: day), to: statement, at: 1)
+        bind(dayKey(for: day), to: statement, at: 1)
         var entries: [StoredAutonomousPlanEntry] = []
         while sqlite3_step(statement) == SQLITE_ROW,
               let reminderID = sqlite3_column_text(statement, 0) {
@@ -105,7 +111,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
 
     @discardableResult
     public func restoreLatestRevision(for day: Date) throws -> Bool {
-        let dayKey = Self.dayKey(for: day)
+        let dayKey = dayKey(for: day)
         let sql = "SELECT id, entries_json FROM daily_plan_revisions WHERE day_key = ? AND restored_at_utc IS NULL ORDER BY revision DESC LIMIT 1;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw AutonomousPlanStoreError.prepare }
@@ -128,6 +134,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         bind(dateFormatter.string(from: Date()), to: update, at: 1)
         bind(revisionID, to: update, at: 2)
         guard sqlite3_step(update) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
+        try insertScheduleIntent(dayKey: dayKey)
         committed = true
         return true
     }
@@ -145,6 +152,23 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         sqlite3_bind_int(statement, 3, Int32(revision))
         bind(json, to: statement, at: 4)
         bind(dateFormatter.string(from: Date()), to: statement, at: 5)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
+    }
+
+    private func insertScheduleIntent(dayKey: String) throws {
+        let id = UUID().uuidString
+        let timestamp = dateFormatter.string(from: Date())
+        var statement: OpaquePointer?
+        let sql = "INSERT INTO plan_schedule_requests (id, prompt_id, day_key, state, created_at_utc, updated_at_utc) VALUES (?, ?, ?, 'pending', ?, ?);"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw AutonomousPlanStoreError.prepare
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(id, to: statement, at: 1)
+        bind("automatic-plan:\(dayKey):\(id)", to: statement, at: 2)
+        bind(dayKey, to: statement, at: 3)
+        bind(timestamp, to: statement, at: 4)
+        bind(timestamp, to: statement, at: 5)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
     }
 
@@ -242,11 +266,11 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         _ = value.withCString { sqlite3_bind_text(statement, index, $0, -1, SQLITE_TRANSIENT) }
     }
 
-    private static func dayKey(for date: Date) -> String {
+    private func dayKey(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
+        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier()) ?? .current
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
     }

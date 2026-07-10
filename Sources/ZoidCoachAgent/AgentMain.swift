@@ -18,16 +18,33 @@ struct ZoidCoachAgentMain {
             }
             try AutonomousDatabaseMigrator(databaseURL: configuration.databaseURL).migrate()
             let archive = try ScreenwatchArchive(databaseURL: configuration.databaseURL)
-            let planStore = try AutonomousPlanStore(databaseURL: configuration.databaseURL)
+            let policyStore = try PolicyStore(databaseURL: configuration.databaseURL)
+            let planStore = try AutonomousPlanStore(
+                databaseURL: configuration.databaseURL,
+                timeZoneIdentifier: {
+                    (try? policyStore.current()?.policy.schedule.timeZoneIdentifier) ?? TimeZone.current.identifier
+                }
+            )
             let reminderSnapshotStore = try ReminderSnapshotStore(databaseURL: configuration.databaseURL)
             let taskHistoryStore = try TaskHistoryStore(databaseURL: configuration.databaseURL)
             let learningStore = try LearningAggregateStore(databaseURL: configuration.databaseURL)
             let trustGateStore = try PlannerTrustGateStore(databaseURL: configuration.databaseURL)
-            let policyStore = try PolicyStore(databaseURL: configuration.databaseURL)
             let promptStore = try PromptInboxStore(databaseURL: configuration.databaseURL)
             let actionOutbox = try ActionOutboxStore(databaseURL: configuration.databaseURL)
             let planUndoRequests = try PlanUndoRequestStore(databaseURL: configuration.databaseURL)
-            let promptEffectRouter = PromptResponseEffectRouter(outbox: actionOutbox, meetingArchive: archive, planUndoRequests: planUndoRequests)
+            let planScheduleRequests = try PlanScheduleRequestStore(databaseURL: configuration.databaseURL)
+            try planUndoRequests.recoverInterrupted()
+            try planScheduleRequests.recoverInterrupted()
+            let promptEffectRouter = PromptResponseEffectRouter(
+                outbox: actionOutbox,
+                meetingArchive: archive,
+                planUndoRequests: planUndoRequests,
+                planScheduleRequests: planScheduleRequests,
+                promptStore: promptStore,
+                schedulingCalendarIdentifier: {
+                    try policyStore.current()?.policy.calendar.schedulingCalendarIdentifier
+                }
+            )
             let checkpointStore = try ProcessingCheckpointStore(databaseURL: configuration.databaseURL)
             let maintenanceService = try ScreenwatchMaintenanceService(
                 databaseURL: configuration.databaseURL,
@@ -37,6 +54,7 @@ struct ZoidCoachAgentMain {
                 _ = try? promptEffectRouter.apply(result)
             }
             notificationCoordinator.activate()
+            try Self.replayPendingPromptEffects(store: promptStore, router: promptEffectRouter)
             let initialVersionedPolicy: VersionedUserPolicy
             if let stored = try policyStore.current() {
                 initialVersionedPolicy = stored
@@ -57,8 +75,12 @@ struct ZoidCoachAgentMain {
                 plans: planStore,
                 reminders: reminderSnapshotStore,
                 outbox: actionOutbox,
-                calendar: calendarSource
+                calendar: calendarSource,
+                learning: learningStore
             )
+            if initialPolicy.operatingMode != .fullyAutomatic {
+                _ = try actionOutbox.cancelPendingAutomaticPlanCommands()
+            }
             if !initialPolicy.automationPause.isPaused {
                 let execution = await actionExecutor.executeNext()
                 try? Self.finalizeMeetingEffect(execution, outbox: actionOutbox, archive: archive)
@@ -136,10 +158,18 @@ struct ZoidCoachAgentMain {
                         outbox: actionOutbox,
                         plans: planStore
                     )
-                    let prompt = try promptStore.enqueue(Self.planReadyPrompt(for: targetDay, itemCount: itemCount))
+                    let prompt = try promptStore.enqueue(Self.planReadyPrompt(
+                        for: targetDay,
+                        itemCount: itemCount,
+                        timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier
+                    ))
                     if prompt.wasInserted {
-                        _ = try? await notificationCoordinator.schedule(prompt.episode)
-                        await AtollPromptNotifier().present(prompt.episode)
+                        await Self.schedulePlanPrompt(
+                            prompt.episode,
+                            policy: initialPolicy,
+                            notifications: notificationCoordinator,
+                            checkpoints: checkpointStore
+                        )
                     }
                     try checkpointStore.recordSuccess(
                         sourceID: "nightly-plan",
@@ -173,10 +203,18 @@ struct ZoidCoachAgentMain {
                         outbox: actionOutbox,
                         plans: planStore
                     )
-                    let prompt = try promptStore.enqueue(Self.planReadyPrompt(for: targetDay, itemCount: itemCount))
+                    let prompt = try promptStore.enqueue(Self.planReadyPrompt(
+                        for: targetDay,
+                        itemCount: itemCount,
+                        timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier
+                    ))
                     if prompt.wasInserted {
-                        _ = try? await notificationCoordinator.schedule(prompt.episode)
-                        await AtollPromptNotifier().present(prompt.episode)
+                        await Self.schedulePlanPrompt(
+                            prompt.episode,
+                            policy: initialPolicy,
+                            notifications: notificationCoordinator,
+                            checkpoints: checkpointStore
+                        )
                     }
                     print("Zoid Coach agent: drafted \(itemCount) daily commitments")
                 case .retainedExisting:
@@ -191,15 +229,27 @@ struct ZoidCoachAgentMain {
                 var lastDaytimeSourceCheck: Date?
                 var lastCalendarSignature: String?
                 while !Task.isCancelled {
+                    do {
                     let versionedPolicy = try policyStore.current() ?? initialVersionedPolicy
                     let policy = versionedPolicy.policy
+                    let resourceConstrained = Self.isResourceConstrained
+                    if policy.operatingMode != .fullyAutomatic {
+                        _ = try actionOutbox.cancelPendingAutomaticPlanCommands()
+                    }
                     try checkpointStore.recordSuccess(sourceID: "agent-runtime", at: Date())
-                    if lastMaintenanceAttempt.map({ Date().timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true {
+                    try Self.replayPendingPromptEffects(store: promptStore, router: promptEffectRouter)
+                    await Self.presentDuePlanPrompts(
+                        store: promptStore,
+                        policy: policy,
+                        checkpoints: checkpointStore
+                    )
+                    if !resourceConstrained,
+                       lastMaintenanceAttempt.map({ Date().timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true {
                         _ = try? maintenanceService.run(policy: policy, now: Date(), mode: .apply)
                         lastMaintenanceAttempt = Date()
                     }
                     let result = try archive.ingestToday(from: configuration.screenwatchDirectory, now: Date())
-                    let analysis = policy.privacy.screenshotAnalysisEnabled
+                    let analysis = policy.privacy.screenshotAnalysisEnabled && !resourceConstrained
                         ? try await archive.analyzePendingWhatsAppScreenshots()
                         : MeetingAnalysisResult(screenshotsProcessed: 0, candidatesCreated: 0)
                     if analysis.candidatesCreated > 0, let candidate = try archive.unresolvedMeetingCandidates().first {
@@ -225,19 +275,43 @@ struct ZoidCoachAgentMain {
                     try? Self.finalizeMeetingEffect(execution, outbox: actionOutbox, archive: archive)
                     if let undo = try planUndoRequests.claimNext() {
                         do {
-                            guard let undoDay = Self.date(localDay: undo.dayKey, timeZoneIdentifier: policy.schedule.timeZoneIdentifier),
-                                  try planStore.restoreLatestRevision(for: undoDay) else {
-                                try planUndoRequests.finish(undo, succeeded: true)
-                                continue
+                            if let undoDay = Self.date(localDay: undo.dayKey, timeZoneIdentifier: policy.schedule.timeZoneIdentifier),
+                               try planStore.restoreLatestRevision(for: undoDay) {
+                                _ = try await planScheduler.enqueueSchedule(
+                                    for: undoDay,
+                                    policy: policy,
+                                    policyVersion: versionedPolicy.version
+                                )
                             }
-                            _ = try await planScheduler.enqueueSchedule(
-                                for: undoDay,
-                                policy: policy,
-                                policyVersion: versionedPolicy.version
-                            )
                             try planUndoRequests.finish(undo, succeeded: true)
                         } catch {
                             try? planUndoRequests.finish(undo, succeeded: false)
+                        }
+                    }
+                    if let request = try planScheduleRequests.claimNext() {
+                        do {
+                            let isExplicitApproval = !request.promptID.hasPrefix("automatic-plan:")
+                            let shouldSchedule = policy.operatingMode == .fullyAutomatic
+                                || (policy.operatingMode == .approvalRequired && isExplicitApproval)
+                            if !shouldSchedule {
+                                try planScheduleRequests.finish(request, succeeded: true)
+                            } else if try trustGateStore.status().allowsAutomaticWrites,
+                                      let approvedDay = Self.date(
+                                    localDay: request.dayKey,
+                                    timeZoneIdentifier: policy.schedule.timeZoneIdentifier
+                                      ) {
+                                _ = try await planScheduler.enqueueSchedule(
+                                    for: approvedDay,
+                                    policy: policy,
+                                    policyVersion: versionedPolicy.version,
+                                    origin: .approvedPlan
+                                )
+                                try planScheduleRequests.finish(request, succeeded: true)
+                            } else {
+                                try planScheduleRequests.finish(request, succeeded: false)
+                            }
+                        } catch {
+                            try? planScheduleRequests.finish(request, succeeded: false)
                         }
                     }
                     if lastDaytimeSourceCheck.map({ now.timeIntervalSince($0) >= 60 }) ?? true {
@@ -247,6 +321,9 @@ struct ZoidCoachAgentMain {
                             day: now,
                             calendar: calendarSource
                         )
+                        if calendarSignature != nil {
+                            try? checkpointStore.recordSuccess(sourceID: "calendar-source", at: now)
+                        }
                         let remindersChanged = reminderChanges.map {
                             $0.insertedCount + $0.updatedCount + $0.removedCount > 0
                         } ?? false
@@ -272,10 +349,14 @@ struct ZoidCoachAgentMain {
                                     outbox: actionOutbox,
                                     plans: planStore
                                 )
-                                let prompt = try promptStore.enqueue(Self.planChangedPrompt(for: now, itemCount: itemCount))
+                                let prompt = try promptStore.enqueue(Self.planChangedPrompt(
+                                    for: now,
+                                    itemCount: itemCount,
+                                    timeZoneIdentifier: policy.schedule.timeZoneIdentifier
+                                ))
                                 if prompt.wasInserted {
                                     _ = try? await notificationCoordinator.schedule(prompt.episode)
-                                    await AtollPromptNotifier().present(prompt.episode)
+                                    _ = await AtollPromptNotifier().present(prompt.episode)
                                 }
                             }
                         }
@@ -305,10 +386,18 @@ struct ZoidCoachAgentMain {
                                 outbox: actionOutbox,
                                 plans: planStore
                             )
-                            let prompt = try promptStore.enqueue(Self.planReadyPrompt(for: targetDay, itemCount: itemCount))
+                            let prompt = try promptStore.enqueue(Self.planReadyPrompt(
+                                for: targetDay,
+                                itemCount: itemCount,
+                                timeZoneIdentifier: policy.schedule.timeZoneIdentifier
+                            ))
                             if prompt.wasInserted {
-                                _ = try? await notificationCoordinator.schedule(prompt.episode)
-                                await AtollPromptNotifier().present(prompt.episode)
+                                await Self.schedulePlanPrompt(
+                                    prompt.episode,
+                                    policy: policy,
+                                    notifications: notificationCoordinator,
+                                    checkpoints: checkpointStore
+                                )
                             }
                             print("Zoid Coach agent: overnight draft prepared with \(itemCount) commitments")
                         case .retainedExisting:
@@ -318,7 +407,15 @@ struct ZoidCoachAgentMain {
                         }
                         lastAutomaticDraftAttempt = now
                     }
-                    try await Task.sleep(for: .seconds(5))
+                    try await Task.sleep(for: .seconds(resourceConstrained ? 30 : 5))
+                    } catch {
+                        try? checkpointStore.recordFailure(
+                            sourceID: "agent-watch-loop",
+                            at: Date(),
+                            diagnostic: String(describing: type(of: error))
+                        )
+                        try? await Task.sleep(for: .seconds(10))
+                    }
                 }
             } else {
                 let result = try archive.ingestToday(from: configuration.screenwatchDirectory, now: Date())
@@ -343,9 +440,10 @@ struct ZoidCoachAgentMain {
         }
     }
 
-    private static func planReadyPrompt(for day: Date, itemCount: Int) -> PromptDraft {
-        PromptDraft(
-            decisionKey: "plan-ready:\(localDayKey(day))",
+    private static func planReadyPrompt(for day: Date, itemCount: Int, timeZoneIdentifier: String) -> PromptDraft {
+        let dayKey = localDayKey(day, timeZoneIdentifier: timeZoneIdentifier)
+        return PromptDraft(
+            decisionKey: "plan-ready:\(dayKey)",
             type: "PLAN_READY",
             title: "Tomorrow's plan is ready",
             summary: "Zoid Coach selected \(itemCount) evidence-backed commitment\(itemCount == 1 ? "" : "s").",
@@ -353,22 +451,23 @@ struct ZoidCoachAgentMain {
                 PromptAction(kind: .acceptPlan, title: "Accept", role: .primary),
                 PromptAction(kind: .reviewPlan, title: "Review")
             ],
-            payload: ["localDay": localDayKey(day), "itemCount": String(itemCount)],
+            payload: ["localDay": dayKey, "itemCount": String(itemCount)],
             expiresAt: Calendar.current.date(byAdding: .day, value: 1, to: day)
         )
     }
 
-    private static func planChangedPrompt(for day: Date, itemCount: Int) -> PromptDraft {
-        PromptDraft(
-            decisionKey: "plan-changed:\(localDayKey(day)):\(itemCount)",
+    private static func planChangedPrompt(for day: Date, itemCount: Int, timeZoneIdentifier: String) -> PromptDraft {
+        let dayKey = localDayKey(day, timeZoneIdentifier: timeZoneIdentifier)
+        return PromptDraft(
+            decisionKey: "plan-changed:\(dayKey):\(itemCount)",
             type: "PLAN_CHANGED",
             title: "Today's plan changed",
             summary: "Calendar or Reminder changes produced \(itemCount) commitments.",
             actions: [
                 PromptAction(kind: .reviewPlan, title: "Review", role: .primary),
-                PromptAction(kind: .ignore, title: "Dismiss")
+                PromptAction(kind: .undoPlanChange, title: "Undo")
             ],
-            payload: ["day": localDayKey(day), "itemCount": String(itemCount)],
+            payload: ["day": dayKey, "itemCount": String(itemCount)],
             expiresAt: Calendar.current.date(byAdding: .hour, value: 8, to: Date())
         )
     }
@@ -443,11 +542,11 @@ struct ZoidCoachAgentMain {
         Set(value.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
     }
 
-    private static func localDayKey(_ date: Date) -> String {
+    private static func localDayKey(_ date: Date, timeZoneIdentifier: String = TimeZone.current.identifier) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
+        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
     }
@@ -459,6 +558,73 @@ struct ZoidCoachAgentMain {
         formatter.timeZone = TimeZone(identifier: timeZoneIdentifier)
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: localDay)
+    }
+
+    private static func morningDeliveryDate(for episode: PromptEpisode, policy: UserPolicy) -> Date? {
+        guard let localDay = episode.payload["localDay"],
+              let day = date(localDay: localDay, timeZoneIdentifier: policy.schedule.timeZoneIdentifier),
+              let timeZone = TimeZone(identifier: policy.schedule.timeZoneIdentifier)
+        else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar.date(
+            bySettingHour: policy.schedule.morningConfirmationTime.hour,
+            minute: policy.schedule.morningConfirmationTime.minute,
+            second: 0,
+            of: day
+        )
+    }
+
+    private static func replayPendingPromptEffects(
+        store: PromptInboxStore,
+        router: PromptResponseEffectRouter
+    ) throws {
+        for result in try store.pendingEffects() {
+            _ = try router.apply(result)
+        }
+    }
+
+    private static var isResourceConstrained: Bool {
+        let info = ProcessInfo.processInfo
+        return info.isLowPowerModeEnabled || info.thermalState == .serious || info.thermalState == .critical
+    }
+
+    private static func schedulePlanPrompt(
+        _ episode: PromptEpisode,
+        policy: UserPolicy,
+        notifications: PromptNotificationCoordinator,
+        checkpoints: ProcessingCheckpointStore,
+        now: Date = Date()
+    ) async {
+        let delivery = morningDeliveryDate(for: episode, policy: policy)
+        _ = try? await notifications.schedule(episode, deliveryDate: delivery)
+        guard delivery.map({ $0 <= now }) ?? true else { return }
+        await presentPlanPromptOnce(episode, checkpoints: checkpoints, now: now)
+    }
+
+    private static func presentDuePlanPrompts(
+        store: PromptInboxStore,
+        policy: UserPolicy,
+        checkpoints: ProcessingCheckpointStore,
+        now: Date = Date()
+    ) async {
+        guard let prompts = try? store.unresolved() else { return }
+        for prompt in prompts where prompt.type == "PLAN_READY" {
+            guard morningDeliveryDate(for: prompt, policy: policy).map({ $0 <= now }) ?? true else { continue }
+            await presentPlanPromptOnce(prompt, checkpoints: checkpoints, now: now)
+        }
+    }
+
+    private static func presentPlanPromptOnce(
+        _ episode: PromptEpisode,
+        checkpoints: ProcessingCheckpointStore,
+        now: Date
+    ) async {
+        let sourceID = "atoll-plan-prompt:\(episode.id)"
+        guard (try? checkpoints.checkpoint(sourceID: sourceID)) == nil else { return }
+        if await AtollPromptNotifier().present(episode) {
+            try? checkpoints.recordSuccess(sourceID: sourceID, at: now)
+        }
     }
 
     private static func enqueuePlanActions(
@@ -473,26 +639,32 @@ struct ZoidCoachAgentMain {
         plans: AutonomousPlanStore
     ) async {
         do {
-            let trust = try trustGate.status()
+            let plannedMinutes = try plans.loadDailyPlan(for: day).reduce(0) { $0 + $1.estimateMinutes }
+            let stayedWithinCapacity = plannedMinutes <= policy.schedule.planningCapacityMinutes(on: day)
+            let trust = try trustGate.recordShadowCycle(
+                localDay: localDayKey(day, timeZoneIdentifier: policy.schedule.timeZoneIdentifier),
+                planVersion: policyVersion,
+                itemCount: itemCount,
+                stayedWithinCapacity: stayedWithinCapacity
+            )
             if !trust.allowsAutomaticWrites {
-                let recorded = try trustGate.recordShadowCycle(
-                    localDay: localDayKey(day),
-                    planVersion: policyVersion,
-                    itemCount: itemCount,
-                    stayedWithinCapacity: true
-                )
-                print("Zoid Coach agent: shadow cycle \(recorded.observedCycleCount)/\(recorded.requiredCycleCount) recorded without external writes")
+                print("Zoid Coach agent: shadow cycle \(trust.observedCycleCount)/\(trust.requiredCycleCount) recorded without external writes")
+                return
+            }
+            guard policy.operatingMode == .fullyAutomatic else {
+                print("Zoid Coach agent: plan retained without external writes in \(policy.operatingMode.rawValue) mode")
                 return
             }
             let result = try await scheduler.enqueueSchedule(
                 for: day,
                 policy: policy,
-                policyVersion: policyVersion
+                policyVersion: policyVersion,
+                origin: .automaticPlan
             )
             try checkpoints.recordSuccess(
                 sourceID: "plan-actions",
                 at: Date(),
-                scheduledLocalDay: localDayKey(day),
+                scheduledLocalDay: localDayKey(day, timeZoneIdentifier: policy.schedule.timeZoneIdentifier),
                 timeZoneIdentifier: policy.schedule.timeZoneIdentifier
             )
             print("Zoid Coach agent: enqueued \(result.scheduledBlockCount) Calendar blocks and \(result.reminderMutationCount) Reminder updates")
@@ -501,7 +673,8 @@ struct ZoidCoachAgentMain {
                 policy: policy,
                 policyVersion: policyVersion,
                 outbox: outbox,
-                plans: plans
+                plans: plans,
+                trustAllowsWakeWrites: trust.allowsWakeWrites
             )
         } catch {
             try? checkpoints.recordFailure(
@@ -518,9 +691,11 @@ struct ZoidCoachAgentMain {
         policy: UserPolicy,
         policyVersion: Int,
         outbox: ActionOutboxStore,
-        plans: AutonomousPlanStore
+        plans: AutonomousPlanStore,
+        trustAllowsWakeWrites: Bool
     ) throws {
-        guard policy.wake.isEligible,
+        guard trustAllowsWakeWrites,
+              policy.wake.isEligible,
               let timeZone = TimeZone(identifier: policy.schedule.timeZoneIdentifier) else { return }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
@@ -528,10 +703,17 @@ struct ZoidCoachAgentMain {
            policy.wake.quietWeekdays?.contains(weekday) == true { return }
         let plan = try plans.loadDailyPlan(for: day)
         guard let main = plan.first(where: \.isMainObjective) else { return }
+        let identifier = "wake:\(localDayKey(day, timeZoneIdentifier: policy.schedule.timeZoneIdentifier))"
+        let completedInterventions = try outbox.recentCommands(limit: 1_000).filter {
+            $0.type == .scheduleNotification
+                && $0.entityID == identifier
+                && $0.state != .cancelled
+                && $0.state != .terminalFailure
+        }.count
         let evidence = WakePlanEvidence(
             mainObjectiveScore: main.selectionScore ?? 0,
             plannedFocusMinutes: plan.reduce(0) { $0 + $1.estimateMinutes },
-            completedInterventionsToday: 0
+            completedInterventionsToday: completedInterventions
         )
         let wakePolicy = WakeUpPolicy(
             windowStartHour: policy.wake.window.start.hour,
@@ -545,7 +727,6 @@ struct ZoidCoachAgentMain {
                 second: 0,
                 of: day
               ) else { return }
-        let identifier = "wake:\(localDayKey(day))"
         _ = try outbox.enqueue(
             type: .scheduleNotification,
             entityID: identifier,
@@ -576,7 +757,7 @@ struct ZoidCoachAgentMain {
             through: end,
             calendarIdentifiers: policy.calendar.visibleCalendarIdentifiers
         ) else {
-            return policy.schedule.planningCapacityMinutes(on: day)
+            return 0
         }
         var occupiedSeconds: TimeInterval = 0
         for work in workIntervals {

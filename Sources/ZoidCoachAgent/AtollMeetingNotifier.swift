@@ -9,7 +9,7 @@ struct AtollMeetingNotifier {
 }
 
 struct AtollPromptNotifier {
-    func present(_ episode: PromptEpisode) async {
+    func present(_ episode: PromptEpisode) async -> Bool {
         await AtollMeetingPromptRuntime.shared.present(episode: episode)
     }
 }
@@ -37,7 +37,12 @@ private actor AtollMeetingPromptRuntime {
                     effectRouter: PromptResponseEffectRouter(
                         outbox: outbox,
                         meetingArchive: archive,
-                        planUndoRequests: try PlanUndoRequestStore(databaseURL: databaseURL)
+                        planUndoRequests: try PlanUndoRequestStore(databaseURL: databaseURL),
+                        planScheduleRequests: try PlanScheduleRequestStore(databaseURL: databaseURL),
+                        promptStore: createdStore,
+                        schedulingCalendarIdentifier: {
+                            try PolicyStore(databaseURL: databaseURL).current()?.policy.calendar.schedulingCalendarIdentifier
+                        }
                     )
                 )
                 promptStore = createdStore
@@ -53,7 +58,7 @@ private actor AtollMeetingPromptRuntime {
     }
 
 
-    func present(episode: PromptEpisode) async {
+    func present(episode: PromptEpisode) async -> Bool {
         do {
             let promptBridge: AtollPromptBridge
             if let bridge {
@@ -68,7 +73,12 @@ private actor AtollMeetingPromptRuntime {
                     effectRouter: PromptResponseEffectRouter(
                         outbox: outbox,
                         meetingArchive: archive,
-                        planUndoRequests: try PlanUndoRequestStore(databaseURL: databaseURL)
+                        planUndoRequests: try PlanUndoRequestStore(databaseURL: databaseURL),
+                        planScheduleRequests: try PlanScheduleRequestStore(databaseURL: databaseURL),
+                        promptStore: createdStore,
+                        schedulingCalendarIdentifier: {
+                            try PolicyStore(databaseURL: databaseURL).current()?.policy.calendar.schedulingCalendarIdentifier
+                        }
                     )
                 )
                 promptStore = createdStore
@@ -76,8 +86,10 @@ private actor AtollMeetingPromptRuntime {
                 promptBridge = createdBridge
             }
             try await promptBridge.present(episode)
+            return true
         } catch {
             // Notification and dashboard surfaces remain available when Atoll is unavailable.
+            return false
         }
     }
 }

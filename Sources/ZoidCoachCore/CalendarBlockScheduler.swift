@@ -50,12 +50,20 @@ public struct CalendarBlockScheduler: Sendable {
     public func schedule(
         tasks: [SchedulableTask],
         availableIntervals: [CalendarInterval],
-        transitionMinutes: Int
+        transitionMinutes: Int,
+        preferredInterval: CalendarInterval? = nil
     ) -> CalendarScheduleResult {
         let transition = TimeInterval(max(0, transitionMinutes) * 60)
         var intervals = availableIntervals
             .filter { $0.end > $0.start }
-            .sorted { $0.start < $1.start }
+            .sorted { lhs, rhs in
+                if let preferredInterval {
+                    let lhsPreferred = lhs.end > preferredInterval.start && lhs.start < preferredInterval.end
+                    let rhsPreferred = rhs.end > preferredInterval.start && rhs.start < preferredInterval.end
+                    if lhsPreferred != rhsPreferred { return lhsPreferred }
+                }
+                return lhs.start < rhs.start
+            }
         var blocks: [ScheduledTaskBlock] = []
         var unscheduledTaskIDs: [String] = []
 

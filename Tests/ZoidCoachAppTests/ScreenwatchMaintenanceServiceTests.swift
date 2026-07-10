@@ -57,13 +57,13 @@ func screenwatchMaintenanceEnforcesIndependentRetentionAndAuditsTheRun() throws 
 
     let report = try service.run(policy: .defaults(timeZoneIdentifier: "UTC"), now: now)
 
-    #expect(report.rawScreenshotFilesDeleted == 1)
+    #expect(report.rawScreenshotFilesDeleted == 0)
     #expect(report.rawScreenshotReferencesRedacted == 2)
     #expect(report.extractedFactsDeleted == 1)
     #expect(report.behaviorTextRowsRedacted == 1)
     #expect(report.diagnosticsPurged == 4)
     #expect(report.health == .healthy)
-    #expect(FileManager.default.fileExists(atPath: oldImage.path) == false)
+    #expect(FileManager.default.fileExists(atPath: oldImage.path))
     #expect(FileManager.default.fileExists(atPath: recentImage.path))
     #expect(try maintenanceScalar(databaseURL, "SELECT COUNT(*) FROM extracted_facts WHERE id = 'old-fact';") == 0)
     #expect(try maintenanceScalar(databaseURL, "SELECT COUNT(*) FROM behavior_records WHERE epoch = 1780304400 AND screenshot_path IS NULL AND window_title = '' AND url = '';") == 1)
@@ -98,7 +98,7 @@ func screenwatchMaintenanceDryRunNeverMutatesFilesDatabaseOrCheckpoints() throws
     let report = try service.run(policy: .defaults(timeZoneIdentifier: "UTC"), now: now, mode: .dryRun)
 
     #expect(report.historicalDaysPending == 1)
-    #expect(report.rawScreenshotFilesEligible == 1)
+    #expect(report.rawScreenshotFilesEligible == 0)
     #expect(report.rawScreenshotFilesDeleted == 0)
     #expect(report.rawScreenshotReferencesEligible == 1)
     #expect(invocations.count == 0)

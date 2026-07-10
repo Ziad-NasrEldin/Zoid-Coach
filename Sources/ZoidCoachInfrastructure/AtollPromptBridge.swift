@@ -25,6 +25,7 @@ public final class AtollPromptActionHandler: @unchecked Sendable {
             surface: .atoll
         )
         let effect = try effectRouter.apply(result)
+        try promptStore.markEffectApplied(responseID: result.response.id)
         return result.wasApplied ? .applied(effect) : .replayed
     }
 }
@@ -36,9 +37,17 @@ public struct AtollPromptDescriptorBuilder: Sendable {
         self.bundleIdentifier = bundleIdentifier
     }
 
-    public func descriptor(for episode: PromptEpisode, loopbackPort: UInt16) -> AtollNotchExperienceDescriptor {
+    public func descriptor(
+        for episode: PromptEpisode,
+        loopbackPort: UInt16,
+        presentationCapability: String
+    ) -> AtollNotchExperienceDescriptor {
         let webContent = AtollWidgetWebContentDescriptor(
-            html: html(for: episode, loopbackPort: loopbackPort),
+            html: html(
+                for: episode,
+                loopbackPort: loopbackPort,
+                presentationCapability: presentationCapability
+            ),
             preferredHeight: 168,
             isTransparent: true,
             allowLocalhostRequests: true,
@@ -72,14 +81,19 @@ public struct AtollPromptDescriptorBuilder: Sendable {
         )
     }
 
-    public func html(for episode: PromptEpisode, loopbackPort: UInt16) -> String {
+    public func html(
+        for episode: PromptEpisode,
+        loopbackPort: UInt16,
+        presentationCapability: String
+    ) -> String {
         let buttons = episode.actions.map { action in
             let token = PromptResponseToken.make(promptID: episode.id, action: action.kind)
             let endpoint = endpointURL(
                 promptID: episode.id,
                 action: action.kind,
                 actionToken: token,
-                loopbackPort: loopbackPort
+                loopbackPort: loopbackPort,
+                presentationCapability: presentationCapability
             ).absoluteString
             let cssClass = action.role == .primary ? "primary" : action.role == .destructive ? "destructive" : "secondary"
             return "<button class=\"\(cssClass)\" data-endpoint=\"\(escapeHTML(endpoint))\">\(escapeHTML(action.title))</button>"
@@ -99,14 +113,18 @@ public struct AtollPromptDescriptorBuilder: Sendable {
         promptID: String,
         action: PromptActionKind,
         actionToken: String,
-        loopbackPort: UInt16
+        loopbackPort: UInt16,
+        presentationCapability: String
     ) -> URL {
         var components = URLComponents()
         components.scheme = "http"
         components.host = "127.0.0.1"
         components.port = Int(loopbackPort)
         components.path = "/v1/prompts/\(promptID)/actions/\(action.rawValue)"
-        components.queryItems = [URLQueryItem(name: "token", value: actionToken)]
+        components.queryItems = [
+            URLQueryItem(name: "token", value: actionToken),
+            URLQueryItem(name: "capability", value: presentationCapability),
+        ]
         return components.url!
     }
 
@@ -126,9 +144,16 @@ public final class AtollPromptLoopbackServer: @unchecked Sendable {
     private let lock = NSLock()
     private var listener: NWListener?
     private var readyPort: UInt16?
+    private var presentationCapabilities: [String: String] = [:]
 
     public init(handler: AtollPromptActionHandler) {
         self.handler = handler
+    }
+
+    public func authorize(promptID: String, presentationCapability: String) {
+        lock.withLock {
+            presentationCapabilities[promptID] = presentationCapability
+        }
     }
 
     deinit { stop() }
@@ -224,7 +249,9 @@ public final class AtollPromptLoopbackServer: @unchecked Sendable {
               path[1] == "prompts",
               path[3] == "actions",
               let action = PromptActionKind(rawValue: path[4]),
-              let token = components.queryItems?.first(where: { $0.name == "token" })?.value
+              let token = components.queryItems?.first(where: { $0.name == "token" })?.value,
+              let presentationCapability = components.queryItems?.first(where: { $0.name == "capability" })?.value,
+              lock.withLock({ presentationCapabilities[path[2]] == presentationCapability })
         else {
             send(status: 404, body: "not found", on: connection)
             return
@@ -250,7 +277,7 @@ public final class AtollPromptLoopbackServer: @unchecked Sendable {
         case 413: reason = "Content Too Large"
         default: reason = "Error"
         }
-        let response = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: application/json\r\nContent-Length: \(body.utf8.count)\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n\(body)"
+        let response = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: application/json\r\nContent-Length: \(body.utf8.count)\r\nAccess-Control-Allow-Origin: null\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nVary: Origin\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n\(body)"
         connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in connection.cancel() })
     }
 }
@@ -287,7 +314,13 @@ public actor AtollPromptBridge {
 
     public func present(_ episode: PromptEpisode) async throws {
         let port = try await server.start()
-        let descriptor = descriptorBuilder.descriptor(for: episode, loopbackPort: port)
+        let presentationCapability = UUID().uuidString
+        server.authorize(promptID: episode.id, presentationCapability: presentationCapability)
+        let descriptor = descriptorBuilder.descriptor(
+            for: episode,
+            loopbackPort: port,
+            presentationCapability: presentationCapability
+        )
         try await AtollClient.shared.presentNotchExperience(descriptor)
         _ = try promptStore.present(promptID: episode.id)
     }

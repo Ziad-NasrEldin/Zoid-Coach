@@ -16,6 +16,36 @@ func promptEpisodeStateMachineEnforcesTheDocumentedLifecycle() throws {
 }
 
 @Test
+func promptInboxSerializesConcurrentResponseDelivery() async throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("prompt-concurrency-\(UUID().uuidString).sqlite")
+    defer { for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) } }
+    let store = try PromptInboxStore(databaseURL: url)
+    let episode = try store.enqueue(PromptDraft(
+        decisionKey: "concurrent",
+        type: "PLAN_READY",
+        title: "Plan",
+        summary: "Ready",
+        actions: [PromptAction(kind: .acceptPlan, title: "Accept")]
+    )).episode
+    let token = PromptResponseToken.make(promptID: episode.id, action: .acceptPlan)
+
+    let appliedCount = try await withThrowingTaskGroup(of: Bool.self) { group in
+        for _ in 0..<20 {
+            group.addTask {
+                try store.respond(promptID: episode.id, action: .acceptPlan, actionToken: token, surface: .notification).wasApplied
+            }
+        }
+        var count = 0
+        for try await applied in group where applied { count += 1 }
+        return count
+    }
+
+    #expect(appliedCount == 1)
+    #expect(try store.responses(promptID: episode.id).count == 1)
+    #expect(try store.pendingEffects().count == 1)
+}
+
+@Test
 func promptResponseTokensAreStableAndBoundToOnePromptActionPair() {
     let first = PromptResponseToken.make(promptID: "prompt-1", action: .startShortSprint)
 
@@ -62,8 +92,41 @@ func promptResponseIsAppliedExactlyOnceAcrossRepeatedSurfaceDelivery() throws {
     #expect(replay.wasApplied == false)
     #expect(replay.response == applied.response)
     #expect(try store.responses(promptID: first.id).count == 1)
+    #expect(try store.pendingEffects() == [PromptResponseResult(
+        response: applied.response,
+        episode: applied.episode,
+        wasApplied: false
+    )])
+    try store.markEffectApplied(responseID: applied.response.id)
+    try store.markEffectApplied(responseID: applied.response.id)
+    #expect(try store.pendingEffects().isEmpty)
     #expect(next.wasInserted)
     #expect(next.episode.id == "prompt-2")
+}
+
+@Test
+func promptResponseAndPendingEffectAreCommittedAtomically() throws {
+    let url = temporaryPromptInboxURL("durable-effect")
+    defer { removePromptInboxDatabase(url) }
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    let ids = PromptInboxIDSequence(["prompt-1", "response-1"])
+    let store = try PromptInboxStore(databaseURL: url, now: { date }, makeID: { ids.next() })
+    let episode = try store.enqueue(promptDraft(decisionKey: "meeting:durable")).episode
+    let token = PromptResponseToken.make(promptID: episode.id, action: .ignore)
+
+    let response = try store.respond(
+        promptID: episode.id,
+        action: .ignore,
+        actionToken: token,
+        surface: .notification
+    )
+
+    let reopened = try PromptInboxStore(databaseURL: url, now: { date })
+    #expect(try reopened.pendingEffects() == [PromptResponseResult(
+        response: response.response,
+        episode: response.episode,
+        wasApplied: false
+    )])
 }
 
 @Test

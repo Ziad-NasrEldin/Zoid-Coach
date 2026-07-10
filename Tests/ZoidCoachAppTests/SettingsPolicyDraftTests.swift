@@ -11,6 +11,8 @@ func settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() {
     draft.operatingMode = .approvalRequired
     draft.isPaused = true
     draft.capacityPercent = 80
+    draft.nightlyPlanningTime = LocalTime(hour: 21, minute: 45)
+    draft.morningConfirmationTime = LocalTime(hour: 7, minute: 15)
     draft.visibleCalendarIdentifiers = "work, personal"
     draft.schedulingCalendarIdentifier = "work"
     draft.aiProvider = .localOllama
@@ -22,11 +24,40 @@ func settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() {
     #expect(policy.operatingMode == .approvalRequired)
     #expect(policy.automationPause == .pausedIndefinitely)
     #expect(policy.schedule.planningCapacityPercent == 80)
+    #expect(policy.schedule.nightlyPlanningTime == LocalTime(hour: 21, minute: 45))
+    #expect(policy.schedule.morningConfirmationTime == LocalTime(hour: 7, minute: 15))
     #expect(policy.calendar.visibleCalendarIdentifiers == ["work", "personal"])
     #expect(policy.calendar.schedulingCalendarIdentifier == "work")
     #expect(policy.privacy.remoteEvidencePolicy == .localOnly)
     #expect(policy.privacy.rawScreenshotRetentionDays == 7)
     #expect(policy.validationViolations().isEmpty)
+}
+
+@MainActor
+@Test
+func policyRollbackRestoresPreviousSettingsAsANewVersion() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-policy-rollback-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    let first = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    _ = try store.save(first)
+    var changedDraft = SettingsPolicyDraft(policy: first)
+    changedDraft.capacityPercent = 85
+    _ = try store.save(changedDraft.policy(preserving: first))
+    let controller = SettingsPolicyController(databaseURL: databaseURL) { policy in
+        let saved = try store.save(policy)
+        return AgentMutationReceipt(accepted: true, message: "saved", policyVersion: saved.version)
+    }
+
+    await controller.rollbackToPreviousPolicy()?.value
+
+    #expect(try store.current()?.version == 3)
+    #expect(try store.current()?.policy.schedule.planningCapacityPercent == first.schedule.planningCapacityPercent)
 }
 
 @Test

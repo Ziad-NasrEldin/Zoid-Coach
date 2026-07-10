@@ -11,6 +11,7 @@ public struct PlanUndoRequest: Equatable, Sendable {
 
 public final class PlanUndoRequestStore: @unchecked Sendable {
     private let database: OpaquePointer
+    private let lock = NSRecursiveLock()
     private let formatter = ISO8601DateFormatter()
 
     public init(databaseURL: URL) throws {
@@ -25,7 +26,20 @@ public final class PlanUndoRequestStore: @unchecked Sendable {
 
     deinit { sqlite3_close(database) }
 
+    public func recoverInterrupted(now: Date = Date()) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "UPDATE plan_undo_requests SET state = 'pending', updated_at_utc = ? WHERE state = 'executing';", -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw PlanUndoRequestStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        bind(formatter.string(from: now), statement, 1)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw PlanUndoRequestStoreError.write }
+    }
+
     public func enqueue(promptID: String, dayKey: String, now: Date = Date()) throws {
+        lock.lock()
+        defer { lock.unlock() }
         let sql = "INSERT OR IGNORE INTO plan_undo_requests (id, prompt_id, day_key, state, created_at_utc, updated_at_utc) VALUES (?, ?, ?, 'pending', ?, ?);"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw PlanUndoRequestStoreError.write }
@@ -39,6 +53,8 @@ public final class PlanUndoRequestStore: @unchecked Sendable {
     }
 
     public func claimNext(now: Date = Date()) throws -> PlanUndoRequest? {
+        lock.lock()
+        defer { lock.unlock() }
         guard sqlite3_exec(database, "BEGIN IMMEDIATE;", nil, nil, nil) == SQLITE_OK else { throw PlanUndoRequestStoreError.write }
         var committed = false
         defer { _ = sqlite3_exec(database, committed ? "COMMIT;" : "ROLLBACK;", nil, nil, nil) }
@@ -61,6 +77,8 @@ public final class PlanUndoRequestStore: @unchecked Sendable {
     }
 
     public func finish(_ request: PlanUndoRequest, succeeded: Bool, now: Date = Date()) throws {
+        lock.lock()
+        defer { lock.unlock() }
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, "UPDATE plan_undo_requests SET state = ?, updated_at_utc = ? WHERE id = ? AND state = 'executing';", -1, &statement, nil) == SQLITE_OK, let statement else { throw PlanUndoRequestStoreError.write }
         defer { sqlite3_finalize(statement) }

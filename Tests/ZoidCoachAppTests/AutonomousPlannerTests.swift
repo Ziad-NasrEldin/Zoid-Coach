@@ -106,6 +106,23 @@ func schedulerPlacesWorkOnlyInsideFreeIntervalsAndLeavesTransitionTime() {
 }
 
 @Test
+func schedulerPlacesTheFirstCommitmentInsideTheLearnedPreferredWindow() {
+    let start = Date(timeIntervalSince1970: 1_783_670_400)
+    let preferredStart = start.addingTimeInterval(2 * 60 * 60)
+    let result = CalendarBlockScheduler().schedule(
+        tasks: [SchedulableTask(id: "main", title: "Main", durationMinutes: 30)],
+        availableIntervals: [
+            CalendarInterval(start: start, end: start.addingTimeInterval(60 * 60)),
+            CalendarInterval(start: preferredStart, end: preferredStart.addingTimeInterval(60 * 60))
+        ],
+        transitionMinutes: 10,
+        preferredInterval: CalendarInterval(start: preferredStart, end: preferredStart.addingTimeInterval(60 * 60))
+    )
+
+    #expect(result.blocks.first?.start == preferredStart)
+}
+
+@Test
 func meetingExtractorResolvesAnExplicitWeekdayAndTimeAsAConfirmableCandidate() {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -151,6 +168,33 @@ func meetingExtractorRecognizesArabicTomorrowTimeAndDuration() {
     #expect(candidate?.start == calendar.date(from: DateComponents(year: 2026, month: 7, day: 7, hour: 15, minute: 30)))
     #expect(candidate?.durationMinutes == 45)
     #expect(candidate?.confidence == .high)
+}
+
+@Test
+func meetingExtractorSanitizedFixtureSetHasFullRecallWithoutObviousFalsePositives() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let reference = calendar.date(from: DateComponents(year: 2026, month: 7, day: 6, hour: 9))!
+    let positives = [
+        "Meet with Alex and Noor tomorrow at 4 PM for 45 minutes. Location: Studio 2",
+        "Planning review Tuesday around 10:30 am https://meet.example.test/room",
+        "خلينا نتقابل بكرة الساعة ٣:٣٠ م لمدة ٤٥ دقيقة",
+        "Meeting tomorrow 3pm"
+    ]
+    let negatives = [
+        "Tomorrow I have 3 tasks left in the backlog.",
+        "The release includes 12 fixes and ships Friday.",
+        "Call me when you are free."
+    ]
+
+    let extracted = positives.compactMap { MeetingCandidateExtractor(calendar: calendar).extract(from: $0, observedAt: reference) }
+    let falsePositives = negatives.compactMap { MeetingCandidateExtractor(calendar: calendar).extract(from: $0, observedAt: reference) }
+
+    #expect(extracted.count == positives.count)
+    #expect(falsePositives.isEmpty)
+    #expect(extracted[0].participants == ["Alex", "Noor"])
+    #expect(extracted[0].location == "Studio 2")
+    #expect(extracted[1].callLink == "https://meet.example.test/room")
 }
 
 @Test

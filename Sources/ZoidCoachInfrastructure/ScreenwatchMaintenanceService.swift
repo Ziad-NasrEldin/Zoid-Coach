@@ -91,7 +91,8 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         mode: ScreenwatchMaintenanceMode = .apply
     ) throws -> ScreenwatchMaintenanceReport {
         let policy = try policy.validated()
-        let historicalDays = try discoverHistoricalDays(before: now)
+        let maintenanceTimeZone = TimeZone(identifier: policy.schedule.timeZoneIdentifier) ?? .current
+        let historicalDays = try discoverHistoricalDays(before: now, timeZone: maintenanceTimeZone)
         let completed = try completedHistoricalDayKeys()
         let pending = historicalDays.filter { !completed.contains($0.key) }
         let retention = try retentionPlan(policy: policy, now: now)
@@ -141,9 +142,9 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         return report
     }
 
-    private func discoverHistoricalDays(before now: Date) throws -> [HistoricalDay] {
+    private func discoverHistoricalDays(before now: Date, timeZone: TimeZone) throws -> [HistoricalDay] {
         guard fileManager.fileExists(atPath: screenwatchDirectory.path) else { return [] }
-        let todayKey = Self.dayKey(now, timeZone: .current)
+        let todayKey = Self.dayKey(now, timeZone: timeZone)
         let children = try fileManager.contentsOfDirectory(
             at: screenwatchDirectory,
             includingPropertiesForKeys: [.isDirectoryKey],
@@ -154,7 +155,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             guard key < todayKey,
                   (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
                   fileManager.fileExists(atPath: url.appendingPathComponent("log.jsonl").path),
-                  let date = Self.dayDate(key, timeZone: .current)
+                  let date = Self.dayDate(key, timeZone: timeZone)
             else { return nil }
             return HistoricalDay(key: key, date: date)
         }.sorted { $0.key < $1.key }
@@ -213,16 +214,6 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         let rawEpoch = Int64(rawCutoff.timeIntervalSince1970)
         let textEpoch = Int64(textCutoff.timeIntervalSince1970)
 
-        var filePaths = try screenshotFiles(olderThan: rawCutoff)
-        let indexedPaths = try strings(
-            "SELECT path FROM screenshot_artifacts WHERE behavior_epoch < ? AND path <> '';",
-            bind: { sqlite3_bind_int64($0, 1, rawEpoch) }
-        )
-        for path in indexedPaths {
-            let url = URL(fileURLWithPath: path).standardizedFileURL
-            if isInsideScreenwatchDirectory(url) { filePaths.insert(url) }
-        }
-
         let rawReferences = try scalar(
             "SELECT (SELECT COUNT(*) FROM behavior_records WHERE epoch < ? AND screenshot_path IS NOT NULL) + (SELECT COUNT(*) FROM screenshot_artifacts WHERE behavior_epoch < ? AND path <> '');",
             bind: {
@@ -243,7 +234,9 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             rawCutoffEpoch: rawEpoch,
             textCutoffEpoch: textEpoch,
             diagnosticCutoff: formatter.string(from: diagnosticCutoff),
-            screenshotFiles: filePaths,
+            // Screenwatch owns its archive. Zoid expires only its local references
+            // and derived evidence unless a separate destructive-source policy is added.
+            screenshotFiles: [],
             rawReferences: rawReferences,
             extractedFacts: facts,
             behaviorTextRows: textRows,
@@ -321,24 +314,13 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else { throw databaseError(.write) }
             transactionOpen = false
 
-            var deletedFiles = 0
-            var failedFiles = 0
-            for file in plan.screenshotFiles {
-                guard fileManager.fileExists(atPath: file.path) else { continue }
-                do {
-                    try fileManager.removeItem(at: file)
-                    deletedFiles += 1
-                } catch {
-                    failedFiles += 1
-                }
-            }
             return AppliedRetention(
-                filesDeleted: deletedFiles,
+                filesDeleted: 0,
                 rawReferencesRedacted: rawRedacted,
                 extractedFactsDeleted: factsDeleted,
                 behaviorTextRowsRedacted: textRedacted,
                 diagnosticsPurged: diagnosticsPurged,
-                failedFileDeletions: failedFiles
+                failedFileDeletions: 0
             )
         } catch {
             throw error

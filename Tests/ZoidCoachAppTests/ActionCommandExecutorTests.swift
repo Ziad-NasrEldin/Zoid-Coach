@@ -106,6 +106,55 @@ func confirmedMeetingUsesFingerprintLookupForExactOnceRecovery() async throws {
 }
 
 @Test
+func meetingDesiredStateDecodesCommandsWrittenBeforeFidelityFieldsExisted() throws {
+    let legacy = Data(#"{"title":"Legacy meeting","start":0,"durationMinutes":30,"calendarIdentifier":null,"candidateFingerprint":"legacy-fingerprint"}"#.utf8)
+
+    let decoded = try JSONDecoder().decode(MeetingDesiredState.self, from: legacy)
+
+    #expect(decoded.title == "Legacy meeting")
+    #expect(decoded.participants.isEmpty)
+    #expect(decoded.location == nil)
+    #expect(decoded.callLink == nil)
+    #expect(decoded.timezoneIdentifier == nil)
+}
+
+@Test
+func confirmedMeetingPropagatesCapturedContextToCalendarMutation() async throws {
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    let desired = MeetingDesiredState(
+        title: "Planning review",
+        start: date,
+        durationMinutes: 45,
+        calendarIdentifier: "work",
+        candidateFingerprint: "context-fingerprint",
+        participants: ["Alex", "Noor"],
+        location: "Studio 2",
+        callLink: "https://meet.example.test/room",
+        timezoneIdentifier: "Africa/Cairo"
+    )
+    let outbox = FakeActionCommandQueue(commands: [makeCommand(
+        type: .createConfirmedMeeting,
+        entityID: "candidate-context",
+        desiredState: .meeting(desired),
+        date: date
+    )])
+    let calendar = FakeCalendarSource()
+    let executor = ActionCommandExecutor(outbox: outbox, tasks: FakeTaskSource(), calendar: calendar, now: { date })
+
+    _ = await executor.executeNext()
+
+    let mutations = await calendar.mutations
+    guard case let .createConfirmedMeeting(meeting) = mutations.first else {
+        Issue.record("Expected a confirmed meeting mutation")
+        return
+    }
+    #expect(meeting.participants == desired.participants)
+    #expect(meeting.location == desired.location)
+    #expect(meeting.callLink == desired.callLink)
+    #expect(meeting.timezoneIdentifier == desired.timezoneIdentifier)
+}
+
+@Test
 func calendarReconciliationUpdatesAnOwnedBlockToTheDesiredState() async throws {
     let date = Date(timeIntervalSince1970: 1_700_000_000)
     let existing = CalendarCommitment(

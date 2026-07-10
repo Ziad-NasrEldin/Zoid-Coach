@@ -99,13 +99,31 @@ public struct ConfirmedMeetingMutation: Equatable, Sendable {
     public let end: Date
     public let calendarIdentifier: String?
     public let fingerprint: String
+    public let participants: [String]
+    public let location: String?
+    public let callLink: String?
+    public let timezoneIdentifier: String?
 
-    public init(title: String, start: Date, end: Date, calendarIdentifier: String?, fingerprint: String) {
+    public init(
+        title: String,
+        start: Date,
+        end: Date,
+        calendarIdentifier: String?,
+        fingerprint: String,
+        participants: [String] = [],
+        location: String? = nil,
+        callLink: String? = nil,
+        timezoneIdentifier: String? = nil
+    ) {
         self.title = title
         self.start = start
         self.end = end
         self.calendarIdentifier = calendarIdentifier
         self.fingerprint = fingerprint
+        self.participants = participants
+        self.location = location
+        self.callLink = callLink
+        self.timezoneIdentifier = timezoneIdentifier
     }
 }
 

@@ -237,6 +237,7 @@ public final class EventKitCalendarSource: CalendarSource, CalendarAvailabilityS
 
                 case let .createConfirmedMeeting(meeting):
                     if let existing = confirmedMeetingLocked(fingerprint: meeting.fingerprint) { return existing }
+                    if let existing = duplicateMeetingLocked(meeting) { return existing }
                 let event = EKEvent(eventStore: store)
                 if let identifier = meeting.calendarIdentifier {
                     guard let selected = store.calendar(withIdentifier: identifier), selected.allowsContentModifications else {
@@ -252,7 +253,16 @@ public final class EventKitCalendarSource: CalendarSource, CalendarAvailabilityS
                 event.title = meeting.title
                 event.startDate = meeting.start
                 event.endDate = meeting.end
-                event.notes = meetingPrefix + meeting.fingerprint
+                event.location = meeting.location
+                if let callLink = meeting.callLink.flatMap(URL.init(string:)) { event.url = callLink }
+                var notes = [meetingPrefix + meeting.fingerprint]
+                if !meeting.participants.isEmpty {
+                    notes.append("Participants: " + meeting.participants.joined(separator: ", "))
+                }
+                if let timezoneIdentifier = meeting.timezoneIdentifier {
+                    notes.append("Source timezone: " + timezoneIdentifier)
+                }
+                event.notes = notes.joined(separator: "\n")
                 try store.save(event, span: .thisEvent, commit: true)
                 return normalized(event)
                 }
@@ -271,6 +281,42 @@ public final class EventKitCalendarSource: CalendarSource, CalendarAvailabilityS
 
     private func confirmedMeetingLocked(fingerprint: String) -> CalendarCommitment? {
         events(calendars: nil).first { meetingFingerprint(in: $0.notes) == fingerprint }.map(normalized)
+    }
+
+    private func duplicateMeetingLocked(_ meeting: ConfirmedMeetingMutation) -> CalendarCommitment? {
+        let candidate = MeetingCandidate(
+            title: meeting.title,
+            start: meeting.start,
+            durationMinutes: max(1, Int(meeting.end.timeIntervalSince(meeting.start) / 60)),
+            confidence: .high,
+            requiresClarification: false,
+            sourceText: "",
+            participants: meeting.participants
+        )
+        let nearbyEvents = events(calendars: nil).filter {
+            abs($0.startDate.timeIntervalSince(meeting.start)) <= MeetingCandidatePolicy().duplicateTolerance
+        }
+        let candidates = nearbyEvents.map {
+            ExistingMeetingEvent(
+                id: $0.calendarItemIdentifier,
+                title: $0.title ?? "Untitled event",
+                start: $0.startDate,
+                end: $0.endDate,
+                participants: self.participantNames(in: $0)
+            )
+        }
+        guard case let .duplicate(identifier) = MeetingCandidatePolicy().route(candidate, existingEvents: candidates),
+              let event = nearbyEvents.first(where: { $0.calendarItemIdentifier == identifier })
+        else { return nil }
+        return normalized(event)
+    }
+
+    private func participantNames(in event: EKEvent) -> [String] {
+        guard let attendees = event.attendees else { return [] }
+        return attendees.map { attendee in
+            if let name = attendee.name { return name }
+            return attendee.url.absoluteString
+        }
     }
 
     private func apply(_ block: CalendarBlockMutation, to event: EKEvent) {

@@ -115,7 +115,8 @@ final class AgentReminderPlanner: @unchecked Sendable {
 
     func synchronizeReminderSource() async throws -> ReminderSyncResult? {
         guard hasFullAccess else { return nil }
-        let predicate = eventStore.predicateForIncompleteReminders(withDueDateStarting: nil, ending: nil, calendars: nil)
+        let previouslyIncomplete = Set(try reminderSnapshotStore.loadIncomplete().map(\.id))
+        let predicate = eventStore.predicateForReminders(in: nil)
         let snapshots: [ReminderSourceSnapshot] = await withCheckedContinuation { continuation in
             eventStore.fetchReminders(matching: predicate) { reminders in
                 continuation.resume(returning: (reminders ?? []).map {
@@ -127,12 +128,17 @@ final class AgentReminderPlanner: @unchecked Sendable {
                         notes: $0.notes,
                         listID: $0.calendar.calendarIdentifier,
                         listName: $0.calendar.title,
-                        modificationDate: $0.lastModifiedDate
+                        modificationDate: $0.lastModifiedDate,
+                        isCompleted: $0.isCompleted
                     )
                 })
             }
         }
-        return try reminderSnapshotStore.synchronize(snapshots)
+        let result = try reminderSnapshotStore.synchronize(snapshots)
+        for snapshot in snapshots where snapshot.isCompleted && previouslyIncomplete.contains(snapshot.id) {
+            try taskHistoryStore.record(taskID: snapshot.id, state: .completed, at: snapshot.modificationDate ?? Date())
+        }
+        return result
     }
 
     private func incompleteReminders() async -> [AgentReminderSnapshot] {

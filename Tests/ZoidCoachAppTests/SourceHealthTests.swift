@@ -24,7 +24,11 @@ func sourceCheckCompletesWithStableSourceStates() async {
     let model = AppModel(screenwatchReader: ScreenwatchReader(baseDirectory: root))
 
     model.runSourceCheck()
-    try? await Task.sleep(for: .milliseconds(500))
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(3))
+    while model.isCheckingSources, clock.now < deadline {
+        try? await Task.sleep(for: .milliseconds(50))
+    }
 
     #expect(model.sources.allSatisfy { $0.state != .checking })
     #expect(model.isCheckingSources == false)

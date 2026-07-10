@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 14
+    public static let currentVersion = 17
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -536,7 +536,42 @@ private extension AutonomousDatabaseMigrator {
             PRIMARY KEY(day_key, task_id, policy_version)
         );
         CREATE UNIQUE INDEX IF NOT EXISTS gaming_reward_one_per_day_policy ON gaming_reward_ledger(day_key, policy_version);
-        """)])
+        """)]),
+        Migration(version: 15, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS prompt_response_effects (
+            response_id TEXT PRIMARY KEY,
+            prompt_id TEXT NOT NULL,
+            effect_type TEXT NOT NULL,
+            state TEXT NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            updated_at_utc TEXT NOT NULL,
+            FOREIGN KEY(response_id) REFERENCES prompt_responses(id),
+            FOREIGN KEY(prompt_id) REFERENCES prompt_episodes(id)
+        );
+        CREATE INDEX IF NOT EXISTS prompt_response_effects_pending
+        ON prompt_response_effects(state, created_at_utc);
+        """)]),
+        Migration(version: 16, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS plan_schedule_requests (
+            id TEXT PRIMARY KEY,
+            prompt_id TEXT NOT NULL UNIQUE,
+            day_key TEXT NOT NULL,
+            state TEXT NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            updated_at_utc TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS plan_schedule_requests_pending
+        ON plan_schedule_requests(state, created_at_utc);
+        """)]),
+        Migration(version: 17, isDestructive: false, operations: [
+            .addColumn(table: "action_commands", column: "action_origin", declaration: "TEXT NOT NULL DEFAULT 'explicit_user'"),
+            .sql("""
+            UPDATE action_commands
+            SET action_origin = 'automatic_plan'
+            WHERE state IN ('pending', 'retryable_failure')
+              AND action_type IN ('createCalendarBlock', 'updateCalendarBlock', 'reconcileCalendarBlock', 'deleteCalendarBlock', 'setReminderPriority', 'setReminderDueDate', 'setReminderMetadata');
+            """)
+        ])
     ]
 }
 

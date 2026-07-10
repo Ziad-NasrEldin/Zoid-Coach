@@ -191,7 +191,11 @@ public struct ActionCommandExecutor: Sendable {
                 start: desired.start,
                 end: desired.start.addingTimeInterval(TimeInterval(desired.durationMinutes * 60)),
                 calendarIdentifier: desired.calendarIdentifier,
-                fingerprint: desired.candidateFingerprint
+                fingerprint: desired.candidateFingerprint,
+                participants: desired.participants,
+                location: desired.location,
+                callLink: desired.callLink,
+                timezoneIdentifier: desired.timezoneIdentifier
             )
             guard let created = try await calendar.apply(.createConfirmedMeeting(meeting)) else {
                 throw ActionSourceError.temporarilyUnavailable

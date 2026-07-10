@@ -146,7 +146,10 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
                 actionToken: command.actionToken,
                 surface: command.surface
             )
-            _ = try promptEffectRouter?.apply(result)
+            if let promptEffectRouter {
+                _ = try promptEffectRouter.apply(result)
+                try promptStore.markEffectApplied(responseID: result.response.id)
+            }
             reply(try encoder.encode(result.episode), nil)
         } catch { reply(nil, error.localizedDescription) }
     }

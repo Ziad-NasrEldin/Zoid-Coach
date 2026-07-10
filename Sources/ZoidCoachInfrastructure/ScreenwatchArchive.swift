@@ -34,8 +34,43 @@ public struct StoredMeetingCandidate: Equatable, Sendable, Identifiable {
     public let confidence: MeetingCandidateConfidence
     public let requiresClarification: Bool
     public let state: String
+    public let confidenceScore: Double
+    public let participants: [String]
+    public let location: String?
+    public let callLink: String?
+    public let timezoneIdentifier: String
 
     public var id: String { "\(sourceDay):\(epoch)" }
+
+    public init(
+        sourceDay: String,
+        epoch: Int,
+        title: String,
+        start: Date,
+        durationMinutes: Int,
+        confidence: MeetingCandidateConfidence,
+        requiresClarification: Bool,
+        state: String,
+        confidenceScore: Double = 0,
+        participants: [String] = [],
+        location: String? = nil,
+        callLink: String? = nil,
+        timezoneIdentifier: String = TimeZone.current.identifier
+    ) {
+        self.sourceDay = sourceDay
+        self.epoch = epoch
+        self.title = title
+        self.start = start
+        self.durationMinutes = durationMinutes
+        self.confidence = confidence
+        self.requiresClarification = requiresClarification
+        self.state = state
+        self.confidenceScore = confidenceScore
+        self.participants = participants
+        self.location = location
+        self.callLink = callLink
+        self.timezoneIdentifier = timezoneIdentifier
+    }
 }
 
 public final class ScreenwatchArchive: @unchecked Sendable {
@@ -120,6 +155,11 @@ public final class ScreenwatchArchive: @unchecked Sendable {
 
         for screenshot in pending {
             do {
+                if try hasAnalyzedExactDuplicate(excluding: screenshot) {
+                    try recordAnalysis(for: screenshot, outcome: "content_duplicate")
+                    try? updateScreenshotOCRState(artifactID: "\(screenshot.sourceDay):\(screenshot.epoch)", state: "duplicate_suppressed")
+                    continue
+                }
                 let result = try await recognizer.recognize(in: screenshot.path)
                 let evidenceHash = try persistOCRResult(result, for: screenshot, cipher: evidenceCipher)
                 try recordAnalysis(for: screenshot, outcome: "recognized")
@@ -145,7 +185,8 @@ public final class ScreenwatchArchive: @unchecked Sendable {
 
     public func unresolvedMeetingCandidates() throws -> [StoredMeetingCandidate] {
         let sql = """
-        SELECT source_day, epoch, title, start_at, duration_minutes, confidence, requires_clarification, state
+        SELECT source_day, epoch, title, start_at, duration_minutes, confidence, requires_clarification, state,
+               confidence_score, participants_json, location, call_link, timezone_identifier
         FROM meeting_candidates
         WHERE state IN ('ready_for_confirmation', 'needs_clarification')
         ORDER BY start_at ASC;
@@ -176,7 +217,12 @@ public final class ScreenwatchArchive: @unchecked Sendable {
                     durationMinutes: Int(sqlite3_column_int(statement, 4)),
                     confidence: confidence,
                     requiresClarification: sqlite3_column_int(statement, 6) == 1,
-                    state: state
+                    state: state,
+                    confidenceScore: sqlite3_column_double(statement, 8),
+                    participants: decodeParticipants(columnText(statement, at: 9)),
+                    location: columnText(statement, at: 10),
+                    callLink: columnText(statement, at: 11),
+                    timezoneIdentifier: columnText(statement, at: 12) ?? TimeZone.current.identifier
                 )
             )
         }
@@ -189,7 +235,8 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         else { return nil }
         let sourceDay = String(id[..<separator])
         let sql = """
-        SELECT source_day, epoch, title, start_at, duration_minutes, confidence, requires_clarification, state
+        SELECT source_day, epoch, title, start_at, duration_minutes, confidence, requires_clarification, state,
+               confidence_score, participants_json, location, call_link, timezone_identifier
         FROM meeting_candidates WHERE source_day = ? AND epoch = ? LIMIT 1;
         """
         var statement: OpaquePointer?
@@ -213,7 +260,12 @@ public final class ScreenwatchArchive: @unchecked Sendable {
             durationMinutes: Int(sqlite3_column_int(statement, 4)),
             confidence: confidence,
             requiresClarification: sqlite3_column_int(statement, 6) == 1,
-            state: state
+            state: state,
+            confidenceScore: sqlite3_column_double(statement, 8),
+            participants: decodeParticipants(columnText(statement, at: 9)),
+            location: columnText(statement, at: 10),
+            callLink: columnText(statement, at: 11),
+            timezoneIdentifier: columnText(statement, at: 12) ?? TimeZone.current.identifier
         )
     }
 
@@ -442,10 +494,12 @@ public final class ScreenwatchArchive: @unchecked Sendable {
 
     private func pendingWhatsAppScreenshots() throws -> [PendingScreenshot] {
         let sql = """
-        SELECT record.source_day, record.epoch, record.screenshot_path
+        SELECT record.source_day, record.epoch, record.screenshot_path, artifact.content_hash
         FROM behavior_records AS record
         LEFT JOIN screenshot_analyses AS analysis
           ON analysis.source_day = record.source_day AND analysis.epoch = record.epoch
+        LEFT JOIN screenshot_artifacts AS artifact
+          ON artifact.behavior_day = record.source_day AND artifact.behavior_epoch = record.epoch
         WHERE LOWER(record.app_name) LIKE '%whatsapp%'
           AND record.screenshot_path IS NOT NULL
           AND analysis.epoch IS NULL
@@ -466,11 +520,41 @@ public final class ScreenwatchArchive: @unchecked Sendable {
                 PendingScreenshot(
                     sourceDay: sourceDay,
                     epoch: Int(sqlite3_column_int64(statement, 1)),
-                    path: URL(fileURLWithPath: screenshotPath)
+                    path: URL(fileURLWithPath: screenshotPath),
+                    contentHash: columnText(statement, at: 3)
                 )
             )
         }
         return screenshots
+    }
+
+    private func hasAnalyzedExactDuplicate(excluding screenshot: PendingScreenshot) throws -> Bool {
+        let contentHash: String
+        if let stored = screenshot.contentHash {
+            contentHash = stored
+        } else {
+            let data = try Data(contentsOf: screenshot.path, options: [.mappedIfSafe])
+            contentHash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        }
+        let sql = """
+        SELECT 1
+        FROM screenshot_artifacts AS artifact
+        JOIN screenshot_analyses AS analysis
+          ON analysis.source_day = artifact.behavior_day AND analysis.epoch = artifact.behavior_epoch
+        WHERE NOT (artifact.behavior_day = ? AND artifact.behavior_epoch = ?)
+          AND analysis.outcome = 'recognized'
+          AND artifact.content_hash = ?
+        LIMIT 1;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw ScreenwatchArchiveError.prepareRead
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(screenshot.sourceDay, to: statement, at: 1)
+        sqlite3_bind_int64(statement, 2, Int64(screenshot.epoch))
+        bind(contentHash, to: statement, at: 3)
+        return sqlite3_step(statement) == SQLITE_ROW
     }
 
     private func recordAnalysis(for screenshot: PendingScreenshot, outcome: String) throws {
@@ -615,6 +699,11 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         return String(cString: text)
     }
 
+    private func decodeParticipants(_ value: String?) -> [String] {
+        guard let value, let data = value.data(using: .utf8) else { return [] }
+        return (try? JSONDecoder().decode([String].self, from: data)) ?? []
+    }
+
     private func confidence(from value: String) -> MeetingCandidateConfidence? {
         switch value {
         case "high": .high
@@ -638,6 +727,7 @@ private struct PendingScreenshot: Sendable {
     let sourceDay: String
     let epoch: Int
     let path: URL
+    let contentHash: String?
 }
 
 public enum ScreenwatchArchiveError: LocalizedError {

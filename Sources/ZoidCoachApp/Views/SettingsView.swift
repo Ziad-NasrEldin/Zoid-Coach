@@ -7,6 +7,7 @@ import ZoidCoachInfrastructure
 final class SettingsPolicyController: ObservableObject {
     @Published var draft: SettingsPolicyDraft
     @Published private(set) var activeVersion: Int?
+    @Published private(set) var policyHistory: [VersionedUserPolicy] = []
     @Published private(set) var statusMessage: String?
     @Published private(set) var isSaving = false
 
@@ -35,12 +36,17 @@ final class SettingsPolicyController: ObservableObject {
         persistedPolicy = policy
         draft = SettingsPolicyDraft(policy: policy)
         activeVersion = current?.version
+        policyHistory = (try? store?.history()) ?? []
         if store == nil {
             statusMessage = "Policy storage is unavailable. Settings are read-only until local storage recovers."
         }
     }
 
     var isReadOnly: Bool { store == nil }
+
+    var previousPolicyVersion: Int? {
+        policyHistory.first(where: { $0.version != activeVersion })?.version
+    }
 
     @discardableResult
     func save() -> Task<Void, Never>? {
@@ -79,6 +85,21 @@ final class SettingsPolicyController: ObservableObject {
         if !enabled { save() }
     }
 
+    @discardableResult
+    func rollbackToPreviousPolicy() -> Task<Void, Never>? {
+        guard let target = policyHistory.first(where: { $0.version != activeVersion }) else { return nil }
+        isSaving = true
+        return Task {
+            do {
+                try await persist(target.policy)
+                statusMessage = "Restored the settings from policy v\(target.version) as a new audited version."
+            } catch {
+                statusMessage = "Policy rollback failed: \(error.localizedDescription)"
+            }
+            isSaving = false
+        }
+    }
+
     func openDataFolder() {
         NSWorkspace.shared.open(ZoidCoachStorage.databaseURL().deletingLastPathComponent())
     }
@@ -88,6 +109,7 @@ final class SettingsPolicyController: ObservableObject {
         persistedPolicy = policy
         draft = SettingsPolicyDraft(policy: policy)
         activeVersion = receipt.policyVersion
+        policyHistory = (try? store?.history()) ?? policyHistory
         statusMessage = receipt.message
     }
 }
@@ -101,6 +123,7 @@ struct SettingsView: View {
     @State private var deleteRangeEnd = Date()
     @State private var confirmingRangeDeletion = false
     @State private var confirmingTextDeletion = false
+    @State private var confirmingPolicyRollback = false
     @State private var dataStatusMessage: String?
     private let xpcClient = TodayDashboardXPCClient()
 
@@ -140,6 +163,12 @@ struct SettingsView: View {
                 Task { await performDataCommand(.deleteExtractedConversationText) }
             }
             Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Restore the previous policy?", isPresented: $confirmingPolicyRollback, titleVisibility: .visible) {
+            Button("Restore previous policy") { controller.rollbackToPreviousPolicy() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your current settings will remain in history, and the restored settings will be saved as a new audited policy version.")
         }
     }
 
@@ -235,6 +264,13 @@ struct SettingsView: View {
                 Text("Fully automatic").tag(OperatingMode.fullyAutomatic)
             }
             .pickerStyle(.segmented)
+
+            if let version = controller.previousPolicyVersion {
+                Button("ROLL BACK TO POLICY V\(version)") { confirmingPolicyRollback = true }
+                    .buttonStyle(SettingsButtonStyle())
+                    .disabled(controller.isSaving || controller.isReadOnly)
+                    .accessibilityHint("Restores the previous settings as a new policy version")
+            }
         }
     }
 
@@ -245,6 +281,10 @@ struct SettingsView: View {
                 LocalTimeField(title: "Work ends", time: $controller.draft.workEnd)
                 LocalTimeField(title: "Quiet starts", time: $controller.draft.quietStart)
                 LocalTimeField(title: "Quiet ends", time: $controller.draft.quietEnd)
+            }
+            HStack(spacing: 18) {
+                LocalTimeField(title: "Nightly planning", time: $controller.draft.nightlyPlanningTime)
+                LocalTimeField(title: "Morning confirmation", time: $controller.draft.morningConfirmationTime)
             }
             Stepper("Planning capacity: \(controller.draft.capacityPercent)%", value: $controller.draft.capacityPercent, in: 25...100, step: 5)
         }

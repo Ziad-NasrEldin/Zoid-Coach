@@ -6,22 +6,26 @@ private let trustGateSQLiteTransient = unsafeBitCast(-1, to: sqlite3_destructor_
 public struct PlannerTrustGateStatus: Equatable, Sendable {
     public let observedCycleCount: Int
     public let requiredCycleCount: Int
+    public let requiredWakeCycleCount: Int
 
     public var allowsAutomaticWrites: Bool { observedCycleCount >= requiredCycleCount }
+    public var allowsWakeWrites: Bool { observedCycleCount >= requiredWakeCycleCount }
 }
 
 public final class PlannerTrustGateStore: @unchecked Sendable {
     private let database: OpaquePointer
     private let requiredCycles: Int
+    private let requiredWakeCycles: Int
     private let formatter = ISO8601DateFormatter()
 
-    public init(databaseURL: URL, requiredCycles: Int = 7) throws {
+    public init(databaseURL: URL, requiredCycles: Int = 7, requiredWakeCycles: Int = 14) throws {
         try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
         var handle: OpaquePointer?
         guard sqlite3_open_v2(databaseURL.path, &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
               let handle else { throw PlannerTrustGateStoreError.openDatabase }
         database = handle
         self.requiredCycles = max(1, requiredCycles)
+        self.requiredWakeCycles = max(max(1, requiredCycles), requiredWakeCycles)
         sqlite3_busy_timeout(database, 5_000)
     }
 
@@ -58,7 +62,8 @@ public final class PlannerTrustGateStore: @unchecked Sendable {
         guard sqlite3_step(statement) == SQLITE_ROW else { throw PlannerTrustGateStoreError.read }
         return PlannerTrustGateStatus(
             observedCycleCount: Int(sqlite3_column_int(statement, 0)),
-            requiredCycleCount: requiredCycles
+            requiredCycleCount: requiredCycles,
+            requiredWakeCycleCount: requiredWakeCycles
         )
     }
 

@@ -28,6 +28,33 @@ func autonomousPlanStoreMakesAnAgentDraftAvailableToTheAppForItsTargetDay() thro
     try store.replaceDailyPlan(proposal, for: day)
 
     #expect(try store.hasPlan(for: day))
+    let scheduleRequests = try PlanScheduleRequestStore(databaseURL: databaseURL)
+    let pendingRequest = try scheduleRequests.claimNext()
+    let request = try #require(pendingRequest)
+    #expect(request.promptID.hasPrefix("automatic-plan:"))
+    #expect(request.dayKey.isEmpty == false)
+    let reopenedRequests = try PlanScheduleRequestStore(databaseURL: databaseURL)
+    try reopenedRequests.recoverInterrupted()
+    let recoveredRequest = try reopenedRequests.claimNext()
+    #expect(recoveredRequest?.id == request.id)
+}
+
+@Test
+func autonomousPlanStoreUsesTheConfiguredPolicyTimezoneForOwnership() throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-plan-timezone-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let instant = try #require(ISO8601DateFormatter().date(from: "2026-07-10T01:00:00Z"))
+    let proposal = DailyPlanProposal(
+        items: [PlannedTask(taskID: "timezone-task", title: "Timezone", rank: 1, estimateMinutes: 20, reason: "test", score: 1)],
+        mainObjectiveTaskID: "timezone-task",
+        plannedFocusMinutes: 20,
+        availableFocusMinutes: 60
+    )
+    let losAngeles = try AutonomousPlanStore(databaseURL: databaseURL, timeZoneIdentifier: { "America/Los_Angeles" })
+    try losAngeles.replaceDailyPlan(proposal, for: instant)
+    #expect(try losAngeles.hasPlan(for: instant))
+    let tokyo = try AutonomousPlanStore(databaseURL: databaseURL, timeZoneIdentifier: { "Asia/Tokyo" })
+    #expect(try tokyo.hasPlan(for: instant) == false)
 }
 
 @Test

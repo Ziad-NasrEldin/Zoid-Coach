@@ -79,8 +79,15 @@ public struct MeetingCandidateExtractor: Sendable {
 
     public func extract(from text: String, observedAt: Date) -> MeetingCandidate? {
         let normalizedText = normalize(text)
-        guard let dateExpression = firstMatch(#"\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|اليوم|بكرة|غدا|الأحد|الاثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت)\b"#, in: normalizedText),
-              let timeExpression = firstMatch(#"\b([0-1]?\d)(?::([0-5]\d))?\s*(am|pm|ص|م)?\b"#, in: normalizedText),
+        guard let dateExpression = firstMatch(#"\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|اليوم|بكرة|غدا|الأحد|الاثنين|الثلاثاء|الأربعاء|الخميس|الجمعة|السبت)\b"#, in: normalizedText)
+        else { return nil }
+        let contextualTime = firstMatch(#"\b(?:at|around|by|الساعة)\s*([0-1]?\d)(?::([0-5]\d))?\s*(am|pm|ص|م)?\b"#, in: normalizedText)
+        let hasMeetingIntent = firstMatch(#"\b(meet(?:ing)?|call|appointment|موعد|اجتماع|مكالمة)\b"#, in: normalizedText) != nil
+        let unprefixedTime = hasMeetingIntent
+            ? firstMatch(#"\b([0-1]?\d)(?::([0-5]\d))?\s*(am|pm|ص|م)\b"#, in: normalizedText)
+                ?? firstMatch(#"\b([01]?\d|2[0-3]):([0-5]\d)\b"#, in: normalizedText)
+            : nil
+        guard let timeExpression = contextualTime ?? unprefixedTime,
               let hourText = capture(timeExpression, at: 1),
               let hour = Int(hourText)
         else { return nil }
@@ -97,11 +104,12 @@ public struct MeetingCandidateExtractor: Sendable {
 
         let duration = durationMinutes(in: normalizedText) ?? 30
         let isExplicitTime = meridiem != nil || hour >= 8
-        let callLink = firstMatch(#"https?://[^\s<>]+"#, in: normalizedText)?.value
+        let callLink = firstMatch(#"https?://[^\s<>]+"#, in: normalizedText)?.value.trimmingCharacters(in: CharacterSet(charactersIn: ".,;!?)"))
         let participants = participantNames(in: normalizedText)
+        let location = explicitLocation(in: normalizedText)
         let expression = "\(dateExpression.value) \(timeExpression.value)"
         return MeetingCandidate(
-            title: "Meeting detected",
+            title: participants.isEmpty ? "Meeting detected" : "Meeting with \(participants.joined(separator: ", "))",
             start: resolvedDate,
             durationMinutes: duration,
             confidence: isExplicitTime ? .high : .medium,
@@ -110,6 +118,7 @@ public struct MeetingCandidateExtractor: Sendable {
             confidenceScore: isExplicitTime ? 0.9 : 0.7,
             participants: participants,
             startExpression: expression,
+            location: location,
             callLink: callLink,
             timezoneIdentifier: calendar.timeZone.identifier,
             evidenceSpans: [
@@ -199,7 +208,20 @@ public struct MeetingCandidateExtractor: Sendable {
               let value = capture(match, at: 1)?.trimmingCharacters(in: .whitespacesAndNewlines),
               !value.isEmpty
         else { return [] }
-        return value.split(separator: "&").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        let separator = try? NSRegularExpression(pattern: #"\s*(?:&|,|\band\b)\s*"#, options: [.caseInsensitive])
+        let range = NSRange(value.startIndex..., in: value)
+        let separated = separator?.stringByReplacingMatches(in: value, range: range, withTemplate: "|") ?? value
+        return separated.split(separator: "|")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func explicitLocation(in text: String) -> String? {
+        guard let match = firstMatch(#"\b(?:location|مكان)\s*[:\-]\s*([^\n,.!?]{2,80})"#, in: text),
+              let value = capture(match, at: 1)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty
+        else { return nil }
+        return value
     }
 
     private func firstMatch(_ pattern: String, in text: String) -> RegexMatch? {
@@ -212,6 +234,7 @@ public struct MeetingCandidateExtractor: Sendable {
     }
 
     private func capture(_ match: RegexMatch, at index: Int) -> String? {
+        guard index < match.result.numberOfRanges else { return nil }
         let range = match.result.range(at: index)
         guard range.location != NSNotFound,
               let swiftRange = Range(range, in: match.text)

@@ -24,6 +24,12 @@ public enum ActionCommandState: String, Codable, Sendable {
     case cancelled
 }
 
+public enum ActionOrigin: String, Codable, Sendable {
+    case automaticPlan = "automatic_plan"
+    case approvedPlan = "approved_plan"
+    case explicitUser = "explicit_user"
+}
+
 public struct CalendarBlockDesiredState: Equatable, Codable, Sendable {
     public let title: String
     public let start: Date
@@ -74,13 +80,51 @@ public struct MeetingDesiredState: Equatable, Codable, Sendable {
     public let durationMinutes: Int
     public let calendarIdentifier: String?
     public let candidateFingerprint: String
+    public let participants: [String]
+    public let location: String?
+    public let callLink: String?
+    public let timezoneIdentifier: String?
 
-    public init(title: String, start: Date, durationMinutes: Int, calendarIdentifier: String?, candidateFingerprint: String) {
+    public init(
+        title: String,
+        start: Date,
+        durationMinutes: Int,
+        calendarIdentifier: String?,
+        candidateFingerprint: String,
+        participants: [String] = [],
+        location: String? = nil,
+        callLink: String? = nil,
+        timezoneIdentifier: String? = nil
+    ) {
         self.title = title
         self.start = start
         self.durationMinutes = max(1, durationMinutes)
         self.calendarIdentifier = calendarIdentifier
         self.candidateFingerprint = candidateFingerprint
+        self.participants = participants
+        self.location = location
+        self.callLink = callLink
+        self.timezoneIdentifier = timezoneIdentifier
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case title, start, durationMinutes, calendarIdentifier, candidateFingerprint
+        case participants, location, callLink, timezoneIdentifier
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            title: try container.decode(String.self, forKey: .title),
+            start: try container.decode(Date.self, forKey: .start),
+            durationMinutes: try container.decode(Int.self, forKey: .durationMinutes),
+            calendarIdentifier: try container.decodeIfPresent(String.self, forKey: .calendarIdentifier),
+            candidateFingerprint: try container.decode(String.self, forKey: .candidateFingerprint),
+            participants: try container.decodeIfPresent([String].self, forKey: .participants) ?? [],
+            location: try container.decodeIfPresent(String.self, forKey: .location),
+            callLink: try container.decodeIfPresent(String.self, forKey: .callLink),
+            timezoneIdentifier: try container.decodeIfPresent(String.self, forKey: .timezoneIdentifier)
+        )
     }
 }
 
@@ -159,7 +203,13 @@ public struct ActionAttempt: Identifiable, Equatable, Codable, Sendable {
 }
 
 public enum ActionIdempotencyKey {
-    public static func make(type: ActionCommandType, entityID: String, desiredState: ActionDesiredState, planVersion: Int) throws -> String {
+    public static func make(
+        type: ActionCommandType,
+        entityID: String,
+        desiredState: ActionDesiredState,
+        planVersion: Int,
+        origin: ActionOrigin = .explicitUser
+    ) throws -> String {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -169,6 +219,8 @@ public enum ActionIdempotencyKey {
         input.append(Data(entityID.utf8))
         input.append(0)
         input.append(Data(String(planVersion).utf8))
+        input.append(0)
+        input.append(Data(origin.rawValue.utf8))
         input.append(0)
         input.append(payload)
         return SHA256.hash(data: input).map { String(format: "%02x", $0) }.joined()

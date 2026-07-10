@@ -250,35 +250,11 @@ struct TodayDashboardCommandOverview: View {
 
     private var primaryFocusHeading: String {
         guard let row = primaryFocusRow else { return "MAIN OBJECTIVE" }
-        guard let estimate = planEntry(for: row)?.estimateMinutes else { return "ACTIVE COMMITMENT · ESTIMATE NEEDED" }
-        return "ACTIVE COMMITMENT · \(estimate) MIN"
+        return "ACTIVE COMMITMENT · \(row.estimateMinutes) MIN"
     }
 
     private var plannedRows: [TodayTaskRow] {
-        guard !model.dailyPlan.isEmpty else { return snapshot.taskRows }
-        let snapshotRows = Dictionary(uniqueKeysWithValues: snapshot.taskRows.map { ($0.taskID, $0) })
-        return model.dailyPlan
-            .sorted { $0.rank < $1.rank }
-            .compactMap { entry in
-                snapshotRows[entry.reminderID] ?? localTaskRow(for: entry)
-            }
-    }
-
-    private func localTaskRow(for entry: DailyPlanEntry) -> TodayTaskRow? {
-        guard let task = model.reminderTasks.first(where: { $0.id == entry.reminderID }) else { return nil }
-        return TodayTaskRow(
-            taskID: task.id,
-            title: task.title,
-            estimateMinutes: entry.estimateMinutes ?? 15,
-            dueDate: task.dueDate,
-            urgency: TaskUrgency.resolve(
-                dueDate: task.dueDate,
-                priority: ReminderPriority.fromEventKit(task.priority),
-                referenceDate: Date()
-            ),
-            state: .ready,
-            isMainObjective: entry.isMainObjective
-        )
+        snapshot.taskRows
     }
 
     private func planEntry(for row: TodayTaskRow) -> DailyPlanEntry? {
@@ -286,7 +262,7 @@ struct TodayDashboardCommandOverview: View {
     }
 
     private func isMainObjective(_ row: TodayTaskRow) -> Bool {
-        planEntry(for: row)?.isMainObjective ?? row.isMainObjective
+        row.isMainObjective
     }
 
     private var nextDecisionTitle: String {

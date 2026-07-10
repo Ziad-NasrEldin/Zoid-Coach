@@ -26,6 +26,7 @@ public struct PromptResponseResult: Equatable, Sendable {
 
 public final class PromptInboxStore: @unchecked Sendable {
     private let database: OpaquePointer
+    private let lock = NSRecursiveLock()
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let formatter = ISO8601DateFormatter()
@@ -61,6 +62,8 @@ public final class PromptInboxStore: @unchecked Sendable {
     deinit { sqlite3_close(database) }
 
     public func enqueue(_ draft: PromptDraft) throws -> PromptEnqueueResult {
+        lock.lock()
+        defer { lock.unlock() }
         guard !draft.decisionKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !draft.type.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !draft.actions.isEmpty,
@@ -105,6 +108,8 @@ public final class PromptInboxStore: @unchecked Sendable {
 
     @discardableResult
     public func present(promptID: String) throws -> PromptEpisode {
+        lock.lock()
+        defer { lock.unlock() }
         try expireDue()
         try begin()
         var committed = false
@@ -126,6 +131,8 @@ public final class PromptInboxStore: @unchecked Sendable {
         actionToken: String,
         surface: PromptSurface
     ) throws -> PromptResponseResult {
+        lock.lock()
+        defer { lock.unlock() }
         try expireDue()
         try begin()
         var committed = false
@@ -165,6 +172,7 @@ public final class PromptInboxStore: @unchecked Sendable {
             respondedAt: date
         )
         try insert(response)
+        try insertPendingEffect(for: response, episode: responded)
         try update(responded, releaseDecisionKey: true)
         committed = true
         return PromptResponseResult(response: response, episode: responded, wasApplied: true)
@@ -172,6 +180,8 @@ public final class PromptInboxStore: @unchecked Sendable {
 
     @discardableResult
     public func dismiss(promptID: String) throws -> PromptEpisode {
+        lock.lock()
+        defer { lock.unlock() }
         try expireDue()
         try begin()
         var committed = false
@@ -189,6 +199,8 @@ public final class PromptInboxStore: @unchecked Sendable {
 
     @discardableResult
     public func expireDue() throws -> Int {
+        lock.lock()
+        defer { lock.unlock() }
         try begin()
         var committed = false
         defer { finishTransaction(commit: committed) }
@@ -198,15 +210,21 @@ public final class PromptInboxStore: @unchecked Sendable {
     }
 
     public func unresolved() throws -> [PromptEpisode] {
+        lock.lock()
+        defer { lock.unlock() }
         try expireDue()
         return try episodes(where: "state IN ('detected', 'queued', 'presented')", bindings: [])
     }
 
     public func episode(promptID: String) throws -> PromptEpisode? {
-        try episode(id: promptID)
+        lock.lock()
+        defer { lock.unlock() }
+        return try episode(id: promptID)
     }
 
     public func responses(promptID: String) throws -> [PromptResponse] {
+        lock.lock()
+        defer { lock.unlock() }
         let sql = Self.responseSelect + " WHERE prompt_id = ? ORDER BY responded_at_utc ASC, id ASC;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
@@ -217,6 +235,53 @@ public final class PromptInboxStore: @unchecked Sendable {
         var result: [PromptResponse] = []
         while sqlite3_step(statement) == SQLITE_ROW { result.append(try decodeResponse(statement)) }
         return result
+    }
+
+    public func pendingEffects(limit: Int = 100) throws -> [PromptResponseResult] {
+        lock.lock()
+        defer { lock.unlock() }
+        guard limit > 0 else { return [] }
+        let sql = """
+        SELECT response_id, prompt_id
+        FROM prompt_response_effects
+        WHERE state = 'pending'
+        ORDER BY created_at_utc ASC, response_id ASC
+        LIMIT ?;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw PromptInboxStoreError.prepare(errorMessage)
+        }
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_int64(statement, 1, Int64(limit))
+        var results: [PromptResponseResult] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let responseID = text(statement, 0),
+                  let promptID = text(statement, 1),
+                  let response = try response(id: responseID),
+                  let episode = try episode(id: promptID)
+            else { throw PromptInboxStoreError.decode }
+            results.append(PromptResponseResult(response: response, episode: episode, wasApplied: false))
+        }
+        return results
+    }
+
+    public func markEffectApplied(responseID: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let sql = """
+        UPDATE prompt_response_effects
+        SET state = 'applied', updated_at_utc = ?
+        WHERE response_id = ? AND state = 'pending';
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw PromptInboxStoreError.prepare(errorMessage)
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(formatter.string(from: now()), statement, 1)
+        bind(responseID, statement, 2)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw PromptInboxStoreError.write(errorMessage) }
     }
 
     private func expireDueLocked(at date: Date) throws -> Int {
@@ -276,6 +341,26 @@ public final class PromptInboxStore: @unchecked Sendable {
         guard sqlite3_step(statement) == SQLITE_DONE else { throw PromptInboxStoreError.write(errorMessage) }
     }
 
+    private func insertPendingEffect(for response: PromptResponse, episode: PromptEpisode) throws {
+        let sql = """
+        INSERT INTO prompt_response_effects
+        (response_id, prompt_id, effect_type, state, created_at_utc, updated_at_utc)
+        VALUES (?, ?, ?, 'pending', ?, ?);
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw PromptInboxStoreError.prepare(errorMessage)
+        }
+        defer { sqlite3_finalize(statement) }
+        let timestamp = formatter.string(from: response.respondedAt)
+        bind(response.id, statement, 1)
+        bind(response.promptID, statement, 2)
+        bind("\(episode.type):\(response.action.rawValue)", statement, 3)
+        bind(timestamp, statement, 4)
+        bind(timestamp, statement, 5)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw PromptInboxStoreError.write(errorMessage) }
+    }
+
     private func update(_ episode: PromptEpisode, releaseDecisionKey: Bool = false) throws {
         let storedDecisionKey = releaseDecisionKey
             ? "resolved:\(episode.id):\(episode.decisionKey)"
@@ -329,6 +414,10 @@ public final class PromptInboxStore: @unchecked Sendable {
 
     private func response(promptID: String) throws -> PromptResponse? {
         try oneResponse(where: "prompt_id = ?", value: promptID)
+    }
+
+    private func response(id: String) throws -> PromptResponse? {
+        try oneResponse(where: "id = ?", value: id)
     }
 
     private func oneResponse(where predicate: String, value: String) throws -> PromptResponse? {

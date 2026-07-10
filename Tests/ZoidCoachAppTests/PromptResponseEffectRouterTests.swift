@@ -53,3 +53,40 @@ private struct PromptEffectRecognizer: ScreenshotTextRecognizing {
     let result: ScreenshotOCRResult
     func recognize(in imageURL: URL) async throws -> ScreenshotOCRResult { result }
 }
+
+@Test
+func acceptingAPlanDurablyQueuesItsApprovalScheduleRequest() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-plan-approval-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let promptStore = try PromptInboxStore(databaseURL: databaseURL)
+    let episode = try promptStore.enqueue(PromptDraft(
+        decisionKey: "plan-ready:2026-07-11",
+        type: "PLAN_READY",
+        title: "Tomorrow's plan is ready",
+        summary: "Review the commitments",
+        actions: [PromptAction(kind: .acceptPlan, title: "Accept")],
+        payload: ["localDay": "2026-07-11"]
+    )).episode
+    let response = try promptStore.respond(
+        promptID: episode.id,
+        action: .acceptPlan,
+        actionToken: PromptResponseToken.make(promptID: episode.id, action: .acceptPlan),
+        surface: .notification
+    )
+    let requests = try PlanScheduleRequestStore(databaseURL: databaseURL)
+    let router = PromptResponseEffectRouter(
+        outbox: try ActionOutboxStore(databaseURL: databaseURL),
+        meetingArchive: try ScreenwatchArchive(databaseURL: databaseURL),
+        planScheduleRequests: requests,
+        promptStore: promptStore
+    )
+
+    #expect(try router.apply(response) == .planScheduleQueued(dayKey: "2026-07-11"))
+    let pendingRequest = try requests.claimNext()
+    let request = try #require(pendingRequest)
+    #expect(request.promptID == episode.id)
+    #expect(request.dayKey == "2026-07-11")
+    #expect(try promptStore.pendingEffects().isEmpty)
+}

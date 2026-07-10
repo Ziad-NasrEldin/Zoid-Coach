@@ -116,6 +116,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 throw AgentMutationRouterError.invalidCommand
             }
             let version = activePolicyVersion()
+            let schedulingCalendarIdentifier = try policyStore.current()?.policy.calendar.schedulingCalendarIdentifier
             let result: ActionEnqueueResult
             switch destination {
             case .calendar:
@@ -128,8 +129,12 @@ public final class AgentMutationRouter: @unchecked Sendable {
                             title: title,
                             start: start,
                             durationMinutes: durationMinutes,
-                            calendarIdentifier: nil,
-                            candidateFingerprint: fingerprint
+                            calendarIdentifier: schedulingCalendarIdentifier,
+                            candidateFingerprint: fingerprint,
+                            participants: candidate.participants,
+                            location: candidate.location,
+                            callLink: candidate.callLink,
+                            timezoneIdentifier: candidate.timezoneIdentifier
                         )
                     ),
                     planVersion: version

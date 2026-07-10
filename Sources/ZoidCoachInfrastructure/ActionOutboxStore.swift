@@ -14,6 +14,7 @@ public struct ActionEnqueueResult: Equatable, Sendable {
 
 public final class ActionOutboxStore: @unchecked Sendable {
     private let database: OpaquePointer
+    private let lock = NSRecursiveLock()
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let formatter = ISO8601DateFormatter()
@@ -50,13 +51,44 @@ public final class ActionOutboxStore: @unchecked Sendable {
         type: ActionCommandType,
         entityID: String,
         desiredState: ActionDesiredState,
-        planVersion: Int
+        planVersion: Int,
+        supersedingPending: Bool = false,
+        origin: ActionOrigin = .explicitUser
     ) throws -> ActionEnqueueResult {
-        let idempotencyKey = try ActionIdempotencyKey.make(type: type, entityID: entityID, desiredState: desiredState, planVersion: planVersion)
+        try lock.withLock {
+            try enqueueLocked(
+                type: type,
+                entityID: entityID,
+                desiredState: desiredState,
+                planVersion: planVersion,
+                supersedingPending: supersedingPending,
+                origin: origin
+            )
+        }
+    }
+
+    private func enqueueLocked(
+        type: ActionCommandType,
+        entityID: String,
+        desiredState: ActionDesiredState,
+        planVersion: Int,
+        supersedingPending: Bool,
+        origin: ActionOrigin
+    ) throws -> ActionEnqueueResult {
+        let idempotencyKey = try ActionIdempotencyKey.make(
+            type: type,
+            entityID: entityID,
+            desiredState: desiredState,
+            planVersion: planVersion,
+            origin: origin
+        )
         try begin()
         var committed = false
         defer { finishTransaction(commit: committed) }
         if let existing = try command(idempotencyKey: idempotencyKey) {
+            if supersedingPending {
+                try cancelSupersededCommands(type: type, entityID: entityID, keepingCommandID: existing.id, occurredAt: now())
+            }
             committed = true
             return ActionEnqueueResult(command: existing, wasInserted: false)
         }
@@ -72,8 +104,8 @@ public final class ActionOutboxStore: @unchecked Sendable {
         )
         let sql = """
         INSERT OR IGNORE INTO action_commands
-        (id, idempotency_key, action_type, entity_id, desired_state_json, state, attempt_count, next_attempt_at_utc, created_at_utc, updated_at_utc)
-        VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?);
+        (id, idempotency_key, action_type, entity_id, desired_state_json, state, attempt_count, next_attempt_at_utc, created_at_utc, updated_at_utc, action_origin)
+        VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?);
         """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -88,10 +120,17 @@ public final class ActionOutboxStore: @unchecked Sendable {
         bind(ActionCommandState.pending.rawValue, statement, 6)
         bind(formatter.string(from: date), statement, 7)
         bind(formatter.string(from: date), statement, 8)
+        bind(origin.rawValue, statement, 9)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw ActionOutboxStoreError.write(errorMessage) }
         if sqlite3_changes(database) == 0, let existing = try self.command(idempotencyKey: idempotencyKey) {
+            if supersedingPending {
+                try cancelSupersededCommands(type: type, entityID: entityID, keepingCommandID: existing.id, occurredAt: date)
+            }
             committed = true
             return ActionEnqueueResult(command: existing, wasInserted: false)
+        }
+        if supersedingPending {
+            try cancelSupersededCommands(type: type, entityID: entityID, keepingCommandID: command.id, occurredAt: date)
         }
         try appendAuditEvent(
             type: "action.enqueued",
@@ -104,6 +143,31 @@ public final class ActionOutboxStore: @unchecked Sendable {
     }
 
     public func claimNextReady() throws -> ActionCommand? {
+        try lock.withLock { try claimNextReadyLocked() }
+    }
+
+    @discardableResult
+    public func cancelPendingAutomaticPlanCommands() throws -> Int {
+        try lock.withLock {
+            let date = now()
+            try begin()
+            var committed = false
+            defer { finishTransaction(commit: committed) }
+            try execute(
+                """
+                UPDATE action_commands SET state = 'cancelled', updated_at_utc = ?
+                WHERE action_origin = 'automatic_plan'
+                  AND state IN ('pending', 'retryable_failure');
+                """,
+                bindings: [formatter.string(from: date)]
+            )
+            let count = Int(sqlite3_changes(database))
+            committed = true
+            return count
+        }
+    }
+
+    private func claimNextReadyLocked() throws -> ActionCommand? {
         try begin()
         var committed = false
         defer { finishTransaction(commit: committed) }
@@ -140,15 +204,51 @@ public final class ActionOutboxStore: @unchecked Sendable {
     }
 
     public func markSucceeded(_ command: ActionCommand, platformIdentifier: String? = nil) throws {
-        try finish(command, state: .succeeded, platformIdentifier: platformIdentifier, redactedError: nil, nextAttemptAt: nil)
+        try lock.withLock {
+            try finish(command, state: .succeeded, platformIdentifier: platformIdentifier, redactedError: nil, nextAttemptAt: nil)
+        }
     }
 
     public func markFailed(_ command: ActionCommand, retryable: Bool, redactedError: String, retryAt: Date? = nil) throws {
         let state: ActionCommandState = retryable ? .retryableFailure : .terminalFailure
-        try finish(command, state: state, platformIdentifier: nil, redactedError: redactedError, nextAttemptAt: retryable ? retryAt : nil)
+        try lock.withLock {
+            try finish(command, state: state, platformIdentifier: nil, redactedError: redactedError, nextAttemptAt: retryable ? retryAt : nil)
+        }
     }
 
     public func cancel(commandID: String) throws {
+        try lock.withLock { try cancelLocked(commandID: commandID) }
+    }
+
+    @discardableResult
+    public func cancelPendingCommands(type: ActionCommandType, entityID: String) throws -> Int {
+        try lock.withLock {
+            let date = now()
+            try begin()
+            var committed = false
+            defer { finishTransaction(commit: committed) }
+            try execute(
+                """
+                UPDATE action_commands SET state = 'cancelled', updated_at_utc = ?
+                WHERE action_type = ? AND entity_id = ? AND state IN ('pending', 'retryable_failure');
+                """,
+                bindings: [formatter.string(from: date), type.rawValue, entityID]
+            )
+            let cancelledCount = Int(sqlite3_changes(database))
+            if cancelledCount > 0 {
+                try appendAuditEvent(
+                    type: "action.cancelled_stale",
+                    entityID: entityID,
+                    occurredAt: date,
+                    payload: ["actionType": type.rawValue, "cancelledCount": String(cancelledCount)]
+                )
+            }
+            committed = true
+            return cancelledCount
+        }
+    }
+
+    private func cancelLocked(commandID: String) throws {
         let date = now()
         try begin()
         var committed = false
@@ -163,18 +263,24 @@ public final class ActionOutboxStore: @unchecked Sendable {
     }
 
     public func executingCommands() throws -> [ActionCommand] {
-        try commands(where: "state = 'executing'")
+        try lock.withLock { try commands(where: "state = 'executing'") }
     }
 
     public func recentCommands(limit: Int = 100) throws -> [ActionCommand] {
-        try commands(where: "1 = 1", suffix: "ORDER BY created_at_utc DESC LIMIT \(max(1, limit))")
+        try lock.withLock {
+            try commands(where: "1 = 1", suffix: "ORDER BY created_at_utc DESC LIMIT \(max(1, limit))")
+        }
     }
 
     public func command(commandID: String) throws -> ActionCommand? {
-        try command(id: commandID)
+        try lock.withLock { try command(id: commandID) }
     }
 
     public func attempts(commandID: String) throws -> [ActionAttempt] {
+        try lock.withLock { try attemptsLocked(commandID: commandID) }
+    }
+
+    private func attemptsLocked(commandID: String) throws -> [ActionAttempt] {
         let sql = """
         SELECT id, command_id, attempt_number, state, platform_identifier, redacted_error, started_at_utc, finished_at_utc
         FROM action_attempts WHERE command_id = ? ORDER BY attempt_number ASC;
@@ -203,6 +309,39 @@ public final class ActionOutboxStore: @unchecked Sendable {
             ))
         }
         return attempts
+    }
+
+    private func cancelSupersededCommands(
+        type: ActionCommandType,
+        entityID: String,
+        keepingCommandID: String,
+        occurredAt: Date
+    ) throws {
+        let sql = """
+        UPDATE action_commands
+        SET state = 'cancelled', updated_at_utc = ?
+        WHERE action_type = ? AND entity_id = ?
+          AND rowid < (SELECT rowid FROM action_commands WHERE id = ?)
+          AND state IN ('pending', 'retryable_failure');
+        """
+        try execute(sql, bindings: [
+            formatter.string(from: occurredAt),
+            type.rawValue,
+            entityID,
+            keepingCommandID,
+        ])
+        let cancelledCount = sqlite3_changes(database)
+        guard cancelledCount > 0 else { return }
+        try appendAuditEvent(
+            type: "action.superseded",
+            entityID: keepingCommandID,
+            occurredAt: occurredAt,
+            payload: [
+                "actionType": type.rawValue,
+                "targetEntityID": entityID,
+                "cancelledCount": String(cancelledCount),
+            ]
+        )
     }
 
     private func finish(_ command: ActionCommand, state: ActionCommandState, platformIdentifier: String?, redactedError: String?, nextAttemptAt: Date?) throws {
@@ -324,7 +463,8 @@ public final class ActionOutboxStore: @unchecked Sendable {
         calendar.timeZone = timeZone
         let components = calendar.dateComponents([.year, .month, .day], from: occurredAt)
         let localDay = String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
-        let evidenceJSON = "[]"
+        let evidenceIDs = [entityID, payload["targetEntityID"]].compactMap { $0 }
+        let evidenceJSON = String(decoding: try encoder.encode(Array(Set(evidenceIDs)).sorted()), as: UTF8.self)
         let payloadJSON = String(decoding: try encoder.encode(payload), as: UTF8.self)
         let sql = """
         INSERT INTO domain_events
