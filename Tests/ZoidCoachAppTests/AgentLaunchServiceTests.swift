@@ -4,6 +4,16 @@ import Testing
 
 struct AgentLaunchServiceTests {
     @Test
+    func developmentPackageCannotTakeOwnershipFromTheInstalledApp() {
+        #expect(AgentLaunchService.isDevelopmentBundle(
+            URL(fileURLWithPath: "/repo/.build/app/Zoid Coach.app")
+        ))
+        #expect(!AgentLaunchService.isDevelopmentBundle(
+            URL(fileURLWithPath: "/Users/example/Applications/Zoid Coach.app")
+        ))
+    }
+
+    @Test
     func registrationFingerprintChangesWhenTheInstalledAppMoves() {
         let buildCopy = AgentLaunchService.registrationFingerprint(
             build: "8",

@@ -5,21 +5,25 @@ import SwiftUI
 struct ZoidCoachApplication: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model: AppModel
+    @StateObject private var voiceModel: VoiceConversationModel
     private let launchesForBackgroundScheduling: Bool
 
     init() {
         let isBackgroundLaunch = CommandLine.arguments.contains("--background-schedule")
         launchesForBackgroundScheduling = isBackgroundLaunch
         _model = StateObject(wrappedValue: AppModel())
+        _voiceModel = StateObject(wrappedValue: VoiceConversationModel())
     }
 
     var body: some Scene {
         WindowGroup {
             DashboardView()
                 .environmentObject(model)
+                .environmentObject(voiceModel)
                 .frame(minWidth: 980, minHeight: 680)
                 .background(Sumi.paper)
                 .onAppear {
+                    voiceModel.startAlwaysAvailable()
                     positionInitialWindow()
                     if launchesForBackgroundScheduling {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -40,6 +44,11 @@ struct ZoidCoachApplication: App {
         .commands {
             CommandGroup(replacing: .newItem) { }
         }
+
+        MenuBarExtra("Zoid Voice", systemImage: voiceMenuSymbol) {
+            VoiceMenuView(model: voiceModel)
+        }
+        .menuBarExtraStyle(.window)
     }
 
     private func positionInitialWindow() {
@@ -48,10 +57,23 @@ struct ZoidCoachApplication: App {
                 $0.canBecomeKey && $0.level == .normal
             }) else { return }
 
-            let targetSize = NSSize(width: 1180, height: 760)
-            window.setContentSize(targetSize)
-            window.center()
+            let frameAutosaveName = "ZoidCoachMainWindowFrame"
+            if !window.setFrameUsingName(frameAutosaveName) {
+                window.setContentSize(NSSize(width: 1180, height: 760))
+                window.center()
+            }
+            window.setFrameAutosaveName(frameAutosaveName)
             window.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    private var voiceMenuSymbol: String {
+        switch voiceModel.state {
+        case .listening: "mic.fill"
+        case .speaking: "waveform.circle.fill"
+        case .thinking, .activating: "ellipsis.circle.fill"
+        case .localFallback: "mic.badge.xmark"
+        case .idle, .disconnected: "waveform.circle"
         }
     }
 }

@@ -50,6 +50,7 @@ public final class PolicyStore: @unchecked Sendable {
 
     @discardableResult
     public func save(_ policy: UserPolicy) throws -> VersionedUserPolicy {
+        let policy = policy.upgradedToCurrentSchema()
         let violations = policy.validationViolations()
         guard violations.isEmpty else { throw PolicyStoreError.invalidPolicy(violations) }
         let payload = try encode(policy)
@@ -98,6 +99,21 @@ public final class PolicyStore: @unchecked Sendable {
         )
     }
 
+    public func effective(at date: Date) throws -> VersionedUserPolicy? {
+        lock.lock()
+        defer { lock.unlock() }
+        return try readOne(
+            """
+            SELECT version, payload_json, created_at_utc, is_active
+            FROM policy_versions
+            WHERE policy_type = ? AND julianday(created_at_utc) <= julianday(?)
+            ORDER BY julianday(created_at_utc) DESC, version DESC
+            LIMIT 1;
+            """,
+            bindings: [.text(Self.policyType), .text(Self.timestamp(date))]
+        )
+    }
+
     public func history(limit: Int = 50) throws -> [VersionedUserPolicy] {
         guard limit > 0 else { return [] }
         lock.lock()
@@ -132,9 +148,9 @@ public final class PolicyStore: @unchecked Sendable {
     @discardableResult
     public func rollback(to version: Int) throws -> VersionedUserPolicy {
         lock.lock()
-        defer { lock.unlock() }
-        return try inTransaction {
-            guard let target = try readOne(
+        let target: VersionedUserPolicy
+        do {
+            guard let stored = try readOne(
                 """
                 SELECT version, payload_json, created_at_utc, is_active
                 FROM policy_versions
@@ -145,24 +161,13 @@ public final class PolicyStore: @unchecked Sendable {
             ) else {
                 throw PolicyStoreError.versionNotFound(version)
             }
-            let payload = try encode(target.policy)
-            let timestamp = Self.timestamp(now())
-            try execute(
-                "UPDATE policy_versions SET is_active = 0 WHERE policy_type = ?;",
-                bindings: [.text(Self.policyType)]
-            )
-            try execute(
-                "UPDATE policy_versions SET is_active = 1 WHERE policy_type = ? AND version = ?;",
-                bindings: [.text(Self.policyType), .integer(version)]
-            )
-            try upsertSetting(payload: payload, version: version, timestamp: timestamp)
-            return VersionedUserPolicy(
-                version: target.version,
-                policy: target.policy,
-                createdAtUTC: target.createdAtUTC,
-                isActive: true
-            )
+            target = stored
+            lock.unlock()
+        } catch {
+            lock.unlock()
+            throw error
         }
+        return try save(target.policy.upgradedToCurrentSchema())
     }
 
     private func nextVersion() throws -> Int {
@@ -228,7 +233,7 @@ public final class PolicyStore: @unchecked Sendable {
         }
         do {
             let policy = try JSONDecoder.zoidPolicy.decode(UserPolicy.self, from: data)
-            let violations = policy.validationViolations()
+            let violations = policy.upgradedToCurrentSchema().validationViolations()
             guard violations.isEmpty else { throw PolicyStoreError.invalidPolicy(violations) }
             return VersionedUserPolicy(
                 version: Int(sqlite3_column_int64(statement, 0)),

@@ -16,6 +16,9 @@ struct ZoidCoachAgentMain {
                 print(granted ? "Zoid Coach agent: Apple Reminders access granted" : "Zoid Coach agent: Apple Reminders access was not granted")
                 return
             }
+            if configuration.watch {
+                ParentAppLauncher.launchForBackgroundScheduling()
+            }
             let progressMonitor = AgentProgressMonitor()
             let watchdog = configuration.watch ? Self.startWatchdog(progressMonitor: progressMonitor) : nil
             defer { watchdog?.cancel() }
@@ -102,7 +105,11 @@ struct ZoidCoachAgentMain {
                     case .localOllama:
                         return OllamaPlanningAdvisor()
                     case .codexCLI:
-                        return CodexCLIPlanningAdvisor(remoteEvidencePolicy: privacy.remoteEvidencePolicy)
+                        return CodexCLIPlanningAdvisor(
+                            remoteEvidencePolicy: privacy.remoteEvidencePolicy,
+                            modelID: privacy.effectiveCodexCLIModelID,
+                            reasoningEffort: privacy.effectiveCodexCLIReasoningEffort
+                        )
                     case .disabled, .appleOnDevice, .remoteOpenAI:
                         return nil
                     }
@@ -135,11 +142,138 @@ struct ZoidCoachAgentMain {
                     }
                 }
             )
+            let voicePersistence = try VoicePersistenceStore(databaseURL: configuration.databaseURL)
+            let codexJobs = CodexJobCoordinator(persistence: voicePersistence)
+            try await codexJobs.recoverInterruptedJobs()
+            let screenContextSelector = try ScreenContextSelector(databaseURL: configuration.databaseURL)
+            let macActions = MacChiefOfStaffActions()
+            let voiceToolExecutor = ChiefOfStaffToolExecutor(dependencies: ChiefOfStaffToolDependencies(
+                snapshot: { try todayDashboardAgent.snapshot() },
+                applyTask: { command, taskID in try todayDashboardAgent.apply(command, taskID: taskID) },
+                openApplication: { name, bundleIdentifier in
+                    try await macActions.openApplication(name: name, bundleIdentifier: bundleIdentifier)
+                },
+                searchWeb: { query in try await macActions.searchWeb(query: query) },
+                findFiles: { query, limit in try await macActions.findFiles(query: query, limit: limit) },
+                openFile: { path in try await macActions.openFile(path: path) },
+                createReminder: { title, dueDate, listIdentifier in
+                    try await taskSource.create(
+                        title: title,
+                        dueDate: dueDate,
+                        listIdentifier: listIdentifier,
+                        metadataMarker: "voice:\(UUID().uuidString)"
+                    )
+                },
+                completeReminder: { reminderID in
+                    try await taskSource.apply(.complete(at: Date()), to: reminderID)
+                },
+                createFocusBlock: { title, start, end in
+                    let identifier = UUID().uuidString
+                    return try await calendarSource.apply(.createBlock(CalendarBlockMutation(
+                        title: title,
+                        start: start,
+                        end: end,
+                        ownershipToken: "voice:\(identifier)",
+                        planItemID: "voice:\(identifier)"
+                    )))
+                },
+                createCalendarCommitment: { title, start, end in
+                    let fingerprint = "voice-commitment:\(UUID().uuidString)"
+                    let calendarIdentifier = try policyStore.current()?.policy.calendar.schedulingCalendarIdentifier
+                    return try await calendarSource.apply(.createConfirmedMeeting(ConfirmedMeetingMutation(
+                        title: title,
+                        start: start,
+                        end: end,
+                        calendarIdentifier: calendarIdentifier,
+                        fingerprint: fingerprint
+                    )))
+                },
+                setAutomationPaused: { isPaused in
+                    let current = try policyStore.current()?.policy ?? UserPolicy.defaults()
+                    let updated = UserPolicy(
+                        operatingMode: current.operatingMode,
+                        automationPause: isPaused ? .pausedIndefinitely : .running,
+                        schedule: current.schedule,
+                        calendar: current.calendar,
+                        privacy: current.privacy,
+                        wake: current.wake,
+                        behavior: current.behavior
+                    )
+                    return try policyStore.save(updated).policy
+                },
+                startCodexJob: { workspacePath, objective, sandbox in
+                    try await codexJobs.start(
+                        workspacePath: workspacePath,
+                        objective: objective,
+                        sandbox: sandbox
+                    )
+                },
+                codexJob: { jobID in try await codexJobs.job(id: jobID) },
+                cancelCodexJob: { jobID in try await codexJobs.cancel(jobID: jobID) },
+                saveMemory: { fact in try voicePersistence.save(fact) },
+                deleteMemory: { memoryID in try voicePersistence.deleteMemoryFact(id: memoryID) },
+                loadMemory: { memoryID in try voicePersistence.memoryFact(id: memoryID) },
+                activeMemories: { try voicePersistence.activeMemoryFacts(at: Date()) },
+                deleteTranscripts: { try voicePersistence.deleteAllTranscripts() },
+                selectScreenContext: { reason, limit in
+                    let privacy = try policyStore.current()?.policy.privacy ?? UserPolicy.defaults().privacy
+                    return try screenContextSelector.select(
+                        reason: reason,
+                        limit: limit,
+                        mayTransmitPrivateContent: privacy.remoteEvidencePolicy == .explicitPrivateContent
+                    )
+                }
+            ))
+            let voiceController = VoiceAgentController(
+                persistence: voicePersistence,
+                toolRouter: VoiceToolRouter(executor: voiceToolExecutor, persistence: voicePersistence),
+                snapshot: { try todayDashboardAgent.snapshot() },
+                policy: { try policyStore.current()?.policy ?? UserPolicy.defaults() },
+                activeCodexJobs: { try await codexJobs.activeJobs() },
+                upcomingCommitments: {
+                    let policy = try policyStore.current()?.policy ?? UserPolicy.defaults()
+                    let now = Date()
+                    return try await calendarSource.commitments(
+                        from: now,
+                        through: now.addingTimeInterval(30 * 60),
+                        calendarIdentifiers: policy.calendar.visibleCalendarIdentifiers
+                    )
+                }
+            )
+            try voiceController.pruneExpiredTranscripts()
+            let atollPromptActionHandler = AtollPromptActionHandler(
+                promptStore: promptStore,
+                effectRouter: promptEffectRouter
+            )
+            let atollCommandCenterController = AtollCommandCenterController(dependencies: .init(
+                snapshot: { try todayDashboardAgent.snapshot() },
+                prompts: { try promptStore.unresolved() },
+                policy: { try policyStore.current()?.policy ?? UserPolicy.defaults() },
+                applyTask: { command, taskID in try todayDashboardAgent.apply(command, taskID: taskID) },
+                respondToPrompt: { promptID, action in
+                    _ = try atollPromptActionHandler.respond(
+                        promptID: promptID,
+                        action: action,
+                        actionToken: PromptResponseToken.make(promptID: promptID, action: action)
+                    )
+                },
+                applyMutation: { command in try await mutationRouter.apply(command) }
+            ))
+            let atollCommandCenterBridge = AtollCommandCenterBridge(
+                promptActionHandler: atollPromptActionHandler,
+                controller: atollCommandCenterController
+            )
+            if configuration.watch {
+                Task.detached(priority: .utility) {
+                    await AtollCommandCenterRuntime.shared.start(atollCommandCenterBridge)
+                }
+            }
             let xpcService = TodayDashboardXPCService(
                 agent: todayDashboardAgent,
                 promptStore: promptStore,
                 promptEffectRouter: promptEffectRouter,
-                mutationRouter: mutationRouter
+                mutationRouter: mutationRouter,
+                voiceController: voiceController
             )
             xpcService.resume()
             let previousHeartbeat = try checkpointStore.checkpoint(sourceID: "agent-runtime")?.lastSuccessAt

@@ -80,6 +80,51 @@ public struct BehaviorObservation: Equatable, Codable, Sendable {
     }
 }
 
+public struct AppUsageBreakdown: Identifiable, Equatable, Codable, Sendable {
+    public let application: String
+    public let observedSeconds: Int
+    public let percentage: Double
+    public let classification: BehaviorClassification
+
+    public init(application: String, observedSeconds: Int, percentage: Double, classification: BehaviorClassification = .unknown) {
+        self.application = application
+        self.observedSeconds = max(0, observedSeconds)
+        self.percentage = min(100, max(0, percentage))
+        self.classification = classification
+    }
+
+    public var id: String { "\(application)|\(classification.rawValue)" }
+    public var observedMinutes: Int { Int((Double(observedSeconds) / 60).rounded()) }
+
+    private enum CodingKeys: String, CodingKey {
+        case application, observedSeconds, percentage, classification
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            application: try container.decode(String.self, forKey: .application),
+            observedSeconds: try container.decode(Int.self, forKey: .observedSeconds),
+            percentage: try container.decode(Double.self, forKey: .percentage),
+            classification: try container.decodeIfPresent(BehaviorClassification.self, forKey: .classification) ?? .unknown
+        )
+    }
+}
+
+public struct CategoryUsageBreakdown: Identifiable, Equatable, Codable, Sendable {
+    public let classification: BehaviorClassification
+    public let observedSeconds: Int
+    public let percentage: Double
+
+    public init(classification: BehaviorClassification, observedSeconds: Int, percentage: Double) {
+        self.classification = classification
+        self.observedSeconds = max(0, observedSeconds)
+        self.percentage = min(100, max(0, percentage))
+    }
+
+    public var id: BehaviorClassification { classification }
+}
+
 public struct BehaviorSummary: Equatable, Codable, Sendable {
     public let workMinutes: Int
     public let gamingMinutes: Int
@@ -87,18 +132,38 @@ public struct BehaviorSummary: Equatable, Codable, Sendable {
     public let gamingOrDistractingMinutes: Int
     public let idleMinutes: Int
     public let unknownMinutes: Int
+    public let appUsage: [AppUsageBreakdown]
 
-    public init(workMinutes: Int = 0, gamingMinutes: Int = 0, distractingMinutes: Int = 0, idleMinutes: Int = 0, unknownMinutes: Int = 0) {
+    public var categoryUsage: [CategoryUsageBreakdown] {
+        let totalSeconds = appUsage.reduce(0) { $0 + $1.observedSeconds }
+        let order = Dictionary(uniqueKeysWithValues: BehaviorClassification.allCases.enumerated().map { ($1, $0) })
+        return Dictionary(grouping: appUsage, by: \.classification)
+            .map { classification, applications in
+                let observedSeconds = applications.reduce(0) { $0 + $1.observedSeconds }
+                return CategoryUsageBreakdown(
+                    classification: classification,
+                    observedSeconds: observedSeconds,
+                    percentage: totalSeconds > 0 ? Double(observedSeconds) / Double(totalSeconds) * 100 : 0
+                )
+            }
+            .sorted {
+                if $0.observedSeconds != $1.observedSeconds { return $0.observedSeconds > $1.observedSeconds }
+                return order[$0.classification, default: .max] < order[$1.classification, default: .max]
+            }
+    }
+
+    public init(workMinutes: Int = 0, gamingMinutes: Int = 0, distractingMinutes: Int = 0, idleMinutes: Int = 0, unknownMinutes: Int = 0, appUsage: [AppUsageBreakdown] = []) {
         self.workMinutes = max(0, workMinutes)
         self.gamingMinutes = max(0, gamingMinutes)
         self.distractingMinutes = max(0, distractingMinutes)
         gamingOrDistractingMinutes = max(0, gamingMinutes) + max(0, distractingMinutes)
         self.idleMinutes = max(0, idleMinutes)
         self.unknownMinutes = max(0, unknownMinutes)
+        self.appUsage = appUsage
     }
 
     private enum CodingKeys: String, CodingKey {
-        case workMinutes, gamingMinutes, distractingMinutes, gamingOrDistractingMinutes, idleMinutes, unknownMinutes
+        case workMinutes, gamingMinutes, distractingMinutes, gamingOrDistractingMinutes, idleMinutes, unknownMinutes, appUsage
     }
 
     public init(from decoder: any Decoder) throws {
@@ -111,7 +176,8 @@ public struct BehaviorSummary: Equatable, Codable, Sendable {
             gamingMinutes: gaming,
             distractingMinutes: distracting,
             idleMinutes: try container.decodeIfPresent(Int.self, forKey: .idleMinutes) ?? 0,
-            unknownMinutes: try container.decodeIfPresent(Int.self, forKey: .unknownMinutes) ?? 0
+            unknownMinutes: try container.decodeIfPresent(Int.self, forKey: .unknownMinutes) ?? 0,
+            appUsage: try container.decodeIfPresent([AppUsageBreakdown].self, forKey: .appUsage) ?? []
         )
     }
 
@@ -123,6 +189,7 @@ public struct BehaviorSummary: Equatable, Codable, Sendable {
         try container.encode(gamingOrDistractingMinutes, forKey: .gamingOrDistractingMinutes)
         try container.encode(idleMinutes, forKey: .idleMinutes)
         try container.encode(unknownMinutes, forKey: .unknownMinutes)
+        try container.encode(appUsage, forKey: .appUsage)
     }
 }
 
@@ -283,30 +350,68 @@ public struct BehaviorSessionizer: Sendable {
             return (BehaviorSummary(), TelemetryCoverage(isLimited: true, explanation: "Limited coverage: Screenwatch has no observations today.", lastObservationAt: nil))
         }
         var totals = Dictionary(uniqueKeysWithValues: BehaviorClassification.allCases.map { ($0, TimeInterval(0)) })
+        var applicationTotals: [AppUsageKey: TimeInterval] = [:]
         for (index, observation) in sorted.enumerated() {
             let next = index + 1 < sorted.count ? sorted[index + 1].observedAt : now
             let rawElapsed = max(0, next.timeIntervalSince(observation.observedAt))
             guard rawElapsed <= inactivityGap else { continue }
             let elapsed = min(maximumObservationDuration, rawElapsed)
             totals[observation.classification, default: 0] += elapsed
+            let application = observation.application?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .nilIfEmpty ?? "Unknown application"
+            let applicationKey = AppUsageKey(application: application, classification: observation.classification)
+            applicationTotals[applicationKey, default: 0] += elapsed
         }
         let limited = now.timeIntervalSince(last.observedAt) > staleAfter
+        let totalApplicationSeconds = applicationTotals.values.reduce(0, +)
+        let appUsage = applicationTotals
+            .map { key, seconds in
+                AppUsageBreakdown(
+                    application: key.application,
+                    observedSeconds: Int(seconds.rounded()),
+                    percentage: totalApplicationSeconds > 0 ? seconds / totalApplicationSeconds * 100 : 0,
+                    classification: key.classification
+                )
+            }
+            .sorted {
+                if $0.observedSeconds != $1.observedSeconds { return $0.observedSeconds > $1.observedSeconds }
+                if ($0.classification == .work) != ($1.classification == .work) {
+                    return $0.classification == .work
+                }
+                return $0.application.localizedCaseInsensitiveCompare($1.application) == .orderedAscending
+            }
         let summary = BehaviorSummary(
             workMinutes: Int(totals[.work, default: 0] / 60),
             gamingMinutes: Int(totals[.gaming, default: 0] / 60),
             distractingMinutes: Int(totals[.distracting, default: 0] / 60),
             idleMinutes: Int(totals[.idle, default: 0] / 60),
-            unknownMinutes: Int(totals[.unknown, default: 0] / 60)
+            unknownMinutes: Int(totals[.unknown, default: 0] / 60),
+            appUsage: appUsage
         )
         let coverage = TelemetryCoverage(isLimited: limited, explanation: limited ? "Limited coverage: Screenwatch is stale." : "Screenwatch coverage is current.", lastObservationAt: last.observedAt)
         return (summary, coverage)
     }
 }
 
+private struct AppUsageKey: Hashable {
+    let application: String
+    let classification: BehaviorClassification
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
 public struct BehaviorClassifier: Sendable {
-    public init() {}
+    private let policy: BehaviorPolicy
+
+    public init(policy: BehaviorPolicy = BehaviorPolicy()) {
+        self.policy = policy
+    }
 
     public func classify(application: String) -> BehaviorClassification {
+        if let override = policy.classificationOverride(for: application) { return override }
         let normalized = application.lowercased()
         if ["steam", "league of legends", "minecraft", "roblox", "discord"].contains(where: normalized.contains) { return .gaming }
         if ["youtube", "tiktok", "instagram", "twitter", "x.com", "reddit"].contains(where: normalized.contains) { return .distracting }

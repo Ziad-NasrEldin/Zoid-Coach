@@ -27,6 +27,8 @@ func atollDescriptorUsesOnlyTheLocalCapabilityEndpoint() {
     #expect(web?.html.contains(presentationCapability) == true)
     #expect(web?.html.contains("https://") == false)
     #expect(web?.html.contains("&lt;/script&gt;") == true)
+    #expect(web?.html.contains("Would you like me to add it to your calendar?") == true)
+    #expect(web?.html.contains("@keyframes open") == true)
 }
 
 @Test

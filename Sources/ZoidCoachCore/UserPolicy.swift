@@ -158,6 +158,29 @@ public enum RemoteEvidencePolicy: String, Codable, CaseIterable, Sendable {
     case explicitPrivateContent
 }
 
+public enum CodexCLIModel: String, Codable, CaseIterable, Sendable {
+    case gpt56Terra = "gpt-5.6-terra"
+    case gpt55 = "gpt-5.5"
+    case custom
+
+    public var settingsLabel: String {
+        switch self {
+        case .gpt56Terra: "GPT-5.6 Terra (preview)"
+        case .gpt55: "GPT-5.5"
+        case .custom: "Custom model ID"
+        }
+    }
+}
+
+public enum CodexCLIReasoningEffort: String, Codable, CaseIterable, Sendable {
+    case low
+    case medium
+    case high
+    case xhigh
+
+    public var settingsLabel: String { rawValue.uppercased() }
+}
+
 public struct PrivacyPolicy: Codable, Equatable, Sendable {
     public let screenshotAnalysisEnabled: Bool
     public let aiProvider: AIProviderSelection
@@ -165,6 +188,19 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
     public let rawScreenshotRetentionDays: Int
     public let extractedTextRetentionDays: Int
     public let diagnosticRetentionDays: Int
+    public let codexCLIModel: CodexCLIModel?
+    public let codexCLICustomModelID: String?
+    public let codexCLIReasoningEffort: CodexCLIReasoningEffort?
+
+    public var effectiveCodexCLIModel: CodexCLIModel { codexCLIModel ?? .gpt56Terra }
+    public var effectiveCodexCLIModelID: String {
+        let customModelID = codexCLICustomModelID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if effectiveCodexCLIModel == .custom, !customModelID.isEmpty {
+            return customModelID
+        }
+        return effectiveCodexCLIModel.rawValue
+    }
+    public var effectiveCodexCLIReasoningEffort: CodexCLIReasoningEffort { codexCLIReasoningEffort ?? .low }
 
     public init(
         screenshotAnalysisEnabled: Bool,
@@ -172,7 +208,10 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
         remoteEvidencePolicy: RemoteEvidencePolicy,
         rawScreenshotRetentionDays: Int,
         extractedTextRetentionDays: Int,
-        diagnosticRetentionDays: Int
+        diagnosticRetentionDays: Int,
+        codexCLIModel: CodexCLIModel? = .gpt56Terra,
+        codexCLICustomModelID: String? = nil,
+        codexCLIReasoningEffort: CodexCLIReasoningEffort? = .low
     ) {
         self.screenshotAnalysisEnabled = screenshotAnalysisEnabled
         self.aiProvider = aiProvider
@@ -180,6 +219,9 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
         self.rawScreenshotRetentionDays = rawScreenshotRetentionDays
         self.extractedTextRetentionDays = extractedTextRetentionDays
         self.diagnosticRetentionDays = diagnosticRetentionDays
+        self.codexCLIModel = codexCLIModel
+        self.codexCLICustomModelID = codexCLICustomModelID
+        self.codexCLIReasoningEffort = codexCLIReasoningEffort
     }
 }
 
@@ -197,8 +239,62 @@ public struct WakePolicyConfiguration: Codable, Equatable, Sendable {
     }
 }
 
+public enum AppClassificationChoice: String, Codable, CaseIterable, Sendable {
+    case automatic
+    case work
+    case gaming
+}
+
+public struct BehaviorPolicy: Codable, Equatable, Sendable {
+    public let workApplications: [String]
+    public let gamingApplications: [String]
+
+    public init(workApplications: [String] = [], gamingApplications: [String] = []) {
+        self.workApplications = workApplications.map(Self.normalize).sorted()
+        self.gamingApplications = gamingApplications.map(Self.normalize).sorted()
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case workApplications
+        case gamingApplications
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            workApplications: try container.decodeIfPresent([String].self, forKey: .workApplications) ?? [],
+            gamingApplications: try container.decodeIfPresent([String].self, forKey: .gamingApplications) ?? []
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(workApplications, forKey: .workApplications)
+        try container.encode(gamingApplications, forKey: .gamingApplications)
+    }
+
+    public func classificationOverride(for application: String) -> BehaviorClassification? {
+        let normalized = Self.normalize(application)
+        if workApplications.contains(normalized) { return .work }
+        if gamingApplications.contains(normalized) { return .gaming }
+        return nil
+    }
+
+    public func choice(for application: String) -> AppClassificationChoice {
+        switch classificationOverride(for: application) {
+        case .work: .work
+        case .gaming: .gaming
+        default: .automatic
+        }
+    }
+
+    public static func normalize(_ application: String) -> String {
+        application.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}
+
 public struct UserPolicy: Codable, Equatable, Sendable {
-    public static let schemaVersion = 1
+    public static let schemaVersion = 2
 
     public let schemaVersion: Int
     public let operatingMode: OperatingMode
@@ -207,6 +303,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
     public let calendar: CalendarSelectionPolicy
     public let privacy: PrivacyPolicy
     public let wake: WakePolicyConfiguration
+    public let behavior: BehaviorPolicy
 
     public init(
         schemaVersion: Int = UserPolicy.schemaVersion,
@@ -215,7 +312,8 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         schedule: SchedulePolicy,
         calendar: CalendarSelectionPolicy,
         privacy: PrivacyPolicy,
-        wake: WakePolicyConfiguration
+        wake: WakePolicyConfiguration,
+        behavior: BehaviorPolicy = BehaviorPolicy()
     ) {
         self.schemaVersion = schemaVersion
         self.operatingMode = operatingMode
@@ -224,6 +322,54 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         self.calendar = calendar
         self.privacy = privacy
         self.wake = wake
+        self.behavior = behavior
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case operatingMode
+        case automationPause
+        case schedule
+        case calendar
+        case privacy
+        case wake
+        case behavior
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        operatingMode = try container.decode(OperatingMode.self, forKey: .operatingMode)
+        automationPause = try container.decode(AutomationPause.self, forKey: .automationPause)
+        schedule = try container.decode(SchedulePolicy.self, forKey: .schedule)
+        calendar = try container.decode(CalendarSelectionPolicy.self, forKey: .calendar)
+        privacy = try container.decode(PrivacyPolicy.self, forKey: .privacy)
+        wake = try container.decode(WakePolicyConfiguration.self, forKey: .wake)
+        behavior = try container.decodeIfPresent(BehaviorPolicy.self, forKey: .behavior) ?? BehaviorPolicy()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(operatingMode, forKey: .operatingMode)
+        try container.encode(automationPause, forKey: .automationPause)
+        try container.encode(schedule, forKey: .schedule)
+        try container.encode(calendar, forKey: .calendar)
+        try container.encode(privacy, forKey: .privacy)
+        try container.encode(wake, forKey: .wake)
+        try container.encode(behavior, forKey: .behavior)
+    }
+
+    public func upgradedToCurrentSchema() -> UserPolicy {
+        UserPolicy(
+            operatingMode: operatingMode,
+            automationPause: automationPause,
+            schedule: schedule,
+            calendar: calendar,
+            privacy: privacy,
+            wake: wake,
+            behavior: behavior
+        )
     }
 
     public static func defaults(timeZoneIdentifier: String = TimeZone.current.identifier) -> UserPolicy {
@@ -324,6 +470,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         if !privacy.aiProvider.usesRemoteProcessing, privacy.remoteEvidencePolicy != .localOnly {
             violations.append(.init(code: .remotePolicyWithoutRemoteProvider, field: "privacy.remoteEvidencePolicy"))
         }
+        appendApplicationClassificationViolations(to: &violations)
         appendTimeViolation(wake.window.start, field: "wake.window.start", to: &violations)
         appendTimeViolation(wake.window.end, field: "wake.window.end", to: &violations)
         if wake.window.start == wake.window.end {
@@ -371,6 +518,23 @@ public struct UserPolicy: Codable, Equatable, Sendable {
             }
         }
     }
+
+    private func appendApplicationClassificationViolations(to violations: inout [PolicyViolation]) {
+        for (field, applications) in [
+            ("behavior.workApplications", behavior.workApplications),
+            ("behavior.gamingApplications", behavior.gamingApplications)
+        ] {
+            if applications.contains(where: \ .isEmpty) {
+                violations.append(.init(code: .emptyApplicationClassification, field: field))
+            }
+            if Set(applications).count != applications.count {
+                violations.append(.init(code: .duplicateApplicationClassification, field: field))
+            }
+        }
+        if !Set(behavior.workApplications).isDisjoint(with: behavior.gamingApplications) {
+            violations.append(.init(code: .applicationClassificationConflict, field: "behavior"))
+        }
+    }
 }
 
 public struct PolicyViolation: Codable, Equatable, Sendable {
@@ -390,6 +554,9 @@ public struct PolicyViolation: Codable, Equatable, Sendable {
         case duplicateCalendarIdentifier
         case invalidRetention
         case remotePolicyWithoutRemoteProvider
+        case emptyApplicationClassification
+        case duplicateApplicationClassification
+        case applicationClassificationConflict
         case invalidWakeBudget
     }
 

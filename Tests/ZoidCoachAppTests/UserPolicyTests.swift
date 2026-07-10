@@ -101,3 +101,75 @@ func codexCLIAllowsAnExplicitRemoteEvidencePolicy() {
 
     #expect(policy.validationViolations().isEmpty)
 }
+
+@Test
+func behaviorPolicyNormalizesExactOverridesAndRejectsConflicts() {
+    let policy = BehaviorPolicy(
+        workApplications: ["  Xcode  ", "FIGMA"],
+        gamingApplications: ["Steam", "xcode"]
+    )
+
+    #expect(policy.workApplications == ["figma", "xcode"])
+    #expect(policy.gamingApplications == ["steam", "xcode"])
+    #expect(policy.classificationOverride(for: " xCoDe ") == .work)
+
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    let invalid = UserPolicy(
+        operatingMode: defaults.operatingMode,
+        automationPause: defaults.automationPause,
+        schedule: defaults.schedule,
+        calendar: defaults.calendar,
+        privacy: defaults.privacy,
+        wake: defaults.wake,
+        behavior: policy
+    )
+
+    #expect(invalid.validationViolations().map(\.code) == [.applicationClassificationConflict])
+}
+
+@Test
+func behaviorPolicyNormalizesPersistedApplicationNamesWhileDecoding() throws {
+    let decoded = try JSONDecoder().decode(
+        BehaviorPolicy.self,
+        from: Data(#"{"workApplications":[" XCODE "],"gamingApplications":["STEAM"]}"#.utf8)
+    )
+
+    #expect(decoded.workApplications == ["xcode"])
+    #expect(decoded.gamingApplications == ["steam"])
+}
+
+@Test
+func behaviorPolicyValidationRejectsBlankAndDuplicateApplications() {
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    let invalid = UserPolicy(
+        operatingMode: defaults.operatingMode,
+        automationPause: defaults.automationPause,
+        schedule: defaults.schedule,
+        calendar: defaults.calendar,
+        privacy: defaults.privacy,
+        wake: defaults.wake,
+        behavior: BehaviorPolicy(
+            workApplications: ["", "Xcode", " xcode "],
+            gamingApplications: []
+        )
+    )
+
+    #expect(invalid.validationViolations().map(\.code) == [
+        .emptyApplicationClassification,
+        .duplicateApplicationClassification
+    ])
+}
+
+@Test
+func versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() throws {
+    let versionOneJSON = try #require(String(data: JSONEncoder.zoidPolicy.encode(UserPolicy.defaults(timeZoneIdentifier: "UTC")), encoding: .utf8))
+        .replacingOccurrences(of: #""schemaVersion":2"#, with: #""schemaVersion":1"#)
+        .replacingOccurrences(of: #",\"behavior\":{\"gamingApplications\":[],\"workApplications\":[]}"#, with: "")
+
+    let decoded = try JSONDecoder.zoidPolicy.decode(UserPolicy.self, from: Data(versionOneJSON.utf8))
+
+    #expect(decoded.schemaVersion == 1)
+    #expect(decoded.behavior == BehaviorPolicy())
+    #expect(decoded.upgradedToCurrentSchema().schemaVersion == UserPolicy.schemaVersion)
+    #expect(decoded.upgradedToCurrentSchema().behavior == BehaviorPolicy())
+}

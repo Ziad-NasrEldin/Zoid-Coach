@@ -15,6 +15,18 @@ public struct ScreenwatchIngestionResult: Equatable, Sendable {
     }
 }
 
+public struct ObservedApplication: Equatable, Sendable {
+    public let application: String
+    public let lastObservedAt: Date
+    public let observationCount: Int
+
+    public init(application: String, lastObservedAt: Date, observationCount: Int) {
+        self.application = application
+        self.lastObservedAt = lastObservedAt
+        self.observationCount = observationCount
+    }
+}
+
 public struct MeetingAnalysisResult: Equatable, Sendable {
     public let screenshotsProcessed: Int
     public let candidatesCreated: Int
@@ -79,15 +91,18 @@ public struct StoredMeetingCandidate: Equatable, Sendable, Identifiable {
 public final class ScreenwatchArchive: @unchecked Sendable {
     private let database: OpaquePointer
     private let decoder = ScreenwatchLogDecoder()
+    private let policyStore: PolicyStore
 
     public init(databaseURL: URL, readOnly: Bool = false) throws {
         if !readOnly { try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate() }
+        let resolvedPolicyStore = try PolicyStore(databaseURL: databaseURL, readOnly: readOnly)
         var handle: OpaquePointer?
         let flags = readOnly ? SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX : SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX
         guard sqlite3_open_v2(databaseURL.path, &handle, flags, nil) == SQLITE_OK,
               let handle
         else { throw ScreenwatchArchiveError.openDatabase }
         database = handle
+        policyStore = resolvedPolicyStore
         sqlite3_busy_timeout(database, 5_000)
     }
 
@@ -124,7 +139,14 @@ public final class ScreenwatchArchive: @unchecked Sendable {
             guard let observation = try? decoder.decode(Data(line)) else { continue }
             totalRecordsRead += 1
             lastEpoch = observation.epoch
-            if try insert(observation, dayKey: dayKey, dayDirectory: dayDirectory) {
+            let classification = try classification(for: observation)
+            if try insert(
+                observation,
+                dayKey: dayKey,
+                dayDirectory: dayDirectory,
+                classification: classification.value,
+                policyVersion: classification.policyVersion
+            ) {
                 insertedCount += 1
                 if let screenshotPath = screenshotPath(for: observation, in: dayDirectory) {
                     try indexScreenshot(path: screenshotPath, observation: observation, dayKey: dayKey, now: now)
@@ -298,9 +320,35 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         return evidence
     }
 
+    public func observedApplications() throws -> [ObservedApplication] {
+        let sql = """
+        SELECT app_name, MAX(epoch), COUNT(*)
+        FROM behavior_records
+        GROUP BY app_name
+        ORDER BY MAX(epoch) DESC, app_name ASC;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw ScreenwatchArchiveError.prepareRead }
+        defer { sqlite3_finalize(statement) }
+        var applications: [ObservedApplication] = []
+        while sqlite3_step(statement) == SQLITE_ROW,
+              let application = columnText(statement, at: 0) {
+            applications.append(
+                ObservedApplication(
+                    application: application,
+                    lastObservedAt: Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 1))),
+                    observationCount: Int(sqlite3_column_int64(statement, 2))
+                )
+            )
+        }
+        return applications
+    }
+
     public func behaviorObservations(for day: Date, classifier: BehaviorClassifier = BehaviorClassifier()) throws -> [BehaviorObservation] {
         let interval = Calendar.current.dateInterval(of: .day, for: day) ?? DateInterval(start: day, duration: 86_400)
-        let sql = "SELECT epoch, app_name FROM behavior_records WHERE epoch >= ? AND epoch < ? ORDER BY epoch ASC;"
+        let sql = "SELECT epoch, app_name, classification FROM behavior_records WHERE epoch >= ? AND epoch < ? ORDER BY epoch ASC;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement
@@ -311,11 +359,12 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         var observations: [BehaviorObservation] = []
         while sqlite3_step(statement) == SQLITE_ROW,
               let application = columnText(statement, at: 1) {
+            let storedClassification = columnText(statement, at: 2).flatMap(BehaviorClassification.init(rawValue:))
             observations.append(
                 BehaviorObservation(
                     observedAt: Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 0))),
                     application: application,
-                    classification: classifier.classify(application: application)
+                    classification: storedClassification ?? classifier.classify(application: application)
                 )
             )
         }
@@ -385,8 +434,14 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         guard sqlite3_exec(database, schema, nil, nil, nil) == SQLITE_OK else { throw ScreenwatchArchiveError.createSchema }
     }
 
-    private func insert(_ observation: ScreenwatchObservation, dayKey: String, dayDirectory: URL) throws -> Bool {
-        let sql = "INSERT OR IGNORE INTO behavior_records (source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"
+    private func insert(
+        _ observation: ScreenwatchObservation,
+        dayKey: String,
+        dayDirectory: URL,
+        classification: BehaviorClassification,
+        policyVersion: Int
+    ) throws -> Bool {
+        let sql = "INSERT OR IGNORE INTO behavior_records (source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement
@@ -406,9 +461,18 @@ public final class ScreenwatchArchive: @unchecked Sendable {
             sqlite3_bind_null(statement, 8)
         }
         bind(ISO8601DateFormatter().string(from: Date()), to: statement, at: 9)
+        bind(classification.rawValue, to: statement, at: 10)
+        sqlite3_bind_int(statement, 11, Int32(policyVersion))
 
         guard sqlite3_step(statement) == SQLITE_DONE else { throw ScreenwatchArchiveError.insert }
         return sqlite3_changes(database) == 1
+    }
+
+    private func classification(for observation: ScreenwatchObservation) throws -> (value: BehaviorClassification, policyVersion: Int) {
+        let observedAt = Date(timeIntervalSince1970: TimeInterval(observation.epoch))
+        let versionedPolicy = try policyStore.effective(at: observedAt)
+        let classifier = BehaviorClassifier(policy: versionedPolicy?.policy.behavior ?? BehaviorPolicy())
+        return (classifier.classify(application: observation.appName), versionedPolicy?.version ?? 0)
     }
 
     private func indexScreenshot(path: URL, observation: ScreenwatchObservation, dayKey: String, now: Date) throws {

@@ -19,12 +19,12 @@ func policyStoreVersionsChangesAndRollsBackTheActivePolicy() throws {
 
     let rolledBack = try store.rollback(to: 1)
 
-    #expect(rolledBack.version == 1)
+    #expect(rolledBack.version == 3)
     #expect(rolledBack.policy.operatingMode == .fullyAutomatic)
     #expect(try store.current() == rolledBack)
 
     let third = try store.save(policy(mode: .suggestionsOnly))
-    #expect(third.version == 3)
+    #expect(third.version == 4)
 }
 
 @Test
@@ -40,6 +40,26 @@ func operatingModeMigratesLegacyPolicyValuesAndPersistsTheFourRolloutModes() thr
     #expect(String(decoding: try encoder.encode(OperatingMode.autonomous), as: UTF8.self) == #""autonomous""#)
 }
 
+@Test
+func policyStoreResolvesTheClassificationPolicyActiveAtAnObservationTime() throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let clock = PolicyTestClock(Date(timeIntervalSince1970: 1_700_000_000))
+    let store = try PolicyStore(databaseURL: databaseURL, now: { clock.now })
+
+    _ = try store.save(policy(classifyingSteamAs: .gaming))
+    clock.now = Date(timeIntervalSince1970: 1_700_000_600)
+    _ = try store.save(policy(classifyingSteamAs: .work))
+
+    let first = try #require(try store.effective(at: Date(timeIntervalSince1970: 1_700_000_300)))
+    let second = try #require(try store.effective(at: Date(timeIntervalSince1970: 1_700_000_900)))
+
+    #expect(first.version == 1)
+    #expect(first.policy.behavior.choice(for: "Steam") == .gaming)
+    #expect(second.version == 2)
+    #expect(second.policy.behavior.choice(for: "Steam") == .work)
+}
+
 private func policy(mode: OperatingMode) -> UserPolicy {
     let defaults = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
     return UserPolicy(
@@ -50,6 +70,30 @@ private func policy(mode: OperatingMode) -> UserPolicy {
         privacy: defaults.privacy,
         wake: defaults.wake
     )
+}
+
+private func policy(classifyingSteamAs choice: AppClassificationChoice) -> UserPolicy {
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    return UserPolicy(
+        operatingMode: defaults.operatingMode,
+        automationPause: defaults.automationPause,
+        schedule: defaults.schedule,
+        calendar: defaults.calendar,
+        privacy: defaults.privacy,
+        wake: defaults.wake,
+        behavior: BehaviorPolicy(
+            workApplications: choice == .work ? ["Steam"] : [],
+            gamingApplications: choice == .gaming ? ["Steam"] : []
+        )
+    )
+}
+
+private final class PolicyTestClock: @unchecked Sendable {
+    var now: Date
+
+    init(_ now: Date) {
+        self.now = now
+    }
 }
 
 private func temporaryPolicyDatabaseURL() -> URL {

@@ -8,6 +8,12 @@ struct TodayDashboardCommandOverview: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let snapshot: TodaySnapshot
+    @State private var isUsagePresented = false
+    @State private var isPointerOverUsageAnchor = false
+    @State private var isPointerOverUsagePanel = false
+    @State private var isUsageSelectorActive = false
+    @State private var usageDismissTask: Task<Void, Never>?
+    @FocusState private var isUsageFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -41,8 +47,8 @@ struct TodayDashboardCommandOverview: View {
                     behaviorState
                 }
             }
-            .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
-            .overlay(alignment: .top) { Rectangle().fill(Sumi.ink).frame(height: 2) }
+            .background { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+            .background(alignment: .top) { Rectangle().fill(Sumi.ink).frame(height: 2) }
 
             HStack(alignment: .top, spacing: 0) {
                 dayMap
@@ -87,13 +93,7 @@ struct TodayDashboardCommandOverview: View {
             Spacer(minLength: 22)
             if let row = primaryFocusRow {
                 Button(commandLabel(for: row)) { applyPrimaryCommand(to: row) }
-                    .font(Sumi.label(9))
-                    .sumiLabelTracking()
-                    .foregroundStyle(Sumi.paper)
-                    .padding(.horizontal, 18)
-                    .frame(height: 40)
-                    .background(Sumi.seal)
-                    .buttonStyle(TodayCommandPressStyle())
+                    .buttonStyle(SumiActionButtonStyle(role: .accent, size: .large))
                     .accessibilityLabel("\(commandLabel(for: row).capitalized) \(row.title)")
             }
         }
@@ -105,53 +105,115 @@ struct TodayDashboardCommandOverview: View {
 
     private var behaviorState: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("BEHAVIOR, SINCE MIDNIGHT")
-                .font(Sumi.label(8))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.muted)
-            ZStack {
-                Circle().stroke(Sumi.ink, lineWidth: 1)
-                Circle().inset(by: 11).stroke(Sumi.rule, lineWidth: 1)
-                VStack(spacing: 2) {
-                    Text("\(snapshot.behavior.workMinutes)m")
-                        .font(Sumi.display(24))
-                        .foregroundStyle(Sumi.ink)
-                    Text("WORKING")
-                        .font(Sumi.label(7))
-                        .sumiLabelTracking()
-                        .foregroundStyle(Sumi.muted)
-                }
-            }
-            .frame(width: 104, height: 104)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 13)
-            Text(snapshot.coverage.isLimited ? snapshot.coverage.explanation : "Observed activity is current.")
-                .font(Sumi.body(11))
-                .foregroundStyle(Sumi.muted)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("GAMING BUDGET")
-                        .font(Sumi.label(8))
-                        .sumiLabelTracking()
-                    Text("\(snapshot.gaming.unlockedRemainingMinutes)m")
-                        .font(Sumi.display(19))
-                }
-                Spacer()
-                Text(snapshot.gaming.nextUnlockReason)
-                    .font(Sumi.body(9))
+                Text("BEHAVIOR, SINCE MIDNIGHT")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 100, alignment: .trailing)
+                Button {
+                    presentUsage()
+                } label: {
+                    ZStack {
+                        Circle().fill(isUsagePresented ? Sumi.paper : Color.clear)
+                        Circle().stroke(isUsagePresented ? Sumi.seal : Sumi.ink, lineWidth: isUsagePresented ? 2 : 1)
+                        Circle()
+                            .inset(by: isUsagePresented ? 8 : 11)
+                            .stroke(isUsagePresented ? Sumi.seal.opacity(0.35) : Sumi.rule, lineWidth: 1)
+                        VStack(spacing: 2) {
+                            Text("\(snapshot.behavior.workMinutes)m")
+                                .font(Sumi.display(24))
+                                .foregroundStyle(Sumi.ink)
+                            Text(isUsagePresented ? "VIEWING USE" : "WORKING")
+                                .font(Sumi.label(7))
+                                .sumiLabelTracking()
+                                .foregroundStyle(isUsagePresented ? Sumi.seal : Sumi.muted)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .frame(width: 104, height: 104)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .scaleEffect(isUsagePresented && !reduceMotion ? 1.035 : 1)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isUsagePresented)
+                .focused($isUsageFocused)
+                .onChange(of: isUsageFocused) { _, isFocused in
+                    if isFocused { presentUsage() } else { scheduleUsageDismissal() }
+                }
+                .onHover { isHovering in
+                    isPointerOverUsageAnchor = isHovering
+                    if isHovering { presentUsage() } else { scheduleUsageDismissal() }
+                }
+                .help("Show observed app usage percentages")
+                .accessibilityLabel("Working time, \(snapshot.behavior.workMinutes) minutes")
+                .accessibilityValue(isUsagePresented ? "App usage details shown" : "App usage details hidden")
+                .accessibilityHint("Shows app and category percentages while the pointer remains nearby.")
+                .popover(isPresented: $isUsagePresented, attachmentAnchor: .rect(.bounds), arrowEdge: .top) {
+                    AppUsagePopover(
+                        behavior: snapshot.behavior,
+                        selectorActive: $isUsageSelectorActive
+                    )
+                    .contentShape(Rectangle())
+                    .onHover { isHovering in
+                        isPointerOverUsagePanel = isHovering
+                        if isHovering { cancelUsageDismissal() } else { scheduleUsageDismissal() }
+                    }
+                    .onDisappear {
+                        isPointerOverUsagePanel = false
+                        isUsageSelectorActive = false
+                    }
+                }
+                Text(snapshot.coverage.isLimited ? snapshot.coverage.explanation : "Observed activity is current.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("GAMING BUDGET")
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                        Text("\(snapshot.gaming.unlockedRemainingMinutes)m")
+                            .font(Sumi.display(19))
+                    }
+                    Spacer()
+                    Text(snapshot.gaming.nextUnlockReason)
+                        .font(Sumi.body(9))
+                        .foregroundStyle(Sumi.muted)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 100, alignment: .trailing)
+                }
+                .padding(.top, 12)
+                .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                .padding(.top, 10)
             }
-            .padding(.top, 12)
-            .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
-            .padding(.top, 10)
+            .padding(24)
+            .frame(maxWidth: .infinity, minHeight: 244, alignment: .topLeading)
+            .background(Sumi.mist)
+    }
+
+    private func presentUsage() {
+        cancelUsageDismissal()
+        isUsagePresented = true
+    }
+
+    private func scheduleUsageDismissal() {
+        cancelUsageDismissal()
+        usageDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(160))
+            guard !Task.isCancelled else { return }
+            guard AppUsagePopoverDismissalPolicy.shouldDismiss(
+                isAnchorFocused: isUsageFocused,
+                isPointerOverAnchor: isPointerOverUsageAnchor,
+                isPointerOverPanel: isPointerOverUsagePanel,
+                isSelectorActive: isUsageSelectorActive
+            ) else { return }
+            isUsagePresented = false
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, minHeight: 244, alignment: .topLeading)
-        .background(Sumi.mist)
+    }
+
+    private func cancelUsageDismissal() {
+        usageDismissTask?.cancel()
+        usageDismissTask = nil
     }
 
     private var dayMap: some View {
@@ -215,12 +277,7 @@ struct TodayDashboardCommandOverview: View {
                 .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
             if let row = recommendedRow {
                 Button(commandLabel(for: row)) { applyPrimaryCommand(to: row) }
-                    .font(Sumi.label(8))
-                    .sumiLabelTracking()
-                    .foregroundStyle(Sumi.ink)
-                    .frame(maxWidth: .infinity, minHeight: 34)
-                    .overlay { Rectangle().stroke(Sumi.ink, lineWidth: 1) }
-                    .buttonStyle(TodayCommandPressStyle())
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .padding(.top, 14)
             }
         }
@@ -313,6 +370,295 @@ struct TodayDashboardCommandOverview: View {
     }
 }
 
+enum AppUsagePopoverDismissalPolicy {
+    static func shouldDismiss(
+        isAnchorFocused: Bool,
+        isPointerOverAnchor: Bool,
+        isPointerOverPanel: Bool,
+        isSelectorActive: Bool
+    ) -> Bool {
+        !isAnchorFocused && !isPointerOverAnchor && !isPointerOverPanel && !isSelectorActive
+    }
+}
+
+private struct AppUsagePopover: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let behavior: BehaviorSummary
+    @Binding var selectorActive: Bool
+    @State private var selectedCategory: AppUsageCategory = .all
+    @State private var presentationMode: AppUsagePresentationMode = .applications
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(presentationMode == .applications ? "OBSERVED APP USE" : "CATEGORY TOTALS")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Text(presentationMode == .applications ? "Since midnight" : "Since midnight · 100%")
+                        .font(Sumi.body(16))
+                        .foregroundStyle(Sumi.ink)
+                        .contentTransition(.interpolate)
+                }
+                Spacer(minLength: 8)
+                HStack(spacing: 6) {
+                    UsagePanelIconButton(
+                        systemImage: presentationMode == .applications ? "square.grid.2x2" : "list.bullet",
+                        accessibilityLabel: presentationMode == .applications ? "Show category totals" : "Show individual applications"
+                    ) {
+                        presentationMode = presentationMode == .applications ? .categories : .applications
+                    }
+                }
+            }
+
+            Rectangle().fill(Sumi.ink).frame(height: 1).padding(.top, 12)
+
+            if presentationMode == .applications {
+                AppUsageInlineCategorySelector(
+                    selection: $selectedCategory,
+                    isActive: $selectorActive
+                )
+                .padding(.vertical, 10)
+                .transition(.opacity.combined(with: .offset(y: -5)))
+            }
+
+            usageList
+                .frame(height: presentationMode == .applications ? 195 : 230, alignment: .top)
+
+            Text(footerLabel)
+                .font(Sumi.label(7))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 9)
+                .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+        }
+        .padding(18)
+        .frame(width: 300, height: 352, alignment: .topLeading)
+        .background(Sumi.paper)
+        .overlay { Rectangle().stroke(Sumi.ink, lineWidth: 1) }
+        .overlay(alignment: .top) { Rectangle().fill(Sumi.seal).frame(height: 2) }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: selectedCategory)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: presentationMode)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Observed usage since midnight")
+    }
+
+    @ViewBuilder
+    private var usageList: some View {
+        if displayedItems.isEmpty {
+            Text(emptyMessage)
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.top, 14)
+        } else {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(displayedItems) { item in
+                        usageRow(item)
+                            .transition(.opacity.combined(with: .offset(x: 7)))
+                    }
+                }
+                .id("\(presentationMode.rawValue)-\(selectedCategory.rawValue)")
+            }
+        }
+    }
+
+    private var displayedItems: [UsageDisplayItem] {
+        switch presentationMode {
+        case .applications:
+            let filtered: [AppUsageBreakdown]
+            if let classification = selectedCategory.classification {
+                filtered = behavior.appUsage.filter { $0.classification == classification }
+            } else {
+                filtered = behavior.appUsage
+            }
+            return filtered.map {
+                UsageDisplayItem(id: "app-\($0.application)", title: $0.application, observedSeconds: $0.observedSeconds, percentage: $0.percentage)
+            }
+        case .categories:
+            return behavior.categoryUsage.map {
+                let category = AppUsageCategory(classification: $0.classification)
+                return UsageDisplayItem(id: "category-\($0.classification.rawValue)", title: category.title, observedSeconds: $0.observedSeconds, percentage: $0.percentage)
+            }
+        }
+    }
+
+    private var emptyMessage: String {
+        if presentationMode == .categories { return "No categorized activity is available yet." }
+        return selectedCategory == .all
+            ? "No attributable app time is available yet."
+            : "No \(selectedCategory.title.lowercased()) app time was observed."
+    }
+
+    private var footerLabel: String {
+        if presentationMode == .categories { return "Category shares of all observed time" }
+        let percentage = displayedItems.reduce(0) { $0 + $1.percentage }
+        if selectedCategory == .all { return "App shares of all observed time" }
+        return "\(selectedCategory.title) · \(percentage.formatted(.number.precision(.fractionLength(1))))% of observed time"
+    }
+
+    private func usageRow(_ item: UsageDisplayItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(item.title)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.ink)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 8)
+                Text(item.percentage.formatted(.number.precision(.fractionLength(1))) + "%")
+                    .font(Sumi.label(9))
+                    .monospacedDigit()
+                    .foregroundStyle(Sumi.ink)
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Sumi.paleRule)
+                    Rectangle().fill(Sumi.ink).frame(width: proxy.size.width * item.percentage / 100)
+                }
+            }
+            .frame(height: 3)
+            Text(durationLabel(item.observedSeconds))
+                .font(Sumi.label(7))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+        }
+        .padding(.vertical, 9)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(item.title), \(item.percentage.formatted(.number.precision(.fractionLength(1)))) percent, \(durationLabel(item.observedSeconds))")
+    }
+
+    private func durationLabel(_ seconds: Int) -> String {
+        if seconds < 60 { return "<1 MIN OBSERVED" }
+        return "\(Int((Double(seconds) / 60).rounded())) MIN OBSERVED"
+    }
+}
+
+private enum AppUsagePresentationMode: String {
+    case applications
+    case categories
+}
+
+private struct UsageDisplayItem: Identifiable {
+    let id: String
+    let title: String
+    let observedSeconds: Int
+    let percentage: Double
+}
+
+private enum AppUsageCategory: String, CaseIterable, Identifiable {
+    case all
+    case work
+    case gaming
+    case distracting
+    case idle
+    case unknown
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: "All apps"
+        case .work: "Work"
+        case .gaming: "Gaming"
+        case .distracting: "Distraction"
+        case .idle: "Idle"
+        case .unknown: "Unclassified"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .all: "square.grid.2x2"
+        case .work: "briefcase"
+        case .gaming: "gamecontroller"
+        case .distracting: "eye.slash"
+        case .idle: "moon.zzz"
+        case .unknown: "questionmark"
+        }
+    }
+
+    var classification: BehaviorClassification? {
+        switch self {
+        case .all: nil
+        case .work: .work
+        case .gaming: .gaming
+        case .distracting: .distracting
+        case .idle: .idle
+        case .unknown: .unknown
+        }
+    }
+
+    init(classification: BehaviorClassification) {
+        switch classification {
+        case .work: self = .work
+        case .gaming: self = .gaming
+        case .distracting: self = .distracting
+        case .idle: self = .idle
+        case .unknown: self = .unknown
+        }
+    }
+}
+
+private struct AppUsageInlineCategorySelector: View {
+    @Binding var selection: AppUsageCategory
+    @Binding var isActive: Bool
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(AppUsageCategory.allCases) { category in
+                Button {
+                    isActive = true
+                    selection = category
+                    isActive = false
+                } label: {
+                    Image(systemName: category.systemImage)
+                        .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(selection == category ? Sumi.paper : Sumi.ink)
+                    .frame(maxWidth: .infinity, minHeight: 28)
+                    .background(selection == category ? Sumi.ink : Sumi.paper)
+                    .overlay { Rectangle().stroke(selection == category ? Sumi.ink : Sumi.rule, lineWidth: 1) }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(category.title)
+                .accessibilityLabel(category.title)
+                .accessibilityValue(selection == category ? "Selected" : "Not selected")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Filter applications by category")
+    }
+}
+
+private struct UsagePanelIconButton: View {
+    let systemImage: String
+    let accessibilityLabel: String
+    let action: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(isHovering ? Sumi.paper : Sumi.ink)
+                .frame(width: 30, height: 30)
+                .background(isHovering ? Sumi.seal : Sumi.paper)
+                .overlay { Rectangle().stroke(isHovering ? Sumi.seal : Sumi.rule, lineWidth: 1) }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help(accessibilityLabel)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
 private struct TodayPlanTaskRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let row: TodayTaskRow
@@ -347,13 +693,7 @@ private struct TodayPlanTaskRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 if canApplyCommand {
                     Button(commandLabel, action: applyCommand)
-                        .font(Sumi.label(8))
-                        .sumiLabelTracking()
-                        .foregroundStyle(Sumi.paper)
-                        .padding(.horizontal, 9)
-                        .frame(height: 27)
-                        .background(Sumi.ink)
-                        .buttonStyle(TodayCommandPressStyle())
+                        .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
                         .accessibilityLabel("\(commandLabel.capitalized) \(row.title)")
                 }
             }
@@ -368,16 +708,13 @@ private struct TodayPlanTaskRow: View {
                     HStack(spacing: 14) {
                         if !isMainObjective {
                             Button("MAKE MAIN", action: makeMain)
-                                .foregroundStyle(Sumi.ink)
+                                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                                 .accessibilityLabel("Make \(row.title) the main objective")
                         }
                         Button("REMOVE", action: remove)
-                            .foregroundStyle(Sumi.seal)
+                            .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
                             .accessibilityLabel("Remove \(row.title) from today's plan")
                     }
-                    .font(Sumi.label(8))
-                    .sumiLabelTracking()
-                    .buttonStyle(TodayCommandPressStyle())
                 }
                 .padding(.leading, 50)
             }
@@ -449,13 +786,4 @@ private struct TodayEstimateStrip: View {
     }
 }
 
-private struct TodayCommandPressStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
+private typealias TodayCommandPressStyle = SumiPressButtonStyle

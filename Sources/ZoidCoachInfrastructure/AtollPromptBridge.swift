@@ -86,6 +86,12 @@ public struct AtollPromptDescriptorBuilder: Sendable {
         loopbackPort: UInt16,
         presentationCapability: String
     ) -> String {
+        let question: String = switch episode.type {
+        case "MEETING_CANDIDATE": "Would you like me to add it to your calendar?"
+        case "PLAN_READY": "Would you like me to reserve this plan?"
+        case "PLAN_CHANGED": "Would you like to keep these changes?"
+        default: "What would you like me to do?"
+        }
         let buttons = episode.actions.map { action in
             let token = PromptResponseToken.make(promptID: episode.id, action: action.kind)
             let endpoint = endpointURL(
@@ -101,8 +107,8 @@ public struct AtollPromptDescriptorBuilder: Sendable {
         return """
         <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
         <style>
-        :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:10px;font:13px -apple-system,BlinkMacSystemFont,sans-serif;color:#fff;background:transparent}.title{font-size:15px;font-weight:700;margin-bottom:5px}.summary{color:rgba(255,255,255,.72);line-height:1.35;margin-bottom:12px}.actions{display:flex;gap:8px;flex-wrap:wrap}button{border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:8px 12px;color:#fff;background:rgba(255,255,255,.10);font:600 12px -apple-system;cursor:pointer}button.primary{background:#c23a2e;border-color:#df665a}button.destructive{color:#ffaaa3}button:disabled{opacity:.45;cursor:default}.status{min-height:18px;margin-top:9px;color:rgba(255,255,255,.68)}
-        </style></head><body><div class="title">\(escapeHTML(episode.title))</div><div class="summary">\(escapeHTML(episode.summary))</div><div class="actions">\(buttons)</div><div class="status" role="status" aria-live="polite"></div>
+        :root{color-scheme:light;--ink:#0d0a0a;--paper:#fff;--soft:#fafafa;--mist:#f5f5f5;--muted:#545554;--rule:#e0e0e0;--seal:#c23a2e;--seal-deep:#8f211a;--seal-wash:#f5e5e3}*{box-sizing:border-box}body{margin:0;padding:12px;font:13px "Times New Roman",Baskerville,Georgia,serif;color:var(--ink);background:var(--paper);animation:open .2s cubic-bezier(.16,1,.3,1)}@keyframes open{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){body{animation:none}}.title{font-size:17px;font-weight:400;line-height:1.15;padding-bottom:7px;border-bottom:1px solid var(--rule)}.summary{color:var(--muted);line-height:1.4;margin:8px 0;max-height:54px;overflow:hidden}.question{font-size:12px;font-weight:600;letter-spacing:.04em;line-height:1.35;margin-bottom:12px}.actions{display:flex;gap:7px;flex-wrap:wrap}button{border:1px solid var(--rule);border-radius:0;padding:8px 11px;color:var(--ink);background:var(--paper);font:600 10px "Times New Roman",Baskerville,Georgia,serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}button:hover{border-color:var(--ink)}button:focus-visible{outline:1px solid var(--seal);outline-offset:2px}button.primary{color:var(--paper);background:var(--ink);border-color:var(--ink)}button.primary:hover{background:var(--seal);border-color:var(--seal)}button.destructive{color:var(--seal-deep);background:var(--seal-wash);border-color:var(--seal)}button.destructive:hover{color:var(--paper);background:var(--seal)}button:disabled{color:var(--muted);background:var(--mist);border-color:var(--rule);cursor:default}.status{min-height:18px;margin-top:9px;color:var(--muted);font-size:10px}
+        </style></head><body><div class="title">\(escapeHTML(episode.title))</div><div class="summary">\(escapeHTML(episode.summary))</div><div class="question">\(escapeHTML(question))</div><div class="actions">\(buttons)</div><div class="status" role="status" aria-live="polite"></div>
         <script>
         const status=document.querySelector('.status');document.querySelectorAll('button').forEach(button=>button.addEventListener('click',async()=>{document.querySelectorAll('button').forEach(item=>item.disabled=true);status.textContent='Saving...';try{const response=await fetch(button.dataset.endpoint,{method:'POST',cache:'no-store',credentials:'omit'});if(!response.ok)throw new Error('rejected');status.textContent='Saved';}catch(error){document.querySelectorAll('button').forEach(item=>item.disabled=false);status.textContent='Could not save. Use Zoid Coach or the notification.';}}));
         </script></body></html>
@@ -140,19 +146,28 @@ public struct AtollPromptDescriptorBuilder: Sendable {
 
 public final class AtollPromptLoopbackServer: @unchecked Sendable {
     private let handler: AtollPromptActionHandler
+    private let commandCenterController: AtollCommandCenterController?
     private let queue = DispatchQueue(label: "com.ziadnasreldin.ZoidCoach.atoll-loopback")
     private let lock = NSLock()
     private var listener: NWListener?
     private var readyPort: UInt16?
-    private var presentationCapabilities: [String: String] = [:]
+    private var presentationCapabilities: [String: (value: String, expiresAt: Date)] = [:]
+    private var commandCenterCapability: (value: String, expiresAt: Date)?
 
-    public init(handler: AtollPromptActionHandler) {
+    public init(handler: AtollPromptActionHandler, commandCenterController: AtollCommandCenterController? = nil) {
         self.handler = handler
+        self.commandCenterController = commandCenterController
     }
 
-    public func authorize(promptID: String, presentationCapability: String) {
+    public func authorizeCommandCenter(presentationCapability: String, lifetime: TimeInterval = 30 * 60) {
         lock.withLock {
-            presentationCapabilities[promptID] = presentationCapability
+            commandCenterCapability = (presentationCapability, Date().addingTimeInterval(lifetime))
+        }
+    }
+
+    public func authorize(promptID: String, presentationCapability: String, lifetime: TimeInterval = 10 * 60) {
+        lock.withLock {
+            presentationCapabilities[promptID] = (presentationCapability, Date().addingTimeInterval(lifetime))
         }
     }
 
@@ -194,6 +209,8 @@ public final class AtollPromptLoopbackServer: @unchecked Sendable {
             let value = listener
             listener = nil
             readyPort = nil
+            presentationCapabilities.removeAll()
+            commandCenterCapability = nil
             return value
         }
         current?.cancel()
@@ -237,13 +254,29 @@ public final class AtollPromptLoopbackServer: @unchecked Sendable {
             send(status: 204, body: "", on: connection)
             return
         }
-        guard parts[0] == "POST",
-              let components = URLComponents(string: "http://127.0.0.1\(parts[1])")
+        guard let components = URLComponents(string: "http://127.0.0.1\(parts[1])")
         else {
-            send(status: 405, body: "method not allowed", on: connection)
+            send(status: 400, body: "invalid request", on: connection)
             return
         }
         let path = components.path.split(separator: "/").map(String.init)
+        if path.count >= 3, path[0] == "v1", path[1] == "command-center", let commandCenterController {
+            guard requestOriginIsAllowed(request), let query = uniqueQuery(components.queryItems),
+                  let capability = query["capability"], commandCenterCapabilityIsValid(capability)
+            else {
+                send(status: 404, body: "not found", on: connection)
+                return
+            }
+            Task {
+                let response = await commandCenterController.handle(method: parts[0], path: path, query: query)
+                self.send(status: response.status, body: String(decoding: response.body, as: UTF8.self), on: connection)
+            }
+            return
+        }
+        guard parts[0] == "POST" else {
+            send(status: 405, body: "method not allowed", on: connection)
+            return
+        }
         guard path.count == 5,
               path[0] == "v1",
               path[1] == "prompts",
@@ -251,7 +284,7 @@ public final class AtollPromptLoopbackServer: @unchecked Sendable {
               let action = PromptActionKind(rawValue: path[4]),
               let token = components.queryItems?.first(where: { $0.name == "token" })?.value,
               let presentationCapability = components.queryItems?.first(where: { $0.name == "capability" })?.value,
-              lock.withLock({ presentationCapabilities[path[2]] == presentationCapability })
+              promptCapabilityIsValid(presentationCapability, promptID: path[2])
         else {
             send(status: 404, body: "not found", on: connection)
             return
@@ -265,10 +298,48 @@ public final class AtollPromptLoopbackServer: @unchecked Sendable {
         }
     }
 
+    private func uniqueQuery(_ items: [URLQueryItem]?) -> [String: String]? {
+        var result: [String: String] = [:]
+        for item in items ?? [] {
+            guard result[item.name] == nil, let value = item.value else { return nil }
+            result[item.name] = value
+        }
+        return result
+    }
+
+    private func requestOriginIsAllowed(_ request: String) -> Bool {
+        let origin = request.components(separatedBy: "\r\n")
+            .first { $0.lowercased().hasPrefix("origin:") }?
+            .dropFirst("origin:".count)
+            .trimmingCharacters(in: .whitespaces)
+        return origin == nil || origin == "null"
+    }
+
+    private func commandCenterCapabilityIsValid(_ candidate: String) -> Bool {
+        lock.withLock {
+            guard let capability = commandCenterCapability,
+                  capability.expiresAt > Date(), capability.value == candidate
+            else { return false }
+            return true
+        }
+    }
+
+    private func promptCapabilityIsValid(_ candidate: String, promptID: String) -> Bool {
+        lock.withLock {
+            guard let capability = presentationCapabilities[promptID] else { return false }
+            guard capability.expiresAt > Date() else {
+                presentationCapabilities.removeValue(forKey: promptID)
+                return false
+            }
+            return capability.value == candidate
+        }
+    }
+
     private func send(status: Int, body: String, on connection: NWConnection) {
         let reason: String
         switch status {
         case 200: reason = "OK"
+        case 202: reason = "Accepted"
         case 204: reason = "No Content"
         case 400: reason = "Bad Request"
         case 404: reason = "Not Found"
@@ -277,7 +348,7 @@ public final class AtollPromptLoopbackServer: @unchecked Sendable {
         case 413: reason = "Content Too Large"
         default: reason = "Error"
         }
-        let response = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: application/json\r\nContent-Length: \(body.utf8.count)\r\nAccess-Control-Allow-Origin: null\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\nVary: Origin\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n\(body)"
+        let response = "HTTP/1.1 \(status) \(reason)\r\nContent-Type: application/json\r\nContent-Length: \(body.utf8.count)\r\nAccess-Control-Allow-Origin: null\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nVary: Origin\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n\(body)"
         connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in connection.cancel() })
     }
 }
@@ -299,17 +370,20 @@ public actor AtollPromptBridge {
     private let promptStore: PromptInboxStore
     private let server: AtollPromptLoopbackServer
     private let descriptorBuilder: AtollPromptDescriptorBuilder
+    private let rpcClient: AtollRPCClient
 
     public init(
         promptStore: PromptInboxStore,
         effectRouter: PromptResponseEffectRouter,
-        descriptorBuilder: AtollPromptDescriptorBuilder = AtollPromptDescriptorBuilder()
+        descriptorBuilder: AtollPromptDescriptorBuilder = AtollPromptDescriptorBuilder(),
+        rpcClient: AtollRPCClient = AtollRPCClient()
     ) {
         self.promptStore = promptStore
         server = AtollPromptLoopbackServer(
             handler: AtollPromptActionHandler(promptStore: promptStore, effectRouter: effectRouter)
         )
         self.descriptorBuilder = descriptorBuilder
+        self.rpcClient = rpcClient
     }
 
     public func present(_ episode: PromptEpisode) async throws {
@@ -321,7 +395,11 @@ public actor AtollPromptBridge {
             loopbackPort: port,
             presentationCapability: presentationCapability
         )
-        try await AtollClient.shared.presentNotchExperience(descriptor)
+        try await rpcClient.presentNotchExperience(descriptor)
         _ = try promptStore.present(promptID: episode.id)
+    }
+
+    public func stop() {
+        server.stop()
     }
 }

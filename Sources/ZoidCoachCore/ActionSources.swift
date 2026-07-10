@@ -1,6 +1,6 @@
 import Foundation
 
-public struct SourceTask: Identifiable, Equatable, Sendable {
+public struct SourceTask: Identifiable, Equatable, Codable, Sendable {
     public let id: String
     public let title: String
     public let listIdentifier: String
@@ -49,7 +49,7 @@ public extension TaskSource {
     func task(metadataMarker: String) async throws -> SourceTask? { nil }
 }
 
-public struct CalendarCommitment: Identifiable, Equatable, Sendable {
+public struct CalendarCommitment: Identifiable, Equatable, Codable, Sendable {
     public let id: String
     public let title: String
     public let start: Date

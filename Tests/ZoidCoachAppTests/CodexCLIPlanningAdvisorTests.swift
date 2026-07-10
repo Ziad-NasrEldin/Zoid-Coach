@@ -10,6 +10,7 @@ func codexCLIAdvisorUsesBoundedExecutionAndRedactsPrivateEvidence() async throws
     )
     let advisor = CodexCLIPlanningAdvisor(
         remoteEvidencePolicy: .redactedMetadataOnly,
+        reasoningEffort: .high,
         executableURL: URL(fileURLWithPath: "/test/codex"),
         runner: runner,
         timeout: 2
@@ -34,6 +35,8 @@ func codexCLIAdvisorUsesBoundedExecutionAndRedactsPrivateEvidence() async throws
     let prompt = String(decoding: invocation.stdin, as: UTF8.self)
     #expect(advice == [PlanningAdvice(id: "private-reminder-id", adjustment: 37, reason: "Due soon")])
     #expect(invocation.executable.path == "/test/codex")
+    #expect(invocation.arguments.containsSequence(["-m", "gpt-5.6-terra"]))
+    #expect(invocation.arguments.containsSequence(["-c", "model_reasoning_effort=\"high\""]))
     #expect(invocation.arguments.containsSequence(["--sandbox", "read-only"]))
     #expect(invocation.arguments.contains("--ephemeral"))
     #expect(invocation.arguments.contains("--ignore-user-config"))

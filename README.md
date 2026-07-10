@@ -14,6 +14,7 @@ Its background agent prepares and maintains a daily plan, compares intended work
 - Gaming budgets and rewards backed by a durable ledger.
 - Notifications, the Today dashboard, and Atoll prompts backed by the same agent-owned snapshot over launchd XPC.
 - Privacy retention, deletion, redacted export, policy rollback, permission health, and low-power or thermal throttling.
+- An always-available menu-bar voice host with a local wake phrase, global shortcut, Gemini Live conversation, typed tools, approval gates, local fallback, and a hard monthly cost cap.
 
 Zoid Coach reads Screenwatch's source archive but never deletes Screenwatch-owned files.
 
@@ -25,6 +26,8 @@ Zoid Coach reads Screenwatch's source archive but never deletes Screenwatch-owne
 - A valid Apple Development signing identity when packaging the app.
 - Reminders and Calendar access for the actions you enable.
 - Screen Recording access for Screenwatch.
+- Microphone and Speech Recognition access for Zoid Voice.
+- A Gemini API key stored in macOS Keychain when cloud conversation is enabled.
 
 ## Build and test
 
@@ -56,6 +59,19 @@ After installation or a restart, verify the complete background chain with:
 
 The verification checks that Screenwatch and Zoid Coach are loaded and running, that today's Screenwatch log is fresh, and that Zoid Coach ingestion is keeping up.
 If macOS reports that the Zoid Coach agent requires approval, enable it under System Settings > General > Login Items and run the verification again.
+
+## Zoid Voice
+
+Open the menu-bar waveform or press Control-Option-Space to start a visible Gemini Live session.
+The local phrase "Hey Zoid" also starts a session when on-device speech recognition is available.
+Add or remove the Gemini API key from Settings > Intelligence or the menu-bar panel.
+The key is stored only in macOS Keychain.
+
+Gemini Live has a non-overridable $20 monthly cap.
+Zoid warns at $14 and $18, finishes the current short response at the cap, and then keeps bounded local commands available through on-device speech recognition and system speech.
+Raw microphone audio is never persisted.
+
+See [Zoid Voice architecture and operation](docs/ZOID-VOICE.md) for the tool, privacy, and runtime contracts.
 
 ## Rollout modes
 

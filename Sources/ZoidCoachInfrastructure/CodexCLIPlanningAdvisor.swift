@@ -110,17 +110,23 @@ public struct ProcessCodexCLICommandRunner: CodexCLICommandRunning, Sendable {
 
 public struct CodexCLIPlanningAdvisor: PlanningAdvising, Sendable {
     private let remoteEvidencePolicy: RemoteEvidencePolicy
+    private let modelID: String
+    private let reasoningEffort: CodexCLIReasoningEffort
     private let executableURL: URL?
     private let runner: any CodexCLICommandRunning
     private let timeout: TimeInterval
 
     public init(
         remoteEvidencePolicy: RemoteEvidencePolicy,
+        modelID: String = CodexCLIModel.gpt56Terra.rawValue,
+        reasoningEffort: CodexCLIReasoningEffort = .low,
         executableURL: URL? = nil,
         runner: any CodexCLICommandRunning = ProcessCodexCLICommandRunner(),
         timeout: TimeInterval = 120
     ) {
         self.remoteEvidencePolicy = remoteEvidencePolicy
+        self.modelID = modelID
+        self.reasoningEffort = reasoningEffort
         self.executableURL = executableURL
         self.runner = runner
         self.timeout = timeout
@@ -152,7 +158,7 @@ public struct CodexCLIPlanningAdvisor: PlanningAdvising, Sendable {
         let prompt = try prompt(tasks: tasks, recentBehavior: recentBehavior)
         let result = try await runner.run(
             executable: executable,
-            arguments: Self.arguments(directory: directory, schemaURL: schemaURL, outputURL: outputURL),
+            arguments: Self.arguments(modelID: modelID, reasoningEffort: reasoningEffort, directory: directory, schemaURL: schemaURL, outputURL: outputURL),
             stdin: Data(prompt.utf8),
             timeout: timeout
         )
@@ -223,9 +229,11 @@ public struct CodexCLIPlanningAdvisor: PlanningAdvising, Sendable {
         """
     }
 
-    private static func arguments(directory: URL, schemaURL: URL, outputURL: URL) -> [String] {
+    private static func arguments(modelID: String, reasoningEffort: CodexCLIReasoningEffort, directory: URL, schemaURL: URL, outputURL: URL) -> [String] {
         [
             "exec",
+            "-m", modelID,
+            "-c", "model_reasoning_effort=\"\(reasoningEffort.rawValue)\"",
             "--sandbox", "read-only",
             "--ephemeral",
             "--ignore-user-config",

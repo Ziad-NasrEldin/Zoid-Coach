@@ -3,42 +3,93 @@ import UniformTypeIdentifiers
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
+enum MeetingCandidateCardContext {
+    static func text(for candidate: StoredMeetingCandidate) -> String {
+        let participants = candidate.participants.isEmpty ? "Participants unknown" : candidate.participants.joined(separator: ", ")
+        let place = candidate.location ?? candidate.callLink ?? "No location"
+        let evidence = candidate.sourceEvidence.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "Conversation evidence unavailable"
+            : "Encrypted conversation evidence is available in Zoid Coach"
+        return "\(participants) · \(place) · \(candidate.timezoneIdentifier)\nSource: WhatsApp\n\(evidence)"
+    }
+}
+
 struct DashboardView: View {
     @EnvironmentObject private var model: AppModel
+    @StateObject private var modalCoordinator = SumiModalCoordinator()
+    @State private var editingMeetingCandidate: StoredMeetingCandidate?
 
     var body: some View {
-        HStack(spacing: 0) {
-            SidebarView()
-                .frame(width: 218)
+        ZStack {
+            HStack(spacing: 0) {
+                SidebarView()
+                    .frame(width: 218)
 
-            Divider()
+                Divider()
 
-            ScrollView {
-                Group {
-                    if model.selectedSection == .today {
-                        TodayCommandView()
-                    } else if model.selectedSection == .settings {
-                        SettingsView()
-                    } else {
-                        VStack(alignment: .leading, spacing: 0) {
-                            CommandHeaderView()
-                            FoundationHeroView()
-                            SourceHealthLedgerView()
-                            LocalFoundationView()
+                ScrollView {
+                    Group {
+                        if model.selectedSection == .today {
+                            TodayCommandView(editingCandidate: $editingMeetingCandidate)
+                        } else if model.selectedSection == .settings {
+                            SettingsView()
+                        } else {
+                            VStack(alignment: .leading, spacing: 0) {
+                                CommandHeaderView()
+                                FoundationHeroView()
+                                SourceHealthLedgerView()
+                                LocalFoundationView()
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Sumi.paper)
             }
-            .background(Sumi.paper)
+            .environmentObject(modalCoordinator)
+
+            if let candidate = editingMeetingCandidate {
+                SumiModalOverlay(dismiss: {
+                    model.deferMeetingCandidateEdit(candidate)
+                    editingMeetingCandidate = nil
+                }) {
+                    MeetingCandidateEditor(candidate: candidate) { title, start, duration, destination in
+                        model.saveMeetingCandidate(
+                            candidate,
+                            title: title,
+                            start: start,
+                            durationMinutes: duration,
+                            destination: destination
+                        )
+                        editingMeetingCandidate = nil
+                    } onCancel: {
+                        model.deferMeetingCandidateEdit(candidate)
+                        editingMeetingCandidate = nil
+                    }
+                }
+            } else if let request = modalCoordinator.confirmation {
+                SumiModalOverlay(dismiss: request.cancel) {
+                    SumiConfirmationSheet(
+                        eyebrow: request.eyebrow,
+                        title: request.title,
+                        message: request.message,
+                        confirmTitle: request.confirmTitle,
+                        confirmRole: request.confirmRole,
+                        confirm: request.confirm,
+                        cancel: request.cancel
+                    )
+                }
+            }
         }
         .background(Sumi.paper)
         .preferredColorScheme(.light)
+        .tint(Sumi.seal)
     }
 }
 
 private struct TodayCommandView: View {
     @EnvironmentObject private var model: AppModel
+    @Binding var editingCandidate: StoredMeetingCandidate?
     @State private var draggedReminderListID: String?
 
     var body: some View {
@@ -67,12 +118,8 @@ private struct TodayCommandView: View {
                             .font(Sumi.label(9))
                             .sumiLabelTracking()
                     }
-                    .foregroundStyle(Sumi.ink)
-                    .padding(.horizontal, 12)
-                    .frame(height: 36)
-                    .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                 .disabled(model.isGeneratingSuggestedPlan || model.reminderTasks.isEmpty)
                 .accessibilityLabel("Draft today's suggested plan")
 
@@ -87,12 +134,8 @@ private struct TodayCommandView: View {
                             .font(Sumi.label(9))
                             .sumiLabelTracking()
                     }
-                    .foregroundStyle(Sumi.paper)
-                    .padding(.horizontal, 12)
-                    .frame(height: 36)
-                    .background(Sumi.ink)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
                 .disabled(model.isSchedulingDailyPlan || model.dailyPlan.isEmpty)
                 .accessibilityLabel("Reserve today's plan in Apple Calendar")
 
@@ -107,12 +150,8 @@ private struct TodayCommandView: View {
                             .font(Sumi.label(9))
                             .sumiLabelTracking()
                     }
-                    .foregroundStyle(Sumi.paper)
-                    .padding(.horizontal, 14)
-                    .frame(height: 36)
-                    .background(Sumi.seal)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
                 .disabled(model.isLoadingReminderTasks)
                 .accessibilityLabel("Refresh reminders")
             }
@@ -152,7 +191,7 @@ private struct TodayCommandView: View {
             }
 
             PromptInboxLedger()
-            MeetingCandidateLedger()
+            MeetingCandidateLedger(editingCandidate: $editingCandidate)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
@@ -268,9 +307,7 @@ private struct PromptInboxLedger: View {
                                 Button(action.title.uppercased()) {
                                     model.respondToPrompt(episode, action: action.kind)
                                 }
-                                .font(Sumi.label(8))
-                                .sumiLabelTracking()
-                                .buttonStyle(.borderless)
+                                .buttonStyle(SumiActionButtonStyle(role: actionRole(action.role), size: .compact))
                             }
                         }
                     }
@@ -279,6 +316,14 @@ private struct PromptInboxLedger: View {
                     .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
                 }
             }
+        }
+    }
+
+    private func actionRole(_ role: PromptActionRole) -> SumiActionRole {
+        switch role {
+        case .primary: .primary
+        case .secondary: .quiet
+        case .destructive: .destructive
         }
     }
 }
@@ -421,7 +466,7 @@ private struct TodayTaskRowView: View {
                 Image(systemName: row.state == .completed ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(row.state == .completed ? Sumi.seal : Sumi.muted)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SumiPressButtonStyle())
             .disabled([.completed, .blocked, .rescheduled].contains(row.state))
             VStack(alignment: .leading, spacing: 3) {
                 Text(row.title).font(Sumi.body(14)).foregroundStyle(Sumi.ink)
@@ -431,15 +476,28 @@ private struct TodayTaskRowView: View {
             Spacer()
             if row.state == .active {
                 Button("PAUSE") { model.applyTaskCommand(.pause, taskID: row.taskID) }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
             } else if row.state == .paused {
                 Button("RESUME") { model.applyTaskCommand(.resume, taskID: row.taskID) }
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
             } else if row.state == .ready {
                 Button("START") { model.applyTaskCommand(.start, taskID: row.taskID) }
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
             }
-            Menu("MORE") {
-                Button("Block task") { model.applyTaskCommand(.block, taskID: row.taskID) }
-                Button("Reschedule task") { model.applyTaskCommand(.reschedule, taskID: row.taskID) }
+            SumiDropdown(minimumMenuWidth: 186) {
+                SumiSelectorLabel("MORE", systemImage: "ellipsis", size: .compact, showsChevron: false)
+            } content: { dismiss in
+                SumiDropdownOption("Block task", systemImage: "hand.raised") {
+                    model.applyTaskCommand(.block, taskID: row.taskID)
+                    dismiss()
+                }
+                SumiDropdownDivider()
+                SumiDropdownOption("Reschedule task", systemImage: "calendar.badge.clock") {
+                    model.applyTaskCommand(.reschedule, taskID: row.taskID)
+                    dismiss()
+                }
             }
+            .fixedSize()
         }
         .font(Sumi.label(8))
         .sumiLabelTracking()
@@ -507,16 +565,14 @@ private struct ReminderListGroup: View {
                     Button(action: moveUp) {
                         Image(systemName: "arrow.up")
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Sumi.ink)
+                    .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
                     .accessibilityLabel("Move \(group.listName) up")
                 }
                 if let moveDown {
                     Button(action: moveDown) {
                         Image(systemName: "arrow.down")
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Sumi.ink)
+                    .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
                     .accessibilityLabel("Move \(group.listName) down")
                 }
             }
@@ -754,16 +810,10 @@ private struct PlannedReminderRow: View {
                 HStack(spacing: 14) {
                     Spacer()
                     Button("MAKE MAIN") { model.setMainObjective(entry) }
-                        .font(Sumi.label(8))
-                        .sumiLabelTracking()
-                        .buttonStyle(SumiPressStyle())
-                        .foregroundStyle(Sumi.ink)
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                         .disabled(entry.isMainObjective)
                     Button("REMOVE") { model.removeFromDailyPlan(entry) }
-                        .font(Sumi.label(8))
-                        .sumiLabelTracking()
-                        .buttonStyle(SumiPressStyle())
-                        .foregroundStyle(Sumi.seal)
+                        .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
                 }
             }
         }
@@ -776,7 +826,7 @@ private struct PlannedReminderRow: View {
 
 private struct MeetingCandidateLedger: View {
     @EnvironmentObject private var model: AppModel
-    @State private var editingCandidate: StoredMeetingCandidate?
+    @Binding var editingCandidate: StoredMeetingCandidate?
 
     var body: some View {
         guard !model.meetingCandidates.isEmpty || model.meetingCandidateError != nil else { return AnyView(EmptyView()) }
@@ -817,7 +867,7 @@ private struct MeetingCandidateLedger: View {
                                 .font(Sumi.label(8))
                                 .sumiLabelTracking()
                                 .foregroundStyle(Sumi.muted)
-                            Text(meetingContext(candidate))
+                            Text(MeetingCandidateCardContext.text(for: candidate))
                                 .font(Sumi.body(11))
                                 .foregroundStyle(Sumi.muted)
                                 .textSelection(.enabled)
@@ -830,25 +880,13 @@ private struct MeetingCandidateLedger: View {
                         }
                         Spacer()
                         Button("ADD") { model.addMeetingCandidateToCalendar(candidate) }
-                            .font(Sumi.label(8))
-                            .sumiLabelTracking()
-                            .buttonStyle(SumiPressStyle())
-                            .foregroundStyle(Sumi.paper)
-                            .padding(.horizontal, 9)
-                            .frame(height: 26)
-                            .background(Sumi.ink)
+                            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
                             .accessibilityLabel("Add detected meeting to Apple Calendar")
                         Button("EDIT") { editingCandidate = candidate }
-                            .font(Sumi.label(8))
-                            .sumiLabelTracking()
-                            .buttonStyle(SumiPressStyle())
-                            .foregroundStyle(Sumi.ink)
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .accessibilityLabel("Edit detected meeting before saving")
                         Button("IGNORE") { model.ignoreMeetingCandidate(candidate) }
-                            .font(Sumi.label(8))
-                            .sumiLabelTracking()
-                            .buttonStyle(SumiPressStyle())
-                            .foregroundStyle(Sumi.seal)
+                            .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
                             .accessibilityLabel("Ignore detected meeting")
                     }
                     .padding(.horizontal, 28)
@@ -857,21 +895,6 @@ private struct MeetingCandidateLedger: View {
                 }
             }
             .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
-            .sheet(item: $editingCandidate) { candidate in
-                MeetingCandidateEditor(candidate: candidate) { title, start, duration, destination in
-                    model.saveMeetingCandidate(
-                        candidate,
-                        title: title,
-                        start: start,
-                        durationMinutes: duration,
-                        destination: destination
-                    )
-                    editingCandidate = nil
-                } onCancel: {
-                    model.deferMeetingCandidateEdit(candidate)
-                    editingCandidate = nil
-                }
-            }
             .onAppear { openRequestedEditorIfNeeded() }
             .onChange(of: model.meetingCandidates) { _, _ in openRequestedEditorIfNeeded() }
         )
@@ -882,12 +905,6 @@ private struct MeetingCandidateLedger: View {
         editingCandidate = model.meetingCandidates.first { $0.state == "edit_requested" }
     }
 
-    private func meetingContext(_ candidate: StoredMeetingCandidate) -> String {
-        let participants = candidate.participants.isEmpty ? "Participants unknown" : candidate.participants.joined(separator: ", ")
-        let place = candidate.location ?? candidate.callLink ?? "No location"
-        let evidence = candidate.sourceEvidence.isEmpty ? "Source evidence unavailable" : candidate.sourceEvidence
-        return "\(participants) · \(place) · \(candidate.timezoneIdentifier)\nSource: \(evidence)"
-    }
 }
 
 private struct MeetingCandidateEditor: View {
@@ -913,41 +930,67 @@ private struct MeetingCandidateEditor: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("CONFIRM MEETING")
-                .font(Sumi.label(10))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
-            TextField("Title", text: $title)
-                .textFieldStyle(.roundedBorder)
-            DatePicker("When", selection: $start)
-            Stepper("Duration: \(duration) minutes", value: $duration, in: 15...240, step: 15)
-            Picker("Save as", selection: $destination) {
-                ForEach(MeetingDestination.allCases) { destination in
-                    Text(destination.rawValue).tag(destination)
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("CONFIRM MEETING")
+                    .font(Sumi.label(10))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Text("Review the detected details before saving.")
+                    .font(Sumi.body(13))
+                    .foregroundStyle(Sumi.muted)
             }
-            .pickerStyle(.segmented)
-            HStack {
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 18)
+            .background(Sumi.mist)
+            .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+            VStack(alignment: .leading, spacing: 18) {
+                SumiTextField("MEETING TITLE", placeholder: "Meeting title", text: $title)
+                SumiDateField("WHEN", selection: $start, displayedComponents: [.date, .hourAndMinute])
+                SumiStepper(
+                    "DURATION",
+                    value: $duration,
+                    in: 15...240,
+                    step: 15,
+                    valueLabel: { "\($0) MINUTES" }
+                )
+                SumiChoiceRail(
+                    "SAVE AS",
+                    options: MeetingDestination.allCases,
+                    selection: $destination,
+                    title: { $0.rawValue }
+                )
+            }
+            .padding(24)
+
+            HStack(spacing: 12) {
                 Button("CANCEL", action: cancel)
-                    .buttonStyle(SumiPressStyle())
-                    .foregroundStyle(Sumi.ink)
-                Spacer()
-                Button(destination == .calendar ? "ADD TO CALENDAR" : "CREATE REMINDER") {
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
+                    .keyboardShortcut(.cancelAction)
+                Button {
                     save(title, start, duration, destination)
+                } label: {
+                    Text(destination == .calendar ? "ADD TO CALENDAR" : "CREATE REMINDER")
+                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(SumiPressStyle())
-                .foregroundStyle(Sumi.paper)
-                .padding(.horizontal, 12)
-                .frame(height: 36)
-                .background(Sumi.ink)
-                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .large))
+                .disabled(!canSave)
             }
+            .padding(24)
+            .background(Sumi.softPaper)
+            .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
         }
-        .padding(24)
-        .frame(width: 420)
+        .frame(width: 460)
         .background(Sumi.paper)
+        .overlay { Rectangle().stroke(Sumi.ink, lineWidth: 1) }
     }
+
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
 }
 
 private struct TimeBlockSelector: View {
@@ -1044,16 +1087,7 @@ private struct TimeSlotButtonStyle: ButtonStyle {
     }
 }
 
-private struct SumiPressStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.65 : 1)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
+private typealias SumiPressStyle = SumiPressButtonStyle
 
 private struct InboxReminderTaskRow: View {
     @EnvironmentObject private var model: AppModel
@@ -1094,13 +1128,7 @@ private struct InboxReminderTaskRow: View {
             Button("PLAN") {
                 model.addToDailyPlan(task)
             }
-            .font(Sumi.label(8))
-            .sumiLabelTracking()
-            .buttonStyle(SumiPressStyle())
-            .foregroundStyle(Sumi.paper)
-            .padding(.horizontal, 9)
-            .frame(height: 26)
-            .background(Sumi.ink)
+            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
             .disabled(model.dailyPlan.count >= 3 || model.isLoadingDailyPlan)
             .accessibilityLabel("Add \(task.title) to today's plan")
         }
@@ -1219,12 +1247,8 @@ private struct CommandHeaderView: View {
                         .font(Sumi.label(9))
                         .sumiLabelTracking()
                 }
-                .foregroundStyle(Sumi.paper)
-                .padding(.horizontal, 14)
-                .frame(height: 36)
-                .background(Sumi.seal)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
             .disabled(model.isCheckingSources)
             .accessibilityLabel("Run source check")
         }
@@ -1335,13 +1359,7 @@ private struct SourceHealthRow: View {
             Button(source.actionTitle.uppercased()) {
                 model.checkSource(source.id)
             }
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .buttonStyle(.plain)
-                .foregroundStyle(Sumi.ink)
-                .padding(.horizontal, 10)
-                .frame(height: 30)
-                .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                 .accessibilityLabel(source.actionTitle + " " + source.title)
         }
         .padding(.horizontal, 28)

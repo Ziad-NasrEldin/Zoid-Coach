@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 19
+    public static let currentVersion = 21
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -581,6 +581,120 @@ private extension AutonomousDatabaseMigrator {
         SET summary = 'Meeting details are available in Zoid Coach.',
             payload_json = json_remove(payload_json, '$.sourceEvidence')
         WHERE prompt_type = 'MEETING_CANDIDATE';
+        """)]),
+        Migration(version: 20, isDestructive: false, operations: [
+            .addColumn(table: "behavior_records", column: "classification", declaration: "TEXT"),
+            .addColumn(table: "behavior_records", column: "classification_policy_version", declaration: "INTEGER"),
+            .sql("""
+            UPDATE behavior_records
+            SET classification = CASE
+                    WHEN instr(lower(app_name), 'steam') > 0
+                      OR instr(lower(app_name), 'league of legends') > 0
+                      OR instr(lower(app_name), 'minecraft') > 0
+                      OR instr(lower(app_name), 'roblox') > 0
+                      OR instr(lower(app_name), 'discord') > 0 THEN 'gaming'
+                    WHEN instr(lower(app_name), 'youtube') > 0
+                      OR instr(lower(app_name), 'tiktok') > 0
+                      OR instr(lower(app_name), 'instagram') > 0
+                      OR instr(lower(app_name), 'twitter') > 0
+                      OR instr(lower(app_name), 'x.com') > 0
+                      OR instr(lower(app_name), 'reddit') > 0 THEN 'distracting'
+                    WHEN instr(lower(app_name), 'screensaver') > 0
+                      OR instr(lower(app_name), 'loginwindow') > 0 THEN 'idle'
+                    WHEN instr(lower(app_name), 'xcode') > 0
+                      OR instr(lower(app_name), 'cursor') > 0
+                      OR instr(lower(app_name), 'visual studio code') > 0
+                      OR instr(lower(app_name), 'terminal') > 0
+                      OR instr(lower(app_name), 'iterm') > 0
+                      OR instr(lower(app_name), 'codex') > 0
+                      OR instr(lower(app_name), 'chatgpt') > 0
+                      OR instr(lower(app_name), 'figma') > 0
+                      OR instr(lower(app_name), 'pages') > 0
+                      OR instr(lower(app_name), 'numbers') > 0
+                      OR instr(lower(app_name), 'keynote') > 0
+                      OR instr(lower(app_name), 'mail') > 0
+                      OR instr(lower(app_name), 'calendar') > 0
+                      OR instr(lower(app_name), 'reminders') > 0
+                      OR instr(lower(app_name), 'slack') > 0 THEN 'work'
+                    ELSE 'unknown'
+                END,
+                classification_policy_version = 0
+            WHERE classification IS NULL;
+            """)
+        ]),
+        Migration(version: 21, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS voice_sessions (
+            id TEXT PRIMARY KEY,
+            payload BLOB NOT NULL,
+            started_at_utc TEXT NOT NULL,
+            ended_at_utc TEXT
+        );
+        CREATE INDEX IF NOT EXISTS voice_sessions_started_at
+        ON voice_sessions(started_at_utc);
+        CREATE TABLE IF NOT EXISTS conversation_turns (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            text TEXT NOT NULL,
+            is_final INTEGER NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            FOREIGN KEY(session_id) REFERENCES voice_sessions(id)
+        );
+        CREATE INDEX IF NOT EXISTS conversation_turns_session_time
+        ON conversation_turns(session_id, created_at_utc);
+        CREATE TABLE IF NOT EXISTS conversation_memory_facts (
+            id TEXT PRIMARY KEY,
+            payload BLOB NOT NULL,
+            kind TEXT NOT NULL,
+            is_confirmed INTEGER NOT NULL,
+            expires_at_utc TEXT,
+            created_at_utc TEXT NOT NULL,
+            updated_at_utc TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS conversation_memory_active
+        ON conversation_memory_facts(is_confirmed, expires_at_utc, updated_at_utc);
+        CREATE TABLE IF NOT EXISTS voice_tool_invocations (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            tool_name TEXT NOT NULL,
+            risk_level TEXT NOT NULL,
+            decision TEXT NOT NULL,
+            payload BLOB NOT NULL,
+            requested_at_utc TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS voice_tool_invocations_session_time
+        ON voice_tool_invocations(session_id, requested_at_utc);
+        CREATE TABLE IF NOT EXISTS voice_approval_requests (
+            id TEXT PRIMARY KEY,
+            invocation_id TEXT NOT NULL UNIQUE,
+            state TEXT NOT NULL,
+            payload BLOB NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            expires_at_utc TEXT NOT NULL,
+            resolved_at_utc TEXT
+        );
+        CREATE TABLE IF NOT EXISTS voice_usage_ledgers (
+            period_start_utc TEXT PRIMARY KEY,
+            payload BLOB NOT NULL,
+            updated_at_utc TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS codex_jobs (
+            id TEXT PRIMARY KEY,
+            state TEXT NOT NULL,
+            payload BLOB NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            updated_at_utc TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS codex_jobs_state_time
+        ON codex_jobs(state, updated_at_utc);
+        CREATE TABLE IF NOT EXISTS screen_context_transmissions (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            selection_payload BLOB NOT NULL,
+            transmitted_at_utc TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS screen_context_transmissions_session_time
+        ON screen_context_transmissions(session_id, transmitted_at_utc);
         """)])
     ]
 }

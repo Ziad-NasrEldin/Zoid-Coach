@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
@@ -14,44 +15,58 @@ struct AtollPromptNotifier {
     }
 }
 
+actor AtollCommandCenterRuntime {
+    static let shared = AtollCommandCenterRuntime()
+    private let logger = Logger(subsystem: "com.ziadnasreldin.ZoidCoach", category: "AtollCommandCenter")
+    private var bridge: AtollCommandCenterBridge?
+    private var presentationTask: Task<Void, Never>?
+
+    func start(_ bridge: AtollCommandCenterBridge) async {
+        presentationTask?.cancel()
+        self.bridge = bridge
+        presentationTask = Task.detached(priority: .utility) {
+            while !Task.isCancelled {
+                do {
+                    try await bridge.present()
+                    await AtollCommandCenterRuntime.shared.recordPresentation()
+                    try await Task.sleep(for: .seconds(1_200))
+                } catch {
+                    await AtollCommandCenterRuntime.shared.recordFailure(error)
+                    try? await Task.sleep(for: .seconds(30))
+                }
+            }
+        }
+    }
+
+    private func recordPresentation() {
+        logger.info("A-Toll command center presented")
+    }
+
+    private func recordFailure(_ error: Error) {
+        logger.error("A-Toll command center presentation failed: \(error.localizedDescription, privacy: .public)")
+    }
+}
+
 private actor AtollMeetingPromptRuntime {
     static let shared = AtollMeetingPromptRuntime()
 
-    private var bridge: AtollPromptBridge?
     private var promptStore: PromptInboxStore?
+    private var activeBridges: [String: AtollPromptBridge] = [:]
+    private var cleanupTasks: [String: Task<Void, Never>] = [:]
 
     func present(candidateID: String) async {
         do {
             let store: PromptInboxStore
-            let promptBridge: AtollPromptBridge
-            if let existingStore = promptStore, let existingBridge = bridge {
+            if let existingStore = promptStore {
                 store = existingStore
-                promptBridge = existingBridge
             } else {
                 let databaseURL = ZoidCoachStorage.databaseURL()
-                let archive = try ScreenwatchArchive(databaseURL: databaseURL)
                 let createdStore = try PromptInboxStore(databaseURL: databaseURL)
-                let outbox = try ActionOutboxStore(databaseURL: databaseURL)
-                let createdBridge = AtollPromptBridge(
-                    promptStore: createdStore,
-                    effectRouter: PromptResponseEffectRouter(
-                        outbox: outbox,
-                        meetingArchive: archive,
-                        planUndoRequests: try PlanUndoRequestStore(databaseURL: databaseURL),
-                        planScheduleRequests: try PlanScheduleRequestStore(databaseURL: databaseURL),
-                        promptStore: createdStore,
-                        schedulingCalendarIdentifier: {
-                            try PolicyStore(databaseURL: databaseURL).current()?.policy.calendar.schedulingCalendarIdentifier
-                        }
-                    )
-                )
                 promptStore = createdStore
-                bridge = createdBridge
                 store = createdStore
-                promptBridge = createdBridge
             }
             guard let episode = try store.unresolved().first(where: { $0.payload["candidateID"] == candidateID }) else { return }
-            try await promptBridge.present(episode)
+            _ = await present(episode: episode)
         } catch {
             // Notification and dashboard surfaces remain available when Atoll is unavailable.
         }
@@ -60,36 +75,48 @@ private actor AtollMeetingPromptRuntime {
 
     func present(episode: PromptEpisode) async -> Bool {
         do {
-            let promptBridge: AtollPromptBridge
-            if let bridge {
-                promptBridge = bridge
-            } else {
-                let databaseURL = ZoidCoachStorage.databaseURL()
-                let archive = try ScreenwatchArchive(databaseURL: databaseURL)
-                let createdStore = try PromptInboxStore(databaseURL: databaseURL)
-                let outbox = try ActionOutboxStore(databaseURL: databaseURL)
-                let createdBridge = AtollPromptBridge(
-                    promptStore: createdStore,
-                    effectRouter: PromptResponseEffectRouter(
-                        outbox: outbox,
-                        meetingArchive: archive,
-                        planUndoRequests: try PlanUndoRequestStore(databaseURL: databaseURL),
-                        planScheduleRequests: try PlanScheduleRequestStore(databaseURL: databaseURL),
-                        promptStore: createdStore,
-                        schedulingCalendarIdentifier: {
-                            try PolicyStore(databaseURL: databaseURL).current()?.policy.calendar.schedulingCalendarIdentifier
-                        }
-                    )
+            if activeBridges[episode.id] != nil { return true }
+            let databaseURL = ZoidCoachStorage.databaseURL()
+            let store = try promptStore ?? PromptInboxStore(databaseURL: databaseURL)
+            promptStore = store
+            let promptBridge = AtollPromptBridge(
+                promptStore: store,
+                effectRouter: PromptResponseEffectRouter(
+                    outbox: try ActionOutboxStore(databaseURL: databaseURL),
+                    meetingArchive: try ScreenwatchArchive(databaseURL: databaseURL),
+                    planUndoRequests: try PlanUndoRequestStore(databaseURL: databaseURL),
+                    planScheduleRequests: try PlanScheduleRequestStore(databaseURL: databaseURL),
+                    promptStore: store,
+                    schedulingCalendarIdentifier: {
+                        try PolicyStore(databaseURL: databaseURL).current()?.policy.calendar.schedulingCalendarIdentifier
+                    }
                 )
-                promptStore = createdStore
-                bridge = createdBridge
-                promptBridge = createdBridge
+            )
+            activeBridges[episode.id] = promptBridge
+            Task.detached(priority: .userInitiated) {
+                do {
+                    try await promptBridge.present(episode)
+                } catch {
+                    await AtollMeetingPromptRuntime.shared.removeBridge(promptID: episode.id)
+                }
             }
-            try await promptBridge.present(episode)
+            let lifetime = min(max(30, episode.expiresAt?.timeIntervalSinceNow ?? 10 * 60), 10 * 60)
+            cleanupTasks[episode.id]?.cancel()
+            cleanupTasks[episode.id] = Task.detached(priority: .utility) {
+                try? await Task.sleep(for: .seconds(lifetime))
+                guard !Task.isCancelled else { return }
+                await AtollMeetingPromptRuntime.shared.removeBridge(promptID: episode.id)
+            }
             return true
         } catch {
             // Notification and dashboard surfaces remain available when Atoll is unavailable.
             return false
         }
+    }
+
+    private func removeBridge(promptID: String) async {
+        cleanupTasks.removeValue(forKey: promptID)?.cancel()
+        guard let bridge = activeBridges.removeValue(forKey: promptID) else { return }
+        await bridge.stop()
     }
 }

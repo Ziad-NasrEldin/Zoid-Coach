@@ -44,6 +44,10 @@ final class SettingsPolicyController: ObservableObject {
 
     var isReadOnly: Bool { store == nil }
 
+    var hasUnsavedChanges: Bool {
+        draft.policy(preserving: persistedPolicy) != persistedPolicy
+    }
+
     var previousPolicyVersion: Int? {
         policyHistory.first(where: { $0.version != activeVersion })?.version
     }
@@ -66,13 +70,15 @@ final class SettingsPolicyController: ObservableObject {
     @discardableResult
     func setPaused(_ paused: Bool) -> Task<Void, Never>? {
         guard store != nil else { return nil }
+        var pendingDraft = draft
+        pendingDraft.isPaused = paused
         var pauseOnlyDraft = SettingsPolicyDraft(policy: persistedPolicy)
         pauseOnlyDraft.isPaused = paused
         isSaving = true
         let policy = pauseOnlyDraft.policy(preserving: persistedPolicy)
         return Task {
             do {
-                try await persist(policy)
+                try await persist(policy, restoring: pendingDraft)
             } catch {
                 statusMessage = "Automation was not \(paused ? "paused" : "resumed"): \(error.localizedDescription)"
             }
@@ -104,10 +110,11 @@ final class SettingsPolicyController: ObservableObject {
         NSWorkspace.shared.open(ZoidCoachStorage.databaseURL().deletingLastPathComponent())
     }
 
-    private func persist(_ policy: UserPolicy) async throws {
+    private func persist(_ policy: UserPolicy, restoring pendingDraft: SettingsPolicyDraft? = nil) async throws {
+        let policy = policy.upgradedToCurrentSchema()
         let receipt = try await savePolicyThroughAgent(policy)
         persistedPolicy = policy
-        draft = SettingsPolicyDraft(policy: policy)
+        draft = pendingDraft ?? SettingsPolicyDraft(policy: policy)
         activeVersion = receipt.policyVersion
         policyHistory = (try? store?.history()) ?? policyHistory
         statusMessage = receipt.message
@@ -115,61 +122,41 @@ final class SettingsPolicyController: ObservableObject {
 }
 
 struct SettingsView: View {
+    @EnvironmentObject private var modalCoordinator: SumiModalCoordinator
+    @EnvironmentObject private var voiceModel: VoiceConversationModel
     @StateObject private var controller = SettingsPolicyController()
-    @State private var confirmingWakeEnable = false
     @State private var actionAudit: [ActionAuditEntry] = []
     @State private var actionAuditError: String?
     @State private var deleteRangeStart = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
     @State private var deleteRangeEnd = Date()
-    @State private var confirmingRangeDeletion = false
-    @State private var confirmingTextDeletion = false
-    @State private var confirmingPolicyRollback = false
     @State private var dataStatusMessage: String?
+    @State private var calendarChoices: [CalendarChoice] = []
+    @State private var calendarAccessMessage: String?
+    @State private var isLoadingCalendars = true
+    @State private var selectedCategory = SettingsCategory.command
+    @State private var geminiAPIKey = ""
+    @State private var voiceSettingsMessage: String?
     private let xpcClient = TodayDashboardXPCClient()
+    private let calendarService = CalendarService()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             settingsHeader
 
-            VStack(alignment: .leading, spacing: 22) {
-                automationSection
-                scheduleSection
-                calendarSection
-                privacySection
-                wakeSection
-                dataSection
-                actionAuditSection
+            HStack(alignment: .top, spacing: 24) {
+                settingsNavigation
+
+                VStack(alignment: .leading, spacing: 18) {
+                    categoryIntroduction
+                    selectedCategoryContent
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(28)
-        }
-        .alert("Enable wake interventions?", isPresented: $confirmingWakeEnable) {
-            Button("Keep disabled", role: .cancel) { controller.draft.wakeEligible = false }
-            Button("I understand, enable") {
-                controller.draft.wakeEligible = true
-                controller.save()
-            }
-        } message: {
-            Text("This is a high-trust capability. Zoid Coach may notify you during the configured wake window, up to the daily limit. You can disable it here at any time.")
+            .padding(24)
+            .background(Sumi.softPaper)
         }
         .task { await refreshActionAudit() }
-        .confirmationDialog("Delete local evidence in this date range?", isPresented: $confirmingRangeDeletion, titleVisibility: .visible) {
-            Button("Delete selected range", role: .destructive) {
-                Task { await performDataCommand(.deleteDataRange(start: deleteRangeStart, end: deleteRangeEnd)) }
-            }
-            Button("Cancel", role: .cancel) {}
-        }
-        .confirmationDialog("Delete all extracted conversation text?", isPresented: $confirmingTextDeletion, titleVisibility: .visible) {
-            Button("Delete extracted text", role: .destructive) {
-                Task { await performDataCommand(.deleteExtractedConversationText) }
-            }
-            Button("Cancel", role: .cancel) {}
-        }
-        .confirmationDialog("Restore the previous policy?", isPresented: $confirmingPolicyRollback, titleVisibility: .visible) {
-            Button("Restore previous policy") { controller.rollbackToPreviousPolicy() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Your current settings will remain in history, and the restored settings will be saved as a new audited policy version.")
-        }
+        .task { await refreshCalendars() }
     }
 
     private var actionAuditSection: some View {
@@ -197,13 +184,13 @@ struct SettingsView: View {
                                     await refreshActionAudit()
                                 }
                             }
-                            .buttonStyle(SettingsButtonStyle())
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                         }
                     }
                 }
             }
             Button("REFRESH AUDIT") { Task { await refreshActionAudit() } }
-                .buttonStyle(SettingsButtonStyle())
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
         }
     }
 
@@ -217,30 +204,222 @@ struct SettingsView: View {
     }
 
     private var settingsHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("AUTONOMY / PRIVACY")
+        HStack(alignment: .center, spacing: 18) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("SETTINGS / POLICY")
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
-                Text("Boundaries the agent must obey")
-                    .font(Sumi.display(28))
+                Text("Shape how Zoid Coach works")
+                    .font(Sumi.display(30))
+                    .tracking(-0.7)
                     .foregroundStyle(Sumi.ink)
             }
             Spacer()
-            if let version = controller.activeVersion {
-                Text("POLICY V\(version)")
-                    .font(Sumi.label(9))
-                    .sumiLabelTracking()
-                    .foregroundStyle(Sumi.muted)
+
+            HStack(spacing: 0) {
+                SettingsHeaderFact(
+                    label: "AUTOMATION",
+                    value: controller.draft.isPaused ? "PAUSED" : "RUNNING",
+                    isAttention: controller.draft.isPaused
+                )
+                SettingsHeaderFact(
+                    label: "MODE",
+                    value: operatingModeLabel(controller.draft.operatingMode).uppercased()
+                )
+                if let version = controller.activeVersion {
+                    SettingsHeaderFact(label: "POLICY", value: "V\(version)")
+                }
             }
-            Button(controller.isSaving ? "SAVING" : "SAVE CHANGES") { controller.save() }
-                .buttonStyle(SettingsButtonStyle())
-                .disabled(controller.isSaving || controller.isReadOnly)
+
+            if controller.hasUnsavedChanges || controller.isSaving {
+                Button(controller.isSaving ? "SAVING" : "SAVE CHANGES") { controller.save() }
+                    .buttonStyle(SumiActionButtonStyle(role: .accent, size: .large))
+                    .disabled(controller.isSaving || controller.isReadOnly)
+            } else {
+                HStack(spacing: 7) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("SAVED")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                }
+                .foregroundStyle(Sumi.paper)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .background(Sumi.ink)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("All changes saved")
+            }
         }
         .padding(.horizontal, 28)
-        .frame(height: 74)
+        .frame(minHeight: 88)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+    }
+
+    private var settingsNavigation: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("POLICY CHAPTERS")
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+
+            ForEach(SettingsCategory.allCases) { category in
+                SettingsCategoryButton(
+                    category: category,
+                    isSelected: selectedCategory == category
+                ) {
+                    selectedCategory = category
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("LOCAL-FIRST")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Text("Policy changes are versioned and remain on this Mac.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Sumi.sealWash)
+            .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+        }
+        .frame(width: 190)
+        .background(Sumi.paper)
+        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+    }
+
+    private var categoryIntroduction: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Text(selectedCategory.number)
+                .font(Sumi.label(10))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.paper)
+                .frame(width: 38, height: 38)
+                .background(Sumi.seal)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(selectedCategory.title.uppercased())
+                    .font(Sumi.label(10))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.sealDeep)
+                Text(selectedCategory.summary)
+                    .font(Sumi.body(13))
+                    .foregroundStyle(Sumi.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Sumi.sealWash)
+        .overlay { Rectangle().stroke(Sumi.seal.opacity(0.34), lineWidth: 1) }
+    }
+
+    @ViewBuilder
+    private var selectedCategoryContent: some View {
+        switch selectedCategory {
+        case .command:
+            automationSection
+            scheduleSection
+        case .signals:
+            appClassificationSection
+            calendarSection
+        case .intelligence:
+            voiceSection
+            privacySection
+            wakeSection
+        case .records:
+            dataSection
+            actionAuditSection
+        }
+    }
+
+    private var voiceSection: some View {
+        SettingsCard(
+            title: "ZOID VOICE",
+            detail: "Gemini runs only during a visible live session. The wake phrase and cap fallback stay on this Mac."
+        ) {
+            HStack(spacing: 12) {
+                Button(voiceModel.state == .idle || voiceModel.state == .disconnected ? "START VOICE" : "STOP VOICE") {
+                    voiceModel.toggleSession()
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+
+                Button(voiceModel.isMuted ? "UNMUTE" : "MUTE") {
+                    voiceModel.setMuted(!voiceModel.isMuted)
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .disabled(voiceModel.state == .idle)
+
+                Text(voiceModel.state.rawValue.replacingOccurrences(of: "_", with: " ").uppercased())
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(voiceModel.state == .listening ? Sumi.okay : Sumi.muted)
+            }
+
+            Text(voiceModel.statusMessage)
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+
+            Picker("GLOBAL SHORTCUT", selection: $voiceModel.hotKeyPreset) {
+                ForEach(VoiceHotKeyPreset.allCases) { preset in Text(preset.label).tag(preset) }
+            }
+
+            HStack(spacing: 10) {
+                SecureField("Gemini API key", text: $geminiAPIKey)
+                    .textFieldStyle(.roundedBorder)
+                Button("SAVE TO KEYCHAIN") {
+                    do {
+                        try voiceModel.configureAPIKey(geminiAPIKey)
+                        geminiAPIKey = ""
+                        voiceSettingsMessage = "Gemini key saved securely in Keychain."
+                    } catch { voiceSettingsMessage = error.localizedDescription }
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                Button("REMOVE") {
+                    do {
+                        try voiceModel.removeAPIKey()
+                        voiceSettingsMessage = "Gemini key removed."
+                    } catch { voiceSettingsMessage = error.localizedDescription }
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .disabled(!voiceModel.hasAPIKey)
+            }
+
+            if let usage = voiceModel.usage {
+                let dollars = Double(usage.consumedUSDMicros) / 1_000_000
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text("MONTHLY GEMINI CAP")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                        Spacer()
+                        Text(String(format: "$%.2f / $20.00", dollars))
+                            .font(.system(size: 11, design: .monospaced))
+                    }
+                    ProgressView(
+                        value: Double(usage.consumedUSDMicros),
+                        total: Double(VoiceUsageLedger.hardMonthlyLimitUSDMicros)
+                    )
+                }
+            }
+
+            if let voiceSettingsMessage {
+                Text(voiceSettingsMessage)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+            }
+
+            Text("Wake phrase: Hey Zoid · Shortcut: \(voiceModel.hotKeyPreset.label) · Raw audio is never retained")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+        }
     }
 
     private var automationSection: some View {
@@ -249,26 +428,29 @@ struct SettingsView: View {
                 Button(controller.draft.isPaused ? "RESUME AUTOMATION" : "PAUSE AUTOMATION") {
                     controller.setPaused(!controller.draft.isPaused)
                 }
-                .buttonStyle(SettingsButtonStyle())
+                .buttonStyle(SumiActionButtonStyle(role: controller.draft.isPaused ? .primary : .quiet, size: .standard))
                 .accessibilityLabel(controller.draft.isPaused ? "Resume all automation" : "Pause all automation")
 
                 Text(controller.draft.isPaused ? "PAUSED" : "RUNNING")
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
                     .foregroundStyle(controller.draft.isPaused ? Sumi.seal : Sumi.okay)
+                    .padding(.horizontal, 8)
+                    .frame(height: 28)
+                    .background(controller.draft.isPaused ? Sumi.sealWash : Sumi.mist)
+                    .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
             }
 
-            Picker("Operating mode", selection: $controller.draft.operatingMode) {
-                Text("Observe only").tag(OperatingMode.observe)
-                Text("Suggest plans").tag(OperatingMode.suggest)
-                Text("Assist after approval").tag(OperatingMode.assist)
-                Text("Fully autonomous").tag(OperatingMode.autonomous)
-            }
-            .pickerStyle(.segmented)
+            SumiChoiceRail(
+                "OPERATING MODE",
+                options: OperatingMode.allCases,
+                selection: $controller.draft.operatingMode,
+                title: operatingModeLabel
+            )
 
             if let version = controller.previousPolicyVersion {
-                Button("ROLL BACK TO POLICY V\(version)") { confirmingPolicyRollback = true }
-                    .buttonStyle(SettingsButtonStyle())
+                Button("ROLL BACK TO POLICY V\(version)") { presentConfirmation(.restorePolicy) }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .disabled(controller.isSaving || controller.isReadOnly)
                     .accessibilityHint("Restores the previous settings as a new policy version")
             }
@@ -287,40 +469,173 @@ struct SettingsView: View {
                 LocalTimeField(title: "Nightly planning", time: $controller.draft.nightlyPlanningTime)
                 LocalTimeField(title: "Morning confirmation", time: $controller.draft.morningConfirmationTime)
             }
-            Stepper("Planning capacity: \(controller.draft.capacityPercent)%", value: $controller.draft.capacityPercent, in: 25...100, step: 5)
+            SumiStepper(
+                "PLANNING CAPACITY",
+                value: $controller.draft.capacityPercent,
+                in: 25...100,
+                step: 5,
+                valueLabel: { "\($0)%" }
+            )
+        }
+    }
+
+    private var appClassificationSection: some View {
+        SettingsCard(
+            title: "APP CLASSIFICATION",
+            detail: "Work apps add to Working time. Gaming apps spend the Gaming budget. Saved choices apply only to future observed activity."
+        ) {
+            AppClassificationLedger(draft: $controller.draft)
         }
     }
 
     private var calendarSection: some View {
-        SettingsCard(title: "CALENDARS", detail: "Use EventKit calendar identifiers. Leave visible calendars empty to read all available calendars.") {
-            TextField("Visible calendar IDs, comma separated", text: $controller.draft.visibleCalendarIdentifiers)
-            TextField("Scheduling calendar ID", text: $controller.draft.schedulingCalendarIdentifier)
+        SettingsCard(title: "CALENDARS", detail: "Choose which Apple Calendars count as commitments and where confirmed meetings are added.") {
+            if isLoadingCalendars {
+                Text("Loading Apple Calendars…")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+            } else if let calendarAccessMessage {
+                HStack(alignment: .center, spacing: 12) {
+                    Text(calendarAccessMessage)
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.muted)
+                    Spacer(minLength: 12)
+                    if calendarService.selectionAvailability == .needsPermission {
+                        Button("CONNECT CALENDAR") {
+                            Task { await connectCalendar() }
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    }
+                }
+            } else {
+                ZoidCalendarMultiSelectionField(
+                    label: "CALENDARS TO CHECK",
+                    defaultTitle: "All calendars",
+                    options: calendarChoicesIncludingSavedSelections,
+                    selectedIdentifiers: Binding(
+                        get: { controller.draft.visibleCalendarIdentifierList },
+                        set: { controller.draft.visibleCalendarIdentifierList = $0 }
+                    )
+                )
+                ZoidCalendarSingleSelectionField(
+                    label: "ADD NEW MEETINGS TO",
+                    defaultTitle: "Default calendar",
+                    options: calendarChoicesIncludingSavedSelections,
+                    selection: Binding(
+                        get: { controller.draft.schedulingCalendarIdentifierValue },
+                        set: { controller.draft.schedulingCalendarIdentifierValue = $0 }
+                    )
+                )
+                Text("Zoid Coach checks selected calendars for conflicts. Focus blocks remain in the Zoid Coach calendar.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+            }
         }
+    }
+
+    private var calendarChoicesIncludingSavedSelections: [CalendarChoice] {
+        let savedIdentifiers = Set(controller.draft.visibleCalendarIdentifierList + [controller.draft.schedulingCalendarIdentifierValue].compactMap { $0 })
+        let availableIdentifiers = Set(calendarChoices.map(\.id))
+        let missingChoices = savedIdentifiers.subtracting(availableIdentifiers).sorted().map {
+            CalendarChoice(id: $0, title: "Unavailable calendar", sourceTitle: "Saved selection", isWritable: false)
+        }
+        return calendarChoices + missingChoices
+    }
+
+    private func refreshCalendars() async {
+        isLoadingCalendars = true
+        defer { isLoadingCalendars = false }
+        switch calendarService.selectionAvailability {
+        case .available:
+            do {
+                calendarChoices = try calendarService.availableCalendars()
+                calendarAccessMessage = calendarChoices.isEmpty ? "No Apple Calendars are available on this Mac." : nil
+            } catch {
+                calendarAccessMessage = "Apple Calendars could not be loaded."
+            }
+        case .needsPermission:
+            calendarAccessMessage = "Connect Apple Calendar to choose calendars by name."
+        case .unavailable:
+            calendarAccessMessage = "Calendar access is unavailable. Enable full access in System Settings."
+        }
+    }
+
+    private func connectCalendar() async {
+        _ = await calendarService.requestAccessAndInspect()
+        await refreshCalendars()
     }
 
     private var privacySection: some View {
         SettingsCard(title: "AI + DATA RETENTION", detail: AIProviderCapabilities.production.settingsSummary) {
             Toggle("Analyze Screenwatch screenshots", isOn: $controller.draft.screenshotAnalysisEnabled)
-            Picker("AI provider", selection: Binding(
-                get: { controller.draft.aiProvider },
-                set: { controller.draft.selectAIProvider($0) }
-            )) {
-                ForEach(AIProviderSelection.allCases, id: \.self) { provider in
-                    let capability = AIProviderCapabilities.production[provider]
-                    Text(capability.settingsLabel)
-                        .tag(provider)
-                        .disabled(!capability.isSelectable)
-                }
-            }
-            Picker("Remote evidence", selection: $controller.draft.remoteEvidencePolicy) {
-                Text("Local only - remote AI off").tag(RemoteEvidencePolicy.localOnly)
-                Text("Redacted metadata only").tag(RemoteEvidencePolicy.redactedMetadataOnly)
-                Text("Explicit private content").tag(RemoteEvidencePolicy.explicitPrivateContent)
-            }
+                .toggleStyle(SumiToggleStyle())
+            SumiChoiceList(
+                "AI PROVIDER",
+                options: AIProviderSelection.allCases,
+                selection: Binding(
+                    get: { controller.draft.aiProvider },
+                    set: { controller.draft.selectAIProvider($0) }
+                ),
+                title: { AIProviderCapabilities.production[$0].settingsLabel },
+                isOptionEnabled: { AIProviderCapabilities.production[$0].isSelectable }
+            )
+            SumiChoiceRail(
+                "REMOTE EVIDENCE",
+                options: RemoteEvidencePolicy.allCases,
+                selection: $controller.draft.remoteEvidencePolicy,
+                title: remoteEvidenceLabel,
+                help: remoteEvidenceHelp
+            )
             .disabled(
                 !controller.draft.aiProvider.usesRemoteProcessing
                     || !AIProviderCapabilities.production[controller.draft.aiProvider].isSelectable
             )
+            if controller.draft.aiProvider == .codexCLI {
+                VStack(alignment: .leading, spacing: 7) {
+                    SumiControlLabel("CODEX MODEL")
+                    SumiDropdown {
+                        SumiSelectorLabel(controller.draft.codexCLIModel.settingsLabel, systemImage: "cpu")
+                    } content: { dismiss in
+                        ForEach(CodexCLIModel.allCases, id: \.self) { model in
+                            SumiDropdownOption(
+                                model.settingsLabel,
+                                systemImage: "cpu",
+                                isSelected: controller.draft.codexCLIModel == model
+                            ) {
+                                controller.draft.codexCLIModel = model
+                                dismiss()
+                            }
+                        }
+                    }
+                    .accessibilityLabel("Codex model")
+                    if controller.draft.codexCLIModel == .custom {
+                        TextField("Model ID", text: $controller.draft.codexCLICustomModelID)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel("Custom Codex model ID")
+                    }
+                }
+                VStack(alignment: .leading, spacing: 7) {
+                    SumiControlLabel("REASONING EFFORT")
+                    SumiDropdown {
+                        SumiSelectorLabel(controller.draft.codexCLIReasoningEffort.settingsLabel, systemImage: "brain")
+                    } content: { dismiss in
+                        ForEach(CodexCLIReasoningEffort.allCases, id: \.self) { effort in
+                            SumiDropdownOption(
+                                effort.settingsLabel,
+                                systemImage: "brain",
+                                isSelected: controller.draft.codexCLIReasoningEffort == effort
+                            ) {
+                                controller.draft.codexCLIReasoningEffort = effort
+                                dismiss()
+                            }
+                        }
+                    }
+                    .accessibilityLabel("Codex reasoning effort")
+                    Text("Available model IDs depend on your Codex account and rollout. Use Custom model ID for any model shown in Codex but not listed here.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                }
+            }
             HStack(spacing: 18) {
                 RetentionField(title: "Screenshots", days: $controller.draft.rawScreenshotRetentionDays)
                 RetentionField(title: "Extracted text", days: $controller.draft.extractedTextRetentionDays)
@@ -335,33 +650,34 @@ struct SettingsView: View {
                 get: { controller.draft.wakeEligible },
                 set: { enabled in
                     if enabled {
-                        confirmingWakeEnable = true
+                        presentConfirmation(.enableWake)
                     } else {
                         controller.requestWakeChange(false)
                     }
                 }
             ))
+            .toggleStyle(SumiToggleStyle())
             HStack(spacing: 18) {
                 LocalTimeField(title: "Window starts", time: $controller.draft.wakeStart)
                 LocalTimeField(title: "Window ends", time: $controller.draft.wakeEnd)
-                Stepper("Daily maximum: \(controller.draft.maximumDailyWakeInterventions)", value: $controller.draft.maximumDailyWakeInterventions, in: 1...3)
+                SumiStepper(
+                    "DAILY MAXIMUM",
+                    value: $controller.draft.maximumDailyWakeInterventions,
+                    in: 1...3,
+                    valueLabel: { "\($0) WAKE\($0 == 1 ? "" : "S")" }
+                )
             }
             .disabled(!controller.draft.wakeEligible)
             VStack(alignment: .leading, spacing: 6) {
                 Text("QUIET DAYS").font(Sumi.label(9)).sumiLabelTracking().foregroundStyle(Sumi.muted)
                 HStack(spacing: 10) {
                     ForEach(Weekday.allCases, id: \.self) { weekday in
-                        Toggle(weekdayLabel(weekday), isOn: Binding(
-                            get: { controller.draft.wakeQuietWeekdays.contains(weekday) },
-                            set: { enabled in
-                                if enabled {
-                                    if !controller.draft.wakeQuietWeekdays.contains(weekday) { controller.draft.wakeQuietWeekdays.append(weekday) }
-                                } else {
-                                    controller.draft.wakeQuietWeekdays.removeAll { $0 == weekday }
-                                }
-                            }
-                        ))
-                        .toggleStyle(.checkbox)
+                        QuietDayButton(
+                            title: weekdayLabel(weekday),
+                            isSelected: controller.draft.wakeQuietWeekdays.contains(weekday)
+                        ) {
+                            toggleQuietDay(weekday)
+                        }
                     }
                 }
             }
@@ -376,20 +692,20 @@ struct SettingsView: View {
     private var dataSection: some View {
         SettingsCard(title: "LOCAL DATA", detail: "Retention cleanup, redacted diagnostics, and selective deletion are executed by the background agent.") {
             Button("OPEN LOCAL DATA FOLDER") { controller.openDataFolder() }
-                .buttonStyle(SettingsButtonStyle())
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                 .accessibilityLabel("Open Zoid Coach local data folder")
             Button("EXPORT REDACTED DIAGNOSTICS") {
                 Task { await performDataCommand(.exportRedactedDiagnostics) }
             }
-            .buttonStyle(SettingsButtonStyle())
-            HStack {
-                DatePicker("Delete from", selection: $deleteRangeStart, displayedComponents: .date)
-                DatePicker("through", selection: $deleteRangeEnd, displayedComponents: .date)
-                Button("DELETE RANGE") { confirmingRangeDeletion = true }
-                    .buttonStyle(SettingsButtonStyle())
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+            HStack(alignment: .bottom, spacing: 12) {
+                SumiDateField("DELETE FROM", selection: $deleteRangeStart, displayedComponents: .date)
+                SumiDateField("THROUGH", selection: $deleteRangeEnd, displayedComponents: .date)
+                Button("DELETE RANGE") { presentConfirmation(.deleteRange) }
+                    .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .large))
             }
-            Button("DELETE EXTRACTED CONVERSATION TEXT") { confirmingTextDeletion = true }
-                .buttonStyle(SettingsButtonStyle())
+            Button("DELETE EXTRACTED CONVERSATION TEXT") { presentConfirmation(.deleteExtractedText) }
+                .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
             if let dataStatusMessage {
                 Text(dataStatusMessage).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
             }
@@ -412,6 +728,213 @@ struct SettingsView: View {
             dataStatusMessage = "The background agent could not complete this data request."
         }
     }
+
+    private func operatingModeLabel(_ mode: OperatingMode) -> String {
+        switch mode {
+        case .observe: "Observe only"
+        case .suggest: "Suggest plans"
+        case .assist: "Approve actions"
+        case .autonomous: "Autonomous"
+        }
+    }
+
+    private func remoteEvidenceLabel(_ policy: RemoteEvidencePolicy) -> String {
+        switch policy {
+        case .localOnly: "Local only - remote AI off"
+        case .redactedMetadataOnly: "Redacted metadata"
+        case .explicitPrivateContent: "Private content"
+        }
+    }
+
+    private func remoteEvidenceHelp(_ policy: RemoteEvidencePolicy) -> String {
+        switch policy {
+        case .localOnly:
+            "Keeps all evidence on this Mac. Codex is not called; planning continues with deterministic rules."
+        case .redactedMetadataOnly:
+            "Sends anonymous task labels, dates, priority, carryover, deferral, and time statistics. Task titles and app names stay hidden."
+        case .explicitPrivateContent:
+            "Also sends real task titles and app names for more contextual advice. Screenshots, extracted text, and internal task IDs stay private."
+        }
+    }
+
+    private func toggleQuietDay(_ weekday: Weekday) {
+        if controller.draft.wakeQuietWeekdays.contains(weekday) {
+            controller.draft.wakeQuietWeekdays.removeAll { $0 == weekday }
+        } else {
+            controller.draft.wakeQuietWeekdays.append(weekday)
+        }
+    }
+
+    private func presentConfirmation(_ intent: SettingsConfirmation) {
+        switch intent {
+        case .enableWake:
+            modalCoordinator.present(
+                eyebrow: "HIGH-TRUST CAPABILITY",
+                title: "Enable wake interventions?",
+                message: "Zoid Coach may notify you during the configured wake window, up to the written daily limit. You can disable this capability here at any time.",
+                confirmTitle: "I UNDERSTAND, ENABLE",
+                confirmRole: .accent,
+                confirm: {
+                    controller.draft.wakeEligible = true
+                    controller.save()
+                },
+                cancel: {
+                    controller.draft.wakeEligible = false
+                }
+            )
+        case .deleteRange:
+            modalCoordinator.present(
+                eyebrow: "LOCAL DATA / DESTRUCTIVE",
+                title: "Delete the selected evidence?",
+                message: "Local evidence from \(deleteRangeStart.formatted(date: .abbreviated, time: .omitted)) through \(deleteRangeEnd.formatted(date: .abbreviated, time: .omitted)) will be deleted by the background agent. This cannot be undone.",
+                confirmTitle: "DELETE SELECTED RANGE",
+                confirmRole: .destructive,
+                confirm: {
+                    Task { await performDataCommand(.deleteDataRange(start: deleteRangeStart, end: deleteRangeEnd)) }
+                }
+            )
+        case .deleteExtractedText:
+            modalCoordinator.present(
+                eyebrow: "LOCAL DATA / DESTRUCTIVE",
+                title: "Delete extracted conversation text?",
+                message: "All locally extracted conversation text will be deleted. Source applications and their original messages are not changed. This cannot be undone.",
+                confirmTitle: "DELETE EXTRACTED TEXT",
+                confirmRole: .destructive,
+                confirm: {
+                    Task { await performDataCommand(.deleteExtractedConversationText) }
+                }
+            )
+        case .restorePolicy:
+            modalCoordinator.present(
+                eyebrow: "POLICY HISTORY",
+                title: "Restore the previous policy?",
+                message: "Your current settings will remain in history. The previous settings will be saved as a new audited policy version.",
+                confirmTitle: "RESTORE PREVIOUS POLICY",
+                confirmRole: .primary,
+                confirm: {
+                    controller.rollbackToPreviousPolicy()
+                }
+            )
+        }
+    }
+}
+
+private enum SettingsConfirmation {
+    case enableWake
+    case deleteRange
+    case deleteExtractedText
+    case restorePolicy
+}
+
+private enum SettingsCategory: String, CaseIterable, Identifiable {
+    case command
+    case signals
+    case intelligence
+    case records
+
+    var id: Self { self }
+
+    var number: String {
+        switch self {
+        case .command: "01"
+        case .signals: "02"
+        case .intelligence: "03"
+        case .records: "04"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .command: "Command"
+        case .signals: "Signals"
+        case .intelligence: "Intelligence"
+        case .records: "Records"
+        }
+    }
+
+    var navigationDetail: String {
+        switch self {
+        case .command: "Mode and schedule"
+        case .signals: "Apps and calendars"
+        case .intelligence: "AI, privacy, wake"
+        case .records: "Local data and audit"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .command:
+            "Set the operating boundary and the hours Zoid Coach plans around. These controls define when the system may act."
+        case .signals:
+            "Teach Zoid Coach which activity counts as work or gaming, then choose the calendars that represent real commitments."
+        case .intelligence:
+            "Choose what may be analyzed, what can leave this Mac, and whether high-trust wake interventions are allowed."
+        case .records:
+            "Inspect agent actions, export diagnostics, and control the local evidence Zoid Coach retains."
+        }
+    }
+}
+
+private struct SettingsHeaderFact: View {
+    let label: String
+    let value: String
+    var isAttention = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(Sumi.label(7))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+            Text(value)
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(isAttention ? Sumi.seal : Sumi.ink)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .frame(minWidth: 78, minHeight: 42, alignment: .leading)
+        .background(isAttention ? Sumi.sealWash : Sumi.paper)
+        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+    }
+}
+
+private struct SettingsCategoryButton: View {
+    let category: SettingsCategory
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 10) {
+                Text(category.number)
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(isSelected ? Sumi.paper : Sumi.seal)
+                    .frame(width: 22, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(category.title.uppercased())
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                    Text(category.navigationDetail)
+                        .font(Sumi.body(10))
+                        .foregroundStyle(isSelected ? Sumi.paper.opacity(0.78) : Sumi.muted)
+                }
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(isSelected ? Sumi.paper : Sumi.ink)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isSelected ? Sumi.seal : Sumi.paper)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+        .accessibilityLabel("\(category.title), \(category.navigationDetail)")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
 }
 
 private struct SettingsCard<Content: View>: View {
@@ -420,14 +943,33 @@ private struct SettingsCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(Sumi.label(10)).sumiLabelTracking().foregroundStyle(Sumi.ink)
-            Text(detail).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
-            content
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 12) {
+                Rectangle()
+                    .fill(Sumi.seal)
+                    .frame(width: 8, height: 8)
+                    .padding(.top, 4)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title)
+                        .font(Sumi.label(10))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.ink)
+                    Text(detail)
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 14) { content }
+                .padding(.top, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(alignment: .top) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
         }
-        .padding(18)
+        .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Sumi.softPaper)
+        .background(Sumi.paper)
         .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
     }
 }
@@ -437,10 +979,14 @@ private struct LocalTimeField: View {
     @Binding var time: LocalTime
 
     var body: some View {
-        DatePicker(title, selection: Binding(
-            get: { date(from: time) },
-            set: { time = localTime(from: $0) }
-        ), displayedComponents: .hourAndMinute)
+        SumiDateField(
+            title,
+            selection: Binding(
+                get: { date(from: time) },
+                set: { time = localTime(from: $0) }
+            ),
+            displayedComponents: .hourAndMinute
+        )
     }
 
     private func date(from value: LocalTime) -> Date {
@@ -458,19 +1004,128 @@ private struct RetentionField: View {
     @Binding var days: Int
 
     var body: some View {
-        Stepper("\(title): \(days) days", value: $days, in: 0...3_650)
+        SumiStepper(title, value: $days, in: 0...3_650, valueLabel: { "\($0) DAYS" })
     }
 }
 
-private struct SettingsButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(Sumi.label(9))
-            .sumiLabelTracking()
-            .foregroundStyle(Sumi.paper)
-            .padding(.horizontal, 12)
-            .frame(height: 34)
-            .background(configuration.isPressed ? Sumi.sealDeep : Sumi.ink)
-            .opacity(configuration.isPressed ? 0.86 : 1)
+private struct ZoidCalendarMultiSelectionField: View {
+    let label: String
+    let defaultTitle: String
+    let options: [CalendarChoice]
+    @Binding var selectedIdentifiers: [String]
+
+    private var selectedSet: Set<String> { Set(selectedIdentifiers) }
+
+    private var summary: String {
+        if selectedIdentifiers.isEmpty { return defaultTitle }
+        if selectedIdentifiers.count == 1,
+           let option = options.first(where: { $0.id == selectedIdentifiers[0] }) {
+            return option.displayName
+        }
+        return "\(selectedIdentifiers.count) calendars"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            SumiControlLabel(label)
+            SumiDropdown {
+                SumiSelectorLabel(summary, systemImage: "calendar")
+            } content: { _ in
+                SumiDropdownOption(
+                    defaultTitle,
+                    systemImage: selectedIdentifiers.isEmpty ? "checkmark" : "calendar.badge.clock",
+                    isSelected: selectedIdentifiers.isEmpty
+                ) {
+                    selectedIdentifiers = []
+                }
+                SumiDropdownDivider()
+                ForEach(options) { option in
+                    SumiDropdownOption(
+                        option.displayName,
+                        systemImage: selectedSet.contains(option.id) ? "checkmark" : "calendar",
+                        isSelected: selectedSet.contains(option.id)
+                    ) {
+                        toggle(option.id)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel(label)
+            .accessibilityValue(summary)
+            .help("Choose one or more calendars. Select All calendars to use every available calendar.")
+        }
+    }
+
+    private func toggle(_ identifier: String) {
+        if let index = selectedIdentifiers.firstIndex(of: identifier) {
+            selectedIdentifiers.remove(at: index)
+        } else {
+            selectedIdentifiers.append(identifier)
+        }
+    }
+}
+
+private struct ZoidCalendarSingleSelectionField: View {
+    let label: String
+    let defaultTitle: String
+    let options: [CalendarChoice]
+    @Binding var selection: String?
+
+    private var summary: String {
+        guard let selection else { return defaultTitle }
+        return options.first(where: { $0.id == selection })?.displayName ?? "Unavailable calendar"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            SumiControlLabel(label)
+            SumiDropdown {
+                SumiSelectorLabel(summary, systemImage: "calendar")
+            } content: { dismiss in
+                SumiDropdownOption(
+                    defaultTitle,
+                    systemImage: selection == nil ? "checkmark" : "calendar.badge.plus",
+                    isSelected: selection == nil
+                ) {
+                    selection = nil
+                    dismiss()
+                }
+                SumiDropdownDivider()
+                ForEach(options.filter(\.isWritable)) { option in
+                    SumiDropdownOption(
+                        option.displayName,
+                        systemImage: selection == option.id ? "checkmark" : "calendar",
+                        isSelected: selection == option.id
+                    ) {
+                        selection = option.id
+                        dismiss()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel(label)
+            .accessibilityValue(summary)
+            .help("Choose the writable Apple Calendar used for newly confirmed meetings.")
+        }
+    }
+}
+
+private struct QuietDayButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(isSelected ? Sumi.paper : Sumi.ink)
+                .frame(minWidth: 38, minHeight: 30)
+                .background(isSelected ? Sumi.ink : Sumi.paper)
+                .overlay { Rectangle().stroke(isSelected ? Sumi.ink : Sumi.rule, lineWidth: 1) }
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(isSelected ? "Quiet day" : "Interventions allowed")
     }
 }

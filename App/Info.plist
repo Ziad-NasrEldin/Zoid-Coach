@@ -32,6 +32,10 @@
     <string>Zoid Coach reads your selected reminders and updates completion when you explicitly complete a task.</string>
     <key>NSRemindersUsageDescription</key>
     <string>Zoid Coach reads your selected reminders to build your daily plan.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Zoid Coach uses the microphone only while listening locally for Hey Zoid or during a visible voice conversation.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Zoid Coach uses on-device speech recognition for the local wake word and command fallback after the Gemini budget cap.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

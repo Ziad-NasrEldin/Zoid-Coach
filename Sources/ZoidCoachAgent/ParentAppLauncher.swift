@@ -3,6 +3,9 @@ import Foundation
 
 enum ParentAppLauncher {
     static func launchForBackgroundScheduling() {
+        guard NSWorkspace.shared.runningApplications.contains(where: {
+            $0.bundleIdentifier == "com.ziadnasreldin.ZoidCoach"
+        }) == false else { return }
         let executableURL = Bundle.main.executableURL
         let appURL = executableURL?
             .deletingLastPathComponent()

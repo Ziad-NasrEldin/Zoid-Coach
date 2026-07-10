@@ -56,6 +56,9 @@ public enum MeetingPromptBuilder {
         ]
         var payload = [
             "candidateID": candidate.id,
+            "title": candidate.title,
+            "start": ISO8601DateFormatter().string(from: candidate.start),
+            "durationMinutes": String(candidate.durationMinutes),
             "participants": participants,
             "calendarDestination": calendarDestination,
             "location": location,

@@ -17,6 +17,23 @@ struct ZoidCalendarBlock: Equatable, Sendable, Identifiable {
     let end: Date
 }
 
+struct CalendarChoice: Equatable, Sendable, Identifiable {
+    let id: String
+    let title: String
+    let sourceTitle: String
+    let isWritable: Bool
+
+    var displayName: String {
+        sourceTitle.isEmpty ? title : "\(title) (\(sourceTitle))"
+    }
+}
+
+enum CalendarSelectionAvailability: Equatable, Sendable {
+    case available
+    case needsPermission
+    case unavailable
+}
+
 @MainActor
 final class CalendarService {
     private let store: EKEventStore
@@ -25,6 +42,37 @@ final class CalendarService {
 
     init(store: EKEventStore = EKEventStore()) {
         self.store = store
+    }
+
+    var selectionAvailability: CalendarSelectionAvailability {
+        switch EKEventStore.authorizationStatus(for: .event) {
+        case .fullAccess, .authorized:
+            .available
+        case .notDetermined:
+            .needsPermission
+        case .denied, .restricted, .writeOnly:
+            .unavailable
+        @unknown default:
+            .unavailable
+        }
+    }
+
+    func availableCalendars() throws -> [CalendarChoice] {
+        guard hasFullAccess else { throw CalendarServiceError.accessUnavailable }
+        return store.calendars(for: .event)
+            .map {
+                CalendarChoice(
+                    id: $0.calendarIdentifier,
+                    title: $0.title,
+                    sourceTitle: $0.source.title,
+                    isWritable: $0.allowsContentModifications
+                )
+            }
+            .sorted {
+                let titleOrder = $0.title.localizedCaseInsensitiveCompare($1.title)
+                if titleOrder != .orderedSame { return titleOrder == .orderedAscending }
+                return $0.sourceTitle.localizedCaseInsensitiveCompare($1.sourceTitle) == .orderedAscending
+            }
     }
 
     func inspect() async -> SourceHealth {

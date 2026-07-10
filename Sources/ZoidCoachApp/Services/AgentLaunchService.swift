@@ -75,6 +75,10 @@ final class AgentLaunchService {
 
     func enableAndInspect() -> SourceHealth {
         guard isBundled else { return inspect() }
+        if Self.isDevelopmentBundle(Bundle.main.bundleURL),
+           FileManager.default.fileExists(atPath: Self.installedAgentURL.path) {
+            return inspect()
+        }
         do {
             let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
             let fingerprint = Self.registrationFingerprint(build: build, bundleURL: Bundle.main.bundleURL)
@@ -111,5 +115,14 @@ final class AgentLaunchService {
 
     nonisolated static func registrationFingerprint(build: String, bundleURL: URL) -> String {
         "\(build)|\(bundleURL.standardizedFileURL.path)"
+    }
+
+    nonisolated static func isDevelopmentBundle(_ bundleURL: URL) -> Bool {
+        bundleURL.standardizedFileURL.path.contains("/.build/")
+    }
+
+    nonisolated static var installedAgentURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Applications/Zoid Coach.app/Contents/MacOS/ZoidCoachAgent")
     }
 }

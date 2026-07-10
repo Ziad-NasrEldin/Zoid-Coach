@@ -59,6 +59,58 @@ func screenwatchCheckpointLeavesPartialLineForTheNextTailPass() throws {
     #expect(try archiveScalar(databaseURL: databaseURL, sql: "SELECT COUNT(*) FROM behavior_records;") == 2)
 }
 
+@Test
+func delayedScreenwatchIngestionFreezesThePolicyEffectiveAtEachObservation() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let day = root.appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid-coach.sqlite")
+    let clock = ArchivePolicyClock(Date(timeIntervalSince1970: 1_783_663_190))
+    let policyStore = try PolicyStore(databaseURL: databaseURL, now: { clock.now })
+    _ = try policyStore.save(archivePolicy(work: [], gaming: ["Steam"]))
+    clock.now = Date(timeIntervalSince1970: 1_783_663_203)
+    _ = try policyStore.save(archivePolicy(work: ["Steam"], gaming: []))
+    let log = """
+    {"t":"09-00-00","epoch":1783663200,"app":"Steam","window":"Game","url":"","img":false}
+    {"t":"09-00-05","epoch":1783663205,"app":"Steam","window":"Game","url":"","img":false}
+
+    """
+    try Data(log.utf8).write(to: day.appendingPathComponent("log.jsonl"))
+    let archive = try ScreenwatchArchive(databaseURL: databaseURL)
+    _ = try archive.ingestToday(from: root, now: Date(timeIntervalSince1970: 1_783_663_210))
+
+    let firstRead = try archive.behaviorObservations(for: Date(timeIntervalSince1970: 1_783_663_210))
+    clock.now = Date(timeIntervalSince1970: 1_783_663_220)
+    _ = try policyStore.save(archivePolicy(work: [], gaming: ["Steam"]))
+    let secondRead = try archive.behaviorObservations(for: Date(timeIntervalSince1970: 1_783_663_210))
+
+    #expect(firstRead.map(\.classification) == [.gaming, .work])
+    #expect(secondRead.map(\.classification) == [.gaming, .work])
+    #expect(try archiveScalar(databaseURL: databaseURL, sql: "SELECT COUNT(DISTINCT classification_policy_version) FROM behavior_records;") == 2)
+}
+
+private func archivePolicy(work: [String], gaming: [String]) -> UserPolicy {
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    return UserPolicy(
+        operatingMode: defaults.operatingMode,
+        automationPause: defaults.automationPause,
+        schedule: defaults.schedule,
+        calendar: defaults.calendar,
+        privacy: defaults.privacy,
+        wake: defaults.wake,
+        behavior: BehaviorPolicy(workApplications: work, gamingApplications: gaming)
+    )
+}
+
+private final class ArchivePolicyClock: @unchecked Sendable {
+    var now: Date
+
+    init(_ now: Date) {
+        self.now = now
+    }
+}
+
 private func archiveScalar(databaseURL: URL, sql: String) throws -> Int {
     var database: OpaquePointer?
     guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let database else { throw ArchiveTestError.database }

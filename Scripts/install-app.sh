@@ -10,9 +10,16 @@ INSTALLED_APP="$INSTALL_ROOT/Zoid Coach.app"
 "$ROOT/Scripts/package-app.sh"
 "$ROOT/Scripts/ensure-screenwatch.sh"
 mkdir -p "$INSTALL_ROOT"
+launchctl bootout "gui/$(id -u)/com.ziadnasreldin.ZoidCoach.agent" 2>/dev/null || true
+pkill -x ZoidCoach 2>/dev/null || true
+for _ in {1..20}; do
+    pgrep -x ZoidCoach >/dev/null || break
+    sleep 0.1
+done
 rm -rf "$INSTALLED_APP"
 ditto "$SOURCE_APP" "$INSTALLED_APP"
 codesign --verify --deep --strict --verbose=2 "$INSTALLED_APP"
+defaults delete com.ziadnasreldin.ZoidCoach ZoidCoachAgentRegistrationFingerprint 2>/dev/null || true
 open "$INSTALLED_APP"
 
 expected_build="$(plutil -extract CFBundleVersion raw -o - "$INSTALLED_APP/Contents/Info.plist")"
@@ -21,7 +28,10 @@ for _ in {1..30}; do
     service="$(launchctl print "gui/$(id -u)/com.ziadnasreldin.ZoidCoach.agent" 2>/dev/null || true)"
     if grep -q "parent bundle version = $expected_build" <<<"$service"; then
         if [[ "$restarted_agent" == "false" ]]; then
-            launchctl kickstart -k "gui/$(id -u)/com.ziadnasreldin.ZoidCoach.agent"
+            if ! launchctl kickstart -k "gui/$(id -u)/com.ziadnasreldin.ZoidCoach.agent" 2>/dev/null; then
+                sleep 1
+                continue
+            fi
             restarted_agent=true
             sleep 1
             continue

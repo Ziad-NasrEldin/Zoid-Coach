@@ -58,6 +58,16 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
     func respondToPrompt(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void)
     func applyAgentMutation(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void)
     func fetchActionAudit(withReply reply: @escaping (Data?, String?) -> Void)
+    func fetchVoiceContext(withReply reply: @escaping (Data?, String?) -> Void)
+    func invokeVoiceTool(_ invocation: Data, withReply reply: @escaping (Data?, String?) -> Void)
+    func resolveVoiceApproval(_ approvalID: String, approved: Bool, withReply reply: @escaping (Data?, String?) -> Void)
+    func saveVoiceSession(_ session: Data, withReply reply: @escaping (Data?, String?) -> Void)
+    func appendConversationTurn(_ turn: Data, withReply reply: @escaping (Data?, String?) -> Void)
+    func recordScreenContextTransmission(_ selection: Data, sessionID: String, withReply reply: @escaping (Data?, String?) -> Void)
+    func fetchVoiceUsage(withReply reply: @escaping (Data?, String?) -> Void)
+    func recordVoiceUsage(_ sample: Data, withReply reply: @escaping (Data?, String?) -> Void)
+    func reserveVoiceBudget(withReply reply: @escaping (Data?, String?) -> Void)
+    func settleVoiceBudget(_ reservationID: String, sample: Data, withReply reply: @escaping (Data?, String?) -> Void)
 }
 
 public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
@@ -67,12 +77,14 @@ public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
     private let promptStore: PromptInboxStore?
     private let promptEffectRouter: PromptResponseEffectRouter?
     private let mutationRouter: AgentMutationRouter?
+    private let voiceController: VoiceAgentController?
 
-    public init(agent: TodayDashboardAgent, promptStore: PromptInboxStore? = nil, promptEffectRouter: PromptResponseEffectRouter? = nil, mutationRouter: AgentMutationRouter? = nil, machServiceName: String = todayDashboardMachServiceName, authorizer: any XPCConnectionAuthorizing = SameUserXPCConnectionAuthorizer()) {
+    public init(agent: TodayDashboardAgent, promptStore: PromptInboxStore? = nil, promptEffectRouter: PromptResponseEffectRouter? = nil, mutationRouter: AgentMutationRouter? = nil, voiceController: VoiceAgentController? = nil, machServiceName: String = todayDashboardMachServiceName, authorizer: any XPCConnectionAuthorizing = SameUserXPCConnectionAuthorizer()) {
         self.agent = agent
         self.promptStore = promptStore
         self.promptEffectRouter = promptEffectRouter
         self.mutationRouter = mutationRouter
+        self.voiceController = voiceController
         self.authorizer = authorizer
         listener = NSXPCListener(machServiceName: machServiceName)
         super.init()
@@ -87,7 +99,7 @@ public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
             return false
         }
         connection.exportedInterface = NSXPCInterface(with: TodayDashboardXPCProtocol.self)
-        connection.exportedObject = TodayDashboardXPCEndpoint(agent: agent, promptStore: promptStore, promptEffectRouter: promptEffectRouter, mutationRouter: mutationRouter)
+        connection.exportedObject = TodayDashboardXPCEndpoint(agent: agent, promptStore: promptStore, promptEffectRouter: promptEffectRouter, mutationRouter: mutationRouter, voiceController: voiceController)
         connection.resume()
         return true
     }
@@ -98,6 +110,7 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
     private let promptStore: PromptInboxStore?
     private let promptEffectRouter: PromptResponseEffectRouter?
     private let mutationRouter: AgentMutationRouter?
+    private let voiceController: VoiceAgentController?
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -109,11 +122,12 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
         return decoder
     }()
 
-    init(agent: TodayDashboardAgent, promptStore: PromptInboxStore?, promptEffectRouter: PromptResponseEffectRouter?, mutationRouter: AgentMutationRouter?) {
+    init(agent: TodayDashboardAgent, promptStore: PromptInboxStore?, promptEffectRouter: PromptResponseEffectRouter?, mutationRouter: AgentMutationRouter?, voiceController: VoiceAgentController?) {
         self.agent = agent
         self.promptStore = promptStore
         self.promptEffectRouter = promptEffectRouter
         self.mutationRouter = mutationRouter
+        self.voiceController = voiceController
     }
 
     func fetchTodaySnapshot(withReply reply: @escaping (Data?, String?) -> Void) {
@@ -180,6 +194,97 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
         do { reply(try encoder.encode(mutationRouter.recentActionAudit()), nil) }
         catch { reply(nil, error.localizedDescription) }
     }
+
+    func fetchVoiceContext(withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        let replyBox = XPCReplyBox(reply)
+        Task { [voiceController, replyBox] in
+            do {
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                replyBox.call(try encoder.encode(try await voiceController.context()), nil)
+            }
+            catch { replyBox.call(nil, error.localizedDescription) }
+        }
+    }
+
+    func invokeVoiceTool(_ invocation: Data, withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        do {
+            let decoded = try decoder.decode(VoiceToolInvocation.self, from: invocation)
+            let replyBox = XPCReplyBox(reply)
+            Task { [voiceController, replyBox] in
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                replyBox.call(try? encoder.encode(await voiceController.invoke(decoded)), nil)
+            }
+        } catch { reply(nil, error.localizedDescription) }
+    }
+
+    func resolveVoiceApproval(_ approvalID: String, approved: Bool, withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        let replyBox = XPCReplyBox(reply)
+        Task { [voiceController, replyBox] in
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            replyBox.call(try? encoder.encode(await voiceController.resolveApproval(id: approvalID, approved: approved)), nil)
+        }
+    }
+
+    func saveVoiceSession(_ session: Data, withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        do {
+            try voiceController.save(try decoder.decode(VoiceSession.self, from: session))
+            reply(try encoder.encode(true), nil)
+        } catch { reply(nil, error.localizedDescription) }
+    }
+
+    func appendConversationTurn(_ turn: Data, withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        do {
+            try voiceController.append(try decoder.decode(ConversationTurn.self, from: turn))
+            reply(try encoder.encode(true), nil)
+        } catch { reply(nil, error.localizedDescription) }
+    }
+
+    func recordScreenContextTransmission(_ selection: Data, sessionID: String, withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        do {
+            try voiceController.recordTransmission(
+                try decoder.decode(ScreenContextSelection.self, from: selection),
+                sessionID: sessionID
+            )
+            reply(try encoder.encode(true), nil)
+        } catch { reply(nil, error.localizedDescription) }
+    }
+
+    func fetchVoiceUsage(withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        do { reply(try encoder.encode(voiceController.usage()), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
+    func recordVoiceUsage(_ sample: Data, withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        do {
+            let sample = try decoder.decode(VoiceUsageSample.self, from: sample)
+            reply(try encoder.encode(voiceController.record(sample)), nil)
+        } catch { reply(nil, error.localizedDescription) }
+    }
+
+    func reserveVoiceBudget(withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        do { reply(try encoder.encode(voiceController.reserveCloudSession()), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
+    func settleVoiceBudget(_ reservationID: String, sample: Data, withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
+        do {
+            let sample = try decoder.decode(VoiceUsageSample.self, from: sample)
+            reply(try encoder.encode(voiceController.settleCloudSession(reservationID: reservationID, sample: sample)), nil)
+        } catch { reply(nil, error.localizedDescription) }
+    }
 }
 
 private final class XPCReplyBox: @unchecked Sendable {
@@ -230,11 +335,72 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         try await callData { proxy, reply in proxy.fetchActionAudit(withReply: reply) }
     }
 
+    public func fetchVoiceContext() async throws -> ChiefOfStaffContextPacket {
+        try await callData { proxy, reply in proxy.fetchVoiceContext(withReply: reply) }
+    }
+
+    public func invokeVoiceTool(_ invocation: VoiceToolInvocation) async throws -> VoiceToolExecutionResult {
+        let data = try encoded(invocation)
+        return try await callData(timeout: .seconds(60)) { proxy, reply in proxy.invokeVoiceTool(data, withReply: reply) }
+    }
+
+    public func resolveVoiceApproval(id: String, approved: Bool) async throws -> VoiceToolExecutionResult {
+        try await callData(timeout: .seconds(60)) { proxy, reply in
+            proxy.resolveVoiceApproval(id, approved: approved, withReply: reply)
+        }
+    }
+
+    public func saveVoiceSession(_ session: VoiceSession) async throws {
+        let data = try encoded(session)
+        let _: Bool = try await callData { proxy, reply in proxy.saveVoiceSession(data, withReply: reply) }
+    }
+
+    public func appendConversationTurn(_ turn: ConversationTurn) async throws {
+        let data = try encoded(turn)
+        let _: Bool = try await callData { proxy, reply in proxy.appendConversationTurn(data, withReply: reply) }
+    }
+
+    public func recordScreenContextTransmission(_ selection: ScreenContextSelection, sessionID: String) async throws {
+        let data = try encoded(selection)
+        let _: Bool = try await callData { proxy, reply in
+            proxy.recordScreenContextTransmission(data, sessionID: sessionID, withReply: reply)
+        }
+    }
+
+    public func fetchVoiceUsage() async throws -> VoiceUsageLedger {
+        try await callData { proxy, reply in proxy.fetchVoiceUsage(withReply: reply) }
+    }
+
+    public func recordVoiceUsage(_ sample: VoiceUsageSample) async throws -> VoiceUsageLedger {
+        let data = try encoded(sample)
+        return try await callData { proxy, reply in proxy.recordVoiceUsage(data, withReply: reply) }
+    }
+
+    public func reserveVoiceBudget() async throws -> VoiceBudgetReservation {
+        try await callData { proxy, reply in proxy.reserveVoiceBudget(withReply: reply) }
+    }
+
+    public func settleVoiceBudget(id: String, sample: VoiceUsageSample) async throws -> VoiceUsageLedger {
+        let data = try encoded(sample)
+        return try await callData { proxy, reply in
+            proxy.settleVoiceBudget(id, sample: data, withReply: reply)
+        }
+    }
+
+    private func encoded<Value: Encodable>(_ value: Value) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(value)
+    }
+
     private func call(_ invocation: @escaping (any TodayDashboardXPCProtocol, @escaping (Data?, String?) -> Void) -> Void) async throws -> TodaySnapshot {
         try await callData(invocation)
     }
 
-    private func callData<T: Decodable & Sendable>(_ invocation: @escaping (any TodayDashboardXPCProtocol, @escaping (Data?, String?) -> Void) -> Void) async throws -> T {
+    private func callData<T: Decodable & Sendable>(
+        timeout: Duration = .seconds(3),
+        _ invocation: @escaping (any TodayDashboardXPCProtocol, @escaping (Data?, String?) -> Void) -> Void
+    ) async throws -> T {
         try await withCheckedThrowingContinuation { continuation in
             let connection = NSXPCConnection(machServiceName: machServiceName, options: [])
             connection.remoteObjectInterface = NSXPCInterface(with: TodayDashboardXPCProtocol.self)
@@ -247,7 +413,7 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
                 gate.receive(data: data, remoteError: error)
             }
             Task {
-                try? await Task.sleep(for: .seconds(3))
+                try? await Task.sleep(for: timeout)
                 gate.fail(TodayDashboardXPCError.timeout)
             }
         }

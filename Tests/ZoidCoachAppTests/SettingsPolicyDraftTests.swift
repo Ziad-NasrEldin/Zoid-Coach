@@ -33,6 +33,25 @@ func settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() {
     #expect(policy.validationViolations().isEmpty)
 }
 
+@Test
+func calendarPickerSelectionsRoundTripWithoutExposingIdentifiersAsInput() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var draft = SettingsPolicyDraft(policy: original)
+
+    draft.visibleCalendarIdentifierList = ["work-id", "personal-id"]
+    draft.schedulingCalendarIdentifierValue = "work-id"
+
+    #expect(draft.visibleCalendarIdentifierList == ["work-id", "personal-id"])
+    #expect(draft.schedulingCalendarIdentifierValue == "work-id")
+
+    draft.visibleCalendarIdentifierList = []
+    draft.schedulingCalendarIdentifierValue = nil
+    let policy = draft.policy(preserving: original)
+
+    #expect(policy.calendar.visibleCalendarIdentifiers.isEmpty)
+    #expect(policy.calendar.schedulingCalendarIdentifier == nil)
+}
+
 @MainActor
 @Test
 func policyRollbackRestoresPreviousSettingsAsANewVersion() async throws {
@@ -69,6 +88,22 @@ func settingsDraftKeepsWakeDisabledByDefault() {
 }
 
 @Test
+func settingsDraftPersistsGlobalAppChoicesAndReturnsAppsToAutomatic() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var draft = SettingsPolicyDraft(policy: original)
+
+    draft.setClassification(.work, for: " Steam ")
+    draft.setClassification(.gaming, for: "Xcode")
+    draft.setClassification(.automatic, for: "XCODE")
+    let policy = draft.policy(preserving: original)
+
+    #expect(policy.behavior.workApplications == ["steam"])
+    #expect(policy.behavior.gamingApplications.isEmpty)
+    #expect(SettingsPolicyDraft(policy: policy).classification(for: "Steam") == .work)
+    #expect(SettingsPolicyDraft(policy: policy).classification(for: "Xcode") == .automatic)
+}
+
+@Test
 func settingsDraftCannotPersistAnUnavailableAIProvider() {
     let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     var draft = SettingsPolicyDraft(policy: original)
@@ -102,6 +137,20 @@ func settingsDraftPersistsCodexCLIWithRemoteEvidencePolicy() {
     let localOnlyRoundTrip = SettingsPolicyDraft(policy: localOnlyPolicy)
     #expect(localOnlyPolicy.privacy.remoteEvidencePolicy == .localOnly)
     #expect(localOnlyRoundTrip.remoteEvidencePolicy == .localOnly)
+}
+
+@Test
+func settingsDraftPersistsSelectedCodexModel() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var draft = SettingsPolicyDraft(policy: original)
+    draft.selectAIProvider(.codexCLI)
+    draft.codexCLIModel = .gpt55
+
+    let policy = draft.policy(preserving: original)
+    let roundTrippedDraft = SettingsPolicyDraft(policy: policy)
+
+    #expect(policy.privacy.codexCLIModel == .gpt55)
+    #expect(roundTrippedDraft.codexCLIModel == .gpt55)
 }
 
 @Test
@@ -146,10 +195,44 @@ func oneStepPausePersistsImmediatelyWithoutSavingOtherDraftEdits() async throws 
         return AgentMutationReceipt(accepted: true, message: "saved", policyVersion: saved.version)
     }
     controller.draft.capacityPercent = 95
+    controller.draft.setClassification(.work, for: "Steam")
 
     await controller.setPaused(true)?.value
 
     let persisted = try #require(store.current()?.policy)
     #expect(persisted.automationPause == .pausedIndefinitely)
     #expect(persisted.schedule.planningCapacityPercent == 70)
+    #expect(persisted.behavior.choice(for: "Steam") == .automatic)
+    #expect(controller.draft.capacityPercent == 95)
+    #expect(controller.draft.classification(for: "Steam") == .work)
+}
+
+@MainActor
+@Test
+func savedAppClassificationLoadsInANewSettingsController() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-app-settings-restart-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.save(.defaults(timeZoneIdentifier: "UTC"))
+    let controller = SettingsPolicyController(databaseURL: databaseURL) { policy in
+        let saved = try store.save(policy)
+        return AgentMutationReceipt(accepted: true, message: "saved", policyVersion: saved.version)
+    }
+    controller.draft.setClassification(.gaming, for: "Steam")
+    await controller.save()?.value
+
+    let reopened = SettingsPolicyController(databaseURL: databaseURL) { _ in
+        throw RestartTestError.unexpectedSave
+    }
+
+    #expect(reopened.draft.classification(for: "Steam") == .gaming)
+}
+
+private enum RestartTestError: Error {
+    case unexpectedSave
 }
