@@ -68,6 +68,44 @@ func settingsDraftKeepsWakeDisabledByDefault() {
     #expect(policy.wake.maximumDailyInterventions == 1)
 }
 
+@Test
+func settingsDraftCannotPersistAnUnavailableAIProvider() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var draft = SettingsPolicyDraft(policy: original)
+    draft.aiProvider = .remoteOpenAI
+    draft.remoteEvidencePolicy = .explicitPrivateContent
+
+    let policy = draft.policy(preserving: original)
+
+    #expect(policy.privacy.aiProvider == .disabled)
+    #expect(policy.privacy.remoteEvidencePolicy == .localOnly)
+}
+
+@Test
+func settingsDraftPresentsPersistedUnavailableProviderAsDisabled() {
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    let remotePolicy = UserPolicy(
+        operatingMode: defaults.operatingMode,
+        automationPause: defaults.automationPause,
+        schedule: defaults.schedule,
+        calendar: defaults.calendar,
+        privacy: PrivacyPolicy(
+            screenshotAnalysisEnabled: true,
+            aiProvider: .remoteOpenAI,
+            remoteEvidencePolicy: .explicitPrivateContent,
+            rawScreenshotRetentionDays: 30,
+            extractedTextRetentionDays: 30,
+            diagnosticRetentionDays: 14
+        ),
+        wake: defaults.wake
+    )
+
+    let draft = SettingsPolicyDraft(policy: remotePolicy)
+
+    #expect(draft.aiProvider == .disabled)
+    #expect(draft.remoteEvidencePolicy == .localOnly)
+}
+
 @MainActor
 @Test
 func oneStepPausePersistsImmediatelyWithoutSavingOtherDraftEdits() async throws {

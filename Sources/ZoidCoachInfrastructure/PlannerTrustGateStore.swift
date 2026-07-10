@@ -56,7 +56,7 @@ public final class PlannerTrustGateStore: @unchecked Sendable {
 
     public func status() throws -> PlannerTrustGateStatus {
         var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(database, "SELECT COUNT(*) FROM planner_trust_cycles WHERE stayed_within_capacity = 1 AND external_writes_suppressed = 1;", -1, &statement, nil) == SQLITE_OK,
+        guard sqlite3_prepare_v2(database, "SELECT COUNT(*) FROM planner_trust_cycles WHERE item_count > 0 AND stayed_within_capacity = 1 AND external_writes_suppressed = 1;", -1, &statement, nil) == SQLITE_OK,
               let statement else { throw PlannerTrustGateStoreError.read }
         defer { sqlite3_finalize(statement) }
         guard sqlite3_step(statement) == SQLITE_ROW else { throw PlannerTrustGateStoreError.read }

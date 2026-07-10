@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 17
+    public static let currentVersion = 19
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -571,7 +571,17 @@ private extension AutonomousDatabaseMigrator {
             WHERE state IN ('pending', 'retryable_failure')
               AND action_type IN ('createCalendarBlock', 'updateCalendarBlock', 'reconcileCalendarBlock', 'deleteCalendarBlock', 'setReminderPriority', 'setReminderDueDate', 'setReminderMetadata');
             """)
-        ])
+        ]),
+        Migration(version: 18, isDestructive: false, operations: [
+            .addColumn(table: "meeting_candidates", column: "source_evidence", declaration: "TEXT")
+        ]),
+        Migration(version: 19, isDestructive: false, operations: [.sql("""
+        UPDATE meeting_candidates SET source_evidence = '' WHERE COALESCE(source_evidence, '') <> '';
+        UPDATE prompt_episodes
+        SET summary = 'Meeting details are available in Zoid Coach.',
+            payload_json = json_remove(payload_json, '$.sourceEvidence')
+        WHERE prompt_type = 'MEETING_CANDIDATE';
+        """)])
     ]
 }
 

@@ -49,6 +49,52 @@ func leavingAutomaticModeCancelsOnlyUnapprovedPlanWrites() throws {
 }
 
 @Test
+func observeModeRecordsWouldDoCommandsWithoutClaimingExternalWrites() throws {
+    let url = temporaryOutboxURL("observe")
+    defer { removeOutboxDatabase(url) }
+    let policyStore = try PolicyStore(databaseURL: url)
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
+    _ = try policyStore.save(UserPolicy(
+        operatingMode: .observe,
+        automationPause: defaults.automationPause,
+        schedule: defaults.schedule,
+        calendar: defaults.calendar,
+        privacy: defaults.privacy,
+        wake: defaults.wake
+    ))
+    let store = try ActionOutboxStore(databaseURL: url)
+    let wouldDo = try store.enqueue(
+        type: .setReminderPriority,
+        entityID: "would-prioritize",
+        desiredState: .reminder(ReminderDesiredState(priority: 9, metadataMarker: "zoid:v1")),
+        planVersion: 1,
+        origin: .automaticPlan
+    )
+    let explicit = try store.enqueue(
+        type: .completeReminder,
+        entityID: "would-complete",
+        desiredState: .completeReminder,
+        planVersion: 1,
+        origin: .explicitUser
+    )
+
+    #expect(try store.claimNextReady() == nil)
+    #expect(try store.command(commandID: wouldDo.command.id)?.state == .cancelled)
+    #expect(try store.command(commandID: explicit.command.id)?.state == .cancelled)
+    #expect(try DomainEventStore(databaseURL: url).events().filter { $0.type == "action.would_do" }.count == 2)
+
+    _ = try policyStore.save(UserPolicy(
+        operatingMode: .autonomous,
+        automationPause: defaults.automationPause,
+        schedule: defaults.schedule,
+        calendar: defaults.calendar,
+        privacy: defaults.privacy,
+        wake: defaults.wake
+    ))
+    #expect(try store.claimNextReady() == nil)
+}
+
+@Test
 func retryableActionResumesOnceAndRetainsAttemptHistory() throws {
     let url = temporaryOutboxURL("retry")
     defer { removeOutboxDatabase(url) }

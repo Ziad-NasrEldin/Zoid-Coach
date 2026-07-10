@@ -164,6 +164,13 @@ public final class AgentMutationRouter: @unchecked Sendable {
             try meetingArchive.updateMeetingCandidate(candidate, state: "ignored")
             return .init(accepted: true, message: "Meeting suggestion ignored.")
 
+        case let .deferMeetingCandidate(candidateID):
+            guard let candidate = try meetingArchive.meetingCandidate(id: candidateID) else {
+                throw AgentMutationRouterError.invalidCommand
+            }
+            try meetingArchive.updateMeetingCandidate(candidate, state: "ready_for_confirmation")
+            return .init(accepted: true, message: "Meeting edit deferred.")
+
         case let .undoAction(commandID):
             guard let action = try outbox.command(commandID: commandID) else {
                 throw AgentMutationRouterError.invalidCommand

@@ -55,6 +55,48 @@ private struct PromptEffectRecognizer: ScreenshotTextRecognizing {
 }
 
 @Test
+func editMeetingResponseRoutesCandidateIntoTheDashboardEditorQueue() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-prompt-edit-\(UUID().uuidString)", isDirectory: true)
+    let dayDirectory = root.appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: dayDirectory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let line = "{\"t\":\"09-00-00\",\"epoch\":1783663200,\"app\":\"WhatsApp\",\"window\":\"Sarah\",\"url\":\"\",\"img\":true}\n"
+    try Data(line.utf8).write(to: dayDirectory.appendingPathComponent("log.jsonl"))
+    try Data([1, 2, 3]).write(to: dayDirectory.appendingPathComponent("09-00-00.jpg"))
+    let archive = try ScreenwatchArchive(databaseURL: databaseURL)
+    _ = try archive.ingestToday(from: root, now: Date(timeIntervalSince1970: 1_783_663_200))
+    let ocr = ScreenshotOCRResult(blocks: [
+        OCRTextBlock(text: "Meeting tomorrow at 3 pm", confidence: 0.95, boundingBox: NormalizedBoundingBox(x: 0, y: 0, width: 1, height: 1), localeHint: "en")
+    ])
+    _ = try await archive.analyzePendingWhatsAppScreenshots(
+        using: PromptEffectRecognizer(result: ocr),
+        cipher: try LocalEvidenceCipher(keyData: Data(repeating: 4, count: 32))
+    )
+    let candidate = try #require(archive.unresolvedMeetingCandidates().first)
+    let promptStore = try PromptInboxStore(databaseURL: databaseURL)
+    let episode = try promptStore.enqueue(MeetingPromptBuilder.draft(
+        for: candidate,
+        calendarDestination: "Work",
+        assessment: .clear
+    )).episode
+    let response = try promptStore.respond(
+        promptID: episode.id,
+        action: .editMeeting,
+        actionToken: PromptResponseToken.make(promptID: episode.id, action: .editMeeting),
+        surface: .notification
+    )
+    let router = PromptResponseEffectRouter(
+        outbox: try ActionOutboxStore(databaseURL: databaseURL),
+        meetingArchive: archive,
+        promptStore: promptStore
+    )
+
+    #expect(try router.apply(response) == .meetingEditRequested(candidateID: candidate.id))
+    #expect(try archive.unresolvedMeetingCandidates().first?.state == "edit_requested")
+}
+
+@Test
 func acceptingAPlanDurablyQueuesItsApprovalScheduleRequest() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-plan-approval-\(UUID().uuidString)", isDirectory: true)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

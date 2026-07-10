@@ -70,3 +70,34 @@ func meetingPolicyRequiresTimeProximityAndTitleOrParticipantEvidenceForDuplicate
     #expect(MeetingCandidatePolicy().route(candidate, existingEvents: [unrelated]) == .conflict(existingEventID: "unrelated"))
     #expect(MeetingCandidatePolicy().route(candidate, existingEvents: [tooFarAway]) == .readyForConfirmation)
 }
+
+@Test
+func meetingPolicyUsesInclusiveFifteenMinuteDuplicateWindowWithoutRequiringOverlap() {
+    let start = Date(timeIntervalSince1970: 1_800_000_000)
+    let candidate = MeetingCandidate(
+        title: "Roadmap review",
+        start: start,
+        durationMinutes: 5,
+        confidence: .high,
+        requiresClarification: false,
+        sourceText: "",
+        participants: ["Sarah"]
+    )
+    let atBoundary = ExistingMeetingEvent(
+        id: "boundary",
+        title: "Different title",
+        start: start.addingTimeInterval(15 * 60),
+        end: start.addingTimeInterval(45 * 60),
+        participants: ["Sarah"]
+    )
+    let outsideBoundary = ExistingMeetingEvent(
+        id: "outside",
+        title: "Roadmap review",
+        start: start.addingTimeInterval(15 * 60 + 1),
+        end: start.addingTimeInterval(45 * 60),
+        participants: []
+    )
+
+    #expect(MeetingCandidatePolicy().route(candidate, existingEvents: [atBoundary]) == .duplicate(existingEventID: "boundary"))
+    #expect(MeetingCandidatePolicy().route(candidate, existingEvents: [outsideBoundary]) == .readyForConfirmation)
+}

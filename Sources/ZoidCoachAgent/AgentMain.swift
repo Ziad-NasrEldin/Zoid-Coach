@@ -16,6 +16,9 @@ struct ZoidCoachAgentMain {
                 print(granted ? "Zoid Coach agent: Apple Reminders access granted" : "Zoid Coach agent: Apple Reminders access was not granted")
                 return
             }
+            let progressMonitor = AgentProgressMonitor()
+            let watchdog = configuration.watch ? Self.startWatchdog(progressMonitor: progressMonitor) : nil
+            defer { watchdog?.cancel() }
             try AutonomousDatabaseMigrator(databaseURL: configuration.databaseURL).migrate()
             let archive = try ScreenwatchArchive(databaseURL: configuration.databaseURL)
             let policyStore = try PolicyStore(databaseURL: configuration.databaseURL)
@@ -94,6 +97,7 @@ struct ZoidCoachAgentMain {
                 advisor: advisor
             )
             _ = try? await reminderPlanner.synchronizeReminderSource()
+            await progressMonitor.markProgress()
             let mutationRouter = AgentMutationRouter(
                 outbox: actionOutbox,
                 stateStore: try AgentOwnedStateStore(databaseURL: configuration.databaseURL),
@@ -238,11 +242,13 @@ struct ZoidCoachAgentMain {
                     }
                     try checkpointStore.recordSuccess(sourceID: "agent-runtime", at: Date())
                     try Self.replayPendingPromptEffects(store: promptStore, router: promptEffectRouter)
-                    await Self.presentDuePlanPrompts(
-                        store: promptStore,
-                        policy: policy,
-                        checkpoints: checkpointStore
-                    )
+                    if policy.operatingMode != .observe {
+                        await Self.presentDuePlanPrompts(
+                            store: promptStore,
+                            policy: policy,
+                            checkpoints: checkpointStore
+                        )
+                    }
                     if !resourceConstrained,
                        lastMaintenanceAttempt.map({ Date().timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true {
                         _ = try? maintenanceService.run(policy: policy, now: Date(), mode: .apply)
@@ -252,22 +258,21 @@ struct ZoidCoachAgentMain {
                     let analysis = policy.privacy.screenshotAnalysisEnabled && !resourceConstrained
                         ? try await archive.analyzePendingWhatsAppScreenshots()
                         : MeetingAnalysisResult(screenshotsProcessed: 0, candidatesCreated: 0)
-                    if analysis.candidatesCreated > 0, let candidate = try archive.unresolvedMeetingCandidates().first {
-                        let calendarCheck = try? await Self.checkCalendar(for: candidate, policy: policy, calendar: calendarSource)
-                        if calendarCheck == .duplicate {
-                            try archive.updateMeetingCandidate(candidate, state: "duplicate_calendar")
-                        } else {
-                            if calendarCheck == .conflict { try archive.updateMeetingCandidate(candidate, state: "conflict") }
-                            let prompt = try promptStore.enqueue(Self.meetingPrompt(candidate, hasConflict: calendarCheck == .conflict))
-                            if prompt.wasInserted { _ = try? await notificationCoordinator.schedule(prompt.episode) }
-                            await AtollMeetingNotifier().present(candidate)
-                        }
+                    if policy.operatingMode != .observe {
+                        try await Self.processMeetingPrompts(
+                            archive: archive,
+                            promptStore: promptStore,
+                            notifications: notificationCoordinator,
+                            policy: policy,
+                            calendar: calendarSource
+                        )
                     }
                     print("Zoid Coach agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
                     _ = try? todayDashboardAgent.snapshot(now: Date())
                     let now = Date()
                     _ = try promptStore.expireDue()
                     if policy.automationPause.isPaused {
+                        await progressMonitor.markProgress()
                         try await Task.sleep(for: .seconds(5))
                         continue
                     }
@@ -407,6 +412,7 @@ struct ZoidCoachAgentMain {
                         }
                         lastAutomaticDraftAttempt = now
                     }
+                    await progressMonitor.markProgress()
                     try await Task.sleep(for: .seconds(resourceConstrained ? 30 : 5))
                     } catch {
                         try? checkpointStore.recordFailure(
@@ -420,17 +426,13 @@ struct ZoidCoachAgentMain {
             } else {
                 let result = try archive.ingestToday(from: configuration.screenwatchDirectory, now: Date())
                 let analysis = try await archive.analyzePendingWhatsAppScreenshots()
-                if analysis.candidatesCreated > 0, let candidate = try archive.unresolvedMeetingCandidates().first {
-                    let calendarCheck = try? await Self.checkCalendar(for: candidate, policy: initialPolicy, calendar: calendarSource)
-                    if calendarCheck == .duplicate {
-                        try archive.updateMeetingCandidate(candidate, state: "duplicate_calendar")
-                    } else {
-                        if calendarCheck == .conflict { try archive.updateMeetingCandidate(candidate, state: "conflict") }
-                        let prompt = try promptStore.enqueue(Self.meetingPrompt(candidate, hasConflict: calendarCheck == .conflict))
-                        if prompt.wasInserted { _ = try? await notificationCoordinator.schedule(prompt.episode) }
-                        await AtollMeetingNotifier().present(candidate)
-                    }
-                }
+                try await Self.processMeetingPrompts(
+                    archive: archive,
+                    promptStore: promptStore,
+                    notifications: notificationCoordinator,
+                    policy: initialPolicy,
+                    calendar: calendarSource
+                )
                 print("Zoid Coach agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
                 _ = try? todayDashboardAgent.snapshot(now: Date())
             }
@@ -491,55 +493,102 @@ struct ZoidCoachAgentMain {
         return values.sorted().joined(separator: "\n")
     }
 
-    private static func meetingPrompt(_ candidate: StoredMeetingCandidate, hasConflict: Bool = false) -> PromptDraft {
-        PromptDraft(
-            decisionKey: "meeting:\(candidate.id)",
-            type: "MEETING_CANDIDATE",
-            title: candidate.title,
-            summary: "Meeting proposed for \(candidate.start.formatted(date: .abbreviated, time: .shortened)), \(candidate.durationMinutes) minutes.\(hasConflict ? " It overlaps an existing Calendar event." : "")",
-            actions: [
-                PromptAction(kind: .addMeeting, title: "Add", role: .primary, requiresConfirmation: true),
-                PromptAction(kind: .editMeeting, title: "Edit"),
-                PromptAction(kind: .ignore, title: "Ignore")
-            ],
-            payload: ["candidateID": candidate.id],
-            expiresAt: candidate.start
-        )
-    }
-
-    private enum MeetingCalendarCheck {
-        case clear
-        case conflict
-        case duplicate
-    }
-
     private static func checkCalendar(
         for candidate: StoredMeetingCandidate,
         policy: UserPolicy,
         calendar: any CalendarAvailabilitySource
-    ) async throws -> MeetingCalendarCheck {
+    ) async throws -> MeetingCalendarAssessment {
         let end = candidate.start.addingTimeInterval(TimeInterval(candidate.durationMinutes * 60))
         let commitments = try await calendar.commitments(
-            from: candidate.start.addingTimeInterval(-10 * 60),
-            through: end.addingTimeInterval(10 * 60),
+            from: candidate.start.addingTimeInterval(-15 * 60),
+            through: end.addingTimeInterval(15 * 60),
             calendarIdentifiers: policy.calendar.visibleCalendarIdentifiers
         )
-        let candidateTokens = normalizedTokens(candidate.title)
-        for commitment in commitments {
-            let overlap = commitment.start < end && commitment.end > candidate.start
-            guard overlap else { continue }
-            let eventTokens = normalizedTokens(commitment.title)
-            let union = candidateTokens.union(eventTokens)
-            let similarity = union.isEmpty ? 0 : Double(candidateTokens.intersection(eventTokens).count) / Double(union.count)
-            if abs(commitment.start.timeIntervalSince(candidate.start)) <= 10 * 60, similarity >= 0.6 {
-                return .duplicate
-            }
+        let semanticCandidate = MeetingCandidate(
+            title: candidate.title,
+            start: candidate.start,
+            durationMinutes: candidate.durationMinutes,
+            confidence: candidate.confidence,
+            requiresClarification: candidate.requiresClarification,
+            sourceText: candidate.sourceEvidence,
+            confidenceScore: candidate.confidenceScore,
+            participants: candidate.participants,
+            location: candidate.location,
+            callLink: candidate.callLink,
+            timezoneIdentifier: candidate.timezoneIdentifier
+        )
+        let events = commitments.map {
+            ExistingMeetingEvent(
+                id: $0.id,
+                title: $0.title,
+                start: $0.start,
+                end: $0.end,
+                participants: $0.participants
+            )
         }
-        return commitments.contains { $0.start < end && $0.end > candidate.start } ? .conflict : .clear
+        switch MeetingCandidatePolicy().route(semanticCandidate, existingEvents: events) {
+        case let .duplicate(existingEventID):
+            guard let event = events.first(where: { $0.id == existingEventID }) else { return .clear }
+            return .duplicate(event)
+        case let .conflict(existingEventID):
+            guard let event = events.first(where: { $0.id == existingEventID }) else { return .clear }
+            return .conflict(event)
+        case .readyForConfirmation, .needsClarification, .lowConfidence:
+            return .clear
+        }
     }
 
-    private static func normalizedTokens(_ value: String) -> Set<String> {
-        Set(value.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
+    private static func processMeetingPrompts(
+        archive: ScreenwatchArchive,
+        promptStore: PromptInboxStore,
+        notifications: PromptNotificationCoordinator,
+        policy: UserPolicy,
+        calendar: any CalendarAvailabilitySource
+    ) async throws {
+        let promptByCandidateID = Dictionary(
+            uniqueKeysWithValues: try promptStore.unresolved().compactMap { episode in
+                episode.type == "MEETING_CANDIDATE"
+                    ? episode.payload["candidateID"].map { ($0, episode) }
+                    : nil
+            }
+        )
+        let candidates = MeetingPromptBuilder.candidatesRequiringPromptWork(
+            try archive.unresolvedMeetingCandidates(),
+            unresolvedPrompts: Array(promptByCandidateID.values),
+            limit: 12
+        )
+        for candidate in candidates {
+            if let existing = promptByCandidateID[candidate.id] {
+                guard existing.state == .queued else { continue }
+                _ = try? await notifications.schedule(existing)
+                continue
+            }
+            guard candidate.start > Date() else {
+                try? archive.updateMeetingCandidate(candidate, state: "expired")
+                continue
+            }
+            do {
+                let assessment = try await checkCalendar(for: candidate, policy: policy, calendar: calendar)
+                if case let .duplicate(event) = assessment {
+                    try archive.updateMeetingCandidate(candidate, state: "duplicate_calendar", matchedEventID: event.id)
+                    continue
+                }
+                if case let .conflict(event) = assessment {
+                    try archive.updateMeetingCandidate(candidate, state: "conflict", matchedEventID: event.id)
+                }
+                let destination = policy.calendar.schedulingCalendarIdentifier ?? "Configured calendar"
+                let prompt = try promptStore.enqueue(MeetingPromptBuilder.draft(
+                    for: candidate,
+                    calendarDestination: destination,
+                    assessment: assessment
+                ))
+                guard prompt.episode.state == .queued else { continue }
+                _ = try? await notifications.schedule(prompt.episode)
+                presentAtollWithoutBlockingAgent(prompt.episode)
+            } catch {
+                continue
+            }
+        }
     }
 
     private static func localDayKey(_ date: Date, timeZoneIdentifier: String = TimeZone.current.identifier) -> String {
@@ -622,8 +671,13 @@ struct ZoidCoachAgentMain {
     ) async {
         let sourceID = "atoll-plan-prompt:\(episode.id)"
         guard (try? checkpoints.checkpoint(sourceID: sourceID)) == nil else { return }
-        if await AtollPromptNotifier().present(episode) {
-            try? checkpoints.recordSuccess(sourceID: sourceID, at: now)
+        try? checkpoints.recordSuccess(sourceID: sourceID, at: now)
+        presentAtollWithoutBlockingAgent(episode)
+    }
+
+    private static func presentAtollWithoutBlockingAgent(_ episode: PromptEpisode) {
+        Task.detached(priority: .utility) {
+            _ = await AtollPromptNotifier().present(episode)
         }
     }
 
@@ -647,6 +701,16 @@ struct ZoidCoachAgentMain {
                 itemCount: itemCount,
                 stayedWithinCapacity: stayedWithinCapacity
             )
+            if policy.operatingMode == .observe {
+                let result = try await scheduler.enqueueSchedule(
+                    for: day,
+                    policy: policy,
+                    policyVersion: policyVersion,
+                    origin: .automaticPlan
+                )
+                print("Zoid Coach agent: recorded \(result.scheduledBlockCount) Calendar and \(result.reminderMutationCount) Reminder would-do actions")
+                return
+            }
             if !trust.allowsAutomaticWrites {
                 print("Zoid Coach agent: shadow cycle \(trust.observedCycleCount)/\(trust.requiredCycleCount) recorded without external writes")
                 return
@@ -683,6 +747,20 @@ struct ZoidCoachAgentMain {
                 diagnostic: String(describing: type(of: error))
             )
             print("Zoid Coach agent: plan actions are waiting for Calendar or Reminders permission")
+        }
+    }
+
+    private static func startWatchdog(progressMonitor: AgentProgressMonitor) -> Task<Void, Never> {
+        let policy = AgentLivenessPolicy()
+        return Task.detached(priority: .utility) {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                guard !Task.isCancelled else { return }
+                if await progressMonitor.requiresRestart(policy: policy) {
+                    fputs("Zoid Coach agent watchdog: no successful progress for 180 seconds; restarting through launchd\n", stderr)
+                    Foundation.exit(EXIT_FAILURE)
+                }
+            }
         }
     }
 

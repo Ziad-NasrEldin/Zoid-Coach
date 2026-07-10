@@ -57,7 +57,7 @@ public final class PrivacyDataService: @unchecked Sendable {
             changed += Int(sqlite3_changes(database))
             try execute("DELETE FROM action_commands WHERE action_type = 'createConfirmedMeeting' OR (action_type = 'createReminder' AND entity_id IN (SELECT source_day || ':' || epoch FROM meeting_candidates));", bindings: [])
             changed += Int(sqlite3_changes(database))
-            try execute("UPDATE meeting_candidates SET title = 'Private meeting', participants_json = '[]', start_expression = '', location = NULL, call_link = NULL WHERE title != 'Private meeting' OR COALESCE(participants_json, '[]') != '[]' OR COALESCE(start_expression, '') != '' OR location IS NOT NULL OR call_link IS NOT NULL;", bindings: [])
+            try execute("UPDATE meeting_candidates SET title = 'Private meeting', participants_json = '[]', start_expression = '', location = NULL, call_link = NULL, source_evidence = '' WHERE title != 'Private meeting' OR COALESCE(participants_json, '[]') != '[]' OR COALESCE(start_expression, '') != '' OR location IS NOT NULL OR call_link IS NOT NULL OR COALESCE(source_evidence, '') != '';", bindings: [])
             changed += Int(sqlite3_changes(database))
             guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else { throw PrivacyDataServiceError.write }
             return changed

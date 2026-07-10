@@ -1,0 +1,33 @@
+import Foundation
+import Testing
+@testable import ZoidCoachApp
+
+struct AgentLaunchServiceTests {
+    @Test
+    func registrationFingerprintChangesWhenTheInstalledAppMoves() {
+        let buildCopy = AgentLaunchService.registrationFingerprint(
+            build: "8",
+            bundleURL: URL(fileURLWithPath: "/tmp/build/Zoid Coach.app")
+        )
+        let installedCopy = AgentLaunchService.registrationFingerprint(
+            build: "8",
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid Coach.app")
+        )
+
+        #expect(buildCopy != installedCopy)
+    }
+
+    @Test
+    func registrationFingerprintIsStableForTheSameBuildAndPath() {
+        let first = AgentLaunchService.registrationFingerprint(
+            build: "8",
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/../Applications/Zoid Coach.app")
+        )
+        let second = AgentLaunchService.registrationFingerprint(
+            build: "8",
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid Coach.app")
+        )
+
+        #expect(first == second)
+    }
+}

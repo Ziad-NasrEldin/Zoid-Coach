@@ -1,9 +1,41 @@
 import Foundation
 
 public enum OperatingMode: String, Codable, CaseIterable, Sendable {
-    case suggestionsOnly
-    case approvalRequired
-    case fullyAutomatic
+    case observe
+    case suggest
+    case assist
+    case autonomous
+
+    // Source-compatible names for policies and call sites created before the
+    // four-stage rollout model was made explicit.
+    public static let suggestionsOnly = OperatingMode.suggest
+    public static let approvalRequired = OperatingMode.assist
+    public static let fullyAutomatic = OperatingMode.autonomous
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        switch value {
+        case Self.observe.rawValue:
+            self = .observe
+        case Self.suggest.rawValue, "suggestionsOnly":
+            self = .suggest
+        case Self.assist.rawValue, "approvalRequired":
+            self = .assist
+        case Self.autonomous.rawValue, "fullyAutomatic":
+            self = .autonomous
+        default:
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unsupported operating mode: \(value)"
+            )
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
 }
 
 public enum Weekday: Int, Codable, CaseIterable, Comparable, Sendable {
@@ -111,6 +143,7 @@ public struct CalendarSelectionPolicy: Codable, Equatable, Sendable {
 public enum AIProviderSelection: String, Codable, CaseIterable, Sendable {
     case disabled
     case localOllama
+    case appleOnDevice
     case remoteOpenAI
 }
 
@@ -190,7 +223,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
 
     public static func defaults(timeZoneIdentifier: String = TimeZone.current.identifier) -> UserPolicy {
         UserPolicy(
-            operatingMode: .fullyAutomatic,
+            operatingMode: .autonomous,
             automationPause: .running,
             schedule: SchedulePolicy(
                 timeZoneIdentifier: timeZoneIdentifier,

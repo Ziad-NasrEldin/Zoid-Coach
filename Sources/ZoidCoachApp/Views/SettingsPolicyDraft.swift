@@ -1,5 +1,6 @@
 import Foundation
 import ZoidCoachCore
+import ZoidCoachInfrastructure
 
 struct SettingsPolicyDraft: Equatable {
     var operatingMode: OperatingMode
@@ -38,8 +39,9 @@ struct SettingsPolicyDraft: Equatable {
         visibleCalendarIdentifiers = policy.calendar.visibleCalendarIdentifiers.joined(separator: ", ")
         schedulingCalendarIdentifier = policy.calendar.schedulingCalendarIdentifier ?? ""
         screenshotAnalysisEnabled = policy.privacy.screenshotAnalysisEnabled
-        aiProvider = policy.privacy.aiProvider
-        remoteEvidencePolicy = policy.privacy.remoteEvidencePolicy
+        let configuredProvider = policy.privacy.aiProvider
+        aiProvider = AIProviderCapabilities.production[configuredProvider].isSelectable ? configuredProvider : .disabled
+        remoteEvidencePolicy = aiProvider == .remoteOpenAI ? policy.privacy.remoteEvidencePolicy : .localOnly
         rawScreenshotRetentionDays = policy.privacy.rawScreenshotRetentionDays
         extractedTextRetentionDays = policy.privacy.extractedTextRetentionDays
         diagnosticRetentionDays = policy.privacy.diagnosticRetentionDays
@@ -51,6 +53,7 @@ struct SettingsPolicyDraft: Equatable {
     }
 
     func policy(preserving original: UserPolicy) -> UserPolicy {
+        let selectedProvider = AIProviderCapabilities.production[aiProvider].isSelectable ? aiProvider : .disabled
         let identifiers = visibleCalendarIdentifiers
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -77,8 +80,8 @@ struct SettingsPolicyDraft: Equatable {
             ),
             privacy: PrivacyPolicy(
                 screenshotAnalysisEnabled: screenshotAnalysisEnabled,
-                aiProvider: aiProvider,
-                remoteEvidencePolicy: aiProvider == .remoteOpenAI ? remoteEvidencePolicy : .localOnly,
+                aiProvider: selectedProvider,
+                remoteEvidencePolicy: selectedProvider == .remoteOpenAI ? remoteEvidencePolicy : .localOnly,
                 rawScreenshotRetentionDays: rawScreenshotRetentionDays,
                 extractedTextRetentionDays: extractedTextRetentionDays,
                 diagnosticRetentionDays: diagnosticRetentionDays

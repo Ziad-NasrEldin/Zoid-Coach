@@ -259,9 +259,10 @@ struct SettingsView: View {
             }
 
             Picker("Operating mode", selection: $controller.draft.operatingMode) {
-                Text("Suggestions only").tag(OperatingMode.suggestionsOnly)
-                Text("Ask before actions").tag(OperatingMode.approvalRequired)
-                Text("Fully automatic").tag(OperatingMode.fullyAutomatic)
+                Text("Observe only").tag(OperatingMode.observe)
+                Text("Suggest plans").tag(OperatingMode.suggest)
+                Text("Assist after approval").tag(OperatingMode.assist)
+                Text("Fully autonomous").tag(OperatingMode.autonomous)
             }
             .pickerStyle(.segmented)
 
@@ -298,19 +299,25 @@ struct SettingsView: View {
     }
 
     private var privacySection: some View {
-        SettingsCard(title: "AI + DATA RETENTION", detail: "Local-only is the default. Private content is never sent remotely unless both remote AI and an explicit evidence policy are selected.") {
+        SettingsCard(title: "AI + DATA RETENTION", detail: AIProviderCapabilities.production.settingsSummary) {
             Toggle("Analyze Screenwatch screenshots", isOn: $controller.draft.screenshotAnalysisEnabled)
             Picker("AI provider", selection: $controller.draft.aiProvider) {
-                Text("Disabled").tag(AIProviderSelection.disabled)
-                Text("Local Ollama").tag(AIProviderSelection.localOllama)
-                Text("Remote OpenAI").tag(AIProviderSelection.remoteOpenAI)
+                ForEach(AIProviderSelection.allCases, id: \.self) { provider in
+                    let capability = AIProviderCapabilities.production[provider]
+                    Text(capability.settingsLabel)
+                        .tag(provider)
+                        .disabled(!capability.isSelectable)
+                }
             }
             Picker("Remote evidence", selection: $controller.draft.remoteEvidencePolicy) {
                 Text("Local only").tag(RemoteEvidencePolicy.localOnly)
                 Text("Redacted metadata only").tag(RemoteEvidencePolicy.redactedMetadataOnly)
                 Text("Explicit private content").tag(RemoteEvidencePolicy.explicitPrivateContent)
             }
-            .disabled(controller.draft.aiProvider != .remoteOpenAI)
+            .disabled(
+                controller.draft.aiProvider != .remoteOpenAI
+                    || !AIProviderCapabilities.production[.remoteOpenAI].isSelectable
+            )
             HStack(spacing: 18) {
                 RetentionField(title: "Screenshots", days: $controller.draft.rawScreenshotRetentionDays)
                 RetentionField(title: "Extracted text", days: $controller.draft.extractedTextRetentionDays)

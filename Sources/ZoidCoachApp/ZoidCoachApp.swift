@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct ZoidCoachApplication: App {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model: AppModel
     private let launchesForBackgroundScheduling: Bool
 
@@ -24,6 +25,13 @@ struct ZoidCoachApplication: App {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                             NSApp.hide(nil)
                         }
+                    }
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else { return }
+                    Task {
+                        await model.refreshPromptInbox()
+                        model.reloadMeetingCandidatesForForegroundActivation()
                     }
                 }
         }

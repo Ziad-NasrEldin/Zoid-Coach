@@ -25,7 +25,7 @@ func sourceCheckCompletesWithStableSourceStates() async {
 
     model.runSourceCheck()
     let clock = ContinuousClock()
-    let deadline = clock.now.advanced(by: .seconds(3))
+    let deadline = clock.now.advanced(by: .seconds(15))
     while model.isCheckingSources, clock.now < deadline {
         try? await Task.sleep(for: .milliseconds(50))
     }

@@ -817,6 +817,10 @@ private struct MeetingCandidateLedger: View {
                                 .font(Sumi.label(8))
                                 .sumiLabelTracking()
                                 .foregroundStyle(Sumi.muted)
+                            Text(meetingContext(candidate))
+                                .font(Sumi.body(11))
+                                .foregroundStyle(Sumi.muted)
+                                .textSelection(.enabled)
                             if candidate.requiresClarification {
                                 Text("TIME NEEDS REVIEW")
                                     .font(Sumi.label(8))
@@ -864,10 +868,25 @@ private struct MeetingCandidateLedger: View {
                     )
                     editingCandidate = nil
                 } onCancel: {
+                    model.deferMeetingCandidateEdit(candidate)
                     editingCandidate = nil
                 }
             }
+            .onAppear { openRequestedEditorIfNeeded() }
+            .onChange(of: model.meetingCandidates) { _, _ in openRequestedEditorIfNeeded() }
         )
+    }
+
+    private func openRequestedEditorIfNeeded() {
+        guard editingCandidate == nil else { return }
+        editingCandidate = model.meetingCandidates.first { $0.state == "edit_requested" }
+    }
+
+    private func meetingContext(_ candidate: StoredMeetingCandidate) -> String {
+        let participants = candidate.participants.isEmpty ? "Participants unknown" : candidate.participants.joined(separator: ", ")
+        let place = candidate.location ?? candidate.callLink ?? "No location"
+        let evidence = candidate.sourceEvidence.isEmpty ? "Source evidence unavailable" : candidate.sourceEvidence
+        return "\(participants) · \(place) · \(candidate.timezoneIdentifier)\nSource: \(evidence)"
     }
 }
 
@@ -1150,7 +1169,7 @@ private struct SidebarView: View {
                         .font(Sumi.label(9))
                         .sumiLabelTracking()
                 }
-                Text("Release 0 · Instrumented foundation")
+                Text("Build 8 · Autonomous runtime")
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.muted)
             }
@@ -1172,7 +1191,7 @@ private struct CommandHeaderView: View {
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
-                Text("Instrumented foundation")
+                Text("Autonomous runtime")
                     .font(Sumi.body(13))
                     .foregroundStyle(Sumi.muted)
             }
@@ -1221,17 +1240,17 @@ private struct FoundationHeroView: View {
     var body: some View {
         HStack(alignment: .bottom, spacing: 32) {
             VStack(alignment: .leading, spacing: 14) {
-                Text("RELEASE 0 / DAY ONE")
+                Text("AUTONOMOUS BUILD / TRUST GATED")
                     .font(Sumi.label(10))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
 
-                Text("The command center\nis coming online.")
+                Text("The command center\nis online.")
                     .font(Sumi.display(46))
                     .tracking(-1.5)
                     .foregroundStyle(Sumi.ink)
 
-                Text("First we prove that intent, behavior, and intervention can share one reliable local state. Coaching remains in observation mode until the evidence is trustworthy.")
+                Text("Local planning, intervention, and recovery now share one agent-owned state. Automatic Apple writes remain protected until the required planning cycles prove the evidence is trustworthy.")
                     .font(Sumi.body(15))
                     .foregroundStyle(Sumi.muted)
                     .lineSpacing(4)
@@ -1371,9 +1390,9 @@ private struct LocalFoundationView: View {
         HStack(alignment: .top, spacing: 0) {
             FoundationColumn(
                 index: "01",
-                title: "Local event store",
-                copy: "Immutable source and domain events will make every state transition replayable and explainable.",
-                state: "NEXT"
+                title: "Persistent local runtime",
+                copy: "The signed launch agent keeps ingestion, plans, prompts, and recovery active after the app closes.",
+                state: "ONLINE"
             )
 
             Divider()
@@ -1381,17 +1400,17 @@ private struct LocalFoundationView: View {
             FoundationColumn(
                 index: "02",
                 title: "Rules before models",
-                copy: "Release 1 will classify known work and gaming contexts without a remote or local model dependency.",
-                state: "DECIDED"
+                copy: "Deterministic capacity, collision, idempotency, and policy rules remain available without an AI provider.",
+                state: "ENFORCED"
             )
 
             Divider()
 
             FoundationColumn(
                 index: "03",
-                title: "Seven quiet days",
-                copy: "Behavior is observed for one complete week before accountability prompts are allowed.",
-                state: "LOCKED"
+                title: "Trust gates",
+                copy: "Seven qualifying planning cycles unlock automatic writes; fourteen are required before wake eligibility.",
+                state: "PROTECTED"
             )
         }
         .background(Sumi.softPaper)

@@ -57,6 +57,7 @@ public struct CalendarCommitment: Identifiable, Equatable, Sendable {
     public let calendarIdentifier: String
     public let ownershipToken: String?
     public let meetingFingerprint: String?
+    public let participants: [String]
 
     public init(
         id: String,
@@ -65,7 +66,8 @@ public struct CalendarCommitment: Identifiable, Equatable, Sendable {
         end: Date,
         calendarIdentifier: String,
         ownershipToken: String? = nil,
-        meetingFingerprint: String? = nil
+        meetingFingerprint: String? = nil,
+        participants: [String] = []
     ) {
         self.id = id
         self.title = title
@@ -74,6 +76,7 @@ public struct CalendarCommitment: Identifiable, Equatable, Sendable {
         self.calendarIdentifier = calendarIdentifier
         self.ownershipToken = ownershipToken
         self.meetingFingerprint = meetingFingerprint
+        self.participants = participants
     }
 }
 

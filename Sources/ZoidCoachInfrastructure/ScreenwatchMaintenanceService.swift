@@ -298,6 +298,9 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             let factsDeleted = try executeChanges("DELETE FROM extracted_facts WHERE artifact_id IN (SELECT id FROM screenshot_artifacts WHERE behavior_epoch < ?);") {
                 sqlite3_bind_int64($0, 1, plan.textCutoffEpoch)
             }
+            _ = try executeChanges("UPDATE meeting_candidates SET source_evidence = '' WHERE epoch < ? AND COALESCE(source_evidence, '') <> '';") {
+                sqlite3_bind_int64($0, 1, plan.textCutoffEpoch)
+            }
             let textRedacted = try executeChanges("UPDATE behavior_records SET window_title = '', url = '' WHERE epoch < ? AND (window_title <> '' OR url <> '');") {
                 sqlite3_bind_int64($0, 1, plan.textCutoffEpoch)
             }

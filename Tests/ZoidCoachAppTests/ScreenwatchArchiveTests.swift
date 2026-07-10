@@ -104,6 +104,8 @@ func whatsappOCRPersistsEncryptedPositionedEvidenceAndLinksTheCandidate() async 
     #expect(analysis.candidatesCreated == 1)
     #expect(decoded == result)
     #expect(try archiveScalar(databaseURL: databaseURL, sql: "SELECT COUNT(*) FROM meeting_evidence;") == 1)
+    #expect(try archive.unresolvedMeetingCandidates(cipher: cipher).first?.sourceEvidence == "Meeting tomorrow at 3 pm for 30 minutes")
+    #expect(try archiveText(databaseURL: databaseURL, sql: "SELECT source_evidence FROM meeting_candidates LIMIT 1;") == "")
 }
 
 @Test
@@ -177,4 +179,15 @@ private func archiveBlob(databaseURL: URL, sql: String) throws -> Data {
     defer { sqlite3_finalize(statement) }
     guard sqlite3_step(statement) == SQLITE_ROW, let pointer = sqlite3_column_blob(statement, 0) else { throw ArchiveTestError.database }
     return Data(bytes: pointer, count: Int(sqlite3_column_bytes(statement, 0)))
+}
+
+private func archiveText(databaseURL: URL, sql: String) throws -> String {
+    var database: OpaquePointer?
+    guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let database else { throw ArchiveTestError.database }
+    defer { sqlite3_close(database) }
+    var statement: OpaquePointer?
+    guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw ArchiveTestError.database }
+    defer { sqlite3_finalize(statement) }
+    guard sqlite3_step(statement) == SQLITE_ROW, let pointer = sqlite3_column_text(statement, 0) else { throw ArchiveTestError.database }
+    return String(cString: pointer)
 }

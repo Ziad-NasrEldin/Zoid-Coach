@@ -4,7 +4,7 @@ import ServiceManagement
 @MainActor
 final class AgentLaunchService {
     private let plistName = "com.ziadnasreldin.ZoidCoach.agent.plist"
-    private let registeredBuildKey = "ZoidCoachAgentRegisteredBuild"
+    private let registrationFingerprintKey = "ZoidCoachAgentRegistrationFingerprint"
 
     func inspect() -> SourceHealth {
         guard isBundled else {
@@ -77,15 +77,16 @@ final class AgentLaunchService {
         guard isBundled else { return inspect() }
         do {
             let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+            let fingerprint = Self.registrationFingerprint(build: build, bundleURL: Bundle.main.bundleURL)
             if service.status == .enabled,
-               UserDefaults.standard.string(forKey: registeredBuildKey) == build {
+               UserDefaults.standard.string(forKey: registrationFingerprintKey) == fingerprint {
                 return inspect()
             }
             if service.status == .enabled {
                 try service.unregister()
             }
             try service.register()
-            UserDefaults.standard.set(build, forKey: registeredBuildKey)
+            UserDefaults.standard.set(fingerprint, forKey: registrationFingerprintKey)
         } catch {
             return SourceHealth(
                 id: .agent,
@@ -106,5 +107,9 @@ final class AgentLaunchService {
 
     private var isBundled: Bool {
         Bundle.main.bundleURL.pathExtension == "app"
+    }
+
+    nonisolated static func registrationFingerprint(build: String, bundleURL: URL) -> String {
+        "\(build)|\(bundleURL.standardizedFileURL.path)"
     }
 }

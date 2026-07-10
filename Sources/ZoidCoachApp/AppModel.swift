@@ -180,6 +180,10 @@ final class AppModel: ObservableObject {
         promptEpisodes = (try? await todayDashboardXPCClient.fetchPromptInbox()) ?? []
     }
 
+    func reloadMeetingCandidatesForForegroundActivation() {
+        reloadMeetingCandidates()
+    }
+
     func respondToPrompt(_ episode: PromptEpisode, action: PromptActionKind) {
         let command = PromptResponseCommand(
             promptID: episode.id,
@@ -191,6 +195,10 @@ final class AppModel: ObservableObject {
             do {
                 _ = try await todayDashboardXPCClient.respondToPrompt(command)
                 await refreshPromptInbox()
+                if action == .editMeeting {
+                    reloadMeetingCandidates()
+                    selectedSection = .today
+                }
             } catch {
                 meetingCandidateError = "The prompt could not be resolved through the background agent."
             }
@@ -354,6 +362,17 @@ final class AppModel: ObservableObject {
                 reloadMeetingCandidates()
             } catch {
                 meetingCandidateError = "Could not dismiss this meeting suggestion through the background agent."
+            }
+        }
+    }
+
+    func deferMeetingCandidateEdit(_ candidate: StoredMeetingCandidate) {
+        Task {
+            do {
+                _ = try await todayDashboardXPCClient.apply(.deferMeetingCandidate(candidateID: candidate.id))
+                reloadMeetingCandidates()
+            } catch {
+                meetingCandidateError = "Could not defer this meeting edit through the background agent."
             }
         }
     }
@@ -545,11 +564,15 @@ final class AppModel: ObservableObject {
     }
 
     private var canIssueExternalActions: Bool {
-        databaseError == nil && !currentPolicy().automationPause.isPaused
+        let policy = currentPolicy()
+        return databaseError == nil && !policy.automationPause.isPaused && policy.operatingMode != .observe
     }
 
     private var externalActionUnavailableMessage: String {
         if let databaseError { return databaseError }
+        if currentPolicy().operatingMode == .observe {
+            return "Zoid Coach is in Observe mode. Switch to Suggest, Assist, or Autonomous before changing Reminders or Calendar."
+        }
         return "Zoid Coach automation is paused. Resume it in Settings before changing Reminders or Calendar."
     }
 }

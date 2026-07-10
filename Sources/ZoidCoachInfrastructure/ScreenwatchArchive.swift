@@ -39,6 +39,7 @@ public struct StoredMeetingCandidate: Equatable, Sendable, Identifiable {
     public let location: String?
     public let callLink: String?
     public let timezoneIdentifier: String
+    public let sourceEvidence: String
 
     public var id: String { "\(sourceDay):\(epoch)" }
 
@@ -55,7 +56,8 @@ public struct StoredMeetingCandidate: Equatable, Sendable, Identifiable {
         participants: [String] = [],
         location: String? = nil,
         callLink: String? = nil,
-        timezoneIdentifier: String = TimeZone.current.identifier
+        timezoneIdentifier: String = TimeZone.current.identifier,
+        sourceEvidence: String = ""
     ) {
         self.sourceDay = sourceDay
         self.epoch = epoch
@@ -70,6 +72,7 @@ public struct StoredMeetingCandidate: Equatable, Sendable, Identifiable {
         self.location = location
         self.callLink = callLink
         self.timezoneIdentifier = timezoneIdentifier
+        self.sourceEvidence = sourceEvidence
     }
 }
 
@@ -183,12 +186,12 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         return MeetingAnalysisResult(screenshotsProcessed: pending.count, candidatesCreated: candidatesCreated)
     }
 
-    public func unresolvedMeetingCandidates() throws -> [StoredMeetingCandidate] {
+    public func unresolvedMeetingCandidates(cipher: (any EvidenceCiphering)? = nil) throws -> [StoredMeetingCandidate] {
         let sql = """
         SELECT source_day, epoch, title, start_at, duration_minutes, confidence, requires_clarification, state,
                confidence_score, participants_json, location, call_link, timezone_identifier
         FROM meeting_candidates
-        WHERE state IN ('ready_for_confirmation', 'needs_clarification')
+        WHERE state IN ('ready_for_confirmation', 'needs_clarification', 'conflict', 'edit_requested')
         ORDER BY start_at ASC;
         """
         var statement: OpaquePointer?
@@ -222,14 +225,15 @@ public final class ScreenwatchArchive: @unchecked Sendable {
                     participants: decodeParticipants(columnText(statement, at: 9)),
                     location: columnText(statement, at: 10),
                     callLink: columnText(statement, at: 11),
-                    timezoneIdentifier: columnText(statement, at: 12) ?? TimeZone.current.identifier
+                    timezoneIdentifier: columnText(statement, at: 12) ?? TimeZone.current.identifier,
+                    sourceEvidence: (try? decryptedSourceEvidence(candidateID: "\(sourceDay):\(sqlite3_column_int64(statement, 1))", cipher: cipher)) ?? ""
                 )
             )
         }
         return candidates
     }
 
-    public func meetingCandidate(id: String) throws -> StoredMeetingCandidate? {
+    public func meetingCandidate(id: String, cipher: (any EvidenceCiphering)? = nil) throws -> StoredMeetingCandidate? {
         guard let separator = id.lastIndex(of: ":"),
               let epoch = Int(id[id.index(after: separator)...])
         else { return nil }
@@ -265,7 +269,8 @@ public final class ScreenwatchArchive: @unchecked Sendable {
             participants: decodeParticipants(columnText(statement, at: 9)),
             location: columnText(statement, at: 10),
             callLink: columnText(statement, at: 11),
-            timezoneIdentifier: columnText(statement, at: 12) ?? TimeZone.current.identifier
+            timezoneIdentifier: columnText(statement, at: 12) ?? TimeZone.current.identifier,
+            sourceEvidence: (try? decryptedSourceEvidence(candidateID: id, cipher: cipher)) ?? ""
         )
     }
 
@@ -317,16 +322,26 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         return observations
     }
 
-    public func updateMeetingCandidate(_ candidate: StoredMeetingCandidate, state: String) throws {
-        let sql = "UPDATE meeting_candidates SET state = ? WHERE source_day = ? AND epoch = ?;"
+    public func updateMeetingCandidate(_ candidate: StoredMeetingCandidate, state: String, matchedEventID: String? = nil) throws {
+        let sql = """
+        UPDATE meeting_candidates
+        SET state = ?,
+            conflict_event_id = CASE WHEN ? = 'conflict' THEN ? ELSE conflict_event_id END,
+            duplicate_event_id = CASE WHEN ? = 'duplicate_calendar' THEN ? ELSE duplicate_event_id END
+        WHERE source_day = ? AND epoch = ?;
+        """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement
         else { throw ScreenwatchArchiveError.prepareInsert }
         defer { sqlite3_finalize(statement) }
         bind(state, to: statement, at: 1)
-        bind(candidate.sourceDay, to: statement, at: 2)
-        sqlite3_bind_int64(statement, 3, Int64(candidate.epoch))
+        bind(state, to: statement, at: 2)
+        if let matchedEventID { bind(matchedEventID, to: statement, at: 3) } else { sqlite3_bind_null(statement, 3) }
+        bind(state, to: statement, at: 4)
+        if let matchedEventID { bind(matchedEventID, to: statement, at: 5) } else { sqlite3_bind_null(statement, 5) }
+        bind(candidate.sourceDay, to: statement, at: 6)
+        sqlite3_bind_int64(statement, 7, Int64(candidate.epoch))
         guard sqlite3_step(statement) == SQLITE_DONE else { throw ScreenwatchArchiveError.insert }
     }
 
@@ -634,8 +649,8 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         let sql = """
         INSERT OR IGNORE INTO meeting_candidates
         (source_day, epoch, title, start_at, duration_minutes, confidence, confidence_score, requires_clarification, state, created_at,
-         candidate_fingerprint, participants_json, start_expression, location, call_link, timezone_identifier, expires_at_utc)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+         candidate_fingerprint, participants_json, start_expression, location, call_link, timezone_identifier, expires_at_utc, source_evidence)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -660,6 +675,7 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         if let callLink = candidate.callLink { bind(callLink, to: statement, at: 15) } else { sqlite3_bind_null(statement, 15) }
         bind(candidate.timezoneIdentifier, to: statement, at: 16)
         bind(ISO8601DateFormatter().string(from: candidate.start), to: statement, at: 17)
+        bind("", to: statement, at: 18)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw ScreenwatchArchiveError.insert }
         let inserted = sqlite3_changes(database) == 1
         try appendMeetingAudit(
@@ -688,6 +704,30 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         bind(ISO8601DateFormatter().string(from: Date()), to: statement, at: 6)
         bind("{\"fingerprint\":\"\(fingerprint)\"}", to: statement, at: 7)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw ScreenwatchArchiveError.insert }
+    }
+
+    private func decryptedSourceEvidence(candidateID: String, cipher: (any EvidenceCiphering)?) throws -> String {
+        let sql = """
+        SELECT extracted_facts.encrypted_payload
+        FROM meeting_evidence
+        JOIN extracted_facts ON extracted_facts.artifact_id = meeting_evidence.artifact_id
+        WHERE meeting_evidence.candidate_id = ?
+        ORDER BY extracted_facts.created_at_utc DESC
+        LIMIT 1;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw ScreenwatchArchiveError.prepareRead
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(candidateID, to: statement, at: 1)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let bytes = sqlite3_column_blob(statement, 0) else { return "" }
+        let encrypted = Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 0)))
+        let evidenceCipher: any EvidenceCiphering
+        if let cipher { evidenceCipher = cipher } else { evidenceCipher = try LocalEvidenceCipher() }
+        let plaintext = try evidenceCipher.decrypt(encrypted)
+        return try JSONDecoder().decode(ScreenshotOCRResult.self, from: plaintext).text
     }
 
     private func bind(_ value: String, to statement: OpaquePointer, at index: Int32) {

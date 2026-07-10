@@ -14,8 +14,8 @@ cd "$ROOT"
 swift build --configuration "$CONFIGURATION" --product ZoidCoach
 swift build --configuration "$CONFIGURATION" --product ZoidCoachAgent
 
+rm -rf "$APP_ROOT"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources" "$CONTENTS/Library/LaunchAgents"
-rm -rf "$CONTENTS/Resources/ZoidCoachAgent.app"
 cp "$ROOT/App/Info.plist" "$CONTENTS/Info.plist"
 cp "$BUILD_ROOT/ZoidCoach" "$CONTENTS/MacOS/ZoidCoach"
 cp "$BUILD_ROOT/ZoidCoachAgent" "$CONTENTS/MacOS/ZoidCoachAgent"

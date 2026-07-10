@@ -334,7 +334,8 @@ public final class EventKitCalendarSource: CalendarSource, CalendarAvailabilityS
             end: event.endDate,
             calendarIdentifier: event.calendar.calendarIdentifier,
             ownershipToken: ownershipToken(in: event.notes),
-            meetingFingerprint: meetingFingerprint(in: event.notes)
+            meetingFingerprint: meetingFingerprint(in: event.notes),
+            participants: participantNames(in: event)
         )
     }
 

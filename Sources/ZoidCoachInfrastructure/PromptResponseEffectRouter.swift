@@ -5,6 +5,7 @@ public enum PromptResponseEffect: Equatable, Sendable {
     case none
     case meetingEnqueued(commandID: String, wasInserted: Bool)
     case meetingIgnored(candidateID: String)
+    case meetingEditRequested(candidateID: String)
     case planUndoQueued(dayKey: String)
     case planScheduleQueued(dayKey: String)
 }
@@ -100,7 +101,8 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
             try meetingArchive.updateMeetingCandidate(candidate, state: "ignored")
             return result.wasApplied ? .meetingIgnored(candidateID: candidate.id) : .none
         case .editMeeting:
-            return .none
+            try meetingArchive.updateMeetingCandidate(candidate, state: "edit_requested")
+            return result.wasApplied ? .meetingEditRequested(candidateID: candidate.id) : .none
         default:
             return .none
         }

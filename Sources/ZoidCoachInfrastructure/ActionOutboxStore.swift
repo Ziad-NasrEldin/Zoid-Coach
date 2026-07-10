@@ -93,12 +93,14 @@ public final class ActionOutboxStore: @unchecked Sendable {
             return ActionEnqueueResult(command: existing, wasInserted: false)
         }
         let date = now()
+        let recordsWouldDoOnly = try activeOperatingMode() == OperatingMode.observe.rawValue
         let command = ActionCommand(
             id: makeID(),
             idempotencyKey: idempotencyKey,
             type: type,
             entityID: entityID,
             desiredState: desiredState,
+            state: recordsWouldDoOnly ? .cancelled : .pending,
             createdAt: date,
             updatedAt: date
         )
@@ -117,7 +119,7 @@ public final class ActionOutboxStore: @unchecked Sendable {
         bind(type.rawValue, statement, 3)
         bind(entityID, statement, 4)
         bind(String(decoding: try encoder.encode(desiredState), as: UTF8.self), statement, 5)
-        bind(ActionCommandState.pending.rawValue, statement, 6)
+        bind(command.state.rawValue, statement, 6)
         bind(formatter.string(from: date), statement, 7)
         bind(formatter.string(from: date), statement, 8)
         bind(origin.rawValue, statement, 9)
@@ -133,10 +135,15 @@ public final class ActionOutboxStore: @unchecked Sendable {
             try cancelSupersededCommands(type: type, entityID: entityID, keepingCommandID: command.id, occurredAt: date)
         }
         try appendAuditEvent(
-            type: "action.enqueued",
+            type: recordsWouldDoOnly ? "action.would_do" : "action.enqueued",
             entityID: command.id,
             occurredAt: date,
-            payload: ["actionType": type.rawValue, "targetEntityID": entityID, "idempotencyKey": idempotencyKey]
+            payload: [
+                "actionType": type.rawValue,
+                "targetEntityID": entityID,
+                "idempotencyKey": idempotencyKey,
+                "operatingMode": recordsWouldDoOnly ? OperatingMode.observe.rawValue : "active"
+            ]
         )
         committed = true
         return ActionEnqueueResult(command: command, wasInserted: true)
@@ -176,12 +183,16 @@ public final class ActionOutboxStore: @unchecked Sendable {
         SELECT id FROM action_commands
         WHERE state IN ('pending', 'retryable_failure')
           AND (next_attempt_at_utc IS NULL OR next_attempt_at_utc <= ?)
+          AND COALESCE(
+            (SELECT json_extract(payload_json, '$.operatingMode') FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1 ORDER BY version DESC LIMIT 1),
+            'suggest'
+          ) != 'observe'
           AND (
             action_origin != 'automatic_plan'
             OR COALESCE(
               (SELECT json_extract(payload_json, '$.operatingMode') FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1 ORDER BY version DESC LIMIT 1),
-              'suggestionsOnly'
-            ) = 'fullyAutomatic'
+              'suggest'
+            ) IN ('autonomous', 'fullyAutomatic')
           )
         ORDER BY created_at_utc ASC, id ASC
         LIMIT 1;
@@ -208,6 +219,23 @@ public final class ActionOutboxStore: @unchecked Sendable {
         try appendAuditEvent(type: "action.executing", entityID: claimed.id, occurredAt: date, payload: ["attempt": String(claimed.attemptCount)])
         committed = true
         return claimed
+    }
+
+    private func activeOperatingMode() throws -> String? {
+        let sql = """
+        SELECT json_extract(payload_json, '$.operatingMode')
+        FROM policy_versions
+        WHERE policy_type = 'user_policy' AND is_active = 1
+        ORDER BY version DESC
+        LIMIT 1;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw ActionOutboxStoreError.prepare(errorMessage) }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+        return text(statement, 0)
     }
 
     public func markSucceeded(_ command: ActionCommand, platformIdentifier: String? = nil) throws {

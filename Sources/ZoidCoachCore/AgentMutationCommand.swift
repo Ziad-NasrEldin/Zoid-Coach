@@ -75,6 +75,7 @@ public enum AgentMutationCommand: Equatable, Codable, Sendable {
         destination: AgentMeetingDestination
     )
     case ignoreMeetingCandidate(candidateID: String)
+    case deferMeetingCandidate(candidateID: String)
 }
 
 public struct ActionAuditEntry: Identifiable, Equatable, Codable, Sendable {

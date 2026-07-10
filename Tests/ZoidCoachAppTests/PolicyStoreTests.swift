@@ -27,6 +27,19 @@ func policyStoreVersionsChangesAndRollsBackTheActivePolicy() throws {
     #expect(third.version == 3)
 }
 
+@Test
+func operatingModeMigratesLegacyPolicyValuesAndPersistsTheFourRolloutModes() throws {
+    let decoder = JSONDecoder()
+    let encoder = JSONEncoder()
+
+    #expect(try decoder.decode(OperatingMode.self, from: Data(#""suggestionsOnly""#.utf8)) == .suggest)
+    #expect(try decoder.decode(OperatingMode.self, from: Data(#""approvalRequired""#.utf8)) == .assist)
+    #expect(try decoder.decode(OperatingMode.self, from: Data(#""fullyAutomatic""#.utf8)) == .autonomous)
+    #expect(OperatingMode.allCases == [.observe, .suggest, .assist, .autonomous])
+    #expect(String(decoding: try encoder.encode(OperatingMode.observe), as: UTF8.self) == #""observe""#)
+    #expect(String(decoding: try encoder.encode(OperatingMode.autonomous), as: UTF8.self) == #""autonomous""#)
+}
+
 private func policy(mode: OperatingMode) -> UserPolicy {
     let defaults = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
     return UserPolicy(
