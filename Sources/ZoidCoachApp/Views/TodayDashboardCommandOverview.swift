@@ -58,7 +58,7 @@ struct TodayDashboardCommandOverview: View {
 
     private var focusCommitment: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(primaryFocusRow == nil ? "MAIN OBJECTIVE" : "ACTIVE COMMITMENT · \(primaryFocusEstimateMinutes) MIN")
+            Text(primaryFocusHeading)
                 .font(Sumi.label(9))
                 .sumiLabelTracking()
                 .foregroundStyle(Sumi.seal)
@@ -70,7 +70,7 @@ struct TodayDashboardCommandOverview: View {
                 .padding(.top, 14)
             if let row = primaryFocusRow {
                 HStack(spacing: 14) {
-                    detail("Estimate", "\(planEntry(for: row)?.estimateMinutes ?? row.estimateMinutes)m")
+                    detail("Estimate", planEntry(for: row)?.estimateMinutes.map { "\($0)m" } ?? "Choose")
                     detail("Deadline", deadlineLabel(row.dueDate))
                     detail("Urgency", "\(row.urgency.rawValue.capitalized)")
                 }
@@ -248,9 +248,10 @@ struct TodayDashboardCommandOverview: View {
             ?? recommendedRow
     }
 
-    private var primaryFocusEstimateMinutes: Int {
-        guard let row = primaryFocusRow else { return 0 }
-        return planEntry(for: row)?.estimateMinutes ?? row.estimateMinutes
+    private var primaryFocusHeading: String {
+        guard let row = primaryFocusRow else { return "MAIN OBJECTIVE" }
+        guard let estimate = planEntry(for: row)?.estimateMinutes else { return "ACTIVE COMMITMENT · ESTIMATE NEEDED" }
+        return "ACTIVE COMMITMENT · \(estimate) MIN"
     }
 
     private var plannedRows: [TodayTaskRow] {
@@ -258,7 +259,26 @@ struct TodayDashboardCommandOverview: View {
         let snapshotRows = Dictionary(uniqueKeysWithValues: snapshot.taskRows.map { ($0.taskID, $0) })
         return model.dailyPlan
             .sorted { $0.rank < $1.rank }
-            .compactMap { snapshotRows[$0.reminderID] }
+            .compactMap { entry in
+                snapshotRows[entry.reminderID] ?? localTaskRow(for: entry)
+            }
+    }
+
+    private func localTaskRow(for entry: DailyPlanEntry) -> TodayTaskRow? {
+        guard let task = model.reminderTasks.first(where: { $0.id == entry.reminderID }) else { return nil }
+        return TodayTaskRow(
+            taskID: task.id,
+            title: task.title,
+            estimateMinutes: entry.estimateMinutes ?? 15,
+            dueDate: task.dueDate,
+            urgency: TaskUrgency.resolve(
+                dueDate: task.dueDate,
+                priority: ReminderPriority.fromEventKit(task.priority),
+                referenceDate: Date()
+            ),
+            state: .ready,
+            isMainObjective: entry.isMainObjective
+        )
     }
 
     private func planEntry(for row: TodayTaskRow) -> DailyPlanEntry? {
@@ -343,7 +363,7 @@ private struct TodayPlanTaskRow: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                         .layoutPriority(1)
-                    Text("\(effectiveEstimateMinutes)m · \(row.urgency.rawValue.capitalized) urgency · \(row.state.rawValue.capitalized)")
+                    Text("\(estimateSummary) · \(row.urgency.rawValue.capitalized) urgency · \(row.state.rawValue.capitalized)")
                         .font(Sumi.body(10))
                         .foregroundStyle(Sumi.muted)
                         .contentTransition(.numericText())
@@ -393,7 +413,12 @@ private struct TodayPlanTaskRow: View {
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: entry)
     }
 
-    private var effectiveEstimateMinutes: Int { entry?.estimateMinutes ?? row.estimateMinutes }
+    private var estimateSummary: String {
+        if let entry {
+            return entry.estimateMinutes.map { "\($0)m" } ?? "Estimate needed"
+        }
+        return "\(row.estimateMinutes)m"
+    }
 
     private var canApplyCommand: Bool {
         ![.blocked, .completed, .rescheduled].contains(row.state)
