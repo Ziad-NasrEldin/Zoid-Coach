@@ -1,5 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import ZoidCoachCore
+import ZoidCoachInfrastructure
 
 struct DashboardView: View {
     @EnvironmentObject private var model: AppModel
@@ -15,6 +17,8 @@ struct DashboardView: View {
                 Group {
                     if model.selectedSection == .today {
                         TodayCommandView()
+                    } else if model.selectedSection == .settings {
+                        SettingsView()
                     } else {
                         VStack(alignment: .leading, spacing: 0) {
                             CommandHeaderView()
@@ -35,6 +39,7 @@ struct DashboardView: View {
 
 private struct TodayCommandView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var draggedReminderListID: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -50,6 +55,46 @@ private struct TodayCommandView: View {
                 }
 
                 Spacer()
+
+                Button {
+                    model.generateSuggestedDailyPlan()
+                } label: {
+                    HStack(spacing: 7) {
+                        if model.isGeneratingSuggestedPlan {
+                            ProgressView().controlSize(.small).tint(Sumi.ink)
+                        }
+                        Text(model.isGeneratingSuggestedPlan ? "DRAFTING" : "DRAFT TODAY")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                    }
+                    .foregroundStyle(Sumi.ink)
+                    .padding(.horizontal, 12)
+                    .frame(height: 36)
+                    .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+                }
+                .buttonStyle(.plain)
+                .disabled(model.isGeneratingSuggestedPlan || model.reminderTasks.isEmpty)
+                .accessibilityLabel("Draft today's suggested plan")
+
+                Button {
+                    model.scheduleDailyPlan()
+                } label: {
+                    HStack(spacing: 7) {
+                        if model.isSchedulingDailyPlan {
+                            ProgressView().controlSize(.small).tint(Sumi.paper)
+                        }
+                        Text(model.isSchedulingDailyPlan ? "RESERVING" : "RESERVE DAY")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                    }
+                    .foregroundStyle(Sumi.paper)
+                    .padding(.horizontal, 12)
+                    .frame(height: 36)
+                    .background(Sumi.ink)
+                }
+                .buttonStyle(.plain)
+                .disabled(model.isSchedulingDailyPlan || model.dailyPlan.isEmpty)
+                .accessibilityLabel("Reserve today's plan in Apple Calendar")
 
                 Button {
                     model.refreshReminderTasks()
@@ -72,32 +117,46 @@ private struct TodayCommandView: View {
                 .accessibilityLabel("Refresh reminders")
             }
             .padding(.horizontal, 28)
-            .frame(height: 72)
+            .frame(height: 60)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text("PLAN BEFORE MOTION")
-                    .font(Sumi.label(10))
-                    .sumiLabelTracking()
-                    .foregroundStyle(Sumi.seal)
-                Text("Three commitments.\nOne clear objective.")
-                    .font(Sumi.display(40))
-                    .tracking(-1.2)
-                    .foregroundStyle(Sumi.ink)
-                Text("Select the work that deserves the day, add a realistic estimate, then let the remaining inbox stay quiet until it earns attention.")
-                    .font(Sumi.body(15))
-                    .foregroundStyle(Sumi.muted)
-                    .lineSpacing(4)
-                    .frame(maxWidth: 620, alignment: .leading)
+            if let snapshot = model.todaySnapshot {
+                TodayDashboardCommandOverview(snapshot: snapshot)
+            } else {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("PLAN BEFORE MOTION")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Text("Three commitments. One clear objective.")
+                        .font(Sumi.display(32))
+                        .tracking(-0.8)
+                        .foregroundStyle(Sumi.ink)
+                    Text("The agent is preparing today's command ledger from its local sources.")
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.muted)
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 18)
+                DailyPlanLedger()
             }
-            .padding(.horizontal, 28)
-            .padding(.vertical, 34)
 
-            DailyPlanLedger()
+            if let calendarError = model.calendarScheduleError {
+                Text(calendarError)
+                    .font(Sumi.body(13))
+                    .foregroundStyle(Sumi.seal)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.sealWash)
+            }
+
+            PromptInboxLedger()
+            MeetingCandidateLedger()
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("UNPLANNED REMINDERS")
+                    Text("FULL INVENTORY / UNPLANNED REMINDERS")
                         .font(Sumi.label(10))
                         .sumiLabelTracking()
                     Spacer()
@@ -130,6 +189,7 @@ private struct TodayCommandView: View {
                     ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
                         ReminderListGroup(
                             group: group,
+                            draggedListID: $draggedReminderListID,
                             moveUp: index > 0 ? {
                                 withAnimation(.easeOut(duration: 0.2)) {
                                     model.moveReminderList(group.listID, before: groups[index - 1].listID)
@@ -142,14 +202,30 @@ private struct TodayCommandView: View {
                             } : nil
                         )
                     }
-                    ReminderListEndDropTarget()
+                    ReminderListEndDropTarget(draggedListID: $draggedReminderListID)
                 }
             }
+
+            TodaySourceFreshnessFooter()
         }
     }
 
     private var unplannedTasks: [ReminderTask] {
-        model.reminderTasks.filter { task in
+        if let snapshotRows = model.todaySnapshot?.unplannedReminders {
+            return snapshotRows.map {
+                ReminderTask(
+                    id: $0.reminderID,
+                    title: $0.title,
+                    listID: $0.listID ?? "agent-unfiled",
+                    listName: $0.listName ?? "Unfiled",
+                    dueDate: $0.dueDate,
+                    priority: $0.priority,
+                    notes: nil,
+                    modificationDate: nil
+                )
+            }
+        }
+        return model.reminderTasks.filter { task in
             !model.dailyPlan.contains { $0.reminderID == task.id }
         }
     }
@@ -168,6 +244,233 @@ private struct TodayCommandView: View {
     }
 }
 
+private struct PromptInboxLedger: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        if !model.promptEpisodes.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("DECISIONS")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.ink)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.mist)
+                    .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                ForEach(model.promptEpisodes) { episode in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(episode.title).font(Sumi.body(15)).foregroundStyle(Sumi.ink)
+                        Text(episode.summary).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
+                        HStack(spacing: 8) {
+                            ForEach(episode.actions) { action in
+                                Button(action.title.uppercased()) {
+                                    model.respondToPrompt(episode, action: action.kind)
+                                }
+                                .font(Sumi.label(8))
+                                .sumiLabelTracking()
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                }
+            }
+        }
+    }
+}
+
+private struct TodaySourceFreshnessFooter: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("SOURCE FRESHNESS")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.ink)
+            if let sources = model.todaySnapshot?.sources, !sources.isEmpty {
+                ForEach(sources) { source in
+                    HStack(spacing: 8) {
+                        Text(source.sourceID.capitalized).font(Sumi.body(12)).foregroundStyle(Sumi.ink)
+                        Spacer()
+                        Text(source.state.uppercased()).font(Sumi.label(8)).sumiLabelTracking().foregroundStyle(Sumi.muted)
+                        Text(source.detail).font(Sumi.body(11)).foregroundStyle(Sumi.muted)
+                    }
+                }
+            } else {
+                ForEach(model.sources) { source in
+                    HStack(spacing: 8) {
+                        Text(source.title).font(Sumi.body(12)).foregroundStyle(Sumi.ink)
+                        Spacer()
+                        Text(source.state.rawValue.uppercased()).font(Sumi.label(8)).sumiLabelTracking().foregroundStyle(Sumi.muted)
+                        Text(source.detail).font(Sumi.body(11)).foregroundStyle(Sumi.muted)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 14)
+        .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+    }
+}
+
+private struct TodayAgentLedger: View {
+    @EnvironmentObject private var model: AppModel
+    let snapshot: TodaySnapshot
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("ZOID COACH - TODAY")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Text(snapshot.localDate.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                    .font(Sumi.display(30))
+                    .foregroundStyle(Sumi.ink)
+                Text(snapshot.mainObjective.map { "Main objective: \($0)" } ?? "No main objective is set yet.")
+                    .font(Sumi.body(13))
+                    .foregroundStyle(Sumi.muted)
+                Text(snapshot.activeTask == nil ? snapshot.recommendation.sentence : "Active task: \(activeTitle)")
+                    .font(Sumi.body(14))
+                    .foregroundStyle(Sumi.ink)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 18)
+
+            sectionTitle("TODAY'S PLANNED TASKS")
+            ForEach(snapshot.taskRows) { row in
+                TodayTaskRowView(row: row)
+            }
+
+            sectionTitle("BEHAVIOR SUMMARY")
+            HStack(spacing: 20) {
+                metric("Working", snapshot.behavior.workMinutes)
+                metric("Gaming / distracting", snapshot.behavior.gamingOrDistractingMinutes)
+                metric("Idle", snapshot.behavior.idleMinutes)
+                if snapshot.behavior.unknownMinutes > 0 { metric("Unknown", snapshot.behavior.unknownMinutes) }
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 12)
+            if snapshot.coverage.isLimited {
+                Text(snapshot.coverage.explanation)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, 12)
+            }
+
+            sectionTitle("DO THIS NEXT")
+            Text(snapshot.recommendation.sentence)
+                .font(Sumi.body(14))
+                .foregroundStyle(Sumi.ink)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 12)
+
+            sectionTitle("GAMING BUDGET")
+            Text("\(snapshot.gaming.usedMinutes)m used of \(snapshot.gaming.budgetMinutes)m. \(snapshot.gaming.unlockedRemainingMinutes)m remaining.")
+                .font(Sumi.body(14))
+                .foregroundStyle(Sumi.ink)
+                .padding(.horizontal, 28)
+                .padding(.top, 12)
+            Text(snapshot.gaming.nextUnlockReason)
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 14)
+        }
+    }
+
+    private var activeTitle: String {
+        guard let activeID = snapshot.activeTask?.taskID else { return "" }
+        return snapshot.taskRows.first(where: { $0.taskID == activeID })?.title ?? "A task"
+    }
+
+    @ViewBuilder
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(Sumi.label(9))
+            .sumiLabelTracking()
+            .foregroundStyle(Sumi.ink)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Sumi.mist)
+            .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+    }
+
+    private func metric(_ label: String, _ minutes: Int) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("\(minutes)m").font(Sumi.display(20)).foregroundStyle(Sumi.ink)
+            Text(label).font(Sumi.label(8)).sumiLabelTracking().foregroundStyle(Sumi.muted)
+        }
+    }
+}
+
+private struct TodayTaskRowView: View {
+    @EnvironmentObject private var model: AppModel
+    let row: TodayTaskRow
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Button { primaryAction() } label: {
+                Image(systemName: row.state == .completed ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(row.state == .completed ? Sumi.seal : Sumi.muted)
+            }
+            .buttonStyle(.plain)
+            .disabled([.completed, .blocked, .rescheduled].contains(row.state))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(row.title).font(Sumi.body(14)).foregroundStyle(Sumi.ink)
+                Text("\(row.estimateMinutes)m  ·  \(relativeDeadline(row.dueDate))  ·  \(row.urgency.rawValue.capitalized) urgency  ·  \(row.state.rawValue.capitalized)")
+                    .font(Sumi.body(11)).foregroundStyle(Sumi.muted)
+            }
+            Spacer()
+            if row.state == .active {
+                Button("PAUSE") { model.applyTaskCommand(.pause, taskID: row.taskID) }
+            } else if row.state == .paused {
+                Button("RESUME") { model.applyTaskCommand(.resume, taskID: row.taskID) }
+            } else if row.state == .ready {
+                Button("START") { model.applyTaskCommand(.start, taskID: row.taskID) }
+            }
+            Menu("MORE") {
+                Button("Block task") { model.applyTaskCommand(.block, taskID: row.taskID) }
+                Button("Reschedule task") { model.applyTaskCommand(.reschedule, taskID: row.taskID) }
+            }
+        }
+        .font(Sumi.label(8))
+        .sumiLabelTracking()
+        .padding(.horizontal, 28)
+        .padding(.vertical, 11)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+    }
+
+    private func relativeDeadline(_ date: Date?) -> String {
+        guard let date else { return "No deadline" }
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return "Due today" }
+        if calendar.isDateInTomorrow(date) { return "Due tomorrow" }
+        if date < Date() { return "Overdue" }
+        return date.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    private func primaryAction() {
+        switch row.state {
+        case .active:
+            model.applyTaskCommand(.complete, taskID: row.taskID)
+        case .ready:
+            model.applyTaskCommand(.start, taskID: row.taskID)
+        case .paused:
+            model.applyTaskCommand(.resume, taskID: row.taskID)
+        case .blocked, .completed, .rescheduled:
+            break
+        }
+    }
+}
+
 private struct ReminderTaskGroup: Identifiable {
     let listID: String
     let listName: String
@@ -179,6 +482,7 @@ private struct ReminderTaskGroup: Identifiable {
 private struct ReminderListGroup: View {
     @EnvironmentObject private var model: AppModel
     let group: ReminderTaskGroup
+    @Binding var draggedListID: String?
     let moveUp: (() -> Void)?
     let moveDown: (() -> Void)?
     @State private var isDropTarget = false
@@ -221,16 +525,20 @@ private struct ReminderListGroup: View {
             .background(isDropTarget ? Sumi.sealWash : Sumi.softPaper)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
             .contentShape(Rectangle())
-            .draggable(group.listID)
-            .dropDestination(for: String.self) { listIDs, _ in
-                guard let listID = listIDs.first else { return false }
+            .onDrag {
+                draggedListID = group.listID
+                return NSItemProvider(object: group.listID as NSString)
+            }
+            .allowingReminderListMoves()
+            .onDrop(of: [.text], delegate: ReminderListDropDelegate(
+                targetListID: group.listID,
+                draggedListID: $draggedListID,
+                isDropTarget: $isDropTarget
+            ) { listID in
                 withAnimation(.easeOut(duration: 0.2)) {
                     model.moveReminderList(listID, before: group.listID)
                 }
-                return true
-            } isTargeted: { isTargeted in
-                isDropTarget = isTargeted
-            }
+            })
             .allowsHitTesting(!model.isLoadingReminderListOrder)
             .accessibilityLabel("\(group.listName), \(group.tasks.count) tasks. Drag to reorder this reminder list.")
 
@@ -243,6 +551,7 @@ private struct ReminderListGroup: View {
 
 private struct ReminderListEndDropTarget: View {
     @EnvironmentObject private var model: AppModel
+    @Binding var draggedListID: String?
     @State private var isDropTarget = false
 
     var body: some View {
@@ -253,22 +562,79 @@ private struct ReminderListEndDropTarget: View {
             .frame(maxWidth: .infinity, minHeight: 34)
             .background(isDropTarget ? Sumi.sealWash : Sumi.softPaper)
             .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
-            .dropDestination(for: String.self) { listIDs, _ in
-                guard let listID = listIDs.first else { return false }
+            .onDrop(of: [.text], delegate: ReminderListDropDelegate(
+                draggedListID: $draggedListID,
+                isDropTarget: $isDropTarget
+            ) { listID in
                 withAnimation(.easeOut(duration: 0.2)) {
                     model.moveReminderListToEnd(listID)
                 }
-                return true
-            } isTargeted: { isTargeted in
-                isDropTarget = isTargeted
-            }
+            })
             .allowsHitTesting(!model.isLoadingReminderListOrder)
             .accessibilityLabel("Move reminder list to the final position")
     }
 }
 
+private struct ReminderListDropDelegate: DropDelegate {
+    let targetListID: String?
+    @Binding var draggedListID: String?
+    @Binding var isDropTarget: Bool
+    let moveList: (String) -> Void
+
+    init(
+        targetListID: String? = nil,
+        draggedListID: Binding<String?>,
+        isDropTarget: Binding<Bool>,
+        moveList: @escaping (String) -> Void
+    ) {
+        self.targetListID = targetListID
+        _draggedListID = draggedListID
+        _isDropTarget = isDropTarget
+        self.moveList = moveList
+    }
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [.text])
+    }
+
+    func dropEntered(info: DropInfo) {
+        isDropTarget = true
+    }
+
+    func dropExited(info: DropInfo) {
+        isDropTarget = false
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        defer {
+            draggedListID = nil
+            isDropTarget = false
+        }
+
+        guard let listID = draggedListID, listID != targetListID else { return false }
+        moveList(listID)
+        return true
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func allowingReminderListMoves() -> some View {
+        if #available(macOS 26.0, *) {
+            dragConfiguration(DragConfiguration(allowMove: true))
+        } else {
+            self
+        }
+    }
+}
+
 private struct DailyPlanLedger: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let entries = model.dailyPlan.sorted { $0.rank < $1.rank }
@@ -284,9 +650,10 @@ private struct DailyPlanLedger: View {
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
+                    .contentTransition(.numericText())
             }
             .padding(.horizontal, 28)
-            .padding(.vertical, 12)
+            .padding(.vertical, 10)
             .background(Sumi.ink)
             .foregroundStyle(Sumi.paper)
 
@@ -298,8 +665,10 @@ private struct DailyPlanLedger: View {
                 Text(task(for: mainObjective)?.title ?? "Choose the outcome that makes today successful.")
                     .font(Sumi.display(27))
                     .foregroundStyle(mainObjective == nil ? Sumi.muted : Sumi.ink)
+                    .contentTransition(.opacity)
             }
-            .padding(28)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 18)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Sumi.sealWash)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
@@ -307,6 +676,10 @@ private struct DailyPlanLedger: View {
             ForEach(entries) { entry in
                 if let task = task(for: entry) {
                     PlannedReminderRow(entry: entry, task: task)
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .top)),
+                            removal: .opacity
+                        ))
                 }
             }
 
@@ -315,12 +688,14 @@ private struct DailyPlanLedger: View {
                     .font(Sumi.body(13))
                     .foregroundStyle(Sumi.muted)
                     .padding(.horizontal, 28)
-                    .padding(.vertical, 18)
+                    .padding(.vertical, 12)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Sumi.softPaper)
             }
         }
         .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: entries)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: mainObjective?.id)
     }
 
     private func task(for entry: DailyPlanEntry?) -> ReminderTask? {
@@ -331,6 +706,7 @@ private struct DailyPlanLedger: View {
 
 private struct PlannedReminderRow: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let entry: DailyPlanEntry
     let task: ReminderTask
 
@@ -347,6 +723,9 @@ private struct PlannedReminderRow: View {
                     Text(task.title)
                         .font(Sumi.body(16))
                         .foregroundStyle(Sumi.ink)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
                     Spacer()
                     if entry.isMainObjective {
                         Text("MAIN")
@@ -359,34 +738,31 @@ private struct PlannedReminderRow: View {
                     }
                 }
 
-                HStack(spacing: 7) {
-                    Text(entry.estimateMinutes.map { "\($0) MIN" } ?? "ADD ESTIMATE")
-                        .font(Sumi.label(8))
-                        .sumiLabelTracking()
-                        .foregroundStyle(entry.estimateMinutes == nil ? Sumi.seal : Sumi.muted)
-                    ForEach([15, 30, 45, 60, 90], id: \.self) { minutes in
-                        Button("\(minutes)") {
-                            model.setEstimate(minutes, for: entry)
-                        }
-                        .font(Sumi.label(8))
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Sumi.ink)
-                        .padding(.horizontal, 5)
-                        .frame(height: 22)
-                        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
-                        .accessibilityLabel("Set \(task.title) estimate to \(minutes) minutes")
-                    }
+                TimeBlockSelector(
+                    selectedMinutes: entry.estimateMinutes,
+                    taskTitle: task.title
+                ) { minutes in
+                    model.setEstimate(minutes, for: entry)
+                }
+
+                if let selectionReason = entry.selectionReason {
+                    Text(selectionReason)
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.muted)
+                }
+
+                HStack(spacing: 14) {
                     Spacer()
                     Button("MAKE MAIN") { model.setMainObjective(entry) }
                         .font(Sumi.label(8))
                         .sumiLabelTracking()
-                        .buttonStyle(.plain)
+                        .buttonStyle(SumiPressStyle())
                         .foregroundStyle(Sumi.ink)
                         .disabled(entry.isMainObjective)
                     Button("REMOVE") { model.removeFromDailyPlan(entry) }
                         .font(Sumi.label(8))
                         .sumiLabelTracking()
-                        .buttonStyle(.plain)
+                        .buttonStyle(SumiPressStyle())
                         .foregroundStyle(Sumi.seal)
                 }
             }
@@ -394,6 +770,269 @@ private struct PlannedReminderRow: View {
         .padding(.horizontal, 28)
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: entry.isMainObjective)
+    }
+}
+
+private struct MeetingCandidateLedger: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var editingCandidate: StoredMeetingCandidate?
+
+    var body: some View {
+        guard !model.meetingCandidates.isEmpty || model.meetingCandidateError != nil else { return AnyView(EmptyView()) }
+        return AnyView(
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("MEETING DETECTIONS")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                    Spacer()
+                    Text("CONFIRM BEFORE CALENDAR")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.muted)
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 10)
+                .background(Sumi.mist)
+                .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+                if let error = model.meetingCandidateError {
+                    Text(error)
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.seal)
+                        .padding(28)
+                }
+
+                ForEach(model.meetingCandidates) { candidate in
+                    HStack(alignment: .top, spacing: 14) {
+                        Image(systemName: "calendar.badge.clock")
+                            .foregroundStyle(Sumi.seal)
+                            .frame(width: 28, height: 28)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(candidate.title)
+                                .font(Sumi.body(16))
+                            Text(candidate.start.formatted(date: .abbreviated, time: .shortened) + " · \(candidate.durationMinutes) MIN")
+                                .font(Sumi.label(8))
+                                .sumiLabelTracking()
+                                .foregroundStyle(Sumi.muted)
+                            if candidate.requiresClarification {
+                                Text("TIME NEEDS REVIEW")
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.seal)
+                            }
+                        }
+                        Spacer()
+                        Button("ADD") { model.addMeetingCandidateToCalendar(candidate) }
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .buttonStyle(SumiPressStyle())
+                            .foregroundStyle(Sumi.paper)
+                            .padding(.horizontal, 9)
+                            .frame(height: 26)
+                            .background(Sumi.ink)
+                            .accessibilityLabel("Add detected meeting to Apple Calendar")
+                        Button("EDIT") { editingCandidate = candidate }
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .buttonStyle(SumiPressStyle())
+                            .foregroundStyle(Sumi.ink)
+                            .accessibilityLabel("Edit detected meeting before saving")
+                        Button("IGNORE") { model.ignoreMeetingCandidate(candidate) }
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .buttonStyle(SumiPressStyle())
+                            .foregroundStyle(Sumi.seal)
+                            .accessibilityLabel("Ignore detected meeting")
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 14)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+                }
+            }
+            .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+            .sheet(item: $editingCandidate) { candidate in
+                MeetingCandidateEditor(candidate: candidate) { title, start, duration, destination in
+                    model.saveMeetingCandidate(
+                        candidate,
+                        title: title,
+                        start: start,
+                        durationMinutes: duration,
+                        destination: destination
+                    )
+                    editingCandidate = nil
+                } onCancel: {
+                    editingCandidate = nil
+                }
+            }
+        )
+    }
+}
+
+private struct MeetingCandidateEditor: View {
+    let candidate: StoredMeetingCandidate
+    let save: (String, Date, Int, MeetingDestination) -> Void
+    let cancel: () -> Void
+    @State private var title: String
+    @State private var start: Date
+    @State private var duration: Int
+    @State private var destination: MeetingDestination = .calendar
+
+    init(
+        candidate: StoredMeetingCandidate,
+        save: @escaping (String, Date, Int, MeetingDestination) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.candidate = candidate
+        self.save = save
+        cancel = onCancel
+        _title = State(initialValue: candidate.title)
+        _start = State(initialValue: candidate.start)
+        _duration = State(initialValue: candidate.durationMinutes)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("CONFIRM MEETING")
+                .font(Sumi.label(10))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            TextField("Title", text: $title)
+                .textFieldStyle(.roundedBorder)
+            DatePicker("When", selection: $start)
+            Stepper("Duration: \(duration) minutes", value: $duration, in: 15...240, step: 15)
+            Picker("Save as", selection: $destination) {
+                ForEach(MeetingDestination.allCases) { destination in
+                    Text(destination.rawValue).tag(destination)
+                }
+            }
+            .pickerStyle(.segmented)
+            HStack {
+                Button("CANCEL", action: cancel)
+                    .buttonStyle(SumiPressStyle())
+                    .foregroundStyle(Sumi.ink)
+                Spacer()
+                Button(destination == .calendar ? "ADD TO CALENDAR" : "CREATE REMINDER") {
+                    save(title, start, duration, destination)
+                }
+                .buttonStyle(SumiPressStyle())
+                .foregroundStyle(Sumi.paper)
+                .padding(.horizontal, 12)
+                .frame(height: 36)
+                .background(Sumi.ink)
+                .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(24)
+        .frame(width: 420)
+        .background(Sumi.paper)
+    }
+}
+
+private struct TimeBlockSelector: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let selectedMinutes: Int?
+    let taskTitle: String
+    let select: (Int) -> Void
+
+    private let durations = [15, 30, 45, 60, 90]
+    @State private var isChanging = false
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Text(selectedMinutes == nil || isChanging ? "ADD ESTIMATE" : "TIME BLOCK")
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(selectedMinutes == nil ? Sumi.seal : Sumi.muted)
+
+            if let selectedMinutes, !isChanging {
+                Label {
+                    Text(durationLabel(selectedMinutes))
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                } icon: {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 8, weight: .bold))
+                }
+                .foregroundStyle(Sumi.paper)
+                .padding(.horizontal, 7)
+                .frame(height: 22)
+                .background(Sumi.seal)
+                .accessibilityLabel("Time estimate confirmed: \(durationLabel(selectedMinutes))")
+                .transition(.scale(scale: 0.9).combined(with: .opacity))
+
+                Button {
+                    isChanging = true
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 10, weight: .medium))
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                        .background(Sumi.paper)
+                        .overlay {
+                            Rectangle()
+                                .stroke(Sumi.rule, lineWidth: 1)
+                                .allowsHitTesting(false)
+                        }
+                }
+                .buttonStyle(SumiPressStyle())
+                .foregroundStyle(Sumi.ink)
+                .padding(3)
+                .contentShape(Rectangle())
+                .accessibilityLabel("Change \(taskTitle) estimate from \(durationLabel(selectedMinutes))")
+                .help("Change time estimate")
+            } else {
+                ForEach(durations, id: \.self) { minutes in
+                    Button {
+                        select(minutes)
+                        isChanging = false
+                    } label: {
+                        Text(durationLabel(minutes))
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .padding(.horizontal, 5)
+                            .frame(height: 22)
+                    }
+                    .buttonStyle(TimeSlotButtonStyle())
+                    .accessibilityLabel("Set \(taskTitle) estimate to \(durationLabel(minutes))")
+                }
+            }
+            Spacer()
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: selectedMinutes)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isChanging)
+    }
+
+    private func durationLabel(_ minutes: Int) -> String {
+        "\(minutes) MIN"
+    }
+}
+
+private struct TimeSlotButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(configuration.isPressed ? Sumi.paper : Sumi.ink)
+            .background(configuration.isPressed ? Sumi.seal : Sumi.paper)
+            .overlay {
+                Rectangle().stroke(configuration.isPressed ? Sumi.seal : Sumi.rule, lineWidth: 1)
+            }
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+private struct SumiPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.65 : 1)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -411,7 +1050,7 @@ private struct InboxReminderTaskRow: View {
                     .foregroundStyle(Sumi.seal)
                     .frame(width: 28, height: 28)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SumiPressStyle())
             .accessibilityLabel("Complete \(task.title)")
 
             VStack(alignment: .leading, spacing: 4) {
@@ -438,7 +1077,7 @@ private struct InboxReminderTaskRow: View {
             }
             .font(Sumi.label(8))
             .sumiLabelTracking()
-            .buttonStyle(.plain)
+            .buttonStyle(SumiPressStyle())
             .foregroundStyle(Sumi.paper)
             .padding(.horizontal, 9)
             .frame(height: 26)

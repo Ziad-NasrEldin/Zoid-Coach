@@ -1,0 +1,127 @@
+import Foundation
+import UserNotifications
+import ZoidCoachCore
+
+@MainActor
+final class NotificationService {
+    private let center: UNUserNotificationCenter?
+
+    init(center: UNUserNotificationCenter? = nil) {
+        self.center = center
+    }
+
+    private var notificationCenter: UNUserNotificationCenter { center ?? .current() }
+    private var isRunningInSwiftPackageTests: Bool {
+        Bundle.main.bundleURL.path.contains("swift/pm")
+    }
+
+    func inspect() async -> SourceHealth {
+        guard !isRunningInSwiftPackageTests else {
+            return SourceHealth(
+                id: .notifications,
+                title: "macOS Notifications",
+                eyebrow: "Escalation",
+                state: .notConnected,
+                detail: "Notification checks are unavailable in the test host",
+                evidence: "Production notification permissions are not touched by tests",
+                actionTitle: "Connect"
+            )
+        }
+        let settings = await notificationCenter.notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return SourceHealth(
+                id: .notifications,
+                title: "macOS Notifications",
+                eyebrow: "Escalation",
+                state: .healthy,
+                detail: "Plan and wake notifications are available",
+                evidence: "One active prompt is used per daily decision",
+                actionTitle: "Inspect"
+            )
+        case .notDetermined:
+            return SourceHealth(
+                id: .notifications,
+                title: "macOS Notifications",
+                eyebrow: "Escalation",
+                state: .notConnected,
+                detail: "Notification permission is ready to be requested",
+                evidence: "Required for morning plans and bounded wake alerts",
+                actionTitle: "Connect"
+            )
+        case .denied:
+            return SourceHealth(
+                id: .notifications,
+                title: "macOS Notifications",
+                eyebrow: "Escalation",
+                state: .attention,
+                detail: "Notifications are unavailable",
+                evidence: "Enable Zoid Coach notifications in System Settings",
+                actionTitle: "Retry"
+            )
+        @unknown default:
+            return SourceHealth(
+                id: .notifications,
+                title: "macOS Notifications",
+                eyebrow: "Escalation",
+                state: .attention,
+                detail: "Notification status is not recognized",
+                evidence: "No wake notification was scheduled",
+                actionTitle: "Inspect"
+            )
+        }
+    }
+
+    func requestAccessAndInspect() async -> SourceHealth {
+        do {
+            _ = try await notificationCenter.requestAuthorization(options: [.alert, .sound, .badge])
+        } catch {
+            return SourceHealth(
+                id: .notifications,
+                title: "macOS Notifications",
+                eyebrow: "Escalation",
+                state: .attention,
+                detail: "Notification permission request failed",
+                evidence: "No notification was scheduled",
+                actionTitle: "Retry"
+            )
+        }
+        return await inspect()
+    }
+
+    func scheduleWake(for day: Date, policy: WakeUpPolicy, reason: String) async throws {
+        let identifier = "zoid-coach.wake." + dayKey(for: day)
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
+        let calendar = Calendar.current
+        let dayComponents = calendar.dateComponents([.year, .month, .day], from: day)
+        var triggerComponents = DateComponents()
+        triggerComponents.calendar = calendar
+        triggerComponents.timeZone = calendar.timeZone
+        triggerComponents.year = dayComponents.year
+        triggerComponents.month = dayComponents.month
+        triggerComponents.day = dayComponents.day
+        triggerComponents.hour = policy.windowStartHour
+        triggerComponents.minute = 0
+
+        let content = UNMutableNotificationContent()
+        content.title = "Zoid Coach"
+        content.body = "Wake for your main objective. \(reason)"
+        content.sound = .default
+        content.categoryIdentifier = "ZOID_WAKE"
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
+        )
+        try await notificationCenter.add(request)
+    }
+
+    private func dayKey(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+}

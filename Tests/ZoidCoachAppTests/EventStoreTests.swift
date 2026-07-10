@@ -27,7 +27,14 @@ func eventStorePersistsDailyPlanEntries() async throws {
     let store = EventStore(databaseURL: databaseURL)
     let day = Date(timeIntervalSince1970: 1_700_000_000)
     let entries = [
-        DailyPlanEntry(reminderID: "first", rank: 1, isMainObjective: true, estimateMinutes: 45),
+        DailyPlanEntry(
+            reminderID: "first",
+            rank: 1,
+            isMainObjective: true,
+            estimateMinutes: 45,
+            selectionReason: "Due within 24 hours",
+            selectionScore: 880
+        ),
         DailyPlanEntry(reminderID: "second", rank: 2, isMainObjective: false, estimateMinutes: nil)
     ]
 
@@ -45,4 +52,24 @@ func eventStorePersistsReminderListOrder() async throws {
     await store.replaceReminderListOrder(["work", "tinker", "later"])
 
     #expect(await store.loadReminderListOrder() == ["work", "tinker", "later"])
+}
+
+@Test
+func eventStorePersistsZoidOwnedScheduledBlocksForTheCurrentDay() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-blocks-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let store = EventStore(databaseURL: databaseURL)
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let blocks = [
+        ScheduledBlockRecord(
+            planItemID: "client-review",
+            calendarEventID: "event-1",
+            start: Date(timeIntervalSince1970: 1_700_000_600),
+            end: Date(timeIntervalSince1970: 1_700_003_300)
+        )
+    ]
+
+    await store.replaceScheduledBlocks(blocks, for: day)
+
+    #expect(await store.loadScheduledBlocks(for: day) == blocks)
 }

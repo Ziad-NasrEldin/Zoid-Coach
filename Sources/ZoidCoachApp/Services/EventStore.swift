@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import ZoidCoachCore
 
 struct StoredSourceCheck: Equatable, Sendable {
     let id: Int64
@@ -15,19 +16,46 @@ struct DailyPlanEntry: Identifiable, Equatable, Sendable {
     let rank: Int
     let isMainObjective: Bool
     let estimateMinutes: Int?
+    let selectionReason: String?
+    let selectionScore: Int?
+
+    init(
+        reminderID: String,
+        rank: Int,
+        isMainObjective: Bool,
+        estimateMinutes: Int?,
+        selectionReason: String? = nil,
+        selectionScore: Int? = nil
+    ) {
+        self.reminderID = reminderID
+        self.rank = rank
+        self.isMainObjective = isMainObjective
+        self.estimateMinutes = estimateMinutes
+        self.selectionReason = selectionReason
+        self.selectionScore = selectionScore
+    }
 
     var id: String { reminderID }
+}
+
+struct ScheduledBlockRecord: Equatable, Sendable, Identifiable {
+    let planItemID: String
+    let calendarEventID: String
+    let start: Date
+    let end: Date
+
+    var id: String { planItemID }
 }
 
 actor EventStore {
     private let handle: SQLiteDatabaseHandle?
     private let dateFormatter = ISO8601DateFormatter()
 
-    init(databaseURL: URL = EventStore.defaultDatabaseURL()) {
+    init(databaseURL: URL = EventStore.defaultDatabaseURL(), readOnly: Bool = false) {
         let directoryURL = databaseURL.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-        handle = SQLiteDatabaseHandle(path: databaseURL.path)
-        Self.migrate(database: handle?.pointer)
+        handle = SQLiteDatabaseHandle(path: databaseURL.path, readOnly: readOnly)
+        if !readOnly { Self.migrate(database: handle?.pointer) }
     }
 
     func recordSourceCheck(_ health: SourceHealth, checkedAt: Date = Date()) {
@@ -70,7 +98,7 @@ actor EventStore {
         bind(dayKey, to: delete, index: 1)
         guard sqlite3_step(delete) == SQLITE_DONE else { return }
 
-        let sql = "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, updated_at) VALUES (?, ?, ?, ?, ?, ?);"
+        let sql = "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"
         for entry in entries {
             guard let statement = prepare(sql, database: database) else { return }
             bind(dayKey, to: statement, index: 1)
@@ -82,7 +110,17 @@ actor EventStore {
             } else {
                 sqlite3_bind_null(statement, 5)
             }
-            bind(dateFormatter.string(from: Date()), to: statement, index: 6)
+            if let selectionReason = entry.selectionReason {
+                bind(selectionReason, to: statement, index: 6)
+            } else {
+                sqlite3_bind_null(statement, 6)
+            }
+            if let selectionScore = entry.selectionScore {
+                sqlite3_bind_int(statement, 7, Int32(selectionScore))
+            } else {
+                sqlite3_bind_null(statement, 7)
+            }
+            bind(dateFormatter.string(from: Date()), to: statement, index: 8)
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 sqlite3_finalize(statement)
                 return
@@ -94,7 +132,7 @@ actor EventStore {
 
     func loadDailyPlan(for day: Date = Date()) -> [DailyPlanEntry] {
         guard let database = handle?.pointer else { return [] }
-        let sql = "SELECT reminder_id, rank, is_main_objective, estimate_minutes FROM daily_plan_entries WHERE day_key = ? ORDER BY rank ASC;"
+        let sql = "SELECT reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score FROM daily_plan_entries WHERE day_key = ? ORDER BY rank ASC;"
         guard let statement = prepare(sql, database: database) else { return [] }
         defer { sqlite3_finalize(statement) }
         bind(Self.dayKey(for: day), to: statement, index: 1)
@@ -102,16 +140,71 @@ actor EventStore {
         while sqlite3_step(statement) == SQLITE_ROW {
             guard let reminderID = columnText(statement, index: 0) else { continue }
             let estimateMinutes = sqlite3_column_type(statement, 3) == SQLITE_NULL ? nil : Int(sqlite3_column_int(statement, 3))
+            let selectionReason = sqlite3_column_type(statement, 4) == SQLITE_NULL ? nil : columnText(statement, index: 4)
+            let selectionScore = sqlite3_column_type(statement, 5) == SQLITE_NULL ? nil : Int(sqlite3_column_int(statement, 5))
             entries.append(
                 DailyPlanEntry(
                     reminderID: reminderID,
                     rank: Int(sqlite3_column_int(statement, 1)),
                     isMainObjective: sqlite3_column_int(statement, 2) == 1,
-                    estimateMinutes: estimateMinutes
+                    estimateMinutes: estimateMinutes,
+                    selectionReason: selectionReason,
+                    selectionScore: selectionScore
                 )
             )
         }
         return entries
+    }
+
+    func replaceScheduledBlocks(_ blocks: [ScheduledBlockRecord], for day: Date = Date()) {
+        guard let database = handle?.pointer else { return }
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else { return }
+        var shouldCommit = false
+        defer {
+            _ = sqlite3_exec(database, shouldCommit ? "COMMIT;" : "ROLLBACK;", nil, nil, nil)
+        }
+        let dayKey = Self.dayKey(for: day)
+        guard let delete = prepare("DELETE FROM scheduled_blocks WHERE day_key = ?;", database: database) else { return }
+        defer { sqlite3_finalize(delete) }
+        bind(dayKey, to: delete, index: 1)
+        guard sqlite3_step(delete) == SQLITE_DONE else { return }
+
+        let sql = "INSERT INTO scheduled_blocks (day_key, plan_item_id, calendar_event_id, start_at, end_at, updated_at) VALUES (?, ?, ?, ?, ?, ?);"
+        for block in blocks {
+            guard let statement = prepare(sql, database: database) else { return }
+            bind(dayKey, to: statement, index: 1)
+            bind(block.planItemID, to: statement, index: 2)
+            bind(block.calendarEventID, to: statement, index: 3)
+            bind(dateFormatter.string(from: block.start), to: statement, index: 4)
+            bind(dateFormatter.string(from: block.end), to: statement, index: 5)
+            bind(dateFormatter.string(from: Date()), to: statement, index: 6)
+            guard sqlite3_step(statement) == SQLITE_DONE else {
+                sqlite3_finalize(statement)
+                return
+            }
+            sqlite3_finalize(statement)
+        }
+        shouldCommit = true
+    }
+
+    func loadScheduledBlocks(for day: Date = Date()) -> [ScheduledBlockRecord] {
+        guard let database = handle?.pointer else { return [] }
+        let sql = "SELECT plan_item_id, calendar_event_id, start_at, end_at FROM scheduled_blocks WHERE day_key = ? ORDER BY start_at ASC;"
+        guard let statement = prepare(sql, database: database) else { return [] }
+        defer { sqlite3_finalize(statement) }
+        bind(Self.dayKey(for: day), to: statement, index: 1)
+        var blocks: [ScheduledBlockRecord] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let planItemID = columnText(statement, index: 0),
+                  let calendarEventID = columnText(statement, index: 1),
+                  let startRaw = columnText(statement, index: 2),
+                  let endRaw = columnText(statement, index: 3),
+                  let start = dateFormatter.date(from: startRaw),
+                  let end = dateFormatter.date(from: endRaw)
+            else { continue }
+            blocks.append(ScheduledBlockRecord(planItemID: planItemID, calendarEventID: calendarEventID, start: start, end: end))
+        }
+        return blocks
     }
 
     func replaceReminderListOrder(_ listIDs: [String]) {
@@ -186,6 +279,57 @@ actor EventStore {
         INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, CURRENT_TIMESTAMP);
         """
         _ = sqlite3_exec(database, schema, nil, nil, nil)
+        applyMigration(
+            version: 3,
+            statements: [
+                "ALTER TABLE daily_plan_entries ADD COLUMN selection_reason TEXT;",
+                "ALTER TABLE daily_plan_entries ADD COLUMN selection_score INTEGER;"
+            ],
+            database: database
+        )
+        applyMigration(
+            version: 4,
+            statements: [
+                """
+                CREATE TABLE IF NOT EXISTS scheduled_blocks (
+                    day_key TEXT NOT NULL,
+                    plan_item_id TEXT NOT NULL,
+                    calendar_event_id TEXT NOT NULL,
+                    start_at TEXT NOT NULL,
+                    end_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (day_key, plan_item_id)
+                );
+                """,
+                "CREATE INDEX IF NOT EXISTS scheduled_blocks_day_start ON scheduled_blocks(day_key, start_at);"
+            ],
+            database: database
+        )
+    }
+
+    private nonisolated static func applyMigration(version: Int, statements: [String], database: OpaquePointer) {
+        guard !migrationIsApplied(version, database: database) else { return }
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else { return }
+        var committed = false
+        defer {
+            _ = sqlite3_exec(database, committed ? "COMMIT;" : "ROLLBACK;", nil, nil, nil)
+        }
+        for statement in statements {
+            guard sqlite3_exec(database, statement, nil, nil, nil) == SQLITE_OK else { return }
+        }
+        let record = "INSERT INTO schema_migrations(version, applied_at) VALUES (\(version), CURRENT_TIMESTAMP);"
+        guard sqlite3_exec(database, record, nil, nil, nil) == SQLITE_OK else { return }
+        committed = true
+    }
+
+    private nonisolated static func migrationIsApplied(_ version: Int, database: OpaquePointer) -> Bool {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "SELECT 1 FROM schema_migrations WHERE version = ? LIMIT 1;", -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { return false }
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_int(statement, 1, Int32(version))
+        return sqlite3_step(statement) == SQLITE_ROW
     }
 
     private func prepare(_ sql: String, database: OpaquePointer) -> OpaquePointer? {
@@ -204,8 +348,7 @@ actor EventStore {
     }
 
     private static func defaultDatabaseURL() -> URL {
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return support.appendingPathComponent("Zoid Coach", isDirectory: true).appendingPathComponent("zoid-coach.sqlite")
+        ZoidCoachStorage.databaseURL()
     }
 
     private static func dayKey(for date: Date) -> String {
@@ -219,9 +362,10 @@ private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.sel
 private final class SQLiteDatabaseHandle: @unchecked Sendable {
     let pointer: OpaquePointer
 
-    init?(path: String) {
+    init?(path: String, readOnly: Bool = false) {
         var database: OpaquePointer?
-        guard sqlite3_open_v2(path, &database, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK, let database else {
+        let flags = readOnly ? SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX : SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX
+        guard sqlite3_open_v2(path, &database, flags, nil) == SQLITE_OK, let database else {
             return nil
         }
         pointer = database

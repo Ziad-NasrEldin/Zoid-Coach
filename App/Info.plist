@@ -19,11 +19,15 @@
     <key>CFBundleShortVersionString</key>
     <string>0.1.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>3</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Zoid Coach reads existing commitments and creates or updates its own work blocks to keep your daily plan realistic.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Zoid Coach reads existing commitments and creates or updates its own work blocks to keep your daily plan realistic.</string>
     <key>NSRemindersFullAccessUsageDescription</key>
     <string>Zoid Coach reads your selected reminders and updates completion when you explicitly complete a task.</string>
     <key>NSRemindersUsageDescription</key>

@@ -3,7 +3,14 @@ import SwiftUI
 
 @main
 struct ZoidCoachApplication: App {
-    @StateObject private var model = AppModel()
+    @StateObject private var model: AppModel
+    private let launchesForBackgroundScheduling: Bool
+
+    init() {
+        let isBackgroundLaunch = CommandLine.arguments.contains("--background-schedule")
+        launchesForBackgroundScheduling = isBackgroundLaunch
+        _model = StateObject(wrappedValue: AppModel())
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -13,6 +20,11 @@ struct ZoidCoachApplication: App {
                 .background(Sumi.paper)
                 .onAppear {
                     positionInitialWindow()
+                    if launchesForBackgroundScheduling {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            NSApp.hide(nil)
+                        }
+                    }
                 }
         }
         .windowStyle(.hiddenTitleBar)

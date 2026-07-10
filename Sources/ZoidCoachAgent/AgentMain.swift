@@ -1,0 +1,702 @@
+import Foundation
+import ZoidCoachCore
+import ZoidCoachInfrastructure
+
+@main
+struct ZoidCoachAgentMain {
+    static func main() async {
+        do {
+            let configuration = try AgentConfiguration(arguments: Array(CommandLine.arguments.dropFirst()))
+            if configuration.printRemindersStatus {
+                print("Zoid Coach agent: Apple Reminders status \(AgentPermissionRequester.remindersStatus())")
+                return
+            }
+            if configuration.requestRemindersAccess {
+                let granted = try await AgentPermissionRequester.requestRemindersAccess()
+                print(granted ? "Zoid Coach agent: Apple Reminders access granted" : "Zoid Coach agent: Apple Reminders access was not granted")
+                return
+            }
+            try AutonomousDatabaseMigrator(databaseURL: configuration.databaseURL).migrate()
+            let archive = try ScreenwatchArchive(databaseURL: configuration.databaseURL)
+            let planStore = try AutonomousPlanStore(databaseURL: configuration.databaseURL)
+            let reminderSnapshotStore = try ReminderSnapshotStore(databaseURL: configuration.databaseURL)
+            let taskHistoryStore = try TaskHistoryStore(databaseURL: configuration.databaseURL)
+            let learningStore = try LearningAggregateStore(databaseURL: configuration.databaseURL)
+            let trustGateStore = try PlannerTrustGateStore(databaseURL: configuration.databaseURL)
+            let policyStore = try PolicyStore(databaseURL: configuration.databaseURL)
+            let promptStore = try PromptInboxStore(databaseURL: configuration.databaseURL)
+            let actionOutbox = try ActionOutboxStore(databaseURL: configuration.databaseURL)
+            let planUndoRequests = try PlanUndoRequestStore(databaseURL: configuration.databaseURL)
+            let promptEffectRouter = PromptResponseEffectRouter(outbox: actionOutbox, meetingArchive: archive, planUndoRequests: planUndoRequests)
+            let checkpointStore = try ProcessingCheckpointStore(databaseURL: configuration.databaseURL)
+            let maintenanceService = try ScreenwatchMaintenanceService(
+                databaseURL: configuration.databaseURL,
+                screenwatchDirectory: configuration.screenwatchDirectory
+            )
+            let notificationCoordinator = PromptNotificationCoordinator(promptStore: promptStore) { result in
+                _ = try? promptEffectRouter.apply(result)
+            }
+            notificationCoordinator.activate()
+            let initialVersionedPolicy: VersionedUserPolicy
+            if let stored = try policyStore.current() {
+                initialVersionedPolicy = stored
+            } else {
+                initialVersionedPolicy = try policyStore.save(UserPolicy.defaults())
+            }
+            let initialPolicy = initialVersionedPolicy.policy
+            let todayDashboardAgent = try TodayDashboardAgent(databaseURL: configuration.databaseURL)
+            let taskSource = EventKitTaskSource()
+            let calendarSource = EventKitCalendarSource()
+            let actionExecutor = ActionCommandExecutor(
+                outbox: actionOutbox,
+                tasks: taskSource,
+                calendar: calendarSource,
+                notifications: UserNotificationActionSource()
+            )
+            let planScheduler = AgentPlanScheduler(
+                plans: planStore,
+                reminders: reminderSnapshotStore,
+                outbox: actionOutbox,
+                calendar: calendarSource
+            )
+            if !initialPolicy.automationPause.isPaused {
+                let execution = await actionExecutor.executeNext()
+                try? Self.finalizeMeetingEffect(execution, outbox: actionOutbox, archive: archive)
+            }
+            let advisor: (any PlanningAdvising)? = configuration.useLocalAI || initialPolicy.privacy.aiProvider == .localOllama ? OllamaPlanningAdvisor() : nil
+            let reminderPlanner = AgentReminderPlanner(
+                planStore: planStore,
+                reminderSnapshotStore: reminderSnapshotStore,
+                taskHistoryStore: taskHistoryStore,
+                learningStore: learningStore,
+                advisor: advisor
+            )
+            _ = try? await reminderPlanner.synchronizeReminderSource()
+            let mutationRouter = AgentMutationRouter(
+                outbox: actionOutbox,
+                stateStore: try AgentOwnedStateStore(databaseURL: configuration.databaseURL),
+                taskHistory: taskHistoryStore,
+                meetingArchive: archive,
+                planScheduler: planScheduler,
+                policyStore: policyStore,
+                reminderSnapshots: reminderSnapshotStore,
+                privacyData: try PrivacyDataService(databaseURL: configuration.databaseURL),
+                draftPlan: { day, overwriteExisting in
+                    let policy = try policyStore.current()?.policy ?? UserPolicy.defaults()
+                    let behavior = try archive.recentBehaviorEvidence(since: Date().addingTimeInterval(-7 * 24 * 60 * 60))
+                    let result = try await reminderPlanner.draftPlan(
+                        for: day,
+                        overwriteExisting: overwriteExisting,
+                        recentBehavior: behavior,
+                        availableFocusMinutes: await Self.availableFocusMinutes(policy: policy, day: day, calendar: calendarSource)
+                    )
+                    switch result {
+                    case let .drafted(itemCount): return itemCount
+                    case .retainedExisting: return try planStore.loadDailyPlan(for: day).count
+                    case .remindersAccessUnavailable: return 0
+                    }
+                }
+            )
+            let xpcService = TodayDashboardXPCService(
+                agent: todayDashboardAgent,
+                promptStore: promptStore,
+                promptEffectRouter: promptEffectRouter,
+                mutationRouter: mutationRouter
+            )
+            xpcService.resume()
+            let previousHeartbeat = try checkpointStore.checkpoint(sourceID: "agent-runtime")?.lastSuccessAt
+            let startupDate = Date()
+            try checkpointStore.recordSuccess(sourceID: "agent-runtime", at: startupDate)
+            if let previousHeartbeat,
+               let recovery = MissedNightlyRunCalculator().recoveryRun(
+                   sleepStartedAt: previousHeartbeat,
+                   wokeAt: startupDate,
+                   policy: NightlyReplayPolicy(
+                       timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier,
+                       planningTime: initialPolicy.schedule.nightlyPlanningTime
+                   )
+               ),
+               let targetDay = Self.date(localDay: recovery.targetLocalDay, timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier),
+               try planStore.hasPlan(for: targetDay) == false {
+                let behavior = try archive.recentBehaviorEvidence(since: startupDate.addingTimeInterval(-7 * 24 * 60 * 60))
+                let result = try await reminderPlanner.draftPlan(
+                    for: targetDay,
+                    recentBehavior: behavior,
+                    availableFocusMinutes: await Self.availableFocusMinutes(policy: initialPolicy, day: targetDay, calendar: calendarSource)
+                )
+                if case let .drafted(itemCount) = result {
+                    await Self.enqueuePlanActions(
+                        scheduler: planScheduler,
+                        day: targetDay,
+                        policy: initialPolicy,
+                        policyVersion: initialVersionedPolicy.version,
+                        checkpoints: checkpointStore,
+                        trustGate: trustGateStore,
+                        itemCount: itemCount,
+                        outbox: actionOutbox,
+                        plans: planStore
+                    )
+                    let prompt = try promptStore.enqueue(Self.planReadyPrompt(for: targetDay, itemCount: itemCount))
+                    if prompt.wasInserted {
+                        _ = try? await notificationCoordinator.schedule(prompt.episode)
+                        await AtollPromptNotifier().present(prompt.episode)
+                    }
+                    try checkpointStore.recordSuccess(
+                        sourceID: "nightly-plan",
+                        at: startupDate,
+                        scheduledLocalDay: recovery.targetLocalDay,
+                        timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier,
+                        missedTriggerAt: previousHeartbeat
+                    )
+                    print("Zoid Coach agent: recovered delayed overnight plan after wake")
+                }
+            }
+            if configuration.draftPlan {
+                let targetDay = configuration.planTomorrow ? Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date() : Date()
+                let behavior = try archive.recentBehaviorEvidence(since: Date().addingTimeInterval(-7 * 24 * 60 * 60))
+                let result = try await reminderPlanner.draftPlan(
+                    for: targetDay,
+                    overwriteExisting: configuration.overwritePlan,
+                    recentBehavior: behavior,
+                    availableFocusMinutes: await Self.availableFocusMinutes(policy: initialPolicy, day: targetDay, calendar: calendarSource)
+                )
+                switch result {
+                case let .drafted(itemCount):
+                    await Self.enqueuePlanActions(
+                        scheduler: planScheduler,
+                        day: targetDay,
+                        policy: initialPolicy,
+                        policyVersion: initialVersionedPolicy.version,
+                        checkpoints: checkpointStore,
+                        trustGate: trustGateStore,
+                        itemCount: itemCount,
+                        outbox: actionOutbox,
+                        plans: planStore
+                    )
+                    let prompt = try promptStore.enqueue(Self.planReadyPrompt(for: targetDay, itemCount: itemCount))
+                    if prompt.wasInserted {
+                        _ = try? await notificationCoordinator.schedule(prompt.episode)
+                        await AtollPromptNotifier().present(prompt.episode)
+                    }
+                    print("Zoid Coach agent: drafted \(itemCount) daily commitments")
+                case .retainedExisting:
+                    print("Zoid Coach agent: retained the existing daily plan")
+                case .remindersAccessUnavailable:
+                    print("Zoid Coach agent: Apple Reminders full access is unavailable")
+                }
+            }
+            if configuration.watch {
+                var lastAutomaticDraftAttempt: Date?
+                var lastMaintenanceAttempt: Date?
+                var lastDaytimeSourceCheck: Date?
+                var lastCalendarSignature: String?
+                while !Task.isCancelled {
+                    let versionedPolicy = try policyStore.current() ?? initialVersionedPolicy
+                    let policy = versionedPolicy.policy
+                    try checkpointStore.recordSuccess(sourceID: "agent-runtime", at: Date())
+                    if lastMaintenanceAttempt.map({ Date().timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true {
+                        _ = try? maintenanceService.run(policy: policy, now: Date(), mode: .apply)
+                        lastMaintenanceAttempt = Date()
+                    }
+                    let result = try archive.ingestToday(from: configuration.screenwatchDirectory, now: Date())
+                    let analysis = policy.privacy.screenshotAnalysisEnabled
+                        ? try await archive.analyzePendingWhatsAppScreenshots()
+                        : MeetingAnalysisResult(screenshotsProcessed: 0, candidatesCreated: 0)
+                    if analysis.candidatesCreated > 0, let candidate = try archive.unresolvedMeetingCandidates().first {
+                        let calendarCheck = try? await Self.checkCalendar(for: candidate, policy: policy, calendar: calendarSource)
+                        if calendarCheck == .duplicate {
+                            try archive.updateMeetingCandidate(candidate, state: "duplicate_calendar")
+                        } else {
+                            if calendarCheck == .conflict { try archive.updateMeetingCandidate(candidate, state: "conflict") }
+                            let prompt = try promptStore.enqueue(Self.meetingPrompt(candidate, hasConflict: calendarCheck == .conflict))
+                            if prompt.wasInserted { _ = try? await notificationCoordinator.schedule(prompt.episode) }
+                            await AtollMeetingNotifier().present(candidate)
+                        }
+                    }
+                    print("Zoid Coach agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
+                    _ = try? todayDashboardAgent.snapshot(now: Date())
+                    let now = Date()
+                    _ = try promptStore.expireDue()
+                    if policy.automationPause.isPaused {
+                        try await Task.sleep(for: .seconds(5))
+                        continue
+                    }
+                    let execution = await actionExecutor.executeNext()
+                    try? Self.finalizeMeetingEffect(execution, outbox: actionOutbox, archive: archive)
+                    if let undo = try planUndoRequests.claimNext() {
+                        do {
+                            guard let undoDay = Self.date(localDay: undo.dayKey, timeZoneIdentifier: policy.schedule.timeZoneIdentifier),
+                                  try planStore.restoreLatestRevision(for: undoDay) else {
+                                try planUndoRequests.finish(undo, succeeded: true)
+                                continue
+                            }
+                            _ = try await planScheduler.enqueueSchedule(
+                                for: undoDay,
+                                policy: policy,
+                                policyVersion: versionedPolicy.version
+                            )
+                            try planUndoRequests.finish(undo, succeeded: true)
+                        } catch {
+                            try? planUndoRequests.finish(undo, succeeded: false)
+                        }
+                    }
+                    if lastDaytimeSourceCheck.map({ now.timeIntervalSince($0) >= 60 }) ?? true {
+                        let reminderChanges = try? await reminderPlanner.synchronizeReminderSource()
+                        let calendarSignature = try? await Self.calendarCommitmentSignature(
+                            policy: policy,
+                            day: now,
+                            calendar: calendarSource
+                        )
+                        let remindersChanged = reminderChanges.map {
+                            $0.insertedCount + $0.updatedCount + $0.removedCount > 0
+                        } ?? false
+                        let calendarChanged = lastCalendarSignature != nil && calendarSignature != lastCalendarSignature
+                        lastCalendarSignature = calendarSignature
+                        lastDaytimeSourceCheck = now
+                        if (remindersChanged || calendarChanged), try planStore.hasPlan(for: now) {
+                            let behavior = try archive.recentBehaviorEvidence(since: now.addingTimeInterval(-7 * 24 * 60 * 60))
+                            if case let .drafted(itemCount) = try await reminderPlanner.draftPlan(
+                                for: now,
+                                overwriteExisting: true,
+                                recentBehavior: behavior,
+                                availableFocusMinutes: await Self.availableFocusMinutes(policy: policy, day: now, calendar: calendarSource)
+                            ) {
+                                await Self.enqueuePlanActions(
+                                    scheduler: planScheduler,
+                                    day: now,
+                                    policy: policy,
+                                    policyVersion: versionedPolicy.version,
+                                    checkpoints: checkpointStore,
+                                    trustGate: trustGateStore,
+                                    itemCount: itemCount,
+                                    outbox: actionOutbox,
+                                    plans: planStore
+                                )
+                                let prompt = try promptStore.enqueue(Self.planChangedPrompt(for: now, itemCount: itemCount))
+                                if prompt.wasInserted {
+                                    _ = try? await notificationCoordinator.schedule(prompt.episode)
+                                    await AtollPromptNotifier().present(prompt.episode)
+                                }
+                            }
+                        }
+                    }
+                    let nightlySchedule = NightlyPlanningSchedule(
+                        hour: policy.schedule.nightlyPlanningTime.hour,
+                        minute: policy.schedule.nightlyPlanningTime.minute
+                    )
+                    if let targetDay = nightlySchedule.targetDay(for: now),
+                       lastAutomaticDraftAttempt.map({ now.timeIntervalSince($0) >= 15 * 60 }) ?? true {
+                        let behavior = try archive.recentBehaviorEvidence(since: now.addingTimeInterval(-7 * 24 * 60 * 60))
+                        let draft = try await reminderPlanner.draftPlan(
+                            for: targetDay,
+                            recentBehavior: behavior,
+                            availableFocusMinutes: await Self.availableFocusMinutes(policy: policy, day: targetDay, calendar: calendarSource)
+                        )
+                        switch draft {
+                        case let .drafted(itemCount):
+                            await Self.enqueuePlanActions(
+                                scheduler: planScheduler,
+                                day: targetDay,
+                                policy: policy,
+                                policyVersion: versionedPolicy.version,
+                                checkpoints: checkpointStore,
+                                trustGate: trustGateStore,
+                                itemCount: itemCount,
+                                outbox: actionOutbox,
+                                plans: planStore
+                            )
+                            let prompt = try promptStore.enqueue(Self.planReadyPrompt(for: targetDay, itemCount: itemCount))
+                            if prompt.wasInserted {
+                                _ = try? await notificationCoordinator.schedule(prompt.episode)
+                                await AtollPromptNotifier().present(prompt.episode)
+                            }
+                            print("Zoid Coach agent: overnight draft prepared with \(itemCount) commitments")
+                        case .retainedExisting:
+                            print("Zoid Coach agent: overnight draft already exists")
+                        case .remindersAccessUnavailable:
+                            print("Zoid Coach agent: overnight draft is waiting for Apple Reminders access")
+                        }
+                        lastAutomaticDraftAttempt = now
+                    }
+                    try await Task.sleep(for: .seconds(5))
+                }
+            } else {
+                let result = try archive.ingestToday(from: configuration.screenwatchDirectory, now: Date())
+                let analysis = try await archive.analyzePendingWhatsAppScreenshots()
+                if analysis.candidatesCreated > 0, let candidate = try archive.unresolvedMeetingCandidates().first {
+                    let calendarCheck = try? await Self.checkCalendar(for: candidate, policy: initialPolicy, calendar: calendarSource)
+                    if calendarCheck == .duplicate {
+                        try archive.updateMeetingCandidate(candidate, state: "duplicate_calendar")
+                    } else {
+                        if calendarCheck == .conflict { try archive.updateMeetingCandidate(candidate, state: "conflict") }
+                        let prompt = try promptStore.enqueue(Self.meetingPrompt(candidate, hasConflict: calendarCheck == .conflict))
+                        if prompt.wasInserted { _ = try? await notificationCoordinator.schedule(prompt.episode) }
+                        await AtollMeetingNotifier().present(candidate)
+                    }
+                }
+                print("Zoid Coach agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
+                _ = try? todayDashboardAgent.snapshot(now: Date())
+            }
+        } catch {
+            fputs("Zoid Coach agent failed: \(error.localizedDescription)\n", stderr)
+            Foundation.exit(EXIT_FAILURE)
+        }
+    }
+
+    private static func planReadyPrompt(for day: Date, itemCount: Int) -> PromptDraft {
+        PromptDraft(
+            decisionKey: "plan-ready:\(localDayKey(day))",
+            type: "PLAN_READY",
+            title: "Tomorrow's plan is ready",
+            summary: "Zoid Coach selected \(itemCount) evidence-backed commitment\(itemCount == 1 ? "" : "s").",
+            actions: [
+                PromptAction(kind: .acceptPlan, title: "Accept", role: .primary),
+                PromptAction(kind: .reviewPlan, title: "Review")
+            ],
+            payload: ["localDay": localDayKey(day), "itemCount": String(itemCount)],
+            expiresAt: Calendar.current.date(byAdding: .day, value: 1, to: day)
+        )
+    }
+
+    private static func planChangedPrompt(for day: Date, itemCount: Int) -> PromptDraft {
+        PromptDraft(
+            decisionKey: "plan-changed:\(localDayKey(day)):\(itemCount)",
+            type: "PLAN_CHANGED",
+            title: "Today's plan changed",
+            summary: "Calendar or Reminder changes produced \(itemCount) commitments.",
+            actions: [
+                PromptAction(kind: .reviewPlan, title: "Review", role: .primary),
+                PromptAction(kind: .ignore, title: "Dismiss")
+            ],
+            payload: ["day": localDayKey(day), "itemCount": String(itemCount)],
+            expiresAt: Calendar.current.date(byAdding: .hour, value: 8, to: Date())
+        )
+    }
+
+    private static func calendarCommitmentSignature(
+        policy: UserPolicy,
+        day: Date,
+        calendar: any CalendarAvailabilitySource
+    ) async throws -> String {
+        var values: [String] = []
+        for interval in policy.schedule.workIntervals(on: day) {
+            let commitments = try await calendar.commitments(
+                from: interval.start,
+                through: interval.end,
+                calendarIdentifiers: policy.calendar.visibleCalendarIdentifiers
+            )
+            values.append(contentsOf: commitments.map {
+                "\($0.id)|\($0.start.timeIntervalSince1970)|\($0.end.timeIntervalSince1970)"
+            })
+        }
+        return values.sorted().joined(separator: "\n")
+    }
+
+    private static func meetingPrompt(_ candidate: StoredMeetingCandidate, hasConflict: Bool = false) -> PromptDraft {
+        PromptDraft(
+            decisionKey: "meeting:\(candidate.id)",
+            type: "MEETING_CANDIDATE",
+            title: candidate.title,
+            summary: "Meeting proposed for \(candidate.start.formatted(date: .abbreviated, time: .shortened)), \(candidate.durationMinutes) minutes.\(hasConflict ? " It overlaps an existing Calendar event." : "")",
+            actions: [
+                PromptAction(kind: .addMeeting, title: "Add", role: .primary, requiresConfirmation: true),
+                PromptAction(kind: .editMeeting, title: "Edit"),
+                PromptAction(kind: .ignore, title: "Ignore")
+            ],
+            payload: ["candidateID": candidate.id],
+            expiresAt: candidate.start
+        )
+    }
+
+    private enum MeetingCalendarCheck {
+        case clear
+        case conflict
+        case duplicate
+    }
+
+    private static func checkCalendar(
+        for candidate: StoredMeetingCandidate,
+        policy: UserPolicy,
+        calendar: any CalendarAvailabilitySource
+    ) async throws -> MeetingCalendarCheck {
+        let end = candidate.start.addingTimeInterval(TimeInterval(candidate.durationMinutes * 60))
+        let commitments = try await calendar.commitments(
+            from: candidate.start.addingTimeInterval(-10 * 60),
+            through: end.addingTimeInterval(10 * 60),
+            calendarIdentifiers: policy.calendar.visibleCalendarIdentifiers
+        )
+        let candidateTokens = normalizedTokens(candidate.title)
+        for commitment in commitments {
+            let overlap = commitment.start < end && commitment.end > candidate.start
+            guard overlap else { continue }
+            let eventTokens = normalizedTokens(commitment.title)
+            let union = candidateTokens.union(eventTokens)
+            let similarity = union.isEmpty ? 0 : Double(candidateTokens.intersection(eventTokens).count) / Double(union.count)
+            if abs(commitment.start.timeIntervalSince(candidate.start)) <= 10 * 60, similarity >= 0.6 {
+                return .duplicate
+            }
+        }
+        return commitments.contains { $0.start < end && $0.end > candidate.start } ? .conflict : .clear
+    }
+
+    private static func normalizedTokens(_ value: String) -> Set<String> {
+        Set(value.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
+    }
+
+    private static func localDayKey(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    private static func date(localDay: String, timeZoneIdentifier: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: localDay)
+    }
+
+    private static func enqueuePlanActions(
+        scheduler: AgentPlanScheduler,
+        day: Date,
+        policy: UserPolicy,
+        policyVersion: Int,
+        checkpoints: ProcessingCheckpointStore,
+        trustGate: PlannerTrustGateStore,
+        itemCount: Int,
+        outbox: ActionOutboxStore,
+        plans: AutonomousPlanStore
+    ) async {
+        do {
+            let trust = try trustGate.status()
+            if !trust.allowsAutomaticWrites {
+                let recorded = try trustGate.recordShadowCycle(
+                    localDay: localDayKey(day),
+                    planVersion: policyVersion,
+                    itemCount: itemCount,
+                    stayedWithinCapacity: true
+                )
+                print("Zoid Coach agent: shadow cycle \(recorded.observedCycleCount)/\(recorded.requiredCycleCount) recorded without external writes")
+                return
+            }
+            let result = try await scheduler.enqueueSchedule(
+                for: day,
+                policy: policy,
+                policyVersion: policyVersion
+            )
+            try checkpoints.recordSuccess(
+                sourceID: "plan-actions",
+                at: Date(),
+                scheduledLocalDay: localDayKey(day),
+                timeZoneIdentifier: policy.schedule.timeZoneIdentifier
+            )
+            print("Zoid Coach agent: enqueued \(result.scheduledBlockCount) Calendar blocks and \(result.reminderMutationCount) Reminder updates")
+            try enqueueWakeNotificationIfEligible(
+                day: day,
+                policy: policy,
+                policyVersion: policyVersion,
+                outbox: outbox,
+                plans: plans
+            )
+        } catch {
+            try? checkpoints.recordFailure(
+                sourceID: "plan-actions",
+                at: Date(),
+                diagnostic: String(describing: type(of: error))
+            )
+            print("Zoid Coach agent: plan actions are waiting for Calendar or Reminders permission")
+        }
+    }
+
+    private static func enqueueWakeNotificationIfEligible(
+        day: Date,
+        policy: UserPolicy,
+        policyVersion: Int,
+        outbox: ActionOutboxStore,
+        plans: AutonomousPlanStore
+    ) throws {
+        guard policy.wake.isEligible,
+              let timeZone = TimeZone(identifier: policy.schedule.timeZoneIdentifier) else { return }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        if let weekday = Weekday(rawValue: calendar.component(.weekday, from: day)),
+           policy.wake.quietWeekdays?.contains(weekday) == true { return }
+        let plan = try plans.loadDailyPlan(for: day)
+        guard let main = plan.first(where: \.isMainObjective) else { return }
+        let evidence = WakePlanEvidence(
+            mainObjectiveScore: main.selectionScore ?? 0,
+            plannedFocusMinutes: plan.reduce(0) { $0 + $1.estimateMinutes },
+            completedInterventionsToday: 0
+        )
+        let wakePolicy = WakeUpPolicy(
+            windowStartHour: policy.wake.window.start.hour,
+            windowEndHour: policy.wake.window.end.hour,
+            maximumDailyInterventions: policy.wake.maximumDailyInterventions
+        )
+        guard case let .eligible(reason) = wakePolicy.decision(for: evidence),
+              let delivery = calendar.date(
+                bySettingHour: policy.wake.window.start.hour,
+                minute: policy.wake.window.start.minute,
+                second: 0,
+                of: day
+              ) else { return }
+        let identifier = "wake:\(localDayKey(day))"
+        _ = try outbox.enqueue(
+            type: .scheduleNotification,
+            entityID: identifier,
+            desiredState: .notification(
+                NotificationDesiredState(
+                    category: "WAKE_INTERVENTION",
+                    title: "A critical commitment needs your attention",
+                    body: reason,
+                    promptID: identifier,
+                    deliveryDate: delivery
+                )
+            ),
+            planVersion: policyVersion
+        )
+    }
+
+    private static func availableFocusMinutes(
+        policy: UserPolicy,
+        day: Date,
+        calendar: any CalendarAvailabilitySource
+    ) async -> Int {
+        let workIntervals = policy.schedule.workIntervals(on: day)
+        guard let start = workIntervals.map(\.start).min(),
+              let end = workIntervals.map(\.end).max()
+        else { return 0 }
+        guard let commitments = try? await calendar.commitments(
+            from: start,
+            through: end,
+            calendarIdentifiers: policy.calendar.visibleCalendarIdentifiers
+        ) else {
+            return policy.schedule.planningCapacityMinutes(on: day)
+        }
+        var occupiedSeconds: TimeInterval = 0
+        for work in workIntervals {
+            var merged: [DateInterval] = []
+            for commitment in commitments.sorted(by: { $0.start < $1.start }) where commitment.ownershipToken == nil && commitment.end > work.start && commitment.start < work.end {
+                let interval = DateInterval(start: max(commitment.start, work.start), end: min(commitment.end, work.end))
+                if let last = merged.last, last.end >= interval.start {
+                    merged[merged.count - 1] = DateInterval(start: last.start, end: max(last.end, interval.end))
+                } else {
+                    merged.append(interval)
+                }
+            }
+            occupiedSeconds += merged.reduce(0) { $0 + $1.duration }
+        }
+        return policy.schedule.planningCapacityMinutes(on: day, fixedCommitmentMinutes: Int(occupiedSeconds / 60))
+    }
+
+    private static func finalizeMeetingEffect(_ result: ActionExecutionResult, outbox: ActionOutboxStore, archive: ScreenwatchArchive) throws {
+        let commandID: String
+        let state: String
+        switch result {
+        case let .succeeded(id, _):
+            commandID = id
+            state = "scheduled"
+        case let .terminalFailure(id, _):
+            commandID = id
+            state = "failed"
+        default:
+            return
+        }
+        guard let command = try outbox.command(commandID: commandID),
+              command.type == .createConfirmedMeeting,
+              let candidate = try archive.meetingCandidate(id: command.entityID)
+        else { return }
+        try archive.updateMeetingCandidate(candidate, state: state)
+    }
+}
+
+private struct AgentConfiguration {
+    let screenwatchDirectory: URL
+    let databaseURL: URL
+    let watch: Bool
+    let draftPlan: Bool
+    let overwritePlan: Bool
+    let useLocalAI: Bool
+    let requestRemindersAccess: Bool
+    let planTomorrow: Bool
+    let printRemindersStatus: Bool
+
+    init(arguments: [String]) throws {
+        var screenwatchDirectory = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("screenwatch/days", isDirectory: true)
+        var databaseURL = ZoidCoachStorage.databaseURL()
+        var watch = true
+        var draftPlan = false
+        var overwritePlan = false
+        var useLocalAI = false
+        var requestRemindersAccess = false
+        var planTomorrow = false
+        var printRemindersStatus = false
+        var index = 0
+
+        while index < arguments.count {
+            switch arguments[index] {
+            case "--watch":
+                watch = true
+                useLocalAI = true
+            case "--draft-plan":
+                draftPlan = true
+            case "--overwrite-plan":
+                draftPlan = true
+                overwritePlan = true
+            case "--ai-draft-plan":
+                draftPlan = true
+                useLocalAI = true
+            case "--draft-tomorrow":
+                draftPlan = true
+                planTomorrow = true
+            case "--request-reminders-access":
+                watch = false
+                requestRemindersAccess = true
+            case "--reminders-status":
+                watch = false
+                printRemindersStatus = true
+            case "--screenwatch-directory":
+                index += 1
+                guard index < arguments.count else { throw AgentConfigurationError.missingValue("--screenwatch-directory") }
+                screenwatchDirectory = URL(fileURLWithPath: arguments[index], isDirectory: true)
+            case "--database":
+                index += 1
+                guard index < arguments.count else { throw AgentConfigurationError.missingValue("--database") }
+                databaseURL = URL(fileURLWithPath: arguments[index], isDirectory: false)
+            case "--once":
+                watch = false
+            default:
+                throw AgentConfigurationError.unknownArgument(arguments[index])
+            }
+            index += 1
+        }
+
+        self.screenwatchDirectory = screenwatchDirectory
+        self.databaseURL = databaseURL
+        self.watch = watch
+        self.draftPlan = draftPlan
+        self.overwritePlan = overwritePlan
+        self.useLocalAI = useLocalAI
+        self.requestRemindersAccess = requestRemindersAccess
+        self.planTomorrow = planTomorrow
+        self.printRemindersStatus = printRemindersStatus
+    }
+}
+
+private enum AgentConfigurationError: LocalizedError {
+    case missingValue(String)
+    case unknownArgument(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .missingValue(argument): "Missing value for \(argument)"
+        case let .unknownArgument(argument): "Unknown argument \(argument)"
+        }
+    }
+}

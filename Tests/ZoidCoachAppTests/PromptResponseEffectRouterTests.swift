@@ -1,0 +1,55 @@
+import Foundation
+import Testing
+@testable import ZoidCoachCore
+@testable import ZoidCoachInfrastructure
+
+@Test
+func meetingPromptResponseEnqueuesExactlyOneConfirmedMeetingActionAcrossSurfaces() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-prompt-effect-\(UUID().uuidString)", isDirectory: true)
+    let dayDirectory = root.appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: dayDirectory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let line = "{\"t\":\"09-00-00\",\"epoch\":1783663200,\"app\":\"WhatsApp\",\"window\":\"Sarah\",\"url\":\"\",\"img\":true}\n"
+    try Data(line.utf8).write(to: dayDirectory.appendingPathComponent("log.jsonl"))
+    try Data([1, 2, 3]).write(to: dayDirectory.appendingPathComponent("09-00-00.jpg"))
+    let archive = try ScreenwatchArchive(databaseURL: databaseURL)
+    let observedAt = Date(timeIntervalSince1970: 1_783_663_200)
+    _ = try archive.ingestToday(from: root, now: observedAt)
+    let ocr = ScreenshotOCRResult(blocks: [
+        OCRTextBlock(text: "Meeting tomorrow at 3 pm for 30 minutes", confidence: 0.95, boundingBox: NormalizedBoundingBox(x: 0, y: 0, width: 1, height: 1), localeHint: "en")
+    ])
+    _ = try await archive.analyzePendingWhatsAppScreenshots(
+        using: PromptEffectRecognizer(result: ocr),
+        cipher: try LocalEvidenceCipher(keyData: Data(repeating: 9, count: 32))
+    )
+    let candidateValue = try archive.unresolvedMeetingCandidates().first
+    let candidate = try #require(candidateValue)
+    let promptStore = try PromptInboxStore(databaseURL: databaseURL)
+    let episode = try promptStore.enqueue(PromptDraft(
+        decisionKey: "meeting:\(candidate.id)",
+        type: "MEETING_CANDIDATE",
+        title: candidate.title,
+        summary: "Confirm meeting",
+        actions: [PromptAction(kind: .addMeeting, title: "Add")],
+        payload: ["candidateID": candidate.id]
+    )).episode
+    let token = PromptResponseToken.make(promptID: episode.id, action: .addMeeting)
+    let first = try promptStore.respond(promptID: episode.id, action: .addMeeting, actionToken: token, surface: .notification)
+    let second = try promptStore.respond(promptID: episode.id, action: .addMeeting, actionToken: token, surface: .atoll)
+    let outbox = try ActionOutboxStore(databaseURL: databaseURL)
+    let router = PromptResponseEffectRouter(outbox: outbox, meetingArchive: archive)
+
+    let firstEffect = try router.apply(first)
+    let secondEffect = try router.apply(second)
+
+    #expect(firstEffect != .none)
+    #expect(secondEffect == .none)
+    #expect(try outbox.recentCommands().filter { $0.type == .createConfirmedMeeting }.count == 1)
+    #expect(try archive.meetingCandidate(id: candidate.id)?.state == "accepted")
+}
+
+private struct PromptEffectRecognizer: ScreenshotTextRecognizing {
+    let result: ScreenshotOCRResult
+    func recognize(in imageURL: URL) async throws -> ScreenshotOCRResult { result }
+}
