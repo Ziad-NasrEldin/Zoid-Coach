@@ -176,6 +176,13 @@ public final class ActionOutboxStore: @unchecked Sendable {
         SELECT id FROM action_commands
         WHERE state IN ('pending', 'retryable_failure')
           AND (next_attempt_at_utc IS NULL OR next_attempt_at_utc <= ?)
+          AND (
+            action_origin != 'automatic_plan'
+            OR COALESCE(
+              (SELECT json_extract(payload_json, '$.operatingMode') FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1 ORDER BY version DESC LIMIT 1),
+              'suggestionsOnly'
+            ) = 'fullyAutomatic'
+          )
         ORDER BY created_at_utc ASC, id ASC
         LIMIT 1;
         """

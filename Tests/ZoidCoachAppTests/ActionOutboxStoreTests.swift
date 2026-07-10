@@ -41,9 +41,11 @@ func leavingAutomaticModeCancelsOnlyUnapprovedPlanWrites() throws {
         origin: .approvedPlan
     )
 
+    let claim = try store.claimNextReady()
+    #expect(claim?.id == approved.command.id)
     #expect(try store.cancelPendingAutomaticPlanCommands() == 1)
     #expect(try store.command(commandID: automatic.command.id)?.state == .cancelled)
-    #expect(try store.command(commandID: approved.command.id)?.state == .pending)
+    #expect(try store.command(commandID: approved.command.id)?.state == .executing)
 }
 
 @Test
