@@ -88,13 +88,25 @@ struct ZoidCoachAgentMain {
                 let execution = await actionExecutor.executeNext()
                 try? Self.finalizeMeetingEffect(execution, outbox: actionOutbox, archive: archive)
             }
-            let advisor: (any PlanningAdvising)? = configuration.useLocalAI || initialPolicy.privacy.aiProvider == .localOllama ? OllamaPlanningAdvisor() : nil
             let reminderPlanner = AgentReminderPlanner(
                 planStore: planStore,
                 reminderSnapshotStore: reminderSnapshotStore,
                 taskHistoryStore: taskHistoryStore,
                 learningStore: learningStore,
-                advisor: advisor
+                advisorProvider: {
+                    if configuration.useLocalAI {
+                        return OllamaPlanningAdvisor()
+                    }
+                    let privacy = (try? policyStore.current()?.policy.privacy) ?? initialPolicy.privacy
+                    switch privacy.aiProvider {
+                    case .localOllama:
+                        return OllamaPlanningAdvisor()
+                    case .codexCLI:
+                        return CodexCLIPlanningAdvisor(remoteEvidencePolicy: privacy.remoteEvidencePolicy)
+                    case .disabled, .appleOnDevice, .remoteOpenAI:
+                        return nil
+                    }
+                }
             )
             _ = try? await reminderPlanner.synchronizeReminderSource()
             await progressMonitor.markProgress()

@@ -15,7 +15,7 @@ final class AgentReminderPlanner: @unchecked Sendable {
     private let reminderSnapshotStore: ReminderSnapshotStore
     private let taskHistoryStore: TaskHistoryStore
     private let learningStore: LearningAggregateStore
-    private let advisor: (any PlanningAdvising)?
+    private let advisorProvider: @Sendable () -> (any PlanningAdvising)?
 
     init(
         eventStore: EKEventStore = EKEventStore(),
@@ -23,14 +23,14 @@ final class AgentReminderPlanner: @unchecked Sendable {
         reminderSnapshotStore: ReminderSnapshotStore,
         taskHistoryStore: TaskHistoryStore,
         learningStore: LearningAggregateStore,
-        advisor: (any PlanningAdvising)? = nil
+        advisorProvider: @escaping @Sendable () -> (any PlanningAdvising)? = { nil }
     ) {
         self.eventStore = eventStore
         self.planStore = planStore
         self.reminderSnapshotStore = reminderSnapshotStore
         self.taskHistoryStore = taskHistoryStore
         self.learningStore = learningStore
-        self.advisor = advisor
+        self.advisorProvider = advisorProvider
     }
 
     func draftPlan(
@@ -69,7 +69,7 @@ final class AgentReminderPlanner: @unchecked Sendable {
                 isBlocked: false
             )
         }
-        if let advisor {
+        if let advisor = advisorProvider() {
             let inputs = candidates.map {
                 PlanningAdviceInput(
                     id: $0.id,

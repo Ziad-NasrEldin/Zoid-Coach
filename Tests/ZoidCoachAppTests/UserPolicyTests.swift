@@ -79,3 +79,25 @@ func planningCapacityUsesConfiguredWorkWindowMinusFixedCommitmentsAtSeventyPerce
 
     #expect(policy.schedule.planningCapacityMinutes(on: monday, fixedCommitmentMinutes: 60) == 336)
 }
+
+@Test
+func codexCLIAllowsAnExplicitRemoteEvidencePolicy() {
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    let policy = UserPolicy(
+        operatingMode: defaults.operatingMode,
+        automationPause: defaults.automationPause,
+        schedule: defaults.schedule,
+        calendar: defaults.calendar,
+        privacy: PrivacyPolicy(
+            screenshotAnalysisEnabled: defaults.privacy.screenshotAnalysisEnabled,
+            aiProvider: .codexCLI,
+            remoteEvidencePolicy: .redactedMetadataOnly,
+            rawScreenshotRetentionDays: defaults.privacy.rawScreenshotRetentionDays,
+            extractedTextRetentionDays: defaults.privacy.extractedTextRetentionDays,
+            diagnosticRetentionDays: defaults.privacy.diagnosticRetentionDays
+        ),
+        wake: defaults.wake
+    )
+
+    #expect(policy.validationViolations().isEmpty)
+}

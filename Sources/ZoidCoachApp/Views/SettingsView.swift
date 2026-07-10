@@ -301,7 +301,10 @@ struct SettingsView: View {
     private var privacySection: some View {
         SettingsCard(title: "AI + DATA RETENTION", detail: AIProviderCapabilities.production.settingsSummary) {
             Toggle("Analyze Screenwatch screenshots", isOn: $controller.draft.screenshotAnalysisEnabled)
-            Picker("AI provider", selection: $controller.draft.aiProvider) {
+            Picker("AI provider", selection: Binding(
+                get: { controller.draft.aiProvider },
+                set: { controller.draft.selectAIProvider($0) }
+            )) {
                 ForEach(AIProviderSelection.allCases, id: \.self) { provider in
                     let capability = AIProviderCapabilities.production[provider]
                     Text(capability.settingsLabel)
@@ -310,13 +313,13 @@ struct SettingsView: View {
                 }
             }
             Picker("Remote evidence", selection: $controller.draft.remoteEvidencePolicy) {
-                Text("Local only").tag(RemoteEvidencePolicy.localOnly)
+                Text("Local only - remote AI off").tag(RemoteEvidencePolicy.localOnly)
                 Text("Redacted metadata only").tag(RemoteEvidencePolicy.redactedMetadataOnly)
                 Text("Explicit private content").tag(RemoteEvidencePolicy.explicitPrivateContent)
             }
             .disabled(
-                controller.draft.aiProvider != .remoteOpenAI
-                    || !AIProviderCapabilities.production[.remoteOpenAI].isSelectable
+                !controller.draft.aiProvider.usesRemoteProcessing
+                    || !AIProviderCapabilities.production[controller.draft.aiProvider].isSelectable
             )
             HStack(spacing: 18) {
                 RetentionField(title: "Screenshots", days: $controller.draft.rawScreenshotRetentionDays)

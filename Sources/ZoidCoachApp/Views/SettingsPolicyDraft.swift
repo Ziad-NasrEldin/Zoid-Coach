@@ -41,7 +41,7 @@ struct SettingsPolicyDraft: Equatable {
         screenshotAnalysisEnabled = policy.privacy.screenshotAnalysisEnabled
         let configuredProvider = policy.privacy.aiProvider
         aiProvider = AIProviderCapabilities.production[configuredProvider].isSelectable ? configuredProvider : .disabled
-        remoteEvidencePolicy = aiProvider == .remoteOpenAI ? policy.privacy.remoteEvidencePolicy : .localOnly
+        remoteEvidencePolicy = aiProvider.usesRemoteProcessing ? policy.privacy.remoteEvidencePolicy : .localOnly
         rawScreenshotRetentionDays = policy.privacy.rawScreenshotRetentionDays
         extractedTextRetentionDays = policy.privacy.extractedTextRetentionDays
         diagnosticRetentionDays = policy.privacy.diagnosticRetentionDays
@@ -50,6 +50,18 @@ struct SettingsPolicyDraft: Equatable {
         wakeEnd = policy.wake.window.end
         maximumDailyWakeInterventions = policy.wake.maximumDailyInterventions
         wakeQuietWeekdays = policy.wake.quietWeekdays ?? []
+    }
+
+    mutating func selectAIProvider(_ provider: AIProviderSelection) {
+        let previousProviderUsedRemoteProcessing = aiProvider.usesRemoteProcessing
+        aiProvider = provider
+        if !provider.usesRemoteProcessing {
+            remoteEvidencePolicy = .localOnly
+        } else if provider == .codexCLI,
+                  !previousProviderUsedRemoteProcessing,
+                  remoteEvidencePolicy == .localOnly {
+            remoteEvidencePolicy = .redactedMetadataOnly
+        }
     }
 
     func policy(preserving original: UserPolicy) -> UserPolicy {
@@ -81,7 +93,7 @@ struct SettingsPolicyDraft: Equatable {
             privacy: PrivacyPolicy(
                 screenshotAnalysisEnabled: screenshotAnalysisEnabled,
                 aiProvider: selectedProvider,
-                remoteEvidencePolicy: selectedProvider == .remoteOpenAI ? remoteEvidencePolicy : .localOnly,
+                remoteEvidencePolicy: selectedProvider.usesRemoteProcessing ? remoteEvidencePolicy : .localOnly,
                 rawScreenshotRetentionDays: rawScreenshotRetentionDays,
                 extractedTextRetentionDays: extractedTextRetentionDays,
                 diagnosticRetentionDays: diagnosticRetentionDays
@@ -94,4 +106,5 @@ struct SettingsPolicyDraft: Equatable {
             )
         )
     }
+
 }

@@ -15,7 +15,7 @@ public struct AIProviderCapability: Equatable, Sendable {
 public struct AIProviderCapabilities: Sendable {
     public static let production = AIProviderCapabilities()
 
-    public let settingsSummary = "Rules-only planning is available. Local Ollama is supported when its loopback service is running. Remote transmission is not configured in this build."
+    public let settingsSummary = "Rules-only and Local Ollama planning stay on this Mac. Codex CLI uses your signed-in OpenAI account and sends only the evidence level selected below. If it is unavailable, rules-only planning continues."
 
     public subscript(provider: AIProviderSelection) -> AIProviderCapability {
         switch provider {
@@ -23,6 +23,12 @@ public struct AIProviderCapabilities: Sendable {
             AIProviderCapability(isSelectable: true, status: "Rules-only planning", settingsLabel: "Disabled")
         case .localOllama:
             AIProviderCapability(isSelectable: true, status: "Local loopback provider", settingsLabel: "Local Ollama")
+        case .codexCLI:
+            AIProviderCapability(
+                isSelectable: true,
+                status: "Remote provider through local Codex CLI",
+                settingsLabel: "Codex CLI - Remote processing"
+            )
         case .appleOnDevice:
             AIProviderCapability(
                 isSelectable: false,

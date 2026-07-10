@@ -143,8 +143,13 @@ public struct CalendarSelectionPolicy: Codable, Equatable, Sendable {
 public enum AIProviderSelection: String, Codable, CaseIterable, Sendable {
     case disabled
     case localOllama
+    case codexCLI
     case appleOnDevice
     case remoteOpenAI
+
+    public var usesRemoteProcessing: Bool {
+        self == .codexCLI || self == .remoteOpenAI
+    }
 }
 
 public enum RemoteEvidencePolicy: String, Codable, CaseIterable, Sendable {
@@ -316,7 +321,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         appendRetentionViolation(privacy.rawScreenshotRetentionDays, field: "privacy.rawScreenshotRetentionDays", to: &violations)
         appendRetentionViolation(privacy.extractedTextRetentionDays, field: "privacy.extractedTextRetentionDays", to: &violations)
         appendRetentionViolation(privacy.diagnosticRetentionDays, field: "privacy.diagnosticRetentionDays", to: &violations)
-        if privacy.aiProvider != .remoteOpenAI, privacy.remoteEvidencePolicy != .localOnly {
+        if !privacy.aiProvider.usesRemoteProcessing, privacy.remoteEvidencePolicy != .localOnly {
             violations.append(.init(code: .remotePolicyWithoutRemoteProvider, field: "privacy.remoteEvidencePolicy"))
         }
         appendTimeViolation(wake.window.start, field: "wake.window.start", to: &violations)

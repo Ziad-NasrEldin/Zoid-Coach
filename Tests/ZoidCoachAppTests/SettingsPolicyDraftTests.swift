@@ -82,6 +82,29 @@ func settingsDraftCannotPersistAnUnavailableAIProvider() {
 }
 
 @Test
+func settingsDraftPersistsCodexCLIWithRemoteEvidencePolicy() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var draft = SettingsPolicyDraft(policy: original)
+    draft.selectAIProvider(.codexCLI)
+
+    let policy = draft.policy(preserving: original)
+    let roundTrippedDraft = SettingsPolicyDraft(policy: policy)
+
+    #expect(policy.privacy.aiProvider == .codexCLI)
+    #expect(draft.remoteEvidencePolicy == .redactedMetadataOnly)
+    #expect(policy.privacy.remoteEvidencePolicy == .redactedMetadataOnly)
+    #expect(policy.validationViolations().isEmpty)
+    #expect(roundTrippedDraft.aiProvider == .codexCLI)
+    #expect(roundTrippedDraft.remoteEvidencePolicy == .redactedMetadataOnly)
+
+    draft.remoteEvidencePolicy = .localOnly
+    let localOnlyPolicy = draft.policy(preserving: original)
+    let localOnlyRoundTrip = SettingsPolicyDraft(policy: localOnlyPolicy)
+    #expect(localOnlyPolicy.privacy.remoteEvidencePolicy == .localOnly)
+    #expect(localOnlyRoundTrip.remoteEvidencePolicy == .localOnly)
+}
+
+@Test
 func settingsDraftPresentsPersistedUnavailableProviderAsDisabled() {
     let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     let remotePolicy = UserPolicy(
