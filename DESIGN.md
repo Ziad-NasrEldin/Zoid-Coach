@@ -225,6 +225,7 @@ Healthy, warning, unavailable, and waiting states always include written labels.
 - **Do** show health and classification confidence in written language.
 - **Do** provide keyboard, VoiceOver, reduced-motion, and large-text support.
 - **Do** keep interaction motion between 150ms and 250ms and use it only for state feedback.
+- **Do** give every state-changing control immediate, visible feedback through its selected, loading, success, or error state, with reduced-motion alternatives.
 
 ### Don't:
 
