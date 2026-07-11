@@ -12,12 +12,7 @@ let package = Package(
         .executable(name: "ZoidCoachAgent", targets: ["ZoidCoachAgent"]),
         .library(name: "ZoidCoachCore", targets: ["ZoidCoachCore"])
     ],
-    dependencies: [
-        .package(
-            url: "https://github.com/Ebullioscopic/AtollExtensionKit",
-            revision: "296562051f4ee8fec55aaca14782b21b8e63cafa"
-        )
-    ],
+    dependencies: [],
     targets: [
         .target(
             name: "ZoidCoachCore",
@@ -26,8 +21,7 @@ let package = Package(
         .target(
             name: "ZoidCoachInfrastructure",
             dependencies: [
-                "ZoidCoachCore",
-                .product(name: "AtollExtensionKit", package: "AtollExtensionKit")
+                "ZoidCoachCore"
             ],
             path: "Sources/ZoidCoachInfrastructure"
         ),
@@ -35,8 +29,7 @@ let package = Package(
             name: "ZoidCoachApp",
             dependencies: [
                 "ZoidCoachCore",
-                "ZoidCoachInfrastructure",
-                .product(name: "AtollExtensionKit", package: "AtollExtensionKit")
+                "ZoidCoachInfrastructure"
             ],
             path: "Sources/ZoidCoachApp"
         ),

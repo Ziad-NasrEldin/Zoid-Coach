@@ -239,7 +239,7 @@
     <div class="wrap">
       <div class="eyebrow">Screenwatch extension concept</div>
       <h1>Zoid Coach MVP</h1>
-      <p class="subtitle">An interactive AI work coach that combines Apple Reminders, Screenwatch behavior logs, and A-Toll notch prompts to help Ziad finish work before gaming or drifting.</p>
+      <p class="subtitle">An interactive AI work coach that combines Apple Reminders, Screenwatch behavior logs, and notification prompts to help Ziad finish work before gaming or drifting.</p>
       <div class="hero-flow">
         <div class="flow-step">Intent</div>
         <div class="flow-step">Estimate</div>
@@ -263,7 +263,7 @@
       <a href="#morning">Morning planning</a>
       <a href="#tracking">Task tracking</a>
       <a href="#gaming">Gaming system</a>
-      <a href="#atoll">A-Toll notch</a>
+      <a href="#dashboard">Notifications</a>
       <a href="#reviews">Reviews</a>
       <a href="#phases">Build phases</a>
     </nav>
@@ -291,7 +291,7 @@
         <span class="tag good">Gaming / distracting time</span>
         <span class="tag good">AI “Do this next”</span>
         <span class="tag good">End-of-day review</span>
-        <span class="tag good">A-Toll prompts</span>
+        <span class="tag good">notification prompts</span>
         <span class="tag bad">No focus score for now</span>
         <span class="tag bad">No default hard blocking</span>
       </section>
@@ -362,7 +362,7 @@
           <div class="card"><strong>Level 1 — Gentle nudge</strong><p>“You planned to work on X. Want to start?”</p></div>
           <div class="card"><strong>Level 2 — Accountability</strong><p>“You’ve been in League for 25m. Is this intentional?”</p></div>
           <div class="card"><strong>Level 3 — Commit mode</strong><p>“Pick one: 20m sprint or reschedule.”</p></div>
-          <div class="card"><strong>Level 4 — Soft block</strong><p>Stronger notch warning / overlay.</p></div>
+          <div class="card"><strong>Level 4 - Soft block</strong><p>Stronger notification warning with an optional in-app overlay.</p></div>
           <div class="card"><strong>Level 5 — Hard block</strong><p>Optional only. Never default.</p></div>
         </div>
       </section>
@@ -382,7 +382,7 @@ Gaming allowed after: 2 completed tasks</pre>
 
       <section id="tracking">
         <h2>9. Task start / stop tracking</h2>
-        <p>Ziad can start a task from the dashboard, notch, or command. Zoid Coach then checks whether active behavior matches the task.</p>
+        <p>Ziad can start a task from the dashboard, notification, or command. Zoid Coach then checks whether active behavior matches the task.</p>
         <pre>You started “Edit video intro” 4m ago but switched to League.
 Was that intentional?</pre>
       </section>
@@ -400,9 +400,9 @@ To unlock more, finish one 30m sprint.</pre>
         <p>Ziad can always override. Overrides are logged without moralizing and reviewed later.</p>
       </section>
 
-      <section id="atoll">
-        <h2>11. A-Toll / notch integration</h2>
-        <p>A-Toll should be the main interactive surface.</p>
+      <section id="dashboard">
+        <h2>11. Notifications and dashboard integration</h2>
+        <p>The Today dashboard is the main interactive surface, with notifications for timely interventions.</p>
         <h3>Passive state</h3>
         <pre>Zoid: Client reply · 15m
 Work: 2h 15m · Gaming: 37m</pre>
@@ -444,7 +444,7 @@ Break vague tasks automatically and require estimates.</pre>
         <h2>13. MVP implementation phases</h2>
         <div class="cards">
           <div class="card"><strong>Phase 1 — Daily Command Center</strong><p>Reminders import, task metadata, estimates, dashboard, active task, work/gaming totals, recommendation.</p></div>
-          <div class="card"><strong>Phase 2 — A-Toll prompts</strong><p>Estimate questions, drift alerts, start/reschedule/snooze buttons.</p></div>
+          <div class="card"><strong>Phase 2 - Notification prompts</strong><p>Estimate questions, drift alerts, start/reschedule/snooze buttons.</p></div>
           <div class="card"><strong>Phase 3 — Classification engine</strong><p>Installed app inventory, rules, unknown app review, AI classifier.</p></div>
           <div class="card"><strong>Phase 4 — Gaming budget</strong><p>Daily allowance, unlock rules, debt, overrides, soft prompts.</p></div>
           <div class="card"><strong>Phase 5 — Reviews</strong><p>End-of-day summaries, tomorrow planning, weekly pattern reports.</p></div>
@@ -453,7 +453,7 @@ Break vague tasks automatically and require estimates.</pre>
         <pre>If League is active for >10 minutes
 AND top tasks are incomplete
 AND current time is before 8 PM
-→ A-Toll prompt:
+→ notification prompt:
 
 “Ziad, you still have ‘Edit video intro’ estimated at 45m.
 Do a 20m sprint now?”</pre>

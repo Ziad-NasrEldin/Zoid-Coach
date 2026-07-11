@@ -20,7 +20,7 @@ Zoid Coach is a standalone local-first macOS productivity coach.
 
 It connects intended work from Apple Reminders with actual computer behavior from Screenwatch.
 
-It uses Atoll as a timely notch surface for passive status and coaching choices.
+It uses macOS notifications for timely interventions and the Today dashboard for coaching choices.
 
 The product closes the loop from intent through observation, intervention, review, and learning.
 
@@ -84,4 +84,4 @@ Status must never rely on color alone.
 
 The app must support reduced motion, clear focus order, large text, and sufficient contrast.
 
-Compact Atoll interactions must always have an accessible alternative in the main app.
+Notification actions must always have an accessible alternative in the main app.

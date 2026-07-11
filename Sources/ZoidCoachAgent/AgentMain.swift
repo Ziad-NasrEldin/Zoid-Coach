@@ -288,33 +288,6 @@ struct ZoidCoachAgentMain {
                 }
             )
             try voiceController.pruneExpiredTranscripts()
-            let atollPromptActionHandler = AtollPromptActionHandler(
-                promptStore: promptStore,
-                effectRouter: promptEffectRouter
-            )
-            let atollCommandCenterController = AtollCommandCenterController(dependencies: .init(
-                snapshot: { try todayDashboardAgent.snapshot() },
-                prompts: { try promptStore.unresolved() },
-                policy: { try policyStore.current()?.policy ?? UserPolicy.defaults() },
-                applyTask: { command, taskID in try todayDashboardAgent.apply(command, taskID: taskID) },
-                respondToPrompt: { promptID, action in
-                    _ = try atollPromptActionHandler.respond(
-                        promptID: promptID,
-                        action: action,
-                        actionToken: PromptResponseToken.make(promptID: promptID, action: action)
-                    )
-                },
-                applyMutation: { command in try await mutationRouter.apply(command) }
-            ))
-            let atollCommandCenterBridge = AtollCommandCenterBridge(
-                promptActionHandler: atollPromptActionHandler,
-                controller: atollCommandCenterController
-            )
-            if configuration.watch {
-                Task.detached(priority: .utility) {
-                    await AtollCommandCenterRuntime.shared.start(atollCommandCenterBridge)
-                }
-            }
             let xpcService = TodayDashboardXPCService(
                 agent: todayDashboardAgent,
                 promptStore: promptStore,
@@ -366,8 +339,7 @@ struct ZoidCoachAgentMain {
                         await Self.schedulePlanPrompt(
                             prompt.episode,
                             policy: initialPolicy,
-                            notifications: notificationCoordinator,
-                            checkpoints: checkpointStore
+                            notifications: notificationCoordinator
                         )
                     }
                     try checkpointStore.recordSuccess(
@@ -411,8 +383,7 @@ struct ZoidCoachAgentMain {
                         await Self.schedulePlanPrompt(
                             prompt.episode,
                             policy: initialPolicy,
-                            notifications: notificationCoordinator,
-                            checkpoints: checkpointStore
+                            notifications: notificationCoordinator
                         )
                     }
                     print("Zoid Coach agent: drafted \(itemCount) daily commitments")
@@ -437,13 +408,6 @@ struct ZoidCoachAgentMain {
                     }
                     try checkpointStore.recordSuccess(sourceID: "agent-runtime", at: Date())
                     try Self.replayPendingPromptEffects(store: promptStore, router: promptEffectRouter)
-                    if policy.operatingMode != .observe {
-                        await Self.presentDuePlanPrompts(
-                            store: promptStore,
-                            policy: policy,
-                            checkpoints: checkpointStore
-                        )
-                    }
                     if !resourceConstrained,
                        lastMaintenanceAttempt.map({ Date().timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true {
                         _ = try? maintenanceService.run(policy: policy, now: Date(), mode: .apply)
@@ -556,7 +520,6 @@ struct ZoidCoachAgentMain {
                                 ))
                                 if prompt.wasInserted {
                                     _ = try? await notificationCoordinator.schedule(prompt.episode)
-                                    _ = await AtollPromptNotifier().present(prompt.episode)
                                 }
                             }
                         }
@@ -595,8 +558,7 @@ struct ZoidCoachAgentMain {
                                 await Self.schedulePlanPrompt(
                                     prompt.episode,
                                     policy: policy,
-                                    notifications: notificationCoordinator,
-                                    checkpoints: checkpointStore
+                                    notifications: notificationCoordinator
                                 )
                             }
                             print("Zoid Coach agent: overnight draft prepared with \(itemCount) commitments")
@@ -787,7 +749,6 @@ struct ZoidCoachAgentMain {
                 ))
                 guard prompt.episode.state == .queued else { continue }
                 _ = try? await notifications.schedule(prompt.episode)
-                presentAtollWithoutBlockingAgent(prompt.episode)
             } catch {
                 continue
             }
@@ -845,43 +806,10 @@ struct ZoidCoachAgentMain {
         _ episode: PromptEpisode,
         policy: UserPolicy,
         notifications: PromptNotificationCoordinator,
-        checkpoints: ProcessingCheckpointStore,
         now: Date = Date()
     ) async {
         let delivery = morningDeliveryDate(for: episode, policy: policy)
         _ = try? await notifications.schedule(episode, deliveryDate: delivery)
-        guard delivery.map({ $0 <= now }) ?? true else { return }
-        await presentPlanPromptOnce(episode, checkpoints: checkpoints, now: now)
-    }
-
-    private static func presentDuePlanPrompts(
-        store: PromptInboxStore,
-        policy: UserPolicy,
-        checkpoints: ProcessingCheckpointStore,
-        now: Date = Date()
-    ) async {
-        guard let prompts = try? store.unresolved() else { return }
-        for prompt in prompts where prompt.type == "PLAN_READY" {
-            guard morningDeliveryDate(for: prompt, policy: policy).map({ $0 <= now }) ?? true else { continue }
-            await presentPlanPromptOnce(prompt, checkpoints: checkpoints, now: now)
-        }
-    }
-
-    private static func presentPlanPromptOnce(
-        _ episode: PromptEpisode,
-        checkpoints: ProcessingCheckpointStore,
-        now: Date
-    ) async {
-        let sourceID = "atoll-plan-prompt:\(episode.id)"
-        guard (try? checkpoints.checkpoint(sourceID: sourceID)) == nil else { return }
-        try? checkpoints.recordSuccess(sourceID: sourceID, at: now)
-        presentAtollWithoutBlockingAgent(episode)
-    }
-
-    private static func presentAtollWithoutBlockingAgent(_ episode: PromptEpisode) {
-        Task.detached(priority: .utility) {
-            _ = await AtollPromptNotifier().present(episode)
-        }
     }
 
     private static func enqueuePlanActions(

@@ -83,7 +83,7 @@ func promptResponseIsAppliedExactlyOnceAcrossRepeatedSurfaceDelivery() throws {
     let first = try store.enqueue(promptDraft(decisionKey: "meeting:abc")).episode
     let token = PromptResponseToken.make(promptID: first.id, action: .addMeeting)
 
-    let applied = try store.respond(promptID: first.id, action: .addMeeting, actionToken: token, surface: .atoll)
+    let applied = try store.respond(promptID: first.id, action: .addMeeting, actionToken: token, surface: .dashboard)
     let replay = try store.respond(promptID: first.id, action: .addMeeting, actionToken: token, surface: .notification)
     let next = try store.enqueue(promptDraft(decisionKey: "meeting:abc"))
 

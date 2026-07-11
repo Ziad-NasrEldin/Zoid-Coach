@@ -41,7 +41,7 @@ The app currently has these working foundations:
 - A manual three-task daily plan with estimates and one main objective.
 - SQLite persistence for source checks, daily plan entries, and reminder-list display order.
 - Incremental health inspection of the Screenwatch JSONL stream.
-- Atoll authorization and one-way test activity presentation over the local WebSocket endpoint.
+- notification authorization and one-way test notification delivery.
 - A Sumi-Ink SwiftUI dashboard.
 - Nine passing Swift tests as of 2026-07-10.
 
@@ -54,7 +54,7 @@ The current implementation does not yet have:
 - Screenshot indexing, OCR, or semantic extraction.
 - An AI provider boundary or structured model-output validation.
 - An automatic planner, scheduler, action outbox, or learning loop.
-- Native Atoll action callbacks.
+- Shared dashboard and notification action handling.
 - macOS notification categories and action handling.
 - A versioned database migration runner.
 - A deterministic day-replay test harness.
@@ -140,7 +140,7 @@ Visible WhatsApp text --/                                       |               
                                                            SQLite event log   action outbox
                                                                   |               |
                                                                   v               v
-Zoid Coach app <------ authenticated XPC ------> ZoidCoachAgent -> EventKit / Atoll / Notifications
+Zoid Coach app <------ authenticated XPC ------> ZoidCoachAgent -> EventKit / Notifications
 ```
 
 ### 4.1 Package targets
@@ -150,11 +150,11 @@ Update `Package.swift` to define these boundaries:
 | Target | Type | Responsibility |
 | --- | --- | --- |
 | `ZoidCoachCore` | Library | Domain models, policies, planner, scheduler, reducers, protocols, and deterministic replay |
-| `ZoidCoachInfrastructure` | Library | SQLite, EventKit, Screenwatch, Vision OCR, AI providers, notifications, Atoll, XPC, and system lifecycle |
+| `ZoidCoachInfrastructure` | Library | SQLite, EventKit, Screenwatch, Vision OCR, AI providers, notifications, XPC, and system lifecycle |
 | `ZoidCoachApp` | Executable | SwiftUI dashboard, settings, onboarding, audit, prompt inbox, and XPC client |
 | `ZoidCoachAgent` | Executable | LaunchAgent entry point, ingestion loops, scheduler, outbox executor, and XPC server |
 
-Domain code must not import SwiftUI, EventKit, Vision, UserNotifications, AtollExtensionKit, or provider SDKs.
+Domain code must not import SwiftUI, EventKit, Vision, UserNotifications, or provider SDKs.
 
 ### 4.2 Planned source layout
 
@@ -173,7 +173,7 @@ Sources/
     Screenwatch/
     Vision/
     AI/
-    Atoll/
+    Dashboard/
     Notifications/
     XPC/
     System/
@@ -280,7 +280,7 @@ Create these tables in the first new schema series:
 | `scheduled_blocks` | Plan item to EventKit event mapping and ownership token |
 | `action_commands` | Transactional outbox with unique idempotency key |
 | `action_attempts` | Retry history, platform response, and redacted error |
-| `prompt_episodes` | Prompt state shared across Atoll, notifications, and dashboard |
+| `prompt_episodes` | Prompt state shared across dashboard and notifications |
 | `prompt_responses` | Idempotent user decisions and source surface |
 | `meeting_candidates` | Extracted meeting data, lifecycle state, and dedup fingerprint |
 | `meeting_evidence` | Candidate-to-screenshot and OCR evidence links |
@@ -573,15 +573,15 @@ It must show:
 
 ### 12.2 Prompt inbox
 
-Add one shared prompt inbox whose state feeds the dashboard, Atoll, and notifications.
+Add one shared prompt inbox whose state feeds the dashboard and notifications.
 
 Only one unresolved prompt episode may exist for the same decision.
 
 Responses from any surface update the same episode using an idempotent action token.
 
-### 12.3 Atoll
+### 12.3 Today dashboard
 
-Extend the Atoll integration with native action descriptors and callbacks as already decided in the product specification.
+Use the existing Today dashboard as the persistent interactive view over the shared prompt inbox.
 
 Required native contract:
 
@@ -602,7 +602,7 @@ Add UserNotifications authorization and categories for:
 - `MEETING_CANDIDATE` with Add, Edit, and Ignore actions.
 - `PLAN_CHANGED` with Review and Undo actions.
 
-Notification actions must use the same prompt action tokens as Atoll.
+Notification actions must use the same prompt action tokens as dashboard.
 
 ### 12.5 Settings and privacy
 
@@ -623,7 +623,7 @@ Add controls to inspect source health, open the local data folder, export a reda
 7. Resolve relative dates against the screenshot timestamp and locale.
 8. Compare against existing Calendar events and unresolved candidates.
 9. Route the result by confidence.
-10. Prompt through Atoll and macOS notification when ready.
+10. Prompt through dashboard and macOS notification when ready.
 
 ### 13.2 Confidence routing
 
@@ -689,7 +689,7 @@ Do not collapse these into one focus score.
 
 ### 15.1 Permissions
 
-Onboarding must separately explain and verify Reminders, Calendar, Notifications, Screen Recording, Accessibility, Automation, Atoll, and launch-at-login permissions.
+Onboarding must separately explain and verify Reminders, Calendar, Notifications, Screen Recording, Accessibility, Automation, and launch-at-login permissions.
 
 Each unavailable permission degrades only its dependent capability.
 
@@ -751,7 +751,7 @@ Use protocol fakes for EventKit reads and writes.
 
 Use temporary SQLite databases for full agent transactions.
 
-Use a fake Atoll endpoint and fake notification center.
+Use a fake dashboard client and fake notification center.
 
 Use sanitized Screenwatch JSONL and screenshot fixtures, including WhatsApp light mode, dark mode, Arabic, English, group chat, quoted messages, and ambiguous dates.
 
@@ -760,7 +760,7 @@ Use sanitized Screenwatch JSONL and screenshot fixtures, including WhatsApp ligh
 Prove these flows in the packaged signed app:
 
 1. A nightly run drafts a plan from real Reminders and fixed Calendar events.
-2. Morning notification and Atoll display the same prompt episode.
+2. Morning notification and dashboard display the same prompt episode.
 3. Accepting the plan produces only Zoid-owned Calendar blocks.
 4. A changed fixed meeting safely moves future Zoid blocks once.
 5. A visible WhatsApp meeting proposal creates one candidate.
@@ -790,7 +790,7 @@ Deliver:
 - Versioned migration runner and current-schema upgrade test.
 - Injectable clock and deterministic replay skeleton.
 - XPC command and snapshot contracts.
-- Atoll action-contract spike with a confirmed native or temporary adapter path.
+- dashboard prompt-action validation.
 
 Exit criteria:
 
@@ -840,14 +840,14 @@ Deliver:
 - Today command-ledger redesign.
 - Shared prompt inbox.
 - macOS notification categories.
-- Atoll plan prompt and action handling.
+- dashboard plan prompt and action handling.
 - Accept, adjust, exclude, and undo flows.
 
 Exit criteria:
 
-- Atoll, notification, and dashboard resolve the same prompt exactly once.
+- dashboard and notifications resolve the same prompt exactly once.
 - Keyboard and VoiceOver can complete the full flow.
-- The plan remains useful when Atoll is unavailable.
+- The plan remains useful when dashboard is unavailable.
 
 ### Milestone 4: Automatic Apple actions
 
@@ -874,7 +874,7 @@ Deliver:
 - Arabic and English text normalization.
 - Structured meeting extraction and temporal resolver.
 - Confidence routing, deduplication, conflict detection, and expiry.
-- Atoll and notification confirmation with compact editing.
+- dashboard and notification confirmation with compact editing.
 
 Exit criteria:
 
@@ -929,7 +929,7 @@ Exit criteria:
 | 7 | Build replay clock and simulated-day harness | 1, 2, 4, 5, 6 |
 | 8 | Implement capacity, ranking, and shadow plan runs | 7 |
 | 9 | Add AI provider protocol and structured validation | 8 |
-| 10 | Build prompt inbox, notifications, and Atoll action adapter | 3, 8 |
+| 10 | Build prompt inbox, notifications, and dashboard action adapter | 3, 8 |
 | 11 | Build action outbox and Calendar block executor | 6, 8, 10 |
 | 12 | Add Reminder automatic commands and audit | 5, 11 |
 | 13 | Implement selective Vision OCR and encrypted text storage | 4 |
@@ -962,7 +962,7 @@ The autonomous-coach initiative is complete when:
 - The plan contains a realistic three-to-five-item commitment set or a justified smaller set.
 - Fixed Calendar commitments and planning capacity constrain every schedule.
 - The agent can create and safely maintain Zoid-owned Calendar blocks and supported Reminder fields.
-- Morning notification and Atoll provide the same decision with an accessible dashboard fallback.
+- Morning notification and dashboard provide the same decision with an accessible dashboard fallback.
 - Visible WhatsApp meeting proposals become deduplicated, confidence-aware confirmation prompts.
 - Confirmed meetings are created exactly once.
 - Every automatic action is evidence-backed, audited, recoverable, and reversible where the platform allows.

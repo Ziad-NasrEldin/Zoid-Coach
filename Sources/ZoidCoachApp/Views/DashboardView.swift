@@ -324,7 +324,7 @@ private struct PromptInboxLedger: View {
                     .background(Sumi.mist)
                     .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
                 if model.promptEpisodes.isEmpty {
-                    Text("No decisions are waiting. Prompts from notifications, Atoll, and this dashboard resolve through this shared inbox.")
+                Text("No decisions are waiting. Prompts from notifications and this dashboard resolve through this shared inbox.")
                         .font(Sumi.body(12))
                         .foregroundStyle(Sumi.muted)
                         .padding(.horizontal, 28)

@@ -6,7 +6,7 @@ import Testing
 func initialSourcesRepresentAllRequiredIntegrations() {
     let sourceIDs = Set(SourceHealth.initial.map(\.id))
 
-    #expect(sourceIDs == Set([.reminders, .calendar, .screenwatch, .atoll, .agent, .notifications]))
+    #expect(sourceIDs == Set([.reminders, .calendar, .screenwatch, .agent, .notifications]))
 }
 
 @Test
