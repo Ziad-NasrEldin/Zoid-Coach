@@ -36,6 +36,7 @@ zoid_service="$(launchctl print "$USER_DOMAIN/com.ziadnasreldin.ZoidCoach.agent"
 grep -q "state = running" <<<"$zoid_service" || fail "Zoid Coach agent is not running"
 
 if [[ -d "$INSTALLED_APP" ]]; then
+    "${0:A:h}/verify-package.sh" "$INSTALLED_APP"
     agent_pid="$(awk '/pid =/{print $3; exit}' <<<"$zoid_service")"
     agent_executable="$(lsof -Fn -a -p "$agent_pid" -d txt 2>/dev/null | sed -n 's/^n//p' | grep 'ZoidCoachAgent$')"
     [[ "$agent_executable" == "$INSTALLED_APP/Contents/MacOS/ZoidCoachAgent" ]] \

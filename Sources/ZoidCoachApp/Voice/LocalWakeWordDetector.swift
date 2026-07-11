@@ -47,17 +47,21 @@ final class LocalWakeWordDetector: ObservableObject {
     }
 
     private func requestAuthorization() async -> Bool {
-        let speechAuthorized: Bool = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { status in
-                continuation.resume(returning: status == .authorized)
-            }
-        }
+        let speechAuthorized = await Self.requestSpeechAuthorization()
         guard speechAuthorized else { return false }
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized: return true
         case .notDetermined: return await AVCaptureDevice.requestAccess(for: .audio)
         case .denied, .restricted: return false
         @unknown default: return false
+        }
+    }
+
+    private nonisolated static func requestSpeechAuthorization() async -> Bool {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                continuation.resume(returning: status == .authorized)
+            }
         }
     }
 

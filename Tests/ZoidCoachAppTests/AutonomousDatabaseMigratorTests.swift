@@ -93,10 +93,27 @@ func behaviorClassificationMigrationFreezesLegacyRecords() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [20, 21])
+    #expect(result.appliedVersions == Array(20...AutonomousDatabaseMigrator.currentVersion))
     #expect(try scalarText(databaseURL, "SELECT classification FROM behavior_records WHERE app_name = 'Xcode';") == "work")
     #expect(try scalarText(databaseURL, "SELECT classification FROM behavior_records WHERE app_name = 'Steam';") == "gaming")
     #expect(try scalarInt(databaseURL, "SELECT SUM(classification_policy_version) FROM behavior_records;") == 0)
+}
+
+@Test
+func recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() throws {
+    let databaseURL = temporaryDatabaseURL("wal-backup")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    _ = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+    try execute(databaseURL, "PRAGMA journal_mode=WAL; INSERT INTO settings(key, value_json, policy_version, updated_at_utc) VALUES ('backup-proof', '{}', 1, '2026-07-10T00:00:00Z');")
+
+    let backupURL = try AutonomousDatabaseMigrator(
+        databaseURL: databaseURL,
+        now: { Date(timeIntervalSince1970: 1_752_153_600) }
+    ).createRecoveryBackup()
+    defer { removeDatabaseFiles(at: backupURL) }
+
+    #expect(try scalarInt(backupURL, "SELECT COUNT(*) FROM settings WHERE key = 'backup-proof';") == 1)
+    #expect(try scalarText(backupURL, "PRAGMA integrity_check;") == "ok")
 }
 
 private func temporaryDatabaseURL(_ label: String) -> URL {

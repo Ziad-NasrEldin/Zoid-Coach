@@ -293,8 +293,26 @@ public struct BehaviorPolicy: Codable, Equatable, Sendable {
     }
 }
 
+public enum CaptureMode: String, Codable, CaseIterable, Sendable {
+    case legacy
+    case parity
+    case native
+}
+
+public struct CapturePolicy: Codable, Equatable, Sendable {
+    public let mode: CaptureMode
+    public let configuredDisplayIDs: [UInt32]
+
+    public init(mode: CaptureMode = .legacy, configuredDisplayIDs: [UInt32] = []) {
+        self.mode = mode
+        self.configuredDisplayIDs = Array(Set(configuredDisplayIDs)).sorted()
+    }
+
+    public static let legacy = CapturePolicy()
+}
+
 public struct UserPolicy: Codable, Equatable, Sendable {
-    public static let schemaVersion = 2
+    public static let schemaVersion = 3
 
     public let schemaVersion: Int
     public let operatingMode: OperatingMode
@@ -304,6 +322,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
     public let privacy: PrivacyPolicy
     public let wake: WakePolicyConfiguration
     public let behavior: BehaviorPolicy
+    public let capture: CapturePolicy
 
     public init(
         schemaVersion: Int = UserPolicy.schemaVersion,
@@ -313,7 +332,8 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         calendar: CalendarSelectionPolicy,
         privacy: PrivacyPolicy,
         wake: WakePolicyConfiguration,
-        behavior: BehaviorPolicy = BehaviorPolicy()
+        behavior: BehaviorPolicy = BehaviorPolicy(),
+        capture: CapturePolicy = .legacy
     ) {
         self.schemaVersion = schemaVersion
         self.operatingMode = operatingMode
@@ -323,6 +343,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         self.privacy = privacy
         self.wake = wake
         self.behavior = behavior
+        self.capture = capture
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -334,6 +355,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         case privacy
         case wake
         case behavior
+        case capture
     }
 
     public init(from decoder: Decoder) throws {
@@ -346,6 +368,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         privacy = try container.decode(PrivacyPolicy.self, forKey: .privacy)
         wake = try container.decode(WakePolicyConfiguration.self, forKey: .wake)
         behavior = try container.decodeIfPresent(BehaviorPolicy.self, forKey: .behavior) ?? BehaviorPolicy()
+        capture = try container.decodeIfPresent(CapturePolicy.self, forKey: .capture) ?? .legacy
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -358,6 +381,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         try container.encode(privacy, forKey: .privacy)
         try container.encode(wake, forKey: .wake)
         try container.encode(behavior, forKey: .behavior)
+        try container.encode(capture, forKey: .capture)
     }
 
     public func upgradedToCurrentSchema() -> UserPolicy {
@@ -368,7 +392,8 @@ public struct UserPolicy: Codable, Equatable, Sendable {
             calendar: calendar,
             privacy: privacy,
             wake: wake,
-            behavior: behavior
+            behavior: behavior,
+            capture: capture
         )
     }
 

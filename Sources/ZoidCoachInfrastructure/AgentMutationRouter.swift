@@ -11,6 +11,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
     private let policyStore: PolicyStore
     private let reminderSnapshots: ReminderSnapshotStore
     private let privacyData: PrivacyDataService
+    private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
     private let draftPlan: (@Sendable (Date, Bool) async throws -> Int)?
 
     public init(
@@ -22,6 +23,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
         policyStore: PolicyStore,
         reminderSnapshots: ReminderSnapshotStore,
         privacyData: PrivacyDataService,
+        writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(),
         draftPlan: (@Sendable (Date, Bool) async throws -> Int)? = nil
     ) {
         self.outbox = outbox
@@ -32,10 +34,23 @@ public final class AgentMutationRouter: @unchecked Sendable {
         self.policyStore = policyStore
         self.reminderSnapshots = reminderSnapshots
         self.privacyData = privacyData
+        self.writeCircuitBreaker = writeCircuitBreaker
         self.draftPlan = draftPlan
     }
 
     public func apply(_ command: AgentMutationCommand) async throws -> AgentMutationReceipt {
+        try writeCircuitBreaker.throwIfTripped()
+        do {
+            return try await applyWritable(command)
+        } catch let error as AgentMutationRouterError {
+            throw error
+        } catch {
+            writeCircuitBreaker.trip(reason: "agent_mutation_write_failed")
+            throw error
+        }
+    }
+
+    private func applyWritable(_ command: AgentMutationCommand) async throws -> AgentMutationReceipt {
         switch command {
         case let .completeReminder(reminderID):
             let result = try outbox.enqueue(

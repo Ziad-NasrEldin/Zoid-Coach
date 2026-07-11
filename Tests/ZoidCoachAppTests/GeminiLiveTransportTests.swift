@@ -6,7 +6,7 @@ import Testing
 @Test
 func geminiSetupEnablesAudioToolsCompressionAndSessionResumptionWithoutEmbeddingTheAPIKey() throws {
     let configuration = GeminiLiveConfiguration(
-        model: "gemini-3.1-flash-live-preview",
+        model: "gemini-2.5-flash-native-audio-latest",
         systemInstruction: "You are Zoid.",
         voiceName: "Kore",
         tools: [VoiceToolDefinition(
@@ -27,7 +27,7 @@ func geminiSetupEnablesAudioToolsCompressionAndSessionResumptionWithoutEmbedding
     let tools = try #require(setup["tools"] as? [[String: Any]])
     let declarations = try #require(tools.first?["functionDeclarations"] as? [[String: Any]])
 
-    #expect(setup["model"] as? String == "models/gemini-3.1-flash-live-preview")
+    #expect(setup["model"] as? String == "models/gemini-2.5-flash-native-audio-latest")
     #expect(generation["responseModalities"] as? [String] == ["AUDIO"])
     #expect(compression["slidingWindow"] != nil)
     #expect(resumption["handle"] as? String == "resume-token")

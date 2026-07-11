@@ -5,8 +5,29 @@ import ZoidCoachInfrastructure
 @main
 struct ZoidCoachAgentMain {
     static func main() async {
+        let databaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker()
+        let captureHealthStore = AgentCaptureHealthStore(initial: AgentCaptureHealthSnapshot(
+            isEnabled: false,
+            isRunning: false,
+            screenRecording: .unknown,
+            accessibility: .unknown,
+            automation: .notRequired,
+            detail: "Capture runtime has not started"
+        ))
         do {
             let configuration = try AgentConfiguration(arguments: Array(CommandLine.arguments.dropFirst()))
+            let captureConfigurationStore = NativeCaptureConfigurationStore()
+            var persistedCaptureConfiguration = try captureConfigurationStore.load()
+            if configuration.nativeCapture || !configuration.captureDisplayIDs.isEmpty {
+                persistedCaptureConfiguration = NativeCaptureConfiguration(
+                    mode: configuration.nativeCapture && persistedCaptureConfiguration.mode == .legacy ? .parity : persistedCaptureConfiguration.mode,
+                    configuredDisplayIDs: configuration.captureDisplayIDs.isEmpty
+                        ? persistedCaptureConfiguration.configuredDisplayIDs
+                        : configuration.captureDisplayIDs.sorted(),
+                    parityPassed: persistedCaptureConfiguration.parityPassed
+                )
+                try captureConfigurationStore.save(persistedCaptureConfiguration)
+            }
             if configuration.printRemindersStatus {
                 print("Zoid Coach agent: Apple Reminders status \(AgentPermissionRequester.remindersStatus())")
                 return
@@ -22,6 +43,30 @@ struct ZoidCoachAgentMain {
             let progressMonitor = AgentProgressMonitor()
             let watchdog = configuration.watch ? Self.startWatchdog(progressMonitor: progressMonitor) : nil
             defer { watchdog?.cancel() }
+            captureHealthStore.update(AgentCaptureHealthSnapshot(
+                isEnabled: persistedCaptureConfiguration.mode != .legacy,
+                isRunning: false,
+                screenRecording: .unknown,
+                accessibility: .unknown,
+                automation: .notRequired,
+                configuredDisplayIDs: persistedCaptureConfiguration.configuredDisplayIDs,
+                detail: persistedCaptureConfiguration.mode == .legacy ? "Legacy Screenwatch capture remains active" : "Native capture is starting"
+            ))
+            let nativeCaptureTask: Task<Void, Never>? = if configuration.watch {
+                Task.detached(priority: .utility) {
+                    let service = NativeScreenCaptureService(
+                        configuration: .init(
+                            daysDirectory: configuration.nativeCaptureDirectory,
+                            configurationStore: captureConfigurationStore
+                        ),
+                        healthStore: captureHealthStore
+                    )
+                    await service.run()
+                }
+            } else {
+                nil
+            }
+            defer { nativeCaptureTask?.cancel() }
             try AutonomousDatabaseMigrator(databaseURL: configuration.databaseURL).migrate()
             let archive = try ScreenwatchArchive(databaseURL: configuration.databaseURL)
             let policyStore = try PolicyStore(databaseURL: configuration.databaseURL)
@@ -54,7 +99,7 @@ struct ZoidCoachAgentMain {
             let checkpointStore = try ProcessingCheckpointStore(databaseURL: configuration.databaseURL)
             let maintenanceService = try ScreenwatchMaintenanceService(
                 databaseURL: configuration.databaseURL,
-                screenwatchDirectory: configuration.screenwatchDirectory
+                screenwatchDirectory: configuration.activeCaptureDirectory(using: captureConfigurationStore)
             )
             let notificationCoordinator = PromptNotificationCoordinator(promptStore: promptStore) { result in
                 _ = try? promptEffectRouter.apply(result)
@@ -75,7 +120,8 @@ struct ZoidCoachAgentMain {
                 outbox: actionOutbox,
                 tasks: taskSource,
                 calendar: calendarSource,
-                notifications: UserNotificationActionSource()
+                notifications: UserNotificationActionSource(),
+                writeCircuitBreaker: databaseWriteCircuitBreaker
             )
             let planScheduler = AgentPlanScheduler(
                 plans: planStore,
@@ -126,6 +172,7 @@ struct ZoidCoachAgentMain {
                 policyStore: policyStore,
                 reminderSnapshots: reminderSnapshotStore,
                 privacyData: try PrivacyDataService(databaseURL: configuration.databaseURL),
+                writeCircuitBreaker: databaseWriteCircuitBreaker,
                 draftPlan: { day, overwriteExisting in
                     let policy = try policyStore.current()?.policy ?? UserPolicy.defaults()
                     let behavior = try archive.recentBehaviorEvidence(since: Date().addingTimeInterval(-7 * 24 * 60 * 60))
@@ -273,7 +320,9 @@ struct ZoidCoachAgentMain {
                 promptStore: promptStore,
                 promptEffectRouter: promptEffectRouter,
                 mutationRouter: mutationRouter,
-                voiceController: voiceController
+                voiceController: voiceController,
+                writeCircuitBreaker: databaseWriteCircuitBreaker,
+                captureHealthStore: captureHealthStore
             )
             xpcService.resume()
             let previousHeartbeat = try checkpointStore.checkpoint(sourceID: "agent-runtime")?.lastSuccessAt
@@ -400,7 +449,7 @@ struct ZoidCoachAgentMain {
                         _ = try? maintenanceService.run(policy: policy, now: Date(), mode: .apply)
                         lastMaintenanceAttempt = Date()
                     }
-                    let result = try archive.ingestToday(from: configuration.screenwatchDirectory, now: Date())
+                    let result = try archive.ingestToday(from: configuration.activeCaptureDirectory(using: captureConfigurationStore), now: Date())
                     let analysis = policy.privacy.screenshotAnalysisEnabled && !resourceConstrained
                         ? try await archive.analyzePendingWhatsAppScreenshots()
                         : MeetingAnalysisResult(screenshotsProcessed: 0, candidatesCreated: 0)
@@ -570,7 +619,7 @@ struct ZoidCoachAgentMain {
                     }
                 }
             } else {
-                let result = try archive.ingestToday(from: configuration.screenwatchDirectory, now: Date())
+                let result = try archive.ingestToday(from: configuration.activeCaptureDirectory(using: captureConfigurationStore), now: Date())
                 let analysis = try await archive.analyzePendingWhatsAppScreenshots()
                 try await Self.processMeetingPrompts(
                     archive: archive,
@@ -583,8 +632,16 @@ struct ZoidCoachAgentMain {
                 _ = try? todayDashboardAgent.snapshot(now: Date())
             }
         } catch {
-            fputs("Zoid Coach agent failed: \(error.localizedDescription)\n", stderr)
-            Foundation.exit(EXIT_FAILURE)
+            databaseWriteCircuitBreaker.trip(reason: error.localizedDescription)
+            fputs("Zoid Coach agent entered read-only mode: \(error.localizedDescription)\n", stderr)
+            let degradedService = TodayDashboardXPCService(
+                writeCircuitBreaker: databaseWriteCircuitBreaker,
+                captureHealthStore: captureHealthStore
+            )
+            degradedService.resume()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+            }
         }
     }
 
@@ -1030,6 +1087,14 @@ private struct AgentConfiguration {
     let requestRemindersAccess: Bool
     let planTomorrow: Bool
     let printRemindersStatus: Bool
+    let nativeCapture: Bool
+    let captureDisplayIDs: Set<UInt32>
+    let nativeCaptureDirectory: URL
+
+    func activeCaptureDirectory(using store: NativeCaptureConfigurationStore) -> URL {
+        let mode = (try? store.load().mode) ?? .legacy
+        return mode == .native ? nativeCaptureDirectory : screenwatchDirectory
+    }
 
     init(arguments: [String]) throws {
         var screenwatchDirectory = FileManager.default.homeDirectoryForCurrentUser
@@ -1042,6 +1107,11 @@ private struct AgentConfiguration {
         var requestRemindersAccess = false
         var planTomorrow = false
         var printRemindersStatus = false
+        var nativeCapture = ProcessInfo.processInfo.environment["ZOID_COACH_NATIVE_CAPTURE"] == "1"
+        var captureDisplayIDs = Set<UInt32>()
+        var nativeCaptureDirectory = NativeCapturePolicy.appOwnedDaysDirectory(
+            applicationSupportDirectory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        )
         var index = 0
 
         while index < arguments.count {
@@ -1070,6 +1140,16 @@ private struct AgentConfiguration {
                 index += 1
                 guard index < arguments.count else { throw AgentConfigurationError.missingValue("--screenwatch-directory") }
                 screenwatchDirectory = URL(fileURLWithPath: arguments[index], isDirectory: true)
+            case "--native-capture":
+                nativeCapture = true
+            case "--capture-displays":
+                index += 1
+                guard index < arguments.count else { throw AgentConfigurationError.missingValue("--capture-displays") }
+                captureDisplayIDs = try Self.parseDisplayIDs(arguments[index])
+            case "--native-capture-directory":
+                index += 1
+                guard index < arguments.count else { throw AgentConfigurationError.missingValue("--native-capture-directory") }
+                nativeCaptureDirectory = URL(fileURLWithPath: arguments[index], isDirectory: true)
             case "--database":
                 index += 1
                 guard index < arguments.count else { throw AgentConfigurationError.missingValue("--database") }
@@ -1091,17 +1171,35 @@ private struct AgentConfiguration {
         self.requestRemindersAccess = requestRemindersAccess
         self.planTomorrow = planTomorrow
         self.printRemindersStatus = printRemindersStatus
+        self.nativeCapture = nativeCapture
+        self.captureDisplayIDs = captureDisplayIDs
+        guard NativeCapturePolicy.pathsDoNotCollide(native: nativeCaptureDirectory, legacy: screenwatchDirectory) else {
+            throw AgentConfigurationError.captureDirectoryCollision
+        }
+        self.nativeCaptureDirectory = nativeCaptureDirectory
+    }
+
+    static func parseDisplayIDs(_ value: String) throws -> Set<UInt32> {
+        let values = value.split(separator: ",").map(String.init)
+        guard !values.isEmpty else { return [] }
+        let identifiers = values.compactMap(UInt32.init)
+        guard identifiers.count == values.count else { throw AgentConfigurationError.invalidDisplayIDs(value) }
+        return Set(identifiers)
     }
 }
 
 private enum AgentConfigurationError: LocalizedError {
     case missingValue(String)
     case unknownArgument(String)
+    case invalidDisplayIDs(String)
+    case captureDirectoryCollision
 
     var errorDescription: String? {
         switch self {
         case let .missingValue(argument): "Missing value for \(argument)"
         case let .unknownArgument(argument): "Unknown argument \(argument)"
+        case let .invalidDisplayIDs(value): "Invalid comma-separated display IDs: \(value)"
+        case .captureDirectoryCollision: "Native capture must use an app-owned directory separate from legacy Screenwatch."
         }
     }
 }

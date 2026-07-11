@@ -20,7 +20,7 @@ func voicePersistenceRetainsDurableFactsAndPrunesExpiredTranscripts() throws {
         activationSource: .globalHotkey,
         state: .listening,
         provider: "gemini",
-        model: "gemini-3.1-flash-live-preview",
+        model: "gemini-2.5-flash-native-audio-latest",
         startedAt: now.addingTimeInterval(-3_600)
     )
     let oldTurn = ConversationTurn(

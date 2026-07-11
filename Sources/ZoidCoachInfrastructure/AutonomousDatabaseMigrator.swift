@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 21
+    public static let currentVersion = 22
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -50,7 +50,7 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
         let pending = Self.migrations.filter { $0.version > previousVersion }
         var backupURL: URL?
         if pending.contains(where: \.isDestructive), fileManager.fileExists(atPath: databaseURL.path) {
-            backupURL = try createBackup()
+            backupURL = try createBackup(from: database)
         }
 
         var applied: [Int] = []
@@ -130,7 +130,16 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
         return false
     }
 
-    private func createBackup() throws -> URL {
+    public func createRecoveryBackup() throws -> URL {
+        var source: OpaquePointer?
+        guard sqlite3_open_v2(databaseURL.path, &source, SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
+              let source
+        else { throw AutonomousDatabaseMigrationError.openDatabase }
+        defer { sqlite3_close(source) }
+        return try createBackup(from: source)
+    }
+
+    private func createBackup(from source: OpaquePointer) throws -> URL {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -138,12 +147,22 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         let backupURL = databaseURL.deletingPathExtension()
             .appendingPathExtension("backup-\(formatter.string(from: now())).sqlite")
-        do {
-            try fileManager.copyItem(at: databaseURL, to: backupURL)
-            return backupURL
-        } catch {
-            throw AutonomousDatabaseMigrationError.backup(error.localizedDescription)
+        try? fileManager.removeItem(at: backupURL)
+        var destination: OpaquePointer?
+        guard sqlite3_open_v2(backupURL.path, &destination, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
+              let destination
+        else { throw AutonomousDatabaseMigrationError.backup("Could not open backup destination.") }
+        defer { sqlite3_close(destination) }
+        guard let operation = sqlite3_backup_init(destination, "main", source, "main") else {
+            throw AutonomousDatabaseMigrationError.backup(errorMessage(destination))
         }
+        let stepResult = sqlite3_backup_step(operation, -1)
+        let finishResult = sqlite3_backup_finish(operation)
+        guard stepResult == SQLITE_DONE, finishResult == SQLITE_OK else {
+            try? fileManager.removeItem(at: backupURL)
+            throw AutonomousDatabaseMigrationError.backup(errorMessage(destination))
+        }
+        return backupURL
     }
 
     private func bind(_ value: String, _ statement: OpaquePointer, _ index: Int32) {
@@ -695,6 +714,11 @@ private extension AutonomousDatabaseMigrator {
         );
         CREATE INDEX IF NOT EXISTS screen_context_transmissions_session_time
         ON screen_context_transmissions(session_id, transmitted_at_utc);
+        """)]),
+        Migration(version: 22, isDestructive: false, operations: [.sql("""
+        DROP INDEX IF EXISTS model_runs_cache;
+        CREATE INDEX IF NOT EXISTS model_runs_cache
+        ON model_runs(provider, model, schema_version, normalized_input_hash, started_at_utc DESC);
         """)])
     ]
 }

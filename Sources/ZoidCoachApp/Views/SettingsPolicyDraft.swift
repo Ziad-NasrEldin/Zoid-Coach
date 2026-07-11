@@ -29,6 +29,8 @@ struct SettingsPolicyDraft: Equatable {
     var maximumDailyWakeInterventions: Int
     var wakeQuietWeekdays: [Weekday]
     var behaviorPolicy: BehaviorPolicy
+    var captureMode: CaptureMode
+    var captureDisplayIDs: [UInt32]
 
     init(policy: UserPolicy) {
         operatingMode = policy.operatingMode
@@ -58,6 +60,8 @@ struct SettingsPolicyDraft: Equatable {
         maximumDailyWakeInterventions = policy.wake.maximumDailyInterventions
         wakeQuietWeekdays = policy.wake.quietWeekdays ?? []
         behaviorPolicy = policy.behavior
+        captureMode = policy.capture.mode
+        captureDisplayIDs = policy.capture.configuredDisplayIDs
     }
 
     func classification(for application: String) -> AppClassificationChoice {
@@ -147,7 +151,8 @@ struct SettingsPolicyDraft: Equatable {
                 maximumDailyInterventions: maximumDailyWakeInterventions,
                 quietWeekdays: wakeQuietWeekdays
             ),
-            behavior: behaviorPolicy
+            behavior: behaviorPolicy,
+            capture: CapturePolicy(mode: captureMode, configuredDisplayIDs: captureDisplayIDs)
         )
     }
 
