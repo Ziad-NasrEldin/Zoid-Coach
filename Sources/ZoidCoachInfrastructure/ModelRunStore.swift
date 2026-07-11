@@ -4,7 +4,11 @@ import ZoidCoachCore
 
 public final class ModelRunStore: @unchecked Sendable {
     private let database: OpaquePointer
-    private let formatter = ISO8601DateFormatter()
+    private let formatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
 
     public init(databaseURL: URL) throws {
         try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()

@@ -132,10 +132,13 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
 
     public func createRecoveryBackup() throws -> URL {
         var source: OpaquePointer?
-        guard sqlite3_open_v2(databaseURL.path, &source, SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
+        guard sqlite3_open_v2(databaseURL.path, &source, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
               let source
         else { throw AutonomousDatabaseMigrationError.openDatabase }
         defer { sqlite3_close(source) }
+        guard sqlite3_wal_checkpoint_v2(source, nil, SQLITE_CHECKPOINT_FULL, nil, nil) == SQLITE_OK else {
+            throw AutonomousDatabaseMigrationError.backup(errorMessage(source))
+        }
         return try createBackup(from: source)
     }
 
@@ -159,6 +162,10 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
         let stepResult = sqlite3_backup_step(operation, -1)
         let finishResult = sqlite3_backup_finish(operation)
         guard stepResult == SQLITE_DONE, finishResult == SQLITE_OK else {
+            try? fileManager.removeItem(at: backupURL)
+            throw AutonomousDatabaseMigrationError.backup(errorMessage(destination))
+        }
+        guard sqlite3_exec(destination, "PRAGMA journal_mode = DELETE;", nil, nil, nil) == SQLITE_OK else {
             try? fileManager.removeItem(at: backupURL)
             throw AutonomousDatabaseMigrationError.backup(errorMessage(destination))
         }
@@ -716,6 +723,19 @@ private extension AutonomousDatabaseMigrator {
         ON screen_context_transmissions(session_id, transmitted_at_utc);
         """)]),
         Migration(version: 22, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS model_runs (
+            id TEXT PRIMARY KEY,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            schema_version INTEGER NOT NULL,
+            prompt_version INTEGER NOT NULL,
+            normalized_input_hash TEXT NOT NULL,
+            validation_state TEXT NOT NULL,
+            redacted_diagnostic TEXT,
+            started_at_utc TEXT NOT NULL,
+            finished_at_utc TEXT,
+            duration_milliseconds INTEGER
+        );
         DROP INDEX IF EXISTS model_runs_cache;
         CREATE INDEX IF NOT EXISTS model_runs_cache
         ON model_runs(provider, model, schema_version, normalized_input_hash, started_at_utc DESC);
