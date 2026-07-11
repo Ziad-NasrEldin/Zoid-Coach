@@ -1,0 +1,110 @@
+import Foundation
+import ZoidCoachCore
+
+public enum PromptResponseEffect: Equatable, Sendable {
+    case none
+    case meetingEnqueued(commandID: String, wasInserted: Bool)
+    case meetingIgnored(candidateID: String)
+    case meetingEditRequested(candidateID: String)
+    case planUndoQueued(dayKey: String)
+    case planScheduleQueued(dayKey: String)
+}
+
+public final class PromptResponseEffectRouter: @unchecked Sendable {
+    private let outbox: ActionOutboxStore
+    private let meetingArchive: ScreenwatchArchive
+    private let planUndoRequests: PlanUndoRequestStore?
+    private let planScheduleRequests: PlanScheduleRequestStore?
+    private let promptStore: PromptInboxStore?
+    private let schedulingCalendarIdentifier: @Sendable () throws -> String?
+
+    public init(
+        outbox: ActionOutboxStore,
+        meetingArchive: ScreenwatchArchive,
+        planUndoRequests: PlanUndoRequestStore? = nil,
+        planScheduleRequests: PlanScheduleRequestStore? = nil,
+        promptStore: PromptInboxStore? = nil,
+        schedulingCalendarIdentifier: @escaping @Sendable () throws -> String? = { nil }
+    ) {
+        self.outbox = outbox
+        self.meetingArchive = meetingArchive
+        self.planUndoRequests = planUndoRequests
+        self.planScheduleRequests = planScheduleRequests
+        self.promptStore = promptStore
+        self.schedulingCalendarIdentifier = schedulingCalendarIdentifier
+    }
+
+    public func apply(_ result: PromptResponseResult) throws -> PromptResponseEffect {
+        let effect = try applyEffect(result)
+        try promptStore?.markEffectApplied(responseID: result.response.id)
+        return effect
+    }
+
+    private func applyEffect(_ result: PromptResponseResult) throws -> PromptResponseEffect {
+        if result.episode.type == "PLAN_READY",
+           result.response.action == .acceptPlan,
+           let dayKey = result.episode.payload["localDay"],
+           let planScheduleRequests {
+            try planScheduleRequests.enqueue(promptID: result.episode.id, dayKey: dayKey)
+            return result.wasApplied ? .planScheduleQueued(dayKey: dayKey) : .none
+        }
+        if result.episode.type == "PLAN_CHANGED",
+           result.response.action == .undoPlanChange,
+           let dayKey = result.episode.payload["day"],
+           let planUndoRequests {
+            try planUndoRequests.enqueue(promptID: result.episode.id, dayKey: dayKey)
+            return result.wasApplied ? .planUndoQueued(dayKey: dayKey) : .none
+        }
+        guard result.episode.type == "MEETING_CANDIDATE",
+              let candidateID = result.episode.payload["candidateID"],
+              let candidate = try meetingArchive.meetingCandidate(id: candidateID)
+        else { return .none }
+        switch result.response.action {
+        case .addMeeting:
+            let semanticCandidate = MeetingCandidate(
+                title: candidate.title,
+                start: candidate.start,
+                durationMinutes: candidate.durationMinutes,
+                confidence: candidate.confidence,
+                requiresClarification: candidate.requiresClarification,
+                sourceText: "",
+                confidenceScore: candidate.confidenceScore,
+                participants: candidate.participants,
+                location: candidate.location,
+                callLink: candidate.callLink,
+                timezoneIdentifier: candidate.timezoneIdentifier
+            )
+            let fingerprint = MeetingCandidatePolicy().fingerprint(semanticCandidate)
+            let enqueued = try outbox.enqueue(
+                type: .createConfirmedMeeting,
+                entityID: candidate.id,
+                desiredState: .meeting(MeetingDesiredState(
+                    title: candidate.title,
+                    start: candidate.start,
+                    durationMinutes: candidate.durationMinutes,
+                    calendarIdentifier: try schedulingCalendarIdentifier(),
+                    candidateFingerprint: fingerprint,
+                    participants: candidate.participants,
+                    location: candidate.location,
+                    callLink: candidate.callLink,
+                    timezoneIdentifier: candidate.timezoneIdentifier
+                )),
+                planVersion: 1
+            )
+            if candidate.state != "accepted", candidate.state != "scheduled" {
+                try meetingArchive.updateMeetingCandidate(candidate, state: "accepted")
+            }
+            return result.wasApplied
+                ? .meetingEnqueued(commandID: enqueued.command.id, wasInserted: enqueued.wasInserted)
+                : .none
+        case .ignore:
+            try meetingArchive.updateMeetingCandidate(candidate, state: "ignored")
+            return result.wasApplied ? .meetingIgnored(candidateID: candidate.id) : .none
+        case .editMeeting:
+            try meetingArchive.updateMeetingCandidate(candidate, state: "edit_requested")
+            return result.wasApplied ? .meetingEditRequested(candidateID: candidate.id) : .none
+        default:
+            return .none
+        }
+    }
+}

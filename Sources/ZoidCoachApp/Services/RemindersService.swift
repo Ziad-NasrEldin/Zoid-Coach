@@ -7,6 +7,9 @@ struct ReminderTask: Identifiable, Equatable, Sendable {
     let listID: String
     let listName: String
     let dueDate: Date?
+    let priority: Int
+    let notes: String?
+    let modificationDate: Date?
 
     var dueLabel: String? {
         guard let dueDate else { return nil }
@@ -99,9 +102,12 @@ final class RemindersService {
                         ReminderTask(
                         id: $0.calendarItemIdentifier,
                         title: $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled reminder" : $0.title,
-                        listID: $0.calendar.calendarIdentifier,
-                        listName: $0.calendar.title,
-                            dueDate: $0.dueDateComponents.flatMap(Calendar.current.date(from:))
+                            listID: $0.calendar.calendarIdentifier,
+                            listName: $0.calendar.title,
+                            dueDate: $0.dueDateComponents.flatMap(Calendar.current.date(from:)),
+                            priority: $0.priority,
+                            notes: $0.notes,
+                            modificationDate: $0.lastModifiedDate
                         )
                     })
                 }
@@ -129,6 +135,25 @@ final class RemindersService {
             reminder.completionDate = Date()
             try store.save(reminder, commit: true)
             return (store.calendarItem(withIdentifier: id) as? EKReminder)?.isCompleted == true
+        } catch {
+            return false
+        }
+    }
+
+    func createTask(title: String, dueDate: Date) async -> Bool {
+        guard hasFullAccess,
+              let calendar = store.defaultCalendarForNewReminders()
+        else { return false }
+        let reminder = EKReminder(eventStore: store)
+        reminder.calendar = calendar
+        reminder.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        reminder.dueDateComponents = Calendar.current.dateComponents(
+            [.calendar, .timeZone, .year, .month, .day, .hour, .minute],
+            from: dueDate
+        )
+        do {
+            try store.save(reminder, commit: true)
+            return true
         } catch {
             return false
         }

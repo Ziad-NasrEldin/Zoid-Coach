@@ -1,0 +1,166 @@
+import Foundation
+import Testing
+@testable import ZoidCoachCore
+
+@Test
+func urgencyUsesDeadlineBeforeReminderPriority() {
+    let calendar = Calendar(identifier: .gregorian)
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let tomorrow = calendar.date(byAdding: .day, value: 1, to: now)!
+
+    #expect(TaskUrgency.resolve(dueDate: now, priority: .none, referenceDate: now, calendar: calendar) == .high)
+    #expect(TaskUrgency.resolve(dueDate: tomorrow, priority: .high, referenceDate: now, calendar: calendar) == .high)
+    #expect(TaskUrgency.resolve(dueDate: nil, priority: .low, referenceDate: now, calendar: calendar) == .low)
+}
+
+@Test
+func recommendationIsStableAndSkipsBlockedTasks() {
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let coverage = TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: now)
+    let tasks = [
+        TodayTaskRow(taskID: "z", title: "Z", estimateMinutes: 15, dueDate: nil, urgency: .high, state: .ready),
+        TodayTaskRow(taskID: "a", title: "A", estimateMinutes: 15, dueDate: nil, urgency: .high, state: .ready),
+        TodayTaskRow(taskID: "blocked", title: "Blocked", estimateMinutes: 5, dueDate: now, urgency: .high, state: .blocked)
+    ]
+
+    let recommendation = NextTaskRecommender().recommend(tasks: tasks, referenceDate: now, availableMinutes: 30, coverage: coverage)
+
+    #expect(recommendation.taskID == "a")
+}
+
+@Test
+func staleTelemetryReportsLimitedCoverageWithoutFakeTotals() {
+    let now = Date(timeIntervalSince1970: 1_700_001_200)
+    let observation = BehaviorObservation(observedAt: Date(timeIntervalSince1970: 1_700_000_000), application: "Safari", classification: .work)
+
+    let result = BehaviorSessionizer().summarize(observations: [observation], now: now)
+
+    #expect(result.coverage.isLimited)
+    #expect(result.summary.workMinutes == 0)
+}
+
+@Test
+func gamingStatusAppliesPriorityRewardOnlyWhenRecorded() {
+    let coverage = TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: Date())
+    let calculator = GamingStatusCalculator()
+
+    #expect(calculator.status(policy: GamingPolicy(), gamingMinutes: 20, rewardApplied: false, coverage: coverage).unlockedRemainingMinutes == 40)
+    #expect(calculator.status(policy: GamingPolicy(), gamingMinutes: 20, rewardApplied: true, coverage: coverage).unlockedRemainingMinutes == 55)
+}
+
+@Test
+func replayClassifiesEachBehaviorBucketWithoutTreatingGapsAsTime() {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let observations = [
+        BehaviorObservation(observedAt: start, application: "Xcode", classification: .work),
+        BehaviorObservation(observedAt: start.addingTimeInterval(60), application: "Steam", classification: .gaming),
+        BehaviorObservation(observedAt: start.addingTimeInterval(120), application: "YouTube", classification: .distracting),
+        BehaviorObservation(observedAt: start.addingTimeInterval(180), application: "ScreenSaver", classification: .idle),
+        BehaviorObservation(observedAt: start.addingTimeInterval(240), application: nil, classification: .unknown),
+        BehaviorObservation(observedAt: start.addingTimeInterval(300), application: "Xcode", classification: .work),
+        BehaviorObservation(observedAt: start.addingTimeInterval(900), application: "Xcode", classification: .work)
+    ]
+
+    let result = BehaviorSessionizer().summarize(observations: observations, now: start.addingTimeInterval(900), staleAfter: 1_000)
+
+    #expect(result.summary.workMinutes == 1)
+    #expect(result.summary.gamingOrDistractingMinutes == 2)
+    #expect(result.summary.gamingMinutes == 1)
+    #expect(result.summary.distractingMinutes == 1)
+    #expect(result.summary.idleMinutes == 1)
+    #expect(result.summary.unknownMinutes == 1)
+    #expect(result.summary.appUsage.map(\.application) == ["Xcode", "ScreenSaver", "Steam", "Unknown application", "YouTube"])
+    #expect(result.summary.appUsage.first?.percentage == 20)
+    #expect(result.summary.appUsage.first?.classification == .work)
+}
+
+@Test
+func appUsagePercentagesUseObservedSessionTimeAndSortLargestFirst() {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let observations = [
+        BehaviorObservation(observedAt: start, application: "Xcode", classification: .work),
+        BehaviorObservation(observedAt: start.addingTimeInterval(120), application: "Safari", classification: .unknown),
+        BehaviorObservation(observedAt: start.addingTimeInterval(180), application: "Xcode", classification: .work)
+    ]
+
+    let result = BehaviorSessionizer().summarize(
+        observations: observations,
+        now: start.addingTimeInterval(240),
+        staleAfter: 1_000
+    )
+
+    #expect(result.summary.appUsage.map(\.application) == ["Xcode", "Safari"])
+    #expect(result.summary.appUsage[0].observedSeconds == 180)
+    #expect(abs(result.summary.appUsage[0].percentage - 75) < 0.001)
+    #expect(abs(result.summary.appUsage[1].percentage - 25) < 0.001)
+    #expect(result.summary.appUsage.map(\.classification) == [.work, .unknown])
+}
+
+@Test
+func categoryUsageGroupsAppsAndPreservesOneHundredPercentTotal() {
+    let summary = BehaviorSummary(appUsage: [
+        AppUsageBreakdown(application: "Xcode", observedSeconds: 180, percentage: 50, classification: .work),
+        AppUsageBreakdown(application: "Safari", observedSeconds: 90, percentage: 25, classification: .work),
+        AppUsageBreakdown(application: "Steam", observedSeconds: 90, percentage: 25, classification: .gaming)
+    ])
+
+    #expect(summary.categoryUsage.map(\.classification) == [.work, .gaming])
+    #expect(summary.categoryUsage.map(\.observedSeconds) == [270, 90])
+    #expect(summary.categoryUsage.map(\.percentage) == [75, 25])
+    #expect(summary.categoryUsage.reduce(0) { $0 + $1.percentage } == 100)
+}
+
+@Test
+func gamingAllowanceUsesOnlyClassifiedGamingTime() {
+    let coverage = TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: Date())
+    let summary = BehaviorSummary(workMinutes: 10, gamingMinutes: 12, distractingMinutes: 25, idleMinutes: 0, unknownMinutes: 0)
+
+    let status = GamingStatusCalculator().status(policy: GamingPolicy(), gamingMinutes: summary.gamingMinutes, rewardApplied: false, coverage: coverage)
+
+    #expect(summary.gamingOrDistractingMinutes == 37)
+    #expect(status.usedMinutes == 12)
+    #expect(status.unlockedRemainingMinutes == 48)
+}
+
+@Test
+func explicitAppClassificationOverridesBuiltInRulesWithoutUsingPartialMatches() {
+    let classifier = BehaviorClassifier(
+        policy: BehaviorPolicy(
+            workApplications: ["Steam"],
+            gamingApplications: ["Xcode"]
+        )
+    )
+
+    #expect(classifier.classify(application: " steam ") == .work)
+    #expect(classifier.classify(application: "XCODE") == .gaming)
+    #expect(classifier.classify(application: "Steam Helper") == .gaming)
+    #expect(classifier.classify(application: "Xcode Preview") == .work)
+}
+
+@Test
+func gamingToWorkPolicyBoundaryPreservesEarlierGamingUsageAndLabelsBothSessions() {
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let observations = [
+        BehaviorObservation(observedAt: start, application: "Steam", classification: .gaming),
+        BehaviorObservation(observedAt: start.addingTimeInterval(60), application: "Steam", classification: .work),
+        BehaviorObservation(observedAt: start.addingTimeInterval(120), application: "Xcode", classification: .work)
+    ]
+
+    let result = BehaviorSessionizer().summarize(
+        observations: observations,
+        now: start.addingTimeInterval(180),
+        staleAfter: 1_000
+    )
+    let gaming = GamingStatusCalculator().status(
+        policy: GamingPolicy(),
+        gamingMinutes: result.summary.gamingMinutes,
+        rewardApplied: false,
+        coverage: result.coverage
+    )
+
+    #expect(result.summary.gamingMinutes == 1)
+    #expect(result.summary.workMinutes == 2)
+    #expect(result.summary.appUsage.filter { $0.application == "Steam" }.map(\.classification) == [.work, .gaming])
+    #expect(gaming.usedMinutes == 1)
+    #expect(gaming.unlockedRemainingMinutes == 59)
+}

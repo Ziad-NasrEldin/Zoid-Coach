@@ -55,7 +55,7 @@ final class AtollService {
                         "bundleIdentifier": bundleIdentifier,
                         "priority": "normal",
                         "title": "Zoid Coach",
-                        "subtitle": "Release 0 source check passed",
+                        "subtitle": "Autonomous source check passed",
                         "leadingIcon": ["symbol": ["name": "checkmark.seal", "size": 16.0, "weight": "regular"]],
                         "trailingContent": ["none": [:]],
                         "progress": 0.0,

@@ -18,16 +18,24 @@
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
     <string>0.1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
+	<key>CFBundleVersion</key>
+	<string>8</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Zoid Coach reads existing commitments and creates or updates its own work blocks to keep your daily plan realistic.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Zoid Coach reads existing commitments and creates or updates its own work blocks to keep your daily plan realistic.</string>
     <key>NSRemindersFullAccessUsageDescription</key>
     <string>Zoid Coach reads your selected reminders and updates completion when you explicitly complete a task.</string>
     <key>NSRemindersUsageDescription</key>
     <string>Zoid Coach reads your selected reminders to build your daily plan.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Zoid Coach uses the microphone only while listening locally for Hey Zoid or during a visible voice conversation.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Zoid Coach uses on-device speech recognition for the local wake word and command fallback after the Gemini budget cap.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>
