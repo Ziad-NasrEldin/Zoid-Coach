@@ -1,6 +1,8 @@
 import Foundation
 import Testing
 @testable import ZoidCoachCore
+@testable import ZoidCoachInfrastructure
+@testable import ZoidCoachInfrastructure
 
 @Test
 func userPolicyKeepsLocalScheduleMeaningAcrossTimeZones() throws {
@@ -163,13 +165,26 @@ func behaviorPolicyValidationRejectsBlankAndDuplicateApplications() {
 @Test
 func versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() throws {
     let versionOneJSON = try #require(String(data: JSONEncoder.zoidPolicy.encode(UserPolicy.defaults(timeZoneIdentifier: "UTC")), encoding: .utf8))
-        .replacingOccurrences(of: #""schemaVersion":2"#, with: #""schemaVersion":1"#)
+        .replacingOccurrences(of: #""schemaVersion":3"#, with: #""schemaVersion":1"#)
         .replacingOccurrences(of: #",\"behavior\":{\"gamingApplications\":[],\"workApplications\":[]}"#, with: "")
+        .replacingOccurrences(of: #",\"capture\":{\"configuredDisplayIDs\":[],\"mode\":\"legacy\"}"#, with: "")
 
     let decoded = try JSONDecoder.zoidPolicy.decode(UserPolicy.self, from: Data(versionOneJSON.utf8))
 
     #expect(decoded.schemaVersion == 1)
     #expect(decoded.behavior == BehaviorPolicy())
+    #expect(decoded.capture == .legacy)
     #expect(decoded.upgradedToCurrentSchema().schemaVersion == UserPolicy.schemaVersion)
     #expect(decoded.upgradedToCurrentSchema().behavior == BehaviorPolicy())
+    #expect(decoded.upgradedToCurrentSchema().capture == .legacy)
+}
+
+@Test
+func capturePolicyNormalizesDisplayIDsAndRoundTripsThroughRuntimeConfiguration() throws {
+    let policy = CapturePolicy(mode: .native, configuredDisplayIDs: [42, 7, 42])
+    let runtime = NativeCaptureConfiguration(policy: policy, parityPassed: true)
+
+    #expect(policy.configuredDisplayIDs == [7, 42])
+    #expect(runtime.mode == .native)
+    #expect(runtime.policy == policy)
 }

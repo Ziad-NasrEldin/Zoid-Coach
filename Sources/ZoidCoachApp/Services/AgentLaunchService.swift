@@ -75,8 +75,9 @@ final class AgentLaunchService {
 
     func enableAndInspect() -> SourceHealth {
         guard isBundled else { return inspect() }
-        if Self.isDevelopmentBundle(Bundle.main.bundleURL),
-           FileManager.default.fileExists(atPath: Self.installedAgentURL.path) {
+        // A package assembled under .build is a staging artifact. Registering it
+        // would let a disposable build take ownership away from the installed app.
+        if Self.isDevelopmentBundle(Bundle.main.bundleURL) {
             return inspect()
         }
         do {
@@ -105,6 +106,27 @@ final class AgentLaunchService {
         return inspect()
     }
 
+    func disableAndInspect() -> SourceHealth {
+        guard isBundled else { return inspect() }
+        do {
+            if service.status != .notRegistered && service.status != .notFound {
+                try service.unregister()
+            }
+            UserDefaults.standard.removeObject(forKey: registrationFingerprintKey)
+        } catch {
+            return SourceHealth(
+                id: .agent,
+                title: "Zoid Coach Agent",
+                eyebrow: "Autonomy",
+                state: .attention,
+                detail: "Background planning could not be disabled",
+                evidence: error.localizedDescription,
+                actionTitle: "Retry"
+            )
+        }
+        return inspect()
+    }
+
     private var service: SMAppService {
         SMAppService.agent(plistName: plistName)
     }
@@ -119,10 +141,5 @@ final class AgentLaunchService {
 
     nonisolated static func isDevelopmentBundle(_ bundleURL: URL) -> Bool {
         bundleURL.standardizedFileURL.path.contains("/.build/")
-    }
-
-    nonisolated static var installedAgentURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Applications/Zoid Coach.app/Contents/MacOS/ZoidCoachAgent")
     }
 }

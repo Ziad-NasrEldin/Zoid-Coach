@@ -12,6 +12,45 @@ public struct PlannerTrustGateStatus: Equatable, Sendable {
     public var allowsWakeWrites: Bool { observedCycleCount >= requiredWakeCycleCount }
 }
 
+public enum HistoricalShadowEvidenceCoverage: String, Equatable, Sendable {
+    case complete
+    case insufficientForReplay
+}
+
+public enum HistoricalShadowMissingEvidence: String, Equatable, Sendable {
+    case historicalTaskSnapshot
+    case historicalCalendarSnapshot
+    case observedOutcome
+    case validPlanShape
+}
+
+public struct HistoricalShadowEvaluationReport: Equatable, Sendable {
+    public let localDay: String
+    public let storedItemCount: Int
+    public let evidenceCoverage: HistoricalShadowEvidenceCoverage
+    public let missingEvidence: [HistoricalShadowMissingEvidence]
+}
+
+public struct RetrospectiveShadowEvaluation: Equatable, Sendable {
+    public let localDay: String
+    public let planVersion: Int
+    public let itemCount: Int
+    public let stayedWithinCapacity: Bool
+    public let externalWritesSuppressed: Bool
+    public let comparedWithObservedOutcome: Bool
+    public let evidenceCoverage: HistoricalShadowEvidenceCoverage
+
+    public init(localDay: String, planVersion: Int, itemCount: Int, stayedWithinCapacity: Bool, externalWritesSuppressed: Bool, comparedWithObservedOutcome: Bool, evidenceCoverage: HistoricalShadowEvidenceCoverage) {
+        self.localDay = localDay
+        self.planVersion = planVersion
+        self.itemCount = itemCount
+        self.stayedWithinCapacity = stayedWithinCapacity
+        self.externalWritesSuppressed = externalWritesSuppressed
+        self.comparedWithObservedOutcome = comparedWithObservedOutcome
+        self.evidenceCoverage = evidenceCoverage
+    }
+}
+
 public final class PlannerTrustGateStore: @unchecked Sendable {
     private let database: OpaquePointer
     private let requiredCycles: Int
@@ -65,6 +104,68 @@ public final class PlannerTrustGateStore: @unchecked Sendable {
             requiredCycleCount: requiredCycles,
             requiredWakeCycleCount: requiredWakeCycles
         )
+    }
+
+    /// Inventories stored days that could be considered for a retrospective planner replay.
+    ///
+    /// The current schema has latest-state Reminder rows and Calendar identifiers, not immutable
+    /// per-day source snapshots. Those omissions are deliberately reported instead of treating a
+    /// historical manual plan as if it were an observed shadow run.
+    public func historicalShadowEvaluationReport() throws -> [HistoricalShadowEvaluationReport] {
+        let sql = """
+        SELECT day_key, COUNT(*),
+               SUM(CASE WHEN is_main_objective = 1 THEN 1 ELSE 0 END),
+               SUM(CASE WHEN estimate_minutes IS NULL OR estimate_minutes <= 0 OR selection_reason IS NULL OR TRIM(selection_reason) = '' THEN 1 ELSE 0 END)
+        FROM daily_plan_entries
+        GROUP BY day_key
+        ORDER BY day_key;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw PlannerTrustGateStoreError.read
+        }
+        defer { sqlite3_finalize(statement) }
+        var reports: [HistoricalShadowEvaluationReport] = []
+        while sqlite3_step(statement) == SQLITE_ROW, let dayText = sqlite3_column_text(statement, 0) {
+            let itemCount = Int(sqlite3_column_int(statement, 1))
+            let mainCount = Int(sqlite3_column_int(statement, 2))
+            let malformedCount = Int(sqlite3_column_int(statement, 3))
+            var missing: [HistoricalShadowMissingEvidence] = [
+                .historicalTaskSnapshot,
+                .historicalCalendarSnapshot,
+                .observedOutcome
+            ]
+            if !(1...5).contains(itemCount) || mainCount != 1 || malformedCount > 0 {
+                missing.append(.validPlanShape)
+            }
+            reports.append(HistoricalShadowEvaluationReport(
+                localDay: String(cString: dayText),
+                storedItemCount: itemCount,
+                evidenceCoverage: .insufficientForReplay,
+                missingEvidence: missing
+            ))
+        }
+        return reports
+    }
+
+    /// Records a retrospective replay only after its caller has assembled complete historical
+    /// inputs, suppressed external writes, checked capacity, and compared the proposal to outcome.
+    @discardableResult
+    public func recordRetrospectiveEvaluation(_ evaluation: RetrospectiveShadowEvaluation, observedAt: Date = Date()) throws -> Bool {
+        guard evaluation.evidenceCoverage == .complete,
+              evaluation.comparedWithObservedOutcome,
+              evaluation.externalWritesSuppressed,
+              evaluation.stayedWithinCapacity,
+              evaluation.itemCount > 0
+        else { return false }
+        _ = try recordShadowCycle(
+            localDay: evaluation.localDay,
+            planVersion: evaluation.planVersion,
+            itemCount: evaluation.itemCount,
+            stayedWithinCapacity: true,
+            observedAt: observedAt
+        )
+        return true
     }
 
     private func bind(_ value: String, _ statement: OpaquePointer, _ index: Int32) {

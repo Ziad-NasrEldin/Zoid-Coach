@@ -122,6 +122,7 @@ final class SettingsPolicyController: ObservableObject {
 }
 
 struct SettingsView: View {
+    @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var modalCoordinator: SumiModalCoordinator
     @EnvironmentObject private var voiceModel: VoiceConversationModel
     @StateObject private var controller = SettingsPolicyController()
@@ -136,6 +137,8 @@ struct SettingsView: View {
     @State private var selectedCategory = SettingsCategory.command
     @State private var geminiAPIKey = ""
     @State private var voiceSettingsMessage: String?
+    @State private var captureConfiguration = (try? NativeCaptureConfigurationStore().load()) ?? .legacy
+    @State private var captureConfigurationMessage: String?
     private let xpcClient = TodayDashboardXPCClient()
     private let calendarService = CalendarService()
 
@@ -330,6 +333,7 @@ struct SettingsView: View {
         case .signals:
             appClassificationSection
             calendarSection
+            captureSection
         case .intelligence:
             voiceSection
             privacySection
@@ -683,6 +687,161 @@ struct SettingsView: View {
             }
             .disabled(!controller.draft.wakeEligible)
         }
+    }
+
+    private var captureSection: some View {
+        SettingsCard(
+            title: "NATIVE CAPTURE",
+            detail: "Legacy Screenwatch remains the production source until parity is explicitly passed. Native capture uses a five-second metadata cadence and skips images after 90 seconds idle."
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                SumiControlLabel("CAPTURE MODE")
+                HStack(spacing: 8) {
+                    captureModeButton(.legacy, title: "LEGACY")
+                    captureModeButton(.parity, title: "PARITY")
+                    captureModeButton(.native, title: "NATIVE")
+                }
+                Text(captureModeExplanation)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                if !captureConfiguration.parityPassed {
+                    Text("NATIVE LOCKED · Parity has not passed. Selecting Native is disabled; Parity captures app-owned data while legacy remains authoritative.")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                SumiControlLabel("CAPTURED DISPLAYS")
+                if connectedDisplayIDs.isEmpty {
+                    Text("No active displays were reported by CoreGraphics.")
+                        .font(Sumi.body(12)).foregroundStyle(Sumi.seal)
+                } else {
+                    Text(captureConfiguration.configuredDisplayIDs.isEmpty ? "All connected displays are selected." : "Only checked displays are selected.")
+                        .font(Sumi.body(11)).foregroundStyle(Sumi.muted)
+                    ForEach(Array(connectedDisplayIDs.enumerated()), id: \.element) { index, displayID in
+                        Toggle("Display \(index + 1) · ID \(displayID)", isOn: Binding(
+                            get: { captureConfiguration.configuredDisplayIDs.isEmpty || captureConfiguration.configuredDisplayIDs.contains(displayID) },
+                            set: { enabled in updateDisplay(displayID, enabled: enabled) }
+                        ))
+                        .toggleStyle(SumiToggleStyle())
+                    }
+                    Button("CAPTURE ALL DISPLAYS") { saveCaptureConfiguration(displayIDs: []) }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                }
+            }
+
+            if let health = model.captureHealth {
+                HStack(spacing: 18) {
+                    SettingsHeaderFact(label: "MODE", value: health.isEnabled ? "NATIVE" : "LEGACY")
+                    SettingsHeaderFact(label: "PROCESS", value: health.isRunning ? "RUNNING" : "STOPPED", isAttention: health.isEnabled && !health.isRunning)
+                    SettingsHeaderFact(label: "LAST CAPTURE", value: health.lastCaptureAt?.formatted(date: .omitted, time: .shortened) ?? "NONE", isAttention: health.isEnabled && health.lastCaptureAt == nil)
+                }
+                Text(health.detail)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                capturePermissionRow("SCREEN RECORDING", health.screenRecording, privacyAnchor: "Privacy_ScreenCapture")
+                capturePermissionRow("ACCESSIBILITY", health.accessibility, privacyAnchor: "Privacy_Accessibility")
+                capturePermissionRow("AUTOMATION", health.automation, privacyAnchor: "Privacy_Automation")
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("CONFIGURED DISPLAYS").font(Sumi.label(9)).sumiLabelTracking().foregroundStyle(Sumi.muted)
+                    Text(health.configuredDisplayIDs.isEmpty
+                         ? "All connected displays"
+                         : health.configuredDisplayIDs.map(String.init).joined(separator: ", "))
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.ink)
+                }
+            } else {
+                Text("Capture health is unavailable. Native mode is not assumed active; legacy Screenwatch remains the safe default.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.seal)
+            }
+            Button("REFRESH LIVE HEALTH") { Task { await model.refreshCaptureHealth() } }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+            if let captureConfigurationMessage {
+                Text(captureConfigurationMessage)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(captureConfigurationMessage.contains("not saved") ? Sumi.seal : Sumi.muted)
+            }
+        }
+    }
+
+    private func captureModeButton(_ mode: NativeCaptureConfiguration.Mode, title: String) -> some View {
+        Button(title) {
+            saveCaptureConfiguration(mode: mode)
+        }
+        .buttonStyle(SumiActionButtonStyle(role: captureConfiguration.mode == mode ? .primary : .quiet, size: .standard))
+        .disabled(mode == .native && !captureConfiguration.parityPassed)
+        .accessibilityLabel("Use \(title.lowercased()) capture mode")
+    }
+
+    private var captureModeExplanation: String {
+        switch captureConfiguration.mode {
+        case .legacy: "Legacy Screenwatch is authoritative. Native capture is off."
+        case .parity: "Both pipelines run, but only legacy data is ingested. Use this to validate parity safely."
+        case .native: "App-owned native capture is authoritative. This state is available only after parity passes."
+        }
+    }
+
+    private var connectedDisplayIDs: [UInt32] {
+        var count: UInt32 = 0
+        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else { return [] }
+        var displays = Array(repeating: CGDirectDisplayID(), count: Int(count))
+        guard CGGetActiveDisplayList(count, &displays, &count) == .success else { return [] }
+        return Array(displays.prefix(Int(count)))
+    }
+
+    private func updateDisplay(_ displayID: UInt32, enabled: Bool) {
+        var selected = Set(captureConfiguration.configuredDisplayIDs.isEmpty ? connectedDisplayIDs : captureConfiguration.configuredDisplayIDs)
+        if enabled { selected.insert(displayID) } else { selected.remove(displayID) }
+        saveCaptureConfiguration(displayIDs: selected.sorted())
+    }
+
+    private func saveCaptureConfiguration(mode: NativeCaptureConfiguration.Mode? = nil, displayIDs: [UInt32]? = nil) {
+        let requested = NativeCaptureConfiguration(
+            mode: mode ?? captureConfiguration.mode,
+            configuredDisplayIDs: displayIDs ?? captureConfiguration.configuredDisplayIDs,
+            parityPassed: captureConfiguration.parityPassed
+        )
+        do {
+            try NativeCaptureConfigurationStore().save(requested)
+            captureConfiguration = requested
+            controller.draft.captureMode = CaptureMode(rawValue: requested.mode.rawValue) ?? .legacy
+            controller.draft.captureDisplayIDs = requested.configuredDisplayIDs
+            guard controller.save() != nil else {
+                captureConfigurationMessage = "Runtime capture configuration saved, but policy storage is read-only. The agent reloads runtime configuration within five seconds."
+                return
+            }
+            captureConfigurationMessage = "Capture configuration and audited policy saved. The background agent reloads it within five seconds."
+            Task {
+                try? await Task.sleep(for: .seconds(6))
+                await model.refreshCaptureHealth()
+            }
+        } catch {
+            captureConfigurationMessage = "Capture configuration was not saved: \(error.localizedDescription)"
+        }
+    }
+
+    private func capturePermissionRow(_ title: String, _ health: RuntimePermissionHealth, privacyAnchor: String) -> some View {
+        HStack(spacing: 12) {
+            Text(title).font(Sumi.label(9)).sumiLabelTracking()
+            Spacer()
+            Text(health.rawValue.replacingOccurrences(of: "_", with: " ").uppercased())
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(health == .granted || health == .notRequired ? Sumi.okay : Sumi.seal)
+            if health == .denied || health == .unknown {
+                Button("REPAIR") {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(privacyAnchor)") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            }
+        }
+        .padding(.vertical, 4)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
     }
 
     private func weekdayLabel(_ weekday: Weekday) -> String {

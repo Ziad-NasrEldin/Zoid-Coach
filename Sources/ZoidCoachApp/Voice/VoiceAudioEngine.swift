@@ -14,10 +14,23 @@ final class VoiceAudioEngine: @unchecked Sendable {
         engine.connect(player, to: engine.mainMixerNode, format: playbackFormat)
     }
 
+    @MainActor
     func requestMicrophoneAccess() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized: return true
-        case .notDetermined: return await AVCaptureDevice.requestAccess(for: .audio)
+        case .notDetermined:
+            // Opening the AVAudioEngine input is the reliable TCC trigger for
+            // a native macOS audio app. Nothing is recorded and the engine is
+            // stopped immediately after the permission decision.
+            _ = engine.inputNode
+            engine.prepare()
+            do {
+                try engine.start()
+                engine.stop()
+            } catch {
+                return false
+            }
+            return AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
         case .denied, .restricted: return false
         @unknown default: return false
         }

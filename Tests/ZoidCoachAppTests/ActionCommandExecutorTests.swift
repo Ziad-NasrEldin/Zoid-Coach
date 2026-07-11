@@ -4,6 +4,48 @@ import Testing
 @testable import ZoidCoachInfrastructure
 
 @Test
+func trippedDatabaseBreakerStopsExternalActionsBeforeClaimingOutboxWork() async throws {
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    let outbox = FakeActionCommandQueue(commands: [makeCommand(
+        type: .completeReminder,
+        entityID: "reminder-1",
+        desiredState: .completeReminder,
+        date: date
+    )])
+    let tasks = FakeTaskSource(tasks: [SourceTask(
+        id: "reminder-1", title: "One", listIdentifier: "work", priority: 0,
+        dueDate: nil, notes: nil, isCompleted: false
+    )])
+    let breaker = DatabaseWriteCircuitBreaker()
+    breaker.trip(reason: "sqlite_write_failed", at: date)
+    let executor = ActionCommandExecutor(
+        outbox: outbox, tasks: tasks, calendar: FakeCalendarSource(),
+        writeCircuitBreaker: breaker, now: { date }
+    )
+
+    #expect(await executor.executeNext() == .outboxFailure(reason: "database_read_only"))
+    #expect(await tasks.mutations.isEmpty)
+}
+
+@Test
+func databaseBreakerTripsWhenExternalEffectSucceedsButOutboxFinalizationFails() async throws {
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    let task = SourceTask(id: "reminder-1", title: "One", listIdentifier: "work", priority: 0, dueDate: nil, notes: nil, isCompleted: false)
+    let tasks = FakeTaskSource(tasks: [task])
+    let outbox = FakeActionCommandQueue(
+        commands: [makeCommand(type: .completeReminder, entityID: task.id, desiredState: .completeReminder, date: date)],
+        failSuccessFinalization: true
+    )
+    let breaker = DatabaseWriteCircuitBreaker()
+    let executor = ActionCommandExecutor(outbox: outbox, tasks: tasks, calendar: FakeCalendarSource(), writeCircuitBreaker: breaker, now: { date })
+
+    #expect(await executor.executeNext() == .outboxFailure(reason: "outbox_finalize_failed"))
+    #expect(breaker.snapshot.isTripped)
+    #expect(await tasks.mutations == [.complete(at: date)])
+    #expect(await executor.executeNext() == .outboxFailure(reason: "database_read_only"))
+}
+
+@Test
 func calendarUpdateMutatesOnlyTheBlockWithTheCommandsOwnershipToken() async throws {
     let date = Date(timeIntervalSince1970: 1_700_000_000)
     let foreign = CalendarCommitment(
@@ -401,10 +443,12 @@ private actor FakeActionCommandQueue: ActionCommandQueue {
     private(set) var successes: [String] = []
     private(set) var terminalFailures: [String] = []
     private(set) var retryableFailures: [String] = []
+    private let failSuccessFinalization: Bool
 
-    init(commands: [ActionCommand] = [], executing: [ActionCommand] = []) {
+    init(commands: [ActionCommand] = [], executing: [ActionCommand] = [], failSuccessFinalization: Bool = false) {
         self.commands = commands
         self.executing = executing
+        self.failSuccessFinalization = failSuccessFinalization
     }
 
     func executingCommands() throws -> [ActionCommand] {
@@ -418,6 +462,7 @@ private actor FakeActionCommandQueue: ActionCommandQueue {
     }
 
     func markSucceeded(_ command: ActionCommand, platformIdentifier: String?) throws {
+        if failSuccessFinalization { throw FakeQueueError.write }
         successes.append(command.id)
     }
 
@@ -425,6 +470,8 @@ private actor FakeActionCommandQueue: ActionCommandQueue {
         if retryable { retryableFailures.append(command.id) } else { terminalFailures.append(command.id) }
     }
 }
+
+private enum FakeQueueError: Error { case write }
 
 private actor FakeCalendarSource: CalendarSource {
     private var commitments: [CalendarCommitment]

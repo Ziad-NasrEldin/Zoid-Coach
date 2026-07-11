@@ -29,6 +29,7 @@ public struct ActionCommandExecutor: Sendable {
     private let tasks: any TaskSource
     private let calendar: any CalendarSource
     private let notifications: any NotificationSource
+    private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
     private let now: @Sendable () -> Date
 
     public init(
@@ -36,16 +37,23 @@ public struct ActionCommandExecutor: Sendable {
         tasks: any TaskSource,
         calendar: any CalendarSource,
         notifications: any NotificationSource = UnavailableNotificationSource(),
+        writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(),
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.outbox = outbox
         self.tasks = tasks
         self.calendar = calendar
         self.notifications = notifications
+        self.writeCircuitBreaker = writeCircuitBreaker
         self.now = now
     }
 
     public func executeNext() async -> ActionExecutionResult {
+        do {
+            try writeCircuitBreaker.throwIfTripped()
+        } catch {
+            return .outboxFailure(reason: "database_read_only")
+        }
         do {
             let reconciled = try await reconcileInterruptedCommands()
             guard let command = try await outbox.claimNextReady() else {
@@ -53,32 +61,44 @@ public struct ActionCommandExecutor: Sendable {
             }
             return await execute(command)
         } catch {
+            writeCircuitBreaker.trip(reason: "outbox_claim_or_reconcile_failed")
             return .outboxFailure(reason: "outbox_unavailable")
         }
     }
 
     private func execute(_ command: ActionCommand) async -> ActionExecutionResult {
+        let platformIdentifier: String?
         do {
-            let platformIdentifier = try await perform(command)
+            platformIdentifier = try await perform(command)
+        } catch {
+            return await recordEffectFailure(command, error: error)
+        }
+        do {
             try await outbox.markSucceeded(command, platformIdentifier: platformIdentifier)
             return .succeeded(commandID: command.id, platformIdentifier: platformIdentifier)
         } catch {
-            let classification = classify(error)
-            do {
-                try await outbox.markFailed(
-                    command,
-                    retryable: classification.retryable,
-                    redactedError: classification.reason,
-                    retryAt: classification.retryable ? retryDate(for: command) : nil
-                )
-            } catch {
-                return .outboxFailure(reason: "outbox_finalize_failed")
-            }
-            if classification.retryable {
-                return .retryableFailure(commandID: command.id, reason: classification.reason)
-            }
-            return .terminalFailure(commandID: command.id, reason: classification.reason)
+            writeCircuitBreaker.trip(reason: "outbox_success_finalize_failed")
+            return .outboxFailure(reason: "outbox_finalize_failed")
         }
+    }
+
+    private func recordEffectFailure(_ command: ActionCommand, error: Error) async -> ActionExecutionResult {
+        let classification = classify(error)
+        do {
+            try await outbox.markFailed(
+                command,
+                retryable: classification.retryable,
+                redactedError: classification.reason,
+                retryAt: classification.retryable ? retryDate(for: command) : nil
+            )
+        } catch {
+            writeCircuitBreaker.trip(reason: "outbox_failure_finalize_failed")
+            return .outboxFailure(reason: "outbox_finalize_failed")
+        }
+        if classification.retryable {
+            return .retryableFailure(commandID: command.id, reason: classification.reason)
+        }
+        return .terminalFailure(commandID: command.id, reason: classification.reason)
     }
 
     private func perform(_ command: ActionCommand) async throws -> String? {

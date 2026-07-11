@@ -23,6 +23,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var databaseError: String?
     @Published private(set) var todaySnapshot: TodaySnapshot?
     @Published private(set) var promptEpisodes: [PromptEpisode] = []
+    @Published private(set) var actionAudit: [ActionAuditEntry] = []
+    @Published private(set) var actionAuditError: String?
+    @Published private(set) var lastActionMessage: String?
+    @Published private(set) var persistenceMessage: String?
+    @Published private(set) var runtimeSafety: AgentRuntimeSafetySnapshot = .writable
+    @Published private(set) var captureHealth: AgentCaptureHealthSnapshot?
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
@@ -67,6 +73,9 @@ final class AppModel: ObservableObject {
             updateSource(await notificationService.inspect())
             await refreshTodaySnapshot()
             await refreshPromptInbox()
+            await refreshActionAudit()
+            await refreshRuntimeSafety()
+            await refreshCaptureHealth()
         }
     }
 
@@ -178,6 +187,49 @@ final class AppModel: ObservableObject {
 
     func refreshPromptInbox() async {
         promptEpisodes = (try? await todayDashboardXPCClient.fetchPromptInbox()) ?? []
+    }
+
+    func refreshActionAudit() async {
+        do {
+            actionAudit = try await todayDashboardXPCClient.fetchActionAudit()
+            actionAuditError = nil
+        } catch {
+            actionAuditError = "The automatic action ledger is unavailable. Check Agent source health and retry."
+        }
+    }
+
+    func refreshRuntimeSafety() async {
+        do {
+            runtimeSafety = try await todayDashboardXPCClient.fetchRuntimeSafety()
+            if runtimeSafety.isReadOnly {
+                persistenceMessage = "READ-ONLY SAFETY MODE: \(runtimeSafety.reason ?? "The agent stopped database writes after a persistence failure.") External actions are blocked."
+            }
+        } catch {
+            persistenceMessage = "Agent write safety could not be verified. External changes may be unavailable until Source health recovers."
+        }
+    }
+
+    func refreshCaptureHealth() async {
+        do {
+            captureHealth = try await todayDashboardXPCClient.fetchCaptureHealth()
+        } catch {
+            captureHealth = nil
+            persistenceMessage = "Native capture health could not be verified. Legacy Screenwatch remains the active source."
+        }
+    }
+
+    func undoAction(_ entry: ActionAuditEntry) {
+        guard entry.canUndo else { return }
+        Task {
+            do {
+                let receipt = try await todayDashboardXPCClient.apply(.undoAction(commandID: entry.id))
+                lastActionMessage = receipt.message
+                await refreshActionAudit()
+                await refreshTodaySnapshot()
+            } catch {
+                lastActionMessage = "The background agent could not undo this action. No local plan data was changed."
+            }
+        }
     }
 
     func reloadMeetingCandidatesForForegroundActivation() {
@@ -308,6 +360,8 @@ final class AppModel: ObservableObject {
         Task {
             do {
                 _ = try await todayDashboardXPCClient.apply(.schedulePlan(day: Date()))
+                lastActionMessage = "The proposed work blocks were accepted and queued for Apple Calendar."
+                await refreshActionAudit()
             } catch {
                 calendarScheduleError = "The background agent could not queue Calendar blocks. Check Source health and try again."
             }
@@ -348,6 +402,10 @@ final class AppModel: ObservableObject {
                         destination: target
                     )
                 )
+                lastActionMessage = destination == .calendar
+                    ? "The confirmed meeting was queued for Apple Calendar."
+                    : "The confirmed meeting was queued for Apple Reminders."
+                await refreshActionAudit()
                 reloadMeetingCandidates()
             } catch {
                 meetingCandidateError = "The background agent could not queue this meeting action. Check Source health and try again."
@@ -515,7 +573,14 @@ final class AppModel: ObservableObject {
             )
         }
         Task {
-            _ = try? await todayDashboardXPCClient.apply(.replaceDailyPlan(items: items, day: Date()))
+            do {
+                let receipt = try await todayDashboardXPCClient.apply(.replaceDailyPlan(items: items, day: Date()))
+                guard receipt.accepted else { throw AppModelPersistenceError.rejected }
+                persistenceMessage = nil
+            } catch {
+                persistenceMessage = "The plan change was not saved. The last durable plan has been restored."
+                await reloadDailyPlan()
+            }
         }
     }
 
@@ -527,7 +592,14 @@ final class AppModel: ObservableObject {
     private func persistReminderListOrder() {
         let order = reminderListOrder
         Task {
-            _ = try? await todayDashboardXPCClient.apply(.replaceReminderListOrder(order))
+            do {
+                let receipt = try await todayDashboardXPCClient.apply(.replaceReminderListOrder(order))
+                guard receipt.accepted else { throw AppModelPersistenceError.rejected }
+                persistenceMessage = nil
+            } catch {
+                persistenceMessage = "The list order was not saved. The last durable order has been restored."
+                await reloadReminderListOrder()
+            }
         }
     }
 
@@ -537,23 +609,31 @@ final class AppModel: ObservableObject {
         lastCheckAt = Date()
         let checkedAt = Date()
         Task {
-            _ = try? await todayDashboardXPCClient.apply(
-                .recordSourceCheck(
+            do {
+                let receipt = try await todayDashboardXPCClient.apply(.recordSourceCheck(
                     sourceID: result.id.rawValue,
                     state: result.state.rawValue,
                     detail: result.detail,
                     evidence: result.evidence,
                     checkedAt: checkedAt
-                )
-            )
+                ))
+                guard receipt.accepted else { throw AppModelPersistenceError.rejected }
+            } catch {
+                persistenceMessage = "Source health was checked, but its audit record was not saved."
+            }
         }
     }
 
     private func recordTaskHistory(_ taskID: String, state: AgentTaskHistoryState) {
         Task {
-            _ = try? await todayDashboardXPCClient.apply(
-                .recordTaskHistory(taskID: taskID, state: state, occurredAt: Date())
-            )
+            do {
+                let receipt = try await todayDashboardXPCClient.apply(
+                    .recordTaskHistory(taskID: taskID, state: state, occurredAt: Date())
+                )
+                guard receipt.accepted else { throw AppModelPersistenceError.rejected }
+            } catch {
+                persistenceMessage = "The plan was saved, but its learning-history record was not. No learning claim will be shown for this edit."
+            }
         }
     }
 
@@ -565,16 +645,23 @@ final class AppModel: ObservableObject {
 
     private var canIssueExternalActions: Bool {
         let policy = currentPolicy()
-        return databaseError == nil && !policy.automationPause.isPaused && policy.operatingMode != .observe
+        return databaseError == nil && !runtimeSafety.isReadOnly && !policy.automationPause.isPaused && policy.operatingMode != .observe
     }
 
     private var externalActionUnavailableMessage: String {
         if let databaseError { return databaseError }
+        if runtimeSafety.isReadOnly {
+            return "Zoid Coach is in read-only safety mode after a database write failure. Repair local storage before issuing Calendar or Reminders actions."
+        }
         if currentPolicy().operatingMode == .observe {
             return "Zoid Coach is in Observe mode. Switch to Suggest, Assist, or Autonomous before changing Reminders or Calendar."
         }
         return "Zoid Coach automation is paused. Resume it in Settings before changing Reminders or Calendar."
     }
+}
+
+private enum AppModelPersistenceError: Error {
+    case rejected
 }
 
 enum MeetingDestination: String, CaseIterable, Identifiable {

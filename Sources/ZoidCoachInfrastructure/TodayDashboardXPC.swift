@@ -11,11 +11,17 @@ public protocol XPCConnectionAuthorizing: Sendable {
 
 public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendable {
     private let expectedUserID: uid_t
-    private let signingIdentifierPrefix: String
+    private let allowedSigningIdentifiers: Set<String>
 
-    public init(expectedUserID: uid_t = geteuid(), signingIdentifierPrefix: String = "com.ziadnasreldin.ZoidCoach") {
+    public init(
+        expectedUserID: uid_t = geteuid(),
+        allowedSigningIdentifiers: Set<String> = [
+            "com.ziadnasreldin.ZoidCoach",
+            "com.ziadnasreldin.ZoidCoach.agent",
+        ]
+    ) {
         self.expectedUserID = expectedUserID
-        self.signingIdentifierPrefix = signingIdentifierPrefix
+        self.allowedSigningIdentifiers = allowedSigningIdentifiers
     }
 
     public func allows(_ connection: NSXPCConnection) -> Bool {
@@ -23,12 +29,16 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
               connection.effectiveUserIdentifier == expectedUserID,
               let own = Self.signingIdentity(),
               let peer = Self.signingIdentity(processIdentifier: connection.processIdentifier),
-              own.identifier.hasPrefix(signingIdentifierPrefix),
-              peer.identifier.hasPrefix(signingIdentifierPrefix) else { return false }
+              Self.allowsSigningIdentity(identifier: own.identifier, allowedIdentifiers: allowedSigningIdentifiers),
+              Self.allowsSigningIdentity(identifier: peer.identifier, allowedIdentifiers: allowedSigningIdentifiers) else { return false }
         if let ownTeam = own.teamIdentifier, let peerTeam = peer.teamIdentifier {
             return ownTeam == peerTeam
         }
         return own.teamIdentifier == nil && peer.teamIdentifier == nil
+    }
+
+    public static func allowsSigningIdentity(identifier: String, allowedIdentifiers: Set<String>) -> Bool {
+        allowedIdentifiers.contains(identifier)
     }
 
     private static func signingIdentity(processIdentifier: pid_t? = nil) -> (identifier: String, teamIdentifier: String?)? {
@@ -52,6 +62,8 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
 }
 
 @objc public protocol TodayDashboardXPCProtocol {
+    func fetchRuntimeSafety(withReply reply: @escaping (Data?, String?) -> Void)
+    func fetchCaptureHealth(withReply reply: @escaping (Data?, String?) -> Void)
     func fetchTodaySnapshot(withReply reply: @escaping (Data?, String?) -> Void)
     func applyTaskCommand(_ command: String, taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func fetchPromptInbox(withReply reply: @escaping (Data?, String?) -> Void)
@@ -71,20 +83,24 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
 }
 
 public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
-    private let agent: TodayDashboardAgent
+    private let agent: TodayDashboardAgent?
     private let listener: NSXPCListener
     private let authorizer: any XPCConnectionAuthorizing
     private let promptStore: PromptInboxStore?
     private let promptEffectRouter: PromptResponseEffectRouter?
     private let mutationRouter: AgentMutationRouter?
     private let voiceController: VoiceAgentController?
+    private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
+    private let captureHealthStore: AgentCaptureHealthStore?
 
-    public init(agent: TodayDashboardAgent, promptStore: PromptInboxStore? = nil, promptEffectRouter: PromptResponseEffectRouter? = nil, mutationRouter: AgentMutationRouter? = nil, voiceController: VoiceAgentController? = nil, machServiceName: String = todayDashboardMachServiceName, authorizer: any XPCConnectionAuthorizing = SameUserXPCConnectionAuthorizer()) {
+    public init(agent: TodayDashboardAgent? = nil, promptStore: PromptInboxStore? = nil, promptEffectRouter: PromptResponseEffectRouter? = nil, mutationRouter: AgentMutationRouter? = nil, voiceController: VoiceAgentController? = nil, writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(), captureHealthStore: AgentCaptureHealthStore? = nil, machServiceName: String = todayDashboardMachServiceName, authorizer: any XPCConnectionAuthorizing = SameUserXPCConnectionAuthorizer()) {
         self.agent = agent
         self.promptStore = promptStore
         self.promptEffectRouter = promptEffectRouter
         self.mutationRouter = mutationRouter
         self.voiceController = voiceController
+        self.writeCircuitBreaker = writeCircuitBreaker
+        self.captureHealthStore = captureHealthStore
         self.authorizer = authorizer
         listener = NSXPCListener(machServiceName: machServiceName)
         super.init()
@@ -99,18 +115,20 @@ public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
             return false
         }
         connection.exportedInterface = NSXPCInterface(with: TodayDashboardXPCProtocol.self)
-        connection.exportedObject = TodayDashboardXPCEndpoint(agent: agent, promptStore: promptStore, promptEffectRouter: promptEffectRouter, mutationRouter: mutationRouter, voiceController: voiceController)
+        connection.exportedObject = TodayDashboardXPCEndpoint(agent: agent, promptStore: promptStore, promptEffectRouter: promptEffectRouter, mutationRouter: mutationRouter, voiceController: voiceController, writeCircuitBreaker: writeCircuitBreaker, captureHealthStore: captureHealthStore)
         connection.resume()
         return true
     }
 }
 
 private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtocol {
-    private let agent: TodayDashboardAgent
+    private let agent: TodayDashboardAgent?
     private let promptStore: PromptInboxStore?
     private let promptEffectRouter: PromptResponseEffectRouter?
     private let mutationRouter: AgentMutationRouter?
     private let voiceController: VoiceAgentController?
+    private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
+    private let captureHealthStore: AgentCaptureHealthStore?
     private let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -122,20 +140,37 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
         return decoder
     }()
 
-    init(agent: TodayDashboardAgent, promptStore: PromptInboxStore?, promptEffectRouter: PromptResponseEffectRouter?, mutationRouter: AgentMutationRouter?, voiceController: VoiceAgentController?) {
+    init(agent: TodayDashboardAgent?, promptStore: PromptInboxStore?, promptEffectRouter: PromptResponseEffectRouter?, mutationRouter: AgentMutationRouter?, voiceController: VoiceAgentController?, writeCircuitBreaker: DatabaseWriteCircuitBreaker, captureHealthStore: AgentCaptureHealthStore?) {
         self.agent = agent
         self.promptStore = promptStore
         self.promptEffectRouter = promptEffectRouter
         self.mutationRouter = mutationRouter
         self.voiceController = voiceController
+        self.writeCircuitBreaker = writeCircuitBreaker
+        self.captureHealthStore = captureHealthStore
+    }
+
+    func fetchRuntimeSafety(withReply reply: @escaping (Data?, String?) -> Void) {
+        do { reply(try encoder.encode(writeCircuitBreaker.snapshot), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
+    func fetchCaptureHealth(withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let captureHealthStore else { reply(nil, "Native capture health is unavailable."); return }
+        do { reply(try encoder.encode(captureHealthStore.snapshot), nil) }
+        catch { reply(nil, error.localizedDescription) }
     }
 
     func fetchTodaySnapshot(withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let agent else { reply(nil, "The agent database is read-only and no dashboard snapshot is available."); return }
         do { reply(try encoder.encode(agent.snapshot()), nil) }
         catch { reply(nil, error.localizedDescription) }
     }
 
     func applyTaskCommand(_ command: String, taskID: String, withReply reply: @escaping (Data?, String?) -> Void) {
+        do { try writeCircuitBreaker.throwIfTripped() }
+        catch { reply(nil, error.localizedDescription); return }
+        guard let agent else { reply(nil, "The agent database is unavailable."); return }
         guard let command = TaskActivityCommand(rawValue: command) else {
             reply(nil, "Unknown task command.")
             return
@@ -169,6 +204,8 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
     }
 
     func applyAgentMutation(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void) {
+        do { try writeCircuitBreaker.throwIfTripped() }
+        catch { reply(nil, error.localizedDescription); return }
         guard let mutationRouter else { reply(nil, "The agent mutation router is unavailable."); return }
         let decoded: AgentMutationCommand
         do {
@@ -209,6 +246,8 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
     }
 
     func invokeVoiceTool(_ invocation: Data, withReply reply: @escaping (Data?, String?) -> Void) {
+        do { try writeCircuitBreaker.throwIfTripped() }
+        catch { reply(nil, error.localizedDescription); return }
         guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
         do {
             let decoded = try decoder.decode(VoiceToolInvocation.self, from: invocation)
@@ -222,6 +261,8 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
     }
 
     func resolveVoiceApproval(_ approvalID: String, approved: Bool, withReply reply: @escaping (Data?, String?) -> Void) {
+        do { try writeCircuitBreaker.throwIfTripped() }
+        catch { reply(nil, error.localizedDescription); return }
         guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
         let replyBox = XPCReplyBox(reply)
         Task { [voiceController, replyBox] in
@@ -307,6 +348,14 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
 
     public func fetchTodaySnapshot() async throws -> TodaySnapshot {
         try await call { proxy, reply in proxy.fetchTodaySnapshot(withReply: reply) }
+    }
+
+    public func fetchRuntimeSafety() async throws -> AgentRuntimeSafetySnapshot {
+        try await callData { proxy, reply in proxy.fetchRuntimeSafety(withReply: reply) }
+    }
+
+    public func fetchCaptureHealth() async throws -> AgentCaptureHealthSnapshot {
+        try await callData { proxy, reply in proxy.fetchCaptureHealth(withReply: reply) }
     }
 
     public func apply(_ command: TaskActivityCommand, taskID: String) async throws -> TodaySnapshot {

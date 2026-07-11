@@ -9,7 +9,7 @@ public struct GeminiLiveConfiguration: Equatable, Sendable {
     public let sessionResumptionHandle: String?
 
     public init(
-        model: String = "gemini-3.1-flash-live-preview",
+        model: String = "gemini-2.5-flash-native-audio-latest",
         systemInstruction: String,
         voiceName: String = "Kore",
         tools: [VoiceToolDefinition],

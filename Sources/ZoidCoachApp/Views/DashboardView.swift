@@ -1,4 +1,6 @@
 import SwiftUI
+import ApplicationServices
+import CoreGraphics
 import UniformTypeIdentifiers
 import ZoidCoachCore
 import ZoidCoachInfrastructure
@@ -94,6 +96,28 @@ private struct TodayCommandView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if model.runtimeSafety.isReadOnly {
+                HStack(alignment: .top, spacing: 10) {
+                    Text("READ-ONLY SAFETY MODE")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.paper)
+                        .padding(.horizontal, 8)
+                        .frame(height: 24)
+                        .background(Sumi.sealDeep)
+                    Text(model.runtimeSafety.reason ?? "The agent stopped database writes after a persistence failure. Plans remain visible, but external actions are blocked.")
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.sealDeep)
+                    Spacer()
+                    Button("RECHECK") { Task { await model.refreshRuntimeSafety() } }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Sumi.sealWash)
+                .overlay(alignment: .bottom) { Rectangle().fill(Sumi.seal).frame(height: 1) }
+            }
             HStack(alignment: .center, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("TODAY / INBOX")
@@ -130,14 +154,14 @@ private struct TodayCommandView: View {
                         if model.isSchedulingDailyPlan {
                             ProgressView().controlSize(.small).tint(Sumi.paper)
                         }
-                        Text(model.isSchedulingDailyPlan ? "RESERVING" : "RESERVE DAY")
+                        Text(model.isSchedulingDailyPlan ? "ACCEPTING" : "ACCEPT BLOCKS")
                             .font(Sumi.label(9))
                             .sumiLabelTracking()
                     }
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
                 .disabled(model.isSchedulingDailyPlan || model.dailyPlan.isEmpty)
-                .accessibilityLabel("Reserve today's plan in Apple Calendar")
+                .accessibilityLabel("Accept proposed work blocks and reserve them in Apple Calendar")
 
                 Button {
                     model.refreshReminderTasks()
@@ -192,6 +216,8 @@ private struct TodayCommandView: View {
 
             PromptInboxLedger()
             MeetingCandidateLedger(editingCandidate: $editingCandidate)
+            AutomaticActionLedger()
+            MacPermissionHealthLedger()
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
@@ -287,8 +313,7 @@ private struct PromptInboxLedger: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        if !model.promptEpisodes.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
                 Text("DECISIONS")
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
@@ -298,6 +323,15 @@ private struct PromptInboxLedger: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Sumi.mist)
                     .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                if model.promptEpisodes.isEmpty {
+                    Text("No decisions are waiting. Prompts from notifications, Atoll, and this dashboard resolve through this shared inbox.")
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.muted)
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                }
                 ForEach(model.promptEpisodes) { episode in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(episode.title).font(Sumi.body(15)).foregroundStyle(Sumi.ink)
@@ -315,7 +349,6 @@ private struct PromptInboxLedger: View {
                     .padding(.vertical, 12)
                     .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
                 }
-            }
         }
     }
 
@@ -325,6 +358,141 @@ private struct PromptInboxLedger: View {
         case .secondary: .quiet
         case .destructive: .destructive
         }
+    }
+}
+
+private struct AutomaticActionLedger: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("AUTOMATIC ACTIONS")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                Spacer()
+                Text("AUDITED / REVERSIBLE WHEN SAFE")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 10)
+            .background(Sumi.mist)
+            .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+            if let message = model.lastActionMessage {
+                Text(message)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.ink)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.sealWash)
+            }
+
+            if let error = model.actionAuditError {
+                Text(error).font(Sumi.body(12)).foregroundStyle(Sumi.seal).padding(28)
+            } else if model.actionAudit.isEmpty {
+                Text("No Apple Calendar or Reminders actions have been issued yet.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .padding(28)
+            } else {
+                ForEach(model.actionAudit.prefix(5)) { entry in
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(entry.actionType.replacingOccurrences(of: "_", with: " ").uppercased())
+                                .font(Sumi.label(9))
+                                .sumiLabelTracking()
+                            Text("\(entry.state.uppercased()) · \(entry.updatedAt.formatted(date: .abbreviated, time: .shortened)) · attempt \(entry.attemptCount)")
+                                .font(Sumi.body(11))
+                                .foregroundStyle(Sumi.muted)
+                        }
+                        Spacer()
+                        Text(entry.canUndo ? "REVERSIBLE" : "FINAL")
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .foregroundStyle(entry.canUndo ? Sumi.seal : Sumi.muted)
+                        if entry.canUndo {
+                            Button("UNDO") { model.undoAction(entry) }
+                                .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                                .accessibilityLabel("Undo \(entry.actionType.replacingOccurrences(of: "_", with: " "))")
+                        }
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 11)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                }
+            }
+        }
+    }
+}
+
+private struct MacPermissionHealthLedger: View {
+    @State private var refreshToken = UUID()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("MACOS PERMISSIONS")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .padding(.horizontal, 28)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Sumi.mist)
+                .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+            permissionRow(
+                title: "Screen Recording",
+                granted: CGPreflightScreenCaptureAccess(),
+                detail: "Required for native visual context capture across displays.",
+                repair: { _ = CGRequestScreenCaptureAccess(); refreshToken = UUID() }
+            )
+            permissionRow(
+                title: "Accessibility",
+                granted: AXIsProcessTrusted(),
+                detail: "Required to inspect the active application and support reliable context transitions.",
+                repair: {
+                    let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+                    _ = AXIsProcessTrustedWithOptions(options)
+                    refreshToken = UUID()
+                }
+            )
+            permissionRow(
+                title: "Automation",
+                granted: nil,
+                detail: "Managed per target app by macOS. Calendar and Reminders health rows verify actual access.",
+                repair: { openPrivacySettings("Privacy_Automation") }
+            )
+        }
+        .id(refreshToken)
+    }
+
+    private func permissionRow(title: String, granted: Bool?, detail: String, repair: @escaping () -> Void) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(Sumi.body(13)).foregroundStyle(Sumi.ink)
+                Text(detail).font(Sumi.body(11)).foregroundStyle(Sumi.muted)
+            }
+            Spacer()
+            Text(granted == true ? "HEALTHY" : granted == false ? "REPAIR REQUIRED" : "VERIFY IN SETTINGS")
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(granted == true ? Sumi.okay : Sumi.seal)
+            if granted != true {
+                Button(granted == nil ? "OPEN SETTINGS" : "REPAIR", action: repair)
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                    .accessibilityLabel("Repair \(title) permission")
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 11)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+    }
+
+    private func openPrivacySettings(_ anchor: String) {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)") else { return }
+        NSWorkspace.shared.open(url)
     }
 }
 
@@ -353,6 +521,11 @@ private struct TodaySourceFreshnessFooter: View {
                         Spacer()
                         Text(source.state.rawValue.uppercased()).font(Sumi.label(8)).sumiLabelTracking().foregroundStyle(Sumi.muted)
                         Text(source.detail).font(Sumi.body(11)).foregroundStyle(Sumi.muted)
+                        if source.state != .healthy && source.state != .checking {
+                            Button(source.actionTitle.uppercased()) { model.checkSource(source.id) }
+                                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                                .accessibilityLabel("Repair \(source.title)")
+                        }
                     }
                 }
             }
@@ -698,11 +871,11 @@ private struct DailyPlanLedger: View {
 
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("TODAY'S COMMITMENT")
+                Text("PROPOSED WORK BLOCKS")
                     .font(Sumi.label(10))
                     .sumiLabelTracking()
                 Spacer()
-                Text(model.isLoadingDailyPlan ? "LOADING PLAN" : "\(entries.count) / 3 SELECTED")
+                Text(model.isLoadingDailyPlan ? "LOADING PLAN" : "\(entries.count) / 3 PROPOSED")
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
@@ -712,6 +885,35 @@ private struct DailyPlanLedger: View {
             .padding(.vertical, 10)
             .background(Sumi.ink)
             .foregroundStyle(Sumi.paper)
+
+            if let persistenceMessage = model.persistenceMessage {
+                Text(persistenceMessage)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.sealWash)
+                    .accessibilityLabel("Plan save failed. \(persistenceMessage)")
+            }
+
+            HStack(alignment: .top, spacing: 10) {
+                Text(planDeliveryLabel)
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(planWasDelayed ? Sumi.paper : Sumi.ink)
+                    .padding(.horizontal, 7)
+                    .frame(height: 22)
+                    .background(planWasDelayed ? Sumi.seal : Sumi.mist)
+                Text(planDeliveryExplanation)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
 
             VStack(alignment: .leading, spacing: 5) {
                 Text("MAIN OBJECTIVE")
@@ -758,6 +960,22 @@ private struct DailyPlanLedger: View {
         guard let entry else { return nil }
         return model.reminderTasks.first { $0.id == entry.reminderID }
     }
+
+    private var planWasDelayed: Bool {
+        model.todaySnapshot?.sourceFreshnessExplanation.localizedCaseInsensitiveContains("delayed") == true
+            || model.todaySnapshot?.sourceFreshnessExplanation.localizedCaseInsensitiveContains("wake") == true
+    }
+
+    private var planDeliveryLabel: String {
+        planWasDelayed ? "DELAYED / RECOVERED" : "READY FOR REVIEW"
+    }
+
+    private var planDeliveryExplanation: String {
+        if planWasDelayed {
+            return "The overnight run was delayed while the Mac slept. The background agent recovered it after wake; review the evidence before accepting."
+        }
+        return "Nothing is written to Calendar until you accept. Adjust duration or main objective here, or exclude any proposal."
+    }
 }
 
 private struct PlannedReminderRow: View {
@@ -802,17 +1020,33 @@ private struct PlannedReminderRow: View {
                 }
 
                 if let selectionReason = entry.selectionReason {
-                    Text(selectionReason)
-                        .font(Sumi.body(12))
-                        .foregroundStyle(Sumi.muted)
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        Text("EVIDENCE")
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.seal)
+                        Text(selectionReason)
+                            .font(Sumi.body(12))
+                            .foregroundStyle(Sumi.muted)
+                    }
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        Text("EVIDENCE")
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.seal)
+                        Text("Manually selected from Apple Reminders. No ranking claim was made.")
+                            .font(Sumi.body(12))
+                            .foregroundStyle(Sumi.muted)
+                    }
                 }
 
                 HStack(spacing: 14) {
                     Spacer()
-                    Button("MAKE MAIN") { model.setMainObjective(entry) }
+                    Button("ADJUST: MAKE MAIN") { model.setMainObjective(entry) }
                         .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                         .disabled(entry.isMainObjective)
-                    Button("REMOVE") { model.removeFromDailyPlan(entry) }
+                    Button("EXCLUDE") { model.removeFromDailyPlan(entry) }
                         .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
                 }
             }

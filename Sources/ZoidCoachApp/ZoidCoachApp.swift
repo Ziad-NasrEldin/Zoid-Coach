@@ -35,6 +35,9 @@ struct ZoidCoachApplication: App {
                     guard phase == .active else { return }
                     Task {
                         await model.refreshPromptInbox()
+                        await model.refreshActionAudit()
+                        await model.refreshRuntimeSafety()
+                        await model.refreshCaptureHealth()
                         model.reloadMeetingCandidatesForForegroundActivation()
                     }
                 }

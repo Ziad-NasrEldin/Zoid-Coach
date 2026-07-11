@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import Foundation
 import ZoidCoachCore
 import ZoidCoachInfrastructure
@@ -150,6 +151,10 @@ final class VoiceConversationModel: ObservableObject {
         statusMessage = "Connecting to Zoid"
         wakeWord.stop()
         do {
+            statusMessage = "Requesting microphone access"
+            guard await audio.requestMicrophoneAccess() else {
+                throw VoiceConversationError.microphoneDenied
+            }
             let currentUsage = try await xpc.fetchVoiceUsage()
             usage = currentUsage
             guard currentUsage.canStartCloudSession else {
@@ -158,9 +163,6 @@ final class VoiceConversationModel: ObservableObject {
             }
             guard let apiKey = try keyStore.loadAPIKey(), !apiKey.isEmpty else {
                 throw VoiceConversationError.missingAPIKey
-            }
-            guard await audio.requestMicrophoneAccess() else {
-                throw VoiceConversationError.microphoneDenied
             }
             let context = try await xpc.fetchVoiceContext()
             lastContext = context
@@ -176,7 +178,7 @@ final class VoiceConversationModel: ObservableObject {
                 activationSource: source,
                 state: .listening,
                 provider: "gemini",
-                model: "gemini-3.1-flash-live-preview",
+                model: "gemini-2.5-flash-native-audio-latest",
                 startedAt: startedAt
             )
             activeSession = session
@@ -523,6 +525,10 @@ final class VoiceConversationModel: ObservableObject {
 
     private func startWakeWord() {
         guard wakeWordEnabled, state == .idle || state == .disconnected else { return }
+        // Do not ask TCC for microphone access during SwiftUI startup. On macOS,
+        // that request can be suppressed before the app has an active window.
+        // The explicit Start Voice action owns the first prompt instead.
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { return }
         Task { [weak self] in
             await self?.wakeWord.start { [weak self] in self?.toggleSession(source: .wakeWord) }
         }
