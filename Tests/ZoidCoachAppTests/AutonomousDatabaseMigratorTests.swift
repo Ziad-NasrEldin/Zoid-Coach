@@ -100,6 +100,46 @@ func behaviorClassificationMigrationFreezesLegacyRecords() throws {
 }
 
 @Test
+func versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() throws {
+    let databaseURL = temporaryDatabaseURL("retired-surface-migration")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    CREATE TABLE prompt_responses (
+        id TEXT PRIMARY KEY,
+        prompt_id TEXT NOT NULL,
+        action_token TEXT NOT NULL UNIQUE,
+        res TEXT NOT NULL,
+        surface TEXT NOT NULL,
+        responded_at_utc TEXT NOT NULL
+    );
+    INSERT INTO prompt_responses(id, prompt_id, action_token, res, surface, responded_at_utc) VALUES
+        ('response-1', 'prompt-1', 'token-1', 'accept_plan', char(97, 116, 111, 108, 108), '2026-07-10T00:00:00Z'),
+        ('response-2', 'prompt-2', 'token-2', 'accept_plan', 'dashboard', '2026-07-10T00:01:00Z'),
+        ('response-3', 'prompt-3', 'token-3', 'accept_plan', 'notification', '2026-07-10T00:02:00Z');
+    """)
+    for version in 1...22 {
+        try execute(databaseURL, "INSERT INTO schema_migrations(version, applied_at) VALUES (\(version), '2026-01-01T00:00:00Z');")
+    }
+
+    let result = try AutonomousDatabaseMigrator(
+        databaseURL: databaseURL,
+        now: { Date(timeIntervalSince1970: 1_752_153_600) }
+    ).migrate()
+    defer {
+        if let backupURL = result.backupURL { removeDatabaseFiles(at: backupURL) }
+    }
+
+    #expect(result.appliedVersions == [23])
+    #expect(result.backupURL != nil)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses;") == 2)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses WHERE surface = 'dashboard';") == 1)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses WHERE surface = 'notification';") == 1)
+    let backupURL = try #require(result.backupURL)
+    #expect(try scalarInt(backupURL, "SELECT COUNT(*) FROM prompt_responses;") == 3)
+}
+
+@Test
 func recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() throws {
     let databaseURL = temporaryDatabaseURL("wal-backup")
     defer { removeDatabaseFiles(at: databaseURL) }

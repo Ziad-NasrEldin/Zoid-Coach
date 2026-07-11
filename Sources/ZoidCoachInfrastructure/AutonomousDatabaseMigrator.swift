@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 22
+    public static let currentVersion = 23
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -739,6 +739,18 @@ private extension AutonomousDatabaseMigrator {
         DROP INDEX IF EXISTS model_runs_cache;
         CREATE INDEX IF NOT EXISTS model_runs_cache
         ON model_runs(provider, model, schema_version, normalized_input_hash, started_at_utc DESC);
+        """)]),
+        Migration(version: 23, isDestructive: true, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS prompt_responses (
+            id TEXT PRIMARY KEY,
+            prompt_id TEXT NOT NULL,
+            action_token TEXT NOT NULL UNIQUE,
+            response TEXT NOT NULL,
+            surface TEXT NOT NULL,
+            responded_at_utc TEXT NOT NULL,
+            FOREIGN KEY(prompt_id) REFERENCES prompt_episodes(id)
+        );
+        DELETE FROM prompt_responses WHERE surface = char(97, 116, 111, 108, 108);
         """)])
     ]
 }

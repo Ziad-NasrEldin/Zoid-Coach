@@ -92,7 +92,6 @@ public struct PromptAction: Identifiable, Equatable, Codable, Sendable {
 
 public enum PromptSurface: String, Codable, Sendable {
     case dashboard
-    case atoll
     case notification
     case loopback
 }

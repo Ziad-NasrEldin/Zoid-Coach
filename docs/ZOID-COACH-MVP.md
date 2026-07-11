@@ -21,7 +21,7 @@ The system should behave like a supportive but firm daily manager:
 - asks for estimates;
 - recommends the next best action;
 - detects when behavior does not match the plan;
-- nudges through A-Toll/the notch;
+- nudges through notification/the notification;
 - creates end-of-day and weekly reviews;
 - learns Ziad’s real task timing and procrastination patterns.
 
@@ -39,7 +39,7 @@ The first version should be useful without building the entire final system.
 - Time spent gaming / distracting apps.
 - AI recommendation: **“Do this next.”**
 - End-of-day review.
-- A-Toll notch prompts/alerts.
+- notification prompts/alerts.
 - Screenwatch app/window metadata classification.
 - Interruption levels 0–5.
 - Gaming budget/reward logic.
@@ -345,7 +345,7 @@ Options:
 
 ### Level 4 — Soft block
 
-Show stronger notch warning / overlay.
+Show stronger notification warning / overlay.
 
 Example:
 
@@ -397,7 +397,7 @@ Options:
 Ziad should be able to start a task manually from:
 
 - dashboard;
-- A-Toll notch;
+- notification;
 - command/prompt;
 - maybe Apple Reminders note/link later.
 
@@ -471,11 +471,11 @@ You overrode 3 gaming nudges today.
 Pattern: first override happened after checking Discord.
 ```
 
-## 11. A-Toll / notch integration
+## 11. Notifications and dashboard integration
 
-A-Toll should be the main interactive surface.
+The Today dashboard is the main interactive surface, with notifications for timely interventions.
 
-### Passive notch state
+### Passive notification state
 
 Examples:
 
@@ -608,20 +608,20 @@ Success criteria:
 - Ziad can mark active task;
 - system shows working/gaming totals from Screenwatch metadata.
 
-### Phase 2 — A-Toll prompts
+### Phase 2 — notification prompts
 
 Build:
 
-- send notch alerts;
+- send notification alerts;
 - ask estimate questions;
 - show start/reschedule/snooze buttons;
 - show active task and gaming status.
 
 Success criteria:
 
-- new task without estimate triggers notch question;
-- gaming drift triggers notch alert;
-- starting a task from the notch updates local state.
+- new task without estimate triggers notification question;
+- gaming drift triggers notification alert;
+- starting a task from the notification updates local state.
 
 ### Phase 3 — Classification engine
 
@@ -684,7 +684,7 @@ It should:
 3. Pick or ask for top 3 tasks.
 4. Show a dashboard with tasks, estimates, deadlines, active task, work time, gaming time, and “do this next.”
 5. Use Screenwatch metadata to detect if League/gaming is active.
-6. If gaming is active for more than 10 minutes while top tasks are incomplete, send an A-Toll notch prompt:
+6. If gaming is active for more than 10 minutes while top tasks are incomplete, send an notification prompt:
 
 ```text
 Ziad, you still have “Edit video intro” estimated at 45m.

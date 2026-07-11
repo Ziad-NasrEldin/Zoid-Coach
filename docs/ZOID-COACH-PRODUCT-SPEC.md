@@ -40,7 +40,7 @@ It identifies inputs that should be provided by Ziad before particular milestone
 | --- | --- |
 | Product shape | Standalone macOS application |
 | Visual system | Use the Sumi-Ink Command System |
-| Atoll actions | Extend AtollExtensionKit and Atoll with native action descriptors and callbacks |
+| Intervention actions | Use the shared prompt inbox from the Today dashboard and macOS notifications |
 | Release 1 AI | Rules only |
 | Initial coaching intensity | Observe for one week, then enable level 2 coaching |
 | Screenwatch ownership | Consolidate the Screenwatch source into the Zoid Coach repository |
@@ -60,7 +60,7 @@ Screenwatch represents observed behavior.
 
 Zoid Coach combines those inputs into task state, behavior sessions, recommendations, interventions, and reviews.
 
-Atoll provides a persistent and timely notch surface for passive status and interactive prompts.
+The Today dashboard provides persistent status and interactive prompts, while macOS notifications provide timely interventions.
 
 The product closes this loop:
 
@@ -84,7 +84,7 @@ The first release focuses on a Daily Command Center and one reliable coaching lo
 4. Start one active task.
 5. Interpret Screenwatch telemetry into work, gaming, distraction, idle, and unknown sessions.
 6. Detect sustained gaming while priority work is incomplete.
-7. Present a graded Atoll prompt with explicit choices.
+7. Present a graded Today dashboard prompt with explicit choices.
 8. Record the response and update task or gaming state.
 9. Produce an end-of-day review from actual events.
 
@@ -141,7 +141,7 @@ It should use past behavior to improve future plans.
 
 - Help Ziad choose a realistic daily plan from Apple Reminders.
 - Ensure every selected priority task has a usable time estimate or size classification.
-- Make one active task visible across the dashboard and notch.
+- Make one active task visible across the dashboard and notification.
 - Convert raw Screenwatch records into believable behavior sessions.
 - Detect important mismatches between active task and observed behavior.
 - Deliver timely interventions without excessive interruption.
@@ -293,7 +293,7 @@ This persona is not a release requirement, but the product language and data mod
 - The primary device is a Mac running macOS 14.6 or later.
 - Apple Reminders is available and contains the user's actionable tasks.
 - Screenwatch is installed and writing local telemetry.
-- Atoll is installed for notch presentation.
+- Today dashboard is installed for notification presentation.
 - The Mac may sleep, change displays, lose network access, or restart during a work session.
 - The user may work across multiple projects and browser profiles.
 - The user may intentionally game during the day.
@@ -366,7 +366,7 @@ Required capabilities:
 - Persist local task metadata and normalized behavior sessions.
 - Display data-source health.
 - Replay a recorded day through the behavior pipeline.
-- Verify Atoll authorization and present a test activity.
+- Verify Today dashboard authorization and present a test activity.
 
 ### 9.2 Release 1: Daily Command Center
 
@@ -444,7 +444,7 @@ Installed Apps -----> App Inventory ----------+          v
                                   +---------------------+------------------+
                                   |                     |                  |
                                   v                     v                  v
-                              Dashboard          Atoll Notch         Local Reports
+                              Dashboard          Today dashboard notification         Local Reports
 ```
 
 ### 10.1 Source-of-truth boundaries
@@ -455,7 +455,7 @@ Zoid Coach is the source of truth for estimates, active-task history, daily sele
 
 Screenwatch is the source of truth for raw local behavior observations.
 
-Atoll is a presentation and interaction host, not a source of product state.
+Today dashboard is a presentation and interaction host, not a source of product state.
 
 The local Zoid Coach database is the source of truth for all derived state.
 
@@ -501,9 +501,9 @@ The default reading order is:
 8. Recent coach decisions.
 9. Source health and sync state.
 
-### 11.3 Atoll notch surface
+### 11.3 Today dashboard surface
 
-Atoll is the timely interaction surface.
+Today dashboard is the timely interaction surface.
 
 It supports three product modes:
 
@@ -511,7 +511,7 @@ It supports three product modes:
 - Sneak-peek intervention for short alerts.
 - Expanded interactive prompt for decisions.
 
-The notch must never become the only way to respond.
+The notification must never become the only way to respond.
 
 Every prompt must also be available in the dashboard and menu bar.
 
@@ -596,13 +596,13 @@ It must explain what each source contributes, what data remains local, and how t
 2. Local-first privacy explanation.
 3. Apple Reminders permission.
 4. Screenwatch source discovery.
-5. Atoll installation and authorization check.
+5. Today dashboard installation and authorization check.
 6. Installed-app inventory preview.
 7. Initial work and gaming classifications.
 8. Work schedule and quiet hours.
 9. Initial gaming policy.
 10. AI provider choice or rules-only mode.
-11. Test task and test notch prompt.
+11. Test task and test notification prompt.
 12. Finish with the first daily plan.
 
 ### 13.3 Permission requirements
@@ -611,7 +611,7 @@ It must explain what each source contributes, what data remains local, and how t
 | --- | --- | --- | --- |
 | Reminders full access | Required for core value | Read tasks and update completion | Manual local tasks only |
 | Screenwatch folder read access | Required for behavior coaching | Read JSONL telemetry and optional screenshot references | Planning and task tracking only |
-| Atoll extension authorization | Optional but strongly recommended | Show live activities and prompts in the notch | Dashboard and native notifications |
+| Today dashboard extension authorization | Optional but strongly recommended | Show live activities and prompts in the notification | Dashboard and native notifications |
 | Notifications | Optional | Deliver fallback prompts and reviews | In-app prompts only |
 | Launch at login | Optional | Maintain timely coaching | User starts app manually |
 | Network access | Optional | Remote AI calls and model updates | Rules-only and local model behavior |
@@ -883,7 +883,7 @@ A task can start from:
 
 - Today dashboard.
 - Menu bar.
-- Atoll prompt.
+- Today dashboard prompt.
 - Recommended-next card.
 - Keyboard shortcut.
 
@@ -894,7 +894,7 @@ Starting a task must:
 1. Pause any active task.
 2. Create an active-task session.
 3. Record the chosen commitment duration if any.
-4. Present or update the Atoll live activity.
+4. Present or update the Today dashboard live activity.
 5. Begin an alignment grace period.
 6. Emit a `task_started` event.
 
@@ -1545,102 +1545,25 @@ The user may manually grant time.
 
 The system must show manual adjustments separately.
 
-## 28. Atoll integration
+## 28. Intervention surfaces
 
-### 28.1 Confirmed Atoll capabilities
+### 28.1 Today dashboard
 
-The inspected Atoll installation is version 2.2.0.
+The Today dashboard is the persistent interactive surface for plans, active tasks, prompt decisions, source health, and review.
 
-The official AtollExtensionKit is a Swift package for third-party macOS applications.
+Every dashboard action validates current prompt state and uses an idempotent action token.
 
-It supports XPC authorization and APIs to present, update, and dismiss:
+### 28.2 macOS notifications
 
-- Live activities.
-- Lock-screen widgets.
-- Notch experiences.
+Notifications provide timely summaries and compact actions for plan readiness, meeting candidates, plan changes, and drift interventions.
 
-Notch experiences may include a standard tab, a minimalistic replacement, native text and metric elements, and sandboxed web content.
+Notification responses resolve the same prompt episodes used by the Today dashboard.
 
-Atoll limits default simultaneous notch experiences and allows the user to disable extension experiences or interactive web content.
+### 28.3 Failure fallback
 
-### 28.2 Passive active-task activity
+If notification authorization is unavailable, unresolved decisions remain accessible in the Today dashboard.
 
-Zoid Coach should present one stable live activity ID for the active task.
-
-It shows:
-
-- Task title.
-- Elapsed time.
-- Estimate or sprint duration.
-- Progress where meaningful.
-- Zoid icon or SF Symbol.
-- Priority appropriate to the state.
-
-It updates no more than once per second and normally every five seconds.
-
-It dismisses when no task is active and no summary state is useful.
-
-### 28.3 Expanded notch experience
-
-The standard Zoid tab shows:
-
-- Active task or recommended next task.
-- Work and gaming totals.
-- Gaming budget.
-- Current coaching state.
-- One primary action.
-
-The minimalistic configuration shows only the active task and elapsed or remaining commitment.
-
-### 28.4 Native action gap
-
-The current public AtollExtensionKit exposes dismissal callbacks but does not expose a general native action callback from content buttons.
-
-Structured native notch content includes text, icons, progress, graphs, gauges, dividers, spacers, and web views, but not a first-class action element.
-
-### 28.5 Production integration decision
-
-**DECIDED:** Extend AtollExtensionKit and Atoll with a native action contract.
-
-The contract should add:
-
-- `AtollActionDescriptor` with stable ID, title, role, icon, and optional confirmation requirement.
-- Button or action-row content elements.
-- XPC callback `notchExperienceActionInvoked`.
-- Bundle and experience identity validation.
-- At-most-once action event identifiers.
-- Accessibility labels and keyboard activation.
-- Rate limits and payload limits.
-
-Zoid Coach remains responsible for validating the action against current prompt state.
-
-### 28.6 Temporary MVP interaction bridge
-
-If native action callbacks are not ready, an interactive Atoll web payload may send requests to a loopback-only Zoid action service.
-
-The bridge must use:
-
-- `127.0.0.1` only.
-- An ephemeral random port.
-- Short-lived single-use action tokens.
-- Prompt ID and action ID binding.
-- POST requests only.
-- Strict origin and content-type checks.
-- A small request-body limit.
-- No remote network requests.
-- Automatic shutdown when Zoid Coach exits.
-
-This bridge is temporary and must be removable behind one adapter boundary.
-
-### 28.7 Atoll failure fallback
-
-If Atoll is unavailable, unauthorized, rate-limited, or disabled, Zoid Coach falls back to:
-
-1. Native macOS notification when authorized.
-2. Menu bar badge.
-3. In-dashboard prompt inbox.
-
-State and response handling must be identical across surfaces.
+If the app is closed, the background agent continues scheduling authorized notifications and persists prompt state for the next dashboard launch.
 
 ## 29. End-of-day review
 
@@ -1832,7 +1755,7 @@ The last five prompt episodes are visible with their response and resulting acti
 
 - Reminders authorization and selected lists.
 - Screenwatch path and health.
-- Atoll installation, version, authorization, and test action.
+- Today dashboard installation, version, authorization, and test action.
 - Notifications authorization.
 
 ### 32.3 Coaching
@@ -1894,7 +1817,7 @@ The last five prompt episodes are visible with their response and resulting acti
 Reasons:
 
 - EventKit integration is native and direct.
-- AtollExtensionKit is a Swift package.
+- UserNotifications provides native notification delivery and actions.
 - Background lifecycle, menu bar, notifications, launch-at-login, sleep and wake handling, and macOS permissions are first-class.
 - A native process avoids a second bridge layer around the two most important integrations.
 - Local security controls and code signing remain coherent.
@@ -1938,7 +1861,7 @@ The main app and agent communicate through XPC or an equivalent authenticated lo
 | InterventionEngine | Triggering, escalation, cooldowns, and prompt state |
 | GamingPolicy | Budget, rewards, debt, and overrides |
 | ReviewEngine | Daily and weekly aggregation and narratives |
-| AtollAdapter | Live activity, notch experience, and action transport |
+| Today dashboardAdapter | Live activity, dashboard experience, and action transport |
 | NotificationAdapter | macOS notification fallback |
 | AIProvider | Structured model requests, redaction, and budgets |
 | SettingsStore | Versioned user configuration |
@@ -1946,7 +1869,7 @@ The main app and agent communicate through XPC or an equivalent authenticated lo
 
 ### 33.4 Dependency rule
 
-Domain modules must not import SwiftUI, EventKit, AtollExtensionKit, or model-provider SDKs directly.
+Domain modules must not import SwiftUI, EventKit, UserNotifications, or model-provider SDKs directly.
 
 Platform integrations implement protocols at the application edge.
 
@@ -2132,7 +2055,7 @@ Migration failure must leave the previous database readable.
   "task_id": "task-id-1",
   "behavior_session_id": "behavior-session-id",
   "message_version": "gaming-drift-v1",
-  "presented_surfaces": ["atoll", "dashboard"],
+  "presented_surfaces": ["dashboard", "dashboard"],
   "presented_at": "2026-07-09T11:35:00Z",
   "response_action": "start_20m_sprint",
   "responded_at": "2026-07-09T11:36:12Z",
@@ -2278,7 +2201,7 @@ Commands either commit fully or return a typed failure.
   "prompt_id": "prompt-id",
   "action_id": "start_20m_sprint",
   "action_token": "opaque-single-use-token",
-  "surface": "atoll",
+  "surface": "dashboard",
   "expected_prompt_state": "presented",
   "issued_at": "2026-07-09T11:36:12Z"
 }
@@ -2403,7 +2326,7 @@ Debug logging that includes content must be temporary, visibly enabled, and auto
 
 ### 39.4 Loopback service security
 
-If the temporary Atoll web bridge is enabled:
+If the temporary Today dashboard web bridge is enabled:
 
 - Bind only to `127.0.0.1` and not all interfaces.
 - Reject requests without a valid single-use token.
@@ -2461,9 +2384,9 @@ The product should explain what is unavailable and preserve unrelated functions.
 | Screenwatch folder missing | Behavior coaching unavailable | Preserve planning and active-task tracking |
 | JSONL schema changes | Telemetry cannot parse safely | Stop ingestion, retain checkpoint, show schema mismatch |
 | Screenwatch becomes stale | Totals and drift detection become unreliable | Suppress behavior interventions and show source warning |
-| Atoll not installed | No notch experience | Use native notification and dashboard |
-| Atoll authorization revoked | Notch updates fail | Dismiss local adapter state and show reauthorization path |
-| Atoll capacity reached | Zoid content may not present | Queue only the latest relevant prompt and use fallback |
+| Today dashboard not installed | No dashboard experience | Use native notification and dashboard |
+| Today dashboard authorization revoked | notification updates fail | Dismiss local adapter state and show reauthorization path |
+| Today dashboard capacity reached | Zoid content may not present | Queue only the latest relevant prompt and use fallback |
 | Local database locked | State changes cannot commit | Retry briefly, show read-only mode, do not issue actions |
 | Database migration fails | App cannot use new schema | Restore backup and keep previous version data intact |
 | AI provider offline | AI classification and narrative unavailable | Use rules and deterministic summaries |
@@ -2471,7 +2394,7 @@ The product should explain what is unavailable and preserve unrelated functions.
 | Mac sleeps during sprint | Timer continuity ambiguous | Pause display updates and reconcile elapsed policy on wake |
 | Time zone changes | Day boundaries may shift | Preserve event instants and ask before moving daily plans |
 | Clock moves backward | Negative durations possible | Use monotonic elapsed time for live sessions |
-| Duplicate Atoll action arrives | Duplicate state mutation risk | Enforce command and token idempotency |
+| Duplicate Today dashboard action arrives | Duplicate state mutation risk | Enforce command and token idempotency |
 
 ### 40.3 Sleep and wake
 
@@ -2532,11 +2455,11 @@ Updates replace previous content instead of creating a notification stack.
 - Sufficient contrast in light and dark appearance.
 - Text resizing without clipped task titles or actions.
 - Clear focus order.
-- Accessible alternatives to compact notch interactions.
+- Accessible alternatives to compact notification interactions.
 
-### 42.2 Atoll accessibility
+### 42.2 Today dashboard accessibility
 
-Native Atoll action elements should expose labels, roles, state, and keyboard activation.
+Native Today dashboard action elements should expose labels, roles, state, and keyboard activation.
 
 If the temporary web bridge is used, its HTML must use semantic buttons, visible focus, and appropriate labels.
 
@@ -2592,7 +2515,7 @@ Reduced-motion preference disables nonessential transitions.
 | Derived behavior update | Under 5 seconds after ingestion |
 | Drift prompt eligibility | Under 15 seconds after threshold crossing |
 | Task action commit | Under 200 milliseconds locally |
-| Atoll update dispatch | Under 500 milliseconds after state change |
+| Today dashboard update dispatch | Under 500 milliseconds after state change |
 | Dashboard interaction response | Under 100 milliseconds for local actions |
 | Daily review generation without remote AI | Under 2 seconds |
 
@@ -2622,7 +2545,7 @@ Diagnostics show:
 
 - Reminders permission and last sync.
 - Screenwatch path, last record, checkpoint, and parse-error count.
-- Atoll installed version, authorization, and last presentation result.
+- Today dashboard installed version, authorization, and last presentation result.
 - Database path, schema version, size, and last migration.
 - AI mode, provider health, and recent request failures.
 - Agent heartbeat.
@@ -2736,7 +2659,7 @@ Important invariants include:
 - EventKit test-store import and completion.
 - Screenwatch log append, rotation, truncation, and rollover.
 - SQLite migration and crash recovery.
-- Atoll authorization, presentation, update, dismissal, and fallback.
+- Today dashboard authorization, presentation, update, dismissal, and fallback.
 - Loopback action-token validation if the temporary bridge ships.
 - Notification action routing.
 - AI schema validation and fallback.
@@ -2781,9 +2704,9 @@ The health state becomes stale.
 
 Behavior prompts stop while task tracking and planning remain available.
 
-#### Scenario F: Atoll unavailable
+#### Scenario F: Today dashboard unavailable
 
-Atoll exits before prompt presentation.
+Today dashboard exits before prompt presentation.
 
 The same prompt appears through native notification and dashboard.
 
@@ -2821,7 +2744,7 @@ Exit criteria:
 
 - Technical stack confirmed.
 - Relationship to the existing Zoid repository confirmed.
-- Atoll integration ownership confirmed.
+- Today dashboard integration ownership confirmed.
 - Screenwatch source contract accepted.
 - AI mode chosen for Release 1.
 - Privacy and retention defaults approved.
@@ -2835,7 +2758,7 @@ Exit criteria:
 - Completion round trip works.
 - Screenwatch records tail incrementally from the live path.
 - Day rollover and stale detection pass.
-- Atoll test activity presents on the installed app.
+- Today dashboard test activity presents on the installed app.
 - Data-source diagnostics are visible.
 
 ### 48.3 Milestone 2: Command Center
@@ -2854,7 +2777,7 @@ Exit criteria:
 Exit criteria:
 
 - Gaming drift triggers exactly once under the specified conditions.
-- Atoll or fallback presentation works.
+- Today dashboard or fallback presentation works.
 - All actions are idempotent.
 - Start-sprint action updates task and prompt state.
 - Intentional override suppresses further prompts for the cooldown.
@@ -2952,7 +2875,7 @@ The product includes:
 - Pause coaching for one hour.
 - Pause until tomorrow.
 - End workday.
-- Disable Atoll prompts.
+- Disable Today dashboard prompts.
 - Disable AI.
 - Disable screenshot analysis.
 - Stop Screenwatch ingestion without deleting data.
@@ -2976,14 +2899,14 @@ The product includes:
 | Behavior classification is wrong | Loss of trust | Confidence, unknown state, corrections, rule precedence |
 | Gaming system feels punitive | Avoidance or disabling | Explicit overrides, neutral language, reward framing |
 | Screenwatch data is too sensitive | Privacy harm | Local storage, retention, redaction, opt-in screenshots |
-| Atoll action path is incomplete | Prompts cannot close the loop | Native action extension, temporary secured loopback adapter |
+| Today dashboard action path is incomplete | Prompts cannot close the loop | Native action extension, temporary secured loopback adapter |
 | EventKit identifiers change | Metadata orphaning | External identifier fallback and reconciliation UI |
 | AI makes unsupported causal claims | Misleading coaching | Evidence requirements, hypothesis labels, confirmation |
 | Long-running agent consumes resources | Battery and performance harm | Resource budgets, profiling, event-driven tailing |
 | Inaccurate time accounting | Untrustworthy reviews | Coverage reporting, monotonic timers, correction tools |
 | Scope expands before core loop works | Delayed value | Release gates centered on one gaming-drift loop |
 | Sumi-Ink is applied inconsistently | Rework and brand drift | Reuse canonical roles and reject legacy blue or dark-violet guidance |
-| Atoll or extension API changes | Integration breakage | Version checks, adapter boundary, fallback surfaces |
+| Today dashboard or extension API changes | Integration breakage | Version checks, adapter boundary, fallback surfaces |
 
 ## 52. Open decisions and requested founder input
 
@@ -2999,11 +2922,9 @@ It may reuse the canonical Sumi-Ink system and integrate with related Zoid compo
 
 **DECIDED:** Zoid Coach inherits the Sumi-Ink Command System.
 
-### 52.3 Atoll ownership
+### 52.3 Intervention ownership
 
-**DECIDED:** Modify and maintain Atoll and AtollExtensionKit to add native action callbacks.
-
-The official Atoll repository is `https://github.com/Ebullioscopic/Atoll.git`.
+**DECIDED:** Zoid Coach owns its Today dashboard and macOS notification actions directly.
 
 ### 52.4 Screenwatch source ownership
 
@@ -3056,7 +2977,7 @@ Please describe whether completed deliverables, aligned time, priority-task comp
 
 Useful optional sources include:
 
-- Any Atoll fork or extension roadmap you control.
+- Any Today dashboard fork or extension roadmap you control.
 - A sanitized export or screenshot of your Apple Reminders list structure.
 - A future example of desired work hours and gaming rules when those preferences stabilize.
 - Any prior notes about Zoid Coach behavior that are not in this repository.
@@ -3081,26 +3002,12 @@ The sample was used only to confirm schema, scale, and field availability.
 
 Task, title, URL, and screenshot content were not copied into this specification.
 
-### 53.3 Atoll sources inspected
-
-- Installed `/Applications/Atoll.app`, version 2.2.0.
-- Official `Ebullioscopic/Atoll` repository at `https://github.com/Ebullioscopic/Atoll.git`, main branch at the inspected revision.
-- Official `Ebullioscopic/AtollExtensionKit` repository at commit `2965620`.
-- AtollExtensionKit API documentation and descriptor models.
-- Atoll XPC service and notch-experience implementation.
-
-### 53.4 Sumi-Ink sources inspected
+### 53.3 Sumi-Ink sources inspected
 
 - `/Users/ziadnasreldin/Zoid/DESIGN.md`
 - `/Users/ziadnasreldin/Zoid/Docs/design-systems/sumi-ink-command-system.md`
 - `/Users/ziadnasreldin/Zoid/tokens.json`
 - `/Users/ziadnasreldin/Zoid/src/App.css`
-
-### 53.5 Source limitations
-
-The AtollExtensionKit implementation-status document contains stale or internally inconsistent sections.
-
-This specification therefore relies on current source types and service methods rather than status prose when they conflict.
 
 ## 54. Example prompt catalog
 
@@ -3200,11 +3107,11 @@ The unfinished client task is due first.
 
 ## 56. Definition of done
 
-Zoid Coach Release 1 is done when it works with real local Reminders, real Screenwatch telemetry, and the installed Atoll application for at least seven consecutive days without data loss or misleading intervention behavior.
+Zoid Coach Release 1 is done when it works with real local Reminders, real Screenwatch telemetry, and the installed Today dashboard application for at least seven consecutive days without data loss or misleading intervention behavior.
 
 The product must demonstrate the full loop from planning through observation, one gaming-drift intervention, user response, task-state change, and review.
 
-The dashboard and notch must remain understandable under missing data and integration failure.
+The dashboard and notification must remain understandable under missing data and integration failure.
 
 The user must be able to pause, override, correct, export, and delete data.
 

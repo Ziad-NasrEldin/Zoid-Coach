@@ -1,6 +1,6 @@
 # Zoid Coach
 
-Zoid Coach is a local-first macOS productivity coach built on Screenwatch, Apple Reminders, Apple Calendar, notifications, and Atoll notch prompts.
+Zoid Coach is a local-first macOS productivity coach built on Screenwatch, Apple Reminders, Apple Calendar, notifications, and an action-first Today dashboard.
 Its background agent prepares and maintains a daily plan, compares intended work with observed behavior, and exposes an action-first Today dashboard even when the main app has been closed.
 
 ## Current capabilities
@@ -12,7 +12,7 @@ Its background agent prepares and maintains a daily plan, compares intended work
 - Local WhatsApp screenshot OCR for meeting proposals, conflict checks, and exact-once Calendar creation after confirmation.
 - Estimate and preferred-work-window learning from completed work.
 - Gaming budgets and rewards backed by a durable ledger.
-- Notifications, the Today dashboard, and Atoll prompts backed by the same agent-owned snapshot over launchd XPC.
+- Notifications and the Today dashboard backed by the same agent-owned snapshot over launchd XPC.
 - Privacy retention, deletion, redacted export, policy rollback, permission health, and low-power or thermal throttling.
 - An always-available menu-bar voice host with a local wake phrase, global shortcut, Gemini Live conversation, typed tools, approval gates, local fallback, and a hard monthly cost cap.
 

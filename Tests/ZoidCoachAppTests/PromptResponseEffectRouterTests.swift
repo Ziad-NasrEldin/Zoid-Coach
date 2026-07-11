@@ -36,7 +36,7 @@ func meetingPromptResponseEnqueuesExactlyOneConfirmedMeetingActionAcrossSurfaces
     )).episode
     let token = PromptResponseToken.make(promptID: episode.id, action: .addMeeting)
     let first = try promptStore.respond(promptID: episode.id, action: .addMeeting, actionToken: token, surface: .notification)
-    let second = try promptStore.respond(promptID: episode.id, action: .addMeeting, actionToken: token, surface: .atoll)
+    let second = try promptStore.respond(promptID: episode.id, action: .addMeeting, actionToken: token, surface: .dashboard)
     let outbox = try ActionOutboxStore(databaseURL: databaseURL)
     let router = PromptResponseEffectRouter(outbox: outbox, meetingArchive: archive)
 
@@ -65,7 +65,8 @@ func editMeetingResponseRoutesCandidateIntoTheDashboardEditorQueue() async throw
     try Data(line.utf8).write(to: dayDirectory.appendingPathComponent("log.jsonl"))
     try Data([1, 2, 3]).write(to: dayDirectory.appendingPathComponent("09-00-00.jpg"))
     let archive = try ScreenwatchArchive(databaseURL: databaseURL)
-    _ = try archive.ingestToday(from: root, now: Date(timeIntervalSince1970: 1_783_663_200))
+    let observedAt = Date(timeIntervalSince1970: 1_783_663_200)
+    _ = try archive.ingestToday(from: root, now: observedAt)
     let ocr = ScreenshotOCRResult(blocks: [
         OCRTextBlock(text: "Meeting tomorrow at 3 pm", confidence: 0.95, boundingBox: NormalizedBoundingBox(x: 0, y: 0, width: 1, height: 1), localeHint: "en")
     ])
@@ -74,7 +75,7 @@ func editMeetingResponseRoutesCandidateIntoTheDashboardEditorQueue() async throw
         cipher: try LocalEvidenceCipher(keyData: Data(repeating: 4, count: 32))
     )
     let candidate = try #require(archive.unresolvedMeetingCandidates().first)
-    let promptStore = try PromptInboxStore(databaseURL: databaseURL)
+    let promptStore = try PromptInboxStore(databaseURL: databaseURL, now: { observedAt })
     let episode = try promptStore.enqueue(MeetingPromptBuilder.draft(
         for: candidate,
         calendarDestination: "Work",

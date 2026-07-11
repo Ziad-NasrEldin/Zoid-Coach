@@ -34,7 +34,6 @@ final class AppModel: ObservableObject {
     private let screenwatchReader: ScreenwatchReader
     private let remindersService: RemindersService
     private let calendarService: CalendarService
-    private let atollService: AtollService
     private let notificationService: NotificationService
     private let agentLaunchService: AgentLaunchService
     private let eventStore: EventStore
@@ -48,7 +47,6 @@ final class AppModel: ObservableObject {
         screenwatchReader: ScreenwatchReader = ScreenwatchReader(),
         remindersService: RemindersService = RemindersService(),
         calendarService: CalendarService = CalendarService(),
-        atollService: AtollService = AtollService(),
         notificationService: NotificationService = NotificationService(),
         agentLaunchService: AgentLaunchService = AgentLaunchService(),
         eventStore: EventStore = EventStore(readOnly: true)
@@ -56,7 +54,6 @@ final class AppModel: ObservableObject {
         self.screenwatchReader = screenwatchReader
         self.remindersService = remindersService
         self.calendarService = calendarService
-        self.atollService = atollService
         self.notificationService = notificationService
         self.agentLaunchService = agentLaunchService
         self.eventStore = eventStore
@@ -100,8 +97,6 @@ final class AppModel: ObservableObject {
             updateSource(await notificationService.inspect())
             let screenwatch = await screenwatchReader.inspect()
             updateSource(screenwatch)
-            let atoll = await atollService.inspect()
-            updateSource(atoll)
             lastCheckAt = Date()
             isCheckingSources = false
         }
@@ -130,11 +125,6 @@ final class AppModel: ObservableObject {
         case .notifications:
             Task {
                 updateSource(await notificationService.requestAccessAndInspect())
-            }
-        case .atoll:
-            Task {
-                let result = await atollService.authorizeAndPresentTest()
-                updateSource(result)
             }
         }
     }
@@ -473,8 +463,6 @@ final class AppModel: ObservableObject {
         updateSource(await notificationService.inspect())
         let screenwatch = await screenwatchReader.inspect()
         updateSource(screenwatch)
-        let atoll = await atollService.inspect()
-        updateSource(atoll)
         lastCheckAt = Date()
     }
 
@@ -750,15 +738,6 @@ struct SourceHealth: Identifiable, Equatable, Sendable {
             evidence: "Expected at ~/screenwatch/days",
             actionTitle: "Inspect"
         ),
-        SourceHealth(
-            id: .atoll,
-            title: "Atoll",
-            eyebrow: "Intervention",
-            state: .notConnected,
-            detail: "Extension authorization is pending",
-            evidence: "Installed app detected in next milestone",
-            actionTitle: "Verify"
-        )
     ]
 }
 
@@ -768,7 +747,6 @@ enum SourceID: String, CaseIterable, Sendable {
     case agent
     case calendar
     case screenwatch
-    case atoll
 }
 
 enum HealthState: String, Sendable {

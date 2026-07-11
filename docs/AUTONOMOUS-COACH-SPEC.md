@@ -19,7 +19,7 @@ It will analyze prior and current evidence to construct a realistic daily plan, 
 
 The system is not limited to making suggestions.
 
-Within the policies described here, it may reprioritize Apple Reminders, create and move calendar work blocks, and surface high-value decisions through macOS and the Atoll notch surface.
+Within the policies described here, it may reprioritize Apple Reminders, create and move calendar work blocks, and surface high-value decisions through macOS and the Today dashboard surface.
 
 The long-term direction includes explicitly authorized wake-up interventions for critical commitments.
 
@@ -41,7 +41,7 @@ Zoid Coach must request a fast, explicit confirmation before creating a calendar
 
 This protects against natural-language ambiguity and prevents the system from representing an unconfirmed external commitment as fact.
 
-The confirmation should be available from the notch and macOS notification.
+The confirmation should be available from the Today dashboard and macOS notification.
 
 Example:
 
@@ -75,7 +75,7 @@ The coach ingests new evidence, detects ongoing projects and unresolved commitme
 
 ### Morning commitment
 
-The coach sends a concise macOS notification and presents the real decision in Atoll.
+The coach sends a concise macOS notification and presents the real decision in Today dashboard.
 
 The morning surface shows the selected commitments, the schedule, the reason for each task, and a quick override path.
 
@@ -146,7 +146,7 @@ Coaching language stays factual, firm, and non-judgmental.
 
 ### Phase 1: Overnight plan and morning confirmation
 
-Build the evidence-backed daily ranking, three-to-five-task plan, Atoll and notification confirmation, action audit, and learning signals.
+Build the evidence-backed daily ranking, three-to-five-task plan, Today dashboard and notification confirmation, action audit, and learning signals.
 
 ### Phase 2: Autonomous Apple automation
 
@@ -154,7 +154,7 @@ Add safe automatic reprioritization of Reminders plus creation and rescheduling 
 
 ### Phase 3: WhatsApp meeting capture
 
-Add screenshot-based OCR and extraction, calendar deduplication, conflict detection, and the notch confirmation flow.
+Add screenshot-based OCR and extraction, calendar deduplication, conflict detection, and the shared dashboard and notification confirmation flow.
 
 ### Phase 4: High-trust escalation
 
