@@ -29,7 +29,9 @@
 ## Verification
 
 - `git diff --check` passed.
-- `swift test --filter "TodayDashboardTests|TaskExecutionStoreTests|TodayDashboardAgentTests|AutonomousDatabaseMigratorTests"` passed with 43 tests.
+- Independent verification rebased the slice onto `1d2652f` before running the focused gate.
+- `swift test --filter "TodayDashboardTests|TaskExecutionStoreTests|TodayDashboardAgentTests|AutonomousDatabaseMigratorTests"` passed with 44 tests after the verifier fix.
 - Focused proof covers preset and custom durations, invalid bounds, duplicate starts, pause and resume, task switching, completion, restart, sleep and wake expiry, open-ended continuation, migration sequencing, and agent snapshot durability.
+- The verifier closed a boundary defect that allowed open-ended continuation without an expired sprint, preserved duplicate continuation idempotence, and added an explicit accessibility announcement for the open-ended timer state.
 - Full-suite, release-build, signed-QA packaging, and installed-app click-through were intentionally not run because the root orchestrator owns the shared runtime and signing lease.
 - The authoritative tracker, registry, backlog, and Lavish report were not edited by this implementation lane.
