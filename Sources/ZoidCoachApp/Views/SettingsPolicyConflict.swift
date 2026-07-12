@@ -56,6 +56,7 @@ enum SettingsPolicyConflictResolver {
         }
 
         apply(\.operatingMode, label: "Operating mode")
+        apply(\.coachingLevel, label: "Coaching level")
         apply(\.isPaused, label: "Automation pause")
         apply(\.workStart, label: "Workday window")
         apply(\.workEnd, label: "Workday window")

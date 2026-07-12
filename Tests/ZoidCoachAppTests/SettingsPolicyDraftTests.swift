@@ -18,6 +18,21 @@ func settingsRoundTripsConfiguredCoachingLevelWithoutChangingGamingAllowance() {
     #expect(SettingsPolicyDraft(policy: saved).coachingLevel == .accountability)
 }
 
+@Test
+func settingsConflictResolverPreservesConcurrentCoachingLevelChoice() {
+    let base = SettingsPolicyDraft(policy: .defaults(timeZoneIdentifier: "UTC"))
+    var mine = base
+    mine.coachingLevel = .accountability
+    var current = base
+    current.capacityPercent = 55
+
+    let result = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+
+    #expect(result.safeDraft.coachingLevel == .accountability)
+    #expect(result.safeDraft.capacityPercent == 55)
+    #expect(result.overlappingChanges.isEmpty)
+}
+
 @MainActor
 private final class SettingsRefreshRecorder {
     private(set) var count = 0
