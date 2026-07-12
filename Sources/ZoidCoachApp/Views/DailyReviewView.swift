@@ -8,7 +8,8 @@ protocol DailyReviewServicing: AnyObject {
         _ session: DailyReviewSession,
         to classification: BehaviorClassification,
         taskID: String?,
-        from splitDate: Date?
+        from splitDate: Date?,
+        applyToFuture: Bool
     ) throws
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws
     func confirm(sourceDay: String) throws
@@ -22,6 +23,12 @@ protocol DailyReviewServicing: AnyObject {
         note: String?
     ) throws -> String
     func deleteOfflineWork(id: String, sourceDay: String) throws
+    func classificationRules() throws -> [AppClassificationCorrectionRule]
+    func upsertClassificationRule(
+        for session: DailyReviewSession,
+        classification: BehaviorClassification
+    ) throws -> AppClassificationCorrectionRule
+    func removeClassificationRule(normalizedApplication: String) throws
 }
 
 extension DailyReviewStore: DailyReviewServicing {}
@@ -33,6 +40,7 @@ final class DailyReviewController: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var successMessage: String?
+    @Published private(set) var classificationRules: [AppClassificationCorrectionRule] = []
 
     private let service: any DailyReviewServicing
     private let calendar: Calendar
@@ -69,6 +77,7 @@ final class DailyReviewController: ObservableObject {
         defer { isLoading = false }
         do {
             snapshot = try service.load(sourceDay: sourceDay)
+            classificationRules = try service.classificationRules()
             errorMessage = nil
         } catch {
             snapshot = nil
@@ -80,7 +89,8 @@ final class DailyReviewController: ObservableObject {
         session: DailyReviewSession,
         classification: BehaviorClassification,
         taskID: String?,
-        splitAtMidpoint: Bool
+        splitAtMidpoint: Bool,
+        applyToFuture: Bool
     ) {
         do {
             let splitDate = splitAtMidpoint
@@ -90,13 +100,33 @@ final class DailyReviewController: ObservableObject {
                 session,
                 to: classification,
                 taskID: taskID,
-                from: splitDate
+                from: splitDate,
+                applyToFuture: applyToFuture
             )
             snapshot = try service.load(sourceDay: sourceDay)
+            classificationRules = try service.classificationRules()
             errorMessage = nil
-            successMessage = splitAtMidpoint
+            successMessage = applyToFuture
+                ? "The session was corrected. Future \(session.application) activity will be classified as \(classification.rawValue)."
+                : splitAtMidpoint
                 ? "The second half of the session was corrected. Totals were recalculated."
                 : "The session was corrected. Totals were recalculated."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func classificationRule(for application: String) -> AppClassificationCorrectionRule? {
+        let normalized = BehaviorPolicy.normalize(application)
+        return classificationRules.first { $0.normalizedApplication == normalized }
+    }
+
+    func removeClassificationRule(_ rule: AppClassificationCorrectionRule) {
+        do {
+            try service.removeClassificationRule(normalizedApplication: rule.normalizedApplication)
+            classificationRules = try service.classificationRules()
+            errorMessage = nil
+            successMessage = "The future rule for \(rule.application) was removed. Historical corrections are unchanged."
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -170,11 +200,14 @@ private final class UnavailableDailyReviewService: DailyReviewServicing {
     private let error: Error
     init(error: Error) { self.error = error }
     func load(sourceDay: String) throws -> DailyReviewSnapshot { throw error }
-    func correct(_ session: DailyReviewSession, to classification: BehaviorClassification, taskID: String?, from splitDate: Date?) throws { throw error }
+    func correct(_ session: DailyReviewSession, to classification: BehaviorClassification, taskID: String?, from splitDate: Date?, applyToFuture: Bool) throws { throw error }
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws { throw error }
     func confirm(sourceDay: String) throws { throw error }
     func saveOfflineWork(id: String?, sourceDay: String, taskID: String?, startedAt: Date, durationMinutes: Int, note: String?) throws -> String { throw error }
     func deleteOfflineWork(id: String, sourceDay: String) throws { throw error }
+    func classificationRules() throws -> [AppClassificationCorrectionRule] { throw error }
+    func upsertClassificationRule(for session: DailyReviewSession, classification: BehaviorClassification) throws -> AppClassificationCorrectionRule { throw error }
+    func removeClassificationRule(normalizedApplication: String) throws { throw error }
 }
 
 struct DailyReviewView: View {
@@ -257,12 +290,17 @@ struct DailyReviewView: View {
                     .font(Sumi.label())
                     .sumiLabelTracking()
                 ForEach(snapshot.sessions) { session in
-                    DailyReviewSessionRow(session: session) { classification, taskID, split in
+                    DailyReviewSessionRow(
+                        session: session,
+                        activeRule: controller.classificationRule(for: session.application),
+                        removeRule: controller.removeClassificationRule
+                    ) { classification, taskID, split, applyToFuture in
                         controller.correct(
                             session: session,
                             classification: classification,
                             taskID: taskID,
-                            splitAtMidpoint: split
+                            splitAtMidpoint: split,
+                            applyToFuture: applyToFuture
                         )
                     }
                 }
@@ -622,17 +660,25 @@ private struct CompletedTaskHistorySection: View {
 
 private struct DailyReviewSessionRow: View {
     let session: DailyReviewSession
-    let apply: (BehaviorClassification, String?, Bool) -> Void
+    let activeRule: AppClassificationCorrectionRule?
+    let removeRule: (AppClassificationCorrectionRule) -> Void
+    let apply: (BehaviorClassification, String?, Bool, Bool) -> Void
 
     @State private var classification: BehaviorClassification
     @State private var taskID: String
     @State private var splitAtMidpoint = false
+    @State private var applyToFuture = false
+    @State private var ruleToRemove: AppClassificationCorrectionRule?
 
     init(
         session: DailyReviewSession,
-        apply: @escaping (BehaviorClassification, String?, Bool) -> Void
+        activeRule: AppClassificationCorrectionRule?,
+        removeRule: @escaping (AppClassificationCorrectionRule) -> Void,
+        apply: @escaping (BehaviorClassification, String?, Bool, Bool) -> Void
     ) {
         self.session = session
+        self.activeRule = activeRule
+        self.removeRule = removeRule
         self.apply = apply
         _classification = State(initialValue: session.classification)
         _taskID = State(initialValue: session.taskID ?? "")
@@ -664,22 +710,87 @@ private struct DailyReviewSessionRow: View {
                 Toggle("Correct second half only", isOn: $splitAtMidpoint)
                     .toggleStyle(.checkbox)
                     .accessibilityIdentifier("reviews.session.\(session.id).split")
-                Button("APPLY CORRECTION") {
-                    apply(classification, taskID.isEmpty ? nil : taskID, splitAtMidpoint)
+            }
+            if let activeRule {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text("FUTURE RULE")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                    Text("\(activeRule.application) → \(activeRule.classification.rawValue.uppercased())")
+                        .font(Sumi.body(12))
+                    Text("Historical records are unchanged.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                    Spacer()
+                    Button("REMOVE FUTURE RULE") { ruleToRemove = activeRule }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                        .accessibilityIdentifier("reviews.session.\(session.id).future-rule.remove")
                 }
+                .padding(10)
+                .background(Sumi.softPaper)
+                .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                .accessibilityIdentifier("reviews.session.\(session.id).future-rule.active")
+            }
+            Toggle("Use this app classification for future activity", isOn: $applyToFuture)
+                .toggleStyle(.checkbox)
+                .disabled(!supportsFutureRule)
+                .accessibilityIdentifier("reviews.session.\(session.id).future-rule")
+            if applyToFuture {
+                Text(futureRulePreview)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("reviews.session.\(session.id).future-rule.preview")
+            } else if !supportsFutureRule {
+                Text("Idle and Unknown are observation states, so they cannot become a lasting app rule.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+            }
+            Button("APPLY CORRECTION") {
+                apply(classification, taskID.isEmpty ? nil : taskID, splitAtMidpoint, applyToFuture)
+            }
                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                 .disabled(
                     classification == session.classification
                         && taskID == (session.taskID ?? "")
                         && !splitAtMidpoint
+                        && !applyToFuture
                 )
                 .accessibilityIdentifier("reviews.session.\(session.id).apply")
-            }
         }
         .padding(16)
         .background(Sumi.paper)
         .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("reviews.session.\(session.id)")
+        .onChange(of: classification) {
+            if !supportsFutureRule { applyToFuture = false }
+        }
+        .confirmationDialog(
+            "Remove the future rule for \(session.application)?",
+            isPresented: Binding(
+                get: { ruleToRemove != nil },
+                set: { if !$0 { ruleToRemove = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove future rule", role: .destructive) {
+                if let ruleToRemove { removeRule(ruleToRemove) }
+                ruleToRemove = nil
+            }
+            Button("Cancel", role: .cancel) { ruleToRemove = nil }
+        } message: {
+            Text("Future observations will return to the normal Settings policy. This review's historical correction will remain.")
+        }
+    }
+
+    private var supportsFutureRule: Bool {
+        [.work, .gaming, .distracting].contains(classification)
+    }
+
+    private var futureRulePreview: String {
+        if let activeRule, activeRule.classification != classification {
+            return "This replaces the current \(activeRule.classification.rawValue) rule. New \(session.application) observations will be \(classification.rawValue). Historical observations stay unchanged."
+        }
+        return "New \(session.application) observations will be \(classification.rawValue). Historical observations stay unchanged."
     }
 }

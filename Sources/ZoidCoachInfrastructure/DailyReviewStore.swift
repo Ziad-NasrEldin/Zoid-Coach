@@ -140,10 +140,14 @@ public final class DailyReviewStore: @unchecked Sendable {
         _ session: DailyReviewSession,
         to classification: BehaviorClassification,
         taskID: String? = nil,
-        from splitDate: Date? = nil
+        from splitDate: Date? = nil,
+        applyToFuture: Bool = false
     ) throws {
         let start = max(session.start, splitDate ?? session.start)
         guard start < session.end else { throw DailyReviewStoreError.invalidCorrectionRange }
+        if applyToFuture {
+            try Self.validateFutureRule(session: session, classification: classification)
+        }
         let normalizedTaskID = taskID?.trimmingCharacters(in: .whitespacesAndNewlines)
         lock.lock()
         defer { lock.unlock() }
@@ -164,7 +168,161 @@ public final class DailyReviewStore: @unchecked Sendable {
                 "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES (?, 'pending', NULL, ?) ON CONFLICT(source_day) DO UPDATE SET hypothesis_state = 'pending', confirmed_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
                 bindings: [.text(session.sourceDay), .text(Self.timestamp(now()))]
             )
+            if applyToFuture {
+                _ = try insertClassificationRule(for: session, classification: classification)
+            }
         }
+    }
+
+    public func classificationRules() throws -> [AppClassificationCorrectionRule] {
+        lock.lock()
+        defer { lock.unlock() }
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT rule.display_app, rule.normalized_app, rule.classification, rule.source_day,
+               rule.source_session_start_epoch, rule.created_at_utc
+        FROM app_classification_correction_rules rule
+        WHERE rule.state = 'active'
+          AND NOT EXISTS (
+              SELECT 1 FROM app_classification_correction_rules newer
+              WHERE newer.normalized_app = rule.normalized_app
+                AND (newer.effective_from_epoch > rule.effective_from_epoch
+                  OR (newer.effective_from_epoch = rule.effective_from_epoch AND newer.id > rule.id))
+          )
+        ORDER BY rule.effective_from_epoch DESC, rule.normalized_app;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError(.read) }
+        defer { sqlite3_finalize(statement) }
+        var rules: [AppClassificationCorrectionRule] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let application = text(statement, 0),
+                  let normalizedApplication = text(statement, 1),
+                  let rawClassification = text(statement, 2),
+                  let classification = BehaviorClassification(rawValue: rawClassification),
+                  let sourceDay = text(statement, 3),
+                  let createdAt = text(statement, 5).flatMap(ISO8601DateFormatter().date(from:))
+            else { continue }
+            rules.append(AppClassificationCorrectionRule(
+                application: application,
+                normalizedApplication: normalizedApplication,
+                classification: classification,
+                sourceDay: sourceDay,
+                sourceSessionStart: Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 4))),
+                createdAt: createdAt,
+                updatedAt: createdAt
+            ))
+        }
+        if sqlite3_errcode(database) != SQLITE_OK && sqlite3_errcode(database) != SQLITE_DONE {
+            throw databaseError(.read)
+        }
+        return rules
+    }
+
+    @discardableResult
+    public func upsertClassificationRule(
+        for session: DailyReviewSession,
+        classification: BehaviorClassification
+    ) throws -> AppClassificationCorrectionRule {
+        try Self.validateFutureRule(session: session, classification: classification)
+        lock.lock()
+        defer { lock.unlock() }
+        return try insertClassificationRule(for: session, classification: classification)
+    }
+
+    private func insertClassificationRule(
+        for session: DailyReviewSession,
+        classification: BehaviorClassification
+    ) throws -> AppClassificationCorrectionRule {
+        let normalizedApplication = BehaviorPolicy.normalize(session.application)
+        let effectiveDate = now()
+        let timestamp = Self.timestamp(effectiveDate)
+        let effectiveFrom = Int64(effectiveDate.timeIntervalSince1970)
+        try execute(
+            """
+            INSERT INTO app_classification_correction_rules(
+                normalized_app, display_app, classification, state, source_day,
+                source_session_start_epoch, effective_from_epoch, created_at_utc
+            ) VALUES (?, ?, ?, 'active', ?, ?, ?, ?);
+            """,
+            bindings: [
+                .text(normalizedApplication),
+                .text(session.application),
+                .text(classification.rawValue),
+                .text(session.sourceDay),
+                .integer(Int64(session.start.timeIntervalSince1970)),
+                .integer(effectiveFrom),
+                .text(timestamp)
+            ]
+        )
+        return AppClassificationCorrectionRule(
+            application: session.application,
+            normalizedApplication: normalizedApplication,
+            classification: classification,
+            sourceDay: session.sourceDay,
+            sourceSessionStart: session.start,
+            createdAt: effectiveDate,
+            updatedAt: effectiveDate
+        )
+    }
+
+    private static func validateFutureRule(
+        session: DailyReviewSession,
+        classification: BehaviorClassification
+    ) throws {
+        guard [.work, .gaming, .distracting].contains(classification) else {
+            throw DailyReviewStoreError.invalidFutureRuleClassification
+        }
+        guard !BehaviorPolicy.normalize(session.application).isEmpty else {
+            throw DailyReviewStoreError.invalidFutureRuleApplication
+        }
+    }
+
+    public func removeClassificationRule(normalizedApplication: String) throws {
+        let normalized = BehaviorPolicy.normalize(normalizedApplication)
+        guard !normalized.isEmpty else {
+            throw DailyReviewStoreError.invalidFutureRuleApplication
+        }
+        lock.lock()
+        defer { lock.unlock() }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            """
+            SELECT display_app FROM app_classification_correction_rules
+            WHERE normalized_app = ? AND state = 'active'
+              AND NOT EXISTS (
+                  SELECT 1 FROM app_classification_correction_rules newer
+                  WHERE newer.normalized_app = app_classification_correction_rules.normalized_app
+                    AND (newer.effective_from_epoch > app_classification_correction_rules.effective_from_epoch
+                      OR (newer.effective_from_epoch = app_classification_correction_rules.effective_from_epoch
+                        AND newer.id > app_classification_correction_rules.id))
+              )
+            ORDER BY effective_from_epoch DESC, id DESC LIMIT 1;
+            """,
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else { throw databaseError(.read) }
+        defer { sqlite3_finalize(statement) }
+        bind(normalized, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let application = text(statement, 0) else { return }
+        let removalDate = now()
+        try execute(
+            """
+            INSERT INTO app_classification_correction_rules(
+                normalized_app, display_app, classification, state, source_day,
+                source_session_start_epoch, effective_from_epoch, created_at_utc
+            ) VALUES (?, ?, NULL, 'removed', NULL, NULL, ?, ?);
+            """,
+            bindings: [
+                .text(normalized),
+                .text(application),
+                .integer(Int64(removalDate.timeIntervalSince1970)),
+                .text(Self.timestamp(removalDate))
+            ]
+        )
     }
 
     public func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws {
@@ -369,6 +527,8 @@ public enum DailyReviewStoreError: LocalizedError {
     case invalidOfflineDuration
     case missingOfflineWorkDescription
     case offlineWorkDescriptionTooLong
+    case invalidFutureRuleClassification
+    case invalidFutureRuleApplication
     case database(Operation, String)
 
     public var errorDescription: String? {
@@ -383,6 +543,10 @@ public enum DailyReviewStoreError: LocalizedError {
             "Add a task or a short note so this intentional work can be distinguished from missing telemetry."
         case .offlineWorkDescriptionTooLong:
             "Keep the task under 200 characters and the note under 1,000 characters."
+        case .invalidFutureRuleClassification:
+            "Future app rules can be Work, Gaming, or Distracting. Idle and Unknown remain observation states."
+        case .invalidFutureRuleApplication:
+            "This activity does not include an application name that can become a future rule."
         case let .database(operation, detail):
             "The daily review could not \(operation.rawValue) local data. \(detail)"
         }

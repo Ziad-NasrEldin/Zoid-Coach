@@ -115,6 +115,49 @@ func delayedScreenwatchIngestionFreezesThePolicyEffectiveAtEachObservation() thr
     #expect(try archiveScalar(databaseURL: databaseURL, sql: "SELECT COUNT(DISTINCT classification_policy_version) FROM behavior_records;") == 2)
 }
 
+@Test
+func reviewCorrectionRuleClassifiesOnlyFutureScreenwatchObservationsAndRemovalRestoresPolicy() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    let day = root.appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid-coach.sqlite")
+    let review = try DailyReviewStore(
+        databaseURL: databaseURL,
+        now: { Date(timeIntervalSince1970: 1_783_663_190) }
+    )
+    let sourceSession = DailyReviewSession(
+        sourceDay: "2026-07-09",
+        start: Date(timeIntervalSince1970: 1_783_576_800),
+        end: Date(timeIntervalSince1970: 1_783_576_860),
+        application: "Steam",
+        classification: .gaming,
+        observationCount: 1
+    )
+    _ = try review.upsertClassificationRule(for: sourceSession, classification: .work)
+    let logURL = day.appendingPathComponent("log.jsonl")
+    let firstLine = "{\"t\":\"09-00-00\",\"epoch\":1783663200,\"app\":\"Steam\",\"window\":\"Game\",\"url\":\"\",\"img\":false}\n"
+    try Data(firstLine.utf8).write(to: logURL)
+    let archive = try ScreenwatchArchive(databaseURL: databaseURL)
+    let date = Date(timeIntervalSince1970: 1_783_663_210)
+
+    _ = try archive.ingestToday(from: root, now: date)
+    let removalStore = try DailyReviewStore(
+        databaseURL: databaseURL,
+        now: { Date(timeIntervalSince1970: 1_783_663_203) }
+    )
+    try removalStore.removeClassificationRule(normalizedApplication: "steam")
+    let secondLine = "{\"t\":\"09-00-05\",\"epoch\":1783663205,\"app\":\"Steam\",\"window\":\"Game\",\"url\":\"\",\"img\":false}\n"
+    let handle = try FileHandle(forWritingTo: logURL)
+    try handle.seekToEnd()
+    try handle.write(contentsOf: Data(secondLine.utf8))
+    try handle.close()
+    _ = try archive.ingestToday(from: root, now: date)
+
+    let observations = try archive.behaviorObservations(for: date)
+    #expect(observations.map(\.classification) == [.work, .unknown])
+}
+
 private func archivePolicy(work: [String], gaming: [String]) -> UserPolicy {
     let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     return UserPolicy(
