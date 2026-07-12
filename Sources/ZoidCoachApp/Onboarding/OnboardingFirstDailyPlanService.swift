@@ -184,7 +184,7 @@ final class OnboardingFirstDailyPlanService {
             priority: 0,
             notes: "Created locally during onboarding. Replace this with a specific objective when ready.",
             listID: "zoid-local",
-            listName: "Zoid Coach",
+            listName: "Zoid 666",
             sourceKind: .local
         )
     }

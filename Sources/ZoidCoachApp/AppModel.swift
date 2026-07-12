@@ -620,7 +620,7 @@ final class AppModel: ObservableObject {
                         modificationDate: $0.modificationDate
                     )
                 })
-            reconcileDailyPlan(with: tasks)
+            await reconcileDailyPlan(with: tasks)
         case .unavailable:
             reminderTasksAreAvailable = false
             reminderTasks = []
@@ -632,7 +632,7 @@ final class AppModel: ObservableObject {
     private func reloadDailyPlan() async {
         dailyPlan = await eventStore.loadDailyPlan()
         if reminderTasksAreAvailable {
-            reconcileDailyPlan(with: reminderTasks)
+            await reconcileDailyPlan(with: reminderTasks)
         }
         isLoadingDailyPlan = false
     }
@@ -653,8 +653,9 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func reconcileDailyPlan(with tasks: [ReminderTask]) {
+    private func reconcileDailyPlan(with tasks: [ReminderTask]) async {
         let incompleteIDs = Set(tasks.map(\.id))
+            .union(await eventStore.loadIncompleteLocalTaskIDs())
         let reconciledPlan = dailyPlan.filter { incompleteIDs.contains($0.reminderID) }
         guard reconciledPlan != dailyPlan else { return }
         dailyPlan = reconciledPlan.enumerated().map { index, entry in
@@ -770,12 +771,12 @@ final class AppModel: ObservableObject {
     private var externalActionUnavailableMessage: String {
         if let databaseError { return databaseError }
         if runtimeSafety.isReadOnly {
-            return "Zoid Coach is in read-only safety mode after a database write failure. Repair local storage before issuing Calendar or Reminders actions."
+            return "Zoid 666 is in read-only safety mode after a database write failure. Repair local storage before issuing Calendar or Reminders actions."
         }
         if currentPolicy().operatingMode == .observe {
-            return "Zoid Coach is in Observe mode. Switch to Suggest, Assist, or Autonomous before changing Reminders or Calendar."
+            return "Zoid 666 is in Observe mode. Switch to Suggest, Assist, or Autonomous before changing Reminders or Calendar."
         }
-        return "Zoid Coach automation is paused. Resume it in Settings before changing Reminders or Calendar."
+        return "Zoid 666 automation is paused. Resume it in Settings before changing Reminders or Calendar."
     }
 }
 
@@ -848,7 +849,7 @@ struct SourceHealth: Identifiable, Equatable, Sendable {
         ),
         SourceHealth(
             id: .agent,
-            title: "Zoid Coach Agent",
+            title: "Zoid 666 Agent",
             eyebrow: "Autonomy",
             state: .notConnected,
             detail: "Background planning has not been enabled",

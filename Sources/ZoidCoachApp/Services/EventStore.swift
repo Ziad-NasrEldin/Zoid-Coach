@@ -156,6 +156,19 @@ actor EventStore {
         return entries
     }
 
+    func loadIncompleteLocalTaskIDs() -> Set<String> {
+        guard let database = handle?.pointer else { return [] }
+        let sql = "SELECT source_id FROM source_tasks WHERE source_kind = 'local' AND is_completed = 0;"
+        guard let statement = prepare(sql, database: database) else { return [] }
+        defer { sqlite3_finalize(statement) }
+        var identifiers = Set<String>()
+        while sqlite3_step(statement) == SQLITE_ROW,
+              let identifier = columnText(statement, index: 0) {
+            identifiers.insert(identifier)
+        }
+        return identifiers
+    }
+
     func replaceScheduledBlocks(_ blocks: [ScheduledBlockRecord], for day: Date = Date()) {
         guard let database = handle?.pointer else { return }
         guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else { return }

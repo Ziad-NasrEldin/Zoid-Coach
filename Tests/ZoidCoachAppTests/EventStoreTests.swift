@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import ZoidCoachApp
+import ZoidCoachInfrastructure
 
 @Test
 func eventStoreReplaysImmutableSourceCheckSequence() async throws {
@@ -41,6 +42,32 @@ func eventStorePersistsDailyPlanEntries() async throws {
     await store.replaceDailyPlan(entries, for: day)
 
     #expect(await store.loadDailyPlan(for: day) == entries)
+}
+
+@Test
+func eventStoreLoadsOnlyIncompleteLocalTaskIdentifiersForPlanReconciliation() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-local-plan-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
+    _ = try reminders.upsertLocal(ReminderSourceSnapshot(
+        id: "local-ready",
+        title: "Keep the local plan",
+        dueDate: nil,
+        priority: 0,
+        sourceKind: .local
+    ))
+    _ = try reminders.upsertLocal(ReminderSourceSnapshot(
+        id: "local-complete",
+        title: "Do not retain completed work",
+        dueDate: nil,
+        priority: 0,
+        isCompleted: true,
+        sourceKind: .local
+    ))
+
+    let store = EventStore(databaseURL: databaseURL)
+
+    #expect(await store.loadIncompleteLocalTaskIDs() == ["local-ready"])
 }
 
 @Test

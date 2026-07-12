@@ -86,6 +86,63 @@ func signedQAFixtureFlowsFromSeedThroughAppAgentMutationAndAppRefresh() async th
 
 @MainActor
 @Test
+func appRefreshRetainsAnIncompleteLocalStarterPlanWhenExternalReminderListsAreFiltered() async throws {
+    let fixture = try signedQARuntime("local-starter-plan-retention")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    try writeControl(.init(
+        requestID: "seed-empty-reminders",
+        operation: .seed,
+        seed: .init(permissions: [.reminders: .granted])
+    ), runtime: fixture.environment)
+    _ = try PolicyStore(databaseURL: fixture.environment.databaseURL)
+        .saveSystemMaintenancePolicy(.defaults(timeZoneIdentifier: TimeZone.current.identifier))
+    let taskID = "zoid-local:onboarding:starter"
+    let reminders = try ReminderSnapshotStore(databaseURL: fixture.environment.databaseURL)
+    _ = try reminders.upsertLocal(ReminderSourceSnapshot(
+        id: taskID,
+        title: "Choose today's main objective",
+        dueDate: nil,
+        priority: 0,
+        listID: "zoid-local",
+        listName: "Zoid 666",
+        sourceKind: .local
+    ))
+    let proposal = DailyPlanProposal(
+        items: [PlannedTask(
+            taskID: taskID,
+            title: "Choose today's main objective",
+            rank: 1,
+            estimateMinutes: 15,
+            reason: "Local onboarding fallback",
+            score: 1
+        )],
+        mainObjectiveTaskID: taskID,
+        plannedFocusMinutes: 15,
+        availableFocusMinutes: 60
+    )
+    let planStore = try AutonomousPlanStore(databaseURL: fixture.environment.databaseURL)
+    try planStore.replaceDailyPlan(proposal, for: Date())
+
+    let model = AppModel(
+        runtimeEnvironment: fixture.environment,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: fixture.environment,
+            service: NoopAgentRegistration()
+        ),
+        synchronizeReminderSnapshots: { _ in }
+    )
+    await model.refreshQAFixtureState()
+    while model.isLoadingDailyPlan || model.isLoadingReminderTasks {
+        await Task.yield()
+    }
+
+    #expect(model.reminderTasks.isEmpty)
+    #expect(model.dailyPlan.map(\.reminderID) == [taskID])
+    #expect(try planStore.loadDailyPlan(for: Date()).map(\.reminderID) == [taskID])
+}
+
+@MainActor
+@Test
 func fixtureServicesExposeDeniedAndDeferredPermissionStates() async throws {
     let fixture = try signedQARuntime("permissions")
     defer { try? FileManager.default.removeItem(at: fixture.root) }
