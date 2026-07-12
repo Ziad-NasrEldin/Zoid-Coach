@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import ZoidCoachCore
 
 struct AppClassificationLedger: View {
@@ -8,11 +10,19 @@ struct AppClassificationLedger: View {
     @State private var filter = AppInventoryFilter.all
     @State private var isLoading = true
     @State private var warning: String?
+    @State private var notice: String?
+    @State private var pendingAction: PendingAppRuleAction?
     private let service: AppInventoryService
+    private let rulesService: AppClassificationRulesDocumentService
 
-    init(draft: Binding<SettingsPolicyDraft>, service: AppInventoryService = AppInventoryService()) {
+    init(
+        draft: Binding<SettingsPolicyDraft>,
+        service: AppInventoryService = AppInventoryService(),
+        rulesService: AppClassificationRulesDocumentService = AppClassificationRulesDocumentService()
+    ) {
         _draft = draft
         self.service = service
+        self.rulesService = rulesService
     }
 
     var body: some View {
@@ -34,10 +44,23 @@ struct AppClassificationLedger: View {
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
                 Spacer()
-                Text("AUTO USES ZOID 666 RULES")
+                Text("COMMUNICATION COUNTS AS WORK BUT STAYS A DISTINCT RULE")
                     .font(Sumi.label(8))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
+            }
+
+            ruleActions
+
+            if let notice {
+                Text(notice)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(Sumi.softPaper)
+                    .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+                    .accessibilityIdentifier("settings.app-rules.notice")
             }
 
             if let warning {
@@ -79,8 +102,8 @@ struct AppClassificationLedger: View {
                             AppClassificationRow(
                                 item: item,
                                 selection: Binding(
-                                    get: { draft.classification(for: item.normalizedName) },
-                                    set: { draft.setClassification($0, for: item.normalizedName) }
+                                    get: { draft.settingsClassification(for: item.normalizedName) },
+                                    set: { draft.setClassifications($0, for: [item.normalizedName]) }
                                 )
                             )
                         }
@@ -91,15 +114,77 @@ struct AppClassificationLedger: View {
             }
         }
         .task { await loadInventory() }
+        .confirmationDialog(
+            pendingAction?.title ?? "Confirm classification rule change",
+            isPresented: Binding(
+                get: { pendingAction != nil },
+                set: { if !$0 { clearPendingAction() } }
+            )
+        ) {
+            if let pendingAction {
+                Button(pendingAction.confirmationLabel, role: pendingAction.isDestructive ? .destructive : nil) {
+                    apply(pendingAction)
+                }
+                Button("CANCEL", role: .cancel) { clearPendingAction() }
+            }
+        } message: {
+            if let pendingAction { Text(pendingAction.message) }
+        }
     }
 
     private var filteredItems: [AppInventoryItem] {
         let normalizedQuery = BehaviorPolicy.normalize(query)
         return items.filter { item in
             let matchesQuery = normalizedQuery.isEmpty || item.normalizedName.contains(normalizedQuery)
-            let choice = draft.classification(for: item.normalizedName)
+            let choice = draft.settingsClassification(for: item.normalizedName)
             return matchesQuery && filter.includes(choice)
         }
+    }
+
+    private var ruleActions: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { bulkButtons }
+                VStack(alignment: .leading, spacing: 8) { bulkButtons }
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { documentButtons }
+                VStack(alignment: .leading, spacing: 8) { documentButtons }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var bulkButtons: some View {
+        Text("SET \(filteredItems.count) VISIBLE")
+            .font(Sumi.label(8))
+            .sumiLabelTracking()
+            .foregroundStyle(Sumi.muted)
+        ForEach(ApplicationRuleCategory.allCases, id: \.self) { category in
+            Button(category.label.uppercased()) {
+                pendingAction = .bulk(category, filteredItems.map(\.normalizedName))
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .disabled(filteredItems.isEmpty)
+            .accessibilityIdentifier("settings.app-rules.bulk.\(category.rawValue)")
+        }
+    }
+
+    @ViewBuilder
+    private var documentButtons: some View {
+        Button("IMPORT RULES") { chooseImport() }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .accessibilityIdentifier("settings.app-rules.import")
+        Button("EXPORT RULES") { chooseExport() }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .accessibilityIdentifier("settings.app-rules.export")
+        Button("RESET APP RULES") { pendingAction = .reset }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .disabled(draft.behaviorPolicy == BehaviorPolicy())
+            .accessibilityIdentifier("settings.app-rules.reset")
+        Text("Imported and bulk-edited rules take effect only after SAVE SETTINGS.")
+            .font(Sumi.body(11))
+            .foregroundStyle(Sumi.muted)
     }
 
     private var searchField: some View {
@@ -120,7 +205,9 @@ struct AppClassificationLedger: View {
     private func loadInventory() async {
         let result = await Task.detached { service.load() }.value
         var loaded = result.items
-        let savedNames = draft.behaviorPolicy.workApplications + draft.behaviorPolicy.gamingApplications
+        let savedNames = draft.behaviorPolicy.workApplications
+            + draft.behaviorPolicy.communicationApplications
+            + draft.behaviorPolicy.gamingApplications
         for name in savedNames where !loaded.contains(where: { $0.normalizedName == name }) {
             loaded.append(
                 AppInventoryItem(
@@ -137,12 +224,78 @@ struct AppClassificationLedger: View {
         warning = result.warning
         isLoading = false
     }
+
+    private func chooseImport() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.prompt = "Review Rules"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let imported = try rulesService.importRules(from: url)
+            pendingAction = .importRules(imported)
+        } catch {
+            notice = error.localizedDescription
+        }
+    }
+
+    private func chooseExport() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "zoid-666-app-classification-rules.json"
+        panel.prompt = "Export Rules"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let receipt = try rulesService.export(draft.behaviorPolicy, to: url)
+            notice = "Exported \(receipt.workCount) work, \(receipt.communicationCount) communication, and \(receipt.gamingCount) gaming rules."
+        } catch {
+            notice = error.localizedDescription
+        }
+    }
+
+    private func apply(_ action: PendingAppRuleAction) {
+        switch action {
+        case let .bulk(category, names):
+            draft.setClassifications(category, for: names)
+            notice = "Updated \(names.count) visible app rules to \(category.label). Choose SAVE SETTINGS to persist them."
+        case .reset:
+            draft.resetApplicationRules()
+            notice = "All explicit app rules were reset to Automatic. Choose SAVE SETTINGS to persist the reset."
+        case let .importRules(imported):
+            draft.behaviorPolicy = imported
+            appendSavedItems(from: imported)
+            notice = "Imported app rules are ready. Review them, then choose SAVE SETTINGS to persist."
+        }
+        clearPendingAction()
+    }
+
+    private func appendSavedItems(from policy: BehaviorPolicy) {
+        let names = policy.workApplications + policy.communicationApplications + policy.gamingApplications
+        for name in names where !items.contains(where: { $0.normalizedName == name }) {
+            items.append(AppInventoryItem(
+                name: name,
+                normalizedName: name,
+                bundleIdentifier: nil,
+                isInstalled: false,
+                lastObservedAt: nil,
+                observationCount: 0
+            ))
+        }
+        items.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func clearPendingAction() {
+        pendingAction = nil
+    }
 }
 
 private enum AppInventoryFilter: String, CaseIterable {
     case all
     case automatic
     case work
+    case communication
     case gaming
 
     var label: String {
@@ -150,15 +303,17 @@ private enum AppInventoryFilter: String, CaseIterable {
         case .all: "All"
         case .automatic: "Auto"
         case .work: "Work"
+        case .communication: "Comms"
         case .gaming: "Gaming"
         }
     }
 
-    func includes(_ choice: AppClassificationChoice) -> Bool {
+    func includes(_ choice: ApplicationRuleCategory) -> Bool {
         switch self {
         case .all: true
         case .automatic: choice == .automatic
         case .work: choice == .work
+        case .communication: choice == .communication
         case .gaming: choice == .gaming
         }
     }
@@ -166,7 +321,7 @@ private enum AppInventoryFilter: String, CaseIterable {
 
 private struct AppClassificationRow: View {
     let item: AppInventoryItem
-    @Binding var selection: AppClassificationChoice
+    @Binding var selection: ApplicationRuleCategory
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -210,16 +365,16 @@ private struct AppClassificationRow: View {
 }
 
 private struct AppClassificationChoiceControl: View {
-    @Binding var selection: AppClassificationChoice
+    @Binding var selection: ApplicationRuleCategory
     let applicationName: String
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(AppClassificationChoice.allCases, id: \.self) { choice in
+            ForEach(ApplicationRuleCategory.allCases, id: \.self) { choice in
                 Button {
                     selection = choice
                 } label: {
-                    Text(label(for: choice))
+                    Text(displayLabel(for: choice))
                         .font(.system(.caption2, design: .serif))
                         .sumiLabelTracking()
                         .foregroundStyle(selection == choice ? Sumi.paper : Sumi.ink)
@@ -228,10 +383,10 @@ private struct AppClassificationChoiceControl: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Classify \(applicationName) as \(label(for: choice))")
+                .accessibilityLabel("Classify \(applicationName) as \(choice.label)")
                 .accessibilityValue(selection == choice ? "Selected" : "Not selected")
 
-                if choice != AppClassificationChoice.allCases.last {
+                if choice != ApplicationRuleCategory.allCases.last {
                     Rectangle().fill(Sumi.rule).frame(width: 1, height: 32)
                 }
             }
@@ -239,10 +394,57 @@ private struct AppClassificationChoiceControl: View {
         .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
     }
 
-    private func label(for choice: AppClassificationChoice) -> String {
-        switch choice {
+    private func displayLabel(for choice: ApplicationRuleCategory) -> String {
+        choice == .communication ? "Comms" : choice.label
+    }
+}
+
+private enum PendingAppRuleAction: Equatable {
+    case bulk(ApplicationRuleCategory, [String])
+    case reset
+    case importRules(BehaviorPolicy)
+
+    var title: String {
+        switch self {
+        case .bulk: "Apply a bulk app classification?"
+        case .reset: "Reset every explicit app classification?"
+        case .importRules: "Replace the current app classifications?"
+        }
+    }
+
+    var confirmationLabel: String {
+        switch self {
+        case let .bulk(category, _): "SET TO \(category.label.uppercased())"
+        case .reset: "RESET APP RULES"
+        case .importRules: "USE IMPORTED RULES"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case let .bulk(category, names):
+            "This changes \(names.count) currently visible apps to \(category.label). The change remains a draft until Save Settings."
+        case .reset:
+            "Every explicit Work, Communication, and Gaming app rule returns to Automatic. The change remains a draft until Save Settings."
+        case let .importRules(policy):
+            "The reviewed file contains \(policy.workApplications.count) Work, \(policy.communicationApplications.count) Communication, and \(policy.gamingApplications.count) Gaming rules. Existing app rules will be replaced only in the current draft."
+        }
+    }
+
+    var isDestructive: Bool {
+        switch self {
+        case .reset, .importRules: true
+        case .bulk: false
+        }
+    }
+}
+
+private extension ApplicationRuleCategory {
+    var label: String {
+        switch self {
         case .automatic: "Auto"
         case .work: "Work"
+        case .communication: "Communication"
         case .gaming: "Gaming"
         }
     }

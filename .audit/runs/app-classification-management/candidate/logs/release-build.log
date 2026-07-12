@@ -1,0 +1,36 @@
+Building for production...
+[0/9] Write sources
+[4/9] Write swift-version--58304C5D6DBC2206.txt
+[6/10] Compiling ZoidCoachCore ActionCommand.swift
+[7/11] Compiling ZoidCoachInfrastructure AIProviderCapabilities.swift
+/private/tmp/zoid-666-app-classification/Sources/ZoidCoachInfrastructure/CodexJobCoordinator.swift:227:13: warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+225 |         outputHandle = try FileHandle(forWritingTo: outputURL)
+226 |         errorHandle = try FileHandle(forWritingTo: errorURL)
+227 |         var codexArguments = [
+    |             `- warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+228 |             "exec",
+229 |             "--sandbox", job.sandbox == .workspaceWrite ? "workspace-write" : "read-only",
+[8/13] Compiling ZoidCoachAgent AgentMain.swift
+[8/13] Write Objects.LinkFileList
+[9/13] Linking ZoidCoachAgent
+[11/13] Compiling ZoidCoachApp AppBuildIdentity.swift
+/private/tmp/zoid-666-app-classification/Sources/ZoidCoachApp/Voice/VoiceAudioEngine.swift:118:20: warning: reference to captured var 'supplied' in concurrently-executing code [#SendableClosureCaptures]
+116 |         var error: NSError?
+117 |         let status = converter.convert(to: output, error: &error) { _, state in
+118 |             guard !supplied else {
+    |                    `- warning: reference to captured var 'supplied' in concurrently-executing code [#SendableClosureCaptures]
+119 |                 state.pointee = .endOfStream
+120 |                 return nil
+
+/private/tmp/zoid-666-app-classification/Sources/ZoidCoachApp/Voice/VoiceAudioEngine.swift:122:13: warning: mutation of captured var 'supplied' in concurrently-executing code [#SendableClosureCaptures]
+120 |                 return nil
+121 |             }
+122 |             supplied = true
+    |             `- warning: mutation of captured var 'supplied' in concurrently-executing code [#SendableClosureCaptures]
+123 |             state.pointee = .haveData
+124 |             return buffer
+
+[#SendableClosureCaptures]: <https://docs.swift.org/compiler/documentation/diagnostics/sendable-closure-captures>
+[11/13] Write Objects.LinkFileList
+[12/13] Linking ZoidCoach
+Build complete! (62.20s)
