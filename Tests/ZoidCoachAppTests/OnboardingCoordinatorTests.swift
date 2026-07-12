@@ -31,19 +31,20 @@ func deniedAndDeferredSourcesRemainExplicitAndDoNotBlockSetup() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
     let dependencies = OnboardingDependencies(
         inspectReminders: { SelfHealth.remindersDenied },
-        requestReminders: { SelfHealth.remindersDenied },
+        requestReminders: { .init(health: SelfHealth.remindersDenied, decision: .denied) },
         inspectScreenwatch: { SelfHealth.screenwatchMissing },
         inspectScreenwatchSetup: { SelfScreenwatch.missing },
         selectScreenwatchDirectory: { _ in SelfScreenwatch.healthy },
         useDefaultScreenwatchDirectory: { SelfScreenwatch.missing },
         inspectNotifications: { SelfHealth.notificationsDenied },
-        requestNotifications: { SelfHealth.notificationsDenied },
+        requestNotifications: { .init(health: SelfHealth.notificationsDenied, decision: .denied) },
         loadInventory: { .init(items: [], warning: nil) },
         testDelivery: { .init(state: .unavailable, message: "Notifications are disabled") },
         loadPolicy: { .defaults() },
         savePolicy: { _ in },
         loadGamingPolicy: { GamingPolicy() },
         saveGamingPolicy: { _ in },
+        prepareFirstDailyPlan: { preparedFirstPlan },
         openSystemSettings: { _ in true }
     )
     let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
@@ -55,6 +56,46 @@ func deniedAndDeferredSourcesRemainExplicitAndDoNotBlockSetup() async throws {
     coordinator.deferAccess(for: .screenwatch)
     #expect(coordinator.progress.screenwatchAccess == .deferred)
     #expect(coordinator.canContinue)
+}
+
+@MainActor
+@Test
+func transientAttentionUsesTypedUnavailableDecisionRatherThanDenial() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
+    let base = testDependencies()
+    let transient = SourceHealth(
+        id: .reminders,
+        title: "Apple Reminders",
+        eyebrow: "Intent",
+        state: .attention,
+        detail: "Permission request failed transiently",
+        evidence: "No task data was read",
+        actionTitle: "Retry"
+    )
+    let dependencies = OnboardingDependencies(
+        inspectReminders: base.inspectReminders,
+        requestReminders: { .init(health: transient, decision: .unavailable) },
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        loadPolicy: base.loadPolicy,
+        savePolicy: base.savePolicy,
+        loadGamingPolicy: base.loadGamingPolicy,
+        saveGamingPolicy: base.saveGamingPolicy,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: base.openSystemSettings
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    await coordinator.requestAccess(for: .reminders)
+
+    #expect(coordinator.progress.remindersAccess == .unavailable)
+    #expect(coordinator.progress.remindersAccess != .denied)
 }
 
 @MainActor
@@ -72,18 +113,81 @@ func allTwelveStepsFinishAndRouteToToday() async throws {
             coordinator.deferAccess(for: coordinator.progress.currentStep)
         case .coachingMode:
             coordinator.selectCoachingMode(.rulesOnly)
+        case .deliveryTest:
+            coordinator.completeTestTask()
         default:
             break
         }
         #expect(coordinator.canContinue)
         try coordinator.continueFromCurrentStep()
     }
+    await coordinator.prepareFirstDailyPlan()
     try coordinator.continueFromCurrentStep()
 
     #expect(coordinator.progress.completedSteps == OnboardingProgress.stepSequence)
     #expect(coordinator.progress.isFinished)
     #expect(coordinator.route == .today)
     #expect(store.saved?.finishedAt != nil)
+}
+
+@MainActor
+@Test
+func deliveryStepRequiresTheTestTaskAndAUsablePromptPath() throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.deliveryTest))
+    let coordinator = OnboardingCoordinator(store: store, dependencies: testDependencies())
+
+    #expect(!coordinator.canContinue)
+    coordinator.completeTestTask()
+    coordinator.completeTestTask()
+    #expect(coordinator.canContinue)
+    try coordinator.continueFromCurrentStep()
+    #expect(coordinator.progress.currentStep == .firstDailyPlan)
+}
+
+@MainActor
+@Test
+func failedDeliveryCannotCompleteTheDeliveryStep() async throws {
+    let store = RecordingOnboardingStore(
+        progress: try progressAt(.deliveryTest, notificationDecision: .granted)
+    )
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(
+            deliveryResult: .init(state: .failed, message: "Fixture delivery failed")
+        )
+    )
+
+    coordinator.completeTestTask()
+    await coordinator.runDeliveryTest()
+
+    #expect(coordinator.deliveryResult?.state == .failed)
+    #expect(!coordinator.canContinue)
+}
+
+@MainActor
+@Test
+func firstPlanMustReturnVisiblePreparedItemsBeforeFinishing() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.firstDailyPlan))
+    let unavailable = OnboardingFirstDailyPlanResult(
+        state: .unavailable,
+        items: [],
+        message: "Planner is unavailable"
+    )
+    let blocked = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(firstPlan: unavailable)
+    )
+    await blocked.prepareFirstDailyPlan()
+    #expect(!blocked.canContinue)
+    #expect(throws: (any Error).self) { try blocked.continueFromCurrentStep() }
+    #expect(!blocked.progress.isFinished)
+
+    let ready = OnboardingCoordinator(store: store, dependencies: testDependencies())
+    await ready.prepareFirstDailyPlan()
+    #expect(ready.canContinue)
+    try ready.continueFromCurrentStep()
+    #expect(ready.progress.isFinished)
+    #expect(ready.route == .today)
 }
 
 @MainActor
@@ -146,7 +250,10 @@ func latePermissionResultCannotOverwriteExplicitDeferral() async throws {
     var dependencies = testDependencies()
     dependencies = OnboardingDependencies(
         inspectReminders: dependencies.inspectReminders,
-        requestReminders: { await gate.wait() },
+        requestReminders: {
+            let health = await gate.wait()
+            return .init(health: health, decision: .granted)
+        },
         inspectScreenwatch: dependencies.inspectScreenwatch,
         inspectScreenwatchSetup: dependencies.inspectScreenwatchSetup,
         selectScreenwatchDirectory: dependencies.selectScreenwatchDirectory,
@@ -159,6 +266,7 @@ func latePermissionResultCannotOverwriteExplicitDeferral() async throws {
         savePolicy: dependencies.savePolicy,
         loadGamingPolicy: dependencies.loadGamingPolicy,
         saveGamingPolicy: dependencies.saveGamingPolicy,
+        prepareFirstDailyPlan: dependencies.prepareFirstDailyPlan,
         openSystemSettings: dependencies.openSystemSettings
     )
     let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
@@ -178,6 +286,82 @@ func latePermissionResultCannotOverwriteExplicitDeferral() async throws {
     await request.value
 
     #expect(coordinator.progress.remindersAccess == .deferred)
+}
+
+@MainActor
+@Test
+func lateInspectionCannotOverwriteANewerExplicitDecision() async throws {
+    let gate = PermissionRequestGate()
+    let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
+    let base = testDependencies()
+    let dependencies = OnboardingDependencies(
+        inspectReminders: { await gate.wait() },
+        requestReminders: base.requestReminders,
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        loadPolicy: base.loadPolicy,
+        savePolicy: base.savePolicy,
+        loadGamingPolicy: base.loadGamingPolicy,
+        saveGamingPolicy: base.saveGamingPolicy,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: base.openSystemSettings
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    let inspection = Task { await coordinator.inspectCurrentSource() }
+    while !coordinator.isWorking { await Task.yield() }
+    coordinator.deferAccess(for: .reminders)
+    gate.resume(with: SelfHealth.remindersHealthy)
+    await inspection.value
+
+    #expect(coordinator.progress.remindersAccess == .deferred)
+    #expect(coordinator.sourceHealth[.reminders] == nil)
+}
+
+@MainActor
+@Test
+func inFlightDeliveryBlocksNavigationAndOtherStepMutations() async throws {
+    let gate = DeliveryRequestGate()
+    let store = RecordingOnboardingStore(
+        progress: try progressAt(.deliveryTest, notificationDecision: .granted)
+    )
+    let base = testDependencies()
+    let dependencies = OnboardingDependencies(
+        inspectReminders: base.inspectReminders,
+        requestReminders: base.requestReminders,
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: { await gate.wait() },
+        loadPolicy: base.loadPolicy,
+        savePolicy: base.savePolicy,
+        loadGamingPolicy: base.loadGamingPolicy,
+        saveGamingPolicy: base.saveGamingPolicy,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: base.openSystemSettings
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    let delivery = Task { await coordinator.runDeliveryTest() }
+    while !coordinator.isWorking { await Task.yield() }
+    coordinator.exitToToday()
+    coordinator.completeTestTask()
+    #expect(coordinator.progress.currentStep == .deliveryTest)
+    #expect(coordinator.route == .onboarding)
+    #expect(!coordinator.testTaskCompleted)
+    gate.resume(with: .init(state: .delivered, message: "Delivered"))
+    await delivery.value
+    #expect(coordinator.deliveryResult?.state == .delivered)
 }
 
 @MainActor
@@ -320,29 +504,62 @@ private final class PermissionRequestGate {
 }
 
 @MainActor
+private final class DeliveryRequestGate {
+    private var continuation: CheckedContinuation<OnboardingDeliveryResult, Never>?
+
+    func wait() async -> OnboardingDeliveryResult {
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func resume(with result: OnboardingDeliveryResult) {
+        continuation?.resume(returning: result)
+        continuation = nil
+    }
+}
+
+@MainActor
 private func testDependencies(
     inventory: AppInventoryLoadResult = .init(items: [], warning: nil),
     policyRecorder: PolicyRecorder = PolicyRecorder(),
-    gamingRecorder: GamingPolicyRecorder = GamingPolicyRecorder()
+    gamingRecorder: GamingPolicyRecorder = GamingPolicyRecorder(),
+    deliveryResult: OnboardingDeliveryResult = .init(
+        state: .delivered,
+        message: "Delivered by test fixture"
+    ),
+    firstPlan: OnboardingFirstDailyPlanResult = preparedFirstPlan
 ) -> OnboardingDependencies {
     OnboardingDependencies(
         inspectReminders: { SelfHealth.remindersDenied },
-        requestReminders: { SelfHealth.remindersDenied },
+        requestReminders: { .init(health: SelfHealth.remindersDenied, decision: .denied) },
         inspectScreenwatch: { SelfHealth.screenwatchMissing },
         inspectScreenwatchSetup: { SelfScreenwatch.missing },
         selectScreenwatchDirectory: { _ in SelfScreenwatch.healthy },
         useDefaultScreenwatchDirectory: { SelfScreenwatch.missing },
         inspectNotifications: { SelfHealth.notificationsDenied },
-        requestNotifications: { SelfHealth.notificationsDenied },
+        requestNotifications: { .init(health: SelfHealth.notificationsDenied, decision: .denied) },
         loadInventory: { inventory },
-        testDelivery: { .init(state: .delivered, message: "Delivered by test fixture") },
+        testDelivery: { deliveryResult },
         loadPolicy: { policyRecorder.policy },
         savePolicy: { policyRecorder.policy = $0 },
         loadGamingPolicy: { gamingRecorder.policy },
         saveGamingPolicy: { gamingRecorder.policy = $0 },
+        prepareFirstDailyPlan: { firstPlan },
         openSystemSettings: { _ in true }
     )
 }
+
+private let preparedFirstPlan = OnboardingFirstDailyPlanResult(
+    state: .prepared,
+    items: [
+        .init(
+            id: "first-plan-task",
+            title: "Choose the first meaningful action",
+            estimateMinutes: 25,
+            isMainObjective: true
+        )
+    ],
+    message: "One visible plan item is ready."
+)
 
 private enum SelfScreenwatch {
     static let missing = ScreenwatchSetupStatus(
@@ -376,6 +593,15 @@ private enum SelfHealth {
         evidence: "Continue with manual local planning",
         actionTitle: "Repair"
     )
+    static let remindersHealthy = SourceHealth(
+        id: .reminders,
+        title: "Apple Reminders",
+        eyebrow: "Intent",
+        state: .healthy,
+        detail: "Reminders are connected",
+        evidence: "Fixture",
+        actionTitle: "Inspect"
+    )
     static let screenwatchMissing = SourceHealth(
         id: .screenwatch,
         title: "Screenwatch",
@@ -396,11 +622,17 @@ private enum SelfHealth {
     )
 }
 
-private func progressAt(_ target: OnboardingStep) throws -> OnboardingProgress {
+private func progressAt(
+    _ target: OnboardingStep,
+    notificationDecision: OnboardingAccessDecision = .deferred
+) throws -> OnboardingProgress {
     var progress = try OnboardingProgress()
     while progress.currentStep != target {
         if [.reminders, .screenwatch, .notifications].contains(progress.currentStep) {
-            try progress.recordAccessDecision(.deferred, for: progress.currentStep)
+            let decision = progress.currentStep == .notifications
+                ? notificationDecision
+                : .deferred
+            try progress.recordAccessDecision(decision, for: progress.currentStep)
         }
         if progress.currentStep == .coachingMode {
             progress.chooseCoachingMode(.rulesOnly)

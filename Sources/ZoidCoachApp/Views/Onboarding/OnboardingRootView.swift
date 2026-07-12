@@ -33,6 +33,9 @@ struct OnboardingRootView: View {
             ) {
                 coordinator.loadApplicationInventory()
             }
+            if coordinator.progress.currentStep == .firstDailyPlan {
+                await coordinator.prepareFirstDailyPlan()
+            }
         }
     }
 
@@ -83,6 +86,7 @@ struct OnboardingRootView: View {
             Button("EXIT FOR NOW") { coordinator.exitToToday() }
                 .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
                 .keyboardShortcut(.cancelAction)
+                .disabled(coordinator.isWorking)
                 .accessibilityHint("Opens Today. Setup resumes from the latest saved step after restart.")
                 .accessibilityIdentifier("onboarding.exit")
         }
@@ -146,12 +150,7 @@ struct OnboardingRootView: View {
             case .deliveryTest:
                 deliveryTestStep
             case .firstDailyPlan:
-                OnboardingEditorialStep(
-                    eyebrow: "FIRST PLAN",
-                    title: "The quiet command center is ready.",
-                    bodyText: "Today will show your intended work, current source health, a realistic next action, and any coaching choices still waiting for you.",
-                    note: firstPlanSummary
-                )
+                firstDailyPlanStep
             }
             if let error = coordinator.errorMessage {
                 Text(error)
@@ -503,12 +502,33 @@ struct OnboardingRootView: View {
         VStack(alignment: .leading, spacing: 22) {
             OnboardingEditorialStep(
                 eyebrow: "DELIVERY PROOF",
-                title: "Send one bounded test before relying on coaching.",
-                bodyText: "The test schedules one local notification. It does not contact a remote service and it records an explicit pass, failure, or unavailable result.",
+                title: "Complete one task and send one bounded prompt.",
+                bodyText: "The local task checks the basic completion interaction. The notification test schedules one local prompt, contacts no remote service, and records an explicit result.",
                 note: coordinator.progress.notificationAccess == .granted
                     ? "Run the test and confirm macOS accepted it."
                     : "Notifications were not granted. Continue in degraded mode and use Today for every coaching choice."
             )
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("TEST TASK").font(Sumi.label()).tracking(1.2)
+                    Text("Confirm one small next action can be completed.")
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.muted)
+                }
+                Spacer()
+                Button(coordinator.testTaskCompleted ? "COMPLETED" : "MARK COMPLETE") {
+                    coordinator.completeTestTask()
+                }
+                .buttonStyle(SumiActionButtonStyle(
+                    role: coordinator.testTaskCompleted ? .quiet : .primary,
+                    size: .standard
+                ))
+                .disabled(coordinator.testTaskCompleted)
+                .accessibilityValue(coordinator.testTaskCompleted ? "Completed" : "Not completed")
+                .accessibilityIdentifier("onboarding.delivery.test-task")
+            }
+            .padding(14)
+            .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
             Button(coordinator.isWorking ? "TESTING…" : "SEND TEST NOTIFICATION") {
                 Task { await coordinator.runDeliveryTest() }
             }
@@ -544,6 +564,53 @@ struct OnboardingRootView: View {
         return "\(sourceCount) of 3 sources connected · \(coaching) coaching · work \(hour(coordinator.workStartHour))-\(hour(coordinator.workEndHour)) · quiet \(hour(coordinator.quietStartHour))-\(hour(coordinator.quietEndHour))."
     }
 
+    private var firstDailyPlanStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            OnboardingEditorialStep(
+                eyebrow: "FIRST DAILY PLAN",
+                title: "Prepare a real plan before setup finishes.",
+                bodyText: "Zoid Coach must create and return visible plan items before it marks onboarding complete. If planning is unavailable, setup remains here without inventing success.",
+                note: firstPlanSummary
+            )
+            if let result = coordinator.firstDailyPlanResult {
+                Text(result.message)
+                    .font(Sumi.body(13))
+                    .foregroundStyle(result.state == .prepared ? Sumi.muted : Sumi.sealDeep)
+                if result.state == .prepared {
+                    VStack(spacing: 0) {
+                        ForEach(result.items) { item in
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(item.isMainObjective ? "MAIN" : "PLAN")
+                                    .font(Sumi.label(9))
+                                    .foregroundStyle(item.isMainObjective ? Sumi.seal : Sumi.muted)
+                                    .frame(width: 44, alignment: .leading)
+                                Text(item.title).font(Sumi.body(14))
+                                Spacer()
+                                if let estimate = item.estimateMinutes {
+                                    Text("\(estimate) MIN").font(Sumi.label(9)).foregroundStyle(Sumi.muted)
+                                }
+                            }
+                            .padding(12)
+                            .overlay(alignment: .bottom) {
+                                Rectangle().fill(Sumi.paleRule).frame(height: 1)
+                            }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityIdentifier("onboarding.first-plan.item.\(item.id)")
+                        }
+                    }
+                    .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                    .accessibilityIdentifier("onboarding.first-plan.items")
+                }
+            }
+            Button(coordinator.isWorking ? "PREPARING…" : "PREPARE AGAIN") {
+                Task { await coordinator.prepareFirstDailyPlan() }
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+            .disabled(coordinator.isWorking)
+            .accessibilityIdentifier("onboarding.first-plan.prepare")
+        }
+    }
+
     private func hour(_ value: Int) -> String {
         String(format: "%02d:00", value)
     }
@@ -559,11 +626,6 @@ struct OnboardingRootView: View {
 
     private var controls: some View {
         HStack(spacing: 10) {
-            Button("BACK") { coordinator.goBack() }
-                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
-                .disabled(currentPosition == 1)
-                .keyboardShortcut("[", modifiers: [.command])
-                .accessibilityIdentifier("onboarding.back")
             Spacer()
             Text(coordinator.canContinue ? "READY TO CONTINUE" : "CHOOSE A PATH TO CONTINUE")
                 .font(Sumi.label(9))

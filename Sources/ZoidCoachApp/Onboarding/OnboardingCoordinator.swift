@@ -31,6 +31,8 @@ final class OnboardingCoordinator: ObservableObject {
     @Published var quietEndHour = 7
     @Published var gamingPolicy = OnboardingGamingPolicy.balanced
     @Published private(set) var deliveryResult: OnboardingDeliveryResult?
+    @Published private(set) var testTaskCompleted = false
+    @Published private(set) var firstDailyPlanResult: OnboardingFirstDailyPlanResult?
     @Published private(set) var isWorking = false
 
     private let store: any OnboardingProgressPersisting
@@ -40,6 +42,8 @@ final class OnboardingCoordinator: ObservableObject {
     private var policyDraft = SettingsPolicyDraft(policy: .defaults())
     private var policyIsAvailable = true
     private var sourceRequestGeneration = UUID()
+    private var deliveryGeneration = UUID()
+    private var planGeneration = UUID()
 
     init(
         store: any OnboardingProgressPersisting,
@@ -105,21 +109,8 @@ final class OnboardingCoordinator: ObservableObject {
         }
     }
 
-    func goBack() {
-        guard let currentIndex = OnboardingProgress.stepSequence.firstIndex(
-            of: progress.currentStep
-        ), currentIndex > 0 else { return }
-        do {
-            var replacement = progress
-            try replacement.navigate(to: OnboardingProgress.stepSequence[currentIndex - 1])
-            progress = replacement
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
     func exitToToday() {
+        guard !isWorking else { return }
         route = .today
     }
 
@@ -147,22 +138,26 @@ final class OnboardingCoordinator: ObservableObject {
         sourceRequestGeneration = generation
         isWorking = true
         defer { isWorking = false }
-        let health: SourceHealth
+        let result: OnboardingAccessRequestResult
         switch step {
         case .reminders:
-            health = await dependencies.requestReminders()
+            result = await dependencies.requestReminders()
         case .screenwatch:
             let status = await dependencies.inspectScreenwatchSetup()
             screenwatchSetupStatus = status
-            health = Self.sourceHealth(for: status)
+            let health = Self.sourceHealth(for: status)
+            result = .init(
+                health: health,
+                decision: status.health == .healthy ? .granted : .unavailable
+            )
         case .notifications:
-            health = await dependencies.requestNotifications()
+            result = await dependencies.requestNotifications()
         default:
             return
         }
         guard sourceRequestGeneration == generation else { return }
-        sourceHealth[step] = health
-        recordAccess(Self.accessDecision(for: health), for: step)
+        sourceHealth[step] = result.health
+        recordAccess(result.decision, for: step)
     }
 
     func inspectCurrentSource() async {
@@ -171,6 +166,8 @@ final class OnboardingCoordinator: ObservableObject {
         guard [.reminders, .screenwatch, .notifications].contains(step) else { return }
         isWorking = true
         defer { isWorking = false }
+        let generation = UUID()
+        sourceRequestGeneration = generation
         let health: SourceHealth
         switch step {
         case .reminders: health = await dependencies.inspectReminders()
@@ -181,6 +178,7 @@ final class OnboardingCoordinator: ObservableObject {
         case .notifications: health = await dependencies.inspectNotifications()
         default: return
         }
+        guard sourceRequestGeneration == generation else { return }
         sourceHealth[step] = health
         if health.state == .healthy, accessDecision(for: step) != nil {
             recordAccess(.granted, for: step)
@@ -196,7 +194,7 @@ final class OnboardingCoordinator: ObservableObject {
             screenwatchSetupStatus = status
             let health = Self.sourceHealth(for: status)
             sourceHealth[.screenwatch] = health
-            recordAccess(Self.accessDecision(for: health), for: .screenwatch)
+            recordAccess(status.health == .healthy ? .granted : .unavailable, for: .screenwatch)
         } catch {
             errorMessage = "The Screenwatch folder could not be used. \(error.localizedDescription)"
         }
@@ -233,9 +231,40 @@ final class OnboardingCoordinator: ObservableObject {
     }
 
     func runDeliveryTest() async {
-        guard let dependencies else { return }
+        guard let dependencies, !isWorking else { return }
+        let generation = UUID()
+        deliveryGeneration = generation
         isWorking = true
-        deliveryResult = await dependencies.testDelivery()
+        let result = await dependencies.testDelivery()
+        guard deliveryGeneration == generation else {
+            isWorking = false
+            return
+        }
+        deliveryResult = result
+        isWorking = false
+    }
+
+    func completeTestTask() {
+        guard !isWorking else { return }
+        testTaskCompleted = true
+    }
+
+    func prepareFirstDailyPlan() async {
+        guard let dependencies, !isWorking else { return }
+        let generation = UUID()
+        planGeneration = generation
+        isWorking = true
+        let result = await dependencies.prepareFirstDailyPlan()
+        guard planGeneration == generation else {
+            isWorking = false
+            return
+        }
+        firstDailyPlanResult = result
+        if result.state != .prepared || result.items.isEmpty {
+            errorMessage = result.message
+        } else {
+            errorMessage = nil
+        }
         isWorking = false
     }
 
@@ -250,7 +279,12 @@ final class OnboardingCoordinator: ObservableObject {
         case .coachingMode:
             progress.coachingMode != nil
         case .deliveryTest:
-            deliveryResult != nil || progress.notificationAccess != .granted
+            testTaskCompleted
+                && (progress.notificationAccess != .granted
+                    || [.delivered, .scheduled].contains(deliveryResult?.state))
+        case .firstDailyPlan:
+            firstDailyPlanResult?.state == .prepared
+                && firstDailyPlanResult?.items.isEmpty == false
         default:
             true
         }
@@ -267,19 +301,6 @@ final class OnboardingCoordinator: ObservableObject {
             errorMessage = nil
         } catch {
             errorMessage = "The source decision could not be saved. \(error.localizedDescription)"
-        }
-    }
-
-    private static func accessDecision(for health: SourceHealth) -> OnboardingAccessDecision {
-        switch health.state {
-        case .healthy: .granted
-        case .attention where health.id == .reminders
-            && health.detail == "Reminders access is unavailable": .denied
-        case .attention where health.id == .notifications
-            && health.detail == "Notifications are unavailable": .denied
-        case .attention: .unavailable
-        case .unavailable: .unavailable
-        case .checking, .notConnected: .deferred
         }
     }
 
@@ -328,6 +349,11 @@ final class OnboardingCoordinator: ObservableObject {
             } catch {
                 errorMessage = "The gaming boundary could not be saved. \(error.localizedDescription)"
                 throw error
+            }
+        case .firstDailyPlan:
+            guard firstDailyPlanResult?.state == .prepared,
+                  firstDailyPlanResult?.items.isEmpty == false else {
+                throw OnboardingDependencyError.firstDailyPlanUnavailable
             }
         default:
             break

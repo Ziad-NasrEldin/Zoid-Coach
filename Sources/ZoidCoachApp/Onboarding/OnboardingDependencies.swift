@@ -1,5 +1,7 @@
 import AppKit
+import EventKit
 import Foundation
+import UserNotifications
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
@@ -15,30 +17,61 @@ struct OnboardingDeliveryResult: Equatable, Sendable {
     let message: String
 }
 
+struct OnboardingAccessRequestResult: Equatable, Sendable {
+    let health: SourceHealth
+    let decision: OnboardingAccessDecision
+}
+
+struct OnboardingFirstPlanItem: Identifiable, Equatable, Sendable {
+    let id: String
+    let title: String
+    let estimateMinutes: Int?
+    let isMainObjective: Bool
+}
+
+struct OnboardingFirstDailyPlanResult: Equatable, Sendable {
+    enum State: Equatable, Sendable {
+        case prepared
+        case unavailable
+        case failed
+    }
+
+    let state: State
+    let items: [OnboardingFirstPlanItem]
+    let message: String
+}
+
 enum OnboardingDependencyError: LocalizedError {
     case gamingPolicyPersistenceUnavailable
+    case firstDailyPlanUnavailable
 
     var errorDescription: String? {
-        "Gaming policy storage is not available yet. Your choice was not marked complete."
+        switch self {
+        case .gamingPolicyPersistenceUnavailable:
+            "Gaming policy storage is not available yet. Your choice was not marked complete."
+        case .firstDailyPlanUnavailable:
+            "A visible first daily plan has not been prepared. Setup was not marked complete."
+        }
     }
 }
 
 @MainActor
 struct OnboardingDependencies {
     let inspectReminders: () async -> SourceHealth
-    let requestReminders: () async -> SourceHealth
+    let requestReminders: () async -> OnboardingAccessRequestResult
     let inspectScreenwatch: () async -> SourceHealth
     let inspectScreenwatchSetup: () async -> ScreenwatchSetupStatus
     let selectScreenwatchDirectory: (URL) async throws -> ScreenwatchSetupStatus
     let useDefaultScreenwatchDirectory: () async -> ScreenwatchSetupStatus
     let inspectNotifications: () async -> SourceHealth
-    let requestNotifications: () async -> SourceHealth
+    let requestNotifications: () async -> OnboardingAccessRequestResult
     let loadInventory: () -> AppInventoryLoadResult
     let testDelivery: () async -> OnboardingDeliveryResult
     let loadPolicy: () throws -> UserPolicy
     let savePolicy: (UserPolicy) throws -> Void
     let loadGamingPolicy: () throws -> GamingPolicy
     let saveGamingPolicy: (GamingPolicy) throws -> Void
+    let prepareFirstDailyPlan: () async -> OnboardingFirstDailyPlanResult
     let openSystemSettings: (OnboardingStep) -> Bool
 
     static func live(runtimeEnvironment: RuntimeEnvironment) -> Self {
@@ -77,13 +110,32 @@ struct OnboardingDependencies {
         let policyStore = try? PolicyStore(databaseURL: runtimeEnvironment.databaseURL)
         return Self(
             inspectReminders: { await reminders.inspect() },
-            requestReminders: { await reminders.requestAccessAndInspect() },
+            requestReminders: {
+                let health = await reminders.requestAccessAndInspect()
+                let decision: OnboardingAccessDecision
+                if let fixtureAdapter {
+                    decision = Self.decision(from: try? fixtureAdapter.permission(.reminders))
+                } else {
+                    decision = Self.remindersDecisionFromSystem()
+                }
+                return .init(health: health, decision: decision)
+            },
             inspectScreenwatch: { await screenwatch.inspect() },
             inspectScreenwatchSetup: { await screenwatchSetup.inspect() },
             selectScreenwatchDirectory: { try await screenwatchSetup.selectAlternateDaysDirectory($0) },
             useDefaultScreenwatchDirectory: { await screenwatchSetup.useDefaultLocation() },
             inspectNotifications: { await notifications.inspect() },
-            requestNotifications: { await notifications.requestAccessAndInspect() },
+            requestNotifications: {
+                let health = await notifications.requestAccessAndInspect()
+                let decision: OnboardingAccessDecision
+                if let fixtureAdapter {
+                    decision = Self.decision(from: try? fixtureAdapter.permission(.notifications))
+                } else {
+                    let settings = await UNUserNotificationCenter.current().notificationSettings()
+                    decision = Self.decision(from: settings.authorizationStatus)
+                }
+                return .init(health: health, decision: decision)
+            },
             loadInventory: { inventory.load() },
             testDelivery: { await delivery.run() },
             loadPolicy: {
@@ -104,6 +156,13 @@ struct OnboardingDependencies {
             saveGamingPolicy: { _ in
                 throw OnboardingDependencyError.gamingPolicyPersistenceUnavailable
             },
+            prepareFirstDailyPlan: {
+                .init(
+                    state: .unavailable,
+                    items: [],
+                    message: "First-plan preparation is not connected. Setup was not marked complete."
+                )
+            },
             openSystemSettings: { step in
                 let address: String
                 switch step {
@@ -118,5 +177,36 @@ struct OnboardingDependencies {
                 return NSWorkspace.shared.open(url)
             }
         )
+    }
+
+    private static func remindersDecisionFromSystem() -> OnboardingAccessDecision {
+        switch EKEventStore.authorizationStatus(for: .reminder) {
+        case .fullAccess, .authorized: .granted
+        case .denied, .restricted, .writeOnly: .denied
+        case .notDetermined: .deferred
+        @unknown default: .unavailable
+        }
+    }
+
+    private static func decision(
+        from status: UNAuthorizationStatus
+    ) -> OnboardingAccessDecision {
+        switch status {
+        case .authorized, .provisional, .ephemeral: .granted
+        case .denied: .denied
+        case .notDetermined: .deferred
+        @unknown default: .unavailable
+        }
+    }
+
+    private static func decision(
+        from permission: QAFixturePermissionState?
+    ) -> OnboardingAccessDecision {
+        switch permission {
+        case .granted: .granted
+        case .denied, .restricted: .denied
+        case .notDetermined: .deferred
+        case nil: .unavailable
+        }
     }
 }
