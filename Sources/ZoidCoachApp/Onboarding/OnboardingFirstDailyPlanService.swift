@@ -88,7 +88,7 @@ final class OnboardingFirstDailyPlanService {
                     history: history,
                     learningStore: learningStore,
                     referenceDate: referenceDate,
-                    availableFocusMinutes: max(15, planningCapacityMinutes(referenceDate))
+                    availableFocusMinutes: planningCapacityMinutes(referenceDate)
                 )
                 if reminderProposal.items.isEmpty {
                     return .init(
