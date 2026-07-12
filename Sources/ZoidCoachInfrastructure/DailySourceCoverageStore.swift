@@ -85,7 +85,7 @@ public final class DailySourceCoverageStore: @unchecked Sendable {
         let categorySeconds = Dictionary(grouping: segments, by: \.classification)
             .mapValues { values in values.reduce(0.0) { $0 + $1.end.timeIntervalSince($1.start) } }
         let minutes: (TimeInterval) -> Int = { max(0, Int(($0 / 60).rounded())) }
-        let source = try readLatestScreenwatchSource()
+        let source = try readLatestScreenwatchSource(before: dayEnd)
 
         return DailySourceCoverage(
             localDay: localDay,
@@ -174,7 +174,7 @@ public final class DailySourceCoverageStore: @unchecked Sendable {
         return intervals
     }
 
-    private func readLatestScreenwatchSource() throws -> DailyCoverageSourceState? {
+    private func readLatestScreenwatchSource(before dayEnd: Date) throws -> DailyCoverageSourceState? {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
@@ -182,6 +182,7 @@ public final class DailySourceCoverageStore: @unchecked Sendable {
             SELECT state, detail, evidence, checked_at
             FROM source_checkpoints
             WHERE source_id LIKE 'screenwatch%'
+              AND checked_at < ?
             ORDER BY checked_at DESC, id DESC
             LIMIT 1;
             """,
@@ -190,6 +191,7 @@ public final class DailySourceCoverageStore: @unchecked Sendable {
             nil
         ) == SQLITE_OK, let statement else { throw databaseError(.read) }
         defer { sqlite3_finalize(statement) }
+        bind(timestampFormatter.string(from: dayEnd), statement, 1)
         guard sqlite3_step(statement) == SQLITE_ROW,
               let state = text(statement, 0),
               let detail = text(statement, 1),
