@@ -22,6 +22,7 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | Integrated OS-fixture verification | Read-only root verification | Root checkout at `a8c8420` | Reproduce full suites, signed packaging, bounded agent behavior, and exactly-once replay | Passed: 321 Swift, 38 Python, 666 registry, release, signed QA replay |
 | First-launch builder | `codex/zc-onboarding-ui` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/onboarding-ui` | Implement resumable 12-step onboarding and first daily-plan handoff | In progress from `a8c8420` |
 | Screenwatch setup builder | `codex/zc-screenwatch-setup` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/screenwatch-setup` | Add privacy-safe default and security-scoped alternate-folder setup with repair and restart persistence | Merged at `1d4cfd3`; root gates passed |
+| Gaming policy backend builder | `codex/zc-gaming-policy` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/gaming-policy` | Persist onboarding gaming posture in versioned user policy and consume it in Today | In progress from `5cba88d` |
 
 ## Exclusive file locks
 
@@ -38,6 +39,7 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | New onboarding coordinator, dependencies, views, and focused tests | First-launch builder | Add complete first-launch UI without changing proof or persistence primitives | `a8c8420` | Current Phase 1 wave |
 | `Sources/ZoidCoachApp/ZoidCoachApp.swift` root-view hunk only | First-launch builder | Gate Dashboard behind persisted onboarding completion | `a8c8420` | Current Phase 1 wave |
 | Screenwatch onboarding setup service and focused tests | Root integrator | Integrated health, bookmark, repair, QA-isolation, freshness, and no-follow boundaries | `1d4cfd3` | Permanent unless temporarily granted |
+| `Sources/ZoidCoachCore/UserPolicy.swift`, `Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift`, and focused policy consumers/tests | Gaming policy backend builder | Add backward-compatible durable gaming policy and runtime consumption | `5cba88d` | Current Phase 1 wave |
 | Runtime preference, keychain, export, capture, OS-adapter, and evidence-cipher consumers | Root integrator | Integrated and independently reviewed | `4a2bd85` | Permanent unless temporarily granted |
 | `Scripts/scenario_registry.py`, registry schema, and registry tests | Root integrator | Strict proof coherence integrated | `1223680` | Permanent unless temporarily granted |
 | `.audit/runs/deterministic-fixture/515016a/` | Root integrator | Immutable independent evidence | `3031040` | Permanent |
