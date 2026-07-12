@@ -136,8 +136,8 @@ struct ZoidCoachApplication: App {
         }
         .defaultSize(width: 760, height: 660)
 
-        MenuBarExtra("Zoid Voice", systemImage: voiceMenuSymbol) {
-            VoiceMenuView(model: voiceModel)
+        MenuBarExtra("Zoid 666", systemImage: MenuBarCoachState(snapshot: model.todaySnapshot).tone.symbol) {
+            MenuBarCoachView(appModel: model, voiceModel: voiceModel)
         }
         .menuBarExtraStyle(.window)
     }
@@ -155,16 +155,6 @@ struct ZoidCoachApplication: App {
             }
             window.setFrameAutosaveName(frameAutosaveName)
             window.makeKeyAndOrderFront(nil)
-        }
-    }
-
-    private var voiceMenuSymbol: String {
-        switch voiceModel.state {
-        case .listening: "mic.fill"
-        case .speaking: "waveform.circle.fill"
-        case .thinking, .activating: "ellipsis.circle.fill"
-        case .localFallback: "mic.badge.xmark"
-        case .idle, .disconnected: "waveform.circle"
         }
     }
 }
