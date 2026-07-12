@@ -798,7 +798,7 @@ final class AppModel: ObservableObject {
         isLoadingReminderTasks = false
     }
 
-    private func reloadDailyPlan() async {
+    func reloadDailyPlan() async {
         dailyPlan = await eventStore.loadDailyPlan()
         if reminderTasksAreAvailable {
             await reconcileDailyPlan(with: reminderTasks)

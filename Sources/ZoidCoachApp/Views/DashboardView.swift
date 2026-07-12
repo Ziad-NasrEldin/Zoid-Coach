@@ -64,7 +64,10 @@ struct DashboardView: View {
                 SumiModalOverlay(dismiss: { isCreatingLocalTask = false }) {
                     LocalTaskCreationView {
                         isCreatingLocalTask = false
-                        Task { await model.refreshTodaySnapshot() }
+                        Task {
+                            await model.reloadDailyPlan()
+                            await model.refreshTodaySnapshot()
+                        }
                     } cancel: {
                         isCreatingLocalTask = false
                     }

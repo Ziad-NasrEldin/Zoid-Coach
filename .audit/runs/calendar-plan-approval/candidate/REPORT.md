@@ -60,6 +60,10 @@ The verifier also corrected reconciliation so a cancelled exact command is treat
 
 The exact reviewed-task list is bounded and scrollable so a longer daily plan cannot push the confirmation controls beyond the visible modal.
 
+The final signed compatibility journey exposed and fixed a manual-local-task seam where Today refreshed but the in-memory plan used by capacity and Calendar approval remained stale until restart.
+
+The creation callback now reloads the durable daily plan before refreshing Today, so a new local task immediately participates in capacity and approval.
+
 Focused `CalendarPlanApprovalStateTests` and `AgentPlanSchedulerTests` both pass after these fixes.
 
 The root-owned signed-QA acceptance journey remains intentionally unclaimed until the package lease is available.
