@@ -8,9 +8,30 @@ func promptNotificationContractMapsRequiredCategoriesAndActions() {
     #expect(PromptNotificationCategory.forPromptType("MEETING_CANDIDATE") == .meetingCandidate)
     #expect(PromptNotificationCategory.forPromptType("PLAN_CHANGED") == .planChanged)
     #expect(PromptNotificationCategory.forPromptType("ONBOARDING_TEST") == .onboardingTest)
+    #expect(PromptNotificationCategory.forPromptType("GAMING_DRIFT") == .gamingDrift)
     for action in [PromptActionKind.acceptPlan, .reviewPlan, .snoozePlanning, .dismissPlanning, .workUnplanned, .addMeeting, .editMeeting, .ignore, .undoPlanChange] {
         #expect(PromptNotificationCoordinator.actionKind(identifier: PromptNotificationCoordinator.actionIdentifier(action)) == action)
     }
+}
+
+@Test
+func gamingPromptNotificationAcceptsOnlyBoundedCoachingActions() {
+    let identity = RuntimeIdentity.qa.notification
+    let allowed: [PromptActionKind] = [
+        .returnToActiveTask, .fiveMoreMinutes, .startBreak, .continueIntentionally
+    ]
+    for action in allowed {
+        #expect(PromptNotificationCoordinator.fixtureActionKind(
+            identifier: action.rawValue,
+            category: PromptNotificationCategory.gamingDrift.rawValue,
+            notificationIdentity: identity
+        ) == action)
+    }
+    #expect(PromptNotificationCoordinator.fixtureActionKind(
+        identifier: PromptActionKind.acceptPlan.rawValue,
+        category: PromptNotificationCategory.gamingDrift.rawValue,
+        notificationIdentity: identity
+    ) == nil)
 }
 
 @Test
