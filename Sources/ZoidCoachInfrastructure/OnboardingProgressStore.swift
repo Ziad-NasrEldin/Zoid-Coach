@@ -22,6 +22,7 @@ public enum OnboardingProgressStoreError: LocalizedError, Equatable, Sendable {
     case filesystemOperation(String, Int32)
     case staleRevision(expected: UInt64, actual: UInt64)
     case revisionExhausted
+    case structuralRegression
 
     public var errorDescription: String? {
         switch self {
@@ -35,6 +36,8 @@ public enum OnboardingProgressStoreError: LocalizedError, Equatable, Sendable {
             "Onboarding progress revision is stale: expected \(expected), received \(actual)"
         case .revisionExhausted:
             "Onboarding progress revision cannot advance beyond UInt64.max"
+        case .structuralRegression:
+            "Onboarding progress cannot move backward without an explicit reset"
         }
     }
 }
@@ -109,6 +112,12 @@ public final class OnboardingProgressStore: @unchecked Sendable {
                         actual: progress.persistenceRevision
                     )
                 }
+                if stored.isPersisted {
+                    try validateStructuralMonotonicity(
+                        current: stored.progress,
+                        incoming: progress
+                    )
+                }
                 guard expectedRevision < UInt64.max else {
                     throw OnboardingProgressStoreError.revisionExhausted
                 }
@@ -174,6 +183,30 @@ public final class OnboardingProgressStore: @unchecked Sendable {
             throw error
         } catch {
             return (try recoverCorruptProgress(storage: storage), true)
+        }
+    }
+
+    private func validateStructuralMonotonicity(
+        current: OnboardingProgress,
+        incoming: OnboardingProgress
+    ) throws {
+        guard incoming.completedSteps.starts(with: current.completedSteps),
+              let currentStepIndex = OnboardingProgress.stepSequence.firstIndex(
+                of: current.currentStep
+              ),
+              let incomingStepIndex = OnboardingProgress.stepSequence.firstIndex(
+                of: incoming.currentStep
+              ),
+              incomingStepIndex >= currentStepIndex,
+              current.finishedAt == nil || incoming.finishedAt == current.finishedAt else {
+            throw OnboardingProgressStoreError.structuralRegression
+        }
+        if incoming.completedSteps == current.completedSteps {
+            guard incoming.currentStep == current.currentStep,
+                  incoming.coachingMode == current.coachingMode,
+                  incoming.finishedAt == current.finishedAt else {
+                throw OnboardingProgressStoreError.structuralRegression
+            }
         }
     }
 

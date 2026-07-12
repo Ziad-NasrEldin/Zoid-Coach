@@ -67,12 +67,19 @@ final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchec
         }
         if createStateDirectoryError == 0 {
             checkpoint(.createdStateDirectory(directoryName))
-            let syncError = operations.syncDirectory(rootDescriptor)
-            guard syncError == 0 else {
-                throw filesystemError("sync state directory parent", syncError)
-            }
-            checkpoint(.syncedStateDirectoryParent(directoryName))
         }
+        let syncError = operations.syncDirectory(rootDescriptor)
+        if syncError != 0 {
+            if createStateDirectoryError == 0 {
+                Self.rollbackCreatedDirectory(
+                    named: directoryName,
+                    parentDescriptor: rootDescriptor,
+                    operations: operations
+                )
+            }
+            throw filesystemError("sync state directory parent", syncError)
+        }
+        checkpoint(.syncedStateDirectoryParent(directoryName))
         descriptor = openat(
             rootDescriptor,
             directoryName,
@@ -250,12 +257,19 @@ final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchec
                     }
                     if createError == 0 {
                         checkpoint(.createdRootComponent(component))
-                        let syncError = operations.syncDirectory(descriptorChain.last!)
-                        guard syncError == 0 else {
-                            throw filesystemError("sync root component \(component)", syncError)
-                        }
-                        checkpoint(.syncedRootComponentParent(component))
                     }
+                    let syncError = operations.syncDirectory(descriptorChain.last!)
+                    if syncError != 0 {
+                        if createError == 0 {
+                            rollbackCreatedDirectory(
+                                named: component,
+                                parentDescriptor: descriptorChain.last!,
+                                operations: operations
+                            )
+                        }
+                        throw filesystemError("sync root component \(component)", syncError)
+                    }
+                    checkpoint(.syncedRootComponentParent(component))
                     next = openat(
                         descriptorChain.last!, component,
                         O_RDONLY | O_DIRECTORY | O_NOFOLLOW
@@ -277,5 +291,14 @@ final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchec
         let path = url.standardizedFileURL.path
         guard path == "/var" || path.hasPrefix("/var/") else { return path }
         return "/private" + path
+    }
+
+    private static func rollbackCreatedDirectory(
+        named name: String,
+        parentDescriptor: Int32,
+        operations: DescriptorRelativeStateDirectoryOperations
+    ) {
+        guard unlinkat(parentDescriptor, name, AT_REMOVEDIR) == 0 else { return }
+        _ = operations.syncDirectory(parentDescriptor)
     }
 }

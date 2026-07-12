@@ -148,6 +148,101 @@ func descriptorDirectoryCreationSurfacesInjectedMkdirFailureWithoutCheckpoint() 
 }
 
 @Test
+func descriptorRootCreationRetriesWithParentSyncAfterFailOnceFsync() throws {
+    let container = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-root-sync-retry-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: container) }
+    try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+    let root = container.appendingPathComponent("Application Support", isDirectory: true)
+    let failOnce = DescriptorFailOnceSync()
+    let operations = DescriptorRelativeStateDirectoryOperations(
+        createDirectory: DescriptorRelativeStateDirectoryOperations.live.createDirectory,
+        syncDirectory: failOnce.sync
+    )
+
+    #expect(throws: OnboardingProgressStoreError.filesystemOperation(
+        "sync root component Application Support",
+        EIO
+    )) {
+        try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
+            rootURL: root,
+            directoryName: "Zoid Coach",
+            createRootIfMissing: true,
+            operations: operations,
+            unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
+            filesystemError: OnboardingProgressStoreError.filesystemOperation
+        )
+    }
+    #expect(!FileManager.default.fileExists(atPath: root.path))
+
+    let retryRecorder = DescriptorCheckpointRecorder()
+    let storage = try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
+        rootURL: root,
+        directoryName: "Zoid Coach",
+        createRootIfMissing: true,
+        operations: operations,
+        checkpoint: retryRecorder.record,
+        unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
+        filesystemError: OnboardingProgressStoreError.filesystemOperation
+    )
+    try storage.writeAtomic(Data("durable".utf8), name: "state.json")
+
+    #expect(retryRecorder.values == [
+        .createdRootComponent("Application Support"),
+        .syncedRootComponentParent("Application Support"),
+        .createdStateDirectory("Zoid Coach"),
+        .syncedStateDirectoryParent("Zoid Coach"),
+    ])
+    #expect(try storage.read("state.json") == Data("durable".utf8))
+}
+
+@Test
+func descriptorStateDirectoryRetriesWithParentSyncAfterFailOnceFsync() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-state-sync-retry-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let failOnce = DescriptorFailOnceSync()
+    let operations = DescriptorRelativeStateDirectoryOperations(
+        createDirectory: DescriptorRelativeStateDirectoryOperations.live.createDirectory,
+        syncDirectory: failOnce.sync
+    )
+
+    #expect(throws: OnboardingProgressStoreError.filesystemOperation(
+        "sync state directory parent",
+        EIO
+    )) {
+        try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
+            rootURL: root,
+            directoryName: "Zoid Coach",
+            operations: operations,
+            unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
+            filesystemError: OnboardingProgressStoreError.filesystemOperation
+        )
+    }
+    #expect(!FileManager.default.fileExists(
+        atPath: root.appendingPathComponent("Zoid Coach").path
+    ))
+
+    let retryRecorder = DescriptorCheckpointRecorder()
+    let storage = try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
+        rootURL: root,
+        directoryName: "Zoid Coach",
+        operations: operations,
+        checkpoint: retryRecorder.record,
+        unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
+        filesystemError: OnboardingProgressStoreError.filesystemOperation
+    )
+    try storage.writeAtomic(Data("durable".utf8), name: "state.json")
+
+    #expect(retryRecorder.values == [
+        .createdStateDirectory("Zoid Coach"),
+        .syncedStateDirectoryParent("Zoid Coach"),
+    ])
+    #expect(try storage.read("state.json") == Data("durable".utf8))
+}
+
+@Test
 func onboardingVersionOneSequenceIsExplicitAndComplete() {
     #expect(OnboardingProgress.stepSequence == [
         .welcome,
@@ -278,6 +373,43 @@ func onboardingRevisionExhaustionFailsWithoutTrappingOrOverwriting() throws {
         try store.save(exhausted)
     }
     #expect(try store.load() == exhausted)
+}
+
+@Test
+func onboardingMatchingRevisionCannotReplaceFinishedStateWithWelcome() throws {
+    let fixture = try OnboardingStoreFixture(name: "finished-regression")
+    defer { fixture.remove() }
+    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    var finished = try completedOnboardingProgress()
+    finished = try store.save(finished)
+    let forgedWelcome = try OnboardingProgress(
+        persistenceRevision: finished.persistenceRevision
+    )
+
+    #expect(throws: OnboardingProgressStoreError.structuralRegression) {
+        try store.save(forgedWelcome)
+    }
+    #expect(try store.load() == finished)
+}
+
+@Test
+func onboardingMatchingRevisionCannotRegressCompletedPrefix() throws {
+    let fixture = try OnboardingStoreFixture(name: "prefix-regression")
+    defer { fixture.remove() }
+    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    var twoSteps = try OnboardingProgress()
+    try twoSteps.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
+    try twoSteps.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+    twoSteps = try store.save(twoSteps)
+    var oneStep = try OnboardingProgress(
+        persistenceRevision: twoSteps.persistenceRevision
+    )
+    try oneStep.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
+
+    #expect(throws: OnboardingProgressStoreError.structuralRegression) {
+        try store.save(oneStep)
+    }
+    #expect(try store.load() == twoSteps)
 }
 
 @Test
@@ -728,6 +860,18 @@ private enum OnboardingStoreInterruption: Error, Equatable {
     case injected
 }
 
+private func completedOnboardingProgress() throws -> OnboardingProgress {
+    try OnboardingProgress(
+        currentStep: .firstDailyPlan,
+        completedSteps: OnboardingProgress.stepSequence,
+        coachingMode: .rulesOnly,
+        remindersAccess: .denied,
+        screenwatchAccess: .unavailable,
+        notificationAccess: .deferred,
+        finishedAt: Date(timeIntervalSince1970: 1_800_000_000)
+    )
+}
+
 private func writeDownstreamPackage(
     at packageRoot: URL,
     repositoryRoot: URL,
@@ -853,6 +997,21 @@ private final class DescriptorCheckpointRecorder: @unchecked Sendable {
 
     var values: [DescriptorRelativeStateDirectoryCheckpoint] {
         lock.withLock { recorded }
+    }
+}
+
+private final class DescriptorFailOnceSync: @unchecked Sendable {
+    private let lock = NSLock()
+    private var shouldFail = true
+
+    func sync(_ descriptor: Int32) -> Int32 {
+        let failure = lock.withLock {
+            defer { shouldFail = false }
+            return shouldFail
+        }
+        return failure
+            ? EIO
+            : DescriptorRelativeStateDirectoryOperations.live.syncDirectory(descriptor)
     }
 }
 
