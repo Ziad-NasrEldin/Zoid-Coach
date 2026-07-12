@@ -65,6 +65,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var runtimeSafety: AgentRuntimeSafetySnapshot = .writable
     @Published private(set) var captureHealth: AgentCaptureHealthSnapshot?
     @Published private(set) var planningCapacityUsesCalendar = false
+    @Published private(set) var planningFixedCommitmentMinutes = 0
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
@@ -861,8 +862,6 @@ final class AppModel: ObservableObject {
         catch { return UserPolicy.defaults() }
     }
 
-    private var planningFixedCommitmentMinutes = 0
-
     private func refreshPlanningCapacity() {
         let schedule = currentPolicy().schedule
         let workIntervals = schedule.workIntervals(on: Date())
@@ -879,7 +878,8 @@ final class AppModel: ObservableObject {
                 .filter { visibleCalendarIDs.isEmpty || visibleCalendarIDs.contains($0.calendarIdentifier) }
             planningFixedCommitmentMinutes = PlanningCapacityCalculator().occupiedMinutes(
                 workIntervals: workIntervals,
-                commitments: commitments
+                commitments: commitments,
+                visibleCalendarIdentifiers: visibleCalendarIDs
             )
             planningCapacityUsesCalendar = true
         } catch {
