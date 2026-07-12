@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "a440c3f1e05ac6fb795a276ce3da6ec5374f17efd09a587ba3194167daa471d0",
+  "tracker_sha256": "a8112630c5cba1a56574c47fd49d91898746ffac3ea98d10d05194e130f23373",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -112,7 +112,9 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/completed-task-history/3578132/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "First launch consistently presents Zoid 666 as a coach grounded in Reminders, but it still does not state as directly as it should that Reminders remains the task system of record.",
@@ -273,7 +275,9 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/completed-task-history/3578132/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The installed signed-QA run exercised the granted path, refreshed healthy fixture state, discovered exact stable list identifiers, saved list choices, and continued. A real EventKit authorization prompt still requires a user-controlled macOS permission reset before this can qualify as fully implemented (`OnboardingCoordinator.swift`; `QAFixtureOSCompositionTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
@@ -295,7 +299,9 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/completed-task-history/3578132/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Denied-state consequence copy, repair, and local-only continuation are implemented and deterministically tested, but the visible run exercised deliberate deferral rather than a real macOS denial (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`).",
@@ -317,7 +323,9 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/completed-task-history/3578132/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The explicit Not Now path was clicked in the signed-QA app and the denied path passes deterministic QA, but an actual macOS denial followed by continuation has not yet been visibly exercised (`OnboardingCoordinator.swift`; `OnboardingCoordinatorTests.swift`).",
@@ -1347,19 +1355,21 @@
       "section_title": "Seeing today's available tasks",
       "item_index": 9,
       "wording": "Hide completed tasks from the active task list.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Blocked from verification",
-      "delivery_status": "blocked_from_verification",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "EventKit filtering and plan reconciliation support the behavior, but the independent `a068d27` verifier could not seed a completed Reminder fixture and assert the packaged UI without touching real data (`.audit/runs/baseline/a068d27/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/completed-task-history/3578132/REPORT.md"
+      ],
+      "last_verified_commit": "35781320e8d7b18adc5ba224112daba1c0f03776",
+      "last_verified_build": "zoid-coach-35781320e8d7b18adc5ba224112daba1c0f03776-clean",
+      "audit_note": "The installed signed QA journey completed a real local task through the authenticated helper, showed no copy in Today immediately or after helper and app restarts, and focused proof also enforces immediate exclusion for Reminder-backed tasks while their source write is still pending (`TodayDashboardAgent.swift`; `TodayDashboardAgentTests.swift`; `.audit/runs/completed-task-history/3578132/REPORT.md`).",
       "tracker_line": 132
     },
     {
@@ -1368,19 +1378,21 @@
       "section_title": "Seeing today's available tasks",
       "item_index": 10,
       "wording": "Still find completed tasks in today's history.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Task completion history is persisted and tested, but the Reviews navigation currently renders the generic foundation/source-health page rather than a day history (`TodayDashboardAgent.swift:120-127`; `DashboardView.swift:21-29`).",
+      "evidence_paths": [
+        ".audit/runs/completed-task-history/3578132/REPORT.md"
+      ],
+      "last_verified_commit": "35781320e8d7b18adc5ba224112daba1c0f03776",
+      "last_verified_build": "zoid-coach-35781320e8d7b18adc5ba224112daba1c0f03776-clean",
+      "audit_note": "The installed signed QA Reviews screen showed the completed task's readable title, completion time, and local source after Today removed it, then showed the identical row after the app was killed and relaunched (`DailyReviewView.swift`; `TaskHistoryStore.swift`; `.audit/runs/completed-task-history/3578132/REPORT.md`).",
       "tracker_line": 133
     },
     {
@@ -4189,9 +4201,9 @@
       "section_title": "Pausing and switching",
       "item_index": 7,
       "wording": "See the selected pause reason in task history or review where relevant.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4199,10 +4211,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Migration 29 adds append-only constrained pause episodes, and the focus card plus task rows render the current or latest reason after refresh and restart. A dedicated completed-history or review ledger remains (`AutonomousDatabaseMigrator.swift`; `TaskExecutionStore.swift`; `TodayDashboardCommandOverview.swift`; `DashboardView.swift`).",
+      "evidence_paths": [
+        ".audit/runs/completed-task-history/3578132/REPORT.md"
+      ],
+      "last_verified_commit": "35781320e8d7b18adc5ba224112daba1c0f03776",
+      "last_verified_build": "zoid-coach-35781320e8d7b18adc5ba224112daba1c0f03776-clean",
+      "audit_note": "Reviews now renders the last factual pause reason beside a completed task, while focused restart, deduplication, and day-boundary tests prove that the preserved reason belongs to the completed history record rather than an active Today row (`TaskHistoryStore.swift`; `DailyReviewView.swift`; `TaskHistoryStoreTests.swift`; `.audit/runs/completed-task-history/3578132/REPORT.md`).",
       "tracker_line": 299
     },
     {
@@ -4321,9 +4335,9 @@
       "section_title": "Completing and rescheduling tasks",
       "item_index": 3,
       "wording": "See the task disappear from active work and appear in today's completed history.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4331,10 +4345,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Completion removes active execution state, but the Today snapshot builds rows only from incomplete Reminder snapshots and no completed-history section is rendered.",
+      "evidence_paths": [
+        ".audit/runs/completed-task-history/3578132/REPORT.md"
+      ],
+      "last_verified_commit": "35781320e8d7b18adc5ba224112daba1c0f03776",
+      "last_verified_build": "zoid-coach-35781320e8d7b18adc5ba224112daba1c0f03776-clean",
+      "audit_note": "The signed QA XPC journey completed a real task, the installed Today surface visibly showed zero active or available copies, and Reviews visibly retained the readable completed row across app relaunch (`TodayDashboardAgent.swift`; `DailyReviewView.swift`; `.audit/runs/completed-task-history/3578132/REPORT.md`).",
       "tracker_line": 308
     },
     {
