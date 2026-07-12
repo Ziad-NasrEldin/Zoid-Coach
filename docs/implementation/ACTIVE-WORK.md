@@ -21,6 +21,7 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | First-launch acceptance audit | Read-only root audit | Root checkout at `a8c8420` | Map the 12-step first-launch journey to scenario IDs, UI/service gaps, and E2E hooks | Complete, with no status upgrades |
 | Integrated OS-fixture verification | Read-only root verification | Root checkout at `a8c8420` | Reproduce full suites, signed packaging, bounded agent behavior, and exactly-once replay | Passed: 321 Swift, 38 Python, 666 registry, release, signed QA replay |
 | First-launch builder | `codex/zc-onboarding-ui` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/onboarding-ui` | Implement resumable 12-step onboarding and first daily-plan handoff | In progress from `a8c8420` |
+| Screenwatch setup builder | `codex/zc-screenwatch-setup` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/screenwatch-setup` | Add privacy-safe default and security-scoped alternate-folder setup with repair and restart persistence | In progress from `a8c8420` |
 
 ## Exclusive file locks
 
@@ -36,6 +37,7 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | Onboarding progress model, store, and descriptor-relative state directory | Root integrator | Integrated hardened resumable persistence | `712ff71` | Permanent unless temporarily granted |
 | New onboarding coordinator, dependencies, views, and focused tests | First-launch builder | Add complete first-launch UI without changing proof or persistence primitives | `a8c8420` | Current Phase 1 wave |
 | `Sources/ZoidCoachApp/ZoidCoachApp.swift` root-view hunk only | First-launch builder | Gate Dashboard behind persisted onboarding completion | `a8c8420` | Current Phase 1 wave |
+| New Screenwatch onboarding setup service and focused tests | Screenwatch setup builder | Add health, bookmark, repair, and QA-isolation boundaries without UI integration | `a8c8420` | Current Phase 1 wave |
 | Runtime preference, keychain, export, capture, OS-adapter, and evidence-cipher consumers | Root integrator | Integrated and independently reviewed | `4a2bd85` | Permanent unless temporarily granted |
 | `Scripts/scenario_registry.py`, registry schema, and registry tests | Root integrator | Strict proof coherence integrated | `1223680` | Permanent unless temporarily granted |
 | `.audit/runs/deterministic-fixture/515016a/` | Root integrator | Immutable independent evidence | `3031040` | Permanent |
