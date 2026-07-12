@@ -3,6 +3,14 @@ import SwiftUI
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
+private enum SettingsPolicyPersistenceError: LocalizedError {
+    case invalidMutationReceipt
+
+    var errorDescription: String? {
+        "The agent did not confirm a durable settings update."
+    }
+}
+
 @MainActor
 final class SettingsPolicyController: ObservableObject {
     @Published var draft: SettingsPolicyDraft
@@ -12,19 +20,19 @@ final class SettingsPolicyController: ObservableObject {
     @Published private(set) var isSaving = false
 
     private let store: PolicyStore?
-    private let savePolicyThroughAgent: @Sendable (UserPolicy) async throws -> AgentMutationReceipt
+    private let savePolicyThroughAgent: @Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt
     private var persistedPolicy: UserPolicy
 
     init(
         databaseURL: URL? = nil,
         runtimeEnvironment: RuntimeEnvironment = .current(),
-        savePolicyThroughAgent: (@Sendable (UserPolicy) async throws -> AgentMutationReceipt)? = nil
+        savePolicyThroughAgent: (@Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt)? = nil
     ) {
         if let savePolicyThroughAgent {
             self.savePolicyThroughAgent = savePolicyThroughAgent
         } else {
             let client = TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment)
-            self.savePolicyThroughAgent = { try await client.apply(.savePolicy($0)) }
+            self.savePolicyThroughAgent = { try await client.savePolicyMutation($0) }
         }
         store = try? PolicyStore(
             databaseURL: databaseURL ?? runtimeEnvironment.databaseURL,
@@ -116,12 +124,42 @@ final class SettingsPolicyController: ObservableObject {
 
     private func persist(_ policy: UserPolicy, restoring pendingDraft: SettingsPolicyDraft? = nil) async throws {
         let policy = policy.upgradedToCurrentSchema()
-        let receipt = try await savePolicyThroughAgent(policy)
+        let request = PolicyMutationRequest(
+            requestID: "settings-policy-v1:\(UUID().uuidString)",
+            expectedVersion: activeVersion ?? 0,
+            policy: policy,
+            origin: .settings
+        )
+        let agentReceipt: AgentMutationReceipt
+        do {
+            agentReceipt = try await savePolicyThroughAgent(request)
+        } catch {
+            refreshPersistedPolicyPreservingDraft()
+            throw error
+        }
+        let digest = try PolicyMutationRequest.canonicalPayloadDigest(for: policy)
+        guard agentReceipt.accepted,
+              let receipt = agentReceipt.policyMutationReceipt,
+              receipt.requestID == request.requestID,
+              receipt.payloadDigest == digest,
+              receipt.expectedVersion == request.expectedVersion,
+              receipt.origin == request.origin,
+              receipt.resultingVersion > 0,
+              agentReceipt.policyVersion == receipt.resultingVersion else {
+            throw SettingsPolicyPersistenceError.invalidMutationReceipt
+        }
         persistedPolicy = policy
         draft = pendingDraft ?? SettingsPolicyDraft(policy: policy)
-        activeVersion = receipt.policyVersion
+        activeVersion = receipt.resultingVersion
         policyHistory = (try? store?.history()) ?? policyHistory
-        statusMessage = receipt.message
+        statusMessage = agentReceipt.message
+    }
+
+    private func refreshPersistedPolicyPreservingDraft() {
+        guard let current = try? store?.current() else { return }
+        persistedPolicy = current.policy
+        activeVersion = current.version
+        policyHistory = (try? store?.history()) ?? policyHistory
     }
 }
 

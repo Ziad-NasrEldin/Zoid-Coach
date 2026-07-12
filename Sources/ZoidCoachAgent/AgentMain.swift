@@ -190,7 +190,18 @@ struct ZoidCoachAgentMain {
             if let stored = try policyStore.current() {
                 initialVersionedPolicy = stored
             } else {
-                initialVersionedPolicy = try policyStore.save(UserPolicy.defaults())
+                let defaults = UserPolicy.defaults()
+                let receipt = try policyStore.saveMutation(PolicyMutationRequest(
+                    requestID: "system-policy-v1:agent-bootstrap:initial-defaults",
+                    expectedVersion: 0,
+                    policy: defaults,
+                    origin: .system(component: "agent-bootstrap")
+                ))
+                guard let stored = try policyStore.current(),
+                      stored.version == receipt.resultingVersion else {
+                    throw PolicyStoreError.corruptMutationReceipt(receipt.requestID)
+                }
+                initialVersionedPolicy = stored
             }
             let initialPolicy = initialVersionedPolicy.policy
             let todayDashboardAgent = try TodayDashboardAgent(databaseURL: configuration.databaseURL)
@@ -332,7 +343,8 @@ struct ZoidCoachAgentMain {
                     )))
                 },
                 setAutomationPaused: { isPaused in
-                    let current = try policyStore.current()?.policy ?? UserPolicy.defaults()
+                    let versioned = try policyStore.current()
+                    let current = versioned?.policy ?? UserPolicy.defaults()
                     let updated = UserPolicy(
                         operatingMode: current.operatingMode,
                         automationPause: isPaused ? .pausedIndefinitely : .running,
@@ -344,7 +356,13 @@ struct ZoidCoachAgentMain {
                         capture: current.capture,
                         gaming: current.gaming
                     )
-                    return try policyStore.save(updated).policy
+                    _ = try policyStore.saveMutation(PolicyMutationRequest(
+                        requestID: "system-policy-v1:voice-automation-pause:\(UUID().uuidString)",
+                        expectedVersion: versioned?.version ?? 0,
+                        policy: updated,
+                        origin: .system(component: "voice-automation-pause")
+                    ))
+                    return updated
                 },
                 startCodexJob: { workspacePath, objective, sandbox in
                     try await codexJobs.start(

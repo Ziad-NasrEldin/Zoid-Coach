@@ -40,6 +40,7 @@ final class OnboardingCoordinator: ObservableObject {
     private let dependencies: OnboardingDependencies?
     private var originalPolicy = UserPolicy.defaults()
     private var policyDraft = SettingsPolicyDraft(policy: .defaults())
+    private var activePolicyVersion = 0
     private var policyIsAvailable = true
     private var sourceRequestGeneration = UUID()
     private var deliveryGeneration = UUID()
@@ -65,19 +66,19 @@ final class OnboardingCoordinator: ObservableObject {
         }
         if let dependencies {
             do {
-                let policy = try dependencies.loadPolicy()
+                let versioned = try dependencies.loadPolicy()
+                let policy = versioned?.policy ?? UserPolicy.defaults()
+                activePolicyVersion = versioned?.version ?? 0
                 originalPolicy = policy
                 policyDraft = SettingsPolicyDraft(policy: policy)
                 workStartHour = policyDraft.workStart.hour
                 workEndHour = policyDraft.workEnd.hour
                 quietStartHour = policyDraft.quietStart.hour
                 quietEndHour = policyDraft.quietEnd.hour
+                gamingPolicy = OnboardingGamingPolicy(policy: policy.gaming)
             } catch {
                 policyIsAvailable = false
                 errorMessage = "Existing settings could not be loaded. Setup choices will not be applied until local storage recovers. \(error.localizedDescription)"
-            }
-            if let gamingPolicy = try? dependencies.loadGamingPolicy() {
-                self.gamingPolicy = OnboardingGamingPolicy(policy: gamingPolicy)
             }
         }
     }
@@ -89,19 +90,37 @@ final class OnboardingCoordinator: ObservableObject {
         )
     }
 
-    func continueFromCurrentStep() throws {
-        try persistCurrentConfigurationIfNeeded()
+    func continueFromCurrentStep() async throws {
+        guard !isWorking else { return }
+        isWorking = true
+        defer { isWorking = false }
+        let base = progress
+        let applied = try await applyCurrentPolicyEffect(base: base)
         var replacement = progress
+        if let applied {
+            try replacement.recordCompletedEffect(applied.effect)
+        }
+        try validateFirstPlanIfNeeded()
         try replacement.completeCurrentStep(at: now())
         do {
             progress = try store.save(replacement)
+            if let applied { acceptAppliedPolicy(applied) }
             errorMessage = nil
             if progress.isFinished { route = .today }
         } catch {
             if let current = try? store.load() {
+                if let applied,
+                   current.completedEffects.contains(applied.effect),
+                   current.completedSteps.contains(base.currentStep) {
+                    progress = current
+                    acceptAppliedPolicy(applied)
+                    route = current.isFinished ? .today : .onboarding
+                    errorMessage = nil
+                    return
+                }
                 progress = current
                 route = current.isFinished ? .today : .onboarding
-                errorMessage = "Setup changed in another window. The latest saved step was restored. Try again."
+                errorMessage = "Setup changed in another window. The latest saved step was restored. Review it before continuing."
             } else {
                 errorMessage = "Setup could not be saved. \(error.localizedDescription)"
             }
@@ -115,16 +134,12 @@ final class OnboardingCoordinator: ObservableObject {
     }
 
     func selectCoachingMode(_ mode: InitialCoachingMode) {
-        do {
-            var replacement = progress
-            replacement.chooseCoachingMode(mode)
-            progress = try store.save(replacement)
-            policyDraft.aiProvider = mode == .rulesOnly ? .disabled : .codexCLI
-            try persistPolicy()
-            errorMessage = nil
-        } catch {
-            errorMessage = "Coaching choice could not be saved. \(error.localizedDescription)"
-        }
+        guard !isWorking else { return }
+        var replacement = progress
+        replacement.chooseCoachingMode(mode)
+        progress = replacement
+        policyDraft.aiProvider = mode == .rulesOnly ? .disabled : .codexCLI
+        errorMessage = nil
     }
 
     func deferAccess(for step: OnboardingStep) {
@@ -331,48 +346,91 @@ final class OnboardingCoordinator: ObservableObject {
         )
     }
 
-    private func persistCurrentConfigurationIfNeeded() throws {
-        switch progress.currentStep {
+    private struct AppliedPolicyEffect {
+        let policy: UserPolicy
+        let receipt: PolicyMutationReceipt
+        let effect: OnboardingCompletedEffect
+    }
+
+    private func applyCurrentPolicyEffect(
+        base: OnboardingProgress
+    ) async throws -> AppliedPolicyEffect? {
+        guard let dependencies else { return nil }
+        let policy: UserPolicy
+        switch base.currentStep {
         case .activityClassification:
-            try persistPolicy()
+            policy = policyDraft.policy(preserving: originalPolicy)
         case .schedule:
             policyDraft.workStart = LocalTime(hour: workStartHour, minute: 0)
             policyDraft.workEnd = LocalTime(hour: workEndHour, minute: 0)
             policyDraft.quietStart = LocalTime(hour: quietStartHour, minute: 0)
             policyDraft.quietEnd = LocalTime(hour: quietEndHour, minute: 0)
-            try persistPolicy()
+            policy = policyDraft.policy(preserving: originalPolicy)
         case .gamingPolicy:
-            guard let dependencies else { return }
-            do {
-                try dependencies.saveGamingPolicy(gamingPolicy.policy)
-                errorMessage = nil
-            } catch {
-                errorMessage = "The gaming boundary could not be saved. \(error.localizedDescription)"
-                throw error
-            }
-        case .firstDailyPlan:
-            guard firstDailyPlanResult?.state == .prepared,
-                  firstDailyPlanResult?.items.isEmpty == false else {
-                throw OnboardingDependencyError.firstDailyPlanUnavailable
-            }
+            policy = originalPolicy.replacingGamingPolicy(gamingPolicy.policy)
+        case .coachingMode:
+            policy = policyDraft.policy(preserving: originalPolicy)
         default:
-            break
+            return nil
         }
-    }
-
-    private func persistPolicy() throws {
-        guard let dependencies else { return }
         guard policyIsAvailable else {
             throw CocoaError(.fileReadNoSuchFile)
         }
-        let policy = policyDraft.policy(preserving: originalPolicy)
+        let digest = try PolicyMutationRequest.canonicalPayloadDigest(for: policy)
+        let requestID = [
+            "onboarding-policy-v1",
+            base.flowID,
+            base.currentStep.rawValue,
+            String(base.persistenceRevision),
+            digest,
+        ].joined(separator: ":")
+        let origin = PolicyMutationOrigin.onboarding(
+            flowID: base.flowID,
+            step: base.currentStep,
+            progressRevision: base.persistenceRevision
+        )
+        let request = PolicyMutationRequest(
+            requestID: requestID,
+            expectedVersion: activePolicyVersion,
+            policy: policy,
+            origin: origin
+        )
         do {
-            try dependencies.savePolicy(policy)
-            originalPolicy = policy
-            errorMessage = nil
+            let receipt = try await dependencies.applyPolicyMutation(request)
+            guard receipt.requestID == requestID,
+                  receipt.payloadDigest == digest,
+                  receipt.origin == origin,
+                  receipt.resultingVersion > 0 else {
+                throw OnboardingDependencyError.invalidPolicyMutationReceipt
+            }
+            return AppliedPolicyEffect(
+                policy: policy,
+                receipt: receipt,
+                effect: OnboardingCompletedEffect(
+                    step: base.currentStep,
+                    requestID: receipt.requestID,
+                    payloadDigest: receipt.payloadDigest,
+                    resourceVersion: receipt.resultingVersion
+                )
+            )
         } catch {
             errorMessage = "This setup choice could not be applied. \(error.localizedDescription)"
             throw error
+        }
+    }
+
+    private func acceptAppliedPolicy(_ applied: AppliedPolicyEffect) {
+        originalPolicy = applied.policy
+        policyDraft = SettingsPolicyDraft(policy: applied.policy)
+        activePolicyVersion = applied.receipt.resultingVersion
+        gamingPolicy = OnboardingGamingPolicy(policy: applied.policy.gaming)
+    }
+
+    private func validateFirstPlanIfNeeded() throws {
+        guard progress.currentStep == .firstDailyPlan else { return }
+        guard firstDailyPlanResult?.state == .prepared,
+              firstDailyPlanResult?.items.isEmpty == false else {
+            throw OnboardingDependencyError.firstDailyPlanUnavailable
         }
     }
 }

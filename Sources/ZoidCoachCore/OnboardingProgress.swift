@@ -42,6 +42,25 @@ public enum OnboardingAccessDecision: String, Codable, Sendable {
     case deferred
 }
 
+public struct OnboardingCompletedEffect: Codable, Equatable, Sendable {
+    public let step: OnboardingStep
+    public let requestID: String
+    public let payloadDigest: String
+    public let resourceVersion: Int
+
+    public init(
+        step: OnboardingStep,
+        requestID: String,
+        payloadDigest: String,
+        resourceVersion: Int
+    ) {
+        self.step = step
+        self.requestID = requestID
+        self.payloadDigest = payloadDigest
+        self.resourceVersion = resourceVersion
+    }
+}
+
 public struct OnboardingProgress: Codable, Equatable, Sendable {
     public static let schemaVersion = 1
 
@@ -50,6 +69,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     }
 
     public private(set) var version: Int
+    public private(set) var flowID: String
     public private(set) var persistenceRevision: UInt64
     public private(set) var currentStep: OnboardingStep
     public private(set) var completedSteps: [OnboardingStep]
@@ -57,10 +77,12 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public private(set) var remindersAccess: OnboardingAccessDecision?
     public private(set) var screenwatchAccess: OnboardingAccessDecision?
     public private(set) var notificationAccess: OnboardingAccessDecision?
+    public private(set) var completedEffects: [OnboardingCompletedEffect]
     public private(set) var finishedAt: Date?
 
     public init(
         version: Int = Self.schemaVersion,
+        flowID: String = UUID().uuidString,
         persistenceRevision: UInt64 = 0,
         currentStep: OnboardingStep = .welcome,
         completedSteps: [OnboardingStep] = [],
@@ -68,9 +90,11 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         remindersAccess: OnboardingAccessDecision? = nil,
         screenwatchAccess: OnboardingAccessDecision? = nil,
         notificationAccess: OnboardingAccessDecision? = nil,
+        completedEffects: [OnboardingCompletedEffect] = [],
         finishedAt: Date? = nil
     ) throws {
         self.version = version
+        self.flowID = flowID
         self.persistenceRevision = persistenceRevision
         self.currentStep = currentStep
         self.completedSteps = completedSteps
@@ -78,12 +102,14 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         self.remindersAccess = remindersAccess
         self.screenwatchAccess = screenwatchAccess
         self.notificationAccess = notificationAccess
+        self.completedEffects = completedEffects
         self.finishedAt = finishedAt
         try validate()
     }
 
     private enum CodingKeys: String, CodingKey {
         case version
+        case flowID
         case persistenceRevision
         case currentStep
         case completedSteps
@@ -91,12 +117,14 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         case remindersAccess
         case screenwatchAccess
         case notificationAccess
+        case completedEffects
         case finishedAt
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decode(Int.self, forKey: .version)
+        flowID = try container.decodeIfPresent(String.self, forKey: .flowID) ?? "legacy"
         persistenceRevision = try container.decodeIfPresent(
             UInt64.self,
             forKey: .persistenceRevision
@@ -122,6 +150,10 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
             step: .notifications,
             completedSteps: completedSteps
         )
+        completedEffects = try container.decodeIfPresent(
+            [OnboardingCompletedEffect].self,
+            forKey: .completedEffects
+        ) ?? []
         finishedAt = try container.decodeIfPresent(Date.self, forKey: .finishedAt)
         try validate()
     }
@@ -129,6 +161,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(version, forKey: .version)
+        try container.encode(flowID, forKey: .flowID)
         try container.encode(persistenceRevision, forKey: .persistenceRevision)
         try container.encode(currentStep, forKey: .currentStep)
         try container.encode(completedSteps, forKey: .completedSteps)
@@ -136,6 +169,9 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         try container.encodeIfPresent(remindersAccess, forKey: .remindersAccess)
         try container.encodeIfPresent(screenwatchAccess, forKey: .screenwatchAccess)
         try container.encodeIfPresent(notificationAccess, forKey: .notificationAccess)
+        if !completedEffects.isEmpty {
+            try container.encode(completedEffects, forKey: .completedEffects)
+        }
         try container.encodeIfPresent(finishedAt, forKey: .finishedAt)
     }
 
@@ -147,6 +183,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public func withPersistenceRevision(_ revision: UInt64) throws -> Self {
         try Self(
             version: version,
+            flowID: flowID,
             persistenceRevision: revision,
             currentStep: currentStep,
             completedSteps: completedSteps,
@@ -154,6 +191,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
             remindersAccess: remindersAccess,
             screenwatchAccess: screenwatchAccess,
             notificationAccess: notificationAccess,
+            completedEffects: completedEffects,
             finishedAt: finishedAt
         )
     }
@@ -176,6 +214,28 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         default:
             throw OnboardingProgressError.accessDecisionNotSupported(step)
         }
+    }
+
+    public mutating func recordCompletedEffect(_ effect: OnboardingCompletedEffect) throws {
+        guard effect.step == currentStep else {
+            throw OnboardingProgressError.effectStepMismatch(
+                expected: currentStep,
+                actual: effect.step
+            )
+        }
+        guard !effect.requestID.isEmpty,
+              effect.payloadDigest.count == 64,
+              effect.payloadDigest.allSatisfy({ $0.isHexDigit }),
+              effect.resourceVersion > 0 else {
+            throw OnboardingProgressError.invalidCompletedEffect(effect.step)
+        }
+        if let existing = completedEffects.first(where: { $0.step == effect.step }) {
+            guard existing == effect else {
+                throw OnboardingProgressError.conflictingCompletedEffect(effect.step)
+            }
+            return
+        }
+        completedEffects.append(effect)
     }
 
     public mutating func completeCurrentStep(at date: Date) throws {
@@ -224,6 +284,9 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         guard version == Self.schemaVersion else {
             throw OnboardingProgressError.unsupportedVersion(version)
         }
+        guard !flowID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw OnboardingProgressError.invalidFlowID
+        }
         guard Set(completedSteps).count == completedSteps.count else {
             throw OnboardingProgressError.duplicateCompletedStep
         }
@@ -239,6 +302,20 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         }
         if completedSteps.contains(.coachingMode), coachingMode == nil {
             throw OnboardingProgressError.coachingModeRequired
+        }
+        guard Set(completedEffects.map(\.step)).count == completedEffects.count else {
+            throw OnboardingProgressError.duplicateCompletedEffect
+        }
+        for effect in completedEffects {
+            guard !effect.requestID.isEmpty,
+                  effect.payloadDigest.count == 64,
+                  effect.payloadDigest.allSatisfy({ $0.isHexDigit }),
+                  effect.resourceVersion > 0 else {
+                throw OnboardingProgressError.invalidCompletedEffect(effect.step)
+            }
+            guard completedSteps.contains(effect.step) || effect.step == currentStep else {
+                throw OnboardingProgressError.invalidCompletedEffect(effect.step)
+            }
         }
         for step in [OnboardingStep.reminders, .screenwatch, .notifications]
         where completedSteps.contains(step) && accessDecision(for: step) == nil {
@@ -297,6 +374,11 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
     case accessDecisionNotSupported(OnboardingStep)
     case stepsIncomplete
     case alreadyFinished
+    case effectStepMismatch(expected: OnboardingStep, actual: OnboardingStep)
+    case invalidCompletedEffect(OnboardingStep)
+    case conflictingCompletedEffect(OnboardingStep)
+    case duplicateCompletedEffect
+    case invalidFlowID
     @available(*, deprecated, message: "Persistence errors are reported by OnboardingProgressStoreError")
     case unreadableProgress(String)
 
@@ -324,6 +406,16 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
             "Onboarding cannot finish before every required step is complete"
         case .alreadyFinished:
             "Onboarding is already complete"
+        case let .effectStepMismatch(expected, actual):
+            "Onboarding effect for \(actual.rawValue) cannot complete \(expected.rawValue)"
+        case let .invalidCompletedEffect(step):
+            "Onboarding effect receipt is invalid for \(step.rawValue)"
+        case let .conflictingCompletedEffect(step):
+            "Onboarding effect receipt conflicts for \(step.rawValue)"
+        case .duplicateCompletedEffect:
+            "Onboarding progress contains duplicate effect receipts"
+        case .invalidFlowID:
+            "Onboarding progress flow identity is missing"
         case let .unreadableProgress(message):
             "Onboarding progress could not be read: \(message)"
         }

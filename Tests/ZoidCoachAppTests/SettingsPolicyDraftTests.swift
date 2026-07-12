@@ -68,9 +68,14 @@ func policyRollbackRestoresPreviousSettingsAsANewVersion() async throws {
     var changedDraft = SettingsPolicyDraft(policy: first)
     changedDraft.capacityPercent = 85
     _ = try store.save(changedDraft.policy(preserving: first))
-    let controller = SettingsPolicyController(databaseURL: databaseURL) { policy in
-        let saved = try store.save(policy)
-        return AgentMutationReceipt(accepted: true, message: "saved", policyVersion: saved.version)
+    let controller = SettingsPolicyController(databaseURL: databaseURL) { request in
+        let saved = try store.saveMutation(request)
+        return AgentMutationReceipt(
+            accepted: true,
+            message: "saved",
+            policyVersion: saved.resultingVersion,
+            policyMutationReceipt: saved
+        )
     }
 
     await controller.rollbackToPreviousPolicy()?.value
@@ -190,9 +195,14 @@ func oneStepPausePersistsImmediatelyWithoutSavingOtherDraftEdits() async throws 
     }
     let store = try PolicyStore(databaseURL: databaseURL)
     _ = try store.save(.defaults(timeZoneIdentifier: "UTC"))
-    let controller = SettingsPolicyController(databaseURL: databaseURL) { policy in
-        let saved = try store.save(policy)
-        return AgentMutationReceipt(accepted: true, message: "saved", policyVersion: saved.version)
+    let controller = SettingsPolicyController(databaseURL: databaseURL) { request in
+        let saved = try store.saveMutation(request)
+        return AgentMutationReceipt(
+            accepted: true,
+            message: "saved",
+            policyVersion: saved.resultingVersion,
+            policyMutationReceipt: saved
+        )
     }
     controller.draft.capacityPercent = 95
     controller.draft.setClassification(.work, for: "Steam")
@@ -219,9 +229,14 @@ func savedAppClassificationLoadsInANewSettingsController() async throws {
     }
     let store = try PolicyStore(databaseURL: databaseURL)
     _ = try store.save(.defaults(timeZoneIdentifier: "UTC"))
-    let controller = SettingsPolicyController(databaseURL: databaseURL) { policy in
-        let saved = try store.save(policy)
-        return AgentMutationReceipt(accepted: true, message: "saved", policyVersion: saved.version)
+    let controller = SettingsPolicyController(databaseURL: databaseURL) { request in
+        let saved = try store.saveMutation(request)
+        return AgentMutationReceipt(
+            accepted: true,
+            message: "saved",
+            policyVersion: saved.resultingVersion,
+            policyMutationReceipt: saved
+        )
     }
     controller.draft.setClassification(.gaming, for: "Steam")
     await controller.save()?.value
@@ -231,6 +246,74 @@ func savedAppClassificationLoadsInANewSettingsController() async throws {
     }
 
     #expect(reopened.draft.classification(for: "Steam") == .gaming)
+}
+
+@MainActor
+@Test
+func staleSettingsWindowCannotOverwriteANewerPolicyVersion() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-stale-settings-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.save(.defaults(timeZoneIdentifier: "UTC"))
+    let apply: @Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt = { request in
+        let receipt = try store.saveMutation(request)
+        return AgentMutationReceipt(
+            accepted: true,
+            message: "saved",
+            policyVersion: receipt.resultingVersion,
+            policyMutationReceipt: receipt
+        )
+    }
+    let first = SettingsPolicyController(databaseURL: databaseURL, savePolicyThroughAgent: apply)
+    let stale = SettingsPolicyController(databaseURL: databaseURL, savePolicyThroughAgent: apply)
+    first.draft.capacityPercent = 80
+    stale.draft.capacityPercent = 95
+
+    await first.save()?.value
+    await stale.save()?.value
+
+    #expect(try store.current()?.policy.schedule.planningCapacityPercent == 80)
+    #expect(try store.current()?.version == 2)
+    #expect(stale.activeVersion == 2)
+    #expect(stale.hasUnsavedChanges)
+    #expect(stale.statusMessage?.contains("not saved") == true)
+
+    await stale.save()?.value
+
+    #expect(try store.current()?.policy.schedule.planningCapacityPercent == 95)
+    #expect(try store.current()?.version == 3)
+    #expect(stale.activeVersion == 3)
+    #expect(!stale.hasUnsavedChanges)
+}
+
+@MainActor
+@Test
+func settingsDoNotAdvanceWithoutAnExactDurableMutationReceipt() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-settings-receipt-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.save(.defaults(timeZoneIdentifier: "UTC"))
+    let controller = SettingsPolicyController(databaseURL: databaseURL) { _ in
+        AgentMutationReceipt(accepted: true, message: "saved", policyVersion: 2)
+    }
+    controller.draft.capacityPercent = 95
+
+    await controller.save()?.value
+
+    #expect(try store.current()?.version == 1)
+    #expect(controller.activeVersion == 1)
+    #expect(controller.hasUnsavedChanges)
+    #expect(controller.statusMessage?.contains("did not confirm") == true)
 }
 
 private enum RestartTestError: Error {

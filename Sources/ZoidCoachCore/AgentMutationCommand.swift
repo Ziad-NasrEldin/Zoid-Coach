@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 public enum AgentMeetingDestination: String, Codable, Sendable {
@@ -53,6 +54,61 @@ public struct AgentReminderSnapshot: Equatable, Codable, Sendable {
     }
 }
 
+public enum PolicyMutationOrigin: Equatable, Codable, Sendable {
+    case settings
+    case onboarding(flowID: String, step: OnboardingStep, progressRevision: UInt64)
+    case system(component: String)
+}
+
+public struct PolicyMutationRequest: Equatable, Codable, Sendable {
+    public let requestID: String
+    public let expectedVersion: Int
+    public let policy: UserPolicy
+    public let origin: PolicyMutationOrigin
+
+    public init(
+        requestID: String,
+        expectedVersion: Int,
+        policy: UserPolicy,
+        origin: PolicyMutationOrigin
+    ) {
+        self.requestID = requestID
+        self.expectedVersion = expectedVersion
+        self.policy = policy
+        self.origin = origin
+    }
+
+    public static func canonicalPayloadDigest(for policy: UserPolicy) throws -> String {
+        let data = try JSONEncoder.zoidPolicy.encode(policy.upgradedToCurrentSchema())
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+public struct PolicyMutationReceipt: Equatable, Codable, Sendable {
+    public let requestID: String
+    public let payloadDigest: String
+    public let expectedVersion: Int
+    public let resultingVersion: Int
+    public let origin: PolicyMutationOrigin
+    public let replayed: Bool
+
+    public init(
+        requestID: String,
+        payloadDigest: String,
+        expectedVersion: Int,
+        resultingVersion: Int,
+        origin: PolicyMutationOrigin,
+        replayed: Bool
+    ) {
+        self.requestID = requestID
+        self.payloadDigest = payloadDigest
+        self.expectedVersion = expectedVersion
+        self.resultingVersion = resultingVersion
+        self.origin = origin
+        self.replayed = replayed
+    }
+}
+
 public enum AgentMutationCommand: Equatable, Codable, Sendable {
     case completeReminder(reminderID: String)
     case replaceDailyPlan(items: [AgentPlanItem], day: Date)
@@ -60,8 +116,7 @@ public enum AgentMutationCommand: Equatable, Codable, Sendable {
     case recordTaskHistory(taskID: String, state: AgentTaskHistoryState, occurredAt: Date)
     case recordSourceCheck(sourceID: String, state: String, detail: String, evidence: String, checkedAt: Date)
     case synchronizeReminderSnapshots([AgentReminderSnapshot])
-    case savePolicy(UserPolicy)
-    case saveGamingPolicy(GamingPolicy)
+    case savePolicyMutation(PolicyMutationRequest)
     case undoAction(commandID: String)
     case exportRedactedDiagnostics
     case deleteDataRange(start: Date, end: Date)
@@ -107,12 +162,14 @@ public struct AgentMutationReceipt: Equatable, Codable, Sendable {
     public let message: String
     public let policyVersion: Int?
     public let artifactPath: String?
+    public let policyMutationReceipt: PolicyMutationReceipt?
 
-    public init(accepted: Bool, commandIDs: [String] = [], message: String, policyVersion: Int? = nil, artifactPath: String? = nil) {
+    public init(accepted: Bool, commandIDs: [String] = [], message: String, policyVersion: Int? = nil, artifactPath: String? = nil, policyMutationReceipt: PolicyMutationReceipt? = nil) {
         self.accepted = accepted
         self.commandIDs = commandIDs
         self.message = message
         self.policyVersion = policyVersion
         self.artifactPath = artifactPath
+        self.policyMutationReceipt = policyMutationReceipt
     }
 }

@@ -347,7 +347,10 @@ func onboardingMigratesLegacyVersionOneAccessDecisionsAtEveryProgressPoint() thr
 func onboardingLatestRevisionCanCorrectAMigratedCompletedAccessDecision() throws {
     let fixture = try OnboardingStoreFixture(name: "migrated-correction")
     defer { fixture.remove() }
-    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    let store = OnboardingProgressStore(
+        runtimeEnvironment: fixture.runtime,
+        durableEffectValidator: { _, _ in true }
+    )
     try FileManager.default.createDirectory(
         at: store.fileURL.deletingLastPathComponent(),
         withIntermediateDirectories: true
@@ -398,7 +401,10 @@ func onboardingRevisionExhaustionFailsWithoutTrappingOrOverwriting() throws {
 func onboardingMatchingRevisionCannotReplaceFinishedStateWithWelcome() throws {
     let fixture = try OnboardingStoreFixture(name: "finished-regression")
     defer { fixture.remove() }
-    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    let store = OnboardingProgressStore(
+        runtimeEnvironment: fixture.runtime,
+        durableEffectValidator: { _, _ in true }
+    )
     var finished = try completedOnboardingProgress()
     finished = try store.save(finished)
     let forgedWelcome = try OnboardingProgress(
@@ -435,8 +441,14 @@ func onboardingMatchingRevisionCannotRegressCompletedPrefix() throws {
 func onboardingDelayedStaleSavesCannotRegressProgressDecisionsOrCompletion() throws {
     let fixture = try OnboardingStoreFixture(name: "stale-save")
     defer { fixture.remove() }
-    let staleStore = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
-    let forwardStore = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    let staleStore = OnboardingProgressStore(
+        runtimeEnvironment: fixture.runtime,
+        durableEffectValidator: { _, _ in true }
+    )
+    let forwardStore = OnboardingProgressStore(
+        runtimeEnvironment: fixture.runtime,
+        durableEffectValidator: { _, _ in true }
+    )
     let now = Date(timeIntervalSince1970: 1_800_000_000)
     var oneStep = try OnboardingProgress()
     try oneStep.completeCurrentStep(at: now)
@@ -457,6 +469,10 @@ func onboardingDelayedStaleSavesCannotRegressProgressDecisionsOrCompletion() thr
     try completed.completeCurrentStep(at: now)
     try completed.recordAccessDecision(.deferred, for: .notifications)
     for _ in 0 ..< 8 {
+        if [.activityClassification, .schedule, .gamingPolicy, .coachingMode]
+            .contains(completed.currentStep) {
+            try completed.recordCompletedEffect(testCompletedEffect(for: completed))
+        }
         try completed.completeCurrentStep(at: now)
         if completed.currentStep == .coachingMode {
             completed.chooseCoachingMode(.rulesOnly)
@@ -484,7 +500,7 @@ func onboardingDelayedStaleSavesCannotRegressProgressDecisionsOrCompletion() thr
 
     try forwardStore.reset()
 
-    #expect(try forwardStore.load() == (try OnboardingProgress()))
+    #expect(isFreshOnboardingProgress(try forwardStore.load()))
 }
 
 @Test
@@ -552,7 +568,7 @@ func onboardingCorruptionRecoveryQuarantinesExactBytesAndPersistsAReplacement() 
 
     let recovered = try recoveryStore.load()
 
-    #expect(recovered == (try OnboardingProgress()))
+    #expect(isFreshOnboardingProgress(recovered))
     #expect(try Data(contentsOf: recoveryStore.corruptFileURL) == corruptBytes)
     #expect(!FileManager.default.fileExists(atPath: recoveryStore.recoveryFileURL.path))
     #expect(try OnboardingProgressStore(runtimeEnvironment: fixture.runtime).load() == recovered)
@@ -588,7 +604,7 @@ func onboardingRecoveryResumesAfterQuarantineWithoutLosingCorruptBytes() throws 
         runtimeEnvironment: fixture.runtime,
         corruptionRecovery: .reset
     ).load()
-    #expect(resumed == (try OnboardingProgress()))
+    #expect(isFreshOnboardingProgress(resumed))
     #expect(try Data(contentsOf: interruptedStore.corruptFileURL) == corruptBytes)
     #expect(!FileManager.default.fileExists(atPath: interruptedStore.recoveryFileURL.path))
 }
@@ -622,7 +638,7 @@ func onboardingRecoveryResumesAfterPreparedInterruption() throws {
         runtimeEnvironment: fixture.runtime,
         corruptionRecovery: .reset
     ).load()
-    #expect(resumed == (try OnboardingProgress()))
+    #expect(isFreshOnboardingProgress(resumed))
     #expect(try Data(contentsOf: interruptedStore.corruptFileURL) == corruptBytes)
     #expect(!FileManager.default.fileExists(atPath: interruptedStore.recoveryFileURL.path))
 }
@@ -656,11 +672,11 @@ func onboardingRecoveryResumesAfterReplacementPersistedInterruption() throws {
         try JSONDecoder().decode(
             OnboardingProgress.self,
             from: Data(contentsOf: interruptedStore.fileURL)
-        ) == (try OnboardingProgress())
+        ).currentStep == .welcome
     )
 
     let resumed = try OnboardingProgressStore(runtimeEnvironment: fixture.runtime).load()
-    #expect(resumed == (try OnboardingProgress()))
+    #expect(isFreshOnboardingProgress(resumed))
     #expect(try Data(contentsOf: interruptedStore.corruptFileURL) == corruptBytes)
     #expect(!FileManager.default.fileExists(atPath: interruptedStore.recoveryFileURL.path))
 }
@@ -797,7 +813,7 @@ func onboardingResetWaitsForAnInFlightSaveAndWinsWhenRequestedAfterIt() async th
     _ = try await saveTask.value
     try await resetTask.value
 
-    #expect(try baselineStore.load() == (try OnboardingProgress()))
+    #expect(isFreshOnboardingProgress(try baselineStore.load()))
 }
 
 @Test
@@ -875,19 +891,131 @@ func onboardingProductionAndQAStoresUseTheirIsolatedRuntimePaths() throws {
     #expect(!FileManager.default.fileExists(atPath: productionStore.fileURL.path))
 }
 
+@Test
+func onboardingStoreRequiresADurableEffectWhenCompletingAPolicyStep() throws {
+    let fixture = try OnboardingStoreFixture(name: "durable-effect")
+    defer { fixture.remove() }
+    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    var progress = try store.load()
+    while progress.currentStep != .activityClassification {
+        if [.reminders, .screenwatch, .notifications].contains(progress.currentStep) {
+            try progress.recordAccessDecision(.deferred, for: progress.currentStep)
+        }
+        try progress.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
+        progress = try store.save(progress)
+    }
+    var missingReceipt = progress
+    try missingReceipt.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+
+    #expect(throws: OnboardingProgressStoreError.missingDurableEffect(.activityClassification)) {
+        try store.save(missingReceipt)
+    }
+
+    var withReceipt = progress
+    let policy = UserPolicy.defaults()
+    let digest = try PolicyMutationRequest.canonicalPayloadDigest(for: policy)
+    let requestID = [
+        "onboarding-policy-v1",
+        progress.flowID,
+        OnboardingStep.activityClassification.rawValue,
+        String(progress.persistenceRevision),
+        digest,
+    ].joined(separator: ":")
+    let receipt = try PolicyStore(databaseURL: fixture.runtime.databaseURL).saveMutation(
+        PolicyMutationRequest(
+            requestID: requestID,
+            expectedVersion: 0,
+            policy: policy,
+            origin: .onboarding(
+                flowID: progress.flowID,
+                step: .activityClassification,
+                progressRevision: progress.persistenceRevision
+            )
+        )
+    )
+    let effect = OnboardingCompletedEffect(
+        step: .activityClassification,
+        requestID: receipt.requestID,
+        payloadDigest: receipt.payloadDigest,
+        resourceVersion: receipt.resultingVersion
+    )
+    var forged = progress
+    try forged.recordCompletedEffect(OnboardingCompletedEffect(
+        step: effect.step,
+        requestID: effect.requestID,
+        payloadDigest: String(repeating: "b", count: 64),
+        resourceVersion: effect.resourceVersion
+    ))
+    try forged.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+    #expect(throws: OnboardingProgressStoreError.unverifiedDurableEffect(.activityClassification)) {
+        try store.save(forged)
+    }
+
+    try withReceipt.recordCompletedEffect(effect)
+    try withReceipt.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+    let saved = try store.save(withReceipt)
+
+    #expect(saved.completedEffects == [effect])
+}
+
+@Test
+func onboardingResetCreatesANewFlowIdentity() throws {
+    let fixture = try OnboardingStoreFixture(name: "flow-reset")
+    defer { fixture.remove() }
+    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+
+    let first = try store.load()
+    try store.reset()
+    let second = try store.load()
+
+    #expect(first.flowID != second.flowID)
+    #expect(first.persistenceRevision == 0)
+    #expect(second.persistenceRevision == 0)
+}
+
 private enum OnboardingStoreInterruption: Error, Equatable {
     case injected
 }
 
+private func isFreshOnboardingProgress(_ progress: OnboardingProgress) -> Bool {
+    progress.persistenceRevision == 0
+        && progress.currentStep == .welcome
+        && progress.completedSteps.isEmpty
+        && progress.completedEffects.isEmpty
+        && !progress.flowID.isEmpty
+}
+
 private func completedOnboardingProgress() throws -> OnboardingProgress {
-    try OnboardingProgress(
-        currentStep: .firstDailyPlan,
-        completedSteps: OnboardingProgress.stepSequence,
-        coachingMode: .rulesOnly,
-        remindersAccess: .denied,
-        screenwatchAccess: .unavailable,
-        notificationAccess: .deferred,
-        finishedAt: Date(timeIntervalSince1970: 1_800_000_000)
+    var progress = try OnboardingProgress()
+    while !progress.isFinished {
+        if [.reminders, .screenwatch, .notifications].contains(progress.currentStep) {
+            try progress.recordAccessDecision(.deferred, for: progress.currentStep)
+        }
+        if progress.currentStep == .coachingMode {
+            progress.chooseCoachingMode(.rulesOnly)
+        }
+        if [.activityClassification, .schedule, .gamingPolicy, .coachingMode]
+            .contains(progress.currentStep) {
+            try progress.recordCompletedEffect(testCompletedEffect(for: progress))
+        }
+        try progress.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
+    }
+    return progress
+}
+
+private func testCompletedEffect(for progress: OnboardingProgress) -> OnboardingCompletedEffect {
+    let digest = String(repeating: "a", count: 64)
+    return OnboardingCompletedEffect(
+        step: progress.currentStep,
+        requestID: [
+            "onboarding-policy-v1",
+            progress.flowID,
+            progress.currentStep.rawValue,
+            String(progress.persistenceRevision),
+            digest,
+        ].joined(separator: ":"),
+        payloadDigest: digest,
+        resourceVersion: max(1, progress.completedEffects.count + 1)
     )
 }
 

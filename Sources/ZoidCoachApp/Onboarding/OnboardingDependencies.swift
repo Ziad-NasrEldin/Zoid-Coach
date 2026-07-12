@@ -44,6 +44,7 @@ struct OnboardingFirstDailyPlanResult: Equatable, Sendable {
 enum OnboardingDependencyError: LocalizedError {
     case gamingPolicyPersistenceUnavailable
     case firstDailyPlanUnavailable
+    case invalidPolicyMutationReceipt
 
     var errorDescription: String? {
         switch self {
@@ -51,6 +52,8 @@ enum OnboardingDependencyError: LocalizedError {
             "Gaming policy storage is not available yet. Your choice was not marked complete."
         case .firstDailyPlanUnavailable:
             "A visible first daily plan has not been prepared. Setup was not marked complete."
+        case .invalidPolicyMutationReceipt:
+            "The agent did not return a durable policy receipt. Setup was not advanced."
         }
     }
 }
@@ -67,10 +70,8 @@ struct OnboardingDependencies {
     let requestNotifications: () async -> OnboardingAccessRequestResult
     let loadInventory: () -> AppInventoryLoadResult
     let testDelivery: () async -> OnboardingDeliveryResult
-    let loadPolicy: () throws -> UserPolicy
-    let savePolicy: (UserPolicy) throws -> Void
-    let loadGamingPolicy: () throws -> GamingPolicy
-    let saveGamingPolicy: (GamingPolicy) throws -> Void
+    let loadPolicy: () throws -> VersionedUserPolicy?
+    let applyPolicyMutation: (PolicyMutationRequest) async throws -> PolicyMutationReceipt
     let prepareFirstDailyPlan: () async -> OnboardingFirstDailyPlanResult
     let openSystemSettings: (OnboardingStep) -> Bool
 
@@ -107,7 +108,11 @@ struct OnboardingDependencies {
             runtimeEnvironment: runtimeEnvironment,
             fixtureAdapter: fixtureAdapter
         )
-        let policyStore = try? PolicyStore(databaseURL: runtimeEnvironment.databaseURL)
+        let policyStore = try? PolicyStore(
+            databaseURL: runtimeEnvironment.databaseURL,
+            readOnly: true
+        )
+        let xpcClient = TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment)
         return Self(
             inspectReminders: { await reminders.inspect() },
             requestReminders: {
@@ -142,19 +147,14 @@ struct OnboardingDependencies {
                 guard let policyStore else {
                     throw CocoaError(.fileNoSuchFile)
                 }
-                return try policyStore.current()?.policy ?? UserPolicy.defaults()
+                return try policyStore.current()
             },
-            savePolicy: { policy in
-                guard let policyStore else {
-                    throw CocoaError(.fileNoSuchFile)
+            applyPolicyMutation: { request in
+                let agentReceipt = try await xpcClient.savePolicyMutation(request)
+                guard let receipt = agentReceipt.policyMutationReceipt else {
+                    throw OnboardingDependencyError.invalidPolicyMutationReceipt
                 }
-                _ = try policyStore.save(policy)
-            },
-            loadGamingPolicy: {
-                throw OnboardingDependencyError.gamingPolicyPersistenceUnavailable
-            },
-            saveGamingPolicy: { _ in
-                throw OnboardingDependencyError.gamingPolicyPersistenceUnavailable
+                return receipt
             },
             prepareFirstDailyPlan: {
                 .init(
