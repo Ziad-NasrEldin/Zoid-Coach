@@ -64,6 +64,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var persistenceMessage: String?
     @Published private(set) var runtimeSafety: AgentRuntimeSafetySnapshot = .writable
     @Published private(set) var captureHealth: AgentCaptureHealthSnapshot?
+    @Published private(set) var planningCapacityUsesCalendar = false
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
@@ -197,6 +198,7 @@ final class AppModel: ObservableObject {
             updateSource(reminders)
             let calendar = await calendarService.inspect()
             updateSource(calendar)
+            refreshPlanningCapacity()
             updateSource(agentLaunchService.inspect())
             updateSource(await notificationService.inspect())
             let screenwatch = await screenwatchReader.inspect()
@@ -223,6 +225,7 @@ final class AppModel: ObservableObject {
             Task {
                 let result = await calendarService.requestAccessAndInspect()
                 updateSource(result)
+                refreshPlanningCapacity()
             }
         case .agent:
             updateSource(agentLaunchService.enableAndInspect())
@@ -243,6 +246,7 @@ final class AppModel: ObservableObject {
 
     func requestCalendarAccess() async {
         updateSource(await calendarService.requestAccessAndInspect())
+        refreshPlanningCapacity()
     }
 
     func refreshQAFixtureState() async {
@@ -429,6 +433,7 @@ final class AppModel: ObservableObject {
               dailyPlan.count < 5,
               !dailyPlan.contains(where: { $0.reminderID == task.id })
         else { return }
+        calendarScheduleError = nil
         dailyPlan.append(
             DailyPlanEntry(
                 reminderID: task.id,
@@ -443,6 +448,7 @@ final class AppModel: ObservableObject {
 
     func removeFromDailyPlan(_ entry: DailyPlanEntry) {
         guard !isLoadingDailyPlan else { return }
+        calendarScheduleError = nil
         dailyPlan.removeAll { $0.reminderID == entry.reminderID }
         recordTaskHistory(entry.reminderID, state: .postponed)
         dailyPlan = dailyPlan.enumerated().map { index, entry in
@@ -479,6 +485,7 @@ final class AppModel: ObservableObject {
 
     func setEstimate(_ minutes: Int, for entry: DailyPlanEntry) {
         guard !isLoadingDailyPlan else { return }
+        calendarScheduleError = nil
         dailyPlan = dailyPlan.map {
             DailyPlanEntry(
                 reminderID: $0.reminderID,
@@ -515,14 +522,43 @@ final class AppModel: ObservableObject {
         !reminderTasks.isEmpty || todaySnapshot?.unplannedReminders?.isEmpty == false
     }
 
+    var planningCapacityState: PlanningCapacityState {
+        let schedule = currentPolicy().schedule
+        return PlanningCapacityState(
+            entries: dailyPlan,
+            availableMinutes: schedule.planningCapacityMinutes(
+                on: Date(),
+                fixedCommitmentMinutes: planningFixedCommitmentMinutes
+            )
+        )
+    }
+
+    func reduceOverCapacityPlan() {
+        guard let reminderID = planningCapacityState.suggestedReminderID,
+              let entry = dailyPlan.first(where: { $0.reminderID == reminderID })
+        else { return }
+        removeFromDailyPlan(entry)
+    }
+
     func scheduleDailyPlan() {
         guard canIssueExternalActions,
               !isSchedulingDailyPlan,
-              !dailyPlan.isEmpty
+              planningCapacityState.canApprove
         else {
-            calendarScheduleError = !canIssueExternalActions
-                ? externalActionUnavailableMessage
-                : "Draft a daily plan before reserving Calendar blocks."
+            if !canIssueExternalActions {
+                calendarScheduleError = externalActionUnavailableMessage
+            } else {
+                switch planningCapacityState.readiness {
+                case .empty:
+                    calendarScheduleError = "Draft a daily plan before reserving Calendar blocks."
+                case let .missingEstimates(count):
+                    calendarScheduleError = "Estimate the remaining \(count) task\(count == 1 ? "" : "s") before accepting this plan."
+                case let .overloaded(overByMinutes):
+                    calendarScheduleError = "Reduce the plan by at least \(overByMinutes) minutes before accepting it."
+                case .realistic:
+                    calendarScheduleError = nil
+                }
+            }
             return
         }
 
@@ -640,6 +676,7 @@ final class AppModel: ObservableObject {
         updateSource(reminders)
         let calendar = await calendarService.inspect()
         updateSource(calendar)
+        refreshPlanningCapacity()
         updateSource(agentLaunchService.inspect())
         updateSource(await notificationService.inspect())
         let screenwatch = await screenwatchReader.inspect()
@@ -822,6 +859,33 @@ final class AppModel: ObservableObject {
         guard let policyStore else { return UserPolicy.defaults() }
         do { return try policyStore.current()?.policy ?? UserPolicy.defaults() }
         catch { return UserPolicy.defaults() }
+    }
+
+    private var planningFixedCommitmentMinutes = 0
+
+    private func refreshPlanningCapacity() {
+        let schedule = currentPolicy().schedule
+        let workIntervals = schedule.workIntervals(on: Date())
+        guard let start = workIntervals.map(\.start).min(),
+              let end = workIntervals.map(\.end).max()
+        else {
+            planningFixedCommitmentMinutes = 0
+            planningCapacityUsesCalendar = false
+            return
+        }
+        do {
+            let visibleCalendarIDs = Set(currentPolicy().calendar.visibleCalendarIdentifiers)
+            let commitments = try calendarService.commitments(from: start, through: end)
+                .filter { visibleCalendarIDs.isEmpty || visibleCalendarIDs.contains($0.calendarIdentifier) }
+            planningFixedCommitmentMinutes = PlanningCapacityCalculator().occupiedMinutes(
+                workIntervals: workIntervals,
+                commitments: commitments
+            )
+            planningCapacityUsesCalendar = true
+        } catch {
+            planningFixedCommitmentMinutes = 0
+            planningCapacityUsesCalendar = false
+        }
     }
 
     private var canIssueExternalActions: Bool {
