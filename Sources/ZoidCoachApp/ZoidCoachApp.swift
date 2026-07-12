@@ -13,6 +13,12 @@ struct ZoidCoachApplication: App {
     private let launchesForBackgroundScheduling: Bool
 
     init() {
+        if CommandLine.arguments.contains(ManualLocalTaskXPCProbe.argument) {
+            let exitCode = ManualLocalTaskXPCProbe.run()
+            fflush(stdout)
+            fflush(stderr)
+            Darwin.exit(exitCode)
+        }
         if CommandLine.arguments.contains(PolicyMutationXPCProbe.registerAgentArgument) {
             let exitCode = PolicyMutationXPCProbe.registerAgent()
             fflush(stdout)
