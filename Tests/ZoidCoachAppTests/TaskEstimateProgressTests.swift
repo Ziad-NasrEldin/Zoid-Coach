@@ -60,6 +60,16 @@ func estimateProgressCanAdvanceFromItsCanonicalSnapshotWhileActive() {
 }
 
 @Test
+func estimateProgressClampsExtremePersistedElapsedTimeWithoutOverflowing() {
+    let progress = TaskEstimateProgress(elapsedMinutes: Int.max, estimateMinutes: 1)
+        .addingElapsedMinutes(1)
+
+    #expect(progress.elapsedMinutes == Int.max)
+    #expect(progress.percent == Int.max)
+    #expect(progress.phase == .overEstimate)
+}
+
+@Test
 func trackedElapsedTimeRestoresAfterStoreReopenAndProducesTheSameProgress() throws {
     let url = FileManager.default.temporaryDirectory
         .appendingPathComponent("task-estimate-progress-\(UUID().uuidString).sqlite")
