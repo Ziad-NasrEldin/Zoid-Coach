@@ -35,7 +35,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 17 | Complete app-classification management in Settings | ready | Unowned | User can search, classify, bulk-edit, reset, and verify runtime use of work, gaming, communication, and automatic categories |
 | 18 | Complete Settings policy mutation conflict UX | ready | Unowned | Concurrent edits never silently overwrite; the user sees the winning state and can retry safely without duplicates |
 | 19 | Complete background-agent lifecycle and Login Items repair | ready | Unowned | Install, enable, approval-required, update, crash recovery, disable, and uninstall are understandable and preserve data integrity |
-| 20 | Complete privacy, export, deletion, and local-data controls | ready | Unowned | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
+| 20 | Complete privacy, export, deletion, and local-data controls | active | Lane C - next_backlog_slice | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
 
 ## Pull Rules
 
