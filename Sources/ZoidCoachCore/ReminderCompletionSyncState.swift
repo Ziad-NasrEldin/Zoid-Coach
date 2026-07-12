@@ -5,6 +5,7 @@ public enum ReminderCompletionSyncPhase: String, Equatable, Sendable {
     case pending
     case retrying
     case failed
+    case unavailable
     case confirmed
 }
 
@@ -38,6 +39,7 @@ public struct ReminderCompletionSyncState: Equatable, Sendable {
         case "pending": phase = .pending
         case "executing": phase = .retrying
         case "retryable_failure", "terminal_failure": phase = .failed
+        case "cancelled": phase = .unavailable
         case "succeeded": phase = .confirmed
         default: phase = .notRequested
         }
@@ -55,6 +57,7 @@ public struct ReminderCompletionSyncState: Equatable, Sendable {
         case .pending: "Completion is waiting for Apple Reminders. The task and its history stay here until sync finishes."
         case .retrying: "Apple Reminders sync is being tried now."
         case .failed: "Apple Reminders did not confirm completion. Your local task and history are safe. Repair Reminders access, then retry."
+        case .unavailable: "Apple Reminders completion was not issued in the current operating mode. Your local task and history are safe."
         case .confirmed: "Completion confirmed by Apple Reminders."
         }
     }

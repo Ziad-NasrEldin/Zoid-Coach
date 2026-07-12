@@ -832,11 +832,11 @@ private struct TodayTaskRowView: View {
         if let detail = completionSync.userFacingDetail,
            completionSync.phase != .confirmed {
             HStack(spacing: 10) {
-                Image(systemName: completionSync.phase == .failed ? "exclamationmark.arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath")
-                    .foregroundStyle(completionSync.phase == .failed ? Sumi.seal : Sumi.muted)
+                Image(systemName: completionSync.phase == .failed || completionSync.phase == .unavailable ? "exclamationmark.arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath")
+                    .foregroundStyle(completionSync.phase == .failed || completionSync.phase == .unavailable ? Sumi.seal : Sumi.muted)
                 Text(detail)
                     .font(Sumi.body(11))
-                    .foregroundStyle(completionSync.phase == .failed ? Sumi.seal : Sumi.muted)
+                    .foregroundStyle(completionSync.phase == .failed || completionSync.phase == .unavailable ? Sumi.seal : Sumi.muted)
                 Spacer()
                 if completionSync.canRetry {
                     Button("RETRY SYNC") {
@@ -872,7 +872,7 @@ private struct TodayTaskRowView: View {
     }
 
     private var taskDetail: String {
-        let stateLabel = completionSync.isAwaitingConfirmation || completionSync.phase == .failed
+        let stateLabel = completionSync.isAwaitingConfirmation || completionSync.phase == .failed || completionSync.phase == .unavailable
             ? "Completion pending Reminders"
             : row.state.rawValue.capitalized
         var parts = ["\(row.estimateMinutes)m", relativeDeadline(row.dueDate), "\(row.urgency.rawValue.capitalized) urgency", stateLabel]

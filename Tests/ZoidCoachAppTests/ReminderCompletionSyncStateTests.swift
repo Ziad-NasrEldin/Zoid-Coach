@@ -45,6 +45,18 @@ func reminderCompletionOnlyClaimsSuccessAfterSourceConfirmation() {
     #expect(confirmed.isAwaitingConfirmation == false)
 }
 
+@Test
+func cancelledCompletionNeverAppearsConfirmedOrRetryable() {
+    let state = ReminderCompletionSyncState(taskID: "task-1", audit: [
+        audit(id: "command", type: "completeReminder", entityID: "task-1", state: "cancelled")
+    ])
+
+    #expect(state.phase == .unavailable)
+    #expect(state.isAwaitingConfirmation == false)
+    #expect(state.canRetry == false)
+    #expect(state.userFacingDetail?.contains("not issued") == true)
+}
+
 private func audit(
     id: String,
     type: String,
