@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "run": {
+    "kind": "independent-deterministic-fixture-post-merge-verification",
+    "integrated_commit": "515016a5e9cba03b0a2bada9f63066c99c26cd39",
+    "branch": "codex/zc-foundation-reverify",
+    "worktree": "/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/foundation-reverify",
+    "started_clean": true,
+    "completed_at_utc": "2026-07-12T01:54:32Z",
+    "macos": "26.5.2 (25F84)",
+    "architecture": "arm64",
+    "production_data_or_services_touched": false
+  },
+  "build_and_test": {
+    "clean_debug_rebuild": "pass",
+    "focused_fixture_tests": {
+      "result": "pass",
+      "tests": 9
+    },
+    "independent_transient_probes": {
+      "result": "pass",
+      "tests": 7,
+      "source_removed_before_commit": true
+    },
+    "full_swift_tests": {
+      "result": "pass",
+      "tests": 202,
+      "suites": 4
+    },
+    "clean_release_build": {
+      "result": "pass",
+      "exit_code": 0
+    }
+  },
+  "challenge_matrix": [
+    {
+      "case": "protected-root ancestor overlap",
+      "result": "pass",
+      "expected": "rejected before workspace creation"
+    },
+    {
+      "case": "protected-root descendant overlap",
+      "result": "pass",
+      "expected": "rejected before workspace creation"
+    },
+    {
+      "case": "actual production root with additional injected roots",
+      "result": "pass",
+      "expected": "actual production root remains protected"
+    },
+    {
+      "case": "parent symlink destination",
+      "result": "pass",
+      "expected": "rejected with outside marker preserved"
+    },
+    {
+      "case": "final workspace symlink destination",
+      "result": "pass",
+      "expected": "rejected with outside marker preserved"
+    },
+    {
+      "case": "nonexistent child hierarchy",
+      "result": "pass",
+      "expected": "created beneath the canonical QA root"
+    },
+    {
+      "case": "path traversal and separators",
+      "result": "pass",
+      "expected": "invalid fixture identifiers rejected"
+    },
+    {
+      "case": "Unicode and uppercase identifiers",
+      "result": "pass",
+      "expected": "filesystem-collision-prone identifiers rejected"
+    },
+    {
+      "case": "empty and overlength identifiers",
+      "result": "pass",
+      "expected": "malformed identifiers rejected"
+    },
+    {
+      "case": "repeat preparation",
+      "result": "pass",
+      "expected": "stale state removed and workspace identity stable"
+    },
+    {
+      "case": "sibling isolation and cleanup",
+      "result": "pass",
+      "expected": "target removed and sibling content preserved"
+    },
+    {
+      "case": "cleanup after final-path symlink replacement",
+      "result": "pass",
+      "expected": "cleanup rejected and outside marker preserved"
+    }
+  ],
+  "findings": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "recommendation": {
+    "retain_integrated_commit": true,
+    "deterministic_fixture_foundation_accepted": true,
+    "note": "This verifies the deterministic fixture workspace foundation only. It does not certify the separately deferred full QA app, service identity, XPC, EventKit, notification, or UI E2E boundaries."
+  }
+}
