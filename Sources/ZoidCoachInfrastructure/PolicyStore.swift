@@ -53,38 +53,39 @@ public final class PolicyStore: @unchecked Sendable {
         let policy = policy.upgradedToCurrentSchema()
         let violations = policy.validationViolations()
         guard violations.isEmpty else { throw PolicyStoreError.invalidPolicy(violations) }
-        let payload = try encode(policy)
-        let createdAt = now()
-        let timestamp = Self.timestamp(createdAt)
 
         lock.lock()
         defer { lock.unlock() }
         return try inTransaction {
-            let version = try nextVersion()
-            try execute(
-                "UPDATE policy_versions SET is_active = 0 WHERE policy_type = ?;",
-                bindings: [.text(Self.policyType)]
-            )
-            try execute(
-                """
-                INSERT INTO policy_versions(policy_type, version, payload_json, created_at_utc, is_active)
-                VALUES (?, ?, ?, ?, 1);
-                """,
-                bindings: [.text(Self.policyType), .integer(version), .text(payload), .text(timestamp)]
-            )
-            try upsertSetting(payload: payload, version: version, timestamp: timestamp)
-            return VersionedUserPolicy(
-                version: version,
-                policy: policy,
-                createdAtUTC: createdAt,
-                isActive: true
-            )
+            try saveLocked(policy, createdAt: now())
         }
     }
 
     public func current() throws -> VersionedUserPolicy? {
         lock.lock()
         defer { lock.unlock() }
+        return try currentLocked()
+    }
+
+    public func currentGamingPolicy() throws -> GamingPolicy {
+        try current()?.policy.gaming ?? .balanced
+    }
+
+    @discardableResult
+    func saveGamingPolicy(_ gaming: GamingPolicy) throws -> VersionedUserPolicy {
+        lock.lock()
+        defer { lock.unlock() }
+        return try inTransaction {
+            let currentPolicy = try currentLocked()?.policy.upgradedToCurrentSchema()
+                ?? UserPolicy.defaults()
+            let replacement = currentPolicy.replacingGamingPolicy(gaming)
+            let violations = replacement.validationViolations()
+            guard violations.isEmpty else { throw PolicyStoreError.invalidPolicy(violations) }
+            return try saveLocked(replacement, createdAt: now())
+        }
+    }
+
+    private func currentLocked() throws -> VersionedUserPolicy? {
         let sql = """
         SELECT p.version, s.value_json, p.created_at_utc, p.is_active
         FROM settings AS s
@@ -181,6 +182,33 @@ public final class PolicyStore: @unchecked Sendable {
         try bind([.text(Self.policyType)], to: statement)
         guard sqlite3_step(statement) == SQLITE_ROW else { throw databaseError(.read) }
         return Int(sqlite3_column_int64(statement, 0))
+    }
+
+    private func saveLocked(
+        _ policy: UserPolicy,
+        createdAt: Date
+    ) throws -> VersionedUserPolicy {
+        let payload = try encode(policy)
+        let timestamp = Self.timestamp(createdAt)
+        let version = try nextVersion()
+        try execute(
+            "UPDATE policy_versions SET is_active = 0 WHERE policy_type = ?;",
+            bindings: [.text(Self.policyType)]
+        )
+        try execute(
+            """
+            INSERT INTO policy_versions(policy_type, version, payload_json, created_at_utc, is_active)
+            VALUES (?, ?, ?, ?, 1);
+            """,
+            bindings: [.text(Self.policyType), .integer(version), .text(payload), .text(timestamp)]
+        )
+        try upsertSetting(payload: payload, version: version, timestamp: timestamp)
+        return VersionedUserPolicy(
+            version: version,
+            policy: policy,
+            createdAtUTC: createdAt,
+            isActive: true
+        )
     }
 
     private func upsertSetting(payload: String, version: Int, timestamp: String) throws {

@@ -429,6 +429,10 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         return try await callData { proxy, reply in proxy.applyAgentMutation(data, withReply: reply) }
     }
 
+    public func saveGamingPolicy(_ policy: GamingPolicy) async throws -> AgentMutationReceipt {
+        try await apply(.saveGamingPolicy(policy))
+    }
+
     public func fetchActionAudit() async throws -> [ActionAuditEntry] {
         try await callData { proxy, reply in proxy.fetchActionAudit(withReply: reply) }
     }

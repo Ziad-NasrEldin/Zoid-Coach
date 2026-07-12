@@ -48,7 +48,7 @@ public final class TodaySnapshotStore: @unchecked Sendable {
     }
 
     public func applyPriorityRewardIfNeeded(taskID: String, policy: GamingPolicy, day: Date = Date()) throws -> Bool {
-        let sql = "INSERT OR IGNORE INTO gaming_reward_ledger(day_key, task_id, policy_version, applied_at) VALUES (?, ?, ?, ?);"
+        let sql = "INSERT OR IGNORE INTO gaming_reward_ledger(day_key, task_id, policy_version, applied_at, reward_minutes) VALUES (?, ?, ?, ?, ?);"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw TodaySnapshotStoreError.write }
         defer { sqlite3_finalize(statement) }
@@ -56,17 +56,26 @@ public final class TodaySnapshotStore: @unchecked Sendable {
         bind(taskID, statement, 2)
         sqlite3_bind_int(statement, 3, Int32(policy.version))
         bind(formatter.string(from: Date()), statement, 4)
+        sqlite3_bind_int(statement, 5, Int32(policy.priorityTaskRewardMinutes))
         guard sqlite3_step(statement) == SQLITE_DONE else { throw TodaySnapshotStoreError.write }
         return sqlite3_changes(database) == 1
     }
 
     public func hasPriorityReward(policy: GamingPolicy, day: Date = Date()) throws -> Bool {
+        try priorityRewardMinutes(policy: policy, day: day) != nil
+    }
+
+    public func priorityRewardMinutes(
+        policy: GamingPolicy,
+        day: Date = Date()
+    ) throws -> Int? {
         var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(database, "SELECT 1 FROM gaming_reward_ledger WHERE day_key = ? AND policy_version = ? LIMIT 1;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TodaySnapshotStoreError.read }
+        guard sqlite3_prepare_v2(database, "SELECT reward_minutes FROM gaming_reward_ledger WHERE day_key = ? AND policy_version = ? LIMIT 1;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TodaySnapshotStoreError.read }
         defer { sqlite3_finalize(statement) }
         bind(dayKey(day), statement, 1)
         sqlite3_bind_int(statement, 2, Int32(policy.version))
-        return sqlite3_step(statement) == SQLITE_ROW
+        guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+        return max(0, Int(sqlite3_column_int(statement, 0)))
     }
 
     private func dayKey(_ date: Date) -> String {

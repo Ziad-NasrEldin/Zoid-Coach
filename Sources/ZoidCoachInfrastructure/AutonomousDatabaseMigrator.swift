@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 23
+    public static let currentVersion = 24
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -751,6 +751,12 @@ private extension AutonomousDatabaseMigrator {
             FOREIGN KEY(prompt_id) REFERENCES prompt_episodes(id)
         );
         DELETE FROM prompt_responses WHERE surface = char(97, 116, 111, 108, 108);
+        """)]),
+        // Before version 24, only the Release 1 balanced policy could create reward rows.
+        // Its 15-minute reward is therefore the safe legacy value for existing rows.
+        Migration(version: 24, isDestructive: false, operations: [.sql("""
+        ALTER TABLE gaming_reward_ledger
+        ADD COLUMN reward_minutes INTEGER NOT NULL DEFAULT 15;
         """)])
     ]
 }

@@ -230,6 +230,19 @@ public struct NextTaskRecommendation: Equatable, Codable, Sendable {
 }
 
 public struct GamingPolicy: Equatable, Codable, Sendable {
+    public static let flexible = GamingPolicy(
+        dailyBudgetMinutes: 90,
+        priorityTaskRewardMinutes: 0
+    )
+    public static let balanced = GamingPolicy(
+        dailyBudgetMinutes: 60,
+        priorityTaskRewardMinutes: 15
+    )
+    public static let firm = GamingPolicy(
+        dailyBudgetMinutes: 30,
+        priorityTaskRewardMinutes: 30
+    )
+
     public let version: Int
     public let dailyBudgetMinutes: Int
     public let priorityTaskRewardMinutes: Int
@@ -460,7 +473,36 @@ public struct GamingStatusCalculator: Sendable {
     public init() {}
 
     public func status(policy: GamingPolicy, gamingMinutes: Int, rewardApplied: Bool, coverage: TelemetryCoverage) -> GamingStatus {
-        let allowance = policy.dailyBudgetMinutes + (rewardApplied ? policy.priorityTaskRewardMinutes : 0)
-        return GamingStatus(budgetMinutes: policy.dailyBudgetMinutes, usedMinutes: gamingMinutes, unlockedRemainingMinutes: max(0, allowance - gamingMinutes), nextUnlockReason: rewardApplied ? "Priority-task reward already applied today." : "Finish one priority task to unlock a one-time reward.", confidenceIsLimited: coverage.isLimited)
+        status(
+            policy: policy,
+            gamingMinutes: gamingMinutes,
+            appliedRewardMinutes: rewardApplied ? policy.priorityTaskRewardMinutes : nil,
+            coverage: coverage
+        )
+    }
+
+    public func status(
+        policy: GamingPolicy,
+        gamingMinutes: Int,
+        appliedRewardMinutes: Int?,
+        coverage: TelemetryCoverage
+    ) -> GamingStatus {
+        let rewardMinutes = max(0, appliedRewardMinutes ?? 0)
+        let allowance = policy.dailyBudgetMinutes + rewardMinutes
+        let nextUnlockReason: String
+        if rewardMinutes > 0 {
+            nextUnlockReason = "Priority-task reward already applied today."
+        } else if policy.priorityTaskRewardMinutes == 0 {
+            nextUnlockReason = "This policy uses a fixed daily gaming budget."
+        } else {
+            nextUnlockReason = "Finish one priority task to unlock a one-time reward."
+        }
+        return GamingStatus(
+            budgetMinutes: policy.dailyBudgetMinutes,
+            usedMinutes: gamingMinutes,
+            unlockedRemainingMinutes: max(0, allowance - gamingMinutes),
+            nextUnlockReason: nextUnlockReason,
+            confidenceIsLimited: coverage.isLimited
+        )
     }
 }

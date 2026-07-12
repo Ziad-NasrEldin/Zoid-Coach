@@ -49,6 +49,33 @@ func gamingStatusAppliesPriorityRewardOnlyWhenRecorded() {
 }
 
 @Test
+func gamingStatusUsesTheRecordedRewardAmountAndTruthfulFlexibleCopy() {
+    let coverage = TelemetryCoverage(
+        isLimited: false,
+        explanation: "Current",
+        lastObservationAt: Date()
+    )
+    let calculator = GamingStatusCalculator()
+
+    let switchedPolicy = calculator.status(
+        policy: .firm,
+        gamingMinutes: 0,
+        appliedRewardMinutes: 15,
+        coverage: coverage
+    )
+    let flexible = calculator.status(
+        policy: .flexible,
+        gamingMinutes: 0,
+        appliedRewardMinutes: nil,
+        coverage: coverage
+    )
+
+    #expect(switchedPolicy.unlockedRemainingMinutes == 45)
+    #expect(flexible.unlockedRemainingMinutes == 90)
+    #expect(flexible.nextUnlockReason == "This policy uses a fixed daily gaming budget.")
+}
+
+@Test
 func replayClassifiesEachBehaviorBucketWithoutTreatingGapsAsTime() {
     let start = Date(timeIntervalSince1970: 1_700_000_000)
     let observations = [
