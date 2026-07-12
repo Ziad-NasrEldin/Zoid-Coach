@@ -40,3 +40,23 @@ The final cleanup unregistered and removed the isolated QA runtime while the pro
 PASS.
 
 Signed-QA install, repeat install, app replacement, helper path reconciliation, interrupted replacement recovery, uninstall, and reinstall are now idempotent and isolated from production.
+
+## Independent Integration Verification
+
+The lifecycle changes were integrated into `codex/full-system` as `5ad3381` and `5cf380e`.
+
+The independent verifier found and fixed one portability defect in the new test harness: the sourced lifecycle-library path was not shell-quoted, so the tests failed from the repository path containing `Zoid Coach`.
+
+Commit `c8ea825` quotes that path safely.
+
+The focused lifecycle suite then passed 5 Swift tests and 3 Python tests from an isolated worktree.
+
+The full gates passed 450 Swift tests and 41 registry/evidence tests.
+
+The independent signed runtime used `/private/tmp/zoid-666-sm-verify` with two isolated install roots under `~/Applications`.
+
+It passed a clean first install, an in-place repeat install that explicitly unregistered the prior owning app, a changed-install-path replacement whose running helper resolved exclusively to the new app, a complete uninstall/reinstall cycle, and final cleanup.
+
+The production helper remained running as PID 1146 throughout, and the dedicated QA registration was absent after cleanup.
+
+Independent result: PASS.

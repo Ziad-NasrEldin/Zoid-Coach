@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "d06de5fa7057240fad6d906f0906075fc4d0f138b2420e783325363376031c3c",
+  "tracker_sha256": "228b7b1347207ca4d98381086152b7906b5b40efdfef2f45972cf772d52980f7",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11052,7 +11052,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Source Health reports `SMAppService` registration status, not verified process liveness; this audit independently confirmed a running `ZoidCoachAgent` process.",
+      "audit_note": "Source Health reports `SMAppService` registration status rather than verified process liveness; the signed repeat-install acceptance run independently proved first install, same-path and changed-path replacement, uninstall/reinstall, exact running-helper ownership, and production isolation (`.audit/runs/signed-qa-repeat-install/10cc1da/REPORT.md`), but the user-facing row still cannot distinguish an enabled registration from a live helper process.",
       "tracker_line": 697
     },
     {

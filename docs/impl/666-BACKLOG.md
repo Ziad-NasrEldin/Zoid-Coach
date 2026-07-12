@@ -16,7 +16,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 
 | Priority | Slice | Status | Owner | Acceptance proof |
 | --- | --- | --- | --- | --- |
-| 1 | Standardize signed-QA app installation, LaunchAgent registration, and cleanup | verify | Lane A at `343310a` | Installed signed QA app and dedicated running helper are proven in `.audit/runs/signed-qa-runtime/343310a/REPORT.md`; full visible 12-step classification persistence remains the parallel acceptance check |
+| 1 | Standardize signed-QA app installation, LaunchAgent registration, and cleanup | done | Repeat-install verifier at `c8ea825` | First install, same-path replacement, changed-path replacement, uninstall/reinstall, final cleanup, exact helper ownership, and production isolation passed in `.audit/runs/signed-qa-repeat-install/10cc1da/REPORT.md` |
 | 2 | Rebrand the complete product from Zoid Coach to Zoid 666 | active | Lane B | App bundle display names, visible UI, packaging, docs, scripts, tests, and installed artifact use Zoid 666 while durable identifiers and migrations remain compatible |
 | 3 | Complete the canonical onboarding test-prompt loop | ready | Unowned | A user can generate a harmless prompt, receive it through notification or Today fallback, choose an action, see durable resolution, and resume setup after relaunch |
 | 4 | Prove all 12 onboarding steps in one fresh signed-QA journey | ready | Unowned | One evidence run completes every step, persists app classifications and preferences through XPC, creates the first plan, reaches Today, and survives restart |
@@ -57,6 +57,9 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Covers first install, repeat install, stale enabled state, replacement helper path changes, interrupted registration and replacement recovery, and uninstall/reinstall with deterministic tests.
 - Signed runtime proof passed twice in place, passed uninstall/reinstall, and preserved the running production helper.
 - Evidence is recorded in `.audit/runs/signed-qa-repeat-install/10cc1da/REPORT.md`.
+- Independent integration verification passed at `c8ea825` after correcting shell quoting for repository paths containing spaces.
+- The full suite passed with 450 Swift tests and 41 registry/evidence tests.
+- A fresh signed runtime pass proved first install, same-path repeat install, changed-path re-registration, uninstall/reinstall, final cleanup, and an untouched running production helper.
 
 ### Privacy, export, deletion, and retention controls - `73c77ec`
 
