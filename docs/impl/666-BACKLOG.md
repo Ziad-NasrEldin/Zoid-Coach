@@ -16,7 +16,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 
 | Priority | Slice | Status | Owner | Acceptance proof |
 | --- | --- | --- | --- | --- |
-| 1 | Standardize signed-QA app installation, LaunchAgent registration, and cleanup | active | Lane A | A clean signed QA package installs outside `.build`, registers its dedicated helper without production takeover, passes XPC mutation, survives relaunch, and emits an evidence report |
+| 1 | Standardize signed-QA app installation, LaunchAgent registration, and cleanup | verify | Lane A at `343310a` | Installed signed QA app and dedicated running helper are proven in `.audit/runs/signed-qa-runtime/343310a/REPORT.md`; full visible 12-step classification persistence remains the parallel acceptance check |
 | 2 | Rebrand the complete product from Zoid Coach to Zoid 666 | active | Lane B | App bundle display names, visible UI, packaging, docs, scripts, tests, and installed artifact use Zoid 666 while durable identifiers and migrations remain compatible |
 | 3 | Complete the canonical onboarding test-prompt loop | ready | Unowned | A user can generate a harmless prompt, receive it through notification or Today fallback, choose an action, see durable resolution, and resume setup after relaunch |
 | 4 | Prove all 12 onboarding steps in one fresh signed-QA journey | ready | Unowned | One evidence run completes every step, persists app classifications and preferences through XPC, creates the first plan, reaches Today, and survives restart |
@@ -46,3 +46,13 @@ If the top item is temporarily blocked, the lane records the blocker and immedia
 After a substantial batch, the orchestrator rotates the agent before assigning further work.
 
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
+
+## Delivered Batches Awaiting Parallel Verification
+
+### Signed-QA persistent runtime - `343310a`
+
+- Added identity-driven install and uninstall commands with no hardcoded bundle, executable, or LaunchAgent identity.
+- Added a packaged-QA-only command that registers the dedicated SMAppService helper and deliberately leaves it enabled for visible end-to-end testing.
+- Proved that the app is signed, installed outside `.build`, launched from the installed path, bound to an isolated QA root, and backed by the running QA Mach service.
+- Focused `XPCSigningIdentityTests` and `AgentLaunchServiceTests` pass.
+- The authoritative tracker remains owned by the root integrator and must only be upgraded after the parallel verifier completes classification persistence through the remaining onboarding steps.
