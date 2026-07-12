@@ -66,6 +66,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var captureHealth: AgentCaptureHealthSnapshot?
     @Published private(set) var planningCapacityUsesCalendar = false
     @Published private(set) var planningFixedCommitmentMinutes = 0
+    @Published private(set) var calendarPlanApproval = CalendarPlanApprovalState()
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
@@ -564,17 +565,62 @@ final class AppModel: ObservableObject {
         }
 
         isSchedulingDailyPlan = true
+        calendarPlanApproval.writeState = .queueing
         calendarScheduleError = nil
         Task {
             do {
-                _ = try await todayDashboardXPCClient.apply(.schedulePlan(day: Date()))
-                lastActionMessage = "The proposed work blocks were accepted and queued for Apple Calendar."
+                let receipt = try await todayDashboardXPCClient.apply(.schedulePlan(day: Date()))
+                guard receipt.accepted else {
+                    calendarPlanApproval.writeState = .reviewing
+                    calendarScheduleError = receipt.message
+                    isSchedulingDailyPlan = false
+                    return
+                }
+                calendarPlanApproval.queued(commandIDs: receipt.commandIDs)
+                lastActionMessage = receipt.message
                 await refreshActionAudit()
+                reconcileCalendarPlanApproval()
             } catch {
                 calendarScheduleError = "The background agent could not queue Calendar blocks. Check Source health and try again."
+                calendarPlanApproval.writeState = .reviewing
             }
             isSchedulingDailyPlan = false
         }
+    }
+
+    func requestCalendarPlanApproval() {
+        guard planningCapacityState.canApprove else {
+            scheduleDailyPlan()
+            return
+        }
+        calendarScheduleError = nil
+        var titlesByReminderID = Dictionary(uniqueKeysWithValues: reminderTasks.map { ($0.id, $0.title) })
+        for row in todaySnapshot?.taskRows ?? [] {
+            titlesByReminderID[row.taskID] = row.title
+        }
+        calendarPlanApproval.begin(
+            entries: dailyPlan,
+            titlesByReminderID: titlesByReminderID,
+            availableMinutes: planningCapacityState.availableMinutes,
+            fixedCommitmentMinutes: planningFixedCommitmentMinutes,
+            usesCalendarAvailability: planningCapacityUsesCalendar
+        )
+    }
+
+    func dismissCalendarPlanApproval() {
+        guard !isSchedulingDailyPlan else { return }
+        calendarPlanApproval.dismiss()
+    }
+
+    func recheckCalendarPlanWrite() {
+        Task {
+            await refreshActionAudit()
+            reconcileCalendarPlanApproval()
+        }
+    }
+
+    private func reconcileCalendarPlanApproval() {
+        calendarPlanApproval.reconcile(with: actionAudit)
     }
 
     func addMeetingCandidateToCalendar(_ candidate: StoredMeetingCandidate) {
