@@ -4,6 +4,21 @@ import ZoidCoachCore
 import ZoidCoachInfrastructure
 
 @Test
+func onboardingPersistenceIsPublishedForExplicitInfrastructureImports() throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let manifest = try String(
+        contentsOf: repositoryRoot.appendingPathComponent("Package.swift"),
+        encoding: .utf8
+    )
+
+    #expect(manifest.contains(".library(name: \"ZoidCoachInfrastructure\""))
+    _ = OnboardingProgressStore.self
+}
+
+@Test
 func onboardingVersionOneSequenceIsExplicitAndComplete() {
     #expect(OnboardingProgress.stepSequence == [
         .welcome,
