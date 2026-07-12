@@ -27,6 +27,11 @@ struct OnboardingRootView: View {
         .accessibilityIdentifier("onboarding.root")
         .task(id: coordinator.progress.currentStep) {
             await coordinator.inspectCurrentSource()
+            if [.applicationInventory, .activityClassification].contains(
+                coordinator.progress.currentStep
+            ) {
+                coordinator.loadApplicationInventory()
+            }
         }
     }
 
@@ -126,22 +131,41 @@ struct OnboardingRootView: View {
                     explanation: "Notifications carry morning plans and small coaching choices. They are optional; every important action remains available in Today if you decline.",
                     grantTitle: "REQUEST NOTIFICATION ACCESS"
                 )
-            default:
+            case .applicationInventory:
+                inventoryStep
+            case .activityClassification:
+                classificationStep
+            case .schedule:
+                scheduleStep
+            case .gamingPolicy:
+                gamingPolicyStep
+            case .coachingMode:
+                coachingModeStep
+            case .deliveryTest:
+                deliveryTestStep
+            case .firstDailyPlan:
                 OnboardingEditorialStep(
-                    eyebrow: "SETUP",
-                    title: shortTitle(for: coordinator.progress.currentStep),
-                    bodyText: "This setup step keeps your choices local and can be revisited before completion.",
-                    note: "Continue when the choice reflects how you want Zoid Coach to behave."
+                    eyebrow: "FIRST PLAN",
+                    title: "The quiet command center is ready.",
+                    bodyText: "Today will show your intended work, current source health, a realistic next action, and any coaching choices still waiting for you.",
+                    note: firstPlanSummary
                 )
             }
             if let error = coordinator.errorMessage {
-                Text(error)
-                    .font(Sumi.body(13))
-                    .foregroundStyle(Sumi.sealDeep)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Sumi.sealWash)
-                    .accessibilityLabel("Setup error. \(error)")
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(error)
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.sealDeep)
+                    Button("TRY AGAIN") {
+                        Task { await coordinator.inspectCurrentSource() }
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                    .accessibilityIdentifier("onboarding.retry")
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Sumi.sealWash)
+                .accessibilityLabel("Setup error. \(error)")
             }
         }
         .accessibilityElement(children: .contain)
@@ -188,8 +212,279 @@ struct OnboardingRootView: View {
                     Task { await coordinator.inspectCurrentSource() }
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .text, size: .standard))
-                .accessibilityIdentifier("onboarding.retry")
+                .accessibilityIdentifier("onboarding.source.\(step.rawValue).repair")
             }
+        }
+    }
+
+    private var inventoryStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            OnboardingEditorialStep(
+                eyebrow: "APPLICATION INVENTORY",
+                title: "Review what can appear in activity evidence.",
+                bodyText: "This local scan combines installed apps with names already observed by Screenwatch. It does not inspect app content and does not classify anything for you.",
+                note: coordinator.inventoryMessage
+            )
+            Button("SCAN AGAIN") { coordinator.loadApplicationInventory() }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .accessibilityIdentifier("onboarding.inventory.reload")
+            if coordinator.inventory.isEmpty {
+                Text("NO APPLICATIONS AVAILABLE · You can continue and classify them later in Settings.")
+                    .font(Sumi.label())
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("onboarding.inventory.empty")
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(coordinator.inventory.prefix(12)) { application in
+                        inventoryRow(application)
+                    }
+                }
+                .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                .accessibilityIdentifier("onboarding.inventory.list")
+                Text("Showing \(min(coordinator.inventory.count, 12)) of \(coordinator.inventory.count) apps. Full classification remains available in Settings.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+            }
+        }
+    }
+
+    private func inventoryRow(_ application: AppInventoryItem) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(application.name).font(Sumi.body(14))
+                Text(application.bundleIdentifier ?? "No bundle identifier")
+                    .font(Sumi.label(9))
+                    .foregroundStyle(Sumi.muted)
+            }
+            Spacer()
+            Text(application.isObserved ? "OBSERVED" : "INSTALLED")
+                .font(Sumi.label(9))
+                .foregroundStyle(application.isObserved ? Sumi.seal : Sumi.muted)
+        }
+        .padding(12)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("onboarding.inventory.app.\(application.normalizedName)")
+    }
+
+    private var classificationStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            OnboardingEditorialStep(
+                eyebrow: "ACTIVITY CLASSIFICATION",
+                title: "Name work and gaming apps. Leave uncertainty automatic.",
+                bodyText: "Classification helps Zoid Coach distinguish focused work from gaming without guessing. Automatic is the safe default and can be changed later.",
+                note: "Only the app name is saved. Titles, URLs, screenshots, and captured content are not shown here."
+            )
+            if coordinator.inventory.isEmpty {
+                Text("NO APPLICATIONS TO CLASSIFY · Continue with automatic behavior.")
+                    .font(Sumi.label())
+                    .foregroundStyle(Sumi.muted)
+            } else {
+                VStack(spacing: 14) {
+                    ForEach(coordinator.inventory.prefix(12)) { application in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(application.name).font(Sumi.body(14))
+                            Picker(
+                                "Classification for \(application.name)",
+                                selection: classificationBinding(for: application)
+                            ) {
+                                Text("AUTOMATIC").tag(AppClassificationChoice.automatic)
+                                Text("WORK").tag(AppClassificationChoice.work)
+                                Text("GAMING").tag(AppClassificationChoice.gaming)
+                            }
+                            .pickerStyle(.segmented)
+                            .accessibilityIdentifier("onboarding.classification.\(application.normalizedName)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func classificationBinding(for application: AppInventoryItem) -> Binding<AppClassificationChoice> {
+        Binding(
+            get: { coordinator.classifications[application.name] ?? .automatic },
+            set: { coordinator.setClassification($0, for: application.name) }
+        )
+    }
+
+    private var scheduleStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            OnboardingEditorialStep(
+                eyebrow: "BOUNDARIES",
+                title: "Set work time and quiet time.",
+                bodyText: "Work hours guide planning capacity. Quiet hours prevent coaching delivery. Overnight quiet windows are supported.",
+                note: "These are starting boundaries, not surveillance rules. You can adjust them any time in Settings."
+            )
+            hourPicker("WORK START", value: $coordinator.workStartHour, id: "work-start")
+            hourPicker("WORK END", value: $coordinator.workEndHour, id: "work-end")
+            Rectangle().fill(Sumi.paleRule).frame(height: 1)
+            hourPicker("QUIET START", value: $coordinator.quietStartHour, id: "quiet-start")
+            hourPicker("QUIET END", value: $coordinator.quietEndHour, id: "quiet-end")
+        }
+    }
+
+    private func hourPicker(_ title: String, value: Binding<Int>, id: String) -> some View {
+        HStack {
+            Text(title).font(Sumi.label()).tracking(1.2)
+            Spacer()
+            Picker(title, selection: value) {
+                ForEach(0..<24, id: \.self) { hour in
+                    Text(String(format: "%02d:00", hour)).tag(hour)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 120)
+            .accessibilityLabel(title.capitalized)
+            .accessibilityIdentifier("onboarding.schedule.\(id)")
+        }
+    }
+
+    private var gamingPolicyStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            OnboardingEditorialStep(
+                eyebrow: "GAMING WITHOUT SHAME",
+                title: "Choose the boundary that feels honest today.",
+                bodyText: "Gaming is treated as a conscious tradeoff, never a moral failure. This starting posture controls how firmly the coach raises a choice when gaming competes with intended work.",
+                note: "No option locks apps or punishes you. The coach always leaves the final decision with you."
+            )
+            choiceButton("FLEXIBLE", detail: "Notice the tradeoff, then leave the choice open.", choice: .flexible)
+            choiceButton("BALANCED", detail: "Ask for a short work commitment before more gaming.", choice: .balanced)
+            choiceButton("FIRM", detail: "Make the competing priority and daily budget explicit.", choice: .firm)
+        }
+    }
+
+    private func choiceButton(
+        _ title: String,
+        detail: String,
+        choice: OnboardingGamingPolicy
+    ) -> some View {
+        Button {
+            coordinator.gamingPolicy = choice
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Text(coordinator.gamingPolicy == choice ? "●" : "○")
+                    .font(Sumi.body(15))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(Sumi.label()).tracking(1.2)
+                    Text(detail).font(Sumi.body(13)).foregroundStyle(Sumi.muted)
+                }
+                Spacer()
+            }
+            .padding(14)
+            .contentShape(Rectangle())
+            .overlay(Rectangle().stroke(
+                coordinator.gamingPolicy == choice ? Sumi.ink : Sumi.rule,
+                lineWidth: coordinator.gamingPolicy == choice ? 2 : 1
+            ))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(detail)")
+        .accessibilityValue(coordinator.gamingPolicy == choice ? "Selected" : "Not selected")
+        .accessibilityIdentifier("onboarding.gaming-policy.\(choice.rawValue)")
+    }
+
+    private var coachingModeStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            OnboardingEditorialStep(
+                eyebrow: "COACHING ENGINE",
+                title: "Rules-only works completely. AI remains optional.",
+                bodyText: "Rules-only uses deterministic local coaching. Optional AI uses the configured local Codex CLI boundary and may be disabled later without losing your plan or history.",
+                note: "Recommended: begin with rules-only. Selecting AI never grants permission to send screenshots or raw captured evidence."
+            )
+            coachingChoice(
+                "RULES-ONLY · RECOMMENDED",
+                detail: "Local deterministic guidance with no model dependency.",
+                mode: .rulesOnly
+            )
+            coachingChoice(
+                "OPTIONAL AI",
+                detail: "Use the explicit Codex CLI provider boundary when available.",
+                mode: .optionalAI
+            )
+        }
+    }
+
+    private func coachingChoice(
+        _ title: String,
+        detail: String,
+        mode: InitialCoachingMode
+    ) -> some View {
+        Button {
+            coordinator.selectCoachingMode(mode)
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Text(coordinator.progress.coachingMode == mode ? "●" : "○")
+                    .font(Sumi.body(15))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(Sumi.label()).tracking(1.1)
+                    Text(detail).font(Sumi.body(13)).foregroundStyle(Sumi.muted)
+                }
+                Spacer()
+            }
+            .padding(14)
+            .contentShape(Rectangle())
+            .overlay(Rectangle().stroke(
+                coordinator.progress.coachingMode == mode ? Sumi.ink : Sumi.rule,
+                lineWidth: coordinator.progress.coachingMode == mode ? 2 : 1
+            ))
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(coordinator.progress.coachingMode == mode ? "Selected" : "Not selected")
+        .accessibilityIdentifier("onboarding.coaching.\(mode.rawValue)")
+    }
+
+    private var deliveryTestStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            OnboardingEditorialStep(
+                eyebrow: "DELIVERY PROOF",
+                title: "Send one bounded test before relying on coaching.",
+                bodyText: "The test schedules one local notification. It does not contact a remote service and it records an explicit pass, failure, or unavailable result.",
+                note: coordinator.progress.notificationAccess == .granted
+                    ? "Run the test and confirm macOS accepted it."
+                    : "Notifications were not granted. Continue in degraded mode and use Today for every coaching choice."
+            )
+            Button(coordinator.isWorking ? "TESTING…" : "SEND TEST NOTIFICATION") {
+                Task { await coordinator.runDeliveryTest() }
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+            .disabled(coordinator.isWorking || coordinator.progress.notificationAccess != .granted)
+            .accessibilityIdentifier("onboarding.delivery.test")
+            if let result = coordinator.deliveryResult {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("RESULT · \(deliveryResultLabel(result.state))")
+                        .font(Sumi.label()).tracking(1.2)
+                    Text(result.message).font(Sumi.body(13))
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(result.state == .delivered ? Sumi.softPaper : Sumi.sealWash)
+                .overlay(Rectangle().stroke(result.state == .delivered ? Sumi.rule : Sumi.seal, lineWidth: 1))
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("onboarding.delivery.test-result")
+            }
+        }
+    }
+
+    private var firstPlanSummary: String {
+        let sourceCount = [
+            coordinator.progress.remindersAccess,
+            coordinator.progress.screenwatchAccess,
+            coordinator.progress.notificationAccess
+        ].compactMap { $0 }.filter { $0 == .granted }.count
+        let coaching = coordinator.progress.coachingMode == .optionalAI ? "optional AI" : "rules-only"
+        return "\(sourceCount) of 3 sources connected · \(coaching) coaching · work \(hour(coordinator.workStartHour))-\(hour(coordinator.workEndHour)) · quiet \(hour(coordinator.quietStartHour))-\(hour(coordinator.quietEndHour))."
+    }
+
+    private func hour(_ value: Int) -> String {
+        String(format: "%02d:00", value)
+    }
+
+    private func deliveryResultLabel(_ state: OnboardingDeliveryResult.State) -> String {
+        switch state {
+        case .delivered: "DELIVERED"
+        case .unavailable: "UNAVAILABLE"
+        case .failed: "FAILED"
         }
     }
 

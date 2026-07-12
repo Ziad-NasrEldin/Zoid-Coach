@@ -35,6 +35,8 @@ final class OnboardingCoordinator: ObservableObject {
     private let store: any OnboardingProgressPersisting
     private let now: () -> Date
     private let dependencies: OnboardingDependencies?
+    private var originalPolicy = UserPolicy.defaults()
+    private var policyDraft = SettingsPolicyDraft(policy: .defaults())
 
     init(
         store: any OnboardingProgressPersisting,
@@ -54,6 +56,19 @@ final class OnboardingCoordinator: ObservableObject {
             route = .onboarding
             errorMessage = "Setup progress could not be loaded. \(error.localizedDescription)"
         }
+        if let dependencies {
+            do {
+                let policy = try dependencies.loadPolicy()
+                originalPolicy = policy
+                policyDraft = SettingsPolicyDraft(policy: policy)
+                workStartHour = policyDraft.workStart.hour
+                workEndHour = policyDraft.workEnd.hour
+                quietStartHour = policyDraft.quietStart.hour
+                quietEndHour = policyDraft.quietEnd.hour
+            } catch {
+                errorMessage = "Existing settings could not be loaded. Setup choices will not be applied until local storage recovers. \(error.localizedDescription)"
+            }
+        }
     }
 
     convenience init(runtimeEnvironment: RuntimeEnvironment = .current()) {
@@ -64,6 +79,7 @@ final class OnboardingCoordinator: ObservableObject {
     }
 
     func continueFromCurrentStep() throws {
+        try persistCurrentConfigurationIfNeeded()
         var replacement = progress
         try replacement.completeCurrentStep(at: now())
         do {
@@ -71,7 +87,13 @@ final class OnboardingCoordinator: ObservableObject {
             errorMessage = nil
             if progress.isFinished { route = .today }
         } catch {
-            errorMessage = "Setup could not be saved. \(error.localizedDescription)"
+            if let current = try? store.load() {
+                progress = current
+                route = current.isFinished ? .today : .onboarding
+                errorMessage = "Setup changed in another window. The latest saved step was restored. Try again."
+            } else {
+                errorMessage = "Setup could not be saved. \(error.localizedDescription)"
+            }
             throw error
         }
     }
@@ -99,6 +121,8 @@ final class OnboardingCoordinator: ObservableObject {
             var replacement = progress
             replacement.chooseCoachingMode(mode)
             progress = try store.save(replacement)
+            policyDraft.aiProvider = mode == .rulesOnly ? .disabled : .codexCLI
+            try persistPolicy()
             errorMessage = nil
         } catch {
             errorMessage = "Coaching choice could not be saved. \(error.localizedDescription)"
@@ -154,6 +178,7 @@ final class OnboardingCoordinator: ObservableObject {
 
     func setClassification(_ choice: AppClassificationChoice, for application: String) {
         classifications[application] = choice
+        policyDraft.setClassification(choice, for: application)
     }
 
     func runDeliveryTest() async {
@@ -200,6 +225,34 @@ final class OnboardingCoordinator: ObservableObject {
         case .attention: .denied
         case .unavailable: .unavailable
         case .checking, .notConnected: .deferred
+        }
+    }
+
+    private func persistCurrentConfigurationIfNeeded() throws {
+        switch progress.currentStep {
+        case .activityClassification:
+            try persistPolicy()
+        case .schedule:
+            policyDraft.workStart = LocalTime(hour: workStartHour, minute: 0)
+            policyDraft.workEnd = LocalTime(hour: workEndHour, minute: 0)
+            policyDraft.quietStart = LocalTime(hour: quietStartHour, minute: 0)
+            policyDraft.quietEnd = LocalTime(hour: quietEndHour, minute: 0)
+            try persistPolicy()
+        default:
+            break
+        }
+    }
+
+    private func persistPolicy() throws {
+        guard let dependencies else { return }
+        let policy = policyDraft.policy(preserving: originalPolicy)
+        do {
+            try dependencies.savePolicy(policy)
+            originalPolicy = policy
+            errorMessage = nil
+        } catch {
+            errorMessage = "This setup choice could not be applied. \(error.localizedDescription)"
+            throw error
         }
     }
 }

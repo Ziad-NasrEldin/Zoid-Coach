@@ -22,6 +22,8 @@ struct OnboardingDependencies {
     let requestNotifications: () async -> SourceHealth
     let loadInventory: () -> AppInventoryLoadResult
     let testDelivery: () async -> OnboardingDeliveryResult
+    let loadPolicy: () throws -> UserPolicy
+    let savePolicy: (UserPolicy) throws -> Void
 
     static func live(runtimeEnvironment: RuntimeEnvironment) -> Self {
         let reminders: any RemindersServicing
@@ -55,6 +57,7 @@ struct OnboardingDependencies {
             runtimeEnvironment: runtimeEnvironment,
             fixtureAdapter: fixtureAdapter
         )
+        let policyStore = try? PolicyStore(databaseURL: runtimeEnvironment.databaseURL)
         return Self(
             inspectReminders: { await reminders.inspect() },
             requestReminders: { await reminders.requestAccessAndInspect() },
@@ -62,7 +65,19 @@ struct OnboardingDependencies {
             inspectNotifications: { await notifications.inspect() },
             requestNotifications: { await notifications.requestAccessAndInspect() },
             loadInventory: { inventory.load() },
-            testDelivery: { await delivery.run() }
+            testDelivery: { await delivery.run() },
+            loadPolicy: {
+                guard let policyStore else {
+                    throw CocoaError(.fileNoSuchFile)
+                }
+                return try policyStore.current()?.policy ?? UserPolicy.defaults()
+            },
+            savePolicy: { policy in
+                guard let policyStore else {
+                    throw CocoaError(.fileNoSuchFile)
+                }
+                _ = try policyStore.save(policy)
+            }
         )
     }
 }
