@@ -130,6 +130,56 @@ public final class TaskHistoryStore: @unchecked Sendable {
         return entries
     }
 
+    public func latestCompletedEntry(for taskID: String) throws -> CompletedTaskHistoryEntry? {
+        let sql = """
+        SELECT h.id,
+               h.task_id,
+               COALESCE(NULLIF(h.title_snapshot, ''), s.title, 'Completed task'),
+               CASE
+                   WHEN h.source_kind IN ('reminders', 'local') THEN h.source_kind
+                   WHEN s.source_kind IN ('reminders', 'local') THEN s.source_kind
+                   ELSE 'unknown'
+               END,
+               h.occurred_at,
+               (
+                   SELECT p.reason
+                   FROM task_pause_events p
+                   WHERE p.task_id = h.task_id AND p.paused_at <= h.occurred_at
+                   ORDER BY p.paused_at DESC, p.id DESC
+                   LIMIT 1
+               )
+        FROM task_history h
+        LEFT JOIN source_tasks s ON s.source_id = h.task_id
+        WHERE h.task_id = ? AND h.state = 'completed'
+        ORDER BY h.occurred_at DESC, h.id DESC
+        LIMIT 1;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw TaskHistoryStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let taskIDPointer = sqlite3_column_text(statement, 1),
+              let titlePointer = sqlite3_column_text(statement, 2),
+              let sourcePointer = sqlite3_column_text(statement, 3),
+              let datePointer = sqlite3_column_text(statement, 4),
+              let completedAt = ISO8601DateFormatter().date(from: String(cString: datePointer))
+        else { return nil }
+        let pauseReason = sqlite3_column_text(statement, 5).flatMap {
+            TaskPauseReason(rawValue: String(cString: $0))
+        }
+        return CompletedTaskHistoryEntry(
+            id: sqlite3_column_int64(statement, 0),
+            taskID: String(cString: taskIDPointer),
+            title: String(cString: titlePointer),
+            sourceKind: CompletedTaskSourceKind(rawValue: String(cString: sourcePointer)) ?? .unknown,
+            completedAt: completedAt,
+            lastPauseReason: pauseReason
+        )
+    }
+
     public func evidence(for taskIDs: [String]) throws -> [String: TaskHistoryEvidence] {
         var result = Dictionary(uniqueKeysWithValues: taskIDs.map { ($0, TaskHistoryEvidence(selectionCount: 0, completionCount: 0, deferralCount: 0)) })
         guard !taskIDs.isEmpty else { return result }
