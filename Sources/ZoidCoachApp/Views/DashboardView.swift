@@ -840,6 +840,8 @@ private struct TodayTaskRowView: View {
     @EnvironmentObject private var model: AppModel
     let row: TodayTaskRow
     @State private var isSwitchConfirmationPresented = false
+    @State private var isBlockReasonPresented = false
+    @State private var blockReason = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -854,6 +856,22 @@ private struct TodayTaskRowView: View {
                 Text(row.title).font(Sumi.body(14)).foregroundStyle(Sumi.ink)
                 Text(taskDetail)
                     .font(Sumi.body(11)).foregroundStyle(Sumi.muted)
+                if let blockedReason = row.blockedReason, !blockedReason.isEmpty {
+                    Text("BLOCKED - \(blockedReason)")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.seal)
+                        .accessibilityIdentifier("today.task.\(row.taskID).blocked-reason")
+                } else if let deferredUntil = row.deferredUntil, deferredUntil > Date() {
+                    Text("DEFERRED UNTIL \(deferredUntil.formatted(date: .abbreviated, time: .shortened))")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.seal)
+                        .accessibilityIdentifier("today.task.\(row.taskID).deferred-until")
+                } else if row.isOptional == true {
+                    Text("OPTIONAL - NOT RESERVED ON CALENDAR")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .accessibilityIdentifier("today.task.\(row.taskID).optional")
+                }
             }
             Spacer()
             if row.state == .active {
@@ -869,7 +887,8 @@ private struct TodayTaskRowView: View {
                 SumiSelectorLabel("MORE", systemImage: "ellipsis", size: .compact, showsChevron: false)
             } content: { dismiss in
                 SumiDropdownOption("Block task", systemImage: "hand.raised") {
-                    model.applyTaskCommand(.block, taskID: row.taskID)
+                    blockReason = row.blockedReason ?? ""
+                    isBlockReasonPresented = true
                     dismiss()
                 }
                 if row.state == .paused {
@@ -922,6 +941,13 @@ private struct TodayTaskRowView: View {
             }
         } message: {
             Text("Zoid 666 will preserve the current task's tracked time, pause it with the reason Switching tasks, and start \"\(row.title)\".")
+        }
+        .sheet(isPresented: $isBlockReasonPresented) {
+            TaskBlockReasonSheet(taskTitle: row.title, reason: $blockReason) {
+                guard let entry = model.dailyPlan.first(where: { $0.reminderID == row.taskID }) else { return }
+                model.markTaskBlocked(entry, reason: blockReason)
+                isBlockReasonPresented = false
+            }
         }
     }
 
@@ -1376,11 +1402,60 @@ private struct PlanningCapacityPanel: View {
     }
 }
 
+private struct TaskBlockReasonSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let taskTitle: String
+    @Binding var reason: String
+    let save: () -> Void
+
+    private var normalizedReason: String {
+        reason.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("WHAT IS BLOCKING THIS TASK?")
+                .font(Sumi.display(24))
+                .foregroundStyle(Sumi.ink)
+            Text(taskTitle)
+                .font(Sumi.body(15))
+                .foregroundStyle(Sumi.muted)
+            Text("Save a concrete local reason so Future You can decide whether to repair, delegate, defer, or remove it.")
+                .font(Sumi.body(13))
+                .foregroundStyle(Sumi.muted)
+            TextEditor(text: $reason)
+                .font(Sumi.body(14))
+                .frame(minHeight: 110)
+                .padding(10)
+                .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+                .accessibilityIdentifier("task.block.reason")
+            HStack {
+                Text("\(normalizedReason.count) / 240")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(normalizedReason.count > 240 ? Sumi.seal : Sumi.muted)
+                Spacer()
+                Button("CANCEL") { dismiss() }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                Button("SAVE BLOCKER") { save() }
+                    .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                    .disabled(!(3...240).contains(normalizedReason.count))
+                    .accessibilityIdentifier("task.block.save")
+            }
+        }
+        .padding(28)
+        .frame(minWidth: 480, idealWidth: 520)
+        .background(Sumi.paper)
+    }
+}
+
 private struct PlannedReminderRow: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let entry: DailyPlanEntry
     let task: ReminderTask
+    @State private var isBlockReasonPresented = false
+    @State private var blockReason = ""
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -1408,6 +1483,23 @@ private struct PlannedReminderRow: View {
                             .frame(height: 22)
                             .background(Sumi.seal)
                     }
+                }
+
+                if let blockedReason = entry.blockedReason, !blockedReason.isEmpty {
+                    Text("BLOCKED - \(blockedReason)")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.seal)
+                        .accessibilityIdentifier("plan.task.\(entry.reminderID).blocked-reason")
+                } else if let deferredUntil = entry.deferredUntil, deferredUntil > Date() {
+                    Text("DEFERRED UNTIL \(deferredUntil.formatted(date: .abbreviated, time: .shortened)) - NOT INCLUDED IN CAPACITY")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.seal)
+                        .accessibilityIdentifier("plan.task.\(entry.reminderID).deferred-state")
+                } else if entry.isOptional {
+                    Text("OPTIONAL - NOT INCLUDED IN CAPACITY OR CALENDAR")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .accessibilityIdentifier("plan.task.\(entry.reminderID).optional-state")
                 }
 
                 TimeBlockSelector(
@@ -1440,6 +1532,14 @@ private struct PlannedReminderRow: View {
                 }
 
                 HStack(spacing: 14) {
+                    Button("MOVE UP") { model.moveDailyPlanEntry(entry, by: -1) }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                        .disabled(entry.rank <= 1)
+                        .accessibilityIdentifier("plan.task.\(entry.reminderID).move-up")
+                    Button("MOVE DOWN") { model.moveDailyPlanEntry(entry, by: 1) }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                        .disabled(entry.rank >= model.dailyPlan.count)
+                        .accessibilityIdentifier("plan.task.\(entry.reminderID).move-down")
                     Spacer()
                     Button("ADJUST: MAKE MAIN") { model.setMainObjective(entry) }
                         .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
@@ -1447,12 +1547,42 @@ private struct PlannedReminderRow: View {
                     Button("EXCLUDE") { model.removeFromDailyPlan(entry) }
                         .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
                 }
+                HStack(spacing: 14) {
+                    Button(entry.isOptional ? "MAKE COMMITTED" : "MARK OPTIONAL") {
+                        model.toggleOptional(entry)
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                    .disabled(entry.isMainObjective)
+                    .accessibilityIdentifier("plan.task.\(entry.reminderID).optional")
+                    Button(entry.deferredUntil == nil ? "DEFER TO TOMORROW" : "RETURN TO TODAY") {
+                        if entry.deferredUntil == nil {
+                            model.deferTaskUntilTomorrow(entry)
+                        } else {
+                            model.clearTaskDeferral(entry)
+                        }
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                    .accessibilityIdentifier("plan.task.\(entry.reminderID).defer")
+                    Button("MARK BLOCKED") {
+                        blockReason = entry.blockedReason ?? ""
+                        isBlockReasonPresented = true
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                    .accessibilityIdentifier("plan.task.\(entry.reminderID).block")
+                    Spacer()
+                }
             }
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: entry.isMainObjective)
+        .sheet(isPresented: $isBlockReasonPresented) {
+            TaskBlockReasonSheet(taskTitle: task.title, reason: $blockReason) {
+                model.markTaskBlocked(entry, reason: blockReason)
+                isBlockReasonPresented = false
+            }
+        }
     }
 }
 

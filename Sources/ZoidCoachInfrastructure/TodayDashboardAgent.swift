@@ -56,7 +56,10 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 elapsedMinutes: current?.elapsedMinutes ?? 0,
                 latestPauseReason: current?.latestPauseReason,
                 sprint: current?.sprint,
-                isMainObjective: entry.isMainObjective
+                isMainObjective: entry.isMainObjective,
+                isOptional: entry.isOptional == true,
+                blockedReason: entry.blockedReason,
+                deferredUntil: entry.deferredUntil
             )
         }
         let behavior = BehaviorSessionizer().summarize(observations: try archive.behaviorObservations(for: now), now: now)
@@ -156,13 +159,18 @@ public final class TodayDashboardAgent: @unchecked Sendable {
     }
 
     @discardableResult
-    public func apply(_ command: TaskActivityCommand, taskID: String, now: Date = Date()) throws -> TodaySnapshot {
+    public func apply(
+        _ command: TaskActivityCommand,
+        taskID: String,
+        blockedReason: String? = nil,
+        now: Date = Date()
+    ) throws -> TodaySnapshot {
         let previousSnapshot = try snapshots.load(for: now)
         let previousExecution = try execution.snapshot(for: [taskID], now: now)[taskID]
         let activeBefore = try execution.activeTask(now: now)
         let reminderBefore = try reminders.loadIncomplete().first(where: { $0.id == taskID })
         let sourceKind = try reminders.sourceKind(forID: taskID)
-        try execution.apply(command, taskID: taskID, at: now)
+        try execution.apply(command, taskID: taskID, blockedReason: blockedReason, at: now)
         switch command {
         case .complete:
             if sourceKind == .local {

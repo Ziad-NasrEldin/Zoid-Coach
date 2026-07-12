@@ -14,15 +14,18 @@ struct PlanningCapacityState: Equatable, Sendable {
     let readiness: Readiness
     let suggestedReminderID: String?
 
-    init(entries: [DailyPlanEntry], availableMinutes: Int) {
+    init(entries: [DailyPlanEntry], availableMinutes: Int, referenceDate: Date = Date()) {
         let availableMinutes = max(0, availableMinutes)
-        let missingEstimateCount = entries.count { $0.estimateMinutes == nil }
-        let plannedMinutes = entries.reduce(0) { $0 + max(0, $1.estimateMinutes ?? 0) }
+        let committedEntries = entries.filter {
+            !$0.isOptional && !($0.deferredUntil.map { $0 > referenceDate } ?? false)
+        }
+        let missingEstimateCount = committedEntries.count { $0.estimateMinutes == nil }
+        let plannedMinutes = committedEntries.reduce(0) { $0 + max(0, $1.estimateMinutes ?? 0) }
 
         self.plannedMinutes = plannedMinutes
         self.availableMinutes = availableMinutes
 
-        if entries.isEmpty {
+        if committedEntries.isEmpty {
             readiness = .empty
             suggestedReminderID = nil
         } else if missingEstimateCount > 0 {
@@ -30,7 +33,7 @@ struct PlanningCapacityState: Equatable, Sendable {
             suggestedReminderID = nil
         } else if plannedMinutes > availableMinutes {
             readiness = .overloaded(overByMinutes: plannedMinutes - availableMinutes)
-            suggestedReminderID = entries
+            suggestedReminderID = committedEntries
                 .sorted {
                     if $0.rank != $1.rank { return $0.rank > $1.rank }
                     return ($0.estimateMinutes ?? 0) > ($1.estimateMinutes ?? 0)

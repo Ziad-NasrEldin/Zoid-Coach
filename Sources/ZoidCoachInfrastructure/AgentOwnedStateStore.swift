@@ -25,12 +25,15 @@ public final class AgentOwnedStateStore: @unchecked Sendable {
             try execute("DELETE FROM daily_plan_entries WHERE day_key = ?;", values: [.text(dayKey)])
             for item in items {
                 try execute(
-                    "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+                    "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                     values: [
                         .text(dayKey), .text(item.reminderID), .integer(item.rank), .integer(item.isMainObjective ? 1 : 0),
                         item.estimateMinutes.map(Value.integer) ?? .null,
                         item.selectionReason.map(Value.text) ?? .null,
                         item.selectionScore.map(Value.integer) ?? .null,
+                        .integer(item.isOptional == true ? 1 : 0),
+                        item.blockedReason.map(Value.text) ?? .null,
+                        item.deferredUntil.map { .text(formatter.string(from: $0)) } ?? .null,
                         .text(formatter.string(from: now))
                     ]
                 )
