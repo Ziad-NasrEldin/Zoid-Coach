@@ -42,10 +42,6 @@ final class AgentReminderPlanner: @unchecked Sendable {
         recentBehavior: [PlanningBehaviorEvidence] = [],
         availableFocusMinutes: Int = 240
     ) async throws -> AgentPlanDraftResult {
-        if !overwriteExisting, try planStore.hasPlan(for: day) {
-            return .retainedExisting
-        }
-
         let reminders: [AgentReminderSnapshot]
         if let fixtureAdapter {
             reminders = try fixtureAdapter.allReminders(includeCompleted: false).map {
@@ -119,8 +115,19 @@ final class AgentReminderPlanner: @unchecked Sendable {
                 candidates: candidates
             )
         )
-        try planStore.replaceDailyPlan(proposal, for: day)
-        return .drafted(itemCount: proposal.items.count)
+        if overwriteExisting {
+            try planStore.replaceDailyPlan(proposal, for: day)
+            return .drafted(itemCount: proposal.items.count)
+        }
+        let usableTaskIDs = Set(reminders.compactMap {
+            $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0.id
+        })
+        switch try planStore.installDailyPlanIfNoUsablePlan(proposal, for: day, usableTaskIDs: usableTaskIDs) {
+        case let .installed(entries):
+            return .drafted(itemCount: entries.count)
+        case .retained:
+            return .retainedExisting
+        }
     }
 
     func synchronizeReminderSource() async throws -> ReminderSyncResult? {

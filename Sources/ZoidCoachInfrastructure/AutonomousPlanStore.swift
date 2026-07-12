@@ -20,6 +20,11 @@ public struct StoredAutonomousPlanEntry: Equatable, Codable, Sendable {
     }
 }
 
+public enum DailyPlanInstallResult: Equatable, Sendable {
+    case installed([StoredAutonomousPlanEntry])
+    case retained([StoredAutonomousPlanEntry])
+}
+
 public final class AutonomousPlanStore: @unchecked Sendable {
     private let database: OpaquePointer
     private let dateFormatter = ISO8601DateFormatter()
@@ -36,6 +41,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
               let handle
         else { throw AutonomousPlanStoreError.openDatabase }
         database = handle
+        sqlite3_busy_timeout(database, 5_000)
         self.timeZoneIdentifier = timeZoneIdentifier
     }
 
@@ -84,6 +90,48 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         }
         try insertScheduleIntent(dayKey: dayKey)
         committed = true
+    }
+
+    public func installDailyPlanIfNoUsablePlan(
+        _ proposal: DailyPlanProposal,
+        for day: Date,
+        usableTaskIDs: Set<String>
+    ) throws -> DailyPlanInstallResult {
+        guard !proposal.items.isEmpty,
+              proposal.items.filter({ $0.taskID == proposal.mainObjectiveTaskID }).count == 1,
+              Set(proposal.items.map(\.taskID)).count == proposal.items.count
+        else { throw AutonomousPlanStoreError.invalidPlan }
+
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
+            throw AutonomousPlanStoreError.transaction
+        }
+        var committed = false
+        defer { _ = sqlite3_exec(database, committed ? "COMMIT;" : "ROLLBACK;", nil, nil, nil) }
+
+        let dayKey = dayKey(for: day)
+        let previous = try loadDailyPlan(for: day)
+        let visible = previous.filter { usableTaskIDs.contains($0.reminderID) }
+        if !visible.isEmpty, visible.filter(\.isMainObjective).count == 1 {
+            committed = true
+            return .retained(visible)
+        }
+
+        if !previous.isEmpty { try saveRevision(previous, dayKey: dayKey) }
+        try execute("DELETE FROM daily_plan_entries WHERE day_key = ?;", binding: dayKey)
+        let entries = proposal.items.map { item in
+            StoredAutonomousPlanEntry(
+                reminderID: item.taskID,
+                rank: item.rank,
+                isMainObjective: item.taskID == proposal.mainObjectiveTaskID,
+                estimateMinutes: item.estimateMinutes,
+                selectionReason: item.reason,
+                selectionScore: item.score
+            )
+        }
+        for entry in entries { try insert(entry, dayKey: dayKey) }
+        try insertScheduleIntent(dayKey: dayKey)
+        committed = true
+        return .installed(entries)
     }
 
     public func loadDailyPlan(for day: Date) throws -> [StoredAutonomousPlanEntry] {
@@ -282,6 +330,7 @@ public enum AutonomousPlanStoreError: LocalizedError {
     case prepare
     case transaction
     case write
+    case invalidPlan
 
     public var errorDescription: String? {
         switch self {
@@ -290,6 +339,7 @@ public enum AutonomousPlanStoreError: LocalizedError {
         case .prepare: "Could not prepare a planning database operation"
         case .transaction: "Could not begin a planning database transaction"
         case .write: "Could not persist the autonomous daily plan"
+        case .invalidPlan: "A daily plan must contain unique tasks and exactly one main objective"
         }
     }
 }

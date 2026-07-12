@@ -45,3 +45,43 @@ func reminderSynchronizationEmitsOnlyRealChangesAndPreservesEventKitPriorityMean
     #expect(ReminderPriority.fromEventKit(5) == .medium)
     #expect(ReminderPriority.fromEventKit(9) == .low)
 }
+
+@Test
+func localFallbackTaskIsIdempotentAndSurvivesExternalReminderSynchronization() throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-local-source-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let store = try ReminderSnapshotStore(databaseURL: databaseURL)
+    let observedAt = Date(timeIntervalSince1970: 1_700_000_000)
+    let local = ReminderSourceSnapshot(
+        id: "zoid-local:onboarding:2023-11-14:main",
+        title: "Choose today's main objective",
+        dueDate: nil,
+        priority: 0,
+        sourceKind: .local
+    )
+    let reminder = ReminderSourceSnapshot(id: "reminder", title: "Real reminder", dueDate: nil, priority: 5)
+
+    #expect(try store.upsertLocal(local, observedAt: observedAt))
+    #expect(try !store.upsertLocal(local, observedAt: observedAt.addingTimeInterval(60)))
+    _ = try store.synchronize([reminder], observedAt: observedAt.addingTimeInterval(120))
+    _ = try store.synchronize([], observedAt: observedAt.addingTimeInterval(180))
+
+    #expect(try store.loadIncomplete() == [local])
+}
+
+@Test
+func externalReminderSynchronizationRejectsLocalTasksAndSourceIdentifierCollisions() throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-source-ownership-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let store = try ReminderSnapshotStore(databaseURL: databaseURL)
+    let local = ReminderSourceSnapshot(id: "owned", title: "Local", dueDate: nil, priority: 0, sourceKind: .local)
+    _ = try store.upsertLocal(local)
+
+    #expect(throws: ReminderSnapshotStoreError.self) {
+        try store.synchronize([local])
+    }
+    #expect(throws: ReminderSnapshotStoreError.self) {
+        try store.synchronize([ReminderSourceSnapshot(id: "owned", title: "External", dueDate: nil, priority: 0)])
+    }
+    #expect(try store.loadIncomplete() == [local])
+}

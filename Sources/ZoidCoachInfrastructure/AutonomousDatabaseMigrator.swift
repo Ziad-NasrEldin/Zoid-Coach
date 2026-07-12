@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 25
+    public static let currentVersion = 26
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -767,7 +767,33 @@ private extension AutonomousDatabaseMigrator {
             origin_json TEXT NOT NULL,
             created_at_utc TEXT NOT NULL
         );
-        """)])
+        """)]),
+        Migration(version: 26, isDestructive: false, operations: [
+            .sql("""
+            CREATE TABLE IF NOT EXISTS source_tasks (
+                source_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                due_at TEXT,
+                priority INTEGER NOT NULL DEFAULT 0,
+                is_completed INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL,
+                notes TEXT,
+                list_id TEXT,
+                list_name TEXT,
+                modified_at TEXT,
+                source_hash TEXT
+            );
+            """),
+            .addColumn(
+                table: "source_tasks",
+                column: "source_kind",
+                declaration: "TEXT NOT NULL DEFAULT 'reminders'"
+            ),
+            .sql("""
+            CREATE INDEX source_tasks_kind_idx
+            ON source_tasks(source_kind);
+            """)
+        ])
     ]
 }
 
