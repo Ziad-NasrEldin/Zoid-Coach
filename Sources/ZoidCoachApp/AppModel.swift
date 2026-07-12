@@ -4,6 +4,39 @@ import ZoidCoachCore
 import ZoidCoachInfrastructure
 
 @MainActor
+struct AppOSServiceFactory {
+    let reminders: () -> any RemindersServicing
+    let calendar: () -> any CalendarServicing
+    let notifications: () -> any NotificationServicing
+
+    static let live = Self(
+        reminders: { RemindersService() },
+        calendar: { CalendarService() },
+        notifications: { NotificationService() }
+    )
+}
+
+@MainActor
+struct AppMeetingEvidenceCipherFactory {
+    let production: (RuntimeEnvironment) throws -> any EvidenceCiphering
+    let qa: (RuntimeEnvironment) throws -> any EvidenceCiphering
+
+    static let live = Self(
+        production: { try LocalEvidenceCipher(runtimeEnvironment: $0) },
+        qa: { try LocalEvidenceCipher(runtimeEnvironment: $0) }
+    )
+
+    func makeCipher(for runtimeEnvironment: RuntimeEnvironment) throws -> any EvidenceCiphering {
+        switch runtimeEnvironment.mode {
+        case .production:
+            try production(runtimeEnvironment)
+        case .qa:
+            try qa(runtimeEnvironment)
+        }
+    }
+}
+
+@MainActor
 final class AppModel: ObservableObject {
     @Published var selectedSection: AppSection = .today
     @Published var coachingState: CoachingState = .observation
@@ -32,43 +65,65 @@ final class AppModel: ObservableObject {
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
-    private let remindersService: RemindersService
-    private let calendarService: CalendarService
-    private let notificationService: NotificationService
+    private let remindersService: any RemindersServicing
+    private let calendarService: any CalendarServicing
+    private let notificationService: any NotificationServicing
     private let agentLaunchService: AgentLaunchService
     private let eventStore: EventStore
     private let meetingArchive: ScreenwatchArchive?
+    private let meetingEvidenceCipherFactory: () throws -> any EvidenceCiphering
     private let todaySnapshotStore: TodaySnapshotStore?
     private let policyStore: PolicyStore?
-    private let todayDashboardXPCClient = TodayDashboardXPCClient()
+    private let todayDashboardXPCClient: TodayDashboardXPCClient
     private var reminderTasksAreAvailable = false
 
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
         screenwatchReader: ScreenwatchReader? = nil,
-        remindersService: RemindersService = RemindersService(),
-        calendarService: CalendarService = CalendarService(),
-        notificationService: NotificationService = NotificationService(),
-        agentLaunchService: AgentLaunchService = AgentLaunchService(),
+        remindersService: (any RemindersServicing)? = nil,
+        calendarService: (any CalendarServicing)? = nil,
+        notificationService: (any NotificationServicing)? = nil,
+        liveServiceFactory: AppOSServiceFactory = .live,
+        meetingEvidenceCipherFactory: AppMeetingEvidenceCipherFactory = .live,
+        agentLaunchService: AgentLaunchService? = nil,
         eventStore: EventStore? = nil
     ) {
+        let resolvedAgentLaunchService = agentLaunchService
+            ?? AgentLaunchService(runtimeEnvironment: runtimeEnvironment)
+        if case .qa = runtimeEnvironment.mode {
+            todayDashboardXPCClient = .disabled
+        } else {
+            todayDashboardXPCClient = TodayDashboardXPCClient()
+        }
         self.screenwatchReader = screenwatchReader ?? ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory)
-        self.remindersService = remindersService
-        self.calendarService = calendarService
-        self.notificationService = notificationService
-        self.agentLaunchService = agentLaunchService
+        if case .qa = runtimeEnvironment.mode {
+            self.remindersService = remindersService.flatMap { $0.isProductionAdapter ? nil : $0 }
+                ?? DisabledQARemindersService()
+            self.calendarService = calendarService.flatMap { $0.isProductionAdapter ? nil : $0 }
+                ?? DisabledQACalendarService()
+            self.notificationService = notificationService.flatMap { $0.isProductionAdapter ? nil : $0 }
+                ?? DisabledQANotificationService()
+        } else {
+            self.remindersService = remindersService ?? liveServiceFactory.reminders()
+            self.calendarService = calendarService ?? liveServiceFactory.calendar()
+            self.notificationService = notificationService ?? liveServiceFactory.notifications()
+        }
+        self.agentLaunchService = resolvedAgentLaunchService
         self.eventStore = eventStore ?? EventStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
+        self.meetingEvidenceCipherFactory = {
+            try meetingEvidenceCipherFactory.makeCipher(for: runtimeEnvironment)
+        }
         meetingArchive = try? ScreenwatchArchive(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         todaySnapshotStore = try? TodaySnapshotStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         policyStore = try? PolicyStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         Task {
-            updateSource(agentLaunchService.enableAndInspect())
+            updateSource(resolvedAgentLaunchService.enableAndInspect())
             await refreshAllSources()
             await refreshReminderTasks()
             await reloadDailyPlan()
             await reloadReminderListOrder()
             reloadMeetingCandidates()
-            updateSource(await notificationService.inspect())
+            updateSource(await self.notificationService.inspect())
             await refreshTodaySnapshot()
             await refreshPromptInbox()
             await refreshActionAudit()
@@ -515,7 +570,9 @@ final class AppModel: ObservableObject {
             return
         }
         do {
-            meetingCandidates = try meetingArchive.unresolvedMeetingCandidates()
+            meetingCandidates = try meetingArchive.unresolvedMeetingCandidates(
+                cipherFactory: meetingEvidenceCipherFactory
+            )
             meetingCandidateError = nil
         } catch {
             meetingCandidates = []

@@ -6,10 +6,13 @@ private let privacySQLiteTransient = unsafeBitCast(-1, to: sqlite3_destructor_ty
 public final class PrivacyDataService: @unchecked Sendable {
     private let database: OpaquePointer
     private let databaseURL: URL
+    private let exportRoot: URL
 
-    public init(databaseURL: URL) throws {
+    public init(databaseURL: URL, exportRoot: URL? = nil) throws {
         try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
         self.databaseURL = databaseURL
+        self.exportRoot = exportRoot
+            ?? databaseURL.deletingLastPathComponent().appendingPathComponent("Diagnostics", isDirectory: true)
         var handle: OpaquePointer?
         guard sqlite3_open_v2(databaseURL.path, &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
               let handle else { throw PrivacyDataServiceError.openDatabase }
@@ -30,13 +33,12 @@ public final class PrivacyDataService: @unchecked Sendable {
             "note": "Titles, conversation text, URLs, file paths, event names, and payloads are excluded."
         ]
         let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
-        let directory = databaseURL.deletingLastPathComponent().appendingPathComponent("Diagnostics", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: exportRoot, withIntermediateDirectories: true)
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyyMMdd-HHmmss"
-        let url = directory.appendingPathComponent("zoid-coach-redacted-\(formatter.string(from: now)).json")
+        let url = exportRoot.appendingPathComponent("zoid-coach-redacted-\(formatter.string(from: now)).json")
         try data.write(to: url, options: .atomic)
         return url
     }

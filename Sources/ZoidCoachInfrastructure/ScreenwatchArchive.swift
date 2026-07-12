@@ -208,7 +208,10 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         return MeetingAnalysisResult(screenshotsProcessed: pending.count, candidatesCreated: candidatesCreated)
     }
 
-    public func unresolvedMeetingCandidates(cipher: (any EvidenceCiphering)? = nil) throws -> [StoredMeetingCandidate] {
+    public func unresolvedMeetingCandidates(
+        cipher: (any EvidenceCiphering)? = nil,
+        cipherFactory: (() throws -> any EvidenceCiphering)? = nil
+    ) throws -> [StoredMeetingCandidate] {
         let sql = """
         SELECT source_day, epoch, title, start_at, duration_minutes, confidence, requires_clarification, state,
                confidence_score, participants_json, location, call_link, timezone_identifier
@@ -248,7 +251,11 @@ public final class ScreenwatchArchive: @unchecked Sendable {
                     location: columnText(statement, at: 10),
                     callLink: columnText(statement, at: 11),
                     timezoneIdentifier: columnText(statement, at: 12) ?? TimeZone.current.identifier,
-                    sourceEvidence: (try? decryptedSourceEvidence(candidateID: "\(sourceDay):\(sqlite3_column_int64(statement, 1))", cipher: cipher)) ?? ""
+                    sourceEvidence: (try? decryptedSourceEvidence(
+                        candidateID: "\(sourceDay):\(sqlite3_column_int64(statement, 1))",
+                        cipher: cipher,
+                        cipherFactory: cipherFactory
+                    )) ?? ""
                 )
             )
         }
@@ -770,7 +777,11 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         guard sqlite3_step(statement) == SQLITE_DONE else { throw ScreenwatchArchiveError.insert }
     }
 
-    private func decryptedSourceEvidence(candidateID: String, cipher: (any EvidenceCiphering)?) throws -> String {
+    private func decryptedSourceEvidence(
+        candidateID: String,
+        cipher: (any EvidenceCiphering)?,
+        cipherFactory: (() throws -> any EvidenceCiphering)? = nil
+    ) throws -> String {
         let sql = """
         SELECT extracted_facts.encrypted_payload
         FROM meeting_evidence
@@ -789,7 +800,13 @@ public final class ScreenwatchArchive: @unchecked Sendable {
               let bytes = sqlite3_column_blob(statement, 0) else { return "" }
         let encrypted = Data(bytes: bytes, count: Int(sqlite3_column_bytes(statement, 0)))
         let evidenceCipher: any EvidenceCiphering
-        if let cipher { evidenceCipher = cipher } else { evidenceCipher = try LocalEvidenceCipher() }
+        if let cipher {
+            evidenceCipher = cipher
+        } else if let cipherFactory {
+            evidenceCipher = try cipherFactory()
+        } else {
+            evidenceCipher = try LocalEvidenceCipher()
+        }
         let plaintext = try evidenceCipher.decrypt(encrypted)
         return try JSONDecoder().decode(ScreenshotOCRResult.self, from: plaintext).text
     }

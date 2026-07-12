@@ -35,7 +35,17 @@ enum CalendarSelectionAvailability: Equatable, Sendable {
 }
 
 @MainActor
-final class CalendarService {
+protocol CalendarServicing: AnyObject {
+    var isProductionAdapter: Bool { get }
+    var selectionAvailability: CalendarSelectionAvailability { get }
+    func availableCalendars() throws -> [CalendarChoice]
+    func inspect() async -> SourceHealth
+    func requestAccessAndInspect() async -> SourceHealth
+}
+
+@MainActor
+final class CalendarService: CalendarServicing {
+    let isProductionAdapter = true
     private let store: EKEventStore
     private let zoidCalendarTitle = "Zoid Coach"
     private let ownershipPrefix = "zoid-coach:block:"
@@ -242,6 +252,27 @@ final class CalendarService {
         case .fullAccess, .authorized: true
         default: false
         }
+    }
+}
+
+@MainActor
+final class DisabledQACalendarService: CalendarServicing {
+    let isProductionAdapter = false
+    var selectionAvailability: CalendarSelectionAvailability { .unavailable }
+    func availableCalendars() throws -> [CalendarChoice] { [] }
+    func inspect() async -> SourceHealth { health }
+    func requestAccessAndInspect() async -> SourceHealth { health }
+
+    private var health: SourceHealth {
+        SourceHealth(
+            id: .calendar,
+            title: "Apple Calendar",
+            eyebrow: "Capacity",
+            state: .unavailable,
+            detail: "QA Calendar integration is disabled",
+            evidence: "A deterministic QA Calendar adapter is required before EventKit access is enabled",
+            actionTitle: "Unavailable"
+        )
     }
 }
 

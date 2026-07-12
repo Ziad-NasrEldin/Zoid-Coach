@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import ZoidCoachCore
 
 public protocol GeminiAPIKeyProviding: Sendable {
     func loadAPIKey() throws -> String?
@@ -8,8 +9,19 @@ public protocol GeminiAPIKeyProviding: Sendable {
 public final class GeminiAPIKeyStore: GeminiAPIKeyProviding, @unchecked Sendable {
     public static let service = "com.ziadnasreldin.ZoidCoach.GeminiLive"
     public static let account = "api-key"
+    public let serviceName: String
 
-    public init() {}
+    public init(runtimeEnvironment: RuntimeEnvironment = .current()) {
+        serviceName = Self.serviceName(runtimeEnvironment: runtimeEnvironment)
+    }
+
+    public init(serviceName: String) {
+        self.serviceName = serviceName
+    }
+
+    public static func serviceName(runtimeEnvironment: RuntimeEnvironment) -> String {
+        runtimeEnvironment.keychainService(base: service)
+    }
 
     public func saveAPIKey(_ value: String) throws {
         let key = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -55,7 +67,7 @@ public final class GeminiAPIKeyStore: GeminiAPIKeyProviding, @unchecked Sendable
     private var baseQuery: [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.service,
+            kSecAttrService as String: serviceName,
             kSecAttrAccount as String: Self.account
         ]
     }

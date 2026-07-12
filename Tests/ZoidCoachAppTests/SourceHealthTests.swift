@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import ZoidCoachApp
+import ZoidCoachCore
 
 @Test
 func initialSourcesRepresentAllRequiredIntegrations() {
@@ -32,4 +33,129 @@ func sourceCheckCompletesWithStableSourceStates() async {
 
     #expect(model.sources.allSatisfy { $0.state != .checking })
     #expect(model.isCheckingSources == false)
+}
+
+@MainActor
+@Test
+func appModelPropagatesQARuntimeToBackgroundAgentControl() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-app-model-qa-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let runtimeEnvironment = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", root.path],
+        processEnvironment: [:]
+    ).environment
+    var remindersConstructionCount = 0
+    var calendarConstructionCount = 0
+    var notificationConstructionCount = 0
+    let liveServiceFactory = AppOSServiceFactory(
+        reminders: {
+            remindersConstructionCount += 1
+            return RemindersService()
+        },
+        calendar: {
+            calendarConstructionCount += 1
+            return CalendarService()
+        },
+        notifications: {
+            notificationConstructionCount += 1
+            return NotificationService()
+        }
+    )
+    let productionReminders = RecordingProductionRemindersService()
+    let productionCalendar = RecordingProductionCalendarService()
+    let productionNotifications = RecordingProductionNotificationService()
+    let model = AppModel(
+        runtimeEnvironment: runtimeEnvironment,
+        screenwatchReader: ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory),
+        remindersService: productionReminders,
+        calendarService: productionCalendar,
+        notificationService: productionNotifications,
+        liveServiceFactory: liveServiceFactory
+    )
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(2))
+
+    while model.sources.first(where: { $0.id == .agent })?.detail
+        != "QA background agent is disabled",
+        clock.now < deadline {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+
+    #expect(
+        model.sources.first(where: { $0.id == .agent })?.detail
+            == "QA background agent is disabled"
+    )
+    #expect(
+        model.sources.first(where: { $0.id == .reminders })?.detail
+            == "QA Reminders integration is disabled"
+    )
+    #expect(
+        model.sources.first(where: { $0.id == .calendar })?.detail
+            == "QA Calendar integration is disabled"
+    )
+    #expect(
+        model.sources.first(where: { $0.id == .notifications })?.detail
+            == "QA notifications are disabled"
+    )
+    #expect(remindersConstructionCount == 0)
+    #expect(calendarConstructionCount == 0)
+    #expect(notificationConstructionCount == 0)
+    #expect(productionReminders.callCount == 0)
+    #expect(productionCalendar.callCount == 0)
+    #expect(productionNotifications.callCount == 0)
+}
+
+@MainActor
+private final class RecordingProductionRemindersService: RemindersServicing {
+    let isProductionAdapter = true
+    private(set) var callCount = 0
+    func inspect() async -> SourceHealth {
+        callCount += 1
+        return .initial[0]
+    }
+    func requestAccessAndInspect() async -> SourceHealth {
+        callCount += 1
+        return .initial[0]
+    }
+    func fetchIncompleteTasks() async -> ReminderTaskLoad {
+        callCount += 1
+        return .available([])
+    }
+}
+
+@MainActor
+private final class RecordingProductionCalendarService: CalendarServicing {
+    let isProductionAdapter = true
+    private(set) var callCount = 0
+    var selectionAvailability: CalendarSelectionAvailability {
+        callCount += 1
+        return .available
+    }
+    func availableCalendars() throws -> [CalendarChoice] {
+        callCount += 1
+        return []
+    }
+    func inspect() async -> SourceHealth {
+        callCount += 1
+        return .initial[1]
+    }
+    func requestAccessAndInspect() async -> SourceHealth {
+        callCount += 1
+        return .initial[1]
+    }
+}
+
+@MainActor
+private final class RecordingProductionNotificationService: NotificationServicing {
+    let isProductionAdapter = true
+    private(set) var callCount = 0
+    func inspect() async -> SourceHealth {
+        callCount += 1
+        return .initial[4]
+    }
+    func requestAccessAndInspect() async -> SourceHealth {
+        callCount += 1
+        return .initial[4]
+    }
 }

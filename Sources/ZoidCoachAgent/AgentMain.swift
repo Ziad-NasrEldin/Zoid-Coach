@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import ZoidCoachCore
 import ZoidCoachInfrastructure
@@ -22,7 +23,16 @@ struct ZoidCoachAgentMain {
                 runtimeEnvironment: runtimeResolution.environment,
                 arguments: runtimeResolution.remainingArguments
             )
-            let captureConfigurationStore = NativeCaptureConfigurationStore()
+            try AgentOSAdapterBoundary.validate(
+                runtimeEnvironment: runtimeResolution.environment,
+                operations: AgentOSAdapterBoundary.operations(
+                    requestRemindersAccess: configuration.requestRemindersAccess,
+                    printRemindersStatus: configuration.printRemindersStatus
+                )
+            )
+            let captureConfigurationStore = NativeCaptureConfigurationStore(
+                fileURL: runtimeResolution.environment.nativeCaptureConfigurationURL
+            )
             var persistedCaptureConfiguration = try captureConfigurationStore.load()
             if configuration.nativeCapture || !configuration.captureDisplayIDs.isEmpty {
                 persistedCaptureConfiguration = NativeCaptureConfiguration(
@@ -177,7 +187,10 @@ struct ZoidCoachAgentMain {
                 planScheduler: planScheduler,
                 policyStore: policyStore,
                 reminderSnapshots: reminderSnapshotStore,
-                privacyData: try PrivacyDataService(databaseURL: configuration.databaseURL),
+                privacyData: try PrivacyDataService(
+                    databaseURL: configuration.databaseURL,
+                    exportRoot: runtimeResolution.environment.exportRoot
+                ),
                 writeCircuitBreaker: databaseWriteCircuitBreaker,
                 draftPlan: { day, overwriteExisting in
                     let policy = try policyStore.current()?.policy ?? UserPolicy.defaults()
@@ -599,6 +612,9 @@ struct ZoidCoachAgentMain {
                 print("Zoid Coach agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
                 _ = try? todayDashboardAgent.snapshot(now: Date())
             }
+        } catch let error as AgentOSAdapterBoundaryError {
+            fputs("Zoid Coach agent refused QA OS access: \(error.localizedDescription)\n", stderr)
+            Darwin.exit(EXIT_FAILURE)
         } catch {
             databaseWriteCircuitBreaker.trip(reason: error.localizedDescription)
             fputs("Zoid Coach agent entered read-only mode: \(error.localizedDescription)\n", stderr)
@@ -1042,9 +1058,7 @@ private struct AgentConfiguration {
         var printRemindersStatus = false
         var nativeCapture = ProcessInfo.processInfo.environment["ZOID_COACH_NATIVE_CAPTURE"] == "1"
         var captureDisplayIDs = Set<UInt32>()
-        var nativeCaptureDirectory = NativeCapturePolicy.appOwnedDaysDirectory(
-            applicationSupportDirectory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        )
+        var nativeCaptureDirectory = runtimeEnvironment.nativeCaptureDaysDirectory
         var index = 0
 
         while index < arguments.count {
@@ -1101,7 +1115,10 @@ private struct AgentConfiguration {
         guard NativeCapturePolicy.pathsDoNotCollide(native: nativeCaptureDirectory, legacy: screenwatchDirectory) else {
             throw AgentConfigurationError.captureDirectoryCollision
         }
-        self.nativeCaptureDirectory = nativeCaptureDirectory
+        self.nativeCaptureDirectory = try runtimeEnvironment.validatedWritableURL(
+            nativeCaptureDirectory,
+            name: "native capture"
+        )
     }
 
     static func parseDisplayIDs(_ value: String) throws -> Set<UInt32> {
