@@ -68,10 +68,7 @@ public final class PolicyStore: @unchecked Sendable {
     }
 
     public func saveMutation(_ request: PolicyMutationRequest) throws -> PolicyMutationReceipt {
-        let policy = request.policy.upgradedToCurrentSchema()
-        let violations = policy.validationViolations()
-        guard violations.isEmpty else { throw PolicyStoreError.invalidPolicy(violations) }
-        let payloadDigest = try PolicyMutationRequest.canonicalPayloadDigest(for: policy)
+        let payloadDigest = try PolicyMutationRequest.canonicalPayloadDigest(for: request.policy)
         try Self.validateMutationRequestBasics(request)
 
         lock.lock()
@@ -90,6 +87,11 @@ public final class PolicyStore: @unchecked Sendable {
                     origin: existing.origin,
                     replayed: true
                 )
+            }
+            let policy = request.policy
+            let violations = policy.validationViolations()
+            guard violations.isEmpty else {
+                throw PolicyStoreError.invalidPolicy(violations)
             }
             try Self.validateNewMutationRequestBinding(
                 request,

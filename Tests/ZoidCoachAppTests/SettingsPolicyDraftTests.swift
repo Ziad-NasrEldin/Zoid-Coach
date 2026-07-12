@@ -52,6 +52,24 @@ func calendarPickerSelectionsRoundTripWithoutExposingIdentifiersAsInput() {
     #expect(policy.calendar.schedulingCalendarIdentifier == nil)
 }
 
+@Test
+func reminderListDraftPersistsExplicitChoicesByIdentifier() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var draft = SettingsPolicyDraft(policy: original)
+
+    draft.setReminderListDecision(true, listID: "work-id")
+    draft.setReminderListDecision(false, listID: "personal-id")
+    draft.confirmReminderListConfiguration()
+    draft.capacityPercent = 85
+    let policy = draft.policy(preserving: original)
+
+    #expect(policy.reminderLists.isConfigured)
+    #expect(policy.reminderLists.decision(for: "work-id") == true)
+    #expect(policy.reminderLists.decision(for: "personal-id") == false)
+    #expect(!policy.reminderLists.includes(listID: "new-id"))
+    #expect(policy.schedule.planningCapacityPercent == 85)
+}
+
 @MainActor
 @Test
 func policyRollbackRestoresPreviousSettingsAsANewVersion() async throws {

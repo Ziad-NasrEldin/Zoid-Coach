@@ -31,6 +31,7 @@ struct SettingsPolicyDraft: Equatable {
     var behaviorPolicy: BehaviorPolicy
     var captureMode: CaptureMode
     var captureDisplayIDs: [UInt32]
+    var reminderListPolicy: ReminderListPolicy
 
     init(policy: UserPolicy) {
         operatingMode = policy.operatingMode
@@ -62,6 +63,7 @@ struct SettingsPolicyDraft: Equatable {
         behaviorPolicy = policy.behavior
         captureMode = policy.capture.mode
         captureDisplayIDs = policy.capture.configuredDisplayIDs
+        reminderListPolicy = policy.reminderLists
     }
 
     func classification(for application: String) -> AppClassificationChoice {
@@ -87,6 +89,22 @@ struct SettingsPolicyDraft: Equatable {
                   remoteEvidencePolicy == .localOnly {
             remoteEvidencePolicy = .redactedMetadataOnly
         }
+    }
+
+    mutating func setReminderListDecision(_ isIncluded: Bool, listID: String) {
+        var decisions = reminderListPolicy.decisions.filter { $0.listID != listID }
+        decisions.append(ReminderListDecision(listID: listID, isIncluded: isIncluded))
+        reminderListPolicy = ReminderListPolicy(
+            isConfigured: reminderListPolicy.isConfigured,
+            decisions: decisions
+        )
+    }
+
+    mutating func confirmReminderListConfiguration() {
+        reminderListPolicy = ReminderListPolicy(
+            isConfigured: true,
+            decisions: reminderListPolicy.decisions
+        )
     }
 
     var visibleCalendarIdentifierList: [String] {
@@ -153,7 +171,8 @@ struct SettingsPolicyDraft: Equatable {
             ),
             behavior: behaviorPolicy,
             capture: CapturePolicy(mode: captureMode, configuredDisplayIDs: captureDisplayIDs),
-            gaming: original.gaming
+            gaming: original.gaming,
+            reminderLists: reminderListPolicy
         )
     }
 

@@ -280,3 +280,17 @@ func versionFourPolicyKeepsLegacyAllListsBehaviorUntilExplicitlyConfigured() thr
     #expect(decoded.upgradedToCurrentSchema().schemaVersion == 5)
     #expect(decoded.upgradedToCurrentSchema().reminderLists == .legacyAllLists)
 }
+
+@Test
+func automationPauseChangePreservesConfiguredReminderLists() {
+    let configured = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+        .replacingReminderListPolicy(ReminderListPolicy(
+            isConfigured: true,
+            decisions: [ReminderListDecision(listID: "work-id", isIncluded: true)]
+        ))
+
+    let paused = configured.replacingAutomationPause(.pausedIndefinitely)
+
+    #expect(paused.automationPause == .pausedIndefinitely)
+    #expect(paused.reminderLists == configured.reminderLists)
+}

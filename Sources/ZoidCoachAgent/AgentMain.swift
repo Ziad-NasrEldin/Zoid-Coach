@@ -345,16 +345,8 @@ struct ZoidCoachAgentMain {
                 setAutomationPaused: { isPaused in
                     let versioned = try policyStore.current()
                     let current = versioned?.policy ?? UserPolicy.defaults()
-                    let updated = UserPolicy(
-                        operatingMode: current.operatingMode,
-                        automationPause: isPaused ? .pausedIndefinitely : .running,
-                        schedule: current.schedule,
-                        calendar: current.calendar,
-                        privacy: current.privacy,
-                        wake: current.wake,
-                        behavior: current.behavior,
-                        capture: current.capture,
-                        gaming: current.gaming
+                    let updated = current.replacingAutomationPause(
+                        isPaused ? .pausedIndefinitely : .running
                     )
                     _ = try policyStore.saveMutation(PolicyMutationRequest(
                         requestID: "system-policy-v1:voice-automation-pause:\(UUID().uuidString)",

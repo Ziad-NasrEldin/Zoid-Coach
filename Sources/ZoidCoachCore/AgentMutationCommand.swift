@@ -79,7 +79,9 @@ public struct PolicyMutationRequest: Equatable, Codable, Sendable {
     }
 
     public static func canonicalPayloadDigest(for policy: UserPolicy) throws -> String {
-        let data = try JSONEncoder.zoidPolicy.encode(policy.upgradedToCurrentSchema())
+        let data = try JSONEncoder.zoidPolicy.encode(
+            policy.canonicalizedForPolicyMutationDigest()
+        )
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }

@@ -433,10 +433,44 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         try container.encode(behavior, forKey: .behavior)
         try container.encode(capture, forKey: .capture)
         try container.encode(gaming, forKey: .gaming)
-        try container.encode(reminderLists, forKey: .reminderLists)
+        if schemaVersion >= 5 {
+            try container.encode(reminderLists, forKey: .reminderLists)
+        }
     }
 
     public func upgradedToCurrentSchema() -> UserPolicy {
+        UserPolicy(
+            operatingMode: operatingMode,
+            automationPause: automationPause,
+            schedule: schedule,
+            calendar: calendar,
+            privacy: privacy,
+            wake: wake,
+            behavior: behavior,
+            capture: capture,
+            gaming: gaming,
+            reminderLists: reminderLists
+        )
+    }
+
+    public func canonicalizedForPolicyMutationDigest() -> UserPolicy {
+        guard schemaVersion <= 4 else { return self }
+        return UserPolicy(
+            schemaVersion: 4,
+            operatingMode: operatingMode,
+            automationPause: automationPause,
+            schedule: schedule,
+            calendar: calendar,
+            privacy: privacy,
+            wake: wake,
+            behavior: behavior,
+            capture: capture,
+            gaming: gaming,
+            reminderLists: .legacyAllLists
+        )
+    }
+
+    public func replacingAutomationPause(_ automationPause: AutomationPause) -> UserPolicy {
         UserPolicy(
             operatingMode: operatingMode,
             automationPause: automationPause,

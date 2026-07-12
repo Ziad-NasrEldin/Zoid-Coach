@@ -1,4 +1,6 @@
+import CryptoKit
 import Foundation
+import SQLite3
 import Testing
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
@@ -89,6 +91,66 @@ func policyMutationRejectsAReusedRequestIDWithDifferentPayload() throws {
         try store.saveMutation(conflicting)
     }
     #expect(try store.history().map(\.version) == [2, 1])
+}
+
+@Test
+func versionFourMutationReceiptReplaysAfterSchemaFiveWithoutRewritingPolicy() throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.saveSystemMaintenancePolicy(UserPolicy.defaults(timeZoneIdentifier: "UTC"))
+    let legacy = versionFourPolicy(mode: .assist)
+    let request = PolicyMutationRequest(
+        requestID: "settings-policy-v1:durable-v4",
+        expectedVersion: 0,
+        policy: legacy,
+        origin: .settings
+    )
+    let legacyDigest = SHA256.hash(data: try JSONEncoder.zoidPolicy.encode(legacy))
+        .map { String(format: "%02x", $0) }
+        .joined()
+    try insertLegacyMutationReceipt(
+        request: request,
+        payloadDigest: legacyDigest,
+        resultingVersion: 1,
+        databaseURL: databaseURL
+    )
+
+    let replay = try store.saveMutation(request)
+
+    #expect(replay.replayed)
+    #expect(replay.payloadDigest == legacyDigest)
+    #expect(replay.resultingVersion == 1)
+    #expect(try store.current()?.version == 1)
+
+    let conflict = PolicyMutationRequest(
+        requestID: request.requestID,
+        expectedVersion: request.expectedVersion,
+        policy: versionFourPolicy(mode: .autonomous),
+        origin: request.origin
+    )
+    #expect(throws: PolicyStoreError.idempotencyConflict(request.requestID)) {
+        try store.saveMutation(conflict)
+    }
+}
+
+@Test
+func newVersionFourMutationIsRejectedAfterSchemaFive() throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    let request = PolicyMutationRequest(
+        requestID: "settings-policy-v1:new-v4",
+        expectedVersion: 0,
+        policy: versionFourPolicy(mode: .assist),
+        origin: .settings
+    )
+
+    #expect(throws: PolicyStoreError.invalidPolicy([
+        PolicyViolation(code: .unsupportedSchemaVersion, field: "schemaVersion"),
+    ])) {
+        try store.saveMutation(request)
+    }
 }
 
 @Test
@@ -335,6 +397,72 @@ private func policy(mode: OperatingMode) -> UserPolicy {
         wake: defaults.wake
     )
 }
+
+private func versionFourPolicy(mode: OperatingMode) -> UserPolicy {
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    return UserPolicy(
+        schemaVersion: 4,
+        operatingMode: mode,
+        automationPause: defaults.automationPause,
+        schedule: defaults.schedule,
+        calendar: defaults.calendar,
+        privacy: defaults.privacy,
+        wake: defaults.wake,
+        behavior: defaults.behavior,
+        capture: defaults.capture,
+        gaming: defaults.gaming,
+        reminderLists: .legacyAllLists
+    )
+}
+
+private func insertLegacyMutationReceipt(
+    request: PolicyMutationRequest,
+    payloadDigest: String,
+    resultingVersion: Int,
+    databaseURL: URL
+) throws {
+    var database: OpaquePointer?
+    guard sqlite3_open_v2(
+        databaseURL.path,
+        &database,
+        SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX,
+        nil
+    ) == SQLITE_OK, let database else {
+        throw PolicyStoreError.openDatabase
+    }
+    defer { sqlite3_close(database) }
+    var statement: OpaquePointer?
+    guard sqlite3_prepare_v2(
+        database,
+        "INSERT INTO policy_mutation_receipts(request_id, payload_digest, expected_version, resulting_version, origin_json, created_at_utc) VALUES (?, ?, ?, ?, ?, ?);",
+        -1,
+        &statement,
+        nil
+    ) == SQLITE_OK, let statement else {
+        throw PolicyStoreError.openDatabase
+    }
+    defer { sqlite3_finalize(statement) }
+    let origin = try #require(String(
+        data: JSONEncoder().encode(request.origin),
+        encoding: .utf8
+    ))
+    let values = [request.requestID, payloadDigest, origin, "2026-07-12T00:00:00Z"]
+    for (index, value) in zip([1, 2, 5, 6], values) {
+        _ = value.withCString {
+            sqlite3_bind_text(statement, Int32(index), $0, -1, policyTestSQLiteTransient)
+        }
+    }
+    sqlite3_bind_int(statement, 3, Int32(request.expectedVersion))
+    sqlite3_bind_int(statement, 4, Int32(resultingVersion))
+    guard sqlite3_step(statement) == SQLITE_DONE else {
+        throw PolicyStoreError.openDatabase
+    }
+}
+
+private let policyTestSQLiteTransient = unsafeBitCast(
+    -1,
+    to: sqlite3_destructor_type.self
+)
 
 private func onboardingPolicyRequest(
     flowID: String,
