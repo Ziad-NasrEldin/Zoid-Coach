@@ -18,6 +18,12 @@ struct ZoidCoachApplication: App {
             fflush(stderr)
             Darwin.exit(exitCode)
         }
+        if CommandLine.arguments.contains(PolicyMutationXPCProbe.unregisterAgentArgument) {
+            let exitCode = PolicyMutationXPCProbe.unregisterAgent()
+            fflush(stdout)
+            fflush(stderr)
+            Darwin.exit(exitCode)
+        }
         if CommandLine.arguments.contains(PolicyMutationXPCProbe.argument) {
             let exitCode = PolicyMutationXPCProbe.run()
             fflush(stdout)
