@@ -364,7 +364,7 @@ final class AppModel: ObservableObject {
 
     func retryReminderCompletionSync(taskID: String) {
         let state = reminderCompletionSyncState(for: taskID)
-        guard state.canRetry else { return }
+        guard state.canRetry, pendingTaskCommandIDs.isEmpty else { return }
         pendingTaskCommandIDs.insert(taskID)
         taskCommandError = nil
         Task {
@@ -396,9 +396,8 @@ final class AppModel: ObservableObject {
             .map(\.entityID)
         let taskIDs = Set(reminderTasks.map(\.id) + auditTaskIDs)
         for taskID in taskIDs {
-            if let state = try? await fetchReminderCompletionSync(taskID) {
-                reminderCompletionSyncStates[taskID] = state
-            }
+            let auditState = ReminderCompletionSyncState(taskID: taskID, audit: actionAudit)
+            reminderCompletionSyncStates[taskID] = (try? await fetchReminderCompletionSync(taskID)) ?? auditState
         }
     }
 

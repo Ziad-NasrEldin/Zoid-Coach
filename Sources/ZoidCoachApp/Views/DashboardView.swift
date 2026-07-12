@@ -401,6 +401,7 @@ private struct ReminderCompletionSyncLedger: View {
                             }
                             .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
                             .accessibilityIdentifier("today.completion-sync.\(state.taskID).retry")
+                            .disabled(model.isAnyTaskCommandPending)
                         }
                     }
                     .padding(.horizontal, 28)
@@ -900,6 +901,7 @@ private struct TodayTaskRowView: View {
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
                     .accessibilityIdentifier("today.task.\(row.taskID).retry-reminders-completion")
+                    .disabled(model.isAnyTaskCommandPending)
                 }
             }
             .accessibilityElement(children: .contain)
