@@ -38,6 +38,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 20 | Complete privacy, export, deletion, and local-data controls | verify | Lane C at `f4085ed` | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
 | 21 | Complete daily behavior review and correction | verify | Lane D at `7b96623` | User can review grouped activity sessions, correct or split classifications, attach work to a task, reject unsupported explanations, confirm the review, and see durable corrected totals after restart |
 | 22 | Complete away-from-Mac work recording and correction | verify | Offline-work lane at `55fcca3` | Reviews supports add, edit, delete, restart-safe persistence, actual-time inclusion, explicit separation from Screenwatch coverage, and honest missing-telemetry copy; active-task entry remains a separate follow-up |
+| 23 | Complete morning-planning invitation and limited-unplanned controls | verify | Morning-planning lane at `27ad4f3` | Manual planning, snooze and return, temporary dismissal, explicit unplanned mode, direct unplanned task start, drift gating, restart recovery, full suites, release, and signed candidate UI inspection are recorded in `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`; isolated installed-helper mutation proof remains |
 
 ## Pull Rules
 
@@ -62,6 +63,18 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Evidence is recorded in `.audit/runs/offline-work/55fcca39050d1ce92f9a712d7421421e763fe441/REPORT.md`.
 - A fresh verifier must complete the signed-QA Reviews click-through before the authoritative tracker advances.
 - Active-task entry scenarios `ZC-022-001` and `ZC-022-002` remain ready because this batch deliberately avoided the concurrently owned task-lifecycle surface.
+
+### Morning-planning invitation and limited-unplanned controls - `27ad4f3`
+
+- Added a low-pressure Today invitation with Plan Now, Work Unplanned, snooze, and temporary-dismiss recovery.
+- Added durable response-derived planning state without a new migration or overlap with the active review and classification lanes.
+- Added hidden deferred prompts, one-time due delivery, plan-created cancellation, restart-safe unplanned mode, and an explicit drift-intervention gate.
+- Added direct Start Without Planning controls that preserve an empty plan while making the selected Reminder the durable active task.
+- Focused planning and notification tests passed.
+- All 473 Swift tests, the release build, 41 Python evidence tests, and signed-QA packaging passed.
+- The signed app visibly exposed the complete banner, copy, task inventory, and controls with stable accessibility identifiers.
+- The final installed-helper mutation click-through remains assigned to a fresh verifier because another concurrent lane owned the single QA Mach-service registration.
+- Evidence is recorded in `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`.
 
 ### Settings policy mutation conflict UX - `87f326f`
 
