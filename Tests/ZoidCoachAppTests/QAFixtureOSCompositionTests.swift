@@ -860,12 +860,12 @@ private func launchFixtureMutationChild(
         .deletingLastPathComponent()
         .deletingLastPathComponent()
     let process = Process()
-    process.executableURL = URL(fileURLWithPath:
-        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec/swift/pm/swiftpm-testing-helper"
-    )
-    let bundleExecutable = repositoryRoot.appendingPathComponent(
-        ".build/arm64-apple-macosx/debug/ZoidCoachPackageTests.xctest/Contents/MacOS/ZoidCoachPackageTests"
-    ).path
+    process.executableURL = try activeSwiftPMTestingHelper()
+    guard let bundleExecutable = Bundle(for: FixtureTestBundleMarker.self).executableURL?.path else {
+        throw QAFixtureStateError.invalidPersistedState(
+            "the active Swift test bundle executable could not be resolved"
+        )
+    }
     process.arguments = [
         "--test-bundle-path", bundleExecutable,
         "--filter", "fixtureChildProcessMutationWorker",
@@ -881,6 +881,40 @@ private func launchFixtureMutationChild(
     process.standardError = Pipe()
     try process.run()
     return process
+}
+
+private final class FixtureTestBundleMarker {}
+
+private func activeSwiftPMTestingHelper() throws -> URL {
+    let lookup = Process()
+    let output = Pipe()
+    lookup.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+    lookup.arguments = ["--find", "swiftc"]
+    lookup.standardOutput = output
+    lookup.standardError = Pipe()
+    try lookup.run()
+    lookup.waitUntilExit()
+    guard lookup.terminationStatus == 0 else {
+        throw QAFixtureStateError.invalidPersistedState(
+            "the active Swift compiler could not be resolved through xcrun"
+        )
+    }
+    let swiftCompilerPath = String(
+        decoding: output.fileHandleForReading.readDataToEndOfFile(),
+        as: UTF8.self
+    ).trimmingCharacters(in: .whitespacesAndNewlines)
+    let toolchainUSR = URL(fileURLWithPath: swiftCompilerPath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let helper = toolchainUSR.appendingPathComponent(
+        "libexec/swift/pm/swiftpm-testing-helper"
+    )
+    guard FileManager.default.isExecutableFile(atPath: helper.path) else {
+        throw QAFixtureStateError.invalidPersistedState(
+            "swiftpm-testing-helper is unavailable in the active Swift toolchain"
+        )
+    }
+    return helper
 }
 
 private func waitForFiles(_ urls: [URL]) throws {
