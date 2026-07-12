@@ -486,6 +486,101 @@ func fixtureNotificationDeliveryAndActionRoutesToPromptInbox() async throws {
 }
 
 @Test
+func fixtureNotificationFailureProducesTruthfulPrivateLedgerOutcome() async throws {
+    let fixture = try signedQARuntime("notification-schedule-failure")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    )
+    try adapter.reset(to: .init(
+        permissions: [.notifications: .granted],
+        notificationSchedulingFailure: "qa_injected_schedule_failure"
+    ))
+    let promptStore = try PromptInboxStore(
+        databaseURL: fixture.environment.databaseURL,
+        now: { fixture.now },
+        makeID: { "failure-prompt" }
+    )
+    let episode = try promptStore.enqueue(.init(
+        decisionKey: "notification-failure",
+        type: PromptNotificationCategory.onboardingTest.rawValue,
+        title: "Private title",
+        summary: "Private body",
+        actions: [.init(kind: .continueIntentionally, title: "Continue")]
+    )).episode
+    let coordinator = PromptNotificationCoordinator(
+        promptStore: promptStore,
+        fixtureAdapter: adapter,
+        runtimeEnvironment: fixture.environment
+    )
+
+    await #expect(throws: QAFixtureStateError.self) {
+        try await coordinator.schedule(episode)
+    }
+
+    let records = try NotificationDeliveryLedger(databaseURL: fixture.environment.databaseURL).recent()
+    #expect(records.count == 1)
+    #expect(records[0].outcome == .schedulingFailed)
+    #expect(records[0].redactedError?.contains("qa_injected_schedule_failure") == true)
+    #expect(records[0].redactedError?.contains("Private title") == false)
+    #expect(records[0].redactedError?.contains("Private body") == false)
+}
+
+@Test
+func fixtureReschedulingSamePromptReplacesObsoleteContentWithoutStacking() async throws {
+    let fixture = try signedQARuntime("notification-content-replacement")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    )
+    try adapter.reset(to: .init(permissions: [.notifications: .granted]))
+    let promptStore = try PromptInboxStore(
+        databaseURL: fixture.environment.databaseURL,
+        now: { fixture.now },
+        makeID: { "replacement-prompt" }
+    )
+    let first = try promptStore.enqueue(.init(
+        decisionKey: "replace-content",
+        type: PromptNotificationCategory.planChanged.rawValue,
+        title: "Earlier plan",
+        summary: "Earlier summary",
+        actions: [.init(kind: .reviewPlan, title: "Review")]
+    )).episode
+    let updated = PromptEpisode(
+        id: first.id,
+        decisionKey: first.decisionKey,
+        type: first.type,
+        state: first.state,
+        title: "Updated plan",
+        summary: "Updated summary",
+        actions: first.actions,
+        payload: first.payload,
+        createdAt: first.createdAt,
+        expiresAt: first.expiresAt,
+        presentedAt: first.presentedAt,
+        resolvedAt: first.resolvedAt
+    )
+    let coordinator = PromptNotificationCoordinator(
+        promptStore: promptStore,
+        fixtureAdapter: adapter,
+        runtimeEnvironment: fixture.environment
+    )
+
+    #expect(try await coordinator.schedule(first))
+    #expect(try await coordinator.schedule(updated))
+
+    let notifications = try adapter.snapshot().notifications
+    #expect(notifications.count == 1)
+    #expect(notifications[0].desired.title == "Updated plan")
+    #expect(notifications[0].desired.body == "Updated summary")
+    let records = try NotificationDeliveryLedger(databaseURL: fixture.environment.databaseURL).recent()
+    #expect(records.count == 2)
+    #expect(records[0].replacedPriorRequest)
+}
+
+@Test
 func fixtureCalendarRefusesMutationOfExternalCommitment() async throws {
     let fixture = try signedQARuntime("owned-refusal")
     defer { try? FileManager.default.removeItem(at: fixture.root) }

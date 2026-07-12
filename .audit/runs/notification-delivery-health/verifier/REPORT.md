@@ -21,3 +21,14 @@ The ancestry check proved `15a43b1` is a direct first-parent ancestor of `498bca
 The code, migration, focused integration, and full automated suite are proven.
 The affected scenarios remain short of fully implemented until the serialized signed-QA Settings inspection exercises authorization unavailable, repair, refresh, accepted-by-macOS wording, stable replacement history, restart recovery, and privacy-safe visible content.
 The tracker, registry, and Lavish report remain unchanged under the root-owned serialized lease.
+
+## Serialized runtime preparation
+
+`Scripts/notification-delivery-acceptance.py` now prepares three isolated signed-QA roots for delivery and replacement, injected scheduling failure, and denied-to-repaired authorization.
+The deterministic fixture supports a bounded QA-only notification scheduling failure that records a truthful sanitized `scheduling_failed` ledger outcome without touching the production notification center.
+The harness refuses to overwrite non-empty evidence roots, queues repair only after the denied fixture was processed, and exports a privacy-safe evidence summary without prompt identifiers, request identifiers, titles, bodies, actions, or error text.
+`.audit/runs/notification-delivery-health/acceptance-mapping.json` maps every targeted tracker ID to its exact visible and machine proof plus the maximum status the harness can honestly justify.
+Four Python harness tests passed.
+Eleven focused Swift notification and migration tests passed, including injected failure and changed-content replacement without stacking.
+The broader `QAFixture` focused group passed after the fixture schema addition, proving backward-compatible decoding and control behavior.
+The shared release, package, runtime, tracker, registry, and Lavish surfaces remain untouched until the daily verifier releases its lease.

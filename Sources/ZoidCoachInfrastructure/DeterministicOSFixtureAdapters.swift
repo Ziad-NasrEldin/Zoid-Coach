@@ -11,6 +11,7 @@ public enum QAFixtureStateError: LocalizedError, Equatable, Sendable {
     case unsafeFilesystemEntry(String)
     case filesystemOperation(String, Int32)
     case controlRequestConflict(String)
+    case injectedNotificationSchedulingFailure(String)
 
     public var errorDescription: String? {
         switch self {
@@ -32,6 +33,8 @@ public enum QAFixtureStateError: LocalizedError, Equatable, Sendable {
             "The fixture filesystem operation '\(operation)' failed with POSIX code \(code)."
         case let .controlRequestConflict(requestID):
             "The fixture control requestID '\(requestID)' was reused with different content."
+        case let .injectedNotificationSchedulingFailure(reason):
+            "The QA fixture deliberately refused notification scheduling: \(reason)"
         }
     }
 }
@@ -72,6 +75,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         var reminders: [SourceTask]
         var calendarCommitments: [CalendarCommitment]
         var notifications: [QAFixtureNotificationRecord]
+        var notificationSchedulingFailure: String?
         var audit: [QAFixtureOperationAuditEntry]
         var counters: [QAFixtureEntityKind: Int]
         var generatedIdentifiers: [GeneratedIdentifier]
@@ -79,6 +83,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
 
         private enum CodingKeys: String, CodingKey {
             case schemaVersion, permissions, reminderLists, reminders, calendarCommitments, notifications
+            case notificationSchedulingFailure
             case audit, counters, generatedIdentifiers, controlReceipts
         }
 
@@ -88,6 +93,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
             reminders = seed.reminders
             calendarCommitments = seed.calendarCommitments
             notifications = seed.notifications
+            notificationSchedulingFailure = seed.notificationSchedulingFailure
             audit = []
             counters = [:]
             generatedIdentifiers = []
@@ -113,6 +119,10 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
             notifications = try values.decode(
                 [QAFixtureNotificationRecord].self,
                 forKey: .notifications
+            )
+            notificationSchedulingFailure = try values.decodeIfPresent(
+                String.self,
+                forKey: .notificationSchedulingFailure
             )
             audit = try values.decode([QAFixtureOperationAuditEntry].self, forKey: .audit)
             counters = try values.decode([QAFixtureEntityKind: Int].self, forKey: .counters)
@@ -609,6 +619,9 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     public func schedule(_ desired: NotificationDesiredState) async throws -> String {
         var identifier = ""
         try mutate(subsystem: "notifications", operation: "schedule", targetID: nil, permission: .notifications) { state in
+            if let reason = state.notificationSchedulingFailure {
+                throw QAFixtureStateError.injectedNotificationSchedulingFailure(reason)
+            }
             guard !desired.promptID.isEmpty,
                   !desired.category.isEmpty,
                   !desired.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -777,6 +790,14 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     private func validatePersistedState(_ state: PersistedState) throws {
         guard state.schemaVersion == 1 else {
             throw QAFixtureStateError.invalidPersistedState("unsupported schema")
+        }
+        if let failure = state.notificationSchedulingFailure {
+            guard !failure.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  failure.count <= 120,
+                  !failure.contains("\n"),
+                  !failure.contains("\r") else {
+                throw QAFixtureStateError.invalidPersistedState("invalid notification failure injection")
+            }
         }
         let controlRequestIDs = state.controlReceipts.map(\.request.requestID)
         guard controlRequestIDs.allSatisfy({
