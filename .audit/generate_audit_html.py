@@ -96,10 +96,10 @@ document = f"""<!doctype html>
   <header>
     <div class="eyebrow">Zoid 666 / End-user usability audit / 12 July 2026</div>
     <h1>{counts['Fully implemented']} of {len(rows)} scenarios are fully usable end to end.</h1>
-    <p class="lede">This tracker was refreshed against branch <code>codex/full-system</code> with the clean installed Zoid 666 QA build at <code>cfe7fbd34801</code>, 436 passing Swift tests, 38 passing registry and evidence tests, deterministic operating-system fixtures, exact 666-row registry validation, and visible macOS accessibility click-through. Code presence alone never qualifies as complete.</p>
+    <p class="lede">This tracker was refreshed against branch <code>codex/full-system</code> at <code>64a8ca21cc84</code>, with a clean signed Zoid 666 QA application and registered helper, 469 passing Swift tests in the implementation run, 41 passing registry and evidence tests, exact 666-row registry validation, and visible macOS accessibility click-through. Code presence alone never qualifies as complete.</p>
   </header>
   <main>
-    <div class="critical"><strong>The complete 12-step onboarding journey is now visibly proven in the installed Zoid 666 QA app.</strong> Exact Reminder-list choices, notification delivery, application classifications, schedule boundaries, Balanced gaming, Rules-only coaching, and first-plan creation persisted through the live QA XPC helper. Today displayed the prepared 15-minute local objective immediately, and package replacement plus repeated quit and relaunch retained the same plan. Real macOS permission-reset variants remain deliberately unchecked.</div>
+    <div class="critical"><strong>Away-from-Mac review work is now fully usable and restart-safe.</strong> The installed signed-QA app added a labeled 30-minute entry, kept Screenwatch-observed time at zero, corrected the same entry to 45 minutes without duplication, and restored the corrected task, note, and separated totals after relaunch. Blank or oversized descriptions are rejected, missing telemetry is never invented as work, and five scenarios moved from Not implemented to Fully implemented.</div>
     <div class="metrics">{cards}</div>
     <div class="controls">
       <input id="search" type="search" placeholder="Search scenarios, sections, status, or evidence">
