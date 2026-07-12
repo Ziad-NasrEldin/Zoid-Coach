@@ -69,6 +69,59 @@ func correctionAndTaskAttachmentPersistAndRecalculateTotalsAfterRestart() throws
 }
 
 @Test
+func futureClassificationRulePersistsCanBeReplacedAndRemovedWithoutRewritingCorrection() throws {
+    let fixedNow = Date(timeIntervalSince1970: 1_783_700_000)
+    let fixture = try DailyReviewFixture(now: { fixedNow })
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "YouTube", classification: .distracting)
+    let original = try fixture.store.load(sourceDay: fixture.sourceDay).sessions[0]
+
+    try fixture.store.correct(
+        original,
+        to: .work,
+        taskID: "Research",
+        applyToFuture: true
+    )
+    _ = try fixture.store.upsertClassificationRule(for: original, classification: .gaming)
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    var rules = try reopened.classificationRules()
+    let historical = try reopened.load(sourceDay: fixture.sourceDay)
+    #expect(rules.count == 1)
+    #expect(rules[0].application == "YouTube")
+    #expect(rules[0].normalizedApplication == "youtube")
+    #expect(rules[0].classification == .gaming)
+    #expect(historical.sessions[0].classification == .work)
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM app_classification_correction_rules;") == 2)
+
+    try reopened.removeClassificationRule(normalizedApplication: "  YOUTUBE  ")
+    rules = try reopened.classificationRules()
+    #expect(rules.isEmpty)
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM app_classification_correction_rules;") == 3)
+    #expect(try reopened.load(sourceDay: fixture.sourceDay).sessions[0].classification == .work)
+}
+
+@Test
+func futureClassificationRuleRejectsIdleAndUnknownAsUnsafeAppDefaults() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Safari", classification: .unknown)
+    let session = try fixture.store.load(sourceDay: fixture.sourceDay).sessions[0]
+
+    #expect(throws: DailyReviewStoreError.self) {
+        _ = try fixture.store.upsertClassificationRule(for: session, classification: .unknown)
+    }
+    #expect(throws: DailyReviewStoreError.self) {
+        _ = try fixture.store.upsertClassificationRule(for: session, classification: .idle)
+    }
+    #expect(throws: DailyReviewStoreError.self) {
+        try fixture.store.correct(session, to: .unknown, applyToFuture: true)
+    }
+    #expect(try fixture.store.classificationRules().isEmpty)
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM daily_review_corrections;") == 0)
+}
+
+@Test
 func splitCorrectionChangesOnlyTheSecondHalfOfASession() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
