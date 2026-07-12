@@ -27,11 +27,21 @@ The validator reports tracker drift when wording, ordering, section placement, c
 
 The required_proof_classes field describes the kinds of proof expected before a scenario can be considered complete.
 
-The evidence_paths field contains repository-relative files with optional line references.
+The evidence_paths field contains existing repository-relative files below .audit/runs with an optional single positive in-range line reference.
 
-The last_verified_commit and last_verified_build fields record the most recent installed-product verification.
+The last_verified_commit field must be a full lowercase commit that exists in this repository.
 
-Sync preserves valid manually added evidence and verification fields for an unchanged stable scenario.
+The last_verified_build field uses zoid-coach-COMMIT-clean, where COMMIT exactly matches last_verified_commit.
+
+A dirty build can be recorded in run evidence but cannot verify scenario completion.
+
+Populated verification fields require a passed evidence.json manifest bound to the same scenario, commit, clean build identity, required proof classes, assertions, and checksummed artifacts.
+
+Checked or fully implemented scenarios must link at least one audit evidence file even when historical verification identity is unavailable.
+
+Both verification fields must be populated together or both must be null.
+
+Sync preserves valid manually added evidence and verification fields only while every tracker-derived field remains unchanged.
 
 ## Commands
 

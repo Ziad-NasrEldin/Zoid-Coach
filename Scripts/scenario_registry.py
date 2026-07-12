@@ -4,7 +4,9 @@
 import argparse
 import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -13,6 +15,35 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TRACKER = ROOT / "docs" / "zoid-coach-product-scenario-tracker.md"
 DEFAULT_REGISTRY = ROOT / "docs" / "scenario-registry.json"
 EXPECTED_SCENARIO_COUNT = 666
+EXPECTED_SCHEMA = "scenario-registry.schema.json"
+EXPECTED_SCHEMA_VERSION = 1
+EXPECTED_TRACKER_PATH = "docs/zoid-coach-product-scenario-tracker.md"
+TOP_LEVEL_FIELDS = {
+    "$schema",
+    "schema_version",
+    "tracker_path",
+    "tracker_sha256",
+    "scenario_count",
+    "scenarios",
+}
+SCENARIO_FIELDS = {
+    "id",
+    "section_number",
+    "section_title",
+    "item_index",
+    "wording",
+    "checkbox_state",
+    "audit_status",
+    "delivery_status",
+    "disposition",
+    "required_proof_classes",
+    "affected_capability",
+    "evidence_paths",
+    "last_verified_commit",
+    "last_verified_build",
+    "audit_note",
+    "tracker_line",
+}
 
 AUDIT_TO_DELIVERY = {
     "Fully implemented": "fully_implemented",
@@ -44,15 +75,13 @@ SECTION_PATTERN = re.compile(r"^## (\d+)\. (.+)$")
 SCENARIO_PATTERN = re.compile(
     r"^- \[([ xX])\] (.*?) \*\*Status: ([^.]+)\.\*\*(?: (.*))?$"
 )
-EVIDENCE_REFERENCE_PATTERN = re.compile(
-    r"(?P<path>(?:[A-Za-z0-9_. -]+/)*[A-Za-z0-9_. -]+"
-    r"\.(?:swift|sh|plist|md|json|jsonl|sqlite))(?::(?P<lines>\d+(?:-\d+)?))?"
+EVIDENCE_PATH_PATTERN = re.compile(
+    r"^(?P<path>\.audit/runs/[A-Za-z0-9_. -]+"
+    r"(?:/[A-Za-z0-9_. -]+)+)"
+    r"(?::(?P<line>[1-9]\d*))?$"
 )
-VALID_EVIDENCE_PATH = re.compile(
-    r"^[A-Za-z0-9_. -]+(?:/[A-Za-z0-9_. -]+)+"
-    r"(?:\.(?:swift|sh|plist|md|json|jsonl|sqlite))"
-    r"(?::\d+(?:-\d+)?)?$"
-)
+COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+BUILD_IDENTITY_PATTERN = re.compile(r"^zoid-coach-([0-9a-f]{40})-clean$")
 
 
 def capability_for_section(section_number):
@@ -108,54 +137,8 @@ def proof_classes_for(section_number, disposition, wording):
     return sorted(proof_classes)
 
 
-def repository_file_index(repository_root):
-    excluded_parts = {".git", ".build", "DerivedData"}
-    index = {}
-    for path in repository_root.rglob("*"):
-        if not path.is_file() or any(part in excluded_parts for part in path.parts):
-            continue
-        relative = path.relative_to(repository_root).as_posix()
-        index.setdefault(path.name, []).append(relative)
-    return index
-
-
-def extract_evidence_paths(audit_note, file_index):
-    evidence_paths = set()
-    repository_paths = {path for candidates in file_index.values() for path in candidates}
-    for code_span in re.findall(r"\x60([^\x60]+)\x60", audit_note or ""):
-        for match in EVIDENCE_REFERENCE_PATTERN.finditer(code_span):
-            raw_path = match.group("path").strip()
-            lines = match.group("lines")
-            if "/" in raw_path:
-                if raw_path not in repository_paths:
-                    continue
-                resolved = raw_path
-            else:
-                candidates = file_index.get(raw_path, [])
-                if len(candidates) != 1:
-                    continue
-                resolved = candidates[0]
-            if lines:
-                resolved = f"{resolved}:{lines}"
-            evidence_paths.add(resolved)
-    return sorted(evidence_paths)
-
-
-def tracker_verification_metadata(tracker_text):
-    commit_match = re.search(
-        r"against branch \x60[^\x60]+\x60 at \x60([0-9a-f]{7,40})\x60",
-        tracker_text,
-    )
-    build_match = re.search(r"installed version ([0-9.]+) Build ([0-9]+)", tracker_text)
-    commit = commit_match.group(1) if commit_match else None
-    build = f"{build_match.group(1)} ({build_match.group(2)})" if build_match else None
-    return commit, build
-
-
 def parse_tracker(tracker_path, repository_root):
     tracker_text = tracker_path.read_text(encoding="utf-8")
-    verified_commit, verified_build = tracker_verification_metadata(tracker_text)
-    file_index = repository_file_index(repository_root)
     scenarios = []
     section_number = None
     section_title = None
@@ -196,9 +179,9 @@ def parse_tracker(tracker_path, repository_root):
                     section_number, disposition, wording
                 ),
                 "affected_capability": capability_for_section(section_number),
-                "evidence_paths": extract_evidence_paths(audit_note, file_index),
-                "last_verified_commit": verified_commit if is_checked else None,
-                "last_verified_build": verified_build if is_checked else None,
+                "evidence_paths": [],
+                "last_verified_commit": None,
+                "last_verified_build": None,
                 "audit_note": audit_note or "",
                 "tracker_line": line_number,
             }
@@ -215,7 +198,14 @@ def build_registry(tracker_path=DEFAULT_TRACKER, repository_root=ROOT, existing=
     }
     for scenario in scenarios:
         previous = previous_by_id.get(scenario["id"])
-        if not previous or previous.get("wording") != scenario["wording"]:
+        tracker_fields = SCENARIO_FIELDS - {
+            "evidence_paths",
+            "last_verified_commit",
+            "last_verified_build",
+        }
+        if not previous or any(
+            previous.get(field) != scenario.get(field) for field in tracker_fields
+        ):
             continue
         preserved_evidence = {
             value
@@ -225,14 +215,21 @@ def build_registry(tracker_path=DEFAULT_TRACKER, repository_root=ROOT, existing=
         scenario["evidence_paths"] = sorted(
             set(scenario["evidence_paths"]) | preserved_evidence
         )
-        if previous.get("last_verified_commit"):
+        verification_errors = validate_verification_identity(
+            previous.get("last_verified_commit"),
+            previous.get("last_verified_build"),
+            scenario["evidence_paths"],
+            repository_root,
+            scenario_id=scenario["id"],
+            required_proof_classes=scenario["required_proof_classes"],
+        )
+        if not verification_errors and previous.get("last_verified_commit"):
             scenario["last_verified_commit"] = previous["last_verified_commit"]
-        if previous.get("last_verified_build"):
             scenario["last_verified_build"] = previous["last_verified_build"]
 
     return {
-        "$schema": "scenario-registry.schema.json",
-        "schema_version": 1,
+        "$schema": EXPECTED_SCHEMA,
+        "schema_version": EXPECTED_SCHEMA_VERSION,
         "tracker_path": tracker_path.relative_to(repository_root).as_posix(),
         "tracker_sha256": hashlib.sha256(tracker_text.encode("utf-8")).hexdigest(),
         "scenario_count": len(scenarios),
@@ -241,16 +238,184 @@ def build_registry(tracker_path=DEFAULT_TRACKER, repository_root=ROOT, existing=
 
 
 def validate_evidence_path(value, repository_root):
-    if not isinstance(value, str) or not VALID_EVIDENCE_PATH.fullmatch(value):
+    if not isinstance(value, str):
         return False
-    path_without_lines = re.sub(r":\d+(?:-\d+)?$", "", value)
-    return (repository_root / path_without_lines).is_file()
+    match = EVIDENCE_PATH_PATTERN.fullmatch(value)
+    if not match:
+        return False
+    resolved_repository_root = repository_root.resolve()
+    audit_root = (repository_root / ".audit" / "runs").resolve()
+    try:
+        audit_root.relative_to(resolved_repository_root)
+    except ValueError:
+        return False
+    candidate = (repository_root / match.group("path")).resolve()
+    try:
+        candidate.relative_to(audit_root)
+    except ValueError:
+        return False
+    if not candidate.is_file():
+        return False
+    if match.group("line") is None:
+        return True
+    line = int(match.group("line"))
+    try:
+        with candidate.open(encoding="utf-8") as evidence_file:
+            line_count = sum(1 for _ in evidence_file)
+    except UnicodeDecodeError:
+        return False
+    return line <= line_count
+
+
+def commit_exists(commit, repository_root):
+    if not isinstance(commit, str) or not COMMIT_PATTERN.fullmatch(commit):
+        return False
+    git_environment = os.environ.copy()
+    for variable in (
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_NAMESPACE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_WORK_TREE",
+    ):
+        git_environment.pop(variable, None)
+    result = subprocess.run(
+        ["git", "-C", str(repository_root), "cat-file", "-e", f"{commit}^{{commit}}"],
+        capture_output=True,
+        env=git_environment,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def valid_manifest_for_scenario(
+    manifest_path,
+    commit,
+    build,
+    scenario_id,
+    required_proof_classes,
+):
+    if manifest_path.name != "evidence.json" or manifest_path.parent.name != commit:
+        return False
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    scenario_ids = manifest.get("scenario_ids")
+    manifest_proof_classes = manifest.get("required_proof_classes")
+    assertions = manifest.get("assertions")
+    artifacts = manifest.get("artifacts")
+    if (
+        manifest.get("verified_commit") != commit
+        or manifest.get("build_identity") != build
+        or manifest.get("status") != "passed"
+        or not isinstance(scenario_ids, list)
+        or scenario_id not in scenario_ids
+        or not isinstance(manifest_proof_classes, list)
+        or any(not isinstance(value, str) for value in manifest_proof_classes)
+        or not set(required_proof_classes).issubset(
+            set(manifest_proof_classes)
+        )
+        or not manifest.get("completed_at")
+        or not isinstance(assertions, list)
+        or not assertions
+        or not isinstance(artifacts, list)
+        or not artifacts
+    ):
+        return False
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            return False
+        relative = Path(str(artifact.get("path", "")))
+        if relative.is_absolute() or ".." in relative.parts or relative == Path("."):
+            return False
+        unresolved_artifact_path = manifest_path.parent / relative
+        if unresolved_artifact_path.is_symlink():
+            return False
+        artifact_path = unresolved_artifact_path.resolve()
+        try:
+            artifact_path.relative_to(manifest_path.parent.resolve())
+        except ValueError:
+            return False
+        if not artifact_path.is_file():
+            return False
+        digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+        if artifact.get("sha256") != digest:
+            return False
+    return True
+
+
+def validate_verification_identity(
+    commit,
+    build,
+    evidence_paths,
+    repository_root,
+    scenario_id=None,
+    required_proof_classes=(),
+):
+    errors = []
+    if commit is None and build is None:
+        return errors
+    if commit is None or build is None:
+        return ["last_verified_commit and last_verified_build must both be null or populated"]
+    if not isinstance(commit, str) or not COMMIT_PATTERN.fullmatch(commit):
+        errors.append("malformed last_verified_commit; expected 40 lowercase hex characters")
+    elif not commit_exists(commit, repository_root):
+        errors.append(f"last_verified_commit does not exist: {commit}")
+    build_match = BUILD_IDENTITY_PATTERN.fullmatch(build) if isinstance(build, str) else None
+    if not build_match:
+        errors.append(
+            "malformed last_verified_build; expected zoid-coach-<40-hex-commit>-clean"
+        )
+    elif build_match.group(1) != commit:
+        errors.append("last_verified_build commit does not match last_verified_commit")
+    if not evidence_paths:
+        errors.append("populated verification identity requires evidence_paths")
+    elif isinstance(build, str):
+        manifests = []
+        for value in evidence_paths:
+            match = EVIDENCE_PATH_PATTERN.fullmatch(value) if isinstance(value, str) else None
+            if match and match.group("line") is None:
+                manifests.append((repository_root / match.group("path")).resolve())
+        if not scenario_id or not any(
+            valid_manifest_for_scenario(
+                manifest,
+                commit,
+                build,
+                scenario_id,
+                required_proof_classes,
+            )
+            for manifest in manifests
+        ):
+            errors.append(
+                "last_verified_build requires a passed scenario-bound evidence manifest"
+            )
+    return errors
 
 
 def validate_registry(payload, tracker_path=DEFAULT_TRACKER, repository_root=ROOT):
     tracker_path = Path(tracker_path)
     repository_root = Path(repository_root)
     errors = []
+    if not isinstance(payload, dict):
+        return ["registry must be an object"]
+    unexpected_top_level = sorted(set(payload) - TOP_LEVEL_FIELDS)
+    missing_top_level = sorted(TOP_LEVEL_FIELDS - set(payload))
+    if unexpected_top_level:
+        errors.append(
+            f"unexpected top-level properties: {', '.join(unexpected_top_level)}"
+        )
+    if missing_top_level:
+        errors.append(f"missing top-level properties: {', '.join(missing_top_level)}")
+    if payload.get("$schema") != EXPECTED_SCHEMA:
+        errors.append(f"$schema must be {EXPECTED_SCHEMA}")
+    if payload.get("schema_version") != EXPECTED_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {EXPECTED_SCHEMA_VERSION}")
+    if payload.get("tracker_path") != EXPECTED_TRACKER_PATH:
+        errors.append(f"tracker_path must be {EXPECTED_TRACKER_PATH}")
+
     scenarios = payload.get("scenarios")
     if not isinstance(scenarios, list):
         return ["scenarios must be an array"]
@@ -262,15 +427,33 @@ def validate_registry(payload, tracker_path=DEFAULT_TRACKER, repository_root=ROO
         errors.append(f"registry must contain {EXPECTED_SCENARIO_COUNT} scenarios, got {len(scenarios)}")
 
     ids = [item.get("id") for item in scenarios if isinstance(item, dict)]
-    duplicate_ids = sorted({item_id for item_id in ids if ids.count(item_id) > 1})
+    seen_ids = set()
+    duplicate_ids = set()
+    for item_id in ids:
+        if not isinstance(item_id, str):
+            continue
+        if item_id in seen_ids:
+            duplicate_ids.add(item_id)
+        seen_ids.add(item_id)
     if duplicate_ids:
-        errors.append(f"duplicate scenario ID: {', '.join(duplicate_ids)}")
+        errors.append(f"duplicate scenario ID: {', '.join(sorted(duplicate_ids))}")
 
+    tracker_line_count = len(tracker_path.read_text(encoding="utf-8").splitlines())
     for index, scenario in enumerate(scenarios, start=1):
         label = scenario.get("id", f"scenario {index}") if isinstance(scenario, dict) else f"scenario {index}"
         if not isinstance(scenario, dict):
             errors.append(f"{label} must be an object")
             continue
+        unexpected_fields = sorted(set(scenario) - SCENARIO_FIELDS)
+        missing_fields = sorted(SCENARIO_FIELDS - set(scenario))
+        if unexpected_fields:
+            errors.append(
+                f"{label}: unexpected scenario properties: {', '.join(unexpected_fields)}"
+            )
+        if missing_fields:
+            errors.append(
+                f"{label}: missing scenario properties: {', '.join(missing_fields)}"
+            )
         if scenario.get("audit_status") not in AUDIT_TO_DELIVERY:
             errors.append(f"{label}: invalid audit_status")
         if scenario.get("delivery_status") not in DELIVERY_STATUSES:
@@ -281,23 +464,44 @@ def validate_registry(payload, tracker_path=DEFAULT_TRACKER, repository_root=ROO
         if (
             not isinstance(proof_classes, list)
             or not proof_classes
-            or any(value not in PROOF_CLASSES for value in proof_classes)
+            or any(
+                not isinstance(value, str) or value not in PROOF_CLASSES
+                for value in proof_classes
+            )
             or proof_classes != sorted(set(proof_classes))
         ):
             errors.append(f"{label}: malformed required_proof_classes")
         evidence_paths = scenario.get("evidence_paths")
         if (
             not isinstance(evidence_paths, list)
-            or evidence_paths != sorted(set(evidence_paths))
+            or any(not isinstance(value, str) for value in evidence_paths)
+            or len(evidence_paths) != len(set(evidence_paths))
+            or evidence_paths != sorted(evidence_paths)
             or any(not validate_evidence_path(value, repository_root) for value in evidence_paths)
         ):
             errors.append(f"{label}: malformed evidence_paths")
-        commit = scenario.get("last_verified_commit")
-        if commit is not None and not re.fullmatch(r"[0-9a-f]{7,40}", commit):
-            errors.append(f"{label}: malformed last_verified_commit")
-        build = scenario.get("last_verified_build")
-        if build is not None and (not isinstance(build, str) or not build.strip()):
-            errors.append(f"{label}: malformed last_verified_build")
+        if (
+            scenario.get("checkbox_state") == "checked"
+            or scenario.get("delivery_status") == "fully_implemented"
+        ) and not evidence_paths:
+            errors.append(f"{label}: completion claim requires evidence_paths")
+        tracker_line = scenario.get("tracker_line")
+        if (
+            not isinstance(tracker_line, int)
+            or isinstance(tracker_line, bool)
+            or tracker_line < 1
+            or tracker_line > tracker_line_count
+        ):
+            errors.append(f"{label}: tracker_line is outside the authoritative tracker")
+        for verification_error in validate_verification_identity(
+            scenario.get("last_verified_commit"),
+            scenario.get("last_verified_build"),
+            evidence_paths if isinstance(evidence_paths, list) else [],
+            repository_root,
+            scenario_id=scenario.get("id"),
+            required_proof_classes=proof_classes if isinstance(proof_classes, list) else [],
+        ):
+            errors.append(f"{label}: {verification_error}")
 
     try:
         expected = build_registry(tracker_path, repository_root, existing=payload)
@@ -306,7 +510,7 @@ def validate_registry(payload, tracker_path=DEFAULT_TRACKER, repository_root=ROO
         return errors
 
     if payload.get("tracker_sha256") != expected["tracker_sha256"]:
-        errors.append("tracker drift: tracker_sha256 does not match the authoritative tracker")
+        errors.append("tracker_sha256 does not match the authoritative tracker")
     if len(scenarios) == len(expected["scenarios"]):
         mutable_fields = {"evidence_paths", "last_verified_commit", "last_verified_build"}
         for actual, generated in zip(scenarios, expected["scenarios"]):
