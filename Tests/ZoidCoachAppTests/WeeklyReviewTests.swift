@@ -42,9 +42,6 @@ func weeklyReviewAggregatesOutcomesPatternsAndOnlyOneExperiment() throws {
     INSERT INTO daily_plan_items(id, plan_id, source_task_id, rank, estimate_minutes, estimate_confidence, reason, evidence_ids_json, is_main_objective, state)
     VALUES ('item-1', 'plan-1', 'task-1', 1, 45, 'high', 'Due today', '[]', 1, 'completed'),
            ('item-2', 'plan-1', 'task-2', 2, 30, 'medium', 'Available', '[]', 0, 'pending');
-    INSERT INTO learning_aggregates(aggregate_type, aggregate_key, sample_count, median_value, confidence, policy_version, updated_at_utc)
-    VALUES ('estimate', 'coding|medium', 5, 1.25, 0.82, 1, '2026-07-05T18:00:00Z'),
-           ('preferred_work_window', 'Mon-Fri|09:00-11:00', 7, 600, 0.78, 1, '2026-07-05T18:00:00Z');
     INSERT INTO task_history(task_id, state, occurred_at)
     VALUES ('task-blocked', 'blocked', '2026-07-01T08:00:00Z'),
            ('task-blocked', 'blocked', '2026-07-02T08:00:00Z');
@@ -57,6 +54,7 @@ func weeklyReviewAggregatesOutcomesPatternsAndOnlyOneExperiment() throws {
     INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, ingested_at, classification)
     VALUES ('2026-07-02', CAST(strftime('%s', '2026-07-02T09:10:00Z') AS INTEGER), '12:10', 'Code', '', '', 0, '2026-07-02T09:10:00Z', 'work');
     """)
+    try recordWeeklyLearningEvidence(databaseURL, dayOffset: 0)
 
     let store = try WeeklyReviewStore(
         databaseURL: databaseURL,
@@ -88,18 +86,15 @@ func weeklyReviewAggregatesOutcomesPatternsAndOnlyOneExperiment() throws {
 }
 
 @Test
-func weeklyReviewDoesNotUseLearningAggregatesOutsideThePriorWeek() throws {
+func weeklyReviewDoesNotUseLearningEvidenceOutsideThePriorWeek() throws {
     let databaseURL = weeklyTemporaryDatabaseURL("stable-window")
     defer { weeklyRemoveDatabaseFiles(at: databaseURL) }
     _ = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
     for (offset, day) in ["2026-06-30", "2026-07-01", "2026-07-02"].enumerated() {
         try insertCoveredDay(databaseURL, day: day, epoch: 1_751_328_000 + Int64(offset * 86_400))
     }
-    try weeklyExecute(databaseURL, """
-    INSERT INTO learning_aggregates(aggregate_type, aggregate_key, sample_count, median_value, confidence, policy_version, updated_at_utc)
-    VALUES ('estimate', 'stale|medium', 99, 1.80, 0.99, 1, '2026-06-20T18:00:00Z'),
-           ('preferred_work_window', 'future|23:00-01:00', 99, 600, 0.99, 1, '2026-07-08T18:00:00Z');
-    """)
+    try recordWeeklyLearningEvidence(databaseURL, dayOffset: -14)
+    try recordWeeklyLearningEvidence(databaseURL, dayOffset: 8)
 
     let snapshot = try WeeklyReviewStore(
         databaseURL: databaseURL,
@@ -223,6 +218,30 @@ private func insertCoveredDay(_ databaseURL: URL, day: String, epoch: Int64) thr
            ('\(day)', \(epoch + 1800), '09:30', 'Game', '', '', 0, '\(day)T09:30:00Z', 'gaming'),
            ('\(day)', \(epoch + 3600), '10:00', 'Messages', '', '', 0, '\(day)T10:00:00Z', 'distracting');
     """)
+}
+
+private func recordWeeklyLearningEvidence(_ databaseURL: URL, dayOffset: Int) throws {
+    let store = try LearningAggregateStore(databaseURL: databaseURL)
+    let context = EstimateLearningContext(taskType: "coding", project: "Zoid 666")
+    let base = try #require(weeklyCalendar.date(byAdding: .day, value: dayOffset, to: ISO8601DateFormatter().date(from: "2026-06-30T08:00:00Z")!))
+    for index in 0..<5 {
+        let startedAt = try #require(weeklyCalendar.date(byAdding: .day, value: index % 3, to: base))
+        let completedAt = startedAt.addingTimeInterval(45 * 60)
+        _ = try store.recordEstimateSample(EstimateLearningSample(
+            id: "estimate-\(dayOffset)-\(index)",
+            context: context,
+            estimatedMinutes: 30,
+            actualAlignedMinutes: 45,
+            trackingCoverage: 0.9,
+            completedAt: completedAt
+        ))
+        _ = try store.recordWorkWindowSample(WorkWindowLearningSample(
+            id: "window-\(dayOffset)-\(index)",
+            startedAt: startedAt,
+            endedAt: startedAt.addingTimeInterval(90 * 60),
+            trackingCoverage: 0.9
+        ), timeZoneIdentifier: "Africa/Cairo")
+    }
 }
 
 private func weeklyTemporaryDatabaseURL(_ label: String) -> URL {
