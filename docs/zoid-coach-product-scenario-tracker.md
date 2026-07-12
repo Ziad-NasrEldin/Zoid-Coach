@@ -8,16 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Audited on 2026-07-12 against branch `codex/remove-atoll-integration` at `f519b2bd28ce`, all 188 passing Swift tests, the successful release build, installed version 0.1.0 Build 8, the running background agent, live macOS accessibility state, connected Reminders and Screenwatch data, launchd status, and local persistence.
+Updated on 2026-07-12 against branch `codex/full-system` at `3269ee8ec1c4`, the successful release build, the isolated signed-QA application, deterministic operating-system fixtures, the exact 666-scenario registry, and visible macOS accessibility click-through testing.
+
+This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 6
-- **Touches remaining:** 120
-- **Frontend only left:** 27
-- **Partially implemented:** 156
+- **Fully implemented:** 19
+- **Touches remaining:** 138
+- **Frontend only left:** 26
+- **Partially implemented:** 145
 - **Barely started:** 49
-- **Not implemented:** 275
+- **Not implemented:** 256
 - **Blocked from verification:** 33
 - **Total:** 666
 
@@ -31,77 +33,77 @@ Only scenarios proven completely usable end to end are checked.
 - **Not implemented** means no meaningful implementation of the user scenario was found.
 - **Blocked from verification** means the flow may exist but current conditions prevent credible end-to-end proof.
 
-### Runtime verification note
+### Current verification note
 
-An earlier audit pass observed the background agent holding a database through deleted file descriptors while the canonical database was empty.
+The signed-QA application now opens a clean first launch without requiring a pre-existing policy database.
 
-The agent subsequently restarted and recovered onto the canonical Application Support path.
+Visible accessibility click-through verified the welcome, local-privacy, Reminders, Screenwatch, notifications, application inventory, and application-classification steps.
 
-The audit captured a passing packaged-service, signing, launchd, Screenwatch-freshness, and Zoid-ingestion check after recovery.
+The test also verified leaving setup for Today, relaunching the app, and resuming at the exact saved onboarding step.
 
-A later recheck still passed package, signing, LaunchAgent, and Mach-service validation, but failed Screenwatch freshness because its last record was approximately five minutes old even though both Screenwatch processes and the Zoid agent remained running.
+The isolated QA and unit suites cover persistence conflicts, exact Reminder-list identities, all-lists-excluded local fallback, canonical Screenwatch bookmarks, gaming-policy storage, and first-plan restart durability.
 
-The canonical database remained healthy at 7.99 MB with the expected schema, a live WAL, and no database handles under Trash.
+The visible onboarding run currently stops at application-classification persistence because the manually launched QA package's helper was not registered with launchd.
 
-This recovery removes the storage blocker but does not prove unperformed restart, sleep, crash, week-long, or destructive-source journeys.
+Rows beyond that point remain unchecked unless another deterministic end-to-end proof establishes the complete outcome.
 
 ## 1. First launch
 
-- [ ] Open Zoid Coach for the first time and immediately understand that it helps connect planned work with actual computer activity. **Status: Partially implemented.** The installed app opens directly to a Today screen labelled around reminders and local sources, but there is no first-launch explanation or guided context (`ZoidCoachApp.swift:18-46`).
-- [ ] Understand that Apple Reminders represents intended work. **Status: Touches remaining.** Source health labels Reminders as `Intent` and Today says it is grounded in reminders, but the relationship is not explained during first launch (`AppModel.swift:594-604`; runtime screenshot).
-- [ ] Understand that Screenwatch represents observed computer activity. **Status: Partially implemented.** Source health labels Screenwatch as `Behavior`, but there is no first-launch explanation connecting captured activity to coaching (`AppModel.swift:634-644`).
-- [ ] Understand that the Today dashboard provides persistent status and prompts. **Status: Touches remaining.** The dashboard visibly contains source status and a shared prompt inbox, but first launch never explains persistence or how prompts return (`DashboardView.swift:312-353`).
-- [ ] Understand that Zoid Coach is a coach rather than a replacement task manager. **Status: Partially implemented.** The app calls itself a coach and shows Reminders inventory, but it never explicitly explains that Reminders remains the task system of record.
-- [ ] Understand that the app does not punish, shame, or block the user by default. **Status: Not implemented.** No onboarding or settings copy states this user promise, and the installed first-launch surface does not communicate it.
-- [ ] Understand that important data stays on the Mac by default. **Status: Touches remaining.** Persistent `LOCAL ONLY` and `LOCAL-FIRST` labels are visible, with remote evidence controls, but the default privacy boundary is not introduced on first launch (`SettingsView.swift:281-294,572-648`).
-- [ ] Continue onboarding without being forced to configure optional AI features. **Status: Not implemented.** There is no onboarding flow or continuation action; the app simply opens the main dashboard, while AI remains optional only in Settings.
-- [ ] Leave onboarding and resume from the same point later. **Status: Not implemented.** No onboarding state, steps, exit control, or resume persistence exists in the app target.
-- [ ] Restart the app during onboarding without losing completed setup steps. **Status: Not implemented.** No onboarding state model or persisted setup-step record exists.
+- [x] Open Zoid Coach for the first time and immediately understand that it helps connect planned work with actual computer activity. **Status: Fully implemented.** A clean signed-QA launch opens the Welcome step with explicit planned-versus-actual copy, and the visible accessibility run confirmed the complete first screen (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).
+- [x] Understand that Apple Reminders represents intended work. **Status: Fully implemented.** The Welcome and Local Truth steps explicitly describe Reminders as intended work before the dedicated permission step, and both screens were verified in the signed-QA app (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`).
+- [x] Understand that Screenwatch represents observed computer activity. **Status: Fully implemented.** The first-launch copy explains what actually happens on the Mac and the dedicated Screenwatch step explains behavior coaching before access or folder selection; the visible run reached and inspected this step (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`).
+- [x] Understand that the Today dashboard provides persistent status and prompts. **Status: Fully implemented.** Welcome states that Today keeps the plan, source status, and unanswered coaching choices in one place, and Exit For Now visibly opened Today (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:104`; `Sources/ZoidCoachApp/Views/DashboardView.swift`).
+- [ ] Understand that Zoid Coach is a coach rather than a replacement task manager. **Status: Touches remaining.** First launch consistently presents Zoid Coach as a coach grounded in Reminders, but it still does not state as directly as it should that Reminders remains the task system of record.
+- [x] Understand that the app does not punish, shame, or block the user by default. **Status: Fully implemented.** The Welcome step says recovery is without shame and nothing is blocked or punished by default; the gaming-policy step reinforces that no option locks apps or removes the user's final decision (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:104`).
+- [x] Understand that important data stays on the Mac by default. **Status: Fully implemented.** The Local Truth step explicitly explains local Reminders, Screenwatch summaries, plans, and coaching history, and the signed-QA run visibly confirmed the screen (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:108`).
+- [ ] Continue onboarding without being forced to configure optional AI features. **Status: Touches remaining.** The persisted rules-only coaching choice and continuation path are implemented and tested, but the visible click-through has not yet reached the coaching-mode step (`OnboardingRootView.swift:528-575`; `OnboardingCoordinatorTests.swift`).
+- [x] Leave onboarding and resume from the same point later. **Status: Fully implemented.** Exit For Now opened Today from step 3, and relaunching the signed-QA app returned to the exact same Reminders step (`Sources/ZoidCoachInfrastructure/OnboardingProgressStore.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).
+- [x] Restart the app during onboarding without losing completed setup steps. **Status: Fully implemented.** Killing and relaunching the signed-QA app at step 3 restored step 3 exactly, while crash-safe revision and migration tests cover durable progress recovery (`Tests/ZoidCoachAppTests/OnboardingProgressStoreHardeningTests.swift`; `Tests/ZoidCoachAppTests/OnboardingProgressTests.swift`).
 
 ## 2. Reminders permission during onboarding
 
-- [ ] See why Reminders access is useful before macOS requests permission. **Status: Partially implemented.** Source health says EventKit access is required for task sync, but clicking Connect requests permission immediately and there is no pre-permission explainer (`RemindersService.swift:39-48`; `AppModel.swift:106-115`).
-- [ ] Grant Reminders access and continue setup. **Status: Partially implemented.** The Connect action requests full EventKit access and refreshes tasks on success, but there is no setup flow to continue (`RemindersService.swift:72-88`; `AppModel.swift:106-115`).
-- [ ] Deny Reminders access and understand which features will be unavailable. **Status: Partially implemented.** Denial produces `Reminders access is unavailable` and a task-load error, but the UI does not enumerate unavailable planning, completion, and sync features (`RemindersService.swift:49-58`; `AppModel.swift:507-512`).
-- [ ] Continue setup after denying Reminders access. **Status: Not implemented.** There is no setup flow and no explicit continue-without-Reminders action.
-- [ ] Open System Settings directly when ready to grant previously denied access. **Status: Not implemented.** The Reminders repair button retries the permission request; no Reminders privacy deep link is wired, unlike native-capture repair links (`AppModel.swift:106-115`; `SettingsView.swift:826-842`).
-- [ ] Return from System Settings and see the updated permission state. **Status: Partially implemented.** Foreground activation does not refresh source health, though a manual Retry or global source check updates it (`ZoidCoachApp.swift:34-42`; `AppModel.swift:85-130`).
+- [x] See why Reminders access is useful before macOS requests permission. **Status: Fully implemented.** The dedicated Reminders onboarding step explains intended work and unavailable capabilities before the Request Access control, and the signed-QA run visibly inspected this state without invoking macOS permission (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).
+- [ ] Grant Reminders access and continue setup. **Status: Touches remaining.** The onboarding request, granted-state refresh, exact-list discovery, and continuation logic pass deterministic QA tests, but the live signed-QA click-through used Not Now instead of exercising a real grant (`OnboardingCoordinator.swift`; `QAFixtureOSCompositionTests.swift`).
+- [ ] Deny Reminders access and understand which features will be unavailable. **Status: Touches remaining.** Denied-state consequence copy, repair, and local-only continuation are implemented and deterministically tested, but the visible run exercised deliberate deferral rather than a real macOS denial (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`).
+- [ ] Continue setup after denying Reminders access. **Status: Touches remaining.** The explicit Not Now path was clicked in the signed-QA app and the denied path passes deterministic QA, but an actual macOS denial followed by continuation has not yet been visibly exercised (`OnboardingCoordinator.swift`; `OnboardingCoordinatorTests.swift`).
+- [ ] Open System Settings directly when ready to grant previously denied access. **Status: Touches remaining.** Onboarding now exposes the Reminders privacy repair destination and tests cover the command, but the native System Settings handoff was not clicked in the visible run (`OnboardingDependencies.swift:176-189`; `OnboardingCoordinatorTests.swift`).
+- [ ] Return from System Settings and see the updated permission state. **Status: Touches remaining.** Recheck and foreground-safe inspection update onboarding health and list discovery, with deterministic tests covering transitions; the real System Settings round trip remains unperformed (`OnboardingCoordinator.swift`; `OnboardingCoordinatorTests.swift`).
 - [ ] Avoid seeing the same permission dialog repeatedly after declining it. **Status: Blocked from verification.** EventKit and macOS authorization handling support the behavior, but the independent `a068d27` verifier could not run the packaged deny-and-retry UI flow without mutating real permission state (`.audit/runs/baseline/a068d27/REPORT.md`).
-- [ ] Use manual local planning while Reminders access is unavailable. **Status: Not implemented.** Manual plan items can only be added from fetched `ReminderTask` records, and unavailable access clears that inventory (`AppModel.swift:491-513,200-218`).
+- [ ] Use manual local planning while Reminders access is unavailable. **Status: Touches remaining.** First-plan preparation now creates and durably restores an explicit local-only plan when Reminders is unavailable or every list is excluded, including restart proof; the visible click-through has not yet reached the first-plan step (`OnboardingFirstDailyPlanService.swift`; `OnboardingFirstDailyPlanServiceTests.swift`).
 
 ## 3. Screenwatch setup during onboarding
 
-- [ ] Let Zoid Coach find Screenwatch automatically at the expected location. **Status: Touches remaining.** The reader automatically checks `~/screenwatch/days/YYYY-MM-DD/log.jsonl`, and tests cover healthy and missing streams, but no onboarding confirmation was exercised (`ScreenwatchReader.swift:13-23,83-92`).
+- [x] Let Zoid Coach find Screenwatch automatically at the expected location. **Status: Fully implemented.** The onboarding step automatically inspects the canonical default source before asking for a choice, and the visible signed-QA run displayed its current health plus Check Expected Folder and Choose Folder controls (`Sources/ZoidCoachInfrastructure/ScreenwatchSourceRepository.swift`; `Tests/ZoidCoachAppTests/ScreenwatchSetupServiceTests.swift`).
 - [ ] See whether the detected Screenwatch source is healthy. **Status: Blocked from verification.** Source health code and the live backend verifier support the behavior, but the independent `a068d27` verifier had no current packaged UI or accessibility proof (`.audit/runs/baseline/a068d27/REPORT.md`).
-- [ ] Select another Screenwatch folder when the default location is unavailable. **Status: Not implemented.** `ScreenwatchReader` is constructed with a fixed default base directory and no folder picker or persisted bookmark is exposed (`ScreenwatchReader.swift:13-20`).
-- [ ] Understand why a selected folder is invalid without seeing sensitive captured content. **Status: Not implemented.** There is no folder selection flow; fixed-source errors avoid content leakage but cannot validate a user-selected folder.
-- [ ] Continue setup without Screenwatch and understand that behavior coaching will be unavailable. **Status: Partially implemented.** The app remains usable when the stream is missing and shows `Unavailable`, but no setup choice or explicit consequence summary exists (`ScreenwatchReader.swift:25-35`).
-- [ ] Open the repair path when folder access is denied. **Status: Not implemented.** Source health only retries inspection; it does not open Finder, System Settings, or a folder reauthorization picker.
-- [ ] Return after repairing access and see Screenwatch become connected. **Status: Partially implemented.** A manual source refresh will re-inspect and update health, but foreground return is not automatically detected (`AppModel.swift:116-118,445-455`).
-- [ ] Understand that screenshots are not routinely inspected. **Status: Partially implemented.** Settings exposes an opt-in `Analyze Screenwatch screenshots` toggle, but the first-use source flow never explains the default behavior (`SettingsView.swift:572-575`).
-- [ ] Choose whether screenshot analysis may be used for genuinely ambiguous situations. **Status: Touches remaining.** The persisted screenshot-analysis toggle exists and is covered by settings-policy tests, but its UI copy does not limit use specifically to ambiguous situations (`SettingsView.swift:572-575`).
+- [ ] Select another Screenwatch folder when the default location is unavailable. **Status: Touches remaining.** A native folder picker, private atomic security-scoped bookmark store, no-follow validation, canonical app-agent-OCR consumption, and restart tests are implemented; the visible run confirmed the Choose Folder control but did not complete the picker (`ScreenwatchSourceRepository.swift`; `ScreenwatchSourceRepositoryTests.swift`).
+- [ ] Understand why a selected folder is invalid without seeing sensitive captured content. **Status: Touches remaining.** Privacy-safe malformed, schema, bookmark, and unsafe-path diagnostics are implemented and tested without exposing captured records, but an invalid native folder selection was not visibly exercised (`Tests/ZoidCoachAppTests/ScreenwatchSetupServiceTests.swift`; `Tests/ZoidCoachAppTests/ScreenwatchSourceRepositoryTests.swift`).
+- [x] Continue setup without Screenwatch and understand that behavior coaching will be unavailable. **Status: Fully implemented.** The signed-QA run clicked Not Now on the Screenwatch step, saw the consequence copy, and continued to Notifications (`Sources/ZoidCoachApp/Onboarding/OnboardingCoordinator.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).
+- [ ] Open the repair path when folder access is denied. **Status: Touches remaining.** Choose Folder and Recheck are now present and the repository rejects stale, invalid, unsafe, and cross-run bookmarks deterministically; the actual denied-access picker recovery was not visibly exercised (`ScreenwatchSourceRepositoryTests.swift`).
+- [ ] Return after repairing access and see Screenwatch become connected. **Status: Touches remaining.** Recheck resolves the canonical bookmark afresh and updates onboarding health, with consumer and restart tests covering the transition; a visible repair round trip remains (`ScreenwatchSourceRepositoryTests.swift`; `OnboardingCoordinatorTests.swift`).
+- [ ] Understand that screenshots are not routinely inspected. **Status: Touches remaining.** Onboarding explains the local, privacy-bounded source and Settings exposes explicit screenshot-analysis opt-in, but the exact routine-versus-ambiguous promise still needs clearer copy (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Sources/ZoidCoachApp/Views/SettingsView.swift`).
+- [ ] Choose whether screenshot analysis may be used for genuinely ambiguous situations. **Status: Touches remaining.** The persisted choice is implemented in onboarding and Settings with policy tests, but the visible run has not reached and saved that preference (`OnboardingRootView.swift`; `SettingsPolicyDraftTests.swift`).
 
 ## 4. Notification setup
 
-- [ ] Understand that the Today dashboard remains available without notification permission. **Status: Partially implemented.** The dashboard does work without authorization, but the notification connection UI does not explain that fallback.
+- [x] Understand that the Today dashboard remains available without notification permission. **Status: Fully implemented.** The Notifications onboarding step explicitly explains the Today fallback, and the visible signed-QA run clicked Not Now and continued successfully (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:132`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).
 - [ ] Grant notification permission for timely prompts. **Status: Touches remaining.** Source health requests alert, sound, and badge permission and the prompt coordinator can schedule authorized notifications, but this path was not exercised live (`NotificationService.swift:75-90`; `PromptNotificationCoordinator.swift:38-56`).
 - [ ] Resolve a test notification action. **Status: Not implemented.** There is no test-notification control or synthetic test prompt anywhere in the app.
-- [ ] Deny notification permission and continue with in-app prompts. **Status: Touches remaining.** Denial yields an attention state while the dashboard prompt inbox remains functional, though no explicit continue action or explanatory handoff exists (`NotificationService.swift:52-61`; `DashboardView.swift:312-353`).
+- [ ] Deny notification permission and continue with in-app prompts. **Status: Touches remaining.** The explicit Not Now path keeps Today prompts available and advanced the visible signed-QA flow to application inventory, while deterministic QA covers denial; an actual macOS denial remains to be clicked through (`OnboardingCoordinator.swift`; `OnboardingCoordinatorTests.swift`).
 - [ ] Test the Today dashboard prompt inbox. **Status: Partially implemented.** The inbox renders actions and sends responses through XPC, but no user-facing test prompt is available and several task-related prompt action kinds have no effect router (`DashboardView.swift:312-353`; `PromptResponseEffectRouter.swift:43-108`).
 
 ## 5. Initial preferences
 
 - [ ] Choose which Reminder lists Zoid Coach should use. **Status: Touches remaining.** Onboarding and Settings now discover lists by their exact opaque EventKit identifier, show the current visible name, require an explicit Include or Exclude decision after access is granted, and persist schema-v5 choices through the CAS/idempotent policy saga. Signed-QA discovery, rename, restart, and exact-ID tests pass, but the native control still needs visible click-through proof after the Mac is unlocked (`RemindersService.swift`; `OnboardingRootView.swift`; `SettingsView.swift`; `UserPolicy.swift`).
 - [ ] Exclude personal or irrelevant Reminder lists. **Status: Touches remaining.** Configured exclusions now filter AppModel, agent synchronization and planning, and first-plan preparation consistently; unknown new lists fail closed, all-excluded mode preserves local tasks, and Settings refreshes the current session immediately. Deterministic signed-QA filtering and restart proof pass, while native visual interaction remains unverified (`AppModel.swift`; `AgentReminderPlanner.swift`; `OnboardingFirstDailyPlanService.swift`).
-- [ ] Preview detected applications before assigning categories. **Status: Touches remaining.** Settings inventory merges installed and observed apps and presents classification controls, with passing inventory tests, but the first-use flow is not guided or live-verified (`SettingsView.swift:486-492`; `AppClassificationLedger.swift`).
-- [ ] Mark known work applications. **Status: Touches remaining.** The app-classification ledger persists exact work overrides and tests pass, but the installed interaction was not exercised end to end (`SettingsPolicyDraft.swift:66-78`).
-- [ ] Mark known gaming applications. **Status: Touches remaining.** The same ledger supports gaming overrides and persistence tests pass, but live selection and subsequent behavior reclassification were not verified (`SettingsPolicyDraft.swift:66-78`).
-- [ ] Leave ambiguous applications unclassified for later review. **Status: Touches remaining.** Applications can be returned to Automatic, but there is no explicit ambiguous-review queue or onboarding defer action.
-- [ ] Configure a flexible work window. **Status: Touches remaining.** Work start and end time fields persist in the versioned policy, but no initial-preferences flow or live scheduling proof was completed (`SettingsView.swift:464-483`).
-- [ ] Configure quiet hours. **Status: Touches remaining.** Quiet start and end controls exist and persist, but there is no onboarding preview or live prompt-suppression proof (`SettingsView.swift:464-483`).
-- [ ] Choose an initial gaming policy. **Status: Frontend only left.** Core gaming budget and reward policy exists and dashboard status is calculated, but Settings exposes no budget, reward, or unlock-policy controls (`TodayDashboard.swift:232-257`; `TodayDashboardAgent.swift:57-60`).
-- [ ] Choose rules-only coaching for Release 1. **Status: Touches remaining.** Settings offers the Disabled rules-only AI provider and local-only behavior, but it is not presented as an initial Release 1 choice (`SettingsView.swift:572-648`; `AIProviderCapabilities.swift`).
-- [ ] Finish onboarding by opening the first daily plan. **Status: Not implemented.** There is no onboarding completion transition; the app always opens Today directly.
+- [x] Preview detected applications before assigning categories. **Status: Fully implemented.** The signed-QA app scanned the actual Mac, displayed 114 detected applications, exposed Scan Again, and advanced only after the user reviewed the inventory (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).
+- [ ] Mark known work applications. **Status: Touches remaining.** The visible signed-QA run selected Work for Activity Monitor and the policy saga, XPC command, persistence, conflict replay, and behavior consumers are tested; the manually launched helper was not registered, so this exact click was not durably saved (`OnboardingCoordinator.swift`; `PolicyStoreTests.swift`).
+- [ ] Mark known gaming applications. **Status: Touches remaining.** The visible signed-QA run selected Gaming for Atoll and backend persistence is tested, but the helper-registration issue prevented this exact visible selection from completing end to end (`OnboardingCoordinator.swift`; `PolicyStoreTests.swift`).
+- [ ] Leave ambiguous applications unclassified for later review. **Status: Touches remaining.** Every detected application defaults to Automatic and the visible signed-QA run left most applications unchanged, but the helper-registration failure prevented the complete classification draft from being durably saved (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; signed-QA click-through on 2026-07-12).
+- [ ] Configure a flexible work window. **Status: Touches remaining.** A dedicated onboarding schedule step now writes the versioned work window through conflict-safe policy persistence, with restart and mutation tests; visible click-through has not reached this step (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`).
+- [ ] Configure quiet hours. **Status: Touches remaining.** The onboarding schedule step now persists quiet hours through the same conflict-safe policy boundary, but the visible run has not yet saved them (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`).
+- [ ] Choose an initial gaming policy. **Status: Touches remaining.** Onboarding now presents explicit gaming policies, persists the choice through the app-agent XPC boundary, and preserves it across restart; visible click-through has not yet reached the step (`OnboardingRootView.swift:486-526`; `PolicyStoreTests.swift`).
+- [ ] Choose rules-only coaching for Release 1. **Status: Touches remaining.** Onboarding now presents and persists a rules-only choice without requiring an AI provider, with coordinator tests covering it; visible click-through has not yet reached the step (`OnboardingRootView.swift:528-575`; `OnboardingCoordinatorTests.swift`).
+- [ ] Finish onboarding by opening the first daily plan. **Status: Touches remaining.** The final step now prepares real capacity-bounded items, atomically persists reminders plus plan, restores the plan after restart, and refuses false completion on failure; the visible run has not yet reached this step (`OnboardingFirstDailyPlanService.swift`; `OnboardingFirstDailyPlanServiceTests.swift`).
 
 ## 6. Starting the day
 
@@ -624,11 +626,11 @@ This recovery removes the storage blocker but does not prove unperformed restart
 - [ ] Configure time-zone behavior. **Status: Not implemented.** Policy preserves the existing time zone and the UI only states the current zone; it cannot be configured.
 - [ ] Configure keyboard shortcuts. **Status: Partially implemented.** Voice hotkey presets are configurable in the Voice section, but there is no general shortcut configuration for task and coaching actions.
 - [ ] See current permission and connection states. **Status: Touches remaining.** Source health and macOS permission ledgers expose Reminders, Calendar, notifications, agent, Screenwatch, Accessibility, Automation, and screen recording; current runtime inspection confirmed the surfaces, but several statuses are coarse.
-- [ ] Change included Reminder lists. **Status: Touches remaining.** Settings now exposes permission state, System Settings repair, in-place recheck, discovery retry, explicit local-only configuration, deleted-list notices, and stable-ID Include or Exclude controls. Saves use list-only CAS rebasing, preserve concurrent unrelated settings, and refresh visible tasks exactly once; native click-through verification remains blocked by the locked Mac.
-- [ ] Change the Screenwatch folder. **Status: Not implemented.** The app fixes the path to `~/screenwatch/days`; only the agent CLI accepts an override.
+- [ ] Change included Reminder lists. **Status: Touches remaining.** Settings now exposes permission state, System Settings repair, in-place recheck, discovery retry, explicit local-only configuration, deleted-list notices, and stable-ID Include or Exclude controls. Saves use list-only CAS rebasing, preserve concurrent unrelated settings, and refresh visible tasks exactly once; deterministic signed-QA restart and rename proof passes, while the Settings click-through remains unperformed.
+- [ ] Change the Screenwatch folder. **Status: Touches remaining.** Onboarding and Settings now expose native folder selection backed by one canonical private security-scoped bookmark, and app, agent, and OCR consumers resolve the same source. Unsafe, stale, symlinked, and cross-QA paths fail closed in tests; native picker completion remains unverified (`ScreenwatchSourceRepositoryTests.swift`).
 - [ ] Test Screenwatch health. **Status: Touches remaining.** Source Check and Screenwatch Refresh inspect schema-valid, stale, and missing streams with passing reader tests. One post-recovery verifier run confirmed fresh ingestion, while the later recheck correctly failed when Screenwatch became stale; the UI test action itself was not exercised.
 - [ ] See notification authorization and delivery state. **Status: Partially implemented.** Authorization is shown; last delivery result is not stored or displayed.
-- [ ] Send a test notification. **Status: Not implemented.** No test-notification control exists.
+- [ ] Send a test notification. **Status: Touches remaining.** Onboarding now exposes a bounded local delivery test and records whether macOS or the isolated QA fixture accepted and delivered it; the visible run has not reached this step (`OnboardingDeliveryTestService.swift`; `QAFixtureOSCompositionTests.swift`).
 - [ ] See notification authorization status. **Status: Touches remaining.** `NotificationService.inspect` maps macOS authorization into Source Health; runtime accessibility confirmed the Source health surface, though denial repair is incomplete.
 
 ## 45. Coaching and classification settings
@@ -766,7 +768,7 @@ This recovery removes the storage blocker but does not prove unperformed restart
 
 ## 55. Accessibility
 
-- [ ] Complete onboarding using only the keyboard. **Status: Not implemented.** There is no complete onboarding flow in the installed app.
+- [ ] Complete onboarding using only the keyboard. **Status: Touches remaining.** The complete onboarding flow now has explicit accessibility identifiers, native controls, focusable choices, and keyboard shortcuts for continuation and retries, but a full keyboard-only signed-QA pass has not yet been completed (`OnboardingRootView.swift`).
 - [ ] Plan the day using only the keyboard. **Status: Partially implemented.** SwiftUI buttons are keyboard-addressable and expose labels, but full focus traversal and plan completion were not proven.
 - [ ] Start, pause, switch, and complete tasks using only the keyboard. **Status: Partially implemented.** Start and complete buttons are accessible, but pause, explicit switch, and full lifecycle controls are incomplete.
 - [ ] Respond to coaching using only the keyboard. **Status: Partially implemented.** Notification actions and dashboard prompt buttons exist, but the full gaming coaching flow is not complete.
@@ -897,11 +899,11 @@ This recovery removes the storage blocker but does not prove unperformed restart
 
 ## 65. Explicitly deferred end-user scenarios
 
-- [x] Keep team workspaces, managers, shared permissions, and monitoring of other people out of Release 1. **Status: Fully implemented.** The installed app is single-user and local-first with no team or remote-admin surface.
-- [x] Keep a public web dashboard out of Release 1. **Status: Fully implemented.** The product is a native local macOS app and has no public web dashboard.
-- [x] Keep cloud screenshot synchronization off by default and outside the MVP. **Status: Fully implemented.** Screenwatch evidence remains local and no cloud screenshot-sync feature is exposed.
-- [x] Keep mobile and cross-device behavior correlation outside the MVP. **Status: Fully implemented.** No mobile companion or cross-device behavior surface exists.
+- [x] Keep team workspaces, managers, shared permissions, and monitoring of other people out of Release 1. **Status: Fully implemented.** The installed app is single-user and local-first with no team or remote-admin surface (`.audit/runs/baseline/a068d27/REPORT.md`).
+- [x] Keep a public web dashboard out of Release 1. **Status: Fully implemented.** The product is a native local macOS app and has no public web dashboard (`.audit/runs/baseline/a068d27/REPORT.md`).
+- [x] Keep cloud screenshot synchronization off by default and outside the MVP. **Status: Fully implemented.** Screenwatch evidence remains local and no cloud screenshot-sync feature is exposed (`.audit/runs/baseline/a068d27/REPORT.md`).
+- [x] Keep mobile and cross-device behavior correlation outside the MVP. **Status: Fully implemented.** No mobile companion or cross-device behavior surface exists (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] Keep calendar auto-scheduling outside the MVP. **Status: Not implemented.** The current product explicitly supports autonomous Calendar planning and exposes `ACCEPT BLOCKS`, so this deferred constraint has been superseded rather than satisfied.
-- [x] Keep automatic multi-task Reminder decomposition outside the MVP. **Status: Fully implemented.** The app plans existing tasks and does not expose automatic decomposition into multiple new Reminders.
-- [x] Keep hard application or website blocking outside Release 1. **Status: Fully implemented.** No blocking controls or enforcement service are present.
+- [x] Keep automatic multi-task Reminder decomposition outside the MVP. **Status: Fully implemented.** The app plans existing tasks and does not expose automatic decomposition into multiple new Reminders (`.audit/runs/baseline/a068d27/REPORT.md`).
+- [x] Keep hard application or website blocking outside Release 1. **Status: Fully implemented.** No blocking controls or enforcement service are present (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] Require any future blocking to be explicitly enabled, reversible, time-bounded, and protected by an escape hatch. **Status: Barely started.** General policy, approval, undo, and pause patterns exist, but no blocking-specific contract or UI can yet prove these safeguards.

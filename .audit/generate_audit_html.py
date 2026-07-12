@@ -96,10 +96,10 @@ document = f"""<!doctype html>
   <header>
     <div class="eyebrow">Zoid Coach / End-user usability audit / 12 July 2026</div>
     <h1>{counts['Fully implemented']} of {len(rows)} scenarios are fully usable end to end.</h1>
-    <p class="lede">Every scenario was checked against branch <code>codex/remove-atoll-integration</code> at <code>f519b2bd28ce</code>, 188 passing Swift tests, a successful release build, installed version 0.1.0 Build 8, the running agent, live accessibility state, connected local sources, and persistence. Code presence alone never qualified as complete.</p>
+    <p class="lede">This tracker was refreshed against branch <code>codex/full-system</code> at implementation commit <code>3269ee8ec1c4</code>, 432 passing Swift tests, the successful release build, the isolated signed-QA app, deterministic operating-system fixtures, exact 666-row registry validation, and visible macOS accessibility click-through. Code presence alone never qualifies as complete.</p>
   </header>
   <main>
-    <div class="critical"><strong>Persistence recovered; behavior freshness later regressed.</strong> The agent restarted onto a healthy 7.99 MB canonical database with the expected schema and no Trash handles. One background verification passed fully after recovery. A later recheck still passed package, signing, LaunchAgent, and Mach-service validation but failed Screenwatch freshness with both Screenwatch processes still running. Untested restart, sleep, crash, outage, and week-long journeys remain incomplete or blocked.</div>
+    <div class="critical"><strong>Tracker refreshed after the onboarding and policy implementation program.</strong> Clean first launch, explicit local-first education, exact onboarding resume, permission deferral, Screenwatch continuation, notification fallback, and real application inventory are visibly proven in the signed-QA app. Reminder-list filtering, gaming policy, canonical Screenwatch storage, conflict-safe persistence, and durable first-plan preparation have deterministic end-to-end coverage. The current visible run stops at application-classification persistence because the manually launched QA helper was not registered with launchd, so later onboarding rows remain unchecked.</div>
     <div class="metrics">{cards}</div>
     <div class="controls">
       <input id="search" type="search" placeholder="Search scenarios, sections, status, or evidence">

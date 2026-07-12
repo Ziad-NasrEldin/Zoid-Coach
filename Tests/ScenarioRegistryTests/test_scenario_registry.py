@@ -144,16 +144,23 @@ class ScenarioRegistryTests(unittest.TestCase):
     def test_sync_drops_evidence_when_tracker_derived_status_changes(self):
         module = load_module()
         existing = module.build_registry(TRACKER, ROOT)
-        existing["scenarios"][0]["audit_status"] = "Fully implemented"
-        existing["scenarios"][0]["checkbox_state"] = "checked"
-        existing["scenarios"][0]["evidence_paths"] = [
+        scenario_index = next(
+            index
+            for index, scenario in enumerate(existing["scenarios"])
+            if scenario["audit_status"] != "Fully implemented"
+        )
+        existing["scenarios"][scenario_index]["audit_status"] = "Fully implemented"
+        existing["scenarios"][scenario_index]["checkbox_state"] = "checked"
+        existing["scenarios"][scenario_index]["evidence_paths"] = [
             ".audit/runs/baseline/a068d27/REPORT.md"
         ]
 
         rebuilt = module.build_registry(TRACKER, ROOT, existing=existing)
 
-        self.assertEqual(rebuilt["scenarios"][0]["evidence_paths"], [])
-        self.assertIsNone(rebuilt["scenarios"][0]["last_verified_commit"])
+        self.assertEqual(rebuilt["scenarios"][scenario_index]["evidence_paths"], [])
+        self.assertIsNone(
+            rebuilt["scenarios"][scenario_index]["last_verified_commit"]
+        )
 
     def test_completion_claim_requires_audit_evidence(self):
         module = load_module()
