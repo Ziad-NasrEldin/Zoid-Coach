@@ -32,3 +32,16 @@ Four Python harness tests passed.
 Eleven focused Swift notification and migration tests passed, including injected failure and changed-content replacement without stacking.
 The broader `QAFixture` focused group passed after the fixture schema addition, proving backward-compatible decoding and control behavior.
 The shared release, package, runtime, tracker, registry, and Lavish surfaces remain untouched until the daily verifier releases its lease.
+
+## Serialized signed-QA result
+
+The exclusive runtime lease was later released to this verifier at authoritative tip `e44e5df`.
+The focused post-rebase gate passed 27 Swift notification and migration tests plus five Python harness and mapping tests.
+A clean release signed-QA package with build identity `zoid-coach-974c2ff1fac348908b4beff5c5593f431dac4b77-clean` passed signing, package verification, exact helper registration, and launch from `/private/tmp/zoid-666-notification-installed/Zoid 666 QA E2E.app`.
+The delivery root visibly showed fixture notification health as Healthy during onboarding and rendered the new Settings Signals notification card with authorization, refresh, local-history privacy explanation, and empty state.
+Onboarding then failed closed at activity-classification persistence with `PolicyStoreError error 5`, and one retry produced the same result, so the prompt delivery step could not be reached within the serialized acceptance cap.
+The visible Settings pass also exposed that the new card independently constructed the production notification service inside a QA package, causing its first rendering to report real macOS state rather than the seeded fixture.
+The composition was corrected so QA Settings now uses `QAFixtureNotificationService`, reads the isolated QA ledger, offers fixture-only repair instructions, and cannot open the production notification settings pane.
+Focused controller tests pass after this correction, but the 20-minute cap ended before another package and visible rerun.
+The scheduling-failure and denied-repair roots therefore remain deterministic automated proof rather than signed visible proof.
+No scenario was promoted to Fully implemented from this run.

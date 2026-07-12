@@ -1,15 +1,60 @@
 import AppKit
 import SwiftUI
+import ZoidCoachCore
 import ZoidCoachInfrastructure
 
 @MainActor
 protocol NotificationDeliveryHealthServicing: AnyObject {
+    var usesSystemSettingsRepair: Bool { get }
     func inspect() async -> SourceHealth
     func requestAccessAndInspect() async -> SourceHealth
     func recentDeliveryRecords(limit: Int) -> [NotificationDeliveryRecord]
 }
 
-extension NotificationService: NotificationDeliveryHealthServicing {}
+extension NotificationService: NotificationDeliveryHealthServicing {
+    var usesSystemSettingsRepair: Bool { true }
+}
+
+@MainActor
+private final class QAFixtureNotificationDeliveryHealthService: NotificationDeliveryHealthServicing {
+    let usesSystemSettingsRepair = false
+    private let notifications: QAFixtureNotificationService
+    private let ledger: NotificationDeliveryLedger?
+
+    init(runtimeEnvironment: RuntimeEnvironment, adapter: DeterministicOSFixtureAdapters) {
+        notifications = QAFixtureNotificationService(adapter: adapter)
+        ledger = try? NotificationDeliveryLedger(databaseURL: runtimeEnvironment.databaseURL)
+    }
+
+    func inspect() async -> SourceHealth { await notifications.inspect() }
+    func requestAccessAndInspect() async -> SourceHealth { await notifications.inspect() }
+    func recentDeliveryRecords(limit: Int) -> [NotificationDeliveryRecord] {
+        (try? ledger?.recent(limit: limit)) ?? []
+    }
+}
+
+@MainActor
+private final class UnavailableQANotificationDeliveryHealthService: NotificationDeliveryHealthServicing {
+    let usesSystemSettingsRepair = false
+    private let detail: String
+
+    init(detail: String) { self.detail = detail }
+
+    func inspect() async -> SourceHealth {
+        SourceHealth(
+            id: .notifications,
+            title: "QA Notifications",
+            eyebrow: "Escalation",
+            state: .unavailable,
+            detail: detail,
+            evidence: "No production notification center was touched",
+            actionTitle: "Unavailable"
+        )
+    }
+
+    func requestAccessAndInspect() async -> SourceHealth { await inspect() }
+    func recentDeliveryRecords(limit _: Int) -> [NotificationDeliveryRecord] { [] }
+}
 
 @MainActor
 final class NotificationDeliveryHealthController: ObservableObject {
@@ -20,9 +65,11 @@ final class NotificationDeliveryHealthController: ObservableObject {
 
     private let service: any NotificationDeliveryHealthServicing
 
-    init(service: any NotificationDeliveryHealthServicing = NotificationService()) {
-        self.service = service
+    init(service: (any NotificationDeliveryHealthServicing)? = nil) {
+        self.service = service ?? Self.liveService()
     }
+
+    var usesSystemSettingsRepair: Bool { service.usesSystemSettingsRepair }
 
     func refresh() async {
         isRefreshing = true
@@ -43,6 +90,10 @@ final class NotificationDeliveryHealthController: ObservableObject {
     }
 
     func openSystemSettings() {
+        guard service.usesSystemSettingsRepair else {
+            statusMessage = "Apply the prepared QA permission control, relaunch, then refresh. No production System Settings page was opened."
+            return
+        }
         let addresses = [
             "x-apple.systempreferences:com.apple.Notifications-Settings.extension",
             "x-apple.systempreferences:com.apple.preference.notifications"
@@ -54,6 +105,22 @@ final class NotificationDeliveryHealthController: ObservableObject {
             }
         }
         statusMessage = "Open System Settings, choose Notifications, then choose Zoid 666."
+    }
+
+    private static func liveService() -> any NotificationDeliveryHealthServicing {
+        let runtimeEnvironment = RuntimeEnvironment.current()
+        guard case .qa = runtimeEnvironment.mode else { return NotificationService(runtimeEnvironment: runtimeEnvironment) }
+        do {
+            let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(runtimeEnvironment: runtimeEnvironment)
+            return QAFixtureNotificationDeliveryHealthService(
+                runtimeEnvironment: runtimeEnvironment,
+                adapter: adapter
+            )
+        } catch {
+            return UnavailableQANotificationDeliveryHealthService(
+                detail: "QA fixture startup failed: \(error.localizedDescription)"
+            )
+        }
     }
 }
 
@@ -101,7 +168,7 @@ struct NotificationDeliveryHealthView: View {
                         .accessibilityIdentifier("settings.notifications.enable")
                     }
                     if health.state == .attention || health.state == .unavailable {
-                        Button("OPEN NOTIFICATION SETTINGS") {
+                        Button(controller.usesSystemSettingsRepair ? "OPEN NOTIFICATION SETTINGS" : "APPLY QA REPAIR") {
                             controller.openSystemSettings()
                         }
                         .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))

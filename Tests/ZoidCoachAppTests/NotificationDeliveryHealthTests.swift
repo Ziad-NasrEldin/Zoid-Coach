@@ -64,6 +64,7 @@ import ZoidCoachInfrastructure
 
 @MainActor
 private final class RecordingNotificationDeliveryHealthService: NotificationDeliveryHealthServicing {
+    let usesSystemSettingsRepair = true
     let health: SourceHealth
     let records: [NotificationDeliveryRecord]
     private(set) var inspectCount = 0
