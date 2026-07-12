@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import ZoidCoachCore
 
 public enum TaskHistoryState: String, Sendable {
     case selected
@@ -46,8 +47,14 @@ public final class TaskHistoryStore: @unchecked Sendable {
 
     deinit { sqlite3_close(database) }
 
-    public func record(taskID: String, state: TaskHistoryState, at date: Date = Date()) throws {
-        let sql = "INSERT INTO task_history (task_id, state, occurred_at) VALUES (?, ?, ?);"
+    public func record(
+        taskID: String,
+        state: TaskHistoryState,
+        title: String? = nil,
+        sourceKind: ReminderSourceKind? = nil,
+        at date: Date = Date()
+    ) throws {
+        let sql = "INSERT INTO task_history (task_id, state, title_snapshot, source_kind, occurred_at) VALUES (?, ?, ?, ?, ?);"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement
@@ -55,8 +62,72 @@ public final class TaskHistoryStore: @unchecked Sendable {
         defer { sqlite3_finalize(statement) }
         bind(taskID, statement, 1)
         bind(state.rawValue, statement, 2)
-        bind(ISO8601DateFormatter().string(from: date), statement, 3)
+        bindOptional(title?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, statement, 3)
+        bind((sourceKind.map(\.rawValue) ?? "unknown"), statement, 4)
+        bind(ISO8601DateFormatter().string(from: date), statement, 5)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskHistoryStoreError.write }
+    }
+
+    public func completedEntries(for date: Date, calendar: Calendar = .current) throws -> [CompletedTaskHistoryEntry] {
+        let interval = calendar.dateInterval(of: .day, for: date) ?? DateInterval(start: date, duration: 86_400)
+        let formatter = ISO8601DateFormatter()
+        let sql = """
+        WITH day_completions AS (
+            SELECT MAX(id) AS id
+            FROM task_history
+            WHERE state = 'completed' AND occurred_at >= ? AND occurred_at < ?
+            GROUP BY task_id
+        )
+        SELECT h.id,
+               h.task_id,
+               COALESCE(NULLIF(h.title_snapshot, ''), s.title, 'Completed task'),
+               CASE
+                   WHEN h.source_kind IN ('reminders', 'local') THEN h.source_kind
+                   WHEN s.source_kind IN ('reminders', 'local') THEN s.source_kind
+                   ELSE 'unknown'
+               END,
+               h.occurred_at,
+               (
+                   SELECT p.reason
+                   FROM task_pause_events p
+                   WHERE p.task_id = h.task_id AND p.paused_at <= h.occurred_at
+                   ORDER BY p.paused_at DESC, p.id DESC
+                   LIMIT 1
+               )
+        FROM task_history h
+        LEFT JOIN source_tasks s ON s.source_id = h.task_id
+        WHERE h.id IN (SELECT id FROM day_completions)
+        ORDER BY h.occurred_at DESC, h.id DESC;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw TaskHistoryStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(formatter.string(from: interval.start), statement, 1)
+        bind(formatter.string(from: interval.end), statement, 2)
+
+        var entries: [CompletedTaskHistoryEntry] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let taskIDPointer = sqlite3_column_text(statement, 1),
+                  let titlePointer = sqlite3_column_text(statement, 2),
+                  let sourcePointer = sqlite3_column_text(statement, 3),
+                  let datePointer = sqlite3_column_text(statement, 4),
+                  let completedAt = formatter.date(from: String(cString: datePointer))
+            else { continue }
+            let pauseReason = sqlite3_column_text(statement, 5).flatMap {
+                TaskPauseReason(rawValue: String(cString: $0))
+            }
+            entries.append(CompletedTaskHistoryEntry(
+                id: sqlite3_column_int64(statement, 0),
+                taskID: String(cString: taskIDPointer),
+                title: String(cString: titlePointer),
+                sourceKind: CompletedTaskSourceKind(rawValue: String(cString: sourcePointer)) ?? .unknown,
+                completedAt: completedAt,
+                lastPauseReason: pauseReason
+            ))
+        }
+        return entries
     }
 
     public func evidence(for taskIDs: [String]) throws -> [String: TaskHistoryEvidence] {
@@ -123,6 +194,14 @@ public final class TaskHistoryStore: @unchecked Sendable {
     private func bind(_ value: String, _ statement: OpaquePointer, _ index: Int32) {
         _ = value.withCString { sqlite3_bind_text(statement, index, $0, -1, SQLITE_TRANSIENT) }
     }
+
+    private func bindOptional(_ value: String?, _ statement: OpaquePointer, _ index: Int32) {
+        guard let value else {
+            sqlite3_bind_null(statement, index)
+            return
+        }
+        bind(value, statement, index)
+    }
 }
 
 public enum TaskHistoryStoreError: LocalizedError {
@@ -142,3 +221,7 @@ public enum TaskHistoryStoreError: LocalizedError {
 }
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
+}
