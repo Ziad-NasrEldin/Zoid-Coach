@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import ZoidCoachApp
+@testable import ZoidCoachCore
 
 @MainActor
 struct RemindersConnectionControllerTests {
@@ -117,6 +118,31 @@ struct RemindersConnectionControllerTests {
         #expect(openCount == 0)
         #expect(controller.openPermissionSettings())
         #expect(openCount == 1)
+    }
+
+    @Test func qaCompositionNeverFallsBackToProductionReminders() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RemindersConnectionControllerTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runtime = try RuntimeEnvironment.resolve(
+            arguments: [],
+            processEnvironment: [:],
+            packagedRuntime: .init(
+                mode: .qa,
+                qaRunRoot: root,
+                appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+            ),
+            executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+        ).environment
+        let controller = RemindersConnectionController(runtimeEnvironment: runtime)
+
+        await controller.refresh()
+
+        guard case let .refreshFailed(detail) = controller.state else {
+            Issue.record("Expected a fail-closed QA fixture state, got \(controller.state)")
+            return
+        }
+        #expect(detail.contains("QA fixture"))
     }
 
     private func isolatedDefaults() throws -> UserDefaults {
