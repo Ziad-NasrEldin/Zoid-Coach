@@ -250,6 +250,7 @@ struct SettingsView: View {
             scheduleSection
         case .signals:
             remindersConnectionSection
+            notificationDeliverySection
             reminderListsSection
             appClassificationSection
             calendarSection
@@ -261,6 +262,15 @@ struct SettingsView: View {
         case .records:
             dataSection
             actionAuditSection
+        }
+    }
+
+    private var notificationDeliverySection: some View {
+        SettingsCard(
+            title: "NOTIFICATION DELIVERY",
+            detail: "See current macOS access, the last local delivery outcomes, and a direct repair path. Every unresolved decision remains available in Today."
+        ) {
+            NotificationDeliveryHealthView()
         }
     }
 
