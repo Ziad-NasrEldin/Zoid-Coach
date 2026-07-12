@@ -48,6 +48,14 @@ func weeklyReviewAggregatesOutcomesPatternsAndOnlyOneExperiment() throws {
     INSERT INTO task_history(task_id, state, occurred_at)
     VALUES ('task-blocked', 'blocked', '2026-07-01T08:00:00Z'),
            ('task-blocked', 'blocked', '2026-07-02T08:00:00Z');
+    INSERT INTO prompt_episodes(id, decision_key, prompt_type, state, title, summary, action_token, payload_json, created_at_utc)
+    VALUES ('prompt-1', 'weekly-prompt-1', 'RECOVERY', 'responded', 'Return gently', 'Choose one next step', 'prompt-token-1', '{}', '2026-07-02T09:00:00Z');
+    INSERT INTO prompt_responses(id, prompt_id, action_token, response, surface, responded_at_utc)
+    VALUES ('response-1', 'prompt-1', 'response-token-1', 'smaller_step', 'today', '2026-07-02T09:05:00Z');
+    INSERT INTO prompt_response_effects(response_id, prompt_id, effect_type, state, created_at_utc, updated_at_utc)
+    VALUES ('response-1', 'prompt-1', 'smaller_step', 'applied', '2026-07-02T09:05:00Z', '2026-07-02T09:06:00Z');
+    INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, ingested_at, classification)
+    VALUES ('2026-07-02', CAST(strftime('%s', '2026-07-02T09:10:00Z') AS INTEGER), '12:10', 'Code', '', '', 0, '2026-07-02T09:10:00Z', 'work');
     """)
 
     let store = try WeeklyReviewStore(
@@ -67,11 +75,40 @@ func weeklyReviewAggregatesOutcomesPatternsAndOnlyOneExperiment() throws {
     #expect(first.patterns.contains(where: { $0.kind == .bestWorkWindow }))
     #expect(first.patterns.contains(where: { $0.kind == .driftTrigger }))
     #expect(first.patterns.contains(where: { $0.kind == .gamingBudget }))
+    #expect(first.patterns.contains(where: { $0.kind == .promptUsefulness }))
+    #expect(first.patterns.contains(where: { $0.kind == .promptRecovery }))
     #expect(first.patterns.contains(where: { $0.kind == .blockedTasks }))
+    #expect(first.patterns.first(where: { $0.kind == .gamingBudget })?.examples.first?.contains("first observed") == true)
+    #expect(first.patterns.first(where: { $0.kind == .promptRecovery })?.conclusion.contains("1 of 1") == true)
+    #expect(first.patterns.first(where: { $0.kind == .promptRecovery })?.examples.first?.contains("within 30 minutes") == true)
     #expect(first.patterns.allSatisfy { !$0.alternativeExplanation.isEmpty && $0.sampleCount > 0 })
     #expect(first.experiment?.state == .proposed)
     #expect(second.experiment?.id == first.experiment?.id)
     #expect(try weeklyScalarInt(databaseURL, "SELECT COUNT(*) FROM weekly_review_experiments;") == 1)
+}
+
+@Test
+func weeklyReviewDoesNotUseLearningAggregatesOutsideThePriorWeek() throws {
+    let databaseURL = weeklyTemporaryDatabaseURL("stable-window")
+    defer { weeklyRemoveDatabaseFiles(at: databaseURL) }
+    _ = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+    for (offset, day) in ["2026-06-30", "2026-07-01", "2026-07-02"].enumerated() {
+        try insertCoveredDay(databaseURL, day: day, epoch: 1_751_328_000 + Int64(offset * 86_400))
+    }
+    try weeklyExecute(databaseURL, """
+    INSERT INTO learning_aggregates(aggregate_type, aggregate_key, sample_count, median_value, confidence, policy_version, updated_at_utc)
+    VALUES ('estimate', 'stale|medium', 99, 1.80, 0.99, 1, '2026-06-20T18:00:00Z'),
+           ('preferred_work_window', 'future|23:00-01:00', 99, 600, 0.99, 1, '2026-07-08T18:00:00Z');
+    """)
+
+    let snapshot = try WeeklyReviewStore(
+        databaseURL: databaseURL,
+        calendar: weeklyCalendar,
+        now: { weeklyReferenceDate }
+    ).load()
+
+    #expect(!snapshot.patterns.contains(where: { $0.kind == .estimateAccuracy }))
+    #expect(!snapshot.patterns.contains(where: { $0.kind == .bestWorkWindow }))
 }
 
 @Test
