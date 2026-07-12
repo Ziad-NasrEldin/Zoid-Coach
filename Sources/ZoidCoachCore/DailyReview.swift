@@ -45,6 +45,36 @@ public struct DailyReviewTotal: Identifiable, Equatable, Sendable {
     public var id: BehaviorClassification { classification }
 }
 
+public struct AppClassificationCorrectionRule: Identifiable, Equatable, Sendable {
+    public let application: String
+    public let normalizedApplication: String
+    public let classification: BehaviorClassification
+    public let sourceDay: String
+    public let sourceSessionStart: Date
+    public let createdAt: Date
+    public let updatedAt: Date
+
+    public init(
+        application: String,
+        normalizedApplication: String,
+        classification: BehaviorClassification,
+        sourceDay: String,
+        sourceSessionStart: Date,
+        createdAt: Date,
+        updatedAt: Date
+    ) {
+        self.application = application
+        self.normalizedApplication = normalizedApplication
+        self.classification = classification
+        self.sourceDay = sourceDay
+        self.sourceSessionStart = sourceSessionStart
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    public var id: String { normalizedApplication }
+}
+
 public struct OfflineWorkEntry: Identifiable, Equatable, Sendable {
     public let id: String
     public let sourceDay: String
