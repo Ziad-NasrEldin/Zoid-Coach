@@ -54,6 +54,20 @@ public struct AgentReminderSnapshot: Equatable, Codable, Sendable {
     }
 }
 
+public struct AgentLocalTask: Equatable, Codable, Sendable {
+    public let id: String
+    public let title: String
+    public let notes: String?
+    public let estimateMinutes: Int
+
+    public init(id: String, title: String, notes: String?, estimateMinutes: Int) {
+        self.id = id
+        self.title = title
+        self.notes = notes
+        self.estimateMinutes = estimateMinutes
+    }
+}
+
 public enum PolicyMutationOrigin: Equatable, Codable, Sendable {
     case settings
     case onboarding(flowID: String, step: OnboardingStep, progressRevision: UInt64)
@@ -113,6 +127,7 @@ public struct PolicyMutationReceipt: Equatable, Codable, Sendable {
 
 public enum AgentMutationCommand: Equatable, Codable, Sendable {
     case completeReminder(reminderID: String)
+    case createLocalTask(task: AgentLocalTask, addToToday: Bool, day: Date)
     case replaceDailyPlan(items: [AgentPlanItem], day: Date)
     case replaceReminderListOrder([String])
     case recordTaskHistory(taskID: String, state: AgentTaskHistoryState, occurredAt: Date)
