@@ -70,6 +70,25 @@ func localFallbackTaskIsIdempotentAndSurvivesExternalReminderSynchronization() t
 }
 
 @Test
+func localTaskCompletionIsDurableAndNeverMutatesAnExternalReminder() throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-local-completion-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let store = try ReminderSnapshotStore(databaseURL: databaseURL)
+    let local = ReminderSourceSnapshot(id: "local:user:done", title: "Local", dueDate: nil, priority: 0, sourceKind: .local)
+    let external = ReminderSourceSnapshot(id: "external", title: "External", dueDate: nil, priority: 0)
+    _ = try store.upsertLocal(local)
+    _ = try store.synchronize([external])
+
+    try store.completeLocal(id: local.id)
+
+    #expect(try !store.loadIncomplete().contains { $0.id == local.id })
+    #expect(try store.loadIncomplete().contains { $0.id == external.id })
+    #expect(throws: ReminderSnapshotStoreError.self) {
+        try store.completeLocal(id: external.id)
+    }
+}
+
+@Test
 func externalReminderSynchronizationRejectsLocalTasksAndSourceIdentifierCollisions() throws {
     let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-source-ownership-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: databaseURL) }
