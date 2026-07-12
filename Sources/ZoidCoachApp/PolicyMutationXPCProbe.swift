@@ -14,9 +14,10 @@ enum PolicyMutationXPCProbe {
         }
         let service = SMAppService.agent(plistName: runtime.identity.launchAgentPlistName)
         do {
-            if service.status == .notRegistered || service.status == .notFound {
-                try service.register()
+            if service.status != .notRegistered && service.status != .notFound {
+                try service.unregister()
             }
+            try service.register()
             guard service.status != .requiresApproval else {
                 fputs("FAIL: QA LaunchAgent registration requires user approval\n", stderr)
                 return 3
@@ -29,6 +30,7 @@ enum PolicyMutationXPCProbe {
         let completion = ProbeCompletion()
         let semaphore = DispatchSemaphore(value: 0)
         Task.detached {
+            try? await Task.sleep(for: .seconds(1))
             completion.set(await execute(runtime: runtime))
             semaphore.signal()
         }
