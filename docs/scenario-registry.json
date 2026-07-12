@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "c31ed6cbcd44ba735e37133190f449d8dd4aae74f6ec619a10e21961769146be",
+  "tracker_sha256": "9eac4569213840b7f2d151f96beed6d3fa4a41a49539ede64c125aed2c5fce49",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1027,8 +1027,8 @@
       "item_index": 3,
       "wording": "Open planning manually before the configured time.",
       "checkbox_state": "unchecked",
-      "audit_status": "Blocked from verification",
-      "delivery_status": "blocked_from_verification",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1038,7 +1038,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The Today source exposes `DRAFT TODAY`, but the independent `a068d27` verifier did not activate the control in a current isolated packaged-app run (`.audit/runs/baseline/a068d27/REPORT.md`).",
+      "audit_note": "The installed signed app exposed enabled `PLAN NOW` and `DRAFT TODAY` controls with two real deterministic Reminder candidates, while activation of the manual draft itself remains unclaimed (`DashboardView.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
       "tracker_line": 114
     },
     {
@@ -1047,19 +1047,21 @@
       "section_title": "Starting the day",
       "item_index": 4,
       "wording": "Snooze planning without causing coaching escalation.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "PLAN_READY notification actions are only Accept and Review, and the prompt action model has no planning snooze (`PromptNotificationCoordinator.swift:93-102`).",
+      "audit_note": "The installed signed app snoozed the canonical PLAN_READY decision, removed it without escalation, rendered `PLANNING SNOOZED` with the exact return time, and preserved that state through package replacement and relaunch (`PlanningInvitationService.swift`; `DashboardView.swift`; `PlanningInvitationServiceTests.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
       "tracker_line": 115
     },
     {
@@ -1068,19 +1070,21 @@
       "section_title": "Starting the day",
       "item_index": 5,
       "wording": "Receive the planning invitation again when the snooze ends.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No snooze duration, rescheduling action, or follow-up scheduler exists.",
+      "audit_note": "A focused time-shift advanced the persisted snooze to its due time, the running signed helper presented it once, and relaunch visibly restored the full invitation with Plan Now, Snooze, Dismiss, and Work Unplanned actions (`AgentMain.swift`; `PlanningInvitationServiceTests.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
       "tracker_line": 116
     },
     {
@@ -1089,27 +1093,6 @@
       "section_title": "Starting the day",
       "item_index": 6,
       "wording": "Dismiss planning temporarily without being trapped in repeated prompts.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
-      "disposition": "required_now",
-      "required_proof_classes": [
-        "installed_app_e2e",
-        "ui_automation"
-      ],
-      "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "macOS can dismiss a notification and prompt episodes expire or dismiss internally, but there is no explicit temporary-dismiss action or tested suppression contract for planning.",
-      "tracker_line": 117
-    },
-    {
-      "id": "ZC-006-007",
-      "section_number": 6,
-      "section_title": "Starting the day",
-      "item_index": 7,
-      "wording": "See clearly that the day is currently unplanned.",
       "checkbox_state": "unchecked",
       "audit_status": "Touches remaining",
       "delivery_status": "touches_remaining",
@@ -1122,7 +1105,30 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "An empty state says `PLAN BEFORE MOTION` and `0 / 3 PROPOSED`, but there is no explicit day-state label such as Unplanned (`DashboardView.swift:143-162,872-952`).",
+      "audit_note": "The installed signed app exposed the enabled Dismiss For Now action and focused persistence tests prove two-hour suppression and due recovery, but the verifier conservatively stopped before a second destructive prompt mutation (`PlanningInvitationService.swift`; `PlanningInvitationServiceTests.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
+      "tracker_line": 117
+    },
+    {
+      "id": "ZC-006-007",
+      "section_number": 6,
+      "section_title": "Starting the day",
+      "item_index": 7,
+      "wording": "See clearly that the day is currently unplanned.",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
+      "disposition": "required_now",
+      "required_proof_classes": [
+        "installed_app_e2e",
+        "ui_automation"
+      ],
+      "affected_capability": "daily_planning",
+      "evidence_paths": [
+        ".audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md"
+      ],
+      "last_verified_commit": null,
+      "last_verified_build": null,
+      "audit_note": "The installed signed Today surface explicitly rendered `DAY STATE / UNPLANNED`, explained that drift coaching stays off until the user chooses, and kept two available Reminder tasks visible (`DashboardView.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
       "tracker_line": 118
     },
     {
@@ -1132,8 +1138,8 @@
       "item_index": 8,
       "wording": "Start work manually even when the day has not been planned.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1143,7 +1149,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Task start controls only exist for tasks in the active plan snapshot; unplanned reminder rows only add or complete items.",
+      "audit_note": "Each installed Reminder row exposed a stable Start Without Planning control and the XPC journey test proves durable unplanned task start and restart recovery, but this verifier did not click the signed mutation (`TodayDashboardAgent.swift`; `TodayDashboardXPC.swift`; `TodayDashboardAgentTests.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
       "tracker_line": 119
     },
     {
@@ -1153,8 +1159,8 @@
       "item_index": 9,
       "wording": "Avoid drift warnings before approving a plan or explicitly starting unplanned work.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1164,7 +1170,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Current drift policy and observation logic are largely backend-oriented, but the product has no explicit unplanned-work start state to satisfy this end-to-end scenario.",
+      "audit_note": "The signed surface truthfully stated that drift coaching stays off until a choice, and focused state tests gate interventions until unplanned work starts, while a live generated-drift episode remains unexercised (`PlanningInvitationService.swift`; `PlanningInvitationServiceTests.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
       "tracker_line": 120
     },
     {
@@ -1980,8 +1986,8 @@
       "item_index": 1,
       "wording": "Skip planning explicitly.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1992,7 +1998,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No Skip planning command exists in Today, notifications, prompt actions, or policy state.",
+      "audit_note": "The signed invitation exposed Work Unplanned, the XPC command persists the explicit choice, and focused tests prove restart-safe state, but the verifier did not click this second signed mutation (`AppModel.swift`; `TodayDashboardXPC.swift`; `TodayDashboardAgentTests.swift`).",
       "tracker_line": 171
     },
     {
@@ -2002,8 +2008,8 @@
       "item_index": 2,
       "wording": "Understand that Zoid 666 is now in limited unplanned mode.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2014,7 +2020,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no unplanned-day mode or explanatory state.",
+      "audit_note": "The implemented limited-mode banner explains the reduced contract and focused persistence tests prove its state, while the exact post-click signed screen remains unclaimed (`DashboardView.swift`; `PlanningInvitationServiceTests.swift`).",
       "tracker_line": 172
     },
     {
@@ -2023,9 +2029,9 @@
       "section_title": "Skipping planning",
       "item_index": 3,
       "wording": "See overdue and available tasks during an unplanned day.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2033,10 +2039,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The full Reminder inventory remains visible with an empty plan, but it is not recognized or labelled as unplanned mode.",
+      "audit_note": "Before any plan existed, the installed signed Today screen labelled the day unplanned and rendered two available Work reminders with independent actions (`DashboardView.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
       "tracker_line": 173
     },
     {
@@ -2046,8 +2054,8 @@
       "item_index": 4,
       "wording": "Start any available task during an unplanned day.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2058,7 +2066,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Inbox reminders can be added or completed, but not directly started without becoming a plan item and snapshot row.",
+      "audit_note": "The installed signed app exposed Start Without Planning for both available reminders and the agent journey proves durable XPC mutation and restart recovery, while the final signed click remains unclaimed (`TodayDashboardAgent.swift`; `TodayDashboardXPC.swift`; `TodayDashboardAgentTests.swift`).",
       "tracker_line": 174
     },
     {
@@ -2080,7 +2088,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Behavior totals can render with an empty plan and current UI does not show a violation label, but no explicit unplanned-mode E2E test covers drift suppression.",
+      "audit_note": "The unplanned signed screen retained behavior totals and explicitly suppressed pre-choice drift coaching, while the limited-mode post-click wording remains covered by focused state tests rather than a completed signed mutation (`DashboardView.swift`; `PlanningInvitationServiceTests.swift`).",
       "tracker_line": 175
     },
     {
@@ -2090,8 +2098,8 @@
       "item_index": 6,
       "wording": "Return to planning later in the same day.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2102,7 +2110,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`DRAFT TODAY` is always available, but there is no prior skip state to return from.",
+      "audit_note": "Plan Now remained enabled on both the initial unplanned and restart-safe snoozed screens, and backend planning remains available, while a signed skip-then-plan mutation sequence was not completed (`DashboardView.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
       "tracker_line": 176
     },
     {
