@@ -54,6 +54,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 state: current?.state ?? .ready,
                 elapsedMinutes: current?.elapsedMinutes ?? 0,
                 latestPauseReason: current?.latestPauseReason,
+                sprint: current?.sprint,
                 isMainObjective: entry.isMainObjective
             )
         }
@@ -88,6 +89,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 state: executionSnapshot?.state ?? .active,
                 elapsedMinutes: executionSnapshot?.elapsedMinutes ?? 0,
                 latestPauseReason: executionSnapshot?.latestPauseReason,
+                sprint: executionSnapshot?.sprint,
                 isMainObjective: false
             ))
         }
@@ -167,9 +169,9 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             try taskHistory.record(taskID: taskID, state: .completed, at: now)
         case .reschedule:
             try taskHistory.record(taskID: taskID, state: .postponed, at: now)
-        case .start:
+        case .start, .startSprint10, .startSprint20, .startSprint25:
             try taskHistory.record(taskID: taskID, state: .selected, at: now)
-        case .pause, .pauseForBreak, .pauseForExternalInterruption, .pauseDoneForNow, .pauseForEndOfDay, .resume, .block:
+        case .pause, .pauseForBreak, .pauseForExternalInterruption, .pauseDoneForNow, .pauseForEndOfDay, .resume, .block, .continueOpenEnded:
             break
         }
         if command == .complete,
@@ -212,6 +214,14 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 _ = try learning.updatePreferredWorkWindowAggregate(timeZoneIdentifier: timeZoneIdentifier)
             }
         }
+        return try snapshot(now: now)
+    }
+
+    public func startSprint(taskID: String, durationMinutes: Int, now: Date = Date()) throws -> TodaySnapshot {
+        let reminderExists = try reminders.loadIncomplete().contains(where: { $0.id == taskID })
+        guard reminderExists else { throw TodayDashboardAgentError.unavailableTask }
+        try execution.startSprint(taskID: taskID, durationMinutes: durationMinutes, at: now)
+        try taskHistory.record(taskID: taskID, state: .selected, at: now)
         return try snapshot(now: now)
     }
 

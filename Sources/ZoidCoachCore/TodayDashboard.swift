@@ -36,6 +36,19 @@ public enum TaskActivityCommand: String, Codable, Sendable {
     case complete
     case block
     case reschedule
+    case startSprint10
+    case startSprint20
+    case startSprint25
+    case continueOpenEnded
+
+    public var sprintDurationMinutes: Int? {
+        switch self {
+        case .startSprint10: 10
+        case .startSprint20: 20
+        case .startSprint25: 25
+        default: nil
+        }
+    }
 
     public var pauseReason: TaskPauseReason? {
         switch self {
@@ -44,8 +57,42 @@ public enum TaskActivityCommand: String, Codable, Sendable {
         case .pauseForExternalInterruption: .externalInterruption
         case .pauseDoneForNow: .doneForNow
         case .pauseForEndOfDay: .endingWorkday
-        case .start, .resume, .complete, .block, .reschedule: nil
+        case .start, .resume, .complete, .block, .reschedule,
+             .startSprint10, .startSprint20, .startSprint25, .continueOpenEnded: nil
         }
+    }
+}
+
+public enum SprintExecutionState: String, Codable, Sendable {
+    case active
+    case paused
+    case expired
+    case continuedOpenEnded
+    case finished
+}
+
+public struct SprintSnapshot: Equatable, Codable, Sendable {
+    public let durationMinutes: Int
+    public let elapsedSeconds: Int
+    public let remainingSeconds: Int
+    public let state: SprintExecutionState
+    public let observedAt: Date?
+
+    public init(durationMinutes: Int, elapsedSeconds: Int, remainingSeconds: Int, state: SprintExecutionState, observedAt: Date? = nil) {
+        self.durationMinutes = max(1, durationMinutes)
+        self.elapsedSeconds = max(0, elapsedSeconds)
+        self.remainingSeconds = max(0, remainingSeconds)
+        self.state = state
+        self.observedAt = observedAt
+    }
+
+    public var isBounded: Bool {
+        state != .continuedOpenEnded && state != .finished
+    }
+
+    public func remainingSeconds(at date: Date) -> Int {
+        guard state == .active, let observedAt else { return remainingSeconds }
+        return max(0, remainingSeconds - Int(max(0, date.timeIntervalSince(observedAt))))
     }
 }
 
@@ -80,10 +127,11 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let state: TaskExecutionState
     public let elapsedMinutes: Int
     public let latestPauseReason: TaskPauseReason?
+    public let sprint: SprintSnapshot?
     public let isMainObjective: Bool
     public let isLocked: Bool
 
-    public init(taskID: String, title: String, estimateMinutes: Int, dueDate: Date?, urgency: TaskUrgency, state: TaskExecutionState, elapsedMinutes: Int = 0, latestPauseReason: TaskPauseReason? = nil, isMainObjective: Bool = false, isLocked: Bool = false) {
+    public init(taskID: String, title: String, estimateMinutes: Int, dueDate: Date?, urgency: TaskUrgency, state: TaskExecutionState, elapsedMinutes: Int = 0, latestPauseReason: TaskPauseReason? = nil, sprint: SprintSnapshot? = nil, isMainObjective: Bool = false, isLocked: Bool = false) {
         self.taskID = taskID
         self.title = title
         self.estimateMinutes = max(1, estimateMinutes)
@@ -92,6 +140,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         self.state = state
         self.elapsedMinutes = max(0, elapsedMinutes)
         self.latestPauseReason = latestPauseReason
+        self.sprint = sprint
         self.isMainObjective = isMainObjective
         self.isLocked = isLocked
     }
@@ -313,11 +362,13 @@ public struct ActiveTaskSnapshot: Equatable, Codable, Sendable {
     public let taskID: String
     public let startedAt: Date?
     public let elapsedMinutes: Int
+    public let sprint: SprintSnapshot?
 
-    public init(taskID: String, startedAt: Date?, elapsedMinutes: Int) {
+    public init(taskID: String, startedAt: Date?, elapsedMinutes: Int, sprint: SprintSnapshot? = nil) {
         self.taskID = taskID
         self.startedAt = startedAt
         self.elapsedMinutes = max(0, elapsedMinutes)
+        self.sprint = sprint
     }
 }
 
