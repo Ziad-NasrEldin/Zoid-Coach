@@ -11,6 +11,7 @@ public enum PromptResponseEffect: Equatable, Sendable {
     case planningSnoozed(until: Date, promptID: String)
     case planningDismissed(until: Date, promptID: String)
     case unplannedDaySelected
+    case coachingTaskStarted(taskID: String)
 }
 
 public final class PromptResponseEffectRouter: @unchecked Sendable {
@@ -20,6 +21,7 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
     private let planScheduleRequests: PlanScheduleRequestStore?
     private let promptStore: PromptInboxStore?
     private let planningInvitations: PlanningInvitationService?
+    private let taskExecution: TaskExecutionStore?
     private let schedulingCalendarIdentifier: @Sendable () throws -> String?
 
     public init(
@@ -29,6 +31,7 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
         planScheduleRequests: PlanScheduleRequestStore? = nil,
         promptStore: PromptInboxStore? = nil,
         planningInvitations: PlanningInvitationService? = nil,
+        taskExecution: TaskExecutionStore? = nil,
         schedulingCalendarIdentifier: @escaping @Sendable () throws -> String? = { nil }
     ) {
         self.outbox = outbox
@@ -37,6 +40,7 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
         self.planScheduleRequests = planScheduleRequests
         self.promptStore = promptStore
         self.planningInvitations = planningInvitations
+        self.taskExecution = taskExecution
         self.schedulingCalendarIdentifier = schedulingCalendarIdentifier
     }
 
@@ -47,6 +51,13 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
     }
 
     private func applyEffect(_ result: PromptResponseResult) throws -> PromptResponseEffect {
+        if result.episode.type == PromptNotificationCategory.gamingDrift.rawValue,
+           result.response.action == .returnToActiveTask,
+           let taskID = result.episode.payload["taskID"],
+           let taskExecution {
+            try taskExecution.apply(.start, taskID: taskID, at: result.response.respondedAt)
+            return result.wasApplied ? .coachingTaskStarted(taskID: taskID) : .none
+        }
         if let planningInvitations {
             switch try planningInvitations.apply(result) {
             case .none:
