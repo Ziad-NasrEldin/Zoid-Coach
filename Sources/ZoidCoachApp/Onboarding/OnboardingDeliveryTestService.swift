@@ -43,6 +43,12 @@ struct OnboardingDeliveryTestService {
                 return .init(state: .failed, message: error.localizedDescription)
             }
         }
+        if case .qa = runtimeEnvironment.mode {
+            return .init(
+                state: .unavailable,
+                message: "The isolated QA notification fixture is unavailable. No production notification API was used."
+            )
+        }
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         guard [.authorized, .provisional].contains(settings.authorizationStatus) else {
@@ -64,8 +70,8 @@ struct OnboardingDeliveryTestService {
                 trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
             ))
             return .init(
-                state: .delivered,
-                message: "The test notification was scheduled. You can also find prompts in Today."
+                state: .scheduled,
+                message: "macOS accepted the test notification for delivery. Confirm it appears, or use Today for prompts."
             )
         } catch {
             return .init(state: .failed, message: error.localizedDescription)

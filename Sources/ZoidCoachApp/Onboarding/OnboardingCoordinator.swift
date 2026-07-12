@@ -21,6 +21,7 @@ final class OnboardingCoordinator: ObservableObject {
     @Published private(set) var route: OnboardingRoute
     @Published private(set) var errorMessage: String?
     @Published private(set) var sourceHealth: [OnboardingStep: SourceHealth] = [:]
+    @Published private(set) var screenwatchSetupStatus: ScreenwatchSetupStatus?
     @Published private(set) var inventory: [AppInventoryItem] = []
     @Published private(set) var inventoryMessage = "Applications have not been scanned yet."
     @Published var classifications: [String: AppClassificationChoice] = [:]
@@ -35,6 +36,10 @@ final class OnboardingCoordinator: ObservableObject {
     private let store: any OnboardingProgressPersisting
     private let now: () -> Date
     private let dependencies: OnboardingDependencies?
+    private var originalPolicy = UserPolicy.defaults()
+    private var policyDraft = SettingsPolicyDraft(policy: .defaults())
+    private var policyIsAvailable = true
+    private var sourceRequestGeneration = UUID()
 
     init(
         store: any OnboardingProgressPersisting,
@@ -54,6 +59,23 @@ final class OnboardingCoordinator: ObservableObject {
             route = .onboarding
             errorMessage = "Setup progress could not be loaded. \(error.localizedDescription)"
         }
+        if let dependencies {
+            do {
+                let policy = try dependencies.loadPolicy()
+                originalPolicy = policy
+                policyDraft = SettingsPolicyDraft(policy: policy)
+                workStartHour = policyDraft.workStart.hour
+                workEndHour = policyDraft.workEnd.hour
+                quietStartHour = policyDraft.quietStart.hour
+                quietEndHour = policyDraft.quietEnd.hour
+            } catch {
+                policyIsAvailable = false
+                errorMessage = "Existing settings could not be loaded. Setup choices will not be applied until local storage recovers. \(error.localizedDescription)"
+            }
+            if let gamingPolicy = try? dependencies.loadGamingPolicy() {
+                self.gamingPolicy = OnboardingGamingPolicy(policy: gamingPolicy)
+            }
+        }
     }
 
     convenience init(runtimeEnvironment: RuntimeEnvironment = .current()) {
@@ -64,6 +86,7 @@ final class OnboardingCoordinator: ObservableObject {
     }
 
     func continueFromCurrentStep() throws {
+        try persistCurrentConfigurationIfNeeded()
         var replacement = progress
         try replacement.completeCurrentStep(at: now())
         do {
@@ -71,7 +94,13 @@ final class OnboardingCoordinator: ObservableObject {
             errorMessage = nil
             if progress.isFinished { route = .today }
         } catch {
-            errorMessage = "Setup could not be saved. \(error.localizedDescription)"
+            if let current = try? store.load() {
+                progress = current
+                route = current.isFinished ? .today : .onboarding
+                errorMessage = "Setup changed in another window. The latest saved step was restored. Try again."
+            } else {
+                errorMessage = "Setup could not be saved. \(error.localizedDescription)"
+            }
             throw error
         }
     }
@@ -99,6 +128,8 @@ final class OnboardingCoordinator: ObservableObject {
             var replacement = progress
             replacement.chooseCoachingMode(mode)
             progress = try store.save(replacement)
+            policyDraft.aiProvider = mode == .rulesOnly ? .disabled : .codexCLI
+            try persistPolicy()
             errorMessage = nil
         } catch {
             errorMessage = "Coaching choice could not be saved. \(error.localizedDescription)"
@@ -106,11 +137,14 @@ final class OnboardingCoordinator: ObservableObject {
     }
 
     func deferAccess(for step: OnboardingStep) {
+        sourceRequestGeneration = UUID()
         recordAccess(.deferred, for: step)
     }
 
     func requestAccess(for step: OnboardingStep) async {
-        guard let dependencies else { return }
+        guard let dependencies, !isWorking else { return }
+        let generation = UUID()
+        sourceRequestGeneration = generation
         isWorking = true
         defer { isWorking = false }
         let health: SourceHealth
@@ -118,18 +152,21 @@ final class OnboardingCoordinator: ObservableObject {
         case .reminders:
             health = await dependencies.requestReminders()
         case .screenwatch:
-            health = await dependencies.inspectScreenwatch()
+            let status = await dependencies.inspectScreenwatchSetup()
+            screenwatchSetupStatus = status
+            health = Self.sourceHealth(for: status)
         case .notifications:
             health = await dependencies.requestNotifications()
         default:
             return
         }
+        guard sourceRequestGeneration == generation else { return }
         sourceHealth[step] = health
         recordAccess(Self.accessDecision(for: health), for: step)
     }
 
     func inspectCurrentSource() async {
-        guard let dependencies else { return }
+        guard let dependencies, !isWorking else { return }
         let step = progress.currentStep
         guard [.reminders, .screenwatch, .notifications].contains(step) else { return }
         isWorking = true
@@ -137,11 +174,49 @@ final class OnboardingCoordinator: ObservableObject {
         let health: SourceHealth
         switch step {
         case .reminders: health = await dependencies.inspectReminders()
-        case .screenwatch: health = await dependencies.inspectScreenwatch()
+        case .screenwatch:
+            let status = await dependencies.inspectScreenwatchSetup()
+            screenwatchSetupStatus = status
+            health = Self.sourceHealth(for: status)
         case .notifications: health = await dependencies.inspectNotifications()
         default: return
         }
         sourceHealth[step] = health
+        if health.state == .healthy, accessDecision(for: step) != nil {
+            recordAccess(.granted, for: step)
+        }
+    }
+
+    func selectScreenwatchDirectory(_ url: URL) async {
+        guard let dependencies, !isWorking else { return }
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            let status = try await dependencies.selectScreenwatchDirectory(url)
+            screenwatchSetupStatus = status
+            let health = Self.sourceHealth(for: status)
+            sourceHealth[.screenwatch] = health
+            recordAccess(Self.accessDecision(for: health), for: .screenwatch)
+        } catch {
+            errorMessage = "The Screenwatch folder could not be used. \(error.localizedDescription)"
+        }
+    }
+
+    func useDefaultScreenwatchDirectory() async {
+        guard let dependencies, !isWorking else { return }
+        isWorking = true
+        defer { isWorking = false }
+        let status = await dependencies.useDefaultScreenwatchDirectory()
+        screenwatchSetupStatus = status
+        sourceHealth[.screenwatch] = Self.sourceHealth(for: status)
+    }
+
+    func openSystemSettings(for step: OnboardingStep) {
+        guard dependencies?.openSystemSettings(step) == true else {
+            errorMessage = "System Settings could not be opened. Open Privacy & Security manually and repair \(step.rawValue) access."
+            return
+        }
+        errorMessage = nil
     }
 
     func loadApplicationInventory() {
@@ -154,6 +229,7 @@ final class OnboardingCoordinator: ObservableObject {
 
     func setClassification(_ choice: AppClassificationChoice, for application: String) {
         classifications[application] = choice
+        policyDraft.setClassification(choice, for: application)
     }
 
     func runDeliveryTest() async {
@@ -197,9 +273,80 @@ final class OnboardingCoordinator: ObservableObject {
     private static func accessDecision(for health: SourceHealth) -> OnboardingAccessDecision {
         switch health.state {
         case .healthy: .granted
-        case .attention: .denied
+        case .attention where health.id == .reminders
+            && health.detail == "Reminders access is unavailable": .denied
+        case .attention where health.id == .notifications
+            && health.detail == "Notifications are unavailable": .denied
+        case .attention: .unavailable
         case .unavailable: .unavailable
         case .checking, .notConnected: .deferred
+        }
+    }
+
+    private func accessDecision(for step: OnboardingStep) -> OnboardingAccessDecision? {
+        switch step {
+        case .reminders: progress.remindersAccess
+        case .screenwatch: progress.screenwatchAccess
+        case .notifications: progress.notificationAccess
+        default: nil
+        }
+    }
+
+    private static func sourceHealth(for status: ScreenwatchSetupStatus) -> SourceHealth {
+        let state: HealthState
+        switch status.health {
+        case .healthy: state = .healthy
+        case .stale, .malformed: state = .attention
+        case .missing, .bookmarkUnavailable, .accessUnavailable, .unsafePath: state = .unavailable
+        }
+        return SourceHealth(
+            id: .screenwatch,
+            title: "Screenwatch",
+            eyebrow: "Behavior",
+            state: state,
+            detail: status.summary,
+            evidence: status.evidence,
+            actionTitle: status.repair.rawValue
+        )
+    }
+
+    private func persistCurrentConfigurationIfNeeded() throws {
+        switch progress.currentStep {
+        case .activityClassification:
+            try persistPolicy()
+        case .schedule:
+            policyDraft.workStart = LocalTime(hour: workStartHour, minute: 0)
+            policyDraft.workEnd = LocalTime(hour: workEndHour, minute: 0)
+            policyDraft.quietStart = LocalTime(hour: quietStartHour, minute: 0)
+            policyDraft.quietEnd = LocalTime(hour: quietEndHour, minute: 0)
+            try persistPolicy()
+        case .gamingPolicy:
+            guard let dependencies else { return }
+            do {
+                try dependencies.saveGamingPolicy(gamingPolicy.policy)
+                errorMessage = nil
+            } catch {
+                errorMessage = "The gaming boundary could not be saved. \(error.localizedDescription)"
+                throw error
+            }
+        default:
+            break
+        }
+    }
+
+    private func persistPolicy() throws {
+        guard let dependencies else { return }
+        guard policyIsAvailable else {
+            throw CocoaError(.fileReadNoSuchFile)
+        }
+        let policy = policyDraft.policy(preserving: originalPolicy)
+        do {
+            try dependencies.savePolicy(policy)
+            originalPolicy = policy
+            errorMessage = nil
+        } catch {
+            errorMessage = "This setup choice could not be applied. \(error.localizedDescription)"
+            throw error
         }
     }
 }
@@ -210,4 +357,25 @@ enum OnboardingGamingPolicy: String, CaseIterable, Identifiable {
     case firm
 
     var id: String { rawValue }
+
+    init(policy: GamingPolicy) {
+        if policy.dailyBudgetMinutes >= 90 {
+            self = .flexible
+        } else if policy.dailyBudgetMinutes <= 30 {
+            self = .firm
+        } else {
+            self = .balanced
+        }
+    }
+
+    var policy: GamingPolicy {
+        switch self {
+        case .flexible:
+            GamingPolicy(dailyBudgetMinutes: 90, priorityTaskRewardMinutes: 0)
+        case .balanced:
+            GamingPolicy(dailyBudgetMinutes: 60, priorityTaskRewardMinutes: 15)
+        case .firm:
+            GamingPolicy(dailyBudgetMinutes: 30, priorityTaskRewardMinutes: 30)
+        }
+    }
 }
