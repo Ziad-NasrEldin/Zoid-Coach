@@ -182,6 +182,10 @@ struct ZoidCoachAgentMain {
                 }
             }
             notificationCoordinator.activate()
+            let onboardingTestPrompts = OnboardingTestPromptService(
+                store: promptStore,
+                notifications: notificationCoordinator
+            )
             if qaFixtureAdapter != nil {
                 try await notificationCoordinator.processFixtureActions()
             }
@@ -403,6 +407,7 @@ struct ZoidCoachAgentMain {
                 agent: todayDashboardAgent,
                 promptStore: promptStore,
                 promptEffectRouter: promptEffectRouter,
+                onboardingTestPrompts: onboardingTestPrompts,
                 mutationRouter: mutationRouter,
                 voiceController: voiceController,
                 writeCircuitBreaker: databaseWriteCircuitBreaker,
