@@ -289,8 +289,13 @@ final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchec
 
     private static func macOSTemporaryDirectoryAliasResolvedPath(_ url: URL) -> String {
         let path = url.standardizedFileURL.path
-        guard path == "/var" || path.hasPrefix("/var/") else { return path }
-        return "/private" + path
+        if path == "/tmp" || path.hasPrefix("/tmp/") {
+            return "/private" + path
+        }
+        if path == "/var" || path.hasPrefix("/var/") {
+            return "/private" + path
+        }
+        return path
     }
 
     private static func rollbackCreatedDirectory(

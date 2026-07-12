@@ -5,6 +5,25 @@ import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
 
 @Test
+func onboardingStoreAcceptsTheTrustedMacOSTemporaryDirectoryAlias() throws {
+    let runRoot = URL(
+        fileURLWithPath: "/tmp/zoid-onboarding-alias-\(UUID().uuidString)",
+        isDirectory: true
+    )
+    defer { try? FileManager.default.removeItem(at: runRoot) }
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", runRoot.path],
+        processEnvironment: [:]
+    ).environment
+    let store = try OnboardingProgressStore(runtimeEnvironment: runtime)
+
+    let saved = try store.save(OnboardingProgress())
+
+    #expect(try store.load() == saved)
+    #expect(store.fileURL.path.hasSuffix("Zoid Coach/onboarding-progress.json"))
+}
+
+@Test
 func downstreamPackagesCompileDocumentedImportsAndRejectTheRemovedCoreOnlyPath() throws {
     let repositoryRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
