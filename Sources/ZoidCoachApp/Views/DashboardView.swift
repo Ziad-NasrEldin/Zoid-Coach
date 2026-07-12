@@ -210,6 +210,10 @@ private struct TodayCommandView: View {
 
             PlanningInvitationBanner()
 
+            BaselineObservationView()
+                .padding(.horizontal, 28)
+                .padding(.vertical, 18)
+
             if let snapshot = model.todaySnapshot {
                 TodayDashboardCommandOverview(snapshot: snapshot)
             } else {
