@@ -4,11 +4,13 @@ import ZoidCoachInfrastructure
 
 @MainActor
 final class DailySourceCoverageController: ObservableObject {
+    typealias Loader = @Sendable (Date, Calendar) throws -> DailySourceCoverage
+
     @Published private(set) var coverage: DailySourceCoverage?
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
-    private let store: DailySourceCoverageStore?
+    private let loader: Loader?
     private let unavailableError: Error?
     private let calendar: Calendar
     private var loadGeneration = 0
@@ -24,30 +26,38 @@ final class DailySourceCoverageController: ObservableObject {
     }
 
     init(store: DailySourceCoverageStore, calendar: Calendar = .current) {
-        self.store = store
+        loader = { day, calendar in try store.load(day: day, calendar: calendar) }
+        unavailableError = nil
+        self.calendar = calendar
+    }
+
+    init(loader: @escaping Loader, calendar: Calendar = .current) {
+        self.loader = loader
         unavailableError = nil
         self.calendar = calendar
     }
 
     private init(unavailableError: Error) {
-        store = nil
+        loader = nil
         self.unavailableError = unavailableError
         calendar = .current
     }
 
-    func load(day: Date) {
+    @discardableResult
+    func load(day: Date) -> Task<Void, Never>? {
         loadGeneration += 1
         let generation = loadGeneration
-        guard let store else {
+        guard let loader else {
             errorMessage = (unavailableError ?? DailySourceCoverageStoreError.openDatabase).localizedDescription
-            return
+            isLoading = false
+            return nil
         }
         isLoading = true
         let loadCalendar = calendar
-        Task { [weak self] in
+        return Task { [weak self] in
             do {
                 let result = try await Task.detached(priority: .utility) {
-                    try store.load(day: day, calendar: loadCalendar)
+                    try loader(day, loadCalendar)
                 }.value
                 guard let self, generation == self.loadGeneration else { return }
                 self.coverage = result
