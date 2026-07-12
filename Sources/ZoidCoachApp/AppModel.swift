@@ -90,11 +90,9 @@ final class AppModel: ObservableObject {
     ) {
         let resolvedAgentLaunchService = agentLaunchService
             ?? AgentLaunchService(runtimeEnvironment: runtimeEnvironment)
-        if case .qa = runtimeEnvironment.mode {
-            todayDashboardXPCClient = .disabled
-        } else {
-            todayDashboardXPCClient = TodayDashboardXPCClient()
-        }
+        todayDashboardXPCClient = TodayDashboardXPCClient(
+            runtimeEnvironment: runtimeEnvironment
+        )
         self.screenwatchReader = screenwatchReader ?? ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory)
         if case .qa = runtimeEnvironment.mode {
             self.remindersService = remindersService.flatMap { $0.isProductionAdapter ? nil : $0 }

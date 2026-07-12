@@ -4,13 +4,19 @@ import ZoidCoachCore
 
 public final class UserNotificationActionSource: NotificationSource, @unchecked Sendable {
     private let center: UNUserNotificationCenter
+    private let notificationIdentity: RuntimeNotificationIdentity
 
-    public init(center: UNUserNotificationCenter = .current()) {
+    public init(
+        center: UNUserNotificationCenter = .current(),
+        runtimeEnvironment: RuntimeEnvironment = .production()
+    ) {
         self.center = center
+        notificationIdentity = runtimeEnvironment.identity.notification
     }
 
     public func pending(identifier: String) async throws -> Bool {
-        await center.pendingNotificationRequests().contains { $0.identifier == identifier }
+        let requestIdentifier = namespacedRequestIdentifier(identifier)
+        return await center.pendingNotificationRequests().contains { $0.identifier == requestIdentifier }
     }
 
     public func schedule(_ desired: NotificationDesiredState) async throws -> String {
@@ -19,7 +25,7 @@ public final class UserNotificationActionSource: NotificationSource, @unchecked 
             throw ActionSourceError.accessDenied
         }
         let content = UNMutableNotificationContent()
-        content.categoryIdentifier = desired.category
+        content.categoryIdentifier = notificationIdentity.promptCategoryIdentifier(desired.category)
         content.title = desired.title
         content.body = desired.body
         content.sound = .default
@@ -31,7 +37,18 @@ public final class UserNotificationActionSource: NotificationSource, @unchecked 
         } else {
             trigger = nil
         }
-        try await center.add(UNNotificationRequest(identifier: desired.promptID, content: content, trigger: trigger))
-        return desired.promptID
+        let requestIdentifier = namespacedRequestIdentifier(desired.promptID)
+        try await center.add(UNNotificationRequest(identifier: requestIdentifier, content: content, trigger: trigger))
+        return Self.logicalReceiptIdentifier(for: desired)
+    }
+
+    public static func logicalReceiptIdentifier(
+        for desired: NotificationDesiredState
+    ) -> String {
+        desired.promptID
+    }
+
+    private func namespacedRequestIdentifier(_ identifier: String) -> String {
+        notificationIdentity.actionRequestIdentifier(identifier)
     }
 }

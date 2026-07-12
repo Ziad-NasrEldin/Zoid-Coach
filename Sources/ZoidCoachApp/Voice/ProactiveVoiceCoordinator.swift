@@ -7,12 +7,17 @@ import ZoidCoachCore
 @MainActor
 final class ProactiveVoiceCoordinator {
     private let speaker = AVSpeechSynthesizer()
+    private let notificationIdentity: RuntimeNotificationIdentity
     private var monitorTask: Task<Void, Never>?
     private var priorActiveJobIDs = Set<String>()
     private var announcedCommitments = Set<String>()
     private var announcedOverdueTasks = Set<String>()
     private var previousDistractionMinutes = 0
     private var lastDriftIntervention: Date?
+
+    init(runtimeEnvironment: RuntimeEnvironment = .production()) {
+        notificationIdentity = runtimeEnvironment.identity.notification
+    }
 
     func start(context: @escaping @Sendable () async throws -> ChiefOfStaffContextPacket) {
         stop()
@@ -79,7 +84,11 @@ final class ProactiveVoiceCoordinator {
         content.title = "Zoid Coach"
         content.body = text
         content.sound = nil
-        let request = UNNotificationRequest(identifier: "zoid-proactive-\(UUID().uuidString)", content: content, trigger: nil)
+        let request = UNNotificationRequest(
+            identifier: notificationIdentity.proactiveRequestPrefix + UUID().uuidString,
+            content: content,
+            trigger: nil
+        )
         try? await UNUserNotificationCenter.current().add(request)
     }
 

@@ -1,10 +1,11 @@
 import AppKit
 import Foundation
+import ZoidCoachCore
 
 enum ParentAppLauncher {
-    static func launchForBackgroundScheduling() {
+    static func launchForBackgroundScheduling(runtimeEnvironment: RuntimeEnvironment) {
         guard NSWorkspace.shared.runningApplications.contains(where: {
-            $0.bundleIdentifier == "com.ziadnasreldin.ZoidCoach"
+            $0.bundleIdentifier == runtimeEnvironment.identity.appBundleIdentifier
         }) == false else { return }
         let executableURL = Bundle.main.executableURL
         let appURL = executableURL?

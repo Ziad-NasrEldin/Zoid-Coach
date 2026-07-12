@@ -121,10 +121,8 @@ func fixtureBuilderRejectsQARootThatContainsProtectedStorage() throws {
 func runtimeEnvironmentRejectsRealProductionRootBeforeFixtureConstruction() {
     let productionRoot = RuntimeEnvironment.production().applicationSupportRoot
 
-    #expect(
-        throws: RuntimeEnvironmentError.self
-    ) {
-        try qaEnvironment(runRoot: productionRoot)
+    #expect(throws: RuntimeEnvironmentError.self) {
+        _ = try qaEnvironment(runRoot: productionRoot)
     }
 }
 

@@ -6,6 +6,7 @@ import ZoidCoachInfrastructure
 @main
 struct ZoidCoachAgentMain {
     static func main() async {
+        var activeRuntimeEnvironment: RuntimeEnvironment?
         let databaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker()
         let captureHealthStore = AgentCaptureHealthStore(initial: AgentCaptureHealthSnapshot(
             isEnabled: false,
@@ -16,9 +17,16 @@ struct ZoidCoachAgentMain {
             detail: "Capture runtime has not started"
         ))
         do {
+            let packagedRuntime = try PackagedRuntimeMarker.current()
             let runtimeResolution = try RuntimeEnvironment.resolve(
-                arguments: Array(CommandLine.arguments.dropFirst())
+                arguments: Array(CommandLine.arguments.dropFirst()),
+                packagedRuntime: packagedRuntime
             )
+            activeRuntimeEnvironment = runtimeResolution.environment
+            if runtimeResolution.remainingArguments == ["--print-runtime-identity"] {
+                print(Self.runtimeIdentityDescription(runtimeResolution.environment))
+                return
+            }
             let configuration = try AgentConfiguration(
                 runtimeEnvironment: runtimeResolution.environment,
                 arguments: runtimeResolution.remainingArguments
@@ -54,7 +62,9 @@ struct ZoidCoachAgentMain {
                 return
             }
             if configuration.watch {
-                ParentAppLauncher.launchForBackgroundScheduling()
+                ParentAppLauncher.launchForBackgroundScheduling(
+                    runtimeEnvironment: runtimeResolution.environment
+                )
             }
             let progressMonitor = AgentProgressMonitor()
             let watchdog = configuration.watch ? Self.startWatchdog(progressMonitor: progressMonitor) : nil
@@ -117,7 +127,10 @@ struct ZoidCoachAgentMain {
                 databaseURL: configuration.databaseURL,
                 screenwatchDirectory: configuration.activeCaptureDirectory(using: captureConfigurationStore)
             )
-            let notificationCoordinator = PromptNotificationCoordinator(promptStore: promptStore) { result in
+            let notificationCoordinator = PromptNotificationCoordinator(
+                promptStore: promptStore,
+                runtimeEnvironment: runtimeResolution.environment
+            ) { result in
                 _ = try? promptEffectRouter.apply(result)
             }
             notificationCoordinator.activate()
@@ -136,7 +149,9 @@ struct ZoidCoachAgentMain {
                 outbox: actionOutbox,
                 tasks: taskSource,
                 calendar: calendarSource,
-                notifications: UserNotificationActionSource(),
+                notifications: UserNotificationActionSource(
+                    runtimeEnvironment: runtimeResolution.environment
+                ),
                 writeCircuitBreaker: databaseWriteCircuitBreaker
             )
             let planScheduler = AgentPlanScheduler(
@@ -314,7 +329,8 @@ struct ZoidCoachAgentMain {
                 mutationRouter: mutationRouter,
                 voiceController: voiceController,
                 writeCircuitBreaker: databaseWriteCircuitBreaker,
-                captureHealthStore: captureHealthStore
+                captureHealthStore: captureHealthStore,
+                runtimeEnvironment: runtimeResolution.environment
             )
             xpcService.resume()
             let previousHeartbeat = try checkpointStore.checkpoint(sourceID: "agent-runtime")?.lastSuccessAt
@@ -618,15 +634,41 @@ struct ZoidCoachAgentMain {
         } catch {
             databaseWriteCircuitBreaker.trip(reason: error.localizedDescription)
             fputs("Zoid Coach agent entered read-only mode: \(error.localizedDescription)\n", stderr)
+            guard let activeRuntimeEnvironment else {
+                fputs("Zoid Coach agent cannot start XPC without a validated runtime identity\n", stderr)
+                Darwin.exit(EXIT_FAILURE)
+            }
             let degradedService = TodayDashboardXPCService(
                 writeCircuitBreaker: databaseWriteCircuitBreaker,
-                captureHealthStore: captureHealthStore
+                captureHealthStore: captureHealthStore,
+                runtimeEnvironment: activeRuntimeEnvironment
             )
             degradedService.resume()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(30))
             }
         }
+    }
+
+    private static func runtimeIdentityDescription(
+        _ runtimeEnvironment: RuntimeEnvironment
+    ) -> String {
+        let mode: String
+        let root: String
+        switch runtimeEnvironment.mode {
+        case .production:
+            mode = "production"
+            root = "-"
+        case let .qa(runRoot):
+            mode = "qa"
+            root = runRoot.path
+        }
+        return [
+            "package=\(runtimeEnvironment.packageMode?.rawValue ?? "unbundled")",
+            "mode=\(mode)",
+            "identity=\(runtimeEnvironment.identity.agentSigningIdentifier)",
+            "root=\(root)",
+        ].joined(separator: " ")
     }
 
     private static func planReadyPrompt(for day: Date, itemCount: Int, timeZoneIdentifier: String) -> PromptDraft {

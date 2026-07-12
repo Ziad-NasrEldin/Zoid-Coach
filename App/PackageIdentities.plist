@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>production</key>
+    <dict>
+        <key>appBundleIdentifier</key>
+        <string>com.ziadnasreldin.ZoidCoach</string>
+        <key>appDisplayName</key>
+        <string>Zoid Coach</string>
+        <key>appExecutableName</key>
+        <string>ZoidCoach</string>
+        <key>appPath</key>
+        <string>.build/app/Zoid Coach.app</string>
+        <key>appSigningIdentifier</key>
+        <string>com.ziadnasreldin.ZoidCoach</string>
+        <key>agentExecutableName</key>
+        <string>ZoidCoachAgent</string>
+        <key>agentBundleIdentifier</key>
+        <string>com.ziadnasreldin.ZoidCoach.agent</string>
+        <key>agentSigningIdentifier</key>
+        <string>com.ziadnasreldin.ZoidCoach.agent</string>
+        <key>launchAgentLabel</key>
+        <string>com.ziadnasreldin.ZoidCoach.agent</string>
+        <key>launchAgentPlistName</key>
+        <string>com.ziadnasreldin.ZoidCoach.agent.plist</string>
+        <key>machServiceName</key>
+        <string>com.ziadnasreldin.ZoidCoach.agent</string>
+        <key>promptRequestPrefix</key>
+        <string>zoid.prompt.</string>
+        <key>promptActionPrefix</key>
+        <string>ZOID_PROMPT_</string>
+        <key>promptCategoryPrefix</key>
+        <string></string>
+        <key>wakeRequestPrefix</key>
+        <string>zoid-coach.wake.</string>
+        <key>wakeCategoryIdentifier</key>
+        <string>ZOID_WAKE</string>
+        <key>proactiveRequestPrefix</key>
+        <string>zoid-proactive-</string>
+        <key>actionRequestPrefix</key>
+        <string></string>
+    </dict>
+    <key>qa</key>
+    <dict>
+        <key>appBundleIdentifier</key>
+        <string>qa.ziadnasreldin.ZoidCoach</string>
+        <key>appDisplayName</key>
+        <string>Zoid Coach QA</string>
+        <key>appExecutableName</key>
+        <string>ZoidCoachQA</string>
+        <key>appPath</key>
+        <string>.build/app-qa/Zoid Coach QA.app</string>
+        <key>appSigningIdentifier</key>
+        <string>qa.ziadnasreldin.ZoidCoach</string>
+        <key>agentExecutableName</key>
+        <string>ZoidCoachAgentQA</string>
+        <key>agentBundleIdentifier</key>
+        <string>qa.ziadnasreldin.ZoidCoach.agent</string>
+        <key>agentSigningIdentifier</key>
+        <string>qa.ziadnasreldin.ZoidCoach.agent</string>
+        <key>launchAgentLabel</key>
+        <string>qa.ziadnasreldin.ZoidCoach.agent</string>
+        <key>launchAgentPlistName</key>
+        <string>qa.ziadnasreldin.ZoidCoach.agent.plist</string>
+        <key>machServiceName</key>
+        <string>qa.ziadnasreldin.ZoidCoach.agent</string>
+        <key>promptRequestPrefix</key>
+        <string>zcqa.prompt.</string>
+        <key>promptActionPrefix</key>
+        <string>ZCQA_PROMPT_</string>
+        <key>promptCategoryPrefix</key>
+        <string>ZCQA_</string>
+        <key>wakeRequestPrefix</key>
+        <string>zcqa.wake.</string>
+        <key>wakeCategoryIdentifier</key>
+        <string>ZCQA_WAKE</string>
+        <key>proactiveRequestPrefix</key>
+        <string>zcqa-proactive-</string>
+        <key>actionRequestPrefix</key>
+        <string>zcqa.action.</string>
+    </dict>
+</dict>
+</plist>

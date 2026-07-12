@@ -5,7 +5,7 @@ import ZoidCoachCore
 
 @MainActor
 @Test
-func qaVoiceFailsClosedWithoutProductionDashboardConnection() async throws {
+func qaVoiceUsesDedicatedDashboardIdentityWhileOSControlsFailClosed() async throws {
     let runtimeEnvironment = try RuntimeEnvironment.resolve(
         arguments: ["--qa-run-root", "/tmp/zoid-voice-qa-\(UUID().uuidString)"],
         processEnvironment: [:]
@@ -20,7 +20,7 @@ func qaVoiceFailsClosedWithoutProductionDashboardConnection() async throws {
         audio: audio
     )
 
-    #expect(!model.isDashboardConnectionEnabled)
+    #expect(model.isDashboardConnectionEnabled)
     model.startAlwaysAvailable()
     model.toggleSession(source: .menuBar)
     model.toggleSession(source: .globalHotkey)

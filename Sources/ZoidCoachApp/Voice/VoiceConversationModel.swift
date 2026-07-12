@@ -84,7 +84,7 @@ final class VoiceConversationModel: ObservableObject {
     private let audio: any VoiceAudioControlling
     private let hotKey: any VoiceHotKeyControlling
     private let localFallback = LocalCommandFallback()
-    private let proactive = ProactiveVoiceCoordinator()
+    private let proactive: ProactiveVoiceCoordinator
     private var transport: (any GeminiLiveTransport)?
     private var receiveTask: Task<Void, Never>?
     private var rotationTask: Task<Void, Never>?
@@ -113,15 +113,16 @@ final class VoiceConversationModel: ObservableObject {
         wakeWord: (any VoiceWakeWordControlling)? = nil,
         audio: (any VoiceAudioControlling)? = nil
     ) {
+        proactive = ProactiveVoiceCoordinator(runtimeEnvironment: runtimeEnvironment)
         if case .qa = runtimeEnvironment.mode {
             isIsolatedQA = true
-            xpc = .disabled
+            xpc = TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment)
             self.hotKey = hotKey ?? DisabledVoiceHotKeyController()
             self.wakeWord = wakeWord ?? DisabledVoiceWakeWordController()
             self.audio = audio ?? DisabledVoiceAudioController()
         } else {
             isIsolatedQA = false
-            xpc = TodayDashboardXPCClient()
+            xpc = TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment)
             self.hotKey = hotKey ?? GlobalVoiceHotKey()
             self.wakeWord = wakeWord ?? LocalWakeWordDetector()
             self.audio = audio ?? VoiceAudioEngine()
