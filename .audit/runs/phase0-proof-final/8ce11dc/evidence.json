@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "run_id": "phase0-proof-final/8ce11dc",
+  "target_commit": "8ce11dca88754433b8e33d98691574eafeec4ff9",
+  "completed_at": "2026-07-12T02:54:27Z",
+  "status": "passed",
+  "proof_substrate_verdict": "pass",
+  "findings": [],
+  "semantic_registry_probe": {
+    "original_proof_classes": ["installed_app_e2e", "ui_automation"],
+    "mutated_proof_classes": ["unit_rule"],
+    "json_schema": "structurally valid",
+    "authoritative_registry_validator": "rejected tracker drift",
+    "api_create": "rejected",
+    "api_validate": "rejected",
+    "cli_create": "rejected",
+    "cli_validate": "rejected"
+  },
+  "prior_p1_probes": {
+    "foreign_git_build_stamp": "closed",
+    "foreign_git_scenario_evidence": "closed",
+    "parent_symlink_artifact_escape": "closed",
+    "null_assertion": "closed",
+    "failed_assertion": "closed"
+  },
+  "tests": {
+    "registry_validation": "666 scenarios with no tracker drift",
+    "python_proof": {"passed": 34, "failed": 0},
+    "former_runtime_guard": "passed",
+    "swift": {"passed": 227, "failed": 0}
+  },
+  "audited_artifacts": [
+    {"path": "Scripts/scenario_evidence.py", "sha256": "143e075c4d50b65c7c251c56eed04dccfcfe6271c4dcc7b1196f25ec7ebfd01c"},
+    {"path": "Scripts/scenario_registry.py", "sha256": "62525fe492205adebf8e8d68f0c380096f77ac3702c546e3819be47d664dfa75"},
+    {"path": "Scripts/stamp-build-identity.sh", "sha256": "e7f4ee45fe0a77fba17355630fb9a156804e19119ecc5446bd9429307c364679"},
+    {"path": "Tests/ScenarioRegistryTests/test_scenario_evidence.py", "sha256": "4ef75a6e0171f94221685b3625092828f3b56184a01907c34ccedefc3ebb0cd0"},
+    {"path": "Tests/ScenarioRegistryTests/test_scenario_registry.py", "sha256": "4be70cf9f27318b6a1c2d60389af2cbe4cc239f2ed2c71005ff7727a32ccc91f"},
+    {"path": "Tests/ScenarioRegistryTests/test_build_identity.py", "sha256": "048ad8d7456fcd90dcd261796098b38879c26d67d90934dce0edd99671610c06"},
+    {"path": "Tests/ZoidCoachAppTests/DeterministicTestControlTests.swift", "sha256": "89ff0f3b23aa6787a7ef8f549f3d38760f090393d04ef0ff5d6ded862017e82c"},
+    {"path": "docs/SCENARIO-EVIDENCE.md", "sha256": "42c80cbb6d72cd967cab26e69ba13e2d2eb269358d16c44d8a75734a80ededb9"},
+    {"path": "docs/SCENARIO-REGISTRY.md", "sha256": "addd3f179d5d2e668569dc7e36cadec6b128646b5e32773e4409019fc89e2241"},
+    {"path": "docs/scenario-registry.json", "sha256": "9f795d349a7aa3325c4ff0ccd20c5604aa9cf892b5def715af43d13e6adea1e3"},
+    {"path": "docs/scenario-registry.schema.json", "sha256": "c27270eb3c02e909cf44fe65a45b463f62c17f420a7d809b369c2d865703ed10"}
+  ]
+}
