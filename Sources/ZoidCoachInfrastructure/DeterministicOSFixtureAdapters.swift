@@ -29,6 +29,12 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     CalendarAvailabilitySource, NotificationSource, @unchecked Sendable {
     public typealias StableIDProvider = @Sendable (QAFixtureEntityKind, Int) -> String
 
+    private struct GeneratedIdentifier: Codable {
+        let kind: QAFixtureEntityKind
+        let index: Int
+        let id: String
+    }
+
     private struct PersistedState: Codable {
         var schemaVersion = 1
         var permissions: [QAFixturePermission: QAFixturePermissionState]
@@ -37,6 +43,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         var notifications: [QAFixtureNotificationRecord]
         var audit: [QAFixtureOperationAuditEntry]
         var counters: [QAFixtureEntityKind: Int]
+        var generatedIdentifiers: [GeneratedIdentifier]
 
         init(seed: QAFixtureOSSeed) {
             permissions = seed.permissions
@@ -45,6 +52,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
             notifications = seed.notifications
             audit = []
             counters = [:]
+            generatedIdentifiers = []
         }
     }
 
@@ -84,6 +92,8 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         corruptStateFileURL = directory.appendingPathComponent("state.corrupt.json")
         storage = try DescriptorRelativeStateDirectory(workspaceRoot: workspace.root)
         state = PersistedState(seed: seed)
+        try storage.acquire(exclusive: true)
+        defer { storage.release() }
 
         if try storage.exists("recovery.json") {
             let transaction = try Self.decode(
@@ -129,21 +139,24 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         }
     }
 
-    public func snapshot() -> QAFixtureOSSnapshot {
-        lock.withLock { snapshot(of: state) }
+    public func snapshot() throws -> QAFixtureOSSnapshot {
+        try withLatestState { snapshot(of: $0) }
     }
 
     public func reset(to seed: QAFixtureOSSeed) throws {
         try lock.withLock {
-            var replacement = PersistedState(seed: seed)
-            let timestamp = clock.now()
-            try appendAudit(to: &replacement, subsystem: "fixture", operation: "reset", targetID: nil, outcome: "succeeded", timestamp: timestamp)
-            try save(replacement, allowCounterReset: true)
+            try storage.withLock(exclusive: true) {
+                state = try loadPersistedState()
+                var replacement = PersistedState(seed: seed)
+                let timestamp = clock.now()
+                try appendAudit(to: &replacement, subsystem: "fixture", operation: "reset", targetID: nil, outcome: "succeeded", timestamp: timestamp)
+                try save(replacement, allowCounterReset: true)
+            }
         }
     }
 
-    public func permission(_ permission: QAFixturePermission) -> QAFixturePermissionState {
-        lock.withLock { state.permissions[permission] ?? .notDetermined }
+    public func permission(_ permission: QAFixturePermission) throws -> QAFixturePermissionState {
+        try withLatestState { $0.permissions[permission] ?? .notDetermined }
     }
 
     public func setPermission(_ value: QAFixturePermissionState, for permission: QAFixturePermission) throws {
@@ -153,9 +166,9 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     }
 
     public func allReminders(includeCompleted: Bool = true) throws -> [SourceTask] {
-        try lock.withLock {
-            try requirePermission(.reminders, in: state)
-            return state.reminders.filter { includeCompleted || !$0.isCompleted }
+        try withLatestState { latest in
+            try requirePermission(.reminders, in: latest)
+            return latest.reminders.filter { includeCompleted || !$0.isCompleted }
         }
     }
 
@@ -224,16 +237,16 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     }
 
     public func task(identifier: String) async throws -> SourceTask? {
-        try lock.withLock {
-            try requirePermission(.reminders, in: state)
-            return state.reminders.first { $0.id == identifier }
+        try withLatestState { latest in
+            try requirePermission(.reminders, in: latest)
+            return latest.reminders.first { $0.id == identifier }
         }
     }
 
     public func task(metadataMarker: String) async throws -> SourceTask? {
-        try lock.withLock {
-            try requirePermission(.reminders, in: state)
-            return state.reminders.first { $0.metadataMarker == metadataMarker }
+        try withLatestState { latest in
+            try requirePermission(.reminders, in: latest)
+            return latest.reminders.first { $0.metadataMarker == metadataMarker }
         }
     }
 
@@ -300,23 +313,23 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     }
 
     public func commitment(identifier: String) async throws -> CalendarCommitment? {
-        try lock.withLock {
-            try requirePermission(.calendar, in: state)
-            return state.calendarCommitments.first { $0.id == identifier }
+        try withLatestState { latest in
+            try requirePermission(.calendar, in: latest)
+            return latest.calendarCommitments.first { $0.id == identifier }
         }
     }
 
     public func ownedCommitment(ownershipToken: String) async throws -> CalendarCommitment? {
-        try lock.withLock {
-            try requirePermission(.calendar, in: state)
-            return state.calendarCommitments.first { $0.ownershipToken == ownershipToken }
+        try withLatestState { latest in
+            try requirePermission(.calendar, in: latest)
+            return latest.calendarCommitments.first { $0.ownershipToken == ownershipToken }
         }
     }
 
     public func confirmedMeeting(fingerprint: String) async throws -> CalendarCommitment? {
-        try lock.withLock {
-            try requirePermission(.calendar, in: state)
-            return state.calendarCommitments.first { $0.meetingFingerprint == fingerprint }
+        try withLatestState { latest in
+            try requirePermission(.calendar, in: latest)
+            return latest.calendarCommitments.first { $0.meetingFingerprint == fingerprint }
         }
     }
 
@@ -381,9 +394,9 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     }
 
     public func commitments(from start: Date, through end: Date, calendarIdentifiers: [String]) async throws -> [CalendarCommitment] {
-        try lock.withLock {
-            try requirePermission(.calendar, in: state)
-            return state.calendarCommitments.filter {
+        try withLatestState { latest in
+            try requirePermission(.calendar, in: latest)
+            return latest.calendarCommitments.filter {
                 $0.start < end && $0.end > start &&
                     (calendarIdentifiers.isEmpty || calendarIdentifiers.contains($0.calendarIdentifier))
             }.sorted {
@@ -395,9 +408,9 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     }
 
     public func pending(identifier: String) async throws -> Bool {
-        try lock.withLock {
-            try requirePermission(.notifications, in: state)
-            return state.notifications.contains { $0.id == identifier && $0.status == .scheduled }
+        try withLatestState { latest in
+            try requirePermission(.notifications, in: latest)
+            return latest.notifications.contains { $0.id == identifier && $0.status == .scheduled }
         }
     }
 
@@ -410,6 +423,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
             if let index = state.notifications.firstIndex(where: { $0.id == identifier }) {
                 state.notifications[index] = record
             } else {
+                try recordCallerSuppliedID(identifier, kind: .notification, in: &state)
                 state.notifications.append(record)
             }
         }
@@ -425,21 +439,55 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         _ body: (inout PersistedState) throws -> T
     ) throws -> T {
         try lock.withLock {
-            let operationTimestamp = timestamp ?? clock.now()
-            var updated = state
-            do {
-                if let permission { try requirePermission(permission, in: updated) }
-                let result = try body(&updated)
-                try appendAudit(to: &updated, subsystem: subsystem, operation: operation, targetID: targetID, outcome: "succeeded", timestamp: operationTimestamp)
-                try save(updated)
-                return result
-            } catch {
-                var refused = state
-                try appendAudit(to: &refused, subsystem: subsystem, operation: operation, targetID: targetID, outcome: "refused:\(String(describing: error))", timestamp: operationTimestamp)
-                try save(refused)
-                throw error
+            try storage.withLock(exclusive: true) {
+                state = try loadPersistedState()
+                let operationTimestamp = timestamp ?? clock.now()
+                var updated = state
+                do {
+                    if let permission { try requirePermission(permission, in: updated) }
+                    let result = try body(&updated)
+                    try appendAudit(to: &updated, subsystem: subsystem, operation: operation, targetID: targetID, outcome: "succeeded", timestamp: operationTimestamp)
+                    try save(updated)
+                    return result
+                } catch {
+                    var refused = state
+                    try appendAudit(to: &refused, subsystem: subsystem, operation: operation, targetID: targetID, outcome: "refused:\(String(describing: error))", timestamp: operationTimestamp)
+                    try save(refused)
+                    throw error
+                }
             }
         }
+    }
+
+    private func withLatestState<T>(_ body: (PersistedState) throws -> T) throws -> T {
+        try lock.withLock {
+            try storage.withLock(exclusive: true) {
+                let latest = try loadPersistedState()
+                state = latest
+                return try body(latest)
+            }
+        }
+    }
+
+    private func loadPersistedState() throws -> PersistedState {
+        if try storage.exists("recovery.json") {
+            let transaction = try Self.decode(
+                RecoveryTransaction.self,
+                data: storage.read("recovery.json"),
+                path: stateFileURL.path
+            )
+            return try resumeRecovery(transaction)
+        }
+        guard try storage.exists("state.json") else {
+            throw QAFixtureStateError.corruptState(path: stateFileURL.path)
+        }
+        let latest = try Self.decode(
+            PersistedState.self,
+            data: storage.read("state.json"),
+            path: stateFileURL.path
+        )
+        try Self.validatePersistedState(latest)
+        return latest
     }
 
     private func save(_ replacement: PersistedState, allowCounterReset: Bool = false) throws {
@@ -462,10 +510,21 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         }
         let value = stableID(kind, index)
         guard !value.isEmpty else { throw QAFixtureStateError.emptyStableIdentifier }
-        let allIDs = state.reminders.map(\.id) + state.calendarCommitments.map(\.id) + state.notifications.map(\.id) + state.audit.map(\.id)
+        let allIDs = state.reminders.map(\.id) + state.calendarCommitments.map(\.id) + state.notifications.map(\.id) + state.audit.map(\.id) + state.generatedIdentifiers.map(\.id)
         guard !allIDs.contains(value) else { throw QAFixtureStateError.duplicateIdentifier(value) }
         state.counters[kind] = index + 1
+        state.generatedIdentifiers.append(.init(kind: kind, index: index, id: value))
         return value
+    }
+
+    private func recordCallerSuppliedID(_ id: String, kind: QAFixtureEntityKind, in state: inout PersistedState) throws {
+        let index = state.counters[kind, default: 0]
+        guard index < Int.max,
+              !state.generatedIdentifiers.contains(where: { $0.id == id }) else {
+            throw QAFixtureStateError.invalidPersistedState("identifier allocation reused")
+        }
+        state.counters[kind] = index + 1
+        state.generatedIdentifiers.append(.init(kind: kind, index: index, id: id))
     }
 
     private func appendAudit(to state: inout PersistedState, subsystem: String, operation: String, targetID: String?, outcome: String, timestamp: Date) throws {
@@ -522,8 +581,39 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
             throw QAFixtureStateError.invalidPersistedState("invalid persisted identifier")
         }
         guard state.counters.values.allSatisfy({ $0 >= 0 && $0 < Int.max }),
-              state.counters[.audit, default: 0] >= state.audit.count else {
+              state.generatedIdentifiers.allSatisfy({ !$0.id.isEmpty && $0.index >= 0 }),
+              areUnique(state.generatedIdentifiers.map(\.id)) else {
             throw QAFixtureStateError.invalidPersistedState("invalid identifier counter")
+        }
+        for kind in [QAFixtureEntityKind.reminder, .calendarCommitment, .notification, .audit] {
+            let allocations = state.generatedIdentifiers
+                .filter { $0.kind == kind }
+                .sorted { $0.index < $1.index }
+            guard allocations.map(\.index) == Array(0 ..< allocations.count),
+                  state.counters[kind, default: 0] == allocations.count else {
+                throw QAFixtureStateError.invalidPersistedState("counter does not match allocations: \(kind.rawValue)")
+            }
+        }
+        let notificationIDs = Set(state.notifications.map(\.id))
+        let auditIDs = Set(state.audit.map(\.id))
+        let allocationKinds = Dictionary(
+            uniqueKeysWithValues: state.generatedIdentifiers.map { ($0.id, $0.kind) }
+        )
+        guard state.reminders.allSatisfy({ allocationKinds[$0.id].map { $0 == .reminder } ?? true }),
+              state.calendarCommitments.allSatisfy({ allocationKinds[$0.id].map { $0 == .calendarCommitment } ?? true }),
+              state.notifications.allSatisfy({ allocationKinds[$0.id].map { $0 == .notification } ?? true }),
+              state.audit.allSatisfy({ allocationKinds[$0.id] == .audit }) else {
+            throw QAFixtureStateError.invalidPersistedState("allocated identifier changed domain")
+        }
+        guard state.generatedIdentifiers.allSatisfy({ allocation in
+            switch allocation.kind {
+            case .reminder: true
+            case .notification: notificationIDs.contains(allocation.id)
+            case .audit: auditIDs.contains(allocation.id)
+            case .calendarCommitment: true
+            }
+        }) else {
+            throw QAFixtureStateError.invalidPersistedState("allocation has no persisted entity")
         }
         for notification in state.notifications {
             switch notification.status {
@@ -608,6 +698,22 @@ private final class DescriptorRelativeStateDirectory: @unchecked Sendable {
     }
 
     deinit { Darwin.close(descriptor) }
+
+    func acquire(exclusive: Bool) throws {
+        guard flock(descriptor, exclusive ? LOCK_EX : LOCK_SH) == 0 else {
+            throw QAFixtureStateError.filesystemOperation("lock fixture state", errno)
+        }
+    }
+
+    func release() {
+        _ = flock(descriptor, LOCK_UN)
+    }
+
+    func withLock<T>(exclusive: Bool, _ body: () throws -> T) throws -> T {
+        try acquire(exclusive: exclusive)
+        defer { release() }
+        return try body()
+    }
 
     private static func openAbsoluteDirectoryWithoutFollowing(_ url: URL) throws -> Int32 {
         guard url.path.hasPrefix("/") else {

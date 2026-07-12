@@ -25,7 +25,7 @@ func osFixturesPersistReminderMutationsAcrossRestartAndReset() async throws {
     let persisted = try await restarted.task(identifier: created.id)
     #expect(persisted?.priority == 5)
     #expect(persisted?.isCompleted == true)
-    #expect(restarted.snapshot().audit.count == 3)
+    #expect(try restarted.snapshot().audit.count == 3)
 
     try restarted.reset(to: seed)
     #expect(try restarted.allReminders() == [seedTask])
@@ -57,7 +57,7 @@ func osFixturesRepresentEveryPermissionStateAndAuditRefusals() async throws {
         try adapters.syncReminders([synced, synced])
     }
     #expect(try adapters.allReminders() == [synced])
-    #expect(adapters.snapshot().audit.contains { $0.outcome.hasPrefix("refused:") })
+    #expect(try adapters.snapshot().audit.contains { $0.outcome.hasPrefix("refused:") })
 }
 
 @Test
@@ -119,7 +119,7 @@ func osFixturesDeliverAndRespondToNotificationsEndToEnd() async throws {
     #expect(response.actionIdentifier == "resume")
 
     let restarted = try fixture.adapters(seed: .init())
-    #expect(restarted.snapshot().notifications.first?.status == .responded)
+    #expect(try restarted.snapshot().notifications.first?.status == .responded)
 }
 
 @Test
@@ -149,7 +149,7 @@ func osFixtureNotificationOperationUsesOneClockInstant() throws {
     let delivered = try adapters.deliverDueNotifications()
 
     #expect(delivered.allSatisfy { $0.deliveredAt == fixture.now })
-    #expect(adapters.snapshot().audit.last?.timestamp == fixture.now)
+    #expect(try adapters.snapshot().audit.last?.timestamp == fixture.now)
     #expect(sequence.callCount == 1)
 }
 
@@ -166,8 +166,8 @@ func osFixturesFailClosedOnCorruptionAndRecoverInsideWorkspace() throws {
     let recovered = try fixture.adapters(
         seed: .init(), recovery: .reset(.init(permissions: [.calendar: .granted]))
     )
-    #expect(recovered.permission(.calendar) == .granted)
-    #expect(recovered.snapshot().audit.map(\.operation) == ["recover-corrupt-state"])
+    #expect(try recovered.permission(.calendar) == .granted)
+    #expect(try recovered.snapshot().audit.map(\.operation) == ["recover-corrupt-state"])
     #expect(FileManager.default.fileExists(atPath: recovered.corruptStateFileURL.path))
     #expect(recovered.corruptStateFileURL.path.hasPrefix(fixture.workspace.root.path + "/"))
 }
@@ -263,8 +263,8 @@ func osFixtureRecoveryResumesAfterQuarantineInterruption() throws {
     }
 
     let resumed = try fixture.adapters(seed: .init())
-    #expect(resumed.permission(.calendar) == .granted)
-    #expect(resumed.snapshot().audit.map(\.operation) == ["recover-corrupt-state"])
+    #expect(try resumed.permission(.calendar) == .granted)
+    #expect(try resumed.snapshot().audit.map(\.operation) == ["recover-corrupt-state"])
     #expect(!FileManager.default.fileExists(
         atPath: first.stateFileURL.deletingLastPathComponent().appendingPathComponent("recovery.json").path
     ))
@@ -288,7 +288,7 @@ func osFixtureWriteFailureDoesNotPublishPartialMutation() async throws {
 
     let restarted = try fixture.adapters(seed: .init())
     #expect(try restarted.allReminders().isEmpty)
-    #expect(restarted.snapshot().audit.isEmpty)
+    #expect(try restarted.snapshot().audit.isEmpty)
 }
 
 @Test
@@ -313,7 +313,137 @@ func osFixtureSerializesConcurrentMutationsWithUniquePersistentIDs() async throw
 
     let restarted = try fixture.adapters(seed: .init())
     #expect(try restarted.allReminders().count == 24)
-    #expect(Set(restarted.snapshot().audit.map(\.id)).count == 24)
+    #expect(Set(try restarted.snapshot().audit.map(\.id)).count == 24)
+}
+
+@Test
+func osFixtureCoordinatesTwoInstancesWithoutLostActionsOrReusedIDs() async throws {
+    let fixture = try makeOSFixture("two-instances")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let permissions: [QAFixturePermission: QAFixturePermissionState] = [
+        .reminders: .granted,
+        .notifications: .granted
+    ]
+    let first = try fixture.adapters(seed: .init(permissions: permissions))
+    let second = try fixture.adapters(seed: .init())
+
+    try await withThrowingTaskGroup(of: Void.self) { group in
+        for index in 0 ..< 40 {
+            let adapter = index.isMultiple(of: 2) ? first : second
+            group.addTask {
+                _ = try await adapter.create(
+                    title: "Shared \(index)", dueDate: nil,
+                    listIdentifier: nil, metadataMarker: "shared-\(index)"
+                )
+            }
+        }
+        try await group.waitForAll()
+    }
+    try await withThrowingTaskGroup(of: Void.self) { group in
+        for index in 0 ..< 10 {
+            let adapter = index.isMultiple(of: 2) ? second : first
+            group.addTask {
+                _ = try await adapter.schedule(.init(
+                    category: "coach", title: "N\(index)", body: "Body",
+                    promptID: "prompt-\(index)"
+                ))
+            }
+        }
+        try await group.waitForAll()
+    }
+
+    #expect(try first.allReminders().count == 40)
+    #expect(try second.allReminders().count == 40)
+    let snapshot = try first.snapshot()
+    #expect(snapshot.notifications.count == 10)
+    #expect(snapshot.audit.count == 50)
+    #expect(Set(snapshot.reminders.map(\.id)) == Set((0 ..< 40).map { "qa-reminder-\($0)" }))
+    #expect(snapshot.audit.map(\.id) == (0 ..< 50).map { "qa-audit-\($0)" })
+    let object = try persistedJSONObject(first.stateFileURL)
+    #expect(try persistedCounter(.reminder, in: object) == 40)
+    #expect(try persistedCounter(.notification, in: object) == 10)
+    #expect(try persistedCounter(.audit, in: object) == 50)
+}
+
+@Test
+func osFixtureRejectsRegressedReminderCounterAtLoad() async throws {
+    let fixture = try makeOSFixture("counter-reminder")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.reminders: .granted]))
+    _ = try await adapters.create(title: "One", dueDate: nil, listIdentifier: nil, metadataMarker: nil)
+    try rewriteCounter(.reminder, value: 0, at: adapters.stateFileURL)
+    #expect(throws: QAFixtureStateError.corruptState(path: adapters.stateFileURL.path)) {
+        try fixture.adapters(seed: .init())
+    }
+}
+
+@Test
+func osFixtureRejectsRegressedCalendarCounterAtLoad() async throws {
+    let fixture = try makeOSFixture("counter-calendar")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.calendar: .granted]))
+    _ = try await adapters.apply(.createBlock(.init(
+        title: "One", start: fixture.now,
+        end: fixture.now.addingTimeInterval(600),
+        ownershipToken: "one", planItemID: "one"
+    )))
+    try rewriteCounter(.calendarCommitment, value: 0, at: adapters.stateFileURL)
+    #expect(throws: QAFixtureStateError.corruptState(path: adapters.stateFileURL.path)) {
+        try fixture.adapters(seed: .init())
+    }
+}
+
+@Test
+func osFixtureRejectsRegressedNotificationCounterAtLoad() async throws {
+    let fixture = try makeOSFixture("counter-notification")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.notifications: .granted]))
+    _ = try await adapters.schedule(.init(
+        category: "coach", title: "One", body: "One", promptID: "one"
+    ))
+    try rewriteCounter(.notification, value: 0, at: adapters.stateFileURL)
+    #expect(throws: QAFixtureStateError.corruptState(path: adapters.stateFileURL.path)) {
+        try fixture.adapters(seed: .init())
+    }
+}
+
+@Test
+func osFixtureRejectsRegressedAuditCounterAtLoad() throws {
+    let fixture = try makeOSFixture("counter-audit")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init())
+    try adapters.setPermission(.granted, for: .calendar)
+    try rewriteCounter(.audit, value: 0, at: adapters.stateFileURL)
+    #expect(throws: QAFixtureStateError.corruptState(path: adapters.stateFileURL.path)) {
+        try fixture.adapters(seed: .init())
+    }
+}
+
+@Test
+func osFixtureRejectsReusedGeneratedCounterIndexAtLoad() async throws {
+    let fixture = try makeOSFixture("counter-reused")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.reminders: .granted]))
+    _ = try await adapters.create(title: "One", dueDate: nil, listIdentifier: nil, metadataMarker: nil)
+    var object = try persistedJSONObject(adapters.stateFileURL)
+    var allocations = try #require(object["generatedIdentifiers"] as? [[String: Any]])
+    allocations.append(["kind": "reminder", "index": 0, "id": "deleted-reminder"])
+    object["generatedIdentifiers"] = allocations
+    if var counters = object["counters"] as? [String: Any] {
+        counters[QAFixtureEntityKind.reminder.rawValue] = 2
+        object["counters"] = counters
+    } else {
+        var counters = try #require(object["counters"] as? [Any])
+        let index = try #require(counters.firstIndex(where: { ($0 as? String) == "reminder" }))
+        counters[index + 1] = 2
+        object["counters"] = counters
+    }
+    try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        .write(to: adapters.stateFileURL, options: .atomic)
+
+    #expect(throws: QAFixtureStateError.corruptState(path: adapters.stateFileURL.path)) {
+        try fixture.adapters(seed: .init())
+    }
 }
 
 @Test
@@ -325,7 +455,7 @@ func osFixtureDeleteOfAbsentOwnedBlockIsIdempotent() async throws {
     let deleted = try await adapters.apply(.deleteOwnedBlock(identifier: "absent", ownershipToken: "owned"))
 
     #expect(deleted == nil)
-    #expect(adapters.snapshot().audit.last?.outcome == "succeeded")
+    #expect(try adapters.snapshot().audit.last?.outcome == "succeeded")
 }
 
 @Test
@@ -415,6 +545,45 @@ private final class TimestampSequence: @unchecked Sendable {
     }
 
     var callCount: Int { lock.withLock { calls } }
+}
+
+private func persistedJSONObject(_ url: URL) throws -> [String: Any] {
+    try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+}
+
+private func persistedCounter(
+    _ kind: QAFixtureEntityKind,
+    in object: [String: Any]
+) throws -> Int {
+    if let counters = object["counters"] as? [String: Any] {
+        return try #require(counters[kind.rawValue] as? Int)
+    }
+    let counters = try #require(object["counters"] as? [Any])
+    let index = try #require(
+        counters.firstIndex(where: { ($0 as? String) == kind.rawValue })
+    )
+    return try #require(counters[index + 1] as? Int)
+}
+
+private func rewriteCounter(
+    _ kind: QAFixtureEntityKind,
+    value: Int,
+    at url: URL
+) throws {
+    var object = try persistedJSONObject(url)
+    if var counters = object["counters"] as? [String: Any] {
+        counters[kind.rawValue] = value
+        object["counters"] = counters
+    } else {
+        var counters = try #require(object["counters"] as? [Any])
+        let index = try #require(
+            counters.firstIndex(where: { ($0 as? String) == kind.rawValue })
+        )
+        counters[index + 1] = value
+        object["counters"] = counters
+    }
+    try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        .write(to: url, options: .atomic)
 }
 
 private func makeOSFixture(_ label: String) throws -> OSFixtureHarness {
