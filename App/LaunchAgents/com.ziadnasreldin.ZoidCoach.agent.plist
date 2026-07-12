@@ -12,6 +12,11 @@
     <true/>
     <key>ProcessType</key>
     <string>Background</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ZOID_COACH_PACKAGE_MODE</key>
+        <string>production</string>
+    </dict>
     <key>LimitLoadToSessionType</key>
     <string>Aqua</string>
     <key>ThrottleInterval</key>

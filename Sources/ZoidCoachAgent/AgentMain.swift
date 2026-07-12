@@ -17,10 +17,16 @@ struct ZoidCoachAgentMain {
             detail: "Capture runtime has not started"
         ))
         do {
+            let packagedRuntime = try PackagedRuntimeMarker.current()
             let runtimeResolution = try RuntimeEnvironment.resolve(
-                arguments: Array(CommandLine.arguments.dropFirst())
+                arguments: Array(CommandLine.arguments.dropFirst()),
+                packagedRuntime: packagedRuntime
             )
             activeRuntimeEnvironment = runtimeResolution.environment
+            if runtimeResolution.remainingArguments == ["--print-runtime-identity"] {
+                print(Self.runtimeIdentityDescription(runtimeResolution.environment))
+                return
+            }
             let configuration = try AgentConfiguration(
                 runtimeEnvironment: runtimeResolution.environment,
                 arguments: runtimeResolution.remainingArguments
@@ -642,6 +648,27 @@ struct ZoidCoachAgentMain {
                 try? await Task.sleep(for: .seconds(30))
             }
         }
+    }
+
+    private static func runtimeIdentityDescription(
+        _ runtimeEnvironment: RuntimeEnvironment
+    ) -> String {
+        let mode: String
+        let root: String
+        switch runtimeEnvironment.mode {
+        case .production:
+            mode = "production"
+            root = "-"
+        case let .qa(runRoot):
+            mode = "qa"
+            root = runRoot.path
+        }
+        return [
+            "package=\(runtimeEnvironment.packageMode?.rawValue ?? "unbundled")",
+            "mode=\(mode)",
+            "identity=\(runtimeEnvironment.identity.agentSigningIdentifier)",
+            "root=\(root)",
+        ].joined(separator: " ")
     }
 
     private static func planReadyPrompt(for day: Date, itemCount: Int, timeZoneIdentifier: String) -> PromptDraft {

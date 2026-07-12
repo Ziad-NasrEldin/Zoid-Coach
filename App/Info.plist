@@ -40,5 +40,12 @@
     <string>Zoid Coach captures configured displays locally to understand work context and visible meeting proposals.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>ZoidCoachPackageMode</key>
+    <string>production</string>
+    <key>LSEnvironment</key>
+    <dict>
+        <key>ZOID_COACH_PACKAGE_MODE</key>
+        <string>production</string>
+    </dict>
 </dict>
 </plist>

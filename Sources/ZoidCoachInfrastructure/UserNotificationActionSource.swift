@@ -39,12 +39,16 @@ public final class UserNotificationActionSource: NotificationSource, @unchecked 
         }
         let requestIdentifier = namespacedRequestIdentifier(desired.promptID)
         try await center.add(UNNotificationRequest(identifier: requestIdentifier, content: content, trigger: trigger))
-        return requestIdentifier
+        return Self.logicalReceiptIdentifier(for: desired)
+    }
+
+    public static func logicalReceiptIdentifier(
+        for desired: NotificationDesiredState
+    ) -> String {
+        desired.promptID
     }
 
     private func namespacedRequestIdentifier(_ identifier: String) -> String {
-        guard !notificationIdentity.actionRequestPrefix.isEmpty,
-              !identifier.hasPrefix(notificationIdentity.actionRequestPrefix) else { return identifier }
-        return notificationIdentity.actionRequestPrefix + identifier
+        notificationIdentity.actionRequestIdentifier(identifier)
     }
 }

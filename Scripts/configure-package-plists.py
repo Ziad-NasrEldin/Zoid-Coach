@@ -4,6 +4,8 @@ import argparse
 import plistlib
 from pathlib import Path
 
+from qa_run_root import canonical_qa_run_root
+
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -30,22 +32,24 @@ def main() -> None:
     launch_agent["Label"] = identity["launchAgentLabel"]
     launch_agent["BundleProgram"] = f"Contents/MacOS/{identity['agentExecutableName']}"
     launch_agent["MachServices"] = {identity["machServiceName"]: True}
+    info["ZoidCoachPackageMode"] = arguments.mode
+    info["LSEnvironment"] = {"ZOID_COACH_PACKAGE_MODE": arguments.mode}
+    launch_agent["EnvironmentVariables"] = {
+        "ZOID_COACH_PACKAGE_MODE": arguments.mode
+    }
 
     if arguments.mode == "qa":
-        if arguments.qa_run_root is None or not arguments.qa_run_root.is_absolute():
+        if arguments.qa_run_root is None:
             raise SystemExit("QA packaging requires an absolute --qa-run-root")
-        qa_run_root = arguments.qa_run_root.resolve(strict=False)
-        info["ZoidCoachPackageMode"] = "qa"
+        try:
+            qa_run_root = canonical_qa_run_root(arguments.qa_run_root)
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
         info["ZoidCoachQARunRoot"] = str(qa_run_root)
-        info["LSEnvironment"] = {"ZOID_COACH_QA_RUN_ROOT": str(qa_run_root)}
-        launch_agent["EnvironmentVariables"] = {
-            "ZOID_COACH_QA_RUN_ROOT": str(qa_run_root)
-        }
+        info["LSEnvironment"]["ZOID_COACH_QA_RUN_ROOT"] = str(qa_run_root)
+        launch_agent["EnvironmentVariables"]["ZOID_COACH_QA_RUN_ROOT"] = str(qa_run_root)
     else:
-        info.pop("ZoidCoachPackageMode", None)
         info.pop("ZoidCoachQARunRoot", None)
-        info.pop("LSEnvironment", None)
-        launch_agent.pop("EnvironmentVariables", None)
 
     arguments.info_plist.write_bytes(plistlib.dumps(info, sort_keys=False))
     arguments.launch_agent_plist.write_bytes(

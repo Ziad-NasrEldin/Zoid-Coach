@@ -67,12 +67,17 @@ class PackageModeTests(unittest.TestCase):
             info["LSEnvironment"]["ZOID_COACH_QA_RUN_ROOT"],
             expected_run_root,
         )
+        self.assertEqual(info["LSEnvironment"]["ZOID_COACH_PACKAGE_MODE"], "qa")
         self.assertEqual(agent["Label"], "qa.ziadnasreldin.ZoidCoach.agent")
         self.assertEqual(agent["BundleProgram"], "Contents/MacOS/ZoidCoachAgentQA")
         self.assertEqual(agent["MachServices"], {"qa.ziadnasreldin.ZoidCoach.agent": True})
         self.assertEqual(
             agent["EnvironmentVariables"]["ZOID_COACH_QA_RUN_ROOT"],
             expected_run_root,
+        )
+        self.assertEqual(
+            agent["EnvironmentVariables"]["ZOID_COACH_PACKAGE_MODE"],
+            "qa",
         )
         outputs = self.info.read_text() + self.agent.read_text()
         self.assertNotIn("com.ziadnasreldin.ZoidCoach", outputs)
@@ -82,6 +87,23 @@ class PackageModeTests(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("absolute --qa-run-root", result.stderr)
+
+    def test_qa_transformation_rejects_actual_production_roots_and_symlink_aliases(self):
+        cases = [
+            Path.home() / "Library" / "Application Support" / "qa-fixture",
+            Path.home(),
+        ]
+        alias = self.root / "library-alias"
+        alias.symlink_to(Path.home() / "Library", target_is_directory=True)
+        cases.append(alias / "qa-fixture")
+
+        for index, qa_run_root in enumerate(cases):
+            with self.subTest(index=index, qa_run_root=qa_run_root):
+                self.info.write_bytes(SOURCE_INFO.read_bytes())
+                self.agent.write_bytes(SOURCE_AGENT.read_bytes())
+                result = self.configure("qa", qa_run_root)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("overlaps production path", result.stderr)
 
 
 if __name__ == "__main__":

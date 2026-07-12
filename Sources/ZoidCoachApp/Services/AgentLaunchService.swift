@@ -40,30 +40,56 @@ private final class SystemAgentServiceRegistration: AgentServiceRegistration {
 }
 
 @MainActor
+struct AgentServiceRegistrationFactory {
+    let production: (String) -> any AgentServiceRegistration
+    let qa: (String) -> any AgentServiceRegistration
+
+    static let live = Self(
+        production: { SystemAgentServiceRegistration(plistName: $0) },
+        qa: { SystemAgentServiceRegistration(plistName: $0) }
+    )
+}
+
+@MainActor
 final class AgentLaunchService {
     private let plistName: String
     private let registrationFingerprintKey = "ZoidCoachAgentRegistrationFingerprint"
     private let userDefaults: UserDefaults
     private let service: (any AgentServiceRegistration)?
-    private let isIsolatedQA: Bool
+    private let isControlDisabled: Bool
+    private let bundleURL: URL
+    private let buildVersion: String
 
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
-        service: (any AgentServiceRegistration)? = nil
+        service: (any AgentServiceRegistration)? = nil,
+        registrationFactory: AgentServiceRegistrationFactory = .live,
+        bundleURL: URL = Bundle.main.bundleURL,
+        buildVersion: String = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleVersion"
+        ) as? String ?? "unknown"
     ) {
         plistName = runtimeEnvironment.identity.launchAgentPlistName
         userDefaults = runtimeEnvironment.makeUserDefaults()
-        if case .qa = runtimeEnvironment.mode {
-            isIsolatedQA = true
+        self.bundleURL = bundleURL
+        self.buildVersion = buildVersion
+        if case .qa = runtimeEnvironment.mode, runtimeEnvironment.packageMode != .qa {
+            isControlDisabled = true
             self.service = service
         } else {
-            isIsolatedQA = false
-            self.service = service ?? SystemAgentServiceRegistration(plistName: plistName)
+            isControlDisabled = false
+            if let service {
+                self.service = service
+            } else if runtimeEnvironment.packageMode == .qa {
+                self.service = registrationFactory.qa(plistName)
+            } else {
+                self.service = registrationFactory.production(plistName)
+            }
         }
     }
 
     func inspect() -> SourceHealth {
-        guard !isIsolatedQA else { return isolatedQAHealth }
+        guard !isControlDisabled else { return isolatedQAHealth }
         guard isBundled else {
             return SourceHealth(
                 id: .agent,
@@ -132,17 +158,19 @@ final class AgentLaunchService {
     }
 
     func enableAndInspect() -> SourceHealth {
-        guard !isIsolatedQA else { return isolatedQAHealth }
+        guard !isControlDisabled else { return isolatedQAHealth }
         guard isBundled else { return inspect() }
         guard let service else { return unavailableProductionServiceHealth }
         // A package assembled under .build is a staging artifact. Registering it
         // would let a disposable build take ownership away from the installed app.
-        if Self.isDevelopmentBundle(Bundle.main.bundleURL) {
+        if Self.isDevelopmentBundle(bundleURL) {
             return inspect()
         }
         do {
-            let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
-            let fingerprint = Self.registrationFingerprint(build: build, bundleURL: Bundle.main.bundleURL)
+            let fingerprint = Self.registrationFingerprint(
+                build: buildVersion,
+                bundleURL: bundleURL
+            )
             if service.status == .enabled,
                userDefaults.string(forKey: registrationFingerprintKey) == fingerprint {
                 return inspect()
@@ -167,7 +195,7 @@ final class AgentLaunchService {
     }
 
     func disableAndInspect() -> SourceHealth {
-        guard !isIsolatedQA else { return isolatedQAHealth }
+        guard !isControlDisabled else { return isolatedQAHealth }
         guard isBundled else { return inspect() }
         guard let service else { return unavailableProductionServiceHealth }
         do {
@@ -214,7 +242,7 @@ final class AgentLaunchService {
     }
 
     private var isBundled: Bool {
-        Bundle.main.bundleURL.pathExtension == "app"
+        bundleURL.pathExtension == "app"
     }
 
     nonisolated static func registrationFingerprint(build: String, bundleURL: URL) -> String {

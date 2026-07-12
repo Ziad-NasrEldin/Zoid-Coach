@@ -28,4 +28,15 @@ func qaPromptNotificationActionsUseOnlyTheQANamespace() {
             notificationIdentity: identity
         ) == action)
     }
+
+    #expect(identity.actionRequestIdentifier("prompt-1") == "zcqa.action.prompt-1")
+    #expect(identity.actionRequestIdentifier("zcqa.action.prompt-1") == "zcqa.action.prompt-1")
+    #expect(RuntimeIdentity.production.notification.actionRequestIdentifier("prompt-1") == "prompt-1")
+    #expect(UserNotificationActionSource.logicalReceiptIdentifier(for: .init(
+        category: "coach",
+        title: "Resume",
+        body: "Return to focus",
+        promptID: "prompt-1",
+        deliveryDate: nil
+    )) == "prompt-1")
 }
