@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "2732d57baef4a31a86507b858cd9660a3f3dfcef167fb4d87fa65c4c4326710a",
+  "tracker_sha256": "f27122800227ff7eb9d50bd540c43036c9c7087ce967eb657c2ce5e5ca587f45",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -710,8 +710,8 @@
       "item_index": 1,
       "wording": "Choose which Reminder lists Zoid Coach should use.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -721,7 +721,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The app fetches every incomplete Reminder from all calendars and only lets users reorder list presentation (`RemindersService.swift:90-126`; `DashboardView.swift:298-308`).",
+      "audit_note": "Onboarding and Settings now discover lists by their exact opaque EventKit identifier, show the current visible name, require an explicit Include or Exclude decision after access is granted, and persist schema-v5 choices through the CAS/idempotent policy saga. Signed-QA discovery, rename, restart, and exact-ID tests pass, but the native control still needs visible click-through proof after the Mac is unlocked (`RemindersService.swift`; `OnboardingRootView.swift`; `SettingsView.swift`; `UserPolicy.swift`).",
       "tracker_line": 94
     },
     {
@@ -731,8 +731,8 @@
       "item_index": 2,
       "wording": "Exclude personal or irrelevant Reminder lists.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -742,7 +742,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No included or excluded Reminder-list policy exists in Settings or fetch filtering.",
+      "audit_note": "Configured exclusions now filter AppModel, agent synchronization and planning, and first-plan preparation consistently; unknown new lists fail closed, all-excluded mode preserves local tasks, and Settings refreshes the current session immediately. Deterministic signed-QA filtering and restart proof pass, while native visual interaction remains unverified (`AppModel.swift`; `AgentReminderPlanner.swift`; `OnboardingFirstDailyPlanService.swift`).",
       "tracker_line": 95
     },
     {
@@ -1195,8 +1195,8 @@
       "item_index": 4,
       "wording": "See tasks from included Today lists.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1206,7 +1206,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no included-list preference or Today-list semantic; every Reminder list is fetched.",
+      "audit_note": "Identifier-based list inclusion now controls the Reminder inventory used by the app, agent, and first-plan service, and signed-QA exact-ID tests prove included tasks survive filtering. A dedicated named Today-list policy is intentionally not inferred from display names, and the visible native inventory still needs unlocked-Mac proof.",
       "tracker_line": 123
     },
     {
@@ -1258,8 +1258,8 @@
       "item_index": 7,
       "wording": "Avoid seeing tasks from excluded Reminder lists.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1269,7 +1269,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No list exclusion policy or filter exists.",
+      "audit_note": "Excluded identifiers are removed from the current AppModel session immediately after a durable Settings save and are also excluded before agent synchronization and first-plan planning. Policy-read failures suspend synchronization rather than failing open or deleting durable imports; signed-QA exact-ID and all-excluded tests pass, but native visual proof remains.",
       "tracker_line": 126
     },
     {
@@ -9867,8 +9867,8 @@
       "item_index": 8,
       "wording": "Change included Reminder lists.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9878,7 +9878,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "All incomplete reminders are fetched; list order can change, but inclusion/exclusion cannot.",
+      "audit_note": "Settings now exposes permission state, System Settings repair, in-place recheck, discovery retry, explicit local-only configuration, deleted-list notices, and stable-ID Include or Exclude controls. Saves use list-only CAS rebasing, preserve concurrent unrelated settings, and refresh visible tasks exactly once; native click-through verification remains blocked by the locked Mac.",
       "tracker_line": 627
     },
     {
