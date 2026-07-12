@@ -7,6 +7,8 @@ source "$ROOT/Scripts/lib/signed-qa-runtime-lifecycle.sh"
 IDENTITIES="$ROOT/App/PackageIdentities.plist"
 QA_ROOT="${ZOID_COACH_QA_RUN_ROOT:-/private/tmp/zoid-666-signed-qa}"
 INSTALL_ROOT="${ZOID_COACH_QA_INSTALL_ROOT:-$HOME/Applications}"
+QA_ROOT="${QA_ROOT:A}"
+INSTALL_ROOT="${INSTALL_ROOT:A}"
 KEEP_EXISTING_DATA="${ZOID_COACH_QA_KEEP_DATA:-false}"
 USER_DOMAIN="gui/$(id -u)"
 
