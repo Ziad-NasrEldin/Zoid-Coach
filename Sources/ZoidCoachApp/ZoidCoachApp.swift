@@ -43,7 +43,31 @@ struct ZoidCoachApplication: App {
                 if onboarding.route == .onboarding {
                     OnboardingRootView(coordinator: onboarding)
                 } else {
-                    DashboardView()
+                    VStack(spacing: 0) {
+                        if !onboarding.progress.isFinished {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("SETUP IS PAUSED")
+                                        .font(Sumi.label(9))
+                                        .sumiLabelTracking()
+                                    Text("Resume from \(onboarding.progress.currentStep.rawValue) when you are ready.")
+                                        .font(Sumi.body(12))
+                                        .foregroundStyle(Sumi.muted)
+                                }
+                                Spacer()
+                                Button("RESUME SETUP") { onboarding.resumeSetup() }
+                                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
+                                    .accessibilityIdentifier("today.resume-setup")
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(Sumi.softPaper)
+                            .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("today.setup-paused")
+                        }
+                        DashboardView()
+                    }
                 }
             }
                 .environmentObject(model)
@@ -74,6 +98,10 @@ struct ZoidCoachApplication: App {
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     Task {
+                        if onboarding.route == .onboarding,
+                           onboarding.progress.currentStep == .deliveryTest {
+                            await onboarding.restoreTestPrompt()
+                        }
                         await model.refreshPromptInbox()
                         await model.refreshActionAudit()
                         await model.refreshRuntimeSafety()
