@@ -34,16 +34,45 @@ func qaRuntimeEnvironmentDerivesEveryWritableLocationFromRunRoot() throws {
         processEnvironment: [:]
     )
 
-    #expect(resolution.environment.mode == .qa(runRoot: URL(fileURLWithPath: "/tmp/zoid-qa/run-42", isDirectory: true)))
-    #expect(resolution.environment.databaseURL.path == "/tmp/zoid-qa/run-42/Application Support/Zoid Coach/zoid-coach.sqlite")
-    #expect(resolution.environment.screenwatchDirectory.path == "/tmp/zoid-qa/run-42/Screenwatch/days")
-    #expect(resolution.environment.applicationSupportRoot.path == "/tmp/zoid-qa/run-42/Application Support")
-    #expect(resolution.environment.exportRoot.path == "/tmp/zoid-qa/run-42/Exports")
+    #expect(resolution.environment.mode == .qa(runRoot: URL(fileURLWithPath: "/private/tmp/zoid-qa/run-42", isDirectory: true)))
+    #expect(resolution.environment.databaseURL.path == "/private/tmp/zoid-qa/run-42/Application Support/Zoid Coach/zoid-coach.sqlite")
+    #expect(resolution.environment.screenwatchDirectory.path == "/private/tmp/zoid-qa/run-42/Screenwatch/days")
+    #expect(resolution.environment.applicationSupportRoot.path == "/private/tmp/zoid-qa/run-42/Application Support")
+    #expect(resolution.environment.exportRoot.path == "/private/tmp/zoid-qa/run-42/Exports")
     #expect(resolution.environment.userDefaultsSuiteName?.hasPrefix("com.ziadnasreldin.ZoidCoach.qa.") == true)
     #expect(resolution.environment.keychainServiceSuffix.hasPrefix(".qa."))
     #expect(resolution.environment.identity == .qa)
     #expect(resolution.environment.packageMode == nil)
     #expect(resolution.remainingArguments == ["--once"])
+}
+
+@Test
+func packagedQATemporaryAliasCanonicalizesToPrivateTmp() throws {
+    let token = "zoid-qa-tmp-alias-\(UUID().uuidString)"
+    let aliasRoot = URL(fileURLWithPath: "/tmp/\(token)", isDirectory: true)
+    let canonicalRoot = URL(fileURLWithPath: "/private/tmp/\(token)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: canonicalRoot) }
+    try FileManager.default.createDirectory(
+        at: canonicalRoot,
+        withIntermediateDirectories: true
+    )
+    let resolution = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", canonicalRoot.path],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: aliasRoot,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    )
+
+    #expect(resolution.environment.mode == .qa(runRoot: canonicalRoot))
+    #expect(resolution.environment.applicationSupportRoot.path
+        == canonicalRoot.appendingPathComponent("Application Support").path)
+    #expect(resolution.environment.databaseURL.path.hasPrefix(canonicalRoot.path + "/"))
+    #expect(resolution.environment.screenwatchDirectory.path.hasPrefix(canonicalRoot.path + "/"))
+    #expect(resolution.environment.exportRoot.path.hasPrefix(canonicalRoot.path + "/"))
 }
 
 @Test

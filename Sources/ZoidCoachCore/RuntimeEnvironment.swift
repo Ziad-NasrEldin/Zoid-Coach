@@ -306,7 +306,7 @@ public struct RuntimeEnvironment: Equatable, Sendable {
             guard NSString(string: runRootValue).isAbsolutePath else {
                 throw RuntimeEnvironmentError.qaRunRootMustBeAbsolute(runRootValue)
             }
-            let runRoot = canonicalURL(runRootValue, isDirectory: true)
+            let runRoot = canonicalQARunRoot(runRootValue)
             try validateQARunRoot(runRoot, directories: directories)
             mode = .qa(runRoot: runRoot)
             let identifier = stableIdentifier(for: runRoot.path)
@@ -442,9 +442,9 @@ public struct RuntimeEnvironment: Equatable, Sendable {
             guard let embeddedRoot = packagedRuntime.qaRunRoot else {
                 throw RuntimeEnvironmentError.invalidPackageMarker(path: "embedded QA root")
             }
-            let canonicalEmbeddedRoot = canonicalURL(embeddedRoot)
+            let canonicalEmbeddedRoot = canonicalQARunRoot(embeddedRoot)
             if let requestedRoot = values.qaRunRoot {
-                let canonicalRequestedRoot = canonicalURL(requestedRoot, isDirectory: true)
+                let canonicalRequestedRoot = canonicalQARunRoot(requestedRoot)
                 guard canonicalRequestedRoot == canonicalEmbeddedRoot else {
                     throw RuntimeEnvironmentError.packageQARootMismatch(
                         expected: canonicalEmbeddedRoot.path,
@@ -530,6 +530,28 @@ public struct RuntimeEnvironment: Equatable, Sendable {
             fileURLWithPath: resolved.standardizedFileURL.path,
             isDirectory: url.hasDirectoryPath
         )
+    }
+
+    private static func canonicalQARunRoot(_ path: String) -> URL {
+        canonicalQARunRoot(URL(fileURLWithPath: path, isDirectory: true))
+    }
+
+    private static func canonicalQARunRoot(_ url: URL) -> URL {
+        platformCanonicalURL(canonicalURL(url))
+    }
+
+    private static func platformCanonicalURL(_ url: URL) -> URL {
+        #if os(macOS)
+        let path = url.path
+        if path == "/tmp" || path.hasPrefix("/tmp/") {
+            let suffix = path.dropFirst("/tmp".count)
+            return URL(
+                fileURLWithPath: "/private/tmp\(suffix)",
+                isDirectory: url.hasDirectoryPath
+            )
+        }
+        #endif
+        return url
     }
 
     private static func optionalNonempty(_ value: String?) throws -> String? {

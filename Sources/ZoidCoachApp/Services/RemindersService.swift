@@ -208,6 +208,11 @@ final class RemindersService: RemindersServicing {
 @MainActor
 final class DisabledQARemindersService: RemindersServicing {
     let isProductionAdapter = false
+    private let detail: String
+
+    init(detail: String = "QA Reminders integration is disabled") {
+        self.detail = detail
+    }
     func inspect() async -> SourceHealth { health }
     func requestAccessAndInspect() async -> SourceHealth { health }
     func fetchIncompleteTasks() async -> ReminderTaskLoad { .unavailable }
@@ -218,7 +223,7 @@ final class DisabledQARemindersService: RemindersServicing {
             title: "Apple Reminders",
             eyebrow: "Intent",
             state: .unavailable,
-            detail: "QA Reminders integration is disabled",
+            detail: detail,
             evidence: "A deterministic QA Reminders adapter is required before EventKit access is enabled",
             actionTitle: "Unavailable"
         )

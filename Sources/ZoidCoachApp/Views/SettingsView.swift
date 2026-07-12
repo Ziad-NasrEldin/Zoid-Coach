@@ -146,7 +146,6 @@ struct SettingsView: View {
     private let xpcClient = TodayDashboardXPCClient(
         runtimeEnvironment: RuntimeEnvironment.current()
     )
-    private let calendarService = CalendarService()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -514,7 +513,7 @@ struct SettingsView: View {
                         .font(Sumi.body(12))
                         .foregroundStyle(Sumi.muted)
                     Spacer(minLength: 12)
-                    if calendarService.selectionAvailability == .needsPermission {
+                    if model.calendarSelectionAvailability == .needsPermission {
                         Button("CONNECT CALENDAR") {
                             Task { await connectCalendar() }
                         }
@@ -559,10 +558,10 @@ struct SettingsView: View {
     private func refreshCalendars() async {
         isLoadingCalendars = true
         defer { isLoadingCalendars = false }
-        switch calendarService.selectionAvailability {
+        switch model.calendarSelectionAvailability {
         case .available:
             do {
-                calendarChoices = try calendarService.availableCalendars()
+                calendarChoices = try model.availableCalendarChoices()
                 calendarAccessMessage = calendarChoices.isEmpty ? "No Apple Calendars are available on this Mac." : nil
             } catch {
                 calendarAccessMessage = "Apple Calendars could not be loaded."
@@ -575,7 +574,7 @@ struct SettingsView: View {
     }
 
     private func connectCalendar() async {
-        _ = await calendarService.requestAccessAndInspect()
+        await model.requestCalendarAccess()
         await refreshCalendars()
     }
 

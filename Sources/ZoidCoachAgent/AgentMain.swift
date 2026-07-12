@@ -27,6 +27,15 @@ struct ZoidCoachAgentMain {
                 print(Self.runtimeIdentityDescription(runtimeResolution.environment))
                 return
             }
+            let qaFixtureComposition: AuthorizedQAFixtureOSComposition? = if case .qa = runtimeResolution.environment.mode {
+                try QAFixtureOSComposition.makeAuthorizedComposition(
+                    runtimeEnvironment: runtimeResolution.environment
+                )
+            } else {
+                nil
+            }
+            let qaFixtureAdapter = qaFixtureComposition?.adapter
+            let fixtureAuthorization = qaFixtureComposition?.authorization
             let configuration = try AgentConfiguration(
                 runtimeEnvironment: runtimeResolution.environment,
                 arguments: runtimeResolution.remainingArguments
@@ -36,7 +45,9 @@ struct ZoidCoachAgentMain {
                 operations: AgentOSAdapterBoundary.operations(
                     requestRemindersAccess: configuration.requestRemindersAccess,
                     printRemindersStatus: configuration.printRemindersStatus
-                )
+                ),
+                fixtureAuthorization: fixtureAuthorization,
+                fixtureAdapter: qaFixtureAdapter
             )
             let captureConfigurationStore = NativeCaptureConfigurationStore(
                 fileURL: runtimeResolution.environment.nativeCaptureConfigurationURL
@@ -53,12 +64,21 @@ struct ZoidCoachAgentMain {
                 try captureConfigurationStore.save(persistedCaptureConfiguration)
             }
             if configuration.printRemindersStatus {
-                print("Zoid Coach agent: Apple Reminders status \(AgentPermissionRequester.remindersStatus())")
+                if let qaFixtureAdapter {
+                    print("Zoid Coach agent: QA Reminders status \(try qaFixtureAdapter.permission(.reminders).rawValue)")
+                } else {
+                    print("Zoid Coach agent: Apple Reminders status \(AgentPermissionRequester.remindersStatus())")
+                }
                 return
             }
             if configuration.requestRemindersAccess {
-                let granted = try await AgentPermissionRequester.requestRemindersAccess()
-                print(granted ? "Zoid Coach agent: Apple Reminders access granted" : "Zoid Coach agent: Apple Reminders access was not granted")
+                if let qaFixtureAdapter {
+                    let granted = try qaFixtureAdapter.permission(.reminders) == .granted
+                    print(granted ? "Zoid Coach agent: QA Reminders access granted" : "Zoid Coach agent: QA Reminders access was not granted")
+                } else {
+                    let granted = try await AgentPermissionRequester.requestRemindersAccess()
+                    print(granted ? "Zoid Coach agent: Apple Reminders access granted" : "Zoid Coach agent: Apple Reminders access was not granted")
+                }
                 return
             }
             if configuration.watch {
@@ -127,13 +147,27 @@ struct ZoidCoachAgentMain {
                 databaseURL: configuration.databaseURL,
                 screenwatchDirectory: configuration.activeCaptureDirectory(using: captureConfigurationStore)
             )
-            let notificationCoordinator = PromptNotificationCoordinator(
-                promptStore: promptStore,
-                runtimeEnvironment: runtimeResolution.environment
-            ) { result in
-                _ = try? promptEffectRouter.apply(result)
+            let notificationCoordinator: PromptNotificationCoordinator
+            if let qaFixtureAdapter {
+                notificationCoordinator = PromptNotificationCoordinator(
+                    promptStore: promptStore,
+                    fixtureAdapter: qaFixtureAdapter,
+                    runtimeEnvironment: runtimeResolution.environment
+                ) { result in
+                    _ = try? promptEffectRouter.apply(result)
+                }
+            } else {
+                notificationCoordinator = PromptNotificationCoordinator(
+                    promptStore: promptStore,
+                    runtimeEnvironment: runtimeResolution.environment
+                ) { result in
+                    _ = try? promptEffectRouter.apply(result)
+                }
             }
             notificationCoordinator.activate()
+            if qaFixtureAdapter != nil {
+                try await notificationCoordinator.processFixtureActions()
+            }
             try Self.replayPendingPromptEffects(store: promptStore, router: promptEffectRouter)
             let initialVersionedPolicy: VersionedUserPolicy
             if let stored = try policyStore.current() {
@@ -143,15 +177,25 @@ struct ZoidCoachAgentMain {
             }
             let initialPolicy = initialVersionedPolicy.policy
             let todayDashboardAgent = try TodayDashboardAgent(databaseURL: configuration.databaseURL)
-            let taskSource = EventKitTaskSource()
-            let calendarSource = EventKitCalendarSource()
+            let taskSource: any TaskSource
+            let calendarSource: any CalendarSource & CalendarAvailabilitySource
+            let notificationSource: any NotificationSource
+            if let qaFixtureAdapter {
+                taskSource = qaFixtureAdapter
+                calendarSource = qaFixtureAdapter
+                notificationSource = qaFixtureAdapter
+            } else {
+                taskSource = EventKitTaskSource()
+                calendarSource = EventKitCalendarSource()
+                notificationSource = UserNotificationActionSource(
+                    runtimeEnvironment: runtimeResolution.environment
+                )
+            }
             let actionExecutor = ActionCommandExecutor(
                 outbox: actionOutbox,
                 tasks: taskSource,
                 calendar: calendarSource,
-                notifications: UserNotificationActionSource(
-                    runtimeEnvironment: runtimeResolution.environment
-                ),
+                notifications: notificationSource,
                 writeCircuitBreaker: databaseWriteCircuitBreaker
             )
             let planScheduler = AgentPlanScheduler(
@@ -169,6 +213,7 @@ struct ZoidCoachAgentMain {
                 try? Self.finalizeMeetingEffect(execution, outbox: actionOutbox, archive: archive)
             }
             let reminderPlanner = AgentReminderPlanner(
+                fixtureAdapter: qaFixtureAdapter,
                 planStore: planStore,
                 reminderSnapshotStore: reminderSnapshotStore,
                 taskHistoryStore: taskHistoryStore,

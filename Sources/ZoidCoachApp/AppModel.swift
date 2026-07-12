@@ -75,6 +75,7 @@ final class AppModel: ObservableObject {
     private let todaySnapshotStore: TodaySnapshotStore?
     private let policyStore: PolicyStore?
     private let todayDashboardXPCClient: TodayDashboardXPCClient
+    private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
 
     init(
@@ -95,13 +96,29 @@ final class AppModel: ObservableObject {
         )
         self.screenwatchReader = screenwatchReader ?? ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory)
         if case .qa = runtimeEnvironment.mode {
+            let adapter: DeterministicOSFixtureAdapters?
+            let fixtureFailureDetail: String
+            do {
+                adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+                    runtimeEnvironment: runtimeEnvironment
+                )
+                fixtureFailureDetail = "QA fixture composition is unavailable"
+            } catch {
+                adapter = nil
+                fixtureFailureDetail = "QA fixture startup failed: \(error.localizedDescription)"
+            }
+            qaOSFixtureAdapter = adapter
             self.remindersService = remindersService.flatMap { $0.isProductionAdapter ? nil : $0 }
-                ?? DisabledQARemindersService()
+                ?? adapter.map(QAFixtureRemindersService.init)
+                ?? DisabledQARemindersService(detail: fixtureFailureDetail)
             self.calendarService = calendarService.flatMap { $0.isProductionAdapter ? nil : $0 }
-                ?? DisabledQACalendarService()
+                ?? adapter.map(QAFixtureCalendarService.init)
+                ?? DisabledQACalendarService(detail: fixtureFailureDetail)
             self.notificationService = notificationService.flatMap { $0.isProductionAdapter ? nil : $0 }
-                ?? DisabledQANotificationService()
+                ?? adapter.map(QAFixtureNotificationService.init)
+                ?? DisabledQANotificationService(detail: fixtureFailureDetail)
         } else {
+            qaOSFixtureAdapter = nil
             self.remindersService = remindersService ?? liveServiceFactory.reminders()
             self.calendarService = calendarService ?? liveServiceFactory.calendar()
             self.notificationService = notificationService ?? liveServiceFactory.notifications()
@@ -181,6 +198,24 @@ final class AppModel: ObservableObject {
                 updateSource(await notificationService.requestAccessAndInspect())
             }
         }
+    }
+
+    var calendarSelectionAvailability: CalendarSelectionAvailability {
+        calendarService.selectionAvailability
+    }
+
+    func availableCalendarChoices() throws -> [CalendarChoice] {
+        try calendarService.availableCalendars()
+    }
+
+    func requestCalendarAccess() async {
+        updateSource(await calendarService.requestAccessAndInspect())
+    }
+
+    func refreshQAFixtureState() async {
+        guard qaOSFixtureAdapter != nil else { return }
+        await refreshAllSources()
+        await refreshReminderTasks()
     }
 
     func refreshReminderTasks() {

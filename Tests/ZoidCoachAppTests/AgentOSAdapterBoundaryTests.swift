@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import ZoidCoachCore
+import ZoidCoachInfrastructure
 
 @Test
 func qaAgentRejectsEveryProductionOSAdapterOperation() throws {

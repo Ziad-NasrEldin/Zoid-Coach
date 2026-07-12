@@ -10,7 +10,8 @@ enum AgentPlanDraftResult: Equatable {
 }
 
 final class AgentReminderPlanner: @unchecked Sendable {
-    private let eventStore: EKEventStore
+    private let eventStore: EKEventStore?
+    private let fixtureAdapter: DeterministicOSFixtureAdapters?
     private let planStore: AutonomousPlanStore
     private let reminderSnapshotStore: ReminderSnapshotStore
     private let taskHistoryStore: TaskHistoryStore
@@ -18,14 +19,16 @@ final class AgentReminderPlanner: @unchecked Sendable {
     private let advisorProvider: @Sendable () -> (any PlanningAdvising)?
 
     init(
-        eventStore: EKEventStore = EKEventStore(),
+        eventStore: EKEventStore? = nil,
+        fixtureAdapter: DeterministicOSFixtureAdapters? = nil,
         planStore: AutonomousPlanStore,
         reminderSnapshotStore: ReminderSnapshotStore,
         taskHistoryStore: TaskHistoryStore,
         learningStore: LearningAggregateStore,
         advisorProvider: @escaping @Sendable () -> (any PlanningAdvising)? = { nil }
     ) {
-        self.eventStore = eventStore
+        self.fixtureAdapter = fixtureAdapter
+        self.eventStore = fixtureAdapter == nil ? (eventStore ?? EKEventStore()) : nil
         self.planStore = planStore
         self.reminderSnapshotStore = reminderSnapshotStore
         self.taskHistoryStore = taskHistoryStore
@@ -44,7 +47,14 @@ final class AgentReminderPlanner: @unchecked Sendable {
         }
 
         let reminders: [AgentReminderSnapshot]
-        if hasFullAccess {
+        if let fixtureAdapter {
+            reminders = try fixtureAdapter.allReminders(includeCompleted: false).map {
+                AgentReminderSnapshot(
+                    id: $0.id, title: $0.title, dueDate: $0.dueDate,
+                    priority: priority(for: $0.priority), project: $0.listIdentifier
+                )
+            }
+        } else if hasFullAccess {
             reminders = await incompleteReminders()
         } else {
             reminders = try reminderSnapshotStore.loadIncomplete().map {
@@ -114,7 +124,19 @@ final class AgentReminderPlanner: @unchecked Sendable {
     }
 
     func synchronizeReminderSource() async throws -> ReminderSyncResult? {
+        if let fixtureAdapter {
+            let snapshots = try fixtureAdapter.allReminders().map {
+                ReminderSourceSnapshot(
+                    id: $0.id, title: $0.title, dueDate: $0.dueDate,
+                    priority: $0.priority, notes: $0.notes,
+                    listID: $0.listIdentifier, listName: $0.listIdentifier,
+                    modificationDate: nil, isCompleted: $0.isCompleted
+                )
+            }
+            return try reminderSnapshotStore.synchronize(snapshots)
+        }
         guard hasFullAccess else { return nil }
+        guard let eventStore else { return nil }
         let previouslyIncomplete = Set(try reminderSnapshotStore.loadIncomplete().map(\.id))
         let predicate = eventStore.predicateForReminders(in: nil)
         let snapshots: [ReminderSourceSnapshot] = await withCheckedContinuation { continuation in
@@ -142,6 +164,7 @@ final class AgentReminderPlanner: @unchecked Sendable {
     }
 
     private func incompleteReminders() async -> [AgentReminderSnapshot] {
+        guard let eventStore else { return [] }
         let predicate = eventStore.predicateForIncompleteReminders(withDueDateStarting: nil, ending: nil, calendars: nil)
         return await withCheckedContinuation { continuation in
             eventStore.fetchReminders(matching: predicate) { reminders in
@@ -168,7 +191,10 @@ final class AgentReminderPlanner: @unchecked Sendable {
     }
 
     private var hasFullAccess: Bool {
-        switch EKEventStore.authorizationStatus(for: .reminder) {
+        if let fixtureAdapter {
+            return (try? fixtureAdapter.permission(.reminders)) == .granted
+        }
+        return switch EKEventStore.authorizationStatus(for: .reminder) {
         case .fullAccess, .authorized: true
         default: false
         }

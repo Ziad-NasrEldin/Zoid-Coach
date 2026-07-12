@@ -14,9 +14,10 @@ public enum PromptNotificationCategory: String, CaseIterable, Sendable {
 }
 
 public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
-    private let center: UNUserNotificationCenter
+    private let center: UNUserNotificationCenter?
     private let promptStore: PromptInboxStore
     private let notificationIdentity: RuntimeNotificationIdentity
+    private let fixtureAdapter: DeterministicOSFixtureAdapters?
     private let onResponse: @Sendable (PromptResponseResult) async -> Void
 
     public init(
@@ -27,12 +28,28 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
     ) {
         self.promptStore = promptStore
         self.center = center
+        fixtureAdapter = nil
+        notificationIdentity = runtimeEnvironment.identity.notification
+        self.onResponse = onResponse
+        super.init()
+    }
+
+    public init(
+        promptStore: PromptInboxStore,
+        fixtureAdapter: DeterministicOSFixtureAdapters,
+        runtimeEnvironment: RuntimeEnvironment,
+        onResponse: @escaping @Sendable (PromptResponseResult) async -> Void = { _ in }
+    ) {
+        self.promptStore = promptStore
+        center = nil
+        self.fixtureAdapter = fixtureAdapter
         notificationIdentity = runtimeEnvironment.identity.notification
         self.onResponse = onResponse
         super.init()
     }
 
     public func activate() {
+        guard let center else { return }
         center.delegate = self
         center.setNotificationCategories(Self.categories(notificationIdentity: notificationIdentity))
     }
@@ -40,6 +57,19 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
     @discardableResult
     public func schedule(_ episode: PromptEpisode, deliveryDate: Date? = nil) async throws -> Bool {
         guard let category = PromptNotificationCategory.forPromptType(episode.type) else { return false }
+        if let fixtureAdapter {
+            _ = try await fixtureAdapter.schedule(.init(
+                category: category.rawValue,
+                title: episode.title,
+                body: episode.summary,
+                promptID: episode.id,
+                deliveryDate: deliveryDate
+            ))
+            _ = try fixtureAdapter.deliverDueNotifications()
+            try await processFixtureActions()
+            return true
+        }
+        guard let center else { return false }
         let settings = await center.notificationSettings()
         guard [.authorized, .provisional].contains(settings.authorizationStatus) else { return false }
         let content = UNMutableNotificationContent()
@@ -61,6 +91,29 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         )
         try await center.add(request)
         return true
+    }
+
+    public func processFixtureActions() async throws {
+        guard let fixtureAdapter else { return }
+        for notification in try fixtureAdapter.snapshot().notifications
+            where notification.status == .responded {
+            guard let identifier = notification.actionIdentifier,
+                  let action = Self.fixtureActionKind(
+                    identifier: identifier,
+                    category: notification.desired.category,
+                    notificationIdentity: notificationIdentity
+                  ) else { continue }
+            let result = try promptStore.respond(
+                promptID: notification.desired.promptID,
+                action: action,
+                actionToken: PromptResponseToken.make(
+                    promptID: notification.desired.promptID,
+                    action: action
+                ),
+                surface: .notification
+            )
+            if result.wasApplied { await onResponse(result) }
+        }
     }
 
     public func userNotificationCenter(
@@ -114,6 +167,35 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         return PromptActionKind(
             rawValue: String(identifier.dropFirst(notificationIdentity.promptActionPrefix.count)).lowercased()
         )
+    }
+
+    public static func fixtureActionKind(
+        identifier: String,
+        notificationIdentity: RuntimeNotificationIdentity
+    ) -> PromptActionKind? {
+        PromptActionKind(rawValue: identifier.lowercased())
+            ?? actionKind(
+                identifier: identifier,
+                notificationIdentity: notificationIdentity
+            )
+    }
+
+    public static func fixtureActionKind(
+        identifier: String,
+        category: String,
+        notificationIdentity: RuntimeNotificationIdentity
+    ) -> PromptActionKind? {
+        guard let action = fixtureActionKind(
+            identifier: identifier,
+            notificationIdentity: notificationIdentity
+        ), let category = PromptNotificationCategory(rawValue: category) else { return nil }
+        let allowed: Set<PromptActionKind> = switch category {
+        case .planReady: [.acceptPlan, .reviewPlan]
+        case .meetingCandidate: [.addMeeting, .editMeeting, .ignore]
+        case .planChanged: [.reviewPlan, .undoPlanChange]
+        case .wakeIntervention: []
+        }
+        return allowed.contains(action) ? action : nil
     }
 
     private static func categories(
