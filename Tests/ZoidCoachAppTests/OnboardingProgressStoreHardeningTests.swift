@@ -23,22 +23,106 @@ func onboardingVersionOneSequenceIsExplicitAndComplete() {
 }
 
 @Test
-func onboardingDecodesLegacyVersionOneProgressWithoutNewOptionalAccessFields() throws {
-    let legacy = Data(#"""
-    {
-        "version": 1,
-        "currentStep": "reminders",
-        "completedSteps": ["welcome", "localPrivacy"]
+func onboardingMigratesLegacyVersionOneAccessDecisionsAtEveryProgressPoint() throws {
+    let cases: [(
+        currentStep: OnboardingStep,
+        completedSteps: [OnboardingStep],
+        coachingMode: InitialCoachingMode?,
+        finishedAt: Date?,
+        expectedAccess: [OnboardingAccessDecision?]
+    )] = [
+        (.reminders, [.welcome, .localPrivacy], nil, nil, [nil, nil, nil]),
+        (.screenwatch, [.welcome, .localPrivacy, .reminders], nil, nil, [.deferred, nil, nil]),
+        (
+            .notifications,
+            [.welcome, .localPrivacy, .reminders, .screenwatch],
+            nil,
+            nil,
+            [.deferred, .deferred, nil]
+        ),
+        (
+            .applicationInventory,
+            Array(OnboardingProgress.stepSequence.prefix(5)),
+            nil,
+            nil,
+            [.deferred, .deferred, .deferred]
+        ),
+        (
+            .firstDailyPlan,
+            OnboardingProgress.stepSequence,
+            .rulesOnly,
+            Date(timeIntervalSinceReferenceDate: 100),
+            [.deferred, .deferred, .deferred]
+        ),
+    ]
+
+    for testCase in cases {
+        var object: [String: Any] = [
+            "version": 1,
+            "currentStep": testCase.currentStep.rawValue,
+            "completedSteps": testCase.completedSteps.map(\.rawValue),
+        ]
+        if let coachingMode = testCase.coachingMode {
+            object["coachingMode"] = coachingMode.rawValue
+        }
+        if let finishedAt = testCase.finishedAt {
+            object["finishedAt"] = finishedAt.timeIntervalSinceReferenceDate
+        }
+        let progress = try JSONDecoder().decode(
+            OnboardingProgress.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        try progress.validate()
+        #expect(progress.currentStep == testCase.currentStep)
+        #expect([
+            progress.remindersAccess,
+            progress.screenwatchAccess,
+            progress.notificationAccess,
+        ] == testCase.expectedAccess)
+        #expect(progress.finishedAt == testCase.finishedAt)
     }
-    """#.utf8)
+}
 
-    let progress = try JSONDecoder().decode(OnboardingProgress.self, from: legacy)
+@Test
+func onboardingDelayedStaleSavesCannotRegressProgressDecisionsOrCompletion() throws {
+    let fixture = try OnboardingStoreFixture(name: "stale-save")
+    defer { fixture.remove() }
+    let staleStore = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    let forwardStore = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    var oneStep = try OnboardingProgress()
+    try oneStep.completeCurrentStep(at: now)
+    var twoStepsWithDecision = oneStep
+    try twoStepsWithDecision.completeCurrentStep(at: now)
+    try twoStepsWithDecision.recordAccessDecision(.denied, for: .reminders)
+    try forwardStore.save(twoStepsWithDecision)
 
-    try progress.validate()
-    #expect(progress.currentStep == .reminders)
-    #expect(progress.remindersAccess == nil)
-    #expect(progress.screenwatchAccess == nil)
-    #expect(progress.notificationAccess == nil)
+    try staleStore.save(oneStep)
+
+    #expect(try forwardStore.load() == twoStepsWithDecision)
+
+    var completed = twoStepsWithDecision
+    try completed.completeCurrentStep(at: now)
+    try completed.recordAccessDecision(.unavailable, for: .screenwatch)
+    try completed.completeCurrentStep(at: now)
+    try completed.recordAccessDecision(.deferred, for: .notifications)
+    for _ in 0 ..< 8 {
+        try completed.completeCurrentStep(at: now)
+        if completed.currentStep == .coachingMode {
+            completed.chooseCoachingMode(.rulesOnly)
+        }
+    }
+    try forwardStore.save(completed)
+    #expect(completed.isFinished)
+
+    try staleStore.save(twoStepsWithDecision)
+
+    #expect(try forwardStore.load() == completed)
+
+    try forwardStore.reset()
+
+    #expect(try forwardStore.load() == (try OnboardingProgress()))
 }
 
 @Test
@@ -148,6 +232,78 @@ func onboardingRecoveryResumesAfterQuarantineWithoutLosingCorruptBytes() throws 
 }
 
 @Test
+func onboardingRecoveryResumesAfterPreparedInterruption() throws {
+    let fixture = try OnboardingStoreFixture(name: "recovery-prepared")
+    defer { fixture.remove() }
+    let interruptedStore = OnboardingProgressStore(
+        runtimeEnvironment: fixture.runtime,
+        corruptionRecovery: .reset,
+        storageCheckpoint: { checkpoint in
+            if checkpoint == .recoveryPrepared { throw OnboardingStoreInterruption.injected }
+        }
+    )
+    try FileManager.default.createDirectory(
+        at: interruptedStore.fileURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let corruptBytes = Data("prepared-damage".utf8)
+    try corruptBytes.write(to: interruptedStore.fileURL)
+
+    #expect(throws: OnboardingStoreInterruption.injected) {
+        try interruptedStore.load()
+    }
+    #expect(try Data(contentsOf: interruptedStore.fileURL) == corruptBytes)
+    #expect(FileManager.default.fileExists(atPath: interruptedStore.recoveryFileURL.path))
+    #expect(!FileManager.default.fileExists(atPath: interruptedStore.corruptFileURL.path))
+
+    let resumed = try OnboardingProgressStore(
+        runtimeEnvironment: fixture.runtime,
+        corruptionRecovery: .reset
+    ).load()
+    #expect(resumed == (try OnboardingProgress()))
+    #expect(try Data(contentsOf: interruptedStore.corruptFileURL) == corruptBytes)
+    #expect(!FileManager.default.fileExists(atPath: interruptedStore.recoveryFileURL.path))
+}
+
+@Test
+func onboardingRecoveryResumesAfterReplacementPersistedInterruption() throws {
+    let fixture = try OnboardingStoreFixture(name: "recovery-replacement")
+    defer { fixture.remove() }
+    let interruptedStore = OnboardingProgressStore(
+        runtimeEnvironment: fixture.runtime,
+        corruptionRecovery: .reset,
+        storageCheckpoint: { checkpoint in
+            if checkpoint == .replacementStatePersisted {
+                throw OnboardingStoreInterruption.injected
+            }
+        }
+    )
+    try FileManager.default.createDirectory(
+        at: interruptedStore.fileURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let corruptBytes = Data("replacement-damage".utf8)
+    try corruptBytes.write(to: interruptedStore.fileURL)
+
+    #expect(throws: OnboardingStoreInterruption.injected) {
+        try interruptedStore.load()
+    }
+    #expect(try Data(contentsOf: interruptedStore.corruptFileURL) == corruptBytes)
+    #expect(FileManager.default.fileExists(atPath: interruptedStore.recoveryFileURL.path))
+    #expect(
+        try JSONDecoder().decode(
+            OnboardingProgress.self,
+            from: Data(contentsOf: interruptedStore.fileURL)
+        ) == (try OnboardingProgress())
+    )
+
+    let resumed = try OnboardingProgressStore(runtimeEnvironment: fixture.runtime).load()
+    #expect(resumed == (try OnboardingProgress()))
+    #expect(try Data(contentsOf: interruptedStore.corruptFileURL) == corruptBytes)
+    #expect(!FileManager.default.fileExists(atPath: interruptedStore.recoveryFileURL.path))
+}
+
+@Test
 func onboardingStoreRejectsIntermediateAndFinalDirectorySymlinks() throws {
     let intermediate = try OnboardingStoreFixture(name: "intermediate-symlink")
     defer { intermediate.remove() }
@@ -224,7 +380,7 @@ func onboardingConcurrentStoreInstancesAlwaysLeaveAValidWholeState() async throw
 
     let result = try first.load()
     try result.validate()
-    #expect(result == welcomeComplete || result == privacyComplete)
+    #expect(result == privacyComplete)
 }
 
 @Test
@@ -321,6 +477,7 @@ func onboardingProductionAndQAStoresUseTheirIsolatedRuntimePaths() throws {
     ).environment
     let productionStore = OnboardingProgressStore(runtimeEnvironment: production)
     let qaStore = OnboardingProgressStore(runtimeEnvironment: qa)
+    _ = OnboardingProgressStore(runtimeEnvironment: qa, fileManager: .default)
 
     #expect(productionStore.fileURL.path == productionSupport.path + "/Zoid Coach/onboarding-progress.json")
     #expect(qaStore.fileURL.path == qaRoot.path + "/Application Support/Zoid Coach/onboarding-progress.json")

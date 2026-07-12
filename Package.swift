@@ -10,7 +10,8 @@ let package = Package(
     products: [
         .executable(name: "ZoidCoach", targets: ["ZoidCoachApp"]),
         .executable(name: "ZoidCoachAgent", targets: ["ZoidCoachAgent"]),
-        .library(name: "ZoidCoachCore", targets: ["ZoidCoachCore"])
+        .library(name: "ZoidCoachCore", targets: ["ZoidCoachCore"]),
+        .library(name: "ZoidCoachInfrastructure", targets: ["ZoidCoachInfrastructure"])
     ],
     dependencies: [],
     targets: [

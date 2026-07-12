@@ -30,6 +30,10 @@ public enum OnboardingProgressStoreError: LocalizedError, Equatable, Sendable {
     }
 }
 
+/// Durable onboarding persistence exported by the `ZoidCoachInfrastructure` library product.
+///
+/// The `fileManager` initializer argument remains source-compatible with the former Core store.
+/// Persistence intentionally uses descriptor-relative system calls instead of `FileManager`.
 public final class OnboardingProgressStore: @unchecked Sendable {
     private static let directoryName = "Zoid Coach"
     private static let stateName = "onboarding-progress.json"
@@ -57,6 +61,7 @@ public final class OnboardingProgressStore: @unchecked Sendable {
 
     public init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
+        fileManager _: FileManager = .default,
         corruptionRecovery: OnboardingCorruptionRecovery = .fail,
         storageCheckpoint: @escaping @Sendable (OnboardingPersistenceCheckpoint) throws -> Void = { _ in }
     ) {
@@ -72,29 +77,7 @@ public final class OnboardingProgressStore: @unchecked Sendable {
     public func load() throws -> OnboardingProgress {
         try withStorage { storage in
             try storage.withLock(exclusive: true) {
-                if try storage.exists(Self.recoveryName) {
-                    let transaction = try decode(
-                        RecoveryTransaction.self,
-                        from: storage.read(Self.recoveryName),
-                        path: recoveryFileURL.path
-                    )
-                    return try resumeRecovery(transaction, storage: storage)
-                }
-                guard try storage.exists(Self.stateName) else {
-                    return try OnboardingProgress()
-                }
-                do {
-                    let progress = try JSONDecoder().decode(
-                        OnboardingProgress.self,
-                        from: storage.read(Self.stateName)
-                    )
-                    try progress.validate()
-                    return progress
-                } catch let error as OnboardingProgressStoreError {
-                    throw error
-                } catch {
-                    return try recoverCorruptProgress(storage: storage)
-                }
+                try loadLocked(storage: storage).progress
             }
         }
     }
@@ -103,7 +86,12 @@ public final class OnboardingProgressStore: @unchecked Sendable {
         try progress.validate()
         try withStorage { storage in
             try storage.withLock(exclusive: true) {
-                try persist(progress, storage: storage)
+                let stored = try loadLocked(storage: storage)
+                let replacement = stored.isPersisted
+                    ? try mergeMonotonic(current: stored.progress, incoming: progress)
+                    : progress
+                guard !stored.isPersisted || replacement != stored.progress else { return }
+                try persist(replacement, storage: storage)
             }
         }
     }
@@ -135,6 +123,78 @@ public final class OnboardingProgressStore: @unchecked Sendable {
             filesystemError: OnboardingProgressStoreError.filesystemOperation
         )
         return try body(storage)
+    }
+
+    private func loadLocked(
+        storage: DescriptorRelativeStateDirectory<OnboardingProgressStoreError>
+    ) throws -> (progress: OnboardingProgress, isPersisted: Bool) {
+        if try storage.exists(Self.recoveryName) {
+            let transaction = try decode(
+                RecoveryTransaction.self,
+                from: storage.read(Self.recoveryName),
+                path: recoveryFileURL.path
+            )
+            return (try resumeRecovery(transaction, storage: storage), true)
+        }
+        guard try storage.exists(Self.stateName) else {
+            return (try OnboardingProgress(), false)
+        }
+        do {
+            let progress = try JSONDecoder().decode(
+                OnboardingProgress.self,
+                from: storage.read(Self.stateName)
+            )
+            try progress.validate()
+            return (progress, true)
+        } catch let error as OnboardingProgressStoreError {
+            throw error
+        } catch {
+            return (try recoverCorruptProgress(storage: storage), true)
+        }
+    }
+
+    private func mergeMonotonic(
+        current: OnboardingProgress,
+        incoming: OnboardingProgress
+    ) throws -> OnboardingProgress {
+        if current.isFinished || incoming.completedSteps.count < current.completedSteps.count {
+            return current
+        }
+        return try OnboardingProgress(
+            currentStep: incoming.currentStep,
+            completedSteps: incoming.completedSteps,
+            coachingMode: current.completedSteps.contains(.coachingMode)
+                ? current.coachingMode
+                : incoming.coachingMode ?? current.coachingMode,
+            remindersAccess: mergedAccessDecision(
+                for: .reminders,
+                current: current.remindersAccess,
+                incoming: incoming.remindersAccess,
+                completedSteps: current.completedSteps
+            ),
+            screenwatchAccess: mergedAccessDecision(
+                for: .screenwatch,
+                current: current.screenwatchAccess,
+                incoming: incoming.screenwatchAccess,
+                completedSteps: current.completedSteps
+            ),
+            notificationAccess: mergedAccessDecision(
+                for: .notifications,
+                current: current.notificationAccess,
+                incoming: incoming.notificationAccess,
+                completedSteps: current.completedSteps
+            ),
+            finishedAt: incoming.finishedAt ?? current.finishedAt
+        )
+    }
+
+    private func mergedAccessDecision(
+        for step: OnboardingStep,
+        current: OnboardingAccessDecision?,
+        incoming: OnboardingAccessDecision?,
+        completedSteps: [OnboardingStep]
+    ) -> OnboardingAccessDecision? {
+        completedSteps.contains(step) ? current : incoming ?? current
     }
 
     private func recoverCorruptProgress(

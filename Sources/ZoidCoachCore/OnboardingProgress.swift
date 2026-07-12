@@ -79,6 +79,57 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         try validate()
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case version
+        case currentStep
+        case completedSteps
+        case coachingMode
+        case remindersAccess
+        case screenwatchAccess
+        case notificationAccess
+        case finishedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        currentStep = try container.decode(OnboardingStep.self, forKey: .currentStep)
+        completedSteps = try container.decode([OnboardingStep].self, forKey: .completedSteps)
+        coachingMode = try container.decodeIfPresent(InitialCoachingMode.self, forKey: .coachingMode)
+        remindersAccess = try Self.decodeAccessDecision(
+            from: container,
+            key: .remindersAccess,
+            step: .reminders,
+            completedSteps: completedSteps
+        )
+        screenwatchAccess = try Self.decodeAccessDecision(
+            from: container,
+            key: .screenwatchAccess,
+            step: .screenwatch,
+            completedSteps: completedSteps
+        )
+        notificationAccess = try Self.decodeAccessDecision(
+            from: container,
+            key: .notificationAccess,
+            step: .notifications,
+            completedSteps: completedSteps
+        )
+        finishedAt = try container.decodeIfPresent(Date.self, forKey: .finishedAt)
+        try validate()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        try container.encode(currentStep, forKey: .currentStep)
+        try container.encode(completedSteps, forKey: .completedSteps)
+        try container.encodeIfPresent(coachingMode, forKey: .coachingMode)
+        try container.encodeIfPresent(remindersAccess, forKey: .remindersAccess)
+        try container.encodeIfPresent(screenwatchAccess, forKey: .screenwatchAccess)
+        try container.encodeIfPresent(notificationAccess, forKey: .notificationAccess)
+        try container.encodeIfPresent(finishedAt, forKey: .finishedAt)
+    }
+
     public var isFinished: Bool {
         finishedAt != nil && completedSteps == Self.stepSequence
     }
@@ -184,6 +235,18 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         return left < right
     }
 
+    private static func decodeAccessDecision(
+        from container: KeyedDecodingContainer<CodingKeys>,
+        key: CodingKeys,
+        step: OnboardingStep,
+        completedSteps: [OnboardingStep]
+    ) throws -> OnboardingAccessDecision? {
+        if let decision = try container.decodeIfPresent(OnboardingAccessDecision.self, forKey: key) {
+            return decision
+        }
+        return completedSteps.contains(step) ? .deferred : nil
+    }
+
     private func accessDecision(for step: OnboardingStep) -> OnboardingAccessDecision? {
         switch step {
         case .reminders:
@@ -210,6 +273,8 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
     case accessDecisionNotSupported(OnboardingStep)
     case stepsIncomplete
     case alreadyFinished
+    @available(*, deprecated, message: "Persistence errors are reported by OnboardingProgressStoreError")
+    case unreadableProgress(String)
 
     public var errorDescription: String? {
         switch self {
@@ -235,6 +300,8 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
             "Onboarding cannot finish before every required step is complete"
         case .alreadyFinished:
             "Onboarding is already complete"
+        case let .unreadableProgress(message):
+            "Onboarding progress could not be read: \(message)"
         }
     }
 }
