@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "cac47a78b82d2d3e5bd2000f9c2826375a9e78bdb63f677bdda94468cb05f34e",
+  "tracker_sha256": "e7f57a849ca6c591041e0ad37be7bf05e94de03978724ab85bb8d43c46e62ac1",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3352,7 +3352,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Ready task rows issue `.start` through the agent and task-execution tests pass, but this audit did not safely execute a start against a real planned Reminder and then prove its persisted effect in the installed app (`DashboardView.swift:656-659`; `TodayDashboardCommandOverview.swift:368-374`).",
+      "audit_note": "Ready task rows and the focus recommendation issue serialized `.start` commands through the agent, return an updated snapshot, and expose clear pending, success, and failure states. The signed-QA package and deterministic agent journey pass, but the Mac was locked during independent verification, so the installed click-through remains (`AppModel.swift`; `DashboardView.swift`; `TodayDashboardCommandOverview.swift`; `TodayDashboardAgentTests`).",
       "tracker_line": 252
     },
     {
@@ -3484,7 +3484,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The transactional store pauses the prior task and a passing test proves the state transition, but no populated UI E2E sequence was exercised (`TaskExecutionStore.swift:39-45`; `TaskExecutionStoreTests`).",
+      "audit_note": "Both Today task surfaces now show an explicit switch confirmation explaining that the current task will pause and preserve its time. The transactional command records `switchingTasks` atomically, but the signed-QA switch click-through remains because the Mac was locked (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStoreTests`).",
       "tracker_line": 258
     },
     {
@@ -3506,7 +3506,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "One database open interval and idempotent state updates prevent simultaneous active tasks, but multi-surface rapid-click behavior was not runtime-tested (`TaskExecutionStore.swift:35-46,142-148`).",
+      "audit_note": "App-wide task-command serialization disables every task action while one command is pending, while SQLite permits only one open activity interval and atomically switches tasks. Deterministic coverage passes, but multi-surface rapid-click behavior still needs installed UI automation (`AppModel.swift`; `DashboardView.swift`; `TodayDashboardCommandOverview.swift`; `TaskExecutionStore.swift`).",
       "tracker_line": 259
     },
     {
@@ -3550,7 +3550,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Open intervals and elapsed time persist in SQLite, and pause/restart timing tests pass, but an installed app start-restart-clock sequence was not performed (`TaskExecutionStore.swift:63-75,142-160`; `TaskExecutionStoreTests`).",
+      "audit_note": "Open intervals, elapsed minutes, and pause episodes persist in migration 29. Store and agent reconstruction tests prove that elapsed time survives pause, resume, switch, and restart without double counting, but the installed start-restart-clock click-through remains (`TaskExecutionStore.swift`; `TaskExecutionStoreTests`; `TodayDashboardAgentTests`).",
       "tracker_line": 261
     },
     {
@@ -3802,8 +3802,8 @@
       "item_index": 1,
       "wording": "See the active task title and elapsed time.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3814,7 +3814,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The live Today dashboard shows the active task title, but it shows `ACTIVE COMMITMENT · 45 MIN`, which is the estimate, not elapsed time. `ActiveTaskSnapshot.elapsedMinutes` and `TodayTaskRow.elapsedMinutes` exist, but the active UI does not render them.",
+      "audit_note": "The focus card now presents the active task title with `MIN TRACKED`, while detailed task rows include tracked minutes and the latest pause reason. Persistence and agent reconstruction tests pass, but the installed clock progression remains unverified because the Mac was locked (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStoreTests`).",
       "tracker_line": 279
     },
     {
@@ -3912,8 +3912,8 @@
       "item_index": 6,
       "wording": "Pause the task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3924,7 +3924,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`TaskActivityCommand.pause` and `TaskExecutionStore.apply(.pause)` persist the transition, but the live active-task card only exposes `COMPLETE FOCUS`; there is no pause control.",
+      "audit_note": "The focus card and active task row both expose a labelled pause menu with four understandable reasons, serialize the command, persist the pause episode, and refresh the snapshot. The installed menu click-through remains because the Mac was locked (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStoreTests`).",
       "tracker_line": 284
     },
     {
@@ -3934,8 +3934,8 @@
       "item_index": 7,
       "wording": "Resume the task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3946,7 +3946,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The backend supports resume and the overview renders `RESUME FOCUS` for a paused row, but the user has no active pause control to reach that state through the same UI, and live end-to-end use was not safely demonstrated.",
+      "audit_note": "Paused focus and task-row surfaces expose Resume, close the open pause episode, preserve prior elapsed time, and show explicit confirmation. Store-restart and agent-restart journeys pass, but installed UI acceptance remains (`AppModel.swift`; `TaskExecutionStoreTests`; `TodayDashboardAgentTests`).",
       "tracker_line": 285
     },
     {
@@ -3978,8 +3978,8 @@
       "item_index": 9,
       "wording": "Mark the task blocked.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3990,7 +3990,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The execution store supports `.block`, but no active-task or task-row control exposes it, and no reason capture or replanning UI exists.",
+      "audit_note": "The focus-card pause menu and task-row overflow expose `Task is blocked`, persist an exact blocked pause reason and blocked task state, and return an updated snapshot. Contextual replanning and installed click-through proof remain (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStore.swift`).",
       "tracker_line": 287
     },
     {
@@ -4000,8 +4000,8 @@
       "item_index": 10,
       "wording": "Switch to another task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4012,7 +4012,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Other task rows expose `START`, and `TaskExecutionStoreTests.startingAnotherTaskAtomicallyPausesTheExistingTask` verifies atomic backend switching. The live action was not executed against the user's real tasks, and the UI gives no explicit switch confirmation.",
+      "audit_note": "Both Today task surfaces present an explicit confirmation naming the selected task and explaining that tracked time will be preserved. One transaction pauses the current task with `switchingTasks` and starts the next, with store and agent restart proof; installed UI acceptance remains (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStoreTests`; `TodayDashboardAgentTests`).",
       "tracker_line": 288
     },
     {
@@ -4034,7 +4034,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "XPC commands return a refreshed Today snapshot, so the dashboard can update immediately. There is no task-focused menu bar surface, no polling proof across surfaces, and no live action test.",
+      "audit_note": "Every Today task command returns and installs a fresh snapshot, while global command serialization keeps the focus card and task rows from racing and errors preserve the last confirmed state. The voice-only menu bar still lacks task parity, and installed cross-surface proof remains (`AppModel.swift`; `DashboardView.swift`; `TodayDashboardCommandOverview.swift`).",
       "tracker_line": 289
     },
     {
@@ -4044,8 +4044,8 @@
       "item_index": 1,
       "wording": "Pause for a break.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4056,7 +4056,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no pause-reason picker or break session model.",
+      "audit_note": "Both active-task surfaces expose `Take a break`, persist the exact break reason in an append-only pause episode, and render the reason afterward. This is a task pause rather than a timed accepted-break session, and installed click-through remains (`TaskPauseReason`; `TaskExecutionStore.swift`; `TodayDashboardCommandOverview.swift`; `DashboardView.swift`).",
       "tracker_line": 293
     },
     {
@@ -4066,8 +4066,8 @@
       "item_index": 2,
       "wording": "Pause because the task is blocked.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4078,7 +4078,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Pause and block are separate backend states, but there is no user-facing reason flow.",
+      "audit_note": "The user-facing `Task is blocked` action persists a blocked reason and blocked state while retaining tracked time. Contextual replanning and installed click-through proof remain (`TaskExecutionStore.swift`; `TodayDashboardCommandOverview.swift`; `DashboardView.swift`).",
       "tracker_line": 294
     },
     {
@@ -4088,8 +4088,8 @@
       "item_index": 3,
       "wording": "Pause while switching tasks.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4100,7 +4100,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Starting another task atomically pauses the previous task in `TaskExecutionStore`, with a passing unit test. The UI does not explain that transition or let the user choose this reason.",
+      "audit_note": "Starting another task now requires explicit confirmation and atomically records `switchingTasks` on the previous task while preserving time. Store and agent journeys pass; installed UI acceptance remains (`TaskExecutionStoreTests`; `TodayDashboardAgentTests`; `TodayDashboardCommandOverview.swift`).",
       "tracker_line": 295
     },
     {
@@ -4110,8 +4110,8 @@
       "item_index": 4,
       "wording": "Pause for an external interruption.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4122,7 +4122,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No interruption reason is modeled or displayed.",
+      "audit_note": "Both active-task surfaces expose `External interruption`, persist the exact reason, and render it after refresh or restart. The installed menu click-through remains because the Mac was locked (`TaskPauseReason`; `TaskExecutionStoreTests`; `DashboardView.swift`).",
       "tracker_line": 296
     },
     {
@@ -4132,8 +4132,8 @@
       "item_index": 5,
       "wording": "Pause because the user is done for now.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4144,7 +4144,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No pause reason or done-for-now action exists.",
+      "audit_note": "Both active-task surfaces expose `Done for now`, persist the exact reason, retain elapsed time, and allow later Resume or explicit Complete. Deterministic persistence passes; installed UI acceptance remains (`TaskExecutionStoreTests`; `TodayDashboardCommandOverview.swift`; `DashboardView.swift`).",
       "tracker_line": 297
     },
     {
@@ -4154,8 +4154,8 @@
       "item_index": 6,
       "wording": "Pause when ending the workday.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4166,7 +4166,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no end-workday flow wired to task execution.",
+      "audit_note": "Both active-task surfaces expose `End the workday` and persist that exact pause reason across restart. A broader close-workday workflow and installed click-through proof remain (`TaskPauseReason`; `TaskExecutionStore.swift`; `TodayDashboardCommandOverview.swift`).",
       "tracker_line": 298
     },
     {
@@ -4176,8 +4176,8 @@
       "item_index": 7,
       "wording": "See the selected pause reason in task history or review where relevant.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4188,7 +4188,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Task execution persists state and intervals only; pause reasons are neither stored nor rendered.",
+      "audit_note": "Migration 29 adds append-only constrained pause episodes, and the focus card plus task rows render the current or latest reason after refresh and restart. A dedicated completed-history or review ledger remains (`AutonomousDatabaseMigrator.swift`; `TaskExecutionStore.swift`; `TodayDashboardCommandOverview.swift`; `DashboardView.swift`).",
       "tracker_line": 299
     },
     {
@@ -4198,8 +4198,8 @@
       "item_index": 8,
       "wording": "Resume the paused task later.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4210,7 +4210,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Resume persistence exists and paused rows can render a resume action, but the current UI lacks the pause entry point and the canonical live database is broken.",
+      "audit_note": "Paused tasks expose Resume, close the open pause episode, preserve accumulated time, and survive both store and agent reconstruction. The installed UI click-through remains (`TaskExecutionStoreTests`; `TodayDashboardAgentTests`; `DashboardView.swift`).",
       "tracker_line": 300
     },
     {
@@ -4232,7 +4232,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`TaskExecutionStoreTests.startingAnotherTaskAtomicallyPausesTheExistingTask` proves the earlier interval is closed and elapsed time retained. End-to-end UI and restart proof remain blocked by the current datastore state.",
+      "audit_note": "Switch confirmation explains the effect before acting, and deterministic store plus agent restart tests prove the prior interval closes, its minutes remain, and only the selected task becomes active. Installed UI acceptance remains (`TaskExecutionStoreTests`; `TodayDashboardAgentTests`; `TodayDashboardCommandOverview.swift`).",
       "tracker_line": 301
     },
     {
@@ -4286,8 +4286,8 @@
       "item_index": 2,
       "wording": "Complete a paused task explicitly.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4298,7 +4298,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The execution store accepts completion from any state, but a paused row renders resume rather than complete and exposes no alternate completion control.",
+      "audit_note": "A paused focus card exposes a separate Complete button and a paused task row exposes `Complete paused task`, preserving elapsed minutes and closing the pause episode. The deterministic agent restart journey passes, but installed click-through and Reminder source confirmation remain (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStoreTests`; `TodayDashboardAgentTests`).",
       "tracker_line": 307
     },
     {

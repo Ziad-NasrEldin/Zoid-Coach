@@ -29,7 +29,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 11 | Complete first-plan preview, edit, install, and conflict recovery | ready | Unowned | User can inspect and alter the proposed plan, install atomically, recover from conflicts, and see identical Today state after restart |
 | 12 | Complete Today source-health and repair actions | ready | Unowned | Every source card reflects current state and each action reaches a useful repair or inspection surface |
 | 13 | Complete Today prompt inbox lifecycle | ready | Unowned | Pending, snoozed, answered, expired, and replayed prompts remain understandable and actionable across restart |
-| 14 | Complete daily-plan task lifecycle | ready | Unowned | Start, pause, resume, complete, skip, defer, reorder, and revise all persist and reconcile with the underlying plan |
+| 14 | Complete daily-plan task lifecycle | ready | Unowned after pause-and-switch batch `78ca9f9` | Start, pause, resume, complete, skip, defer, reorder, and revise all persist and reconcile with the underlying plan |
 | 15 | Complete drift detection and compassionate recovery | ready | Unowned | Real activity drift produces a timely, non-shaming recovery choice whose result changes the plan durably |
 | 16 | Complete meeting-aware planning and calendar boundaries | ready | Unowned | Calendar grant, denial, changes, overlap, cancellation, and offline states produce usable plans and repair paths |
 | 17 | Complete app-classification management in Settings | ready | Unowned | User can search, classify, bulk-edit, reset, and verify runtime use of work, gaming, communication, and automatic categories |
@@ -49,6 +49,17 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Task pause and switch lifecycle - `78ca9f9`
+
+- Added visible reasoned pause controls to the primary Today focus card and detailed task rows.
+- Added explicit switch confirmation, atomic previous-task pausing, durable switch reasons, preserved elapsed time, and global command serialization.
+- Added restart-safe pause-event history, visible tracked time and last-pause context, recoverable failure copy, and explicit completion of a paused task.
+- Added migration 29 and four focused store and agent journey tests.
+- All 460 Swift tests, the release build, 41 Python evidence tests, and clean signed-QA packaging passed.
+- Evidence is recorded in `.audit/runs/task-lifecycle/78ca9f9/REPORT.md`.
+- The broader daily-plan lifecycle item remains ready because skip, defer, reorder, revise, completed history, and source-sync confirmation remain separate work.
+- The authoritative tracker remains owned by the root integrator and must only advance after the parallel verifier completes the signed-QA UI click-through.
 
 ### Daily behavior review and correction - `7b96623`
 
