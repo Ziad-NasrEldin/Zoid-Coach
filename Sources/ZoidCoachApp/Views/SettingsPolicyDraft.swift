@@ -78,13 +78,48 @@ struct SettingsPolicyDraft: Equatable {
         behaviorPolicy.choice(for: application)
     }
 
+    func settingsClassification(for application: String) -> ApplicationRuleCategory {
+        behaviorPolicy.ruleCategory(for: application)
+    }
+
     mutating func setClassification(_ choice: AppClassificationChoice, for application: String) {
         let normalized = BehaviorPolicy.normalize(application)
         var work = behaviorPolicy.workApplications.filter { $0 != normalized }
         var gaming = behaviorPolicy.gamingApplications.filter { $0 != normalized }
+        let communication = behaviorPolicy.communicationApplications.filter { $0 != normalized }
         if choice == .work { work.append(normalized) }
         if choice == .gaming { gaming.append(normalized) }
-        behaviorPolicy = BehaviorPolicy(workApplications: work, gamingApplications: gaming)
+        behaviorPolicy = BehaviorPolicy(
+            workApplications: work,
+            gamingApplications: gaming,
+            communicationApplications: communication
+        )
+    }
+
+    mutating func setClassifications(_ category: ApplicationRuleCategory, for applications: [String]) {
+        let normalized = Set(applications.map(BehaviorPolicy.normalize).filter { !$0.isEmpty })
+        var work = behaviorPolicy.workApplications.filter { !normalized.contains($0) }
+        var gaming = behaviorPolicy.gamingApplications.filter { !normalized.contains($0) }
+        var communication = behaviorPolicy.communicationApplications.filter { !normalized.contains($0) }
+        switch category {
+        case .automatic:
+            break
+        case .work:
+            work.append(contentsOf: normalized)
+        case .communication:
+            communication.append(contentsOf: normalized)
+        case .gaming:
+            gaming.append(contentsOf: normalized)
+        }
+        behaviorPolicy = BehaviorPolicy(
+            workApplications: work,
+            gamingApplications: gaming,
+            communicationApplications: communication
+        )
+    }
+
+    mutating func resetApplicationRules() {
+        behaviorPolicy = BehaviorPolicy()
     }
 
     mutating func selectAIProvider(_ provider: AIProviderSelection) {

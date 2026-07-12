@@ -261,25 +261,40 @@ public enum AppClassificationChoice: String, Codable, CaseIterable, Sendable {
     case gaming
 }
 
+public enum ApplicationRuleCategory: String, Codable, CaseIterable, Sendable {
+    case automatic
+    case work
+    case communication
+    case gaming
+}
+
 public struct BehaviorPolicy: Codable, Equatable, Sendable {
     public let workApplications: [String]
     public let gamingApplications: [String]
+    public let communicationApplications: [String]
 
-    public init(workApplications: [String] = [], gamingApplications: [String] = []) {
+    public init(
+        workApplications: [String] = [],
+        gamingApplications: [String] = [],
+        communicationApplications: [String] = []
+    ) {
         self.workApplications = workApplications.map(Self.normalize).sorted()
         self.gamingApplications = gamingApplications.map(Self.normalize).sorted()
+        self.communicationApplications = communicationApplications.map(Self.normalize).sorted()
     }
 
     private enum CodingKeys: String, CodingKey {
         case workApplications
         case gamingApplications
+        case communicationApplications
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
             workApplications: try container.decodeIfPresent([String].self, forKey: .workApplications) ?? [],
-            gamingApplications: try container.decodeIfPresent([String].self, forKey: .gamingApplications) ?? []
+            gamingApplications: try container.decodeIfPresent([String].self, forKey: .gamingApplications) ?? [],
+            communicationApplications: try container.decodeIfPresent([String].self, forKey: .communicationApplications) ?? []
         )
     }
 
@@ -287,13 +302,25 @@ public struct BehaviorPolicy: Codable, Equatable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(workApplications, forKey: .workApplications)
         try container.encode(gamingApplications, forKey: .gamingApplications)
+        if !communicationApplications.isEmpty {
+            try container.encode(communicationApplications, forKey: .communicationApplications)
+        }
     }
 
     public func classificationOverride(for application: String) -> BehaviorClassification? {
         let normalized = Self.normalize(application)
         if workApplications.contains(normalized) { return .work }
         if gamingApplications.contains(normalized) { return .gaming }
+        if communicationApplications.contains(normalized) { return .work }
         return nil
+    }
+
+    public func ruleCategory(for application: String) -> ApplicationRuleCategory {
+        let normalized = Self.normalize(application)
+        if workApplications.contains(normalized) { return .work }
+        if communicationApplications.contains(normalized) { return .communication }
+        if gamingApplications.contains(normalized) { return .gaming }
+        return .automatic
     }
 
     public func choice(for application: String) -> AppClassificationChoice {
@@ -725,7 +752,8 @@ public struct UserPolicy: Codable, Equatable, Sendable {
     private func appendApplicationClassificationViolations(to violations: inout [PolicyViolation]) {
         for (field, applications) in [
             ("behavior.workApplications", behavior.workApplications),
-            ("behavior.gamingApplications", behavior.gamingApplications)
+            ("behavior.gamingApplications", behavior.gamingApplications),
+            ("behavior.communicationApplications", behavior.communicationApplications)
         ] {
             if applications.contains(where: \ .isEmpty) {
                 violations.append(.init(code: .emptyApplicationClassification, field: field))
@@ -734,7 +762,12 @@ public struct UserPolicy: Codable, Equatable, Sendable {
                 violations.append(.init(code: .duplicateApplicationClassification, field: field))
             }
         }
-        if !Set(behavior.workApplications).isDisjoint(with: behavior.gamingApplications) {
+        let work = Set(behavior.workApplications)
+        let gaming = Set(behavior.gamingApplications)
+        let communication = Set(behavior.communicationApplications)
+        if !work.isDisjoint(with: gaming)
+            || !work.isDisjoint(with: communication)
+            || !gaming.isDisjoint(with: communication) {
             violations.append(.init(code: .applicationClassificationConflict, field: "behavior"))
         }
     }
