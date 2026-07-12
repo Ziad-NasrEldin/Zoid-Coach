@@ -213,7 +213,39 @@ public final class PromptInboxStore: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         try expireDue()
+        let date = now()
         return try episodes(where: "state IN ('detected', 'queued', 'presented')", bindings: [])
+            .filter { episode in
+                guard let raw = episode.payload["notBefore"],
+                      let notBefore = formatter.date(from: raw)
+                else { return true }
+                return notBefore <= date
+            }
+    }
+
+    public func latestEpisode(decisionKeyPrefix: String) throws -> PromptEpisode? {
+        lock.lock()
+        defer { lock.unlock() }
+        return try episodes(
+            where: "decision_key LIKE ? OR decision_key LIKE ?",
+            bindings: ["\(decisionKeyPrefix)%", "resolved:%:\(decisionKeyPrefix)%"],
+            suffix: "ORDER BY created_at_utc DESC, id DESC LIMIT 1"
+        ).first
+    }
+
+    public func dueDeferredPlanningInvitations(at date: Date? = nil) throws -> [PromptEpisode] {
+        lock.lock()
+        defer { lock.unlock() }
+        let reference = date ?? now()
+        return try episodes(
+            where: "prompt_type = 'PLAN_READY' AND state = 'queued'",
+            bindings: []
+        ).filter { episode in
+            guard let raw = episode.payload["notBefore"],
+                  let notBefore = formatter.date(from: raw)
+            else { return false }
+            return notBefore <= reference
+        }
     }
 
     public func episode(promptID: String) throws -> PromptEpisode? {

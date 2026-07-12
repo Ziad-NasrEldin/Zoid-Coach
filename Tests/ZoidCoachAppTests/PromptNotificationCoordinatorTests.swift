@@ -8,7 +8,7 @@ func promptNotificationContractMapsRequiredCategoriesAndActions() {
     #expect(PromptNotificationCategory.forPromptType("MEETING_CANDIDATE") == .meetingCandidate)
     #expect(PromptNotificationCategory.forPromptType("PLAN_CHANGED") == .planChanged)
     #expect(PromptNotificationCategory.forPromptType("ONBOARDING_TEST") == .onboardingTest)
-    for action in [PromptActionKind.acceptPlan, .reviewPlan, .addMeeting, .editMeeting, .ignore, .undoPlanChange] {
+    for action in [PromptActionKind.acceptPlan, .reviewPlan, .snoozePlanning, .dismissPlanning, .workUnplanned, .addMeeting, .editMeeting, .ignore, .undoPlanChange] {
         #expect(PromptNotificationCoordinator.actionKind(identifier: PromptNotificationCoordinator.actionIdentifier(action)) == action)
     }
 }
@@ -35,7 +35,7 @@ func onboardingPromptNotificationAcceptsOnlyItsHarmlessActions() {
 func qaPromptNotificationActionsUseOnlyTheQANamespace() {
     let identity = RuntimeIdentity.qa.notification
 
-    for action in [PromptActionKind.acceptPlan, .reviewPlan, .addMeeting, .editMeeting, .ignore, .undoPlanChange] {
+    for action in [PromptActionKind.acceptPlan, .reviewPlan, .snoozePlanning, .dismissPlanning, .workUnplanned, .addMeeting, .editMeeting, .ignore, .undoPlanChange] {
         let identifier = PromptNotificationCoordinator.actionIdentifier(
             action,
             notificationIdentity: identity

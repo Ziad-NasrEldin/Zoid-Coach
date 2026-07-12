@@ -144,6 +144,7 @@ struct ZoidCoachAgentMain {
             let learningStore = try LearningAggregateStore(databaseURL: configuration.databaseURL)
             let trustGateStore = try PlannerTrustGateStore(databaseURL: configuration.databaseURL)
             let promptStore = try PromptInboxStore(databaseURL: configuration.databaseURL)
+            let planningInvitations = PlanningInvitationService(store: promptStore)
             let actionOutbox = try ActionOutboxStore(databaseURL: configuration.databaseURL)
             let planUndoRequests = try PlanUndoRequestStore(databaseURL: configuration.databaseURL)
             let planScheduleRequests = try PlanScheduleRequestStore(databaseURL: configuration.databaseURL)
@@ -155,6 +156,7 @@ struct ZoidCoachAgentMain {
                 planUndoRequests: planUndoRequests,
                 planScheduleRequests: planScheduleRequests,
                 promptStore: promptStore,
+                planningInvitations: planningInvitations,
                 schedulingCalendarIdentifier: {
                     try policyStore.current()?.policy.calendar.schedulingCalendarIdentifier
                 }
@@ -525,6 +527,12 @@ struct ZoidCoachAgentMain {
                     }
                     try checkpointStore.recordSuccess(sourceID: "agent-runtime", at: Date())
                     try Self.replayPendingPromptEffects(store: promptStore, router: promptEffectRouter)
+                    await Self.deliverDuePlanningInvitations(
+                        planningInvitations,
+                        notifications: notificationCoordinator,
+                        plans: planStore,
+                        timeZoneIdentifier: policy.schedule.timeZoneIdentifier
+                    )
                     if !resourceConstrained,
                        lastMaintenanceAttempt.map({ Date().timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true {
                         _ = try? maintenanceService?.run(policy: policy, now: Date(), mode: .apply)
@@ -777,16 +785,9 @@ struct ZoidCoachAgentMain {
 
     private static func planReadyPrompt(for day: Date, itemCount: Int, timeZoneIdentifier: String) -> PromptDraft {
         let dayKey = localDayKey(day, timeZoneIdentifier: timeZoneIdentifier)
-        return PromptDraft(
-            decisionKey: "plan-ready:\(dayKey)",
-            type: "PLAN_READY",
-            title: "Tomorrow's plan is ready",
-            summary: "Zoid 666 selected \(itemCount) evidence-backed commitment\(itemCount == 1 ? "" : "s").",
-            actions: [
-                PromptAction(kind: .acceptPlan, title: "Accept", role: .primary),
-                PromptAction(kind: .reviewPlan, title: "Review")
-            ],
-            payload: ["localDay": dayKey, "itemCount": String(itemCount)],
+        return PlanningInvitationPolicy.promptDraft(
+            localDay: dayKey,
+            itemCount: itemCount,
             expiresAt: Calendar.current.date(byAdding: .day, value: 1, to: day)
         )
     }
@@ -978,6 +979,26 @@ struct ZoidCoachAgentMain {
     ) async {
         let delivery = morningDeliveryDate(for: episode, policy: policy)
         _ = try? await notifications.schedule(episode, deliveryDate: delivery)
+    }
+
+    private static func deliverDuePlanningInvitations(
+        _ service: PlanningInvitationService,
+        notifications: PromptNotificationCoordinator,
+        plans: AutonomousPlanStore,
+        timeZoneIdentifier: String,
+        now: Date = Date()
+    ) async {
+        guard let due = try? service.dueFollowUps(at: now) else { return }
+        for episode in due {
+            if let localDay = episode.payload["localDay"],
+               let day = date(localDay: localDay, timeZoneIdentifier: timeZoneIdentifier),
+               (try? plans.hasPlan(for: day)) == true {
+                _ = try? service.dismiss(episode.id)
+                continue
+            }
+            guard (try? service.markPresented(episode.id)) != nil else { continue }
+            _ = try? await notifications.schedule(episode)
+        }
     }
 
     private static func enqueuePlanActions(
