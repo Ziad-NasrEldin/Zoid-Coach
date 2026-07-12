@@ -207,6 +207,23 @@ func osFixturesRefuseReplacedWorkspaceRootSymlink() throws {
 }
 
 @Test
+func osFixturesRefuseIntermediateFixturesSymlinkBeforeInitialization() throws {
+    let fixture = try makeOSFixture("ancestor-symlink")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let fixtures = fixture.workspace.root.deletingLastPathComponent()
+    let outside = fixture.container.appendingPathComponent("outside-fixtures", isDirectory: true)
+    try FileManager.default.moveItem(at: fixtures, to: outside)
+    try FileManager.default.createSymbolicLink(at: fixtures, withDestinationURL: outside)
+
+    #expect(throws: QAFixtureStateError.unsafeFilesystemEntry("Fixtures")) {
+        try fixture.adapters(seed: .init())
+    }
+    #expect(!FileManager.default.fileExists(
+        atPath: outside.appendingPathComponent("ancestor-symlink/OS Fixtures").path
+    ))
+}
+
+@Test
 func osFixturesRefuseStateFileSymlinkEscapeBeforeReading() throws {
     let fixture = try makeOSFixture("state-symlink")
     defer { try? FileManager.default.removeItem(at: fixture.container) }
@@ -257,6 +274,48 @@ func osFixtureRecoveryResumesAfterQuarantineInterruption() throws {
             storageCheckpoint: { checkpoint in
                 if case .corruptStateQuarantined = checkpoint {
                     throw FixtureInterruption.afterQuarantine
+                }
+            }
+        )
+    }
+
+    let resumed = try fixture.adapters(seed: .init())
+    #expect(try resumed.permission(.calendar) == .granted)
+    #expect(try resumed.snapshot().audit.map(\.operation) == ["recover-corrupt-state"])
+    #expect(!FileManager.default.fileExists(
+        atPath: first.stateFileURL.deletingLastPathComponent().appendingPathComponent("recovery.json").path
+    ))
+}
+
+@Test
+func osFixtureRejectsMalformedRecoveryMarker() throws {
+    let fixture = try makeOSFixture("malformed-recovery")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let directory = fixture.workspace.root.appendingPathComponent("OS Fixtures", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try Data("malformed".utf8).write(to: directory.appendingPathComponent("recovery.json"))
+
+    #expect(throws: QAFixtureStateError.corruptState(
+        path: directory.appendingPathComponent("state.json").path
+    )) {
+        try fixture.adapters(seed: .init())
+    }
+}
+
+@Test
+func osFixtureRecoveryResumesFromReplacementWrittenPhaseWithoutDuplicateAudit() throws {
+    let fixture = try makeOSFixture("replacement-written")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let first = try fixture.adapters(seed: .init())
+    try Data("corrupt".utf8).write(to: first.stateFileURL, options: .atomic)
+
+    #expect(throws: FixtureInterruption.afterReplacement) {
+        try fixture.adapters(
+            seed: .init(),
+            recovery: .reset(.init(permissions: [.calendar: .granted])),
+            storageCheckpoint: { checkpoint in
+                if case .replacementStatePersisted = checkpoint {
+                    throw FixtureInterruption.afterReplacement
                 }
             }
         )
@@ -366,6 +425,44 @@ func osFixtureCoordinatesTwoInstancesWithoutLostActionsOrReusedIDs() async throw
 }
 
 @Test
+func osFixtureWaitsForChildProcessAdvisoryLock() async throws {
+    let fixture = try makeOSFixture("child-flock")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.reminders: .granted]))
+    let directory = adapters.stateFileURL.deletingLastPathComponent()
+    let ready = fixture.container.appendingPathComponent("child-lock-ready")
+    let release = fixture.container.appendingPathComponent("child-lock-release")
+    let child = Process()
+    child.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+    child.arguments = [
+        "-c",
+        "import fcntl, os, pathlib, sys, time\nfd=os.open(sys.argv[1], os.O_RDONLY)\nfcntl.flock(fd, fcntl.LOCK_EX)\npathlib.Path(sys.argv[2]).write_text('ready')\nwhile not pathlib.Path(sys.argv[3]).exists(): time.sleep(0.01)\nfcntl.flock(fd, fcntl.LOCK_UN)\nos.close(fd)",
+        directory.path, ready.path, release.path
+    ]
+    try child.run()
+    defer { if child.isRunning { child.terminate() } }
+    for _ in 0 ..< 200 where !FileManager.default.fileExists(atPath: ready.path) {
+        try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(FileManager.default.fileExists(atPath: ready.path))
+    let completion = CompletionFlag()
+    let mutation = Task {
+        _ = try await adapters.create(
+            title: "After child", dueDate: nil,
+            listIdentifier: nil, metadataMarker: nil
+        )
+        completion.markCompleted()
+    }
+    try await Task.sleep(for: .milliseconds(100))
+    #expect(!completion.isCompleted)
+    try Data("release".utf8).write(to: release)
+    child.waitUntilExit()
+    try await mutation.value
+    #expect(completion.isCompleted)
+    #expect(try adapters.allReminders().count == 1)
+}
+
+@Test
 func osFixtureRejectsRegressedReminderCounterAtLoad() async throws {
     let fixture = try makeOSFixture("counter-reminder")
     defer { try? FileManager.default.removeItem(at: fixture.container) }
@@ -427,7 +524,10 @@ func osFixtureRejectsReusedGeneratedCounterIndexAtLoad() async throws {
     _ = try await adapters.create(title: "One", dueDate: nil, listIdentifier: nil, metadataMarker: nil)
     var object = try persistedJSONObject(adapters.stateFileURL)
     var allocations = try #require(object["generatedIdentifiers"] as? [[String: Any]])
-    allocations.append(["kind": "reminder", "index": 0, "id": "deleted-reminder"])
+    allocations.append([
+        "kind": "reminder", "index": 0, "id": "deleted-reminder",
+        "provenance": "stableProvider"
+    ])
     object["generatedIdentifiers"] = allocations
     if var counters = object["counters"] as? [String: Any] {
         counters[QAFixtureEntityKind.reminder.rawValue] = 2
@@ -488,6 +588,110 @@ func osFixtureRejectsInvalidPersistedAuditAndCounterState() throws {
 }
 
 @Test
+func osFixtureRejectsCoherentlyTamperedStableProviderID() async throws {
+    let fixture = try makeOSFixture("provider-tamper")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.reminders: .granted]))
+    _ = try await adapters.create(title: "Original", dueDate: nil, listIdentifier: nil, metadataMarker: nil)
+    var object = try persistedJSONObject(adapters.stateFileURL)
+    var reminders = try #require(object["reminders"] as? [[String: Any]])
+    reminders[0]["id"] = "forged-reminder"
+    object["reminders"] = reminders
+    var allocations = try #require(object["generatedIdentifiers"] as? [[String: Any]])
+    let allocationIndex = try #require(
+        allocations.firstIndex(where: { ($0["kind"] as? String) == "reminder" })
+    )
+    allocations[allocationIndex]["id"] = "forged-reminder"
+    object["generatedIdentifiers"] = allocations
+    try writePersistedJSONObject(object, to: adapters.stateFileURL)
+
+    #expect(throws: QAFixtureStateError.corruptState(path: adapters.stateFileURL.path)) {
+        try fixture.adapters(seed: .init())
+    }
+}
+
+@Test
+func osFixtureRejectsNotificationWithProviderProvenance() async throws {
+    let fixture = try makeOSFixture("notification-provenance")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.notifications: .granted]))
+    _ = try await adapters.schedule(.init(
+        category: "coach", title: "One", body: "Body", promptID: "caller-one"
+    ))
+    var object = try persistedJSONObject(adapters.stateFileURL)
+    var allocations = try #require(object["generatedIdentifiers"] as? [[String: Any]])
+    let allocationIndex = try #require(
+        allocations.firstIndex(where: { ($0["kind"] as? String) == "notification" })
+    )
+    allocations[allocationIndex]["provenance"] = "stableProvider"
+    object["generatedIdentifiers"] = allocations
+    try writePersistedJSONObject(object, to: adapters.stateFileURL)
+
+    #expect(throws: QAFixtureStateError.corruptState(path: adapters.stateFileURL.path)) {
+        try fixture.adapters(seed: .init())
+    }
+}
+
+@Test
+func osFixtureRejectsUnsupportedReminderPrioritySeed() throws {
+    let fixture = try makeOSFixture("invalid-reminder-seed")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let invalid = SourceTask(
+        id: "seed", title: "Invalid", listIdentifier: "inbox", priority: 3,
+        dueDate: nil, notes: nil, isCompleted: false
+    )
+    #expect(throws: QAFixtureStateError.self) {
+        try fixture.adapters(seed: .init(reminders: [invalid]))
+    }
+}
+
+@Test
+func osFixtureRejectsInvalidCalendarRangeSeed() throws {
+    let fixture = try makeOSFixture("invalid-calendar-seed")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let invalid = CalendarCommitment(
+        id: "seed", title: "Invalid", start: fixture.now, end: fixture.now,
+        calendarIdentifier: "work"
+    )
+    #expect(throws: QAFixtureStateError.self) {
+        try fixture.adapters(seed: .init(calendarCommitments: [invalid]))
+    }
+}
+
+@Test
+func osFixtureRejectsDeliveryBeforeRequestedDateSeed() throws {
+    let fixture = try makeOSFixture("invalid-delivery-seed")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let invalid = QAFixtureNotificationRecord(
+        id: "prompt", desired: .init(
+            category: "coach", title: "Prompt", body: "Body", promptID: "prompt",
+            deliveryDate: fixture.now.addingTimeInterval(60)
+        ),
+        status: .delivered, deliveredAt: fixture.now
+    )
+    #expect(throws: QAFixtureStateError.self) {
+        try fixture.adapters(seed: .init(notifications: [invalid]))
+    }
+}
+
+@Test
+func osFixtureRejectsResponseBeforeDeliverySeed() throws {
+    let fixture = try makeOSFixture("invalid-response-seed")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let invalid = QAFixtureNotificationRecord(
+        id: "prompt", desired: .init(
+            category: "coach", title: "Prompt", body: "Body", promptID: "prompt"
+        ),
+        status: .responded, deliveredAt: fixture.now,
+        actionIdentifier: "resume",
+        respondedAt: fixture.now.addingTimeInterval(-1)
+    )
+    #expect(throws: QAFixtureStateError.self) {
+        try fixture.adapters(seed: .init(notifications: [invalid]))
+    }
+}
+
+@Test
 func osFixtureAdapterHasNoProductionFrameworkOrAdapterDependency() throws {
     let repositoryRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -528,6 +732,7 @@ private struct OSFixtureHarness {
 private enum FixtureInterruption: Error {
     case beforeCommit
     case afterQuarantine
+    case afterReplacement
 }
 
 private final class TimestampSequence: @unchecked Sendable {
@@ -547,8 +752,21 @@ private final class TimestampSequence: @unchecked Sendable {
     var callCount: Int { lock.withLock { calls } }
 }
 
+private final class CompletionFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var completed = false
+
+    func markCompleted() { lock.withLock { completed = true } }
+    var isCompleted: Bool { lock.withLock { completed } }
+}
+
 private func persistedJSONObject(_ url: URL) throws -> [String: Any] {
     try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+}
+
+private func writePersistedJSONObject(_ object: [String: Any], to url: URL) throws {
+    try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        .write(to: url, options: .atomic)
 }
 
 private func persistedCounter(
@@ -587,7 +805,12 @@ private func rewriteCounter(
 }
 
 private func makeOSFixture(_ label: String) throws -> OSFixtureHarness {
-    let container = FileManager.default.temporaryDirectory
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let container = repositoryRoot
+        .appendingPathComponent(".build/os-fixture-tests", isDirectory: true)
         .appendingPathComponent("zoid-os-fixtures-\(label)-\(UUID().uuidString)", isDirectory: true)
     let environment = try RuntimeEnvironment.resolve(
         arguments: ["--qa-run-root", container.appendingPathComponent("qa").path],
