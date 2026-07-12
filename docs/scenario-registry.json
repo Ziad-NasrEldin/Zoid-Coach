@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "026944c1e291142ed87cc3795e11e36bcea840fb6f35d908f56d3a3fac97885a",
+  "tracker_sha256": "40eac371ea3ee727f70c609adca1cb01b7c579635de877b58b9d110c4d29f87b",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1410,19 +1410,21 @@
       "section_title": "Seeing today's available tasks",
       "item_index": 12,
       "wording": "Understand when Reminders could not be refreshed.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Blocked from verification",
-      "delivery_status": "blocked_from_verification",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminders-recovery/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Failure copy exists in Today and source health, but the independent `a068d27` verifier did not have an isolated failure fixture or current packaged UI proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
+      "audit_note": "The installed signed-QA Settings card visibly changed from Connected to Refresh Failed when task retrieval failed, explained that the last successful sync remained available, retained its exact timestamp, and returned to Connected with a newer timestamp after one explicit retry (`RemindersConnectionController.swift`; `RemindersConnectionView.swift`; `.audit/runs/reminders-recovery/verifier/REPORT.md`).",
       "tracker_line": 135
     },
     {
@@ -9933,7 +9935,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Source health and macOS permission ledgers expose Reminders, Calendar, notifications, agent, Screenwatch, Accessibility, Automation, and screen recording; current runtime inspection confirmed the surfaces, but several statuses are coarse.",
+      "audit_note": "The installed signed-QA Settings journey now proves passive Ready to Connect, Connected, Access Needed, Refresh Failed, retry recovery, and durable last-success states for Reminders without opening a permission prompt. Source health and macOS permission ledgers also expose Calendar, notifications, agent, Screenwatch, Accessibility, Automation, and screen recording, but several non-Reminders statuses remain coarse (`.audit/runs/reminders-recovery/verifier/REPORT.md`).",
       "tracker_line": 630
     },
     {
@@ -10971,9 +10973,9 @@
       "section_title": "Source health and diagnostics",
       "item_index": 1,
       "wording": "See Reminders permission and last successful sync.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10981,10 +10983,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminders-recovery/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Source health shows permission and current counts/list discovery, but not the timestamp of the last successful sync.",
+      "audit_note": "Settings visibly shows Ready to Connect, Connected, Access Needed, and Refresh Failed beside the last confirmed sync timestamp. The installed signed-QA journey proved that a successful refresh persisted the timestamp across restart, a failed refresh retained it, and a recovered retry advanced it (`RemindersConnectionController.swift`; `RemindersConnectionView.swift`; `.audit/runs/reminders-recovery/verifier/REPORT.md`).",
       "tracker_line": 691
     },
     {
@@ -11575,9 +11579,9 @@
       "section_title": "Reminders failure and recovery",
       "item_index": 2,
       "wording": "See when task data may be out of date.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11585,10 +11589,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminders-recovery/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Source freshness and a refresh control are visible, but a live Reminders outage and recovery were not induced.",
+      "audit_note": "The installed signed-QA card visibly reported Refresh Failed, explained that task data was not returned, retained the prior successful-sync timestamp, and offered an explicit retry without discarding prior success (`.audit/runs/reminders-recovery/verifier/REPORT.md`).",
       "tracker_line": 727
     },
     {
@@ -11597,9 +11603,9 @@
       "section_title": "Reminders failure and recovery",
       "item_index": 3,
       "wording": "Retry Reminders synchronization.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11607,10 +11613,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminders-recovery/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`REFRESH REMINDERS` is reachable in the installed app and backed by `AppModel.refreshReminderTasks()`, but permission-loss recovery was not safely induced in the user's live store.",
+      "audit_note": "The installed signed-QA card visibly recovered from an injected task-fetch failure through one Refresh Reminders action, changed back to Connected, and advanced the last-success timestamp only after tasks were returned (`RemindersConnectionController.swift`; `.audit/runs/reminders-recovery/verifier/REPORT.md`).",
       "tracker_line": 728
     },
     {
