@@ -3,6 +3,7 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import subprocess
 from pathlib import Path
 
 
@@ -16,13 +17,19 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ScenarioEvidenceTests(unittest.TestCase):
-    commit = "a" * 40
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
 
     def create(self, root: Path, scenario_ids=None) -> Path:
         return MODULE.create_manifest(
             run_dir=root / "slice" / self.commit,
             scenario_ids=scenario_ids or ["ZC-001-001"],
-            build_identity="qa-build-a",
+            build_identity=f"zoid-coach-{self.commit}-clean",
             fixture="first-run",
             qa_root=root / "qa-root",
             commit=self.commit,
@@ -50,7 +57,7 @@ class ScenarioEvidenceTests(unittest.TestCase):
                 MODULE.create_manifest(
                     run_dir=root / "slice" / "wrong",
                     scenario_ids=["ZC-001-001"],
-                    build_identity="qa-build-a",
+                    build_identity=f"zoid-coach-{self.commit}-clean",
                     fixture="first-run",
                     qa_root=root / "qa-root",
                     commit=self.commit,
@@ -63,6 +70,20 @@ class ScenarioEvidenceTests(unittest.TestCase):
             self.create(root)
             with self.assertRaises(MODULE.EvidenceError):
                 self.create(root)
+
+    def test_create_rejects_forged_or_dirty_build_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaises(MODULE.EvidenceError):
+                MODULE.create_manifest(
+                    run_dir=root / "slice" / self.commit,
+                    scenario_ids=["ZC-001-001"],
+                    build_identity=f"zoid-coach-{self.commit}-dirty",
+                    fixture="first-run",
+                    qa_root=root / "qa-root",
+                    commit=self.commit,
+                    registry_path=REGISTRY,
+                )
 
     def test_validation_requires_checksummed_artifacts_for_a_pass(self):
         with tempfile.TemporaryDirectory() as directory:

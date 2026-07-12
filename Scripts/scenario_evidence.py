@@ -44,6 +44,19 @@ def repository_commit() -> str:
     return result.stdout.strip()
 
 
+def commit_exists(commit: str) -> bool:
+    result = subprocess.run(
+        ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+        cwd=ROOT,
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
+def expected_build_identity(commit: str) -> str:
+    return f"zoid-coach-{commit}-clean"
+
+
 def load_registry(path: Path) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     payload = json.loads(path.read_text())
     scenarios = payload.get("scenarios", [])
@@ -73,12 +86,18 @@ def create_manifest(
         raise EvidenceError("scenario IDs must not contain duplicates")
     if not COMMIT_ID.fullmatch(commit):
         raise EvidenceError(f"invalid git commit: {commit}")
+    if len(commit) != 40 or not commit_exists(commit):
+        raise EvidenceError(f"verified commit must be a full commit in this repository: {commit}")
     if run_dir.name != commit:
         raise EvidenceError("evidence run directory name must equal the exact verified commit")
     if not qa_root.is_absolute():
         raise EvidenceError("QA root must be absolute")
-    if not build_identity.strip() or not fixture.strip():
-        raise EvidenceError("build identity and fixture are required")
+    if build_identity != expected_build_identity(commit):
+        raise EvidenceError(
+            "build identity must be the clean packaged identity for the verified commit"
+        )
+    if not fixture.strip():
+        raise EvidenceError("fixture is required")
 
     _, scenarios = load_registry(registry_path)
     unknown = [item for item in scenario_ids if not SCENARIO_ID.fullmatch(item) or item not in scenarios]
@@ -132,8 +151,12 @@ def validate_manifest(
     commit = payload.get("verified_commit")
     if not isinstance(commit, str) or not COMMIT_ID.fullmatch(commit):
         errors.append("verified_commit must be a 7 to 40 character lowercase git SHA")
+    elif len(commit) != 40 or not commit_exists(commit):
+        errors.append("verified_commit must be a full commit that exists in this repository")
     elif manifest_path.parent.name != commit:
         errors.append("manifest parent directory must equal verified_commit")
+    if isinstance(commit, str) and payload.get("build_identity") != expected_build_identity(commit):
+        errors.append("build_identity must match the verified clean commit")
 
     scenario_ids = payload.get("scenario_ids")
     if not isinstance(scenario_ids, list) or not scenario_ids:

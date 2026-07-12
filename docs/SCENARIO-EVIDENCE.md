@@ -4,14 +4,15 @@
 The run directory must end with the exact commit being verified.
 An existing run directory is never overwritten.
 
-Create a run before building or launching the QA app:
+First create and verify a clean packaged QA app.
+Then create the evidence run before launching that exact package:
 
 ```bash
 python3 Scripts/scenario_evidence.py create \
   --run-dir .audit/runs/onboarding/0123456789abcdef0123456789abcdef01234567 \
   --scenario ZC-001-001 \
   --scenario ZC-001-002 \
-  --build-identity zoid-coach-qa-0123456 \
+  --build-identity zoid-coach-0123456789abcdef0123456789abcdef01234567-clean \
   --fixture first-run \
   --qa-root /tmp/zoid-coach-qa/onboarding-001 \
   --commit 0123456789abcdef0123456789abcdef01234567
@@ -29,3 +30,4 @@ python3 Scripts/scenario_evidence.py validate \
 ```
 
 Registry drift, missing scenarios, malformed run identity, escaping artifact paths, missing artifacts, and checksum mismatches fail validation.
+A build identity is accepted only when it contains the full existing verified commit and the `clean` state.
