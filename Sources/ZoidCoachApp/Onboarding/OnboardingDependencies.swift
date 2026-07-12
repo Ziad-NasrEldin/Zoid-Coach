@@ -113,6 +113,10 @@ struct OnboardingDependencies {
             readOnly: true
         )
         let xpcClient = TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment)
+        let firstDailyPlanService = try? OnboardingFirstDailyPlanService(
+            databaseURL: runtimeEnvironment.databaseURL,
+            remindersService: reminders
+        )
         return Self(
             inspectReminders: { await reminders.inspect() },
             requestReminders: {
@@ -157,11 +161,14 @@ struct OnboardingDependencies {
                 return receipt
             },
             prepareFirstDailyPlan: {
-                .init(
-                    state: .unavailable,
-                    items: [],
-                    message: "First-plan preparation is not connected. Setup was not marked complete."
-                )
+                guard let firstDailyPlanService else {
+                    return .init(
+                        state: .failed,
+                        items: [],
+                        message: "First-plan storage is unavailable. Setup was not advanced."
+                    )
+                }
+                return await firstDailyPlanService.prepare()
             },
             openSystemSettings: { step in
                 let address: String

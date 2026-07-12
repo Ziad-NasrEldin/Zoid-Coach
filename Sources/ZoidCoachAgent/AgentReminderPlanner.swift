@@ -42,10 +42,6 @@ final class AgentReminderPlanner: @unchecked Sendable {
         recentBehavior: [PlanningBehaviorEvidence] = [],
         availableFocusMinutes: Int = 240
     ) async throws -> AgentPlanDraftResult {
-        if !overwriteExisting, try planStore.hasPlan(for: day) {
-            return .retainedExisting
-        }
-
         let reminders: [AgentReminderSnapshot]
         if let fixtureAdapter {
             reminders = try fixtureAdapter.allReminders(includeCompleted: false).map {
@@ -59,6 +55,17 @@ final class AgentReminderPlanner: @unchecked Sendable {
         } else {
             reminders = try reminderSnapshotStore.loadIncomplete().map {
                 AgentReminderSnapshot(id: $0.id, title: $0.title, dueDate: $0.dueDate, priority: priority(for: $0.priority), project: $0.listName)
+            }
+        }
+        if !overwriteExisting {
+            let usableTaskIDs = Set(reminders.compactMap {
+                $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0.id
+            })
+            let existing = try planStore.loadDailyPlan(for: day)
+            if !existing.isEmpty,
+               existing.allSatisfy({ usableTaskIDs.contains($0.reminderID) }),
+               existing.filter(\.isMainObjective).count == 1 {
+                return .retainedExisting
             }
         }
         guard !reminders.isEmpty else { return .remindersAccessUnavailable }
@@ -119,8 +126,19 @@ final class AgentReminderPlanner: @unchecked Sendable {
                 candidates: candidates
             )
         )
-        try planStore.replaceDailyPlan(proposal, for: day)
-        return .drafted(itemCount: proposal.items.count)
+        if overwriteExisting {
+            try planStore.replaceDailyPlan(proposal, for: day)
+            return .drafted(itemCount: proposal.items.count)
+        }
+        let usableTaskIDs = Set(reminders.compactMap {
+            $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0.id
+        })
+        switch try planStore.installDailyPlanIfNoUsablePlan(proposal, for: day, usableTaskIDs: usableTaskIDs) {
+        case let .installed(entries):
+            return .drafted(itemCount: entries.count)
+        case .retained:
+            return .retainedExisting
+        }
     }
 
     func synchronizeReminderSource() async throws -> ReminderSyncResult? {

@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 25
+    public static let currentVersion = 26
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -767,7 +767,45 @@ private extension AutonomousDatabaseMigrator {
             origin_json TEXT NOT NULL,
             created_at_utc TEXT NOT NULL
         );
-        """)])
+        """)]),
+        Migration(version: 26, isDestructive: false, operations: [
+            .sql("""
+            CREATE TABLE IF NOT EXISTS source_tasks (
+                source_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                due_at TEXT,
+                priority INTEGER NOT NULL DEFAULT 0,
+                is_completed INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL,
+                notes TEXT,
+                list_id TEXT,
+                list_name TEXT,
+                modified_at TEXT,
+                source_hash TEXT
+            );
+            """),
+            .addColumn(
+                table: "source_tasks",
+                column: "source_kind",
+                declaration: "TEXT NOT NULL DEFAULT 'reminders'"
+            ),
+            .sql("""
+            CREATE INDEX IF NOT EXISTS source_tasks_kind_idx
+            ON source_tasks(source_kind);
+            CREATE TRIGGER IF NOT EXISTS source_tasks_validate_kind_insert
+            BEFORE INSERT ON source_tasks
+            WHEN NEW.source_kind NOT IN ('reminders', 'local')
+            BEGIN
+                SELECT RAISE(ABORT, 'invalid source_kind');
+            END;
+            CREATE TRIGGER IF NOT EXISTS source_tasks_validate_kind_update
+            BEFORE UPDATE OF source_kind ON source_tasks
+            WHEN NEW.source_kind NOT IN ('reminders', 'local')
+            BEGIN
+                SELECT RAISE(ABORT, 'invalid source_kind');
+            END;
+            """)
+        ])
     ]
 }
 
