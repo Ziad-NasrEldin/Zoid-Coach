@@ -17,7 +17,7 @@ func agentLifecycleControllerExposesApprovalRecoveryAndReturnsHealthy() {
     )
 
     #expect(controller.health.state == .attention)
-    #expect(controller.canEnable)
+    #expect(!controller.canEnable)
     #expect(controller.canRepair)
     #expect(!controller.canDisable)
 
