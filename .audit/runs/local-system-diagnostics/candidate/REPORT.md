@@ -23,10 +23,23 @@
 - Registry and evidence gates: `python3 -m unittest discover -s Tests/ScenarioRegistryTests -p "test_*.py"` passed 41 tests.
 - Clean signed-QA packaging passed package, LaunchAgent, Mach-service, signing-identity, designated-requirement, and embedded clean-build-identity checks with run root `/tmp/zoid-666-local-diagnostics`.
 
-## Independent acceptance still required
+## Independent installed-app acceptance
 
-- A fresh verifier must open Source Health in the signed QA app, inspect both rows, trigger Refresh, and confirm the visible values survive application restart.
-- The root integrator owns tracker and registry status changes after that installed-app proof.
+- The verifier packaged the exact candidate as signed-QA build `zoid-coach-79a4079ca989ebc0621fcbd602f524164b57150b-clean` with isolated root `/private/tmp/zoid-666-local-diagnostics-verifier`.
+- The verifier opened the signed app through visible controls, exited setup to Today, and selected Source Health.
+- Before storage existed, the Local System panel truthfully showed `NOT READY`, zero size, unavailable schema and migration, and unavailable AI policy without creating the database.
+- After the signed agent initialized the isolated runtime, clicking the visible `REFRESH` control changed the database row to `HEALTHY`, `660 KB`, schema `29 of 29`, and the exact latest migration time.
+- The AI row simultaneously reported `LOCAL OLLAMA`, `Processing stays on this Mac`, and no recorded provider failures.
+- Closing and reopening the signed app returned directly to Source Health and preserved `HEALTHY`, schema `29 of 29`, the same migration time, and `LOCAL OLLAMA`; the aggregate store size truthfully advanced to `685 KB` as the running local runtime wrote additional state.
+- Accessibility inspection exposed `source-health.local-system.refresh`, `source-health.local-database`, and `source-health.ai-mode`, and all text remained readable in the visible Source Health scroll surface.
+
+## Independent verification gates
+
+- Focused diagnostics tests passed 3 tests.
+- The full four-worker Swift suite passed 469 tests in 5 suites.
+- The Python registry and evidence suite passed all 41 tests.
+- The release build passed.
+- No correctness, privacy, accessibility, refresh, or restart blocker remained after the single lean verification pass.
 
 ## File boundary
 
