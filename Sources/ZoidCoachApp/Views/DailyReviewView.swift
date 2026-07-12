@@ -548,7 +548,7 @@ private struct CompletedTaskHistorySection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("COMPLETED TODAY")
+            Text("COMPLETED TASKS")
                 .font(Sumi.label())
                 .sumiLabelTracking()
             Text("Finished work leaves the active list, but stays here as a local record of what you completed.")
