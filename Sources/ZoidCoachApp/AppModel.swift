@@ -82,6 +82,7 @@ final class AppModel: ObservableObject {
     private let reminderListPolicyLoader: @Sendable () throws -> ReminderListPolicy
     private let todayDashboardXPCClient: TodayDashboardXPCClient
     private let synchronizeReminderSnapshots: @Sendable ([AgentReminderSnapshot]) async throws -> Void
+    private let retryReminderCompletion: @Sendable (String) async throws -> Void
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
 
@@ -97,7 +98,8 @@ final class AppModel: ObservableObject {
         agentLaunchService: AgentLaunchService? = nil,
         eventStore: EventStore? = nil,
         reminderListPolicyLoader: (@Sendable () throws -> ReminderListPolicy)? = nil,
-        synchronizeReminderSnapshots: (@Sendable ([AgentReminderSnapshot]) async throws -> Void)? = nil
+        synchronizeReminderSnapshots: (@Sendable ([AgentReminderSnapshot]) async throws -> Void)? = nil,
+        retryReminderCompletion: (@Sendable (String) async throws -> Void)? = nil
     ) {
         let resolvedAgentLaunchService = agentLaunchService
             ?? AgentLaunchService(runtimeEnvironment: runtimeEnvironment)
@@ -109,6 +111,9 @@ final class AppModel: ObservableObject {
             _ = try await resolvedTodayDashboardXPCClient.apply(
                 .synchronizeReminderSnapshots(snapshots)
             )
+        }
+        self.retryReminderCompletion = retryReminderCompletion ?? { _ in
+            throw ReminderCompletionRetryError.agentTransportUnavailable
         }
         if let screenwatchReader {
             self.screenwatchReader = screenwatchReader
@@ -301,6 +306,9 @@ final class AppModel: ObservableObject {
             do {
                 todaySnapshot = try await todayDashboardXPCClient.apply(command, taskID: taskID)
                 lastActionMessage = taskCommandConfirmation(command)
+                if command == .complete {
+                    await refreshActionAudit()
+                }
             } catch {
                 taskCommandError = "The task change could not be saved. The last confirmed state is still shown. Try again after checking Agent source health."
                 todaySnapshot = try? todaySnapshotStore?.load()
@@ -330,6 +338,27 @@ final class AppModel: ObservableObject {
 
     var isAnyTaskCommandPending: Bool {
         pendingTaskCommandIDs.isEmpty == false
+    }
+
+    func reminderCompletionSyncState(for taskID: String) -> ReminderCompletionSyncState {
+        ReminderCompletionSyncState(taskID: taskID, audit: actionAudit)
+    }
+
+    func retryReminderCompletionSync(taskID: String) {
+        let state = reminderCompletionSyncState(for: taskID)
+        guard state.canRetry else { return }
+        pendingTaskCommandIDs.insert(taskID)
+        taskCommandError = nil
+        Task {
+            defer { pendingTaskCommandIDs.remove(taskID) }
+            do {
+                try await retryReminderCompletion(taskID)
+                lastActionMessage = "Completion retry queued for Apple Reminders."
+                await refreshActionAudit()
+            } catch {
+                taskCommandError = "The completion retry could not be queued. Your local task and history are unchanged. Check Reminders access and try again."
+            }
+        }
     }
 
     private func taskCommandConfirmation(_ command: TaskActivityCommand) -> String {
@@ -973,6 +1002,10 @@ final class AppModel: ObservableObject {
         }
         return "Zoid 666 automation is paused. Resume it in Settings before changing Reminders or Calendar."
     }
+}
+
+enum ReminderCompletionRetryError: Error {
+    case agentTransportUnavailable
 }
 
 private enum AppModelPolicyError: Error {

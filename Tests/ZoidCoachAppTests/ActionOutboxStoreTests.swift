@@ -131,6 +131,48 @@ func retryableActionResumesOnceAndRetainsAttemptHistory() throws {
 }
 
 @Test
+func explicitRetryKeepsCommandIdentityAndAttemptHistory() throws {
+    let url = temporaryOutboxURL("explicit-retry")
+    defer { removeOutboxDatabase(url) }
+    let clock = OutboxTestClock(Date(timeIntervalSince1970: 1_700_000_000))
+    let store = try ActionOutboxStore(databaseURL: url, now: { clock.now })
+    let inserted = try store.enqueue(
+        type: .completeReminder,
+        entityID: "task-1",
+        desiredState: .completeReminder,
+        planVersion: 1
+    ).command
+    let first = try #require(try store.claimNextReady())
+    try store.markFailed(first, retryable: false, redactedError: "Reminders denied")
+
+    clock.advance(by: 30)
+    try store.retryFailed(commandID: inserted.id)
+    let retry = try #require(try store.claimNextReady())
+
+    #expect(retry.id == inserted.id)
+    #expect(retry.entityID == "task-1")
+    #expect(retry.attemptCount == 2)
+    #expect(try store.attempts(commandID: retry.id).map(\.state) == [.terminalFailure, .executing])
+    #expect(try DomainEventStore(databaseURL: url).events().contains { $0.type == "action.retry_requested" })
+}
+
+@Test
+func explicitRetryRejectsPendingSucceededAndUnknownCommands() throws {
+    let url = temporaryOutboxURL("invalid-explicit-retry")
+    defer { removeOutboxDatabase(url) }
+    let store = try ActionOutboxStore(databaseURL: url)
+    let pending = try store.enqueue(
+        type: .completeReminder,
+        entityID: "task-1",
+        desiredState: .completeReminder,
+        planVersion: 1
+    ).command
+
+    #expect(throws: ActionOutboxStoreError.self) { try store.retryFailed(commandID: pending.id) }
+    #expect(throws: ActionOutboxStoreError.self) { try store.retryFailed(commandID: "missing") }
+}
+
+@Test
 func executingCommandsRemainVisibleForCrashReconciliation() throws {
     let url = temporaryOutboxURL("recovery")
     defer { removeOutboxDatabase(url) }

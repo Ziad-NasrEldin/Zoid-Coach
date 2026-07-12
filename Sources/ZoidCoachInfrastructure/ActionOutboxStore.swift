@@ -255,6 +255,37 @@ public final class ActionOutboxStore: @unchecked Sendable {
         try lock.withLock { try cancelLocked(commandID: commandID) }
     }
 
+    /// Makes a failed explicit action immediately eligible for another attempt.
+    ///
+    /// The existing command and attempt history are retained so retrying cannot
+    /// duplicate the user's requested source mutation or erase failure evidence.
+    public func retryFailed(commandID: String) throws {
+        try lock.withLock {
+            let date = now()
+            try begin()
+            var committed = false
+            defer { finishTransaction(commit: committed) }
+            try execute(
+                """
+                UPDATE action_commands
+                SET state = 'pending', next_attempt_at_utc = NULL, updated_at_utc = ?
+                WHERE id = ? AND state IN ('retryable_failure', 'terminal_failure');
+                """,
+                bindings: [formatter.string(from: date), commandID]
+            )
+            guard sqlite3_changes(database) == 1 else {
+                throw ActionOutboxStoreError.invalidTransition
+            }
+            try appendAuditEvent(
+                type: "action.retry_requested",
+                entityID: commandID,
+                occurredAt: date,
+                payload: [:]
+            )
+            committed = true
+        }
+    }
+
     @discardableResult
     public func cancelPendingCommands(type: ActionCommandType, entityID: String) throws -> Int {
         try lock.withLock {
