@@ -94,8 +94,14 @@ if [[ "$PACKAGE_MODE" == "qa" ]]; then
         || fail "QA package output contains a production identity string"
     stripped_runtime="$(env -i HOME="$HOME" PATH="/usr/bin:/bin" "$AGENT_EXECUTABLE" --print-runtime-identity)" \
         || fail "QA agent could not resolve its embedded runtime with a stripped environment"
-    [[ "$stripped_runtime" == "package=qa mode=qa identity=$AGENT_SIGNING_IDENTIFIER root=$qa_run_root" ]] \
-        || fail "QA agent resolved the wrong embedded runtime: $stripped_runtime"
+    expected_runtime_prefix="package=qa mode=qa identity=$AGENT_SIGNING_IDENTIFIER root="
+    [[ "$stripped_runtime" == "$expected_runtime_prefix"* ]] \
+        || fail "QA agent resolved the wrong embedded runtime identity: $stripped_runtime"
+    reported_runtime_root="${stripped_runtime#${expected_runtime_prefix}}"
+    canonical_reported_runtime_root="$("$ROOT/Scripts/qa_run_root.py" "$reported_runtime_root")" \
+        || fail "QA agent reported an invalid embedded runtime root: $reported_runtime_root"
+    [[ "$canonical_reported_runtime_root" == "$qa_run_root" ]] \
+        || fail "QA agent resolved the wrong embedded runtime root: $reported_runtime_root"
     if env -i HOME="$HOME" PATH="/usr/bin:/bin" ZOID_COACH_PACKAGE_MODE=production \
         "$AGENT_EXECUTABLE" --print-runtime-identity >/dev/null 2>&1; then
         fail "QA agent accepted a conflicting production runtime mode"
