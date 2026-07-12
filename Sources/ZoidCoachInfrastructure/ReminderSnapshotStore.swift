@@ -152,6 +152,27 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
     }
 
     @discardableResult
+    public func createLocal(_ task: ReminderSourceSnapshot, observedAt: Date = Date(), timeZone: TimeZone = .current) throws -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard task.sourceKind == .local,
+              !task.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !task.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { throw ReminderSnapshotStoreError.invalidLocalTask }
+        if try sourceKind(for: task.id) == .reminders {
+            throw ReminderSnapshotStoreError.localSourceCollision(task.id)
+        }
+        let hash = try sourceHash(task)
+        if let storedHash = try storedHash(for: task.id) {
+            guard storedHash == hash else {
+                throw ReminderSnapshotStoreError.localTaskConflict(task.id)
+            }
+            return false
+        }
+        return try upsertLocal(task, observedAt: observedAt, timeZone: timeZone)
+    }
+
+    @discardableResult
     public func upsertLocal(_ task: ReminderSourceSnapshot, observedAt: Date = Date(), timeZone: TimeZone = .current) throws -> Bool {
         lock.lock()
         defer { lock.unlock() }
@@ -216,6 +237,49 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
         }
         committed = true
         return true
+    }
+
+    public func completeLocal(id: String, completedAt: Date = Date(), timeZone: TimeZone = .current) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        guard try sourceKind(for: id) == .local else {
+            throw ReminderSnapshotStoreError.invalidLocalTask
+        }
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
+            throw ReminderSnapshotStoreError.write
+        }
+        var committed = false
+        defer { if !committed { _ = sqlite3_exec(database, "ROLLBACK;", nil, nil, nil) } }
+        var statement: OpaquePointer?
+        let sql = "UPDATE source_tasks SET is_completed = 1, modified_at = ?, updated_at = ? WHERE source_id = ? AND source_kind = 'local';"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw ReminderSnapshotStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        let timestamp = formatter.string(from: completedAt)
+        bind(timestamp, statement, 1)
+        bind(timestamp, statement, 2)
+        bind(id, statement, 3)
+        guard sqlite3_step(statement) == SQLITE_DONE, sqlite3_changes(database) == 1 else {
+            throw ReminderSnapshotStoreError.write
+        }
+        try appendSourceEvent(
+            type: "source_task.local_completed",
+            taskID: id,
+            hash: try storedHash(for: id) ?? "",
+            observedAt: completedAt,
+            timeZone: timeZone
+        )
+        guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+            throw ReminderSnapshotStoreError.write
+        }
+        committed = true
+    }
+
+    public func sourceKind(forID id: String) throws -> ReminderSourceKind? {
+        lock.lock()
+        defer { lock.unlock() }
+        return try sourceKind(for: id)
     }
 
     public func loadIncomplete() throws -> [ReminderSourceSnapshot] {
@@ -370,6 +434,7 @@ public enum ReminderSnapshotStoreError: LocalizedError {
     case invalidExternalSourceKind
     case invalidLocalTask
     case localSourceCollision(String)
+    case localTaskConflict(String)
     case duplicateOrInvalidExternalSourceID
     case invalidStoredSourceKind(String?)
 
@@ -382,6 +447,7 @@ public enum ReminderSnapshotStoreError: LocalizedError {
         case .invalidExternalSourceKind: "External reminder sync only accepts Reminders source tasks"
         case .invalidLocalTask: "Local fallback tasks require a non-empty identifier and title"
         case let .localSourceCollision(id): "A different task source already owns identifier \(id)"
+        case let .localTaskConflict(id): "A different local task already owns identifier \(id)"
         case .duplicateOrInvalidExternalSourceID: "External reminder sync requires unique, non-empty source identifiers"
         case let .invalidStoredSourceKind(kind): "The stored task source kind is invalid: \(kind ?? "missing")"
         }

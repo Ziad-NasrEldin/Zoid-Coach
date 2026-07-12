@@ -52,6 +52,16 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 writeCircuitBreaker.trip(reason: "agent_mutation_write_failed")
                 throw error
             }
+        } catch let error as ReminderSnapshotStoreError {
+            switch error {
+            case .invalidLocalTask, .localSourceCollision, .localTaskConflict,
+                 .invalidExternalSourceKind, .duplicateOrInvalidExternalSourceID,
+                 .invalidStoredSourceKind:
+                throw error
+            case .openDatabase, .schema, .read, .write:
+                writeCircuitBreaker.trip(reason: "agent_mutation_write_failed")
+                throw error
+            }
         } catch {
             writeCircuitBreaker.trip(reason: "agent_mutation_write_failed")
             throw error
@@ -68,6 +78,44 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 planVersion: activePolicyVersion()
             )
             return .init(accepted: true, commandIDs: [result.command.id], message: "Reminder completion queued.")
+
+        case let .createLocalTask(task, addToToday, day):
+            let title = task.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let notes = task.notes?.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard task.id.hasPrefix("local:user:"),
+                  task.id.count <= 128,
+                  !title.isEmpty,
+                  title.count <= 240,
+                  (5...480).contains(task.estimateMinutes),
+                  (notes?.count ?? 0) <= 2_000 else {
+                throw AgentMutationRouterError.invalidCommand
+            }
+            _ = try reminderSnapshots.createLocal(
+                ReminderSourceSnapshot(
+                    id: task.id,
+                    title: title,
+                    dueDate: nil,
+                    priority: 0,
+                    notes: notes?.isEmpty == true ? nil : notes,
+                    listID: "local:user",
+                    listName: "Local Tasks",
+                    modificationDate: day,
+                    sourceKind: .local
+                )
+            )
+            if addToToday {
+                try stateStore.appendLocalTaskToDailyPlan(
+                    taskID: task.id,
+                    estimateMinutes: task.estimateMinutes,
+                    day: day
+                )
+            }
+            return .init(
+                accepted: true,
+                message: addToToday
+                    ? "Local task created and added to today's plan."
+                    : "Local task created."
+            )
 
         case let .replaceDailyPlan(items, day):
             try stateStore.replaceDailyPlan(items, day: day)
