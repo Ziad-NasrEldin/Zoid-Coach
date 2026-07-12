@@ -338,6 +338,14 @@ public struct NextTaskRecommendation: Equatable, Codable, Sendable {
     }
 }
 
+public enum CoachingLevel: String, Codable, CaseIterable, Sendable {
+    case gentle
+    case accountability
+
+    public var maximumDailyPrompts: Int { self == .gentle ? 1 : 3 }
+    public var cooldownMinutes: Int { self == .gentle ? 180 : 60 }
+}
+
 public struct GamingPolicy: Equatable, Codable, Sendable {
     public static let flexible = GamingPolicy(
         dailyBudgetMinutes: 90,
@@ -355,11 +363,32 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
     public let version: Int
     public let dailyBudgetMinutes: Int
     public let priorityTaskRewardMinutes: Int
+    public let coachingLevel: CoachingLevel
 
-    public init(version: Int = 1, dailyBudgetMinutes: Int = 60, priorityTaskRewardMinutes: Int = 15) {
+    public init(
+        version: Int = 1,
+        dailyBudgetMinutes: Int = 60,
+        priorityTaskRewardMinutes: Int = 15,
+        coachingLevel: CoachingLevel = .gentle
+    ) {
         self.version = version
         self.dailyBudgetMinutes = max(0, dailyBudgetMinutes)
         self.priorityTaskRewardMinutes = max(0, priorityTaskRewardMinutes)
+        self.coachingLevel = coachingLevel
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            version: try container.decodeIfPresent(Int.self, forKey: .version) ?? 1,
+            dailyBudgetMinutes: try container.decodeIfPresent(Int.self, forKey: .dailyBudgetMinutes) ?? 60,
+            priorityTaskRewardMinutes: try container.decodeIfPresent(Int.self, forKey: .priorityTaskRewardMinutes) ?? 15,
+            coachingLevel: try container.decodeIfPresent(CoachingLevel.self, forKey: .coachingLevel) ?? .gentle
+        )
     }
 }
 
