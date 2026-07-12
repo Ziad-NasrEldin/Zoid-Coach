@@ -788,8 +788,8 @@ private struct TodayTaskRowView: View {
         VStack(alignment: .leading, spacing: 8) {
         HStack(alignment: .center, spacing: 12) {
             Button { primaryAction() } label: {
-                Image(systemName: row.state == .completed ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(row.state == .completed ? Sumi.seal : Sumi.muted)
+                Image(systemName: completionIcon)
+                    .foregroundStyle(completionIconColor)
             }
             .buttonStyle(SumiPressButtonStyle())
             .disabled([.completed, .blocked, .rescheduled].contains(row.state))
@@ -869,6 +869,24 @@ private struct TodayTaskRowView: View {
 
     private var completionSync: ReminderCompletionSyncState {
         model.reminderCompletionSyncState(for: row.taskID)
+    }
+
+    private var completionIcon: String {
+        guard row.state == .completed else { return "circle" }
+        return switch completionSync.phase {
+        case .pending, .retrying: "clock.arrow.circlepath"
+        case .failed, .unavailable: "exclamationmark.circle"
+        case .confirmed: "checkmark.circle.fill"
+        case .notRequested: "clock.badge.questionmark"
+        }
+    }
+
+    private var completionIconColor: Color {
+        return switch completionSync.phase {
+        case .failed, .unavailable: Sumi.seal
+        case .confirmed: Sumi.seal
+        case .notRequested, .pending, .retrying: Sumi.muted
+        }
     }
 
     private var taskDetail: String {
