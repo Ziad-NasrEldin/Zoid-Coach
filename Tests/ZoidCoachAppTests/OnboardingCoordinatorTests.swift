@@ -59,6 +59,97 @@ func deniedAndDeferredSourcesRemainExplicitAndDoNotBlockSetup() async throws {
 
 @MainActor
 @Test
+func returningFromSystemSettingsRepairsDeniedRemindersWithoutASecondPrompt() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
+    let base = testDependencies()
+    var requestCount = 0
+    var inspectCount = 0
+    let dependencies = OnboardingDependencies(
+        inspectReminders: {
+            inspectCount += 1
+            return SelfHealth.remindersHealthy
+        },
+        requestReminders: {
+            requestCount += 1
+            return .init(health: SelfHealth.remindersDenied, decision: .denied)
+        },
+        discoverReminderLists: {
+            .available([ReminderListChoice(id: "work", name: "Work")])
+        },
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        loadPolicy: base.loadPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: { $0 == .reminders }
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    await coordinator.requestAccess(for: .reminders)
+    #expect(coordinator.progress.remindersAccess == .denied)
+    coordinator.openSystemSettings(for: .reminders)
+    await coordinator.applicationDidBecomeActive()
+
+    #expect(requestCount == 1)
+    #expect(inspectCount == 1)
+    #expect(coordinator.progress.remindersAccess == .granted)
+    #expect(coordinator.reminderListDiscovery == .available([
+        ReminderListChoice(id: "work", name: "Work")
+    ]))
+    #expect(coordinator.errorMessage == nil)
+}
+
+@MainActor
+@Test
+func deferredRemindersRemainDeferredAcrossForegroundChecksWithoutPrompting() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
+    let base = testDependencies()
+    var requestCount = 0
+    var inspectCount = 0
+    let dependencies = OnboardingDependencies(
+        inspectReminders: {
+            inspectCount += 1
+            return SelfHealth.remindersDenied
+        },
+        requestReminders: {
+            requestCount += 1
+            return .init(health: SelfHealth.remindersDenied, decision: .denied)
+        },
+        discoverReminderLists: base.discoverReminderLists,
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        loadPolicy: base.loadPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: base.openSystemSettings
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    coordinator.deferAccess(for: .reminders)
+    #expect(coordinator.progress.remindersAccess == .deferred)
+    #expect(coordinator.sourceHealth[.reminders]?.detail.contains("local tasks") == true)
+    await coordinator.applicationDidBecomeActive()
+
+    #expect(coordinator.progress.remindersAccess == .deferred)
+    #expect(inspectCount == 1)
+    #expect(requestCount == 0)
+    #expect(coordinator.canContinue)
+}
+
+@MainActor
+@Test
 func reminderListDiscoveryFailureBlocksGrantedSetupUntilRetrySucceeds() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
     let recorder = PolicyRecorder()

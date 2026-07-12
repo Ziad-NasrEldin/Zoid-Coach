@@ -175,7 +175,26 @@ final class OnboardingCoordinator: ObservableObject {
             return
         }
         sourceRequestGeneration = UUID()
+        if step == .reminders {
+            sourceHealth[.reminders] = SourceHealth(
+                id: .reminders,
+                title: "Apple Reminders",
+                eyebrow: "Intent",
+                state: .notConnected,
+                detail: "Reminders was skipped. Apple tasks will stay unavailable, while local tasks and the rest of setup remain usable.",
+                evidence: "No permission dialog will be shown again unless you explicitly choose Request Access.",
+                actionTitle: "Use local tasks"
+            )
+        }
         recordAccess(.deferred, for: step)
+    }
+
+    func applicationDidBecomeActive() async {
+        guard route == .onboarding,
+              [.reminders, .screenwatch, .notifications].contains(progress.currentStep),
+              accessDecision(for: progress.currentStep) != nil,
+              !isWorking else { return }
+        await inspectCurrentSource()
     }
 
     func requestAccess(for step: OnboardingStep) async {
