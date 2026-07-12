@@ -129,9 +129,40 @@ func baselineReportRespectsDailyReviewCorrectionsWithoutRewritingBehaviorEvidenc
     let status = try fixture.store.reconcileCompletedDays(before: today, calendar: calendar)
 
     #expect(status.completeDayCount == 1)
+    #expect(status.report.averageObservedWorkMinutes == 35)
     #expect(status.report.totalGamingMinutes == 0)
     #expect(status.report.eligibleDriftCount == 0)
+    #expect(status.report.unknownSharePercent == 0)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM behavior_records WHERE classification = 'gaming';") == 12)
+}
+
+@Test
+func baselineReportCountsCorrectionAwareUnknownCoverage() throws {
+    let fixture = try BaselineFixture()
+    defer { fixture.remove() }
+    let base: Int64 = 1_783_000_000
+    for minute in 0..<35 {
+        try fixture.insertObservation(
+            localDay: "2026-07-01",
+            epoch: base + Int64(minute * 60),
+            classification: .work
+        )
+    }
+    try fixture.insertCorrection(
+        localDay: "2026-07-01",
+        start: base,
+        end: base + 12 * 60,
+        classification: .unknown
+    )
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+    let today = try #require(ISO8601DateFormatter().date(from: "2026-07-02T12:00:00Z"))
+
+    let status = try fixture.store.reconcileCompletedDays(before: today, calendar: calendar)
+
+    #expect(status.report.averageObservedWorkMinutes == 23)
+    #expect(status.report.unknownSharePercent == 34)
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM behavior_records WHERE classification = 'work';") == 35)
 }
 
 @Test
@@ -184,12 +215,61 @@ func gamingAfterThePlannedTaskWasCompletedIsNotEligibleDrift() throws {
 }
 
 @Test
+func driftThatCrossesTheThresholdWhileWorkIsUnfinishedRemainsEligibleAfterLaterCompletion() throws {
+    let fixture = try BaselineFixture()
+    defer { fixture.remove() }
+    let base: Int64 = 1_783_000_000
+    try fixture.insertPlannedTask(localDay: "2026-07-01", taskID: "priority-mid-episode")
+    try fixture.insertTaskCompletion(
+        taskID: "priority-mid-episode",
+        occurredAt: Date(timeIntervalSince1970: TimeInterval(base + 11 * 60))
+    )
+    for minute in 0..<35 {
+        try fixture.insertObservation(
+            localDay: "2026-07-01",
+            epoch: base + Int64(minute * 60),
+            classification: minute < 15 ? .gaming : .work
+        )
+    }
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+    let today = try #require(ISO8601DateFormatter().date(from: "2026-07-02T12:00:00Z"))
+
+    let status = try fixture.store.reconcileCompletedDays(before: today, calendar: calendar)
+
+    #expect(status.report.eligibleDriftCount == 1)
+}
+
+@Test
 func migration37AddsNonDestructiveBaselineLedgerAfterCorrectionRules() throws {
     let fixture = try BaselineFixture()
     defer { fixture.remove() }
     #expect(try fixture.scalar("SELECT MAX(version) FROM schema_migrations;") == 37)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'baseline_observation_days';") == 1)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'app_classification_correction_rules';") == 1)
+}
+
+@Test
+func baselineReconciliationCheckpointSurvivesAgentRestart() throws {
+    let fixture = try BaselineFixture()
+    defer { fixture.remove() }
+    let recordedAt = Date(timeIntervalSince1970: 1_783_800_000)
+    var checkpoint: ProcessingCheckpointStore? = try ProcessingCheckpointStore(
+        databaseURL: fixture.databaseURL
+    )
+    try checkpoint?.recordSuccess(
+        sourceID: "baseline-observation-reconciliation",
+        at: recordedAt,
+        scheduledLocalDay: "2026-07-08",
+        timeZoneIdentifier: "UTC"
+    )
+    checkpoint = nil
+
+    let reopened = try ProcessingCheckpointStore(databaseURL: fixture.databaseURL)
+    let restored = try reopened.checkpoint(sourceID: "baseline-observation-reconciliation")
+
+    #expect(restored?.lastScheduledLocalDay == "2026-07-08")
+    #expect(restored?.lastScheduledTimeZone == "UTC")
 }
 
 private final class BaselineFixture {
