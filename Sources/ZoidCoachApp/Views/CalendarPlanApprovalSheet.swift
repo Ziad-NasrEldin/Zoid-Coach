@@ -106,35 +106,39 @@ struct CalendarPlanApprovalSheet: View {
                 .accessibilityIdentifier("calendar-plan-write-refusal")
             }
 
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(model.calendarPlanApproval.items) { item in
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text(String(format: "%02d", item.rank))
-                            .font(Sumi.label(9))
-                            .foregroundStyle(Sumi.seal)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.title)
-                                .font(Sumi.body(13))
-                                .foregroundStyle(Sumi.ink)
-                                .lineLimit(2)
-                            if item.isMainObjective {
-                                Text("MAIN OBJECTIVE")
-                                    .font(Sumi.label(8))
-                                    .sumiLabelTracking()
-                                    .foregroundStyle(Sumi.seal)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(model.calendarPlanApproval.items) { item in
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Text(String(format: "%02d", item.rank))
+                                .font(Sumi.label(9))
+                                .foregroundStyle(Sumi.seal)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                    .font(Sumi.body(13))
+                                    .foregroundStyle(Sumi.ink)
+                                    .lineLimit(2)
+                                if item.isMainObjective {
+                                    Text("MAIN OBJECTIVE")
+                                        .font(Sumi.label(8))
+                                        .sumiLabelTracking()
+                                        .foregroundStyle(Sumi.seal)
+                                }
                             }
+                            Spacer()
+                            Text("\(item.estimateMinutes) MIN")
+                                .font(Sumi.label(9))
+                                .sumiLabelTracking()
+                                .foregroundStyle(Sumi.muted)
                         }
-                        Spacer()
-                        Text("\(item.estimateMinutes) MIN")
-                            .font(Sumi.label(9))
-                            .sumiLabelTracking()
-                            .foregroundStyle(Sumi.muted)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
                 }
             }
+            .frame(maxHeight: 280)
+            .accessibilityIdentifier("calendar-plan-reviewed-items")
 
             HStack {
                 Button("GO BACK", action: model.dismissCalendarPlanApproval)
