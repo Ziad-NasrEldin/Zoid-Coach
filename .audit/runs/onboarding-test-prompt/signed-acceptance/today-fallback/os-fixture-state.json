@@ -1,0 +1,108 @@
+{
+  "audit" : [
+    {
+      "id" : "qa-audit-0",
+      "operation" : "seed",
+      "outcome" : "succeeded",
+      "subsystem" : "fixture",
+      "targetID" : "canonical-notifications-denied-clean",
+      "timestamp" : 805568711.937875
+    },
+    {
+      "id" : "qa-audit-1",
+      "operation" : "schedule",
+      "outcome" : "refused:accessDenied",
+      "subsystem" : "notifications",
+      "timestamp" : 805568781.505738
+    }
+  ],
+  "calendarCommitments" : [
+
+  ],
+  "controlReceipts" : [
+    {
+      "request" : {
+        "operation" : "seed",
+        "requestID" : "canonical-notifications-denied-clean",
+        "seed" : {
+          "calendarCommitments" : [
+
+          ],
+          "notifications" : [
+
+          ],
+          "permissions" : [
+            "notifications",
+            "denied"
+          ],
+          "reminderLists" : [
+
+          ],
+          "reminders" : [
+
+          ]
+        }
+      },
+      "snapshot" : {
+        "audit" : [
+          {
+            "id" : "qa-audit-0",
+            "operation" : "seed",
+            "outcome" : "succeeded",
+            "subsystem" : "fixture",
+            "targetID" : "canonical-notifications-denied-clean",
+            "timestamp" : 805568711.937875
+          }
+        ],
+        "calendarCommitments" : [
+
+        ],
+        "notifications" : [
+
+        ],
+        "permissions" : [
+          "notifications",
+          "denied"
+        ],
+        "reminderLists" : [
+
+        ],
+        "reminders" : [
+
+        ]
+      }
+    }
+  ],
+  "counters" : [
+    "audit",
+    2
+  ],
+  "generatedIdentifiers" : [
+    {
+      "id" : "qa-audit-0",
+      "index" : 0,
+      "kind" : "audit",
+      "provenance" : "stableProvider"
+    },
+    {
+      "id" : "qa-audit-1",
+      "index" : 1,
+      "kind" : "audit",
+      "provenance" : "stableProvider"
+    }
+  ],
+  "notifications" : [
+
+  ],
+  "permissions" : [
+    "notifications",
+    "denied"
+  ],
+  "reminderLists" : [
+
+  ],
+  "reminders" : [
+
+  ],
+  "schemaVersion" : 1
+}

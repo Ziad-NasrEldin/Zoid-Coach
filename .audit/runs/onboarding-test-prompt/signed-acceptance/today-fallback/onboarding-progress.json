@@ -1,0 +1,49 @@
+{
+  "coachingMode" : "rulesOnly",
+  "completedEffects" : [
+    {
+      "payloadDigest" : "96b0a0bf640605d7396dcf1bcd73115b5c8b826d4756b69ce6e4d29fc8f2834f",
+      "requestID" : "onboarding-policy-v1:58483342-984B-4745-AE38-FD342A5BA7DC:activityClassification:9:96b0a0bf640605d7396dcf1bcd73115b5c8b826d4756b69ce6e4d29fc8f2834f",
+      "resourceVersion" : 2,
+      "step" : "activityClassification"
+    },
+    {
+      "payloadDigest" : "96b0a0bf640605d7396dcf1bcd73115b5c8b826d4756b69ce6e4d29fc8f2834f",
+      "requestID" : "onboarding-policy-v1:58483342-984B-4745-AE38-FD342A5BA7DC:schedule:10:96b0a0bf640605d7396dcf1bcd73115b5c8b826d4756b69ce6e4d29fc8f2834f",
+      "resourceVersion" : 3,
+      "step" : "schedule"
+    },
+    {
+      "payloadDigest" : "96b0a0bf640605d7396dcf1bcd73115b5c8b826d4756b69ce6e4d29fc8f2834f",
+      "requestID" : "onboarding-policy-v1:58483342-984B-4745-AE38-FD342A5BA7DC:gamingPolicy:11:96b0a0bf640605d7396dcf1bcd73115b5c8b826d4756b69ce6e4d29fc8f2834f",
+      "resourceVersion" : 4,
+      "step" : "gamingPolicy"
+    },
+    {
+      "payloadDigest" : "301af6a0cfe9ef3694d503807bfaa1d38e1f0984d51353094f5055b06882ca72",
+      "requestID" : "onboarding-policy-v1:58483342-984B-4745-AE38-FD342A5BA7DC:coachingMode:12:301af6a0cfe9ef3694d503807bfaa1d38e1f0984d51353094f5055b06882ca72",
+      "resourceVersion" : 5,
+      "step" : "coachingMode"
+    }
+  ],
+  "completedSteps" : [
+    "welcome",
+    "localPrivacy",
+    "reminders",
+    "screenwatch",
+    "notifications",
+    "applicationInventory",
+    "activityClassification",
+    "schedule",
+    "gamingPolicy",
+    "coachingMode"
+  ],
+  "currentStep" : "deliveryTest",
+  "deliveryTestTaskCompleted" : true,
+  "flowID" : "58483342-984B-4745-AE38-FD342A5BA7DC",
+  "notificationAccess" : "deferred",
+  "persistenceRevision" : 14,
+  "remindersAccess" : "deferred",
+  "screenwatchAccess" : "deferred",
+  "version" : 1
+}
