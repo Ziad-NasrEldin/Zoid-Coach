@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "cf53c658eb605dda664d631364cf3f9736f6fbe129355e23194a15842e9669eb",
+  "tracker_sha256": "026944c1e291142ed87cc3795e11e36bcea840fb6f35d908f56d3a3fac97885a",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1810,8 +1810,8 @@
       "item_index": 1,
       "wording": "See a clear warning when planned work exceeds available focus capacity.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1822,7 +1822,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Core planner caps generated plans to capacity, but manual plan edits have no capacity warning surface.",
+      "audit_note": "The live Today surface now renders a dedicated capacity panel in both snapshot and fallback states, and focused tests prove exact overage classification, but the signed seeded overload could not be completed after the helper snapshot failed to refresh seeded Reminders (`PlanningCapacityState.swift`; `DashboardView.swift`; `.audit/runs/planning-capacity/capacity-warning/REPORT.md`).",
       "tracker_line": 160
     },
     {
@@ -1832,8 +1832,8 @@
       "item_index": 2,
       "wording": "See the selected workload and available capacity in the same warning.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1844,7 +1844,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Both values are computable in core policy and plan data, but no warning UI combines or displays them.",
+      "audit_note": "The signed app visibly showed `0 MIN PLANNED / 126 MIN AVAILABLE` after merging overlapping external commitments and ignoring a Zoid-owned block, while the populated-workload installed state remains unproven (`AppModel.swift`; `PlanningCapacityState.swift`; `.audit/runs/planning-capacity/capacity-warning/REPORT.md`).",
       "tracker_line": 161
     },
     {
@@ -1854,8 +1854,8 @@
       "item_index": 3,
       "wording": "Receive a concrete suggestion about what to remove, defer, or make optional.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1866,7 +1866,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The planner chooses a bounded set, but the app does not explain an over-capacity manual plan or suggest a specific edit.",
+      "audit_note": "The overload state names the lowest-ranked task and explains removal, estimate reduction, or exclusion, with focused rule coverage, but the signed helper refresh blocker prevented visible populated-plan proof (`PlanningCapacityState.swift`; `DashboardView.swift`; `.audit/runs/planning-capacity/capacity-warning/REPORT.md`).",
       "tracker_line": 162
     },
     {
@@ -1876,8 +1876,8 @@
       "item_index": 4,
       "wording": "Reduce the plan directly from the warning.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1888,7 +1888,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No capacity warning exists, so no embedded removal or defer action exists.",
+      "audit_note": "A stable accessible Remove Suggested Task action removes the exact suggested entry and immediately persists the revised plan, but the installed click-through remains outstanding (`AppModel.swift`; `DashboardView.swift`; `.audit/runs/planning-capacity/capacity-warning/REPORT.md`).",
       "tracker_line": 163
     },
     {
@@ -1898,8 +1898,8 @@
       "item_index": 5,
       "wording": "Change an estimate and see capacity update immediately.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1910,7 +1910,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Estimate selection updates persisted entries immediately, but no displayed capacity value reacts to it (`AppModel.swift:265-280`).",
+      "audit_note": "Capacity derives directly from published plan state, the Calendar adjustment is now published, and focused tests prove overloaded-to-realistic recalculation after estimate changes; visible signed interaction remains outstanding (`AppModel.swift`; `PlanningCapacityStateTests.swift`).",
       "tracker_line": 164
     },
     {
@@ -1920,8 +1920,8 @@
       "item_index": 6,
       "wording": "Add or remove a task and see capacity update immediately.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1932,7 +1932,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Plan contents update, but no capacity meter or warning recalculation is visible.",
+      "audit_note": "Add, remove, and direct reduction mutate published plan state and therefore recalculate the live panel immediately, but stale helper snapshot inventory prevented the final installed add-remove sequence (`AppModel.swift`; `DashboardView.swift`; `.audit/runs/planning-capacity/capacity-warning/REPORT.md`).",
       "tracker_line": 165
     },
     {
@@ -1942,8 +1942,8 @@
       "item_index": 7,
       "wording": "Approve a realistic revised plan.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1954,7 +1954,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Revised entries can be accepted, but the UI never establishes that the revision is realistic or blocks over-capacity approval.",
+      "audit_note": "Acceptance is disabled for empty, missing-estimate, and overloaded plans and enabled only for a realistic revision, with exact recovery copy and focused tests; the signed accept-and-relaunch mutation remains outstanding (`AppModel.swift`; `DashboardView.swift`; `PlanningCapacityStateTests.swift`).",
       "tracker_line": 166
     },
     {
@@ -1964,8 +1964,8 @@
       "item_index": 8,
       "wording": "Avoid receiving a vague warning with no useful next action.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1976,7 +1976,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no workload warning of any kind to assess.",
+      "audit_note": "Missing estimates name their count, overload names the exact minutes and a specific reduction, and Calendar failure explicitly identifies configured-work-window fallback, while the complete populated signed journey remains unproven (`DashboardView.swift`; `.audit/runs/planning-capacity/capacity-warning/REPORT.md`).",
       "tracker_line": 167
     },
     {
