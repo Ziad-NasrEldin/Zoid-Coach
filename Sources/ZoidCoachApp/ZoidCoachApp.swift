@@ -1,11 +1,13 @@
 import AppKit
 import SwiftUI
+import ZoidCoachCore
 
 @main
 struct ZoidCoachApplication: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model: AppModel
     @StateObject private var voiceModel: VoiceConversationModel
+    @StateObject private var onboarding: OnboardingCoordinator
     private let launchesForBackgroundScheduling: Bool
 
     init() {
@@ -13,23 +15,35 @@ struct ZoidCoachApplication: App {
         launchesForBackgroundScheduling = isBackgroundLaunch
         _model = StateObject(wrappedValue: AppModel())
         _voiceModel = StateObject(wrappedValue: VoiceConversationModel())
+        _onboarding = StateObject(wrappedValue: OnboardingCoordinator())
     }
 
     var body: some Scene {
         WindowGroup {
-            DashboardView()
+            Group {
+                if onboarding.route == .onboarding {
+                    OnboardingRootView(coordinator: onboarding)
+                } else {
+                    DashboardView()
+                }
+            }
                 .environmentObject(model)
                 .environmentObject(voiceModel)
                 .frame(minWidth: 980, minHeight: 680)
                 .background(Sumi.paper)
                 .onAppear {
-                    voiceModel.startAlwaysAvailable()
+                    if onboarding.route == .today {
+                        voiceModel.startAlwaysAvailable()
+                    }
                     positionInitialWindow()
                     if launchesForBackgroundScheduling {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                             NSApp.hide(nil)
                         }
                     }
+                }
+                .onChange(of: onboarding.route) { _, route in
+                    if route == .today { voiceModel.startAlwaysAvailable() }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
