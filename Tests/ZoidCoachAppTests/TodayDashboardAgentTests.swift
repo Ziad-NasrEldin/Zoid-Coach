@@ -152,6 +152,51 @@ func completingLocalTaskStaysLocalRecordsHistoryAndSurvivesRestart() throws {
 }
 
 @Test
+func completingReminderTaskLeavesTodayImmediatelyWhileSourceWriteIsPending() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-complete-reminder-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let completedAt = day.addingTimeInterval(300)
+    let taskID = "reminder:pending-completion"
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([ReminderSourceSnapshot(
+        id: taskID,
+        title: "Send the finished brief",
+        dueDate: day,
+        priority: 9,
+        modificationDate: day,
+        sourceKind: .reminders
+    )])
+    try AutonomousPlanStore(databaseURL: url).replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: taskID, title: "Send the finished brief", rank: 1, estimateMinutes: 25, reason: "Due", score: 100)],
+            mainObjectiveTaskID: taskID,
+            plannedFocusMinutes: 25,
+            availableFocusMinutes: 60
+        ),
+        for: day
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url)
+
+    _ = try agent.apply(.start, taskID: taskID, now: day)
+    let completed = try agent.apply(.complete, taskID: taskID, now: completedAt)
+
+    #expect(completed.activeTask == nil)
+    #expect(completed.taskRows.contains { $0.taskID == taskID } == false)
+    #expect(completed.unplannedReminders?.contains { $0.reminderID == taskID } == false)
+    #expect(try reminders.loadIncomplete().contains { $0.id == taskID })
+    #expect(try ActionOutboxStore(databaseURL: url).recentCommands().contains { $0.entityID == taskID })
+    let history = try TaskHistoryStore(databaseURL: url).completedEntries(for: completedAt)
+    #expect(history.map(\.title) == ["Send the finished brief"])
+    #expect(history.map(\.sourceKind) == [.reminders])
+}
+
+@Test
 func agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-task-lifecycle-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: url) }
