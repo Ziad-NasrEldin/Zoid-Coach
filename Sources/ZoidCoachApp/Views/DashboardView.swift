@@ -33,6 +33,8 @@ struct DashboardView: View {
                     Group {
                         if model.selectedSection == .today {
                             TodayCommandView(editingCandidate: $editingMeetingCandidate)
+                        } else if model.selectedSection == .reviews {
+                            DailyReviewView()
                         } else if model.selectedSection == .settings {
                             SettingsView()
                         } else {

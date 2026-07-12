@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 27
+    public static let currentVersion = 28
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -832,6 +832,26 @@ private extension AutonomousDatabaseMigrator {
         UPDATE prompt_episodes
         SET summary = replace(summary, 'Zoid Coach', 'Zoid 666')
         WHERE instr(summary, 'Zoid Coach') > 0;
+        """)]),
+        Migration(version: 28, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS daily_review_corrections (
+            id TEXT PRIMARY KEY,
+            source_day TEXT NOT NULL,
+            start_epoch INTEGER NOT NULL,
+            end_epoch INTEGER NOT NULL,
+            classification TEXT NOT NULL CHECK(classification IN ('work', 'gaming', 'distracting', 'idle', 'unknown')),
+            task_id TEXT,
+            created_at_utc TEXT NOT NULL,
+            CHECK(end_epoch > start_epoch)
+        );
+        CREATE INDEX IF NOT EXISTS daily_review_corrections_day_range
+        ON daily_review_corrections(source_day, start_epoch, end_epoch, created_at_utc);
+        CREATE TABLE IF NOT EXISTS daily_reviews (
+            source_day TEXT PRIMARY KEY,
+            hypothesis_state TEXT NOT NULL DEFAULT 'pending' CHECK(hypothesis_state IN ('pending', 'accepted', 'rejected')),
+            confirmed_at_utc TEXT,
+            updated_at_utc TEXT NOT NULL
+        );
         """)])
     ]
 }

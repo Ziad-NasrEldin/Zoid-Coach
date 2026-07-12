@@ -1,0 +1,369 @@
+import SwiftUI
+import ZoidCoachCore
+import ZoidCoachInfrastructure
+
+protocol DailyReviewServicing: AnyObject {
+    func load(sourceDay: String) throws -> DailyReviewSnapshot
+    func correct(
+        _ session: DailyReviewSession,
+        to classification: BehaviorClassification,
+        taskID: String?,
+        from splitDate: Date?
+    ) throws
+    func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws
+    func confirm(sourceDay: String) throws
+}
+
+extension DailyReviewStore: DailyReviewServicing {}
+
+@MainActor
+final class DailyReviewController: ObservableObject {
+    @Published var selectedDay: Date
+    @Published private(set) var snapshot: DailyReviewSnapshot?
+    @Published private(set) var isLoading = false
+    @Published private(set) var errorMessage: String?
+    @Published private(set) var successMessage: String?
+
+    private let service: any DailyReviewServicing
+    private let calendar: Calendar
+
+    init(
+        service: any DailyReviewServicing,
+        selectedDay: Date = Date(),
+        calendar: Calendar = .current
+    ) {
+        self.service = service
+        self.selectedDay = selectedDay
+        self.calendar = calendar
+    }
+
+    convenience init(runtimeEnvironment: RuntimeEnvironment = .current()) {
+        do {
+            try self.init(service: DailyReviewStore(databaseURL: runtimeEnvironment.databaseURL))
+        } catch {
+            self.init(service: UnavailableDailyReviewService(error: error))
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    var sourceDay: String {
+        var localCalendar = calendar
+        localCalendar.timeZone = calendar.timeZone
+        let components = localCalendar.dateComponents([.year, .month, .day], from: selectedDay)
+        return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+    }
+
+    func load() {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            snapshot = try service.load(sourceDay: sourceDay)
+            errorMessage = nil
+        } catch {
+            snapshot = nil
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func correct(
+        session: DailyReviewSession,
+        classification: BehaviorClassification,
+        taskID: String?,
+        splitAtMidpoint: Bool
+    ) {
+        do {
+            let splitDate = splitAtMidpoint
+                ? session.start.addingTimeInterval(session.end.timeIntervalSince(session.start) / 2)
+                : nil
+            try service.correct(
+                session,
+                to: classification,
+                taskID: taskID,
+                from: splitDate
+            )
+            snapshot = try service.load(sourceDay: sourceDay)
+            errorMessage = nil
+            successMessage = splitAtMidpoint
+                ? "The second half of the session was corrected. Totals were recalculated."
+                : "The session was corrected. Totals were recalculated."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func setHypothesis(_ state: DailyReviewHypothesisState) {
+        do {
+            try service.setHypothesisState(state, sourceDay: sourceDay)
+            snapshot = try service.load(sourceDay: sourceDay)
+            errorMessage = nil
+            successMessage = state == .rejected
+                ? "The explanation was rejected and will not be treated as fact."
+                : "The explanation was accepted for this review."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func confirm() {
+        do {
+            try service.confirm(sourceDay: sourceDay)
+            snapshot = try service.load(sourceDay: sourceDay)
+            errorMessage = nil
+            successMessage = "Daily review confirmed. Corrections remain editable."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private final class UnavailableDailyReviewService: DailyReviewServicing {
+    private let error: Error
+    init(error: Error) { self.error = error }
+    func load(sourceDay: String) throws -> DailyReviewSnapshot { throw error }
+    func correct(_ session: DailyReviewSession, to classification: BehaviorClassification, taskID: String?, from splitDate: Date?) throws { throw error }
+    func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws { throw error }
+    func confirm(sourceDay: String) throws { throw error }
+}
+
+struct DailyReviewView: View {
+    @StateObject private var controller: DailyReviewController
+
+    init(controller: DailyReviewController? = nil) {
+        _controller = StateObject(wrappedValue: controller ?? DailyReviewController())
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            header
+            if let errorMessage = controller.errorMessage {
+                errorCard(errorMessage)
+            }
+            if let successMessage = controller.successMessage {
+                Text(successMessage)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.okay)
+                    .accessibilityIdentifier("reviews.success")
+            }
+            if controller.isLoading {
+                ProgressView("Loading local activity...")
+                    .accessibilityIdentifier("reviews.loading")
+            } else if let snapshot = controller.snapshot {
+                snapshotContent(snapshot)
+            }
+        }
+        .padding(34)
+        .frame(maxWidth: 980, alignment: .leading)
+        .task { controller.load() }
+        .onChange(of: controller.selectedDay) { controller.load() }
+        .accessibilityIdentifier("reviews.daily")
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("DAILY REVIEW")
+                .font(Sumi.label(10))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            Text("Correct the record before it teaches the coach.")
+                .font(Sumi.display(34))
+                .tracking(-1)
+            Text("Only local activity summaries are shown. Window titles, URLs, and screenshots are never displayed here.")
+                .font(Sumi.body(14))
+                .foregroundStyle(Sumi.muted)
+            DatePicker("Review day", selection: $controller.selectedDay, displayedComponents: .date)
+                .datePickerStyle(.compact)
+                .accessibilityIdentifier("reviews.day")
+        }
+    }
+
+    @ViewBuilder
+    private func snapshotContent(_ snapshot: DailyReviewSnapshot) -> some View {
+        if snapshot.sessions.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("NO COVERED ACTIVITY")
+                    .font(Sumi.label())
+                    .sumiLabelTracking()
+                Text("There are no local behavior observations for this day. Nothing was inferred or confirmed.")
+                    .font(Sumi.body(13))
+                    .foregroundStyle(Sumi.muted)
+                Button("RELOAD") { controller.load() }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .accessibilityIdentifier("reviews.empty.reload")
+            }
+            .padding(18)
+            .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+            .accessibilityIdentifier("reviews.empty")
+        } else {
+            totals(snapshot.totals)
+            VStack(alignment: .leading, spacing: 12) {
+                Text("ACTIVITY SESSIONS")
+                    .font(Sumi.label())
+                    .sumiLabelTracking()
+                ForEach(snapshot.sessions) { session in
+                    DailyReviewSessionRow(session: session) { classification, taskID, split in
+                        controller.correct(
+                            session: session,
+                            classification: classification,
+                            taskID: taskID,
+                            splitAtMidpoint: split
+                        )
+                    }
+                }
+            }
+            hypothesis(snapshot)
+            confirmation(snapshot)
+        }
+    }
+
+    private func totals(_ totals: [DailyReviewTotal]) -> some View {
+        HStack(spacing: 0) {
+            ForEach(totals) { total in
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("\(total.minutes) MIN")
+                        .font(Sumi.display(22))
+                    Text(total.classification.rawValue.uppercased())
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.muted)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("reviews.total.\(total.classification.rawValue)")
+            }
+        }
+        .accessibilityIdentifier("reviews.totals")
+    }
+
+    private func hypothesis(_ snapshot: DailyReviewSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("POSSIBLE EXPLANATION")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            Text(snapshot.hypothesis ?? "There is not enough covered activity for an explanation.")
+                .font(Sumi.body(14))
+            Text("This is a hypothesis, not a fact. Rejecting it is useful feedback.")
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+            HStack {
+                Button(snapshot.hypothesisState == .accepted ? "ACCEPTED" : "ACCEPT") {
+                    controller.setHypothesis(.accepted)
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .disabled(snapshot.hypothesis == nil || snapshot.hypothesisState == .accepted)
+                .accessibilityIdentifier("reviews.hypothesis.accept")
+                Button(snapshot.hypothesisState == .rejected ? "REJECTED" : "REJECT") {
+                    controller.setHypothesis(.rejected)
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .disabled(snapshot.hypothesis == nil || snapshot.hypothesisState == .rejected)
+                .accessibilityIdentifier("reviews.hypothesis.reject")
+            }
+        }
+        .padding(18)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityIdentifier("reviews.hypothesis")
+    }
+
+    private func confirmation(_ snapshot: DailyReviewSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let confirmedAt = snapshot.confirmedAt {
+                Text("CONFIRMED \(confirmedAt.formatted(date: .abbreviated, time: .shortened).uppercased())")
+                    .font(Sumi.label())
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.okay)
+                    .accessibilityIdentifier("reviews.confirmed")
+                Text("You can still correct a session. Any later edit reopens the review before it influences learning.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+            } else {
+                Button("CONFIRM CORRECTED REVIEW") { controller.confirm() }
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .large))
+                    .accessibilityIdentifier("reviews.confirm")
+            }
+        }
+    }
+
+    private func errorCard(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(message)
+                .font(Sumi.body(13))
+                .foregroundStyle(Sumi.sealDeep)
+            Spacer()
+            Button("RETRY") { controller.load() }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                .accessibilityIdentifier("reviews.retry")
+        }
+        .padding(14)
+        .background(Sumi.sealWash)
+        .overlay(Rectangle().stroke(Sumi.seal, lineWidth: 1))
+        .accessibilityIdentifier("reviews.error")
+    }
+}
+
+private struct DailyReviewSessionRow: View {
+    let session: DailyReviewSession
+    let apply: (BehaviorClassification, String?, Bool) -> Void
+
+    @State private var classification: BehaviorClassification
+    @State private var taskID: String
+    @State private var splitAtMidpoint = false
+
+    init(
+        session: DailyReviewSession,
+        apply: @escaping (BehaviorClassification, String?, Bool) -> Void
+    ) {
+        self.session = session
+        self.apply = apply
+        _classification = State(initialValue: session.classification)
+        _taskID = State(initialValue: session.taskID ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session.application).font(Sumi.body(15))
+                    Text("\(session.start.formatted(date: .omitted, time: .shortened)) - \(session.end.formatted(date: .omitted, time: .shortened)) · \(session.durationMinutes) min · \(session.observationCount) observations")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                }
+                Spacer()
+                Picker("Classification", selection: $classification) {
+                    ForEach(BehaviorClassification.allCases, id: \.self) { value in
+                        Text(value.rawValue.uppercased()).tag(value)
+                    }
+                }
+                .frame(width: 150)
+                .accessibilityIdentifier("reviews.session.\(session.id).classification")
+            }
+            HStack {
+                TextField("Optional task ID or title", text: $taskID)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Attach session to a task")
+                    .accessibilityIdentifier("reviews.session.\(session.id).task")
+                Toggle("Correct second half only", isOn: $splitAtMidpoint)
+                    .toggleStyle(.checkbox)
+                    .accessibilityIdentifier("reviews.session.\(session.id).split")
+                Button("APPLY CORRECTION") {
+                    apply(classification, taskID.isEmpty ? nil : taskID, splitAtMidpoint)
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .disabled(
+                    classification == session.classification
+                        && taskID == (session.taskID ?? "")
+                        && !splitAtMidpoint
+                )
+                .accessibilityIdentifier("reviews.session.\(session.id).apply")
+            }
+        }
+        .padding(16)
+        .background(Sumi.paper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reviews.session.\(session.id)")
+    }
+}
