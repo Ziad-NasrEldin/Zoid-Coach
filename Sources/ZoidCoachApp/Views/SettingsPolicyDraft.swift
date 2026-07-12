@@ -20,6 +20,10 @@ struct SettingsPolicyDraft: Equatable {
     var rawScreenshotRetentionDays: Int
     var extractedTextRetentionDays: Int
     var diagnosticRetentionDays: Int
+    var behaviorRecordRetentionDays: Int
+    var taskSessionRetentionDays: Int
+    var promptRetentionDays: Int
+    var reviewRetentionDays: Int
     var codexCLIModel: CodexCLIModel
     var codexCLICustomModelID: String
     var codexCLIReasoningEffort: CodexCLIReasoningEffort
@@ -52,6 +56,10 @@ struct SettingsPolicyDraft: Equatable {
         rawScreenshotRetentionDays = policy.privacy.rawScreenshotRetentionDays
         extractedTextRetentionDays = policy.privacy.extractedTextRetentionDays
         diagnosticRetentionDays = policy.privacy.diagnosticRetentionDays
+        behaviorRecordRetentionDays = policy.privacy.effectiveBehaviorRecordRetentionDays
+        taskSessionRetentionDays = policy.privacy.effectiveTaskSessionRetentionDays
+        promptRetentionDays = policy.privacy.effectivePromptRetentionDays
+        reviewRetentionDays = policy.privacy.effectiveReviewRetentionDays
         codexCLIModel = policy.privacy.effectiveCodexCLIModel
         codexCLICustomModelID = policy.privacy.codexCLICustomModelID ?? ""
         codexCLIReasoningEffort = policy.privacy.effectiveCodexCLIReasoningEffort
@@ -168,6 +176,10 @@ struct SettingsPolicyDraft: Equatable {
                 rawScreenshotRetentionDays: rawScreenshotRetentionDays,
                 extractedTextRetentionDays: extractedTextRetentionDays,
                 diagnosticRetentionDays: diagnosticRetentionDays,
+                behaviorRecordRetentionDays: behaviorRecordRetentionDays,
+                taskSessionRetentionDays: taskSessionRetentionDays,
+                promptRetentionDays: promptRetentionDays,
+                reviewRetentionDays: reviewRetentionDays,
                 codexCLIModel: codexCLIModel,
                 codexCLICustomModelID: codexCLICustomModelID,
                 codexCLIReasoningEffort: codexCLIReasoningEffort

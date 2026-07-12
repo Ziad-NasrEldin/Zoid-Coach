@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
@@ -248,6 +249,9 @@ struct SettingsView: View {
     @State private var deleteRangeStart = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
     @State private var deleteRangeEnd = Date()
     @State private var dataStatusMessage: String?
+    @State private var privacyInventory: PrivacyStoredDataInventory?
+    @State private var recentBehaviorSessions: [PrivacyBehaviorSession] = []
+    @State private var isLoadingPrivacyInventory = true
     @State private var calendarChoices: [CalendarChoice] = []
     @State private var calendarAccessMessage: String?
     @State private var isLoadingCalendars = true
@@ -277,6 +281,7 @@ struct SettingsView: View {
             .background(Sumi.softPaper)
         }
         .task { await refreshActionAudit() }
+        .task { await refreshPrivacyInventory() }
         .task { await refreshCalendars() }
         .task { await controller.loadReminderLists() }
         .onAppear {
@@ -887,6 +892,15 @@ struct SettingsView: View {
                 RetentionField(title: "Extracted text", days: $controller.draft.extractedTextRetentionDays)
                 RetentionField(title: "Diagnostics", days: $controller.draft.diagnosticRetentionDays)
             }
+            HStack(spacing: 18) {
+                RetentionField(title: "Behavior records", days: $controller.draft.behaviorRecordRetentionDays)
+                RetentionField(title: "Task sessions", days: $controller.draft.taskSessionRetentionDays)
+                RetentionField(title: "Prompts", days: $controller.draft.promptRetentionDays)
+                RetentionField(title: "Reviews + learning", days: $controller.draft.reviewRetentionDays)
+            }
+            Text("Retention cleanup runs locally in the background. It removes expired Zoid 666 records only and never deletes Screenwatch source screenshots.")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
         }
     }
 
@@ -1091,22 +1105,121 @@ struct SettingsView: View {
     }
 
     private var dataSection: some View {
-        SettingsCard(title: "LOCAL DATA", detail: "Retention cleanup, redacted diagnostics, and selective deletion are executed by the background agent.") {
+        SettingsCard(title: "LOCAL DATA", detail: "Inspect what Zoid 666 stores on this Mac, export a reviewed redacted diagnostic file, or selectively delete local records. None of these controls require a cloud service.") {
+            if isLoadingPrivacyInventory {
+                ProgressView("Inspecting local data...")
+                    .accessibilityIdentifier("settings.data.inventory.loading")
+            } else if let privacyInventory {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("STORED DATA INVENTORY")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                        Spacer()
+                        Text(ByteCountFormatter.string(fromByteCount: privacyInventory.databaseBytes, countStyle: .file))
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                    }
+                    ForEach(privacyInventory.dataClasses) { dataClass in
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(dataClass.title).font(Sumi.body(12)).foregroundStyle(Sumi.ink)
+                                Text(dataClass.detail).font(Sumi.body(10)).foregroundStyle(Sumi.muted)
+                            }
+                            Spacer(minLength: 12)
+                            Text("\(dataClass.recordCount)")
+                                .font(Sumi.label(9))
+                                .sumiLabelTracking()
+                                .foregroundStyle(dataClass.recordCount == 0 ? Sumi.muted : Sumi.sealDeep)
+                        }
+                        .padding(.vertical, 5)
+                        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(dataClass.title), \(dataClass.recordCount) records. \(dataClass.detail)")
+                    }
+                    Text("DATABASE SCHEMA V\(privacyInventory.schemaVersion) · \(privacyInventory.databasePath)")
+                        .font(Sumi.label(7))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.muted)
+                        .textSelection(.enabled)
+                }
+                .padding(12)
+                .background(Sumi.softPaper)
+                .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+                .accessibilityIdentifier("settings.data.inventory")
+            } else {
+                Text("The local data inventory is unavailable. The background agent was not asked to delete or export anything.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.seal)
+                    .accessibilityIdentifier("settings.data.inventory.unavailable")
+            }
+
             Button("OPEN LOCAL DATA FOLDER") { controller.openDataFolder() }
                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                 .accessibilityLabel("Open Zoid 666 local data folder")
-            Button("EXPORT REDACTED DIAGNOSTICS") {
-                Task { await performDataCommand(.exportRedactedDiagnostics) }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("EXPORT PREVIEW")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                Text("The JSON export contains only its creation time, schema version, and grouped counts for action states, source health, prompts, and meeting suggestions. It excludes titles, conversation text, URLs, file paths, event names, payloads, screenshots, and credentials.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+            .padding(12)
+            .background(Sumi.sealWash)
+            .overlay { Rectangle().stroke(Sumi.seal.opacity(0.34), lineWidth: 1) }
+            .accessibilityIdentifier("settings.data.export.preview")
+
+            Button("CHOOSE EXPORT DESTINATION") { chooseExportDestination() }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .accessibilityIdentifier("settings.data.export.choose-destination")
+
             HStack(alignment: .bottom, spacing: 12) {
                 SumiDateField("DELETE FROM", selection: $deleteRangeStart, displayedComponents: .date)
                 SumiDateField("THROUGH", selection: $deleteRangeEnd, displayedComponents: .date)
                 Button("DELETE RANGE") { presentConfirmation(.deleteRange) }
                     .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .large))
             }
+            Text("The THROUGH date is included. Source screenshots owned by Screenwatch or other apps are never deleted.")
+                .font(Sumi.body(10))
+                .foregroundStyle(Sumi.muted)
+            if !recentBehaviorSessions.isEmpty {
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("RECENT BEHAVIOR SESSIONS")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                    ForEach(recentBehaviorSessions) { session in
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(session.application).font(Sumi.body(12))
+                                Text("\(session.startedAt.formatted(date: .abbreviated, time: .shortened)) - \(session.endedAt.formatted(date: .omitted, time: .shortened)) · \(session.recordCount) records")
+                                    .font(Sumi.body(10))
+                                    .foregroundStyle(Sumi.muted)
+                            }
+                            Spacer()
+                            Button("DELETE SESSION") { presentConfirmation(.deleteBehaviorSession(session)) }
+                                .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                                .accessibilityLabel("Delete \(session.application) behavior session starting \(session.startedAt.formatted())")
+                        }
+                    }
+                }
+                .accessibilityIdentifier("settings.data.behavior-sessions")
+            }
+            Button("DELETE TODAY ONLY") { presentConfirmation(.deleteToday) }
+                .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
             Button("DELETE EXTRACTED CONVERSATION TEXT") { presentConfirmation(.deleteExtractedText) }
                 .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
+            Button("DELETE ALL RAW BEHAVIOR METADATA") { presentConfirmation(.deleteRawBehavior) }
+                .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
+            Button("DELETE AI REQUEST METADATA") { presentConfirmation(.deleteAIMetadata) }
+                .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
+            Button("DELETE REVIEWS AND LEARNED RULES") { presentConfirmation(.deleteLearning) }
+                .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
+            Button("DELETE ALL ZOID 666 DATA") { presentConfirmation(.deleteAllData) }
+                .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .large))
+                .accessibilityIdentifier("settings.data.delete-all")
             if let dataStatusMessage {
                 Text(dataStatusMessage).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
             }
@@ -1125,9 +1238,33 @@ struct SettingsView: View {
             if let path = receipt.artifactPath {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
             }
+            await model.refreshTodaySnapshot()
+            await refreshPrivacyInventory()
         } catch {
             dataStatusMessage = "The background agent could not complete this data request."
         }
+    }
+
+    private func refreshPrivacyInventory() async {
+        isLoadingPrivacyInventory = true
+        let service = try? PrivacyDataService(
+            databaseURL: RuntimeEnvironment.current().databaseURL,
+            exportRoot: RuntimeEnvironment.current().exportRoot
+        )
+        privacyInventory = try? service?.storedDataInventory()
+        recentBehaviorSessions = (try? service?.recentBehaviorSessions()) ?? []
+        isLoadingPrivacyInventory = false
+    }
+
+    private func chooseExportDestination() {
+        let panel = NSSavePanel()
+        panel.title = "Export redacted Zoid 666 diagnostics"
+        panel.prompt = "EXPORT REDACTED JSON"
+        panel.nameFieldStringValue = "zoid-666-redacted-diagnostics.json"
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task { await performDataCommand(.exportRedactedDiagnosticsTo(path: url.path)) }
     }
 
     private func operatingModeLabel(_ mode: OperatingMode) -> String {
@@ -1184,14 +1321,48 @@ struct SettingsView: View {
                 }
             )
         case .deleteRange:
+            guard let range = PrivacyDeletionRange.inclusive(
+                from: deleteRangeStart,
+                through: deleteRangeEnd
+            ) else {
+                dataStatusMessage = "The DELETE FROM date must be on or before the THROUGH date."
+                return
+            }
             modalCoordinator.present(
                 eyebrow: "LOCAL DATA / DESTRUCTIVE",
                 title: "Delete the selected evidence?",
-                message: "Local evidence from \(deleteRangeStart.formatted(date: .abbreviated, time: .omitted)) through \(deleteRangeEnd.formatted(date: .abbreviated, time: .omitted)) will be deleted by the background agent. This cannot be undone.",
+                message: "Local evidence from \(range.start.formatted(date: .abbreviated, time: .omitted)) through \(range.through.formatted(date: .abbreviated, time: .omitted)), including the full THROUGH date, will be deleted by the background agent. Source screenshots are not changed. This cannot be undone.",
                 confirmTitle: "DELETE SELECTED RANGE",
                 confirmRole: .destructive,
                 confirm: {
-                    Task { await performDataCommand(.deleteDataRange(start: deleteRangeStart, end: deleteRangeEnd)) }
+                    Task { await performDataCommand(.deleteDataRange(start: range.start, end: range.exclusiveEnd)) }
+                }
+            )
+        case .deleteToday:
+            guard let range = PrivacyDeletionRange.inclusive(from: Date(), through: Date()) else { return }
+            modalCoordinator.present(
+                eyebrow: "LOCAL DATA / DESTRUCTIVE",
+                title: "Delete today's local evidence?",
+                message: "Plans, behavior records, extracted facts, and meeting suggestions dated today will be deleted. Source screenshots are not changed. This cannot be undone.",
+                confirmTitle: "DELETE TODAY",
+                confirmRole: .destructive,
+                confirm: { Task { await performDataCommand(.deleteDataRange(start: range.start, end: range.exclusiveEnd)) } }
+            )
+        case let .deleteBehaviorSession(session):
+            modalCoordinator.present(
+                eyebrow: "LOCAL DATA / DESTRUCTIVE",
+                title: "Delete this behavior session?",
+                message: "\(session.recordCount) local \(session.application) behavior records from \(session.startedAt.formatted(date: .abbreviated, time: .shortened)) through \(session.endedAt.formatted(date: .omitted, time: .shortened)) will be deleted. Source screenshots are not changed. This cannot be undone.",
+                confirmTitle: "DELETE SESSION",
+                confirmRole: .destructive,
+                confirm: {
+                    Task {
+                        await performDataCommand(.deleteBehaviorSession(
+                            application: session.application,
+                            startedAt: session.startedAt,
+                            endedAt: session.endedAt
+                        ))
+                    }
                 }
             )
         case .deleteExtractedText:
@@ -1204,6 +1375,34 @@ struct SettingsView: View {
                 confirm: {
                     Task { await performDataCommand(.deleteExtractedConversationText) }
                 }
+            )
+        case .deleteRawBehavior:
+            presentDataDeletionConfirmation(
+                title: "Delete all raw behavior metadata?",
+                message: "All local behavior rows, screenshot indexes, analyses, and extracted facts will be deleted. Screenwatch and other source applications keep their original files.",
+                confirmTitle: "DELETE BEHAVIOR METADATA",
+                command: .deleteRawBehaviorMetadata
+            )
+        case .deleteAIMetadata:
+            presentDataDeletionConfirmation(
+                title: "Delete AI request metadata?",
+                message: "Local model-run metadata, cached responses, Codex job records, and transmission receipts will be deleted. Keychain credentials are not changed.",
+                confirmTitle: "DELETE AI METADATA",
+                command: .deleteAIRequestMetadata
+            )
+        case .deleteLearning:
+            presentDataDeletionConfirmation(
+                title: "Delete reviews and learned rules?",
+                message: "Local estimate-learning samples, aggregates, and planner trust history will be deleted. Future recommendations will begin learning again from defaults.",
+                confirmTitle: "DELETE LEARNED DATA",
+                command: .deleteReviewsAndLearnedRules
+            )
+        case .deleteAllData:
+            presentDataDeletionConfirmation(
+                title: "Delete all Zoid 666 data?",
+                message: "Every local user record in the Zoid 666 database will be deleted, including plans, settings, prompts, activity, voice history, audit records, and learned data. The empty database schema remains so the app can restart safely. Source apps, source screenshots, and Keychain credentials are not changed. This cannot be undone.",
+                confirmTitle: "DELETE ALL LOCAL DATA",
+                command: .deleteAllUserData
             )
         case .restorePolicy:
             modalCoordinator.present(
@@ -1218,12 +1417,54 @@ struct SettingsView: View {
             )
         }
     }
+
+    private func presentDataDeletionConfirmation(
+        title: String,
+        message: String,
+        confirmTitle: String,
+        command: AgentMutationCommand
+    ) {
+        modalCoordinator.present(
+            eyebrow: "LOCAL DATA / DESTRUCTIVE",
+            title: title,
+            message: message,
+            confirmTitle: confirmTitle,
+            confirmRole: .destructive,
+            confirm: { Task { await performDataCommand(command) } }
+        )
+    }
+}
+
+struct PrivacyDeletionRange: Equatable {
+    let start: Date
+    let through: Date
+    let exclusiveEnd: Date
+
+    static func inclusive(
+        from start: Date,
+        through end: Date,
+        calendar: Calendar = .current
+    ) -> PrivacyDeletionRange? {
+        let startDay = calendar.startOfDay(for: start)
+        let throughDay = calendar.startOfDay(for: end)
+        guard startDay <= throughDay,
+              let exclusiveEnd = calendar.date(byAdding: .day, value: 1, to: throughDay) else {
+            return nil
+        }
+        return PrivacyDeletionRange(start: startDay, through: throughDay, exclusiveEnd: exclusiveEnd)
+    }
 }
 
 private enum SettingsConfirmation {
     case enableWake
     case deleteRange
+    case deleteToday
+    case deleteBehaviorSession(PrivacyBehaviorSession)
     case deleteExtractedText
+    case deleteRawBehavior
+    case deleteAIMetadata
+    case deleteLearning
+    case deleteAllData
     case restorePolicy
 }
 
