@@ -38,6 +38,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 20 | Complete privacy, export, deletion, and local-data controls | verify | Lane C at `f4085ed` | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
 | 21 | Complete daily behavior review and correction | verify | Lane D at `7b96623` | User can review grouped activity sessions, correct or split classifications, attach work to a task, reject unsupported explanations, confirm the review, and see durable corrected totals after restart |
 | 22 | Complete away-from-Mac work recording and correction | verify | Offline-work lane at `55fcca3` | Reviews supports add, edit, delete, restart-safe persistence, actual-time inclusion, explicit separation from Screenwatch coverage, and honest missing-telemetry copy; active-task entry remains a separate follow-up |
+| 23 | Complete evidence-gated weekly review and next-week experiment | verify | Weekly-review lane, candidate pending final commit | After three adequately covered and confirmed days, Reviews shows corrected planned-versus-completed outcomes, transparent weekly patterns, exactly one editable experiment, and restart-safe next-week tracking; limited evidence produces only a data-quality summary |
 
 ## Pull Rules
 
@@ -50,6 +51,19 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Evidence-gated weekly review and next-week experiment - candidate
+
+- Added a stable previous-calendar-week review window so the review and its experiment identity do not shift every day.
+- Requires at least three confirmed days with at least 30 minutes of observed coverage before showing conclusions or proposing an experiment.
+- Added planned-versus-completed outcomes plus corrected estimate, work-window, drift, gaming, prompt, and blocked-task evidence where the local database supports each pattern.
+- Every pattern shows its sample size, date range, privacy-safe examples, confidence, and an alternative explanation.
+- Added exactly one proposed experiment per review week with explicit edit, accept, reject, and restart-safe next-week tracking states.
+- Added migration 31 without changing daily review, task pause, offline work, or historical behavior records.
+- Five focused weekly-review tests and the focused migrator suite pass.
+- Full-suite, release, and signed-QA click-through are pending the root-owned runtime lease and fresh parallel verifier.
+- Evidence is recorded in `.audit/runs/weekly-review/candidate/REPORT.md`.
+- A separate scheduler lane still owns `ZC-054-005` because truthful weekly reminder delivery requires the serialized background-agent composition seam.
 
 ### Away-from-Mac work recording and correction - `55fcca3`
 
