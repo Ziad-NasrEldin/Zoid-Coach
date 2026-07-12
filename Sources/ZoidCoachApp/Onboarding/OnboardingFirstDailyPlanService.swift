@@ -12,11 +12,13 @@ final class OnboardingFirstDailyPlanService {
     private let todayAgent: TodayDashboardAgent
     private let now: @Sendable () -> Date
     private let timeZoneIdentifier: @Sendable () -> String
+    private let planningCapacityMinutes: @Sendable (Date) -> Int
 
     init(
         databaseURL: URL,
         remindersService: any RemindersServicing,
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        planningCapacityOverride: (@Sendable (Date) -> Int)? = nil
     ) throws {
         let policyStore = try PolicyStore(databaseURL: databaseURL)
         let timeZoneIdentifier: @Sendable () -> String = {
@@ -30,11 +32,17 @@ final class OnboardingFirstDailyPlanService {
         todayAgent = try TodayDashboardAgent(databaseURL: databaseURL)
         self.now = now
         self.timeZoneIdentifier = timeZoneIdentifier
+        planningCapacityMinutes = planningCapacityOverride ?? { date in
+            let schedule = (try? policyStore.current()?.policy.schedule)
+                ?? UserPolicy.defaults(timeZoneIdentifier: timeZoneIdentifier()).schedule
+            return schedule.planningCapacityMinutes(on: date)
+        }
     }
 
     func prepare() async -> OnboardingFirstDailyPlanResult {
         do {
             let referenceDate = now()
+            let explicitlySelectedTaskIDs = Set(try planStore.loadDailyPlan(for: referenceDate).map(\.reminderID))
             if let prepared = try persistedPreparedResult(at: referenceDate, message: "Your existing Today plan is ready.") {
                 return prepared
             }
@@ -48,7 +56,10 @@ final class OnboardingFirstDailyPlanService {
                 if let prepared = try persistedPreparedResult(at: referenceDate, message: "Your existing Today plan is ready.") {
                     return prepared
                 }
-                planningTasks = snapshots.filter(Self.isUsable)
+                planningTasks = snapshots.filter {
+                    Self.isUsable($0)
+                        && isEligibleForToday($0, at: referenceDate, explicitlySelectedTaskIDs: explicitlySelectedTaskIDs)
+                }
                 preparationMessage = "Your first Today plan was prepared from Reminders."
             case .unavailable:
                 planningTasks = []
@@ -60,14 +71,35 @@ final class OnboardingFirstDailyPlanService {
             if planningTasks.isEmpty {
                 let localTask = localFallbackTask(for: referenceDate)
                 _ = try reminderStore.upsertLocal(localTask, observedAt: referenceDate)
-                proposal = Self.proposal(for: [localTask], history: [:], learningStore: learningStore, referenceDate: referenceDate)
+                proposal = Self.proposal(
+                    for: [localTask],
+                    history: [:],
+                    learningStore: learningStore,
+                    referenceDate: referenceDate,
+                    availableFocusMinutes: max(15, planningCapacityMinutes(referenceDate))
+                )
                 successMessage = preparationMessage == "Your first Today plan was prepared from Reminders."
-                    ? "No usable reminders were found, so a durable local starter plan was prepared."
+                    ? "No eligible reminders were found for Today, so a durable local starter plan was prepared."
                     : preparationMessage
             } else {
                 let history = try taskHistoryStore.evidence(for: planningTasks.map(\.id))
-                proposal = Self.proposal(for: planningTasks, history: history, learningStore: learningStore, referenceDate: referenceDate)
-                successMessage = preparationMessage
+                let reminderProposal = Self.proposal(
+                    for: planningTasks,
+                    history: history,
+                    learningStore: learningStore,
+                    referenceDate: referenceDate,
+                    availableFocusMinutes: max(15, planningCapacityMinutes(referenceDate))
+                )
+                if reminderProposal.items.isEmpty {
+                    return .init(
+                        state: .unavailable,
+                        items: [],
+                        message: "The eligible reminders exceed today's configured planning capacity. Adjust the work window or task estimates before approval."
+                    )
+                } else {
+                    proposal = reminderProposal
+                    successMessage = preparationMessage
+                }
             }
 
             let usableTaskIDs = Set(try reminderStore.loadIncomplete().filter(Self.isUsable).map(\.id))
@@ -89,7 +121,9 @@ final class OnboardingFirstDailyPlanService {
     private func persistedPreparedResult(at date: Date, message: String) throws -> OnboardingFirstDailyPlanResult? {
         let snapshot = try todayAgent.snapshot(now: date)
         let rows = snapshot.taskRows
+        let persistedPlan = try planStore.loadDailyPlan(for: date)
         guard !rows.isEmpty,
+              rows.count == persistedPlan.count,
               rows.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
               rows.filter(\.isMainObjective).count == 1
         else { return nil }
@@ -129,6 +163,23 @@ final class OnboardingFirstDailyPlanService {
         return formatter.string(from: date)
     }
 
+    private func isEligibleForToday(
+        _ task: ReminderSourceSnapshot,
+        at date: Date,
+        explicitlySelectedTaskIDs: Set<String>
+    ) -> Bool {
+        if explicitlySelectedTaskIDs.contains(task.id) {
+            return true
+        }
+        guard let dueDate = task.dueDate else { return false }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier()) ?? .current
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date)) else {
+            return false
+        }
+        return dueDate < tomorrow
+    }
+
     private static func snapshot(from task: ReminderTask) -> ReminderSourceSnapshot {
         ReminderSourceSnapshot(
             id: task.id,
@@ -152,7 +203,8 @@ final class OnboardingFirstDailyPlanService {
         for tasks: [ReminderSourceSnapshot],
         history: [String: TaskHistoryEvidence],
         learningStore: LearningAggregateStore,
-        referenceDate: Date
+        referenceDate: Date,
+        availableFocusMinutes: Int
     ) -> DailyPlanProposal {
         let candidates = tasks.map { task in
             let taskHistory = history[task.id] ?? TaskHistoryEvidence(selectionCount: 0, completionCount: 0, deferralCount: 0)
@@ -160,7 +212,8 @@ final class OnboardingFirstDailyPlanService {
                 taskType: task.title.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).first.map { $0.lowercased() },
                 project: task.listName
             )
-            let estimate = (try? learningStore.learnedEstimate(for: context, fallbackMinutes: 45)) ?? 45
+            let fallbackEstimate = task.sourceKind == .local ? 15 : 45
+            let estimate = (try? learningStore.learnedEstimate(for: context, fallbackMinutes: fallbackEstimate)) ?? fallbackEstimate
             return PlanningTaskCandidate(
                 id: task.id,
                 title: task.title,
@@ -176,8 +229,8 @@ final class OnboardingFirstDailyPlanService {
         return AutonomousPlanner().plan(
             PlanningInput(
                 referenceDate: referenceDate,
-                availableFocusMinutes: 240,
-                maximumCommitments: 5,
+                availableFocusMinutes: availableFocusMinutes,
+                maximumCommitments: 3,
                 candidates: candidates
             )
         )
