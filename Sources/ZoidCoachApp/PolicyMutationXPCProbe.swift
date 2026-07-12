@@ -50,7 +50,7 @@ enum PolicyMutationXPCProbe {
             origin: .settings
         )
         do {
-            let first = try await client.savePolicyMutation(request)
+            let first = try await saveAfterAgentStartup(client: client, request: request)
             guard first.accepted,
                   first.policyVersion == 2,
                   first.policyMutationReceipt?.requestID == request.requestID,
@@ -91,6 +91,33 @@ enum PolicyMutationXPCProbe {
         } catch {
             fputs("FAIL: policy mutation XPC probe failed: \(error.localizedDescription)\n", stderr)
             return 9
+        }
+    }
+
+    private static func saveAfterAgentStartup(
+        client: TodayDashboardXPCClient,
+        request: PolicyMutationRequest
+    ) async throws -> AgentMutationReceipt {
+        var lastFailure = "The QA agent did not become reachable."
+        for _ in 0 ..< 10 {
+            do {
+                return try await client.savePolicyMutation(request)
+            } catch {
+                lastFailure = error.localizedDescription
+                try await Task.sleep(for: .milliseconds(500))
+            }
+        }
+        throw PolicyMutationXPCProbeError.agentUnavailable(lastFailure)
+    }
+}
+
+private enum PolicyMutationXPCProbeError: LocalizedError {
+    case agentUnavailable(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .agentUnavailable(message):
+            "The QA agent remained unavailable: \(message)"
         }
     }
 }
