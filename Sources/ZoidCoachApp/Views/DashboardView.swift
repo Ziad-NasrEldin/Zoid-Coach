@@ -56,7 +56,11 @@ struct DashboardView: View {
             }
             .environmentObject(modalCoordinator)
 
-            if isCreatingLocalTask {
+            if model.calendarPlanApproval.isPresented {
+                SumiModalOverlay(dismiss: model.dismissCalendarPlanApproval) {
+                    CalendarPlanApprovalSheet()
+                }
+            } else if isCreatingLocalTask {
                 SumiModalOverlay(dismiss: { isCreatingLocalTask = false }) {
                     LocalTaskCreationView {
                         isCreatingLocalTask = false
@@ -164,7 +168,7 @@ private struct TodayCommandView: View {
                 .accessibilityLabel("Draft today's suggested plan")
 
                 Button {
-                    model.scheduleDailyPlan()
+                    model.requestCalendarPlanApproval()
                 } label: {
                     HStack(spacing: 7) {
                         if model.isSchedulingDailyPlan {

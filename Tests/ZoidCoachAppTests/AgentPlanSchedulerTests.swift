@@ -48,6 +48,7 @@ func agentSchedulerConstrainsBlocksByFixedCalendarAndEnqueuesReminderMutations()
 
     #expect(result.scheduledBlockCount == 1)
     #expect(result.reminderMutationCount == 2)
+    #expect(Set(result.commandIDs) == Set(commands.map(\.id)))
     if case let .calendarBlock(desired) = block.desiredState {
         #expect(desired.start >= fixed.end)
     } else {
@@ -164,6 +165,66 @@ func daytimeReplanPreservesPastAndActiveOwnedBlocks() async throws {
     } else {
         Issue.record("Expected a calendar block desired state")
     }
+}
+
+@Test
+func agentSchedulerDoesNotPartiallyWriteWhenEveryReviewedTaskCannotFit() async throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-plan-scheduler-atomic-\(UUID().uuidString).sqlite")
+    defer { removePlanSchedulerDatabase(url) }
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    let day = calendar.date(from: DateComponents(year: 2026, month: 7, day: 6))!
+    let planStore = try AutonomousPlanStore(databaseURL: url)
+    try planStore.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [
+                PlannedTask(taskID: "first", title: "First", rank: 1, estimateMinutes: 600, reason: "Priority", score: 900),
+                PlannedTask(taskID: "second", title: "Second", rank: 2, estimateMinutes: 600, reason: "Priority", score: 800)
+            ],
+            mainObjectiveTaskID: "first",
+            plannedFocusMinutes: 1_200,
+            availableFocusMinutes: 1_200
+        ),
+        for: day
+    )
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "first", title: "First", dueDate: nil, priority: 0),
+        ReminderSourceSnapshot(id: "second", title: "Second", dueDate: nil, priority: 0)
+    ])
+    let outbox = try ActionOutboxStore(databaseURL: url)
+    let workStart = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: day)!
+    let commitments = [
+        CalendarCommitment(
+            id: "fragment",
+            title: "Fixed",
+            start: workStart.addingTimeInterval(90 * 60),
+            end: workStart.addingTimeInterval(150 * 60),
+            calendarIdentifier: "work"
+        )
+    ]
+    let scheduler = AgentPlanScheduler(
+        plans: planStore,
+        reminders: reminders,
+        outbox: outbox,
+        calendar: SchedulerCalendar(commitments: commitments),
+        now: { workStart.addingTimeInterval(-60 * 60) }
+    )
+    var policy = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    policy = UserPolicy(
+        operatingMode: policy.operatingMode,
+        automationPause: policy.automationPause,
+        schedule: policy.schedule,
+        calendar: CalendarSelectionPolicy(visibleCalendarIdentifiers: ["work"], schedulingCalendarIdentifier: nil),
+        privacy: policy.privacy,
+        wake: policy.wake
+    )
+
+    let result = try await scheduler.enqueueSchedule(for: day, policy: policy, policyVersion: 1)
+
+    #expect(!result.unscheduledTaskIDs.isEmpty)
+    #expect(result.commandIDs.isEmpty)
+    #expect(try outbox.recentCommands(limit: 20).isEmpty)
 }
 
 private struct SchedulerCalendar: CalendarAvailabilitySource {
