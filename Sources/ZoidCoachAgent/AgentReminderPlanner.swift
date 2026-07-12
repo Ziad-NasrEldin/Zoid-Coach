@@ -52,7 +52,7 @@ final class AgentReminderPlanner: @unchecked Sendable {
             AgentReminderSnapshot(
                 id: $0.id, title: $0.title, dueDate: $0.dueDate,
                 priority: priority(for: $0.priority), listID: nil,
-                project: $0.listName, isLocal: true
+                project: $0.listName
             )
         }
         let unfilteredExternalReminders: [AgentReminderSnapshot]
@@ -271,7 +271,6 @@ private struct AgentReminderSnapshot: Sendable {
     let priority: ReminderPriority
     let listID: String?
     let project: String?
-    let isLocal: Bool
 
     init(
         id: String,
@@ -279,8 +278,7 @@ private struct AgentReminderSnapshot: Sendable {
         dueDate: Date?,
         priority: ReminderPriority,
         listID: String?,
-        project: String?,
-        isLocal: Bool = false
+        project: String?
     ) {
         self.id = id
         self.title = title
@@ -288,6 +286,5 @@ private struct AgentReminderSnapshot: Sendable {
         self.priority = priority
         self.listID = listID
         self.project = project
-        self.isLocal = isLocal
     }
 }
