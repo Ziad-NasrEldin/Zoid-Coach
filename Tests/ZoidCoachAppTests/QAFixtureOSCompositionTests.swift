@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 import Testing
 @testable import ZoidCoachApp
-import ZoidCoachCore
+@testable import ZoidCoachCore
 import ZoidCoachInfrastructure
 
 private enum InjectedReminderListPolicyError: Error {

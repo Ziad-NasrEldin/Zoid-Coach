@@ -96,10 +96,10 @@ document = f"""<!doctype html>
   <header>
     <div class="eyebrow">Zoid 666 / End-user usability audit / 12 July 2026</div>
     <h1>{counts['Fully implemented']} of {len(rows)} scenarios are fully usable end to end.</h1>
-    <p class="lede">This tracker was refreshed against branch <code>codex/full-system</code> at implementation commit <code>3269ee8ec1c4</code>, 432 passing Swift tests, the successful release build, the isolated signed-QA app, deterministic operating-system fixtures, exact 666-row registry validation, and visible macOS accessibility click-through. Code presence alone never qualifies as complete.</p>
+    <p class="lede">This tracker was refreshed against branch <code>codex/full-system</code> with the clean installed Zoid 666 QA build at <code>cfe7fbd34801</code>, 436 passing Swift tests, 38 passing registry and evidence tests, deterministic operating-system fixtures, exact 666-row registry validation, and visible macOS accessibility click-through. Code presence alone never qualifies as complete.</p>
   </header>
   <main>
-    <div class="critical"><strong>Tracker refreshed after the onboarding and policy implementation program.</strong> Clean first launch, explicit local-first education, exact onboarding resume, permission deferral, Screenwatch continuation, notification fallback, and real application inventory are visibly proven in the signed-QA app. Reminder-list filtering, gaming policy, canonical Screenwatch storage, conflict-safe persistence, and durable first-plan preparation have deterministic end-to-end coverage. The current visible run stops at application-classification persistence because the manually launched QA helper was not registered with launchd, so later onboarding rows remain unchecked.</div>
+    <div class="critical"><strong>The complete 12-step onboarding journey is now visibly proven in the installed Zoid 666 QA app.</strong> Exact Reminder-list choices, notification delivery, application classifications, schedule boundaries, Balanced gaming, Rules-only coaching, and first-plan creation persisted through the live QA XPC helper. Today displayed the prepared 15-minute local objective immediately, and package replacement plus repeated quit and relaunch retained the same plan. Real macOS permission-reset variants remain deliberately unchecked.</div>
     <div class="metrics">{cards}</div>
     <div class="controls">
       <input id="search" type="search" placeholder="Search scenarios, sections, status, or evidence">

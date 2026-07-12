@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "d6544a4f5c90392f8c079667d533d7c65844c1657daab8134abaa30195e5defa",
+  "tracker_sha256": "ffcb79afbab73adb123e22b8cfda955b4a7c438a1b9de1d40ca660a7ada172dd",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -20,9 +20,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "A clean signed-QA launch opens the Welcome step with explicit planned-versus-actual copy, and the visible accessibility run confirmed the complete first screen (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 54
     },
@@ -41,9 +43,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The Welcome and Local Truth steps explicitly describe Reminders as intended work before the dedicated permission step, and both screens were verified in the signed-QA app (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`).",
       "tracker_line": 55
     },
@@ -62,9 +66,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The first-launch copy explains what actually happens on the Mac and the dedicated Screenwatch step explains behavior coaching before access or folder selection; the visible run reached and inspected this step (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`).",
       "tracker_line": 56
     },
@@ -83,9 +89,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Welcome states that Today keeps the plan, source status, and unanswered coaching choices in one place, and Exit For Now visibly opened Today (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:104`; `Sources/ZoidCoachApp/Views/DashboardView.swift`).",
       "tracker_line": 57
     },
@@ -125,9 +133,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The Welcome step says recovery is without shame and nothing is blocked or punished by default; the gaming-policy step reinforces that no option locks apps or removes the user's final decision (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:104`).",
       "tracker_line": 59
     },
@@ -146,9 +156,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The Local Truth step explicitly explains local Reminders, Screenwatch summaries, plans, and coaching history, and the signed-QA run visibly confirmed the screen (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:108`).",
       "tracker_line": 60
     },
@@ -167,10 +179,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The installed signed-QA run selected Rules-only, saved it through the XPC policy boundary, continued without configuring a model provider, and completed setup (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "The installed signed-QA run selected Rules-only, saved it through the XPC policy boundary, continued without configuring a model provider, and completed setup (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 61
     },
     {
@@ -188,9 +202,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Exit For Now opened Today from step 3, and relaunching the signed-QA app returned to the exact same Reminders step (`Sources/ZoidCoachInfrastructure/OnboardingProgressStore.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 62
     },
@@ -209,9 +225,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Killing and relaunching the signed-QA app at step 3 restored step 3 exactly, while crash-safe revision and migration tests cover durable progress recovery (`Tests/ZoidCoachAppTests/OnboardingProgressStoreHardeningTests.swift`; `Tests/ZoidCoachAppTests/OnboardingProgressTests.swift`).",
       "tracker_line": 63
     },
@@ -231,9 +249,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The dedicated Reminders onboarding step explains intended work and unavailable capabilities before the Request Access control, and the signed-QA run visibly inspected this state without invoking macOS permission (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 67
     },
@@ -256,7 +276,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed signed-QA run exercised the granted path, refreshed healthy fixture state, discovered exact stable list identifiers, saved list choices, and continued. A real EventKit authorization prompt still requires a user-controlled macOS permission reset before this can qualify as fully implemented (`OnboardingCoordinator.swift`; `QAFixtureOSCompositionTests.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "audit_note": "The installed signed-QA run exercised the granted path, refreshed healthy fixture state, discovered exact stable list identifiers, saved list choices, and continued. A real EventKit authorization prompt still requires a user-controlled macOS permission reset before this can qualify as fully implemented (`OnboardingCoordinator.swift`; `QAFixtureOSCompositionTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 68
     },
     {
@@ -388,7 +408,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The visible signed-QA run created and opened a local starter plan when no eligible external task existed, and relaunch retained the same local task after the route-refresh and reconciliation fixes. The exact real-macOS-denied variant remains unperformed (`OnboardingFirstDailyPlanService.swift`; `AppModel.swift`; `OnboardingFirstDailyPlanServiceTests.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "audit_note": "The visible signed-QA run created and opened a local starter plan when no eligible external task existed, and relaunch retained the same local task after the route-refresh and reconciliation fixes. The exact real-macOS-denied variant remains unperformed (`OnboardingFirstDailyPlanService.swift`; `AppModel.swift`; `OnboardingFirstDailyPlanServiceTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 74
     },
     {
@@ -407,9 +427,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The onboarding step automatically inspects the canonical default source before asking for a choice, and the visible signed-QA run displayed its current health plus Check Expected Folder and Choose Folder controls (`Sources/ZoidCoachInfrastructure/ScreenwatchSourceRepository.swift`; `Tests/ZoidCoachAppTests/ScreenwatchSetupServiceTests.swift`).",
       "tracker_line": 78
     },
@@ -495,9 +517,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The signed-QA run clicked Not Now on the Screenwatch step, saw the consequence copy, and continued to Notifications (`Sources/ZoidCoachApp/Onboarding/OnboardingCoordinator.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 82
     },
@@ -605,9 +629,11 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The Notifications onboarding step explicitly explains the Today fallback, and the visible signed-QA run clicked Not Now and continued successfully (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:132`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 90
     },
@@ -630,7 +656,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed signed-QA run exercised the granted fixture path and visibly delivered the bounded onboarding notification. A real macOS notification authorization reset and system delivery remain before full qualification (`NotificationService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "audit_note": "The installed signed-QA run exercised the granted fixture path and visibly delivered the bounded onboarding notification. A real macOS notification authorization reset and system delivery remain before full qualification (`NotificationService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 91
     },
     {
@@ -714,10 +740,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The installed signed-QA run discovered Work and Personal with their exact stable identifiers, selected Include Work and Exclude Personal in the native UI, persisted both choices through XPC, and advanced successfully (`RemindersService.swift`; `OnboardingRootView.swift`; `SettingsView.swift`; `UserPolicy.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "The installed signed-QA run discovered Work and Personal with their exact stable identifiers, selected Include Work and Exclude Personal in the native UI, persisted both choices through XPC, and advanced successfully (`RemindersService.swift`; `OnboardingRootView.swift`; `SettingsView.swift`; `UserPolicy.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 98
     },
     {
@@ -735,10 +763,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Exclude Personal was selected in the visible run and saved through the same conflict-safe policy boundary. AppModel, agent synchronization, planning, rename, restart, unknown-list fail-closed, and all-excluded local fallback tests cover downstream enforcement (`AppModel.swift`; `AgentReminderPlanner.swift`; `OnboardingFirstDailyPlanService.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "Exclude Personal was selected in the visible run and saved through the same conflict-safe policy boundary. AppModel, agent synchronization, planning, rename, restart, unknown-list fail-closed, and all-excluded local fallback tests cover downstream enforcement (`AppModel.swift`; `AgentReminderPlanner.swift`; `OnboardingFirstDailyPlanService.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 99
     },
     {
@@ -756,10 +786,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The installed signed-QA app scanned the actual Mac, displayed 115 detected applications, exposed Scan Again, and advanced only after the user reviewed the inventory (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "The installed signed-QA app scanned the actual Mac, displayed 116 detected applications, exposed Scan Again, and advanced only after the user reviewed the inventory (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 100
     },
     {
@@ -777,10 +809,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The visible installed run selected Work for Activity Monitor, saved the classification through the live QA XPC helper, advanced to schedule setup, and retained the winning policy version (`OnboardingCoordinator.swift`; `PolicyStoreTests.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "The visible installed run selected Work for Activity Monitor, saved the classification through the live QA XPC helper, advanced to schedule setup, and retained the winning policy version (`OnboardingCoordinator.swift`; `PolicyStoreTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 101
     },
     {
@@ -798,10 +832,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The visible installed run selected Gaming for Atoll, saved it through the live QA XPC helper, and advanced successfully; policy persistence and behavior-consumer tests cover the downstream classification (`OnboardingCoordinator.swift`; `PolicyStoreTests.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "The visible installed run selected Gaming for Atoll, saved it through the live QA XPC helper, and advanced successfully; policy persistence and behavior-consumer tests cover the downstream classification (`OnboardingCoordinator.swift`; `PolicyStoreTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 102
     },
     {
@@ -819,10 +855,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Every detected app defaulted to Automatic, most remained unchanged, and the complete classification policy was durably saved when the run advanced to schedule setup (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "Every detected app defaulted to Automatic, most remained unchanged, and the complete classification policy was durably saved when the run advanced to schedule setup (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 103
     },
     {
@@ -843,7 +881,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed run visibly reviewed and saved the default 09:00-18:00 work window through the conflict-safe policy boundary. A visible non-default time selection remains before the configuration interaction is fully proven (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "audit_note": "The installed run visibly reviewed and saved the default 09:00-18:00 work window through the conflict-safe policy boundary. A visible non-default time selection remains before the configuration interaction is fully proven (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 104
     },
     {
@@ -864,7 +902,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed run visibly reviewed and saved the overnight 23:00-07:00 quiet window. A visible non-default picker selection remains before full qualification (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "audit_note": "The installed run visibly reviewed and saved the overnight 23:00-07:00 quiet window. A visible non-default picker selection remains before full qualification (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 105
     },
     {
@@ -882,10 +920,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The installed run selected Balanced, saved it through the app-agent XPC policy boundary, and advanced to coaching mode; restart and mutation tests cover durability (`OnboardingRootView.swift`; `PolicyStoreTests.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "The installed run selected Balanced, saved it through the app-agent XPC policy boundary, and advanced to coaching mode; restart and mutation tests cover durability (`OnboardingRootView.swift`; `PolicyStoreTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 106
     },
     {
@@ -903,10 +943,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The installed run selected Rules-only, saved it without configuring AI, advanced through delivery proof, and completed onboarding (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/ae8764a/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "The installed run selected Rules-only, saved it without configuring AI, advanced through delivery proof, and completed onboarding (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 107
     },
     {
@@ -915,19 +957,21 @@
       "section_title": "Initial preferences",
       "item_index": 11,
       "wording": "Finish onboarding by opening the first daily plan.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The visible run reached step 12, prepared a real local starter item, and opened Today. Route-refresh and local-plan reconciliation blockers were fixed, but the rebuilt signed-QA immediate-Today and relaunch proof is still pending (`OnboardingFirstDailyPlanService.swift`; `AppModel.swift`; `OnboardingFirstDailyPlanServiceTests.swift`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+      "audit_note": "The installed Zoid 666 QA run prepared a real 15-minute local starter objective, opened Today with one active commitment and one planned block immediately, then retained the same task, estimate, and action controls across package replacement and repeated quit/relaunch (`OnboardingFirstDailyPlanService.swift`; `AppModel.swift`; `OnboardingFirstDailyPlanServiceTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 108
     },
     {
@@ -14441,9 +14485,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The installed app is single-user and local-first with no team or remote-admin surface (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 904
     },
@@ -14464,9 +14510,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The product is a native local macOS app and has no public web dashboard (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 905
     },
@@ -14487,9 +14535,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Screenwatch evidence remains local and no cloud screenshot-sync feature is exposed (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 906
     },
@@ -14510,9 +14560,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "No mobile companion or cross-device behavior surface exists (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 907
     },
@@ -14555,9 +14607,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The app plans existing tasks and does not expose automatic decomposition into multiple new Reminders (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 909
     },
@@ -14578,9 +14632,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "evidence_paths": [
+        ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
+      ],
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "No blocking controls or enforcement service are present (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 910
     },

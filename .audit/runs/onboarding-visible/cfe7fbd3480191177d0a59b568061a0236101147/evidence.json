@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "run_id": "onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147",
+  "verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+  "build_identity": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
+  "fixture": "Installed signed Zoid 666 QA application with isolated deterministic OS fixtures and live SMAppService XPC helper",
+  "qa_root": "/private/tmp/zoid-666-signed-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "486953a8f1178714b8fab04454987bbe75ebc7b9710e69d18042a827644c5730",
+  "scenario_ids": [
+    "ZC-001-001",
+    "ZC-001-002",
+    "ZC-001-003",
+    "ZC-001-004",
+    "ZC-001-006",
+    "ZC-001-007",
+    "ZC-001-008",
+    "ZC-001-009",
+    "ZC-001-010",
+    "ZC-002-001",
+    "ZC-003-001",
+    "ZC-003-005",
+    "ZC-004-001",
+    "ZC-005-001",
+    "ZC-005-002",
+    "ZC-005-003",
+    "ZC-005-004",
+    "ZC-005-005",
+    "ZC-005-006",
+    "ZC-005-009",
+    "ZC-005-010",
+    "ZC-005-011",
+    "ZC-065-001",
+    "ZC-065-002",
+    "ZC-065-003",
+    "ZC-065-004",
+    "ZC-065-006",
+    "ZC-065-007"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "live_runtime",
+    "negative_invariant",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-12T15:10:00Z",
+  "completed_at": "2026-07-12T15:23:38Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "3f54e991095cdd0234283c57ef1dde495105d310f37d959e312e67d888d245b6"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "Installed app and helper have coherent signatures and run from the exact Zoid 666 QA bundle",
+      "result": "passed"
+    },
+    {
+      "name": "All twelve onboarding steps completed through the live QA XPC helper",
+      "result": "passed"
+    },
+    {
+      "name": "Today immediately displayed the prepared local starter plan after onboarding",
+      "result": "passed"
+    },
+    {
+      "name": "Package replacement and repeated quit and relaunch retained the same plan",
+      "result": "passed"
+    },
+    {
+      "name": "Visible application identity and dashboard masthead use Zoid 666",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "ZOID_COACH_QA_KEEP_DATA=true Scripts/install-signed-qa-runtime.sh",
+    "codesign --verify --deep --strict --verbose=2 ~/Applications/Zoid 666 QA E2E.app",
+    "launchctl print gui/501/qa.ziadnasreldin.ZoidCoach.agent",
+    "PolicyMutationXPCProbe receipt replay and stale-write verification",
+    "Computer Use accessibility click-through from onboarding step 1 through Today and repeated relaunch"
+  ]
+}
