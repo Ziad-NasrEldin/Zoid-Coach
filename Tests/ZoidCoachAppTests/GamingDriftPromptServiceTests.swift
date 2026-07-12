@@ -145,6 +145,55 @@ func gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() throws {
 }
 
 @Test
+func resolvedGamingPromptStillDeduplicatesAndEnforcesCooldownAfterRestart() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(level: .accountability)
+    guard case let .queued(episode, _) = try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected the first accountability prompt")
+        return
+    }
+
+    _ = try fixture.promptStore.respond(
+        promptID: episode.id,
+        action: .continueIntentionally,
+        actionToken: PromptResponseToken.make(
+            promptID: episode.id,
+            action: .continueIntentionally
+        ),
+        surface: .dashboard
+    )
+    #expect(try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.sessionAlreadyHandled))
+
+    fixture.advance(minutes: 30)
+    try fixture.insertGaming(minutes: 10)
+    let reopenedStore = try PromptInboxStore(
+        databaseURL: fixture.databaseURL,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+    let restartedService = try GamingDriftPromptService(
+        databaseURL: fixture.databaseURL,
+        promptStore: reopenedStore,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+    #expect(try restartedService.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.cooldownActive))
+}
+
+@Test
 func coachingLevelEnforcesCooldownAndDailyPromptLimitAcrossSeparateSessions() throws {
     let fixture = try GamingPromptFixture()
     defer { fixture.remove() }
