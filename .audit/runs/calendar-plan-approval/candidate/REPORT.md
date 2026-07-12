@@ -58,6 +58,8 @@ The approval preview now presents an explicit `NOTHING WAS WRITTEN` explanation 
 
 The verifier also corrected reconciliation so a cancelled exact command is treated as failed instead of ever being summarized as an applied Calendar write.
 
+The exact reviewed-task list is bounded and scrollable so a longer daily plan cannot push the confirmation controls beyond the visible modal.
+
 Focused `CalendarPlanApprovalStateTests` and `AgentPlanSchedulerTests` both pass after these fixes.
 
 The root-owned signed-QA acceptance journey remains intentionally unclaimed until the package lease is available.
