@@ -508,6 +508,17 @@ struct SettingsView: View {
                 title: operatingModeLabel
             )
 
+            SumiChoiceRail(
+                "COACHING LEVEL AFTER BASELINE",
+                options: CoachingLevel.allCases,
+                selection: $controller.draft.coachingLevel,
+                title: coachingLevelLabel
+            )
+            Text("Gentle allows one dismissible gaming prompt per day. Accountability allows up to three, with at least one hour between separate sessions. The first seven complete observation days always stay quiet.")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .accessibilityIdentifier("settings.coaching-level.explanation")
+
             if let version = controller.previousPolicyVersion {
                 Button("ROLL BACK TO POLICY V\(version)") { presentConfirmation(.restorePolicy) }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
@@ -1082,6 +1093,13 @@ struct SettingsView: View {
         case .suggest: "Suggest plans"
         case .assist: "Approve actions"
         case .autonomous: "Autonomous"
+        }
+    }
+
+    private func coachingLevelLabel(_ level: CoachingLevel) -> String {
+        switch level {
+        case .gentle: "Gentle"
+        case .accountability: "Accountability"
         }
     }
 

@@ -145,6 +145,13 @@ struct ZoidCoachAgentMain {
             let trustGateStore = try PlannerTrustGateStore(databaseURL: configuration.databaseURL)
             let baselineObservationStore = try BaselineObservationStore(databaseURL: configuration.databaseURL)
             let promptStore = try PromptInboxStore(databaseURL: configuration.databaseURL)
+            let gamingDriftPrompts = try GamingDriftPromptService(
+                databaseURL: configuration.databaseURL,
+                promptStore: promptStore
+            )
+            let coachingTaskExecutionStore = try TaskExecutionStore(
+                databaseURL: configuration.databaseURL
+            )
             let planningInvitations = PlanningInvitationService(store: promptStore)
             let actionOutbox = try ActionOutboxStore(databaseURL: configuration.databaseURL)
             let planUndoRequests = try PlanUndoRequestStore(databaseURL: configuration.databaseURL)
@@ -158,6 +165,7 @@ struct ZoidCoachAgentMain {
                 planScheduleRequests: planScheduleRequests,
                 promptStore: promptStore,
                 planningInvitations: planningInvitations,
+                taskExecution: coachingTaskExecutionStore,
                 schedulingCalendarIdentifier: {
                     try policyStore.current()?.policy.calendar.schedulingCalendarIdentifier
                 }
@@ -565,7 +573,6 @@ struct ZoidCoachAgentMain {
                         )
                     }
                     print("Zoid 666 agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
-                    _ = try? todayDashboardAgent.snapshot(now: Date())
                     let now = Date()
                     let baselineDay = Self.localDayKey(
                         now,
@@ -595,6 +602,15 @@ struct ZoidCoachAgentMain {
                                 diagnostic: String(describing: type(of: error))
                             )
                         }
+                    }
+                    if let snapshot = try? todayDashboardAgent.snapshot(now: now),
+                       let baselineStatus = try? baselineObservationStore.status(),
+                       let promptResult = try? gamingDriftPrompts.produce(
+                           policy: policy,
+                           gamingStatus: snapshot.gaming,
+                           baselineStatus: baselineStatus
+                       ), case let .queued(episode, wasInserted) = promptResult, wasInserted {
+                        _ = try? await notificationCoordinator.schedule(episode)
                     }
                     _ = try promptStore.expireDue()
                     if policy.automationPause.isPaused {
@@ -769,7 +785,6 @@ struct ZoidCoachAgentMain {
                     calendar: calendarSource
                 )
                 print("Zoid 666 agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
-                _ = try? todayDashboardAgent.snapshot(now: Date())
                 var baselineCalendar = Calendar(identifier: .gregorian)
                 baselineCalendar.timeZone = TimeZone(
                     identifier: initialPolicy.schedule.timeZoneIdentifier
@@ -801,6 +816,15 @@ struct ZoidCoachAgentMain {
                             diagnostic: String(describing: type(of: error))
                         )
                     }
+                }
+                if let snapshot = try? todayDashboardAgent.snapshot(now: baselineNow),
+                   let baselineStatus = try? baselineObservationStore.status(),
+                   let promptResult = try? gamingDriftPrompts.produce(
+                       policy: initialPolicy,
+                       gamingStatus: snapshot.gaming,
+                       baselineStatus: baselineStatus
+                   ), case let .queued(episode, wasInserted) = promptResult, wasInserted {
+                    _ = try? await notificationCoordinator.schedule(episode)
                 }
             }
         } catch let error as AgentOSAdapterBoundaryError {
