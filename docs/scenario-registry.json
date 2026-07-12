@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "228b7b1347207ca4d98381086152b7906b5b40efdfef2f45972cf772d52980f7",
+  "tracker_sha256": "cac47a78b82d2d3e5bd2000f9c2826375a9e78bdb63f677bdda94468cb05f34e",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -13956,8 +13956,8 @@
       "item_index": 1,
       "wording": "Finish a day containing an incorrectly classified session.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13968,7 +13968,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Behavior evidence is collected, but a user-visible classified daily session history is absent.",
+      "audit_note": "The Reviews surface now groups local behavior observations into privacy-safe application sessions and displays the stored classification, but a signed-QA day containing a known incorrect session could not be visibly exercised while the Mac was locked (`Sources/ZoidCoachCore/DailyReview.swift`; `Sources/ZoidCoachInfrastructure/DailyReviewStore.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).",
       "tracker_line": 875
     },
     {
@@ -13978,8 +13978,8 @@
       "item_index": 2,
       "wording": "Open the daily review.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13990,7 +13990,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The Reviews navigation item does not render a review workflow.",
+      "audit_note": "Reviews navigation now renders the complete daily review surface with day selection, loading, empty, failure, retry, and populated states in the clean signed-QA package; visible navigation proof remains outstanding because Computer Use reported a locked Mac (`Sources/ZoidCoachApp/Views/DashboardView.swift`; `Sources/ZoidCoachApp/Views/DailyReviewView.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).",
       "tracker_line": 876
     },
     {
@@ -14000,8 +14000,8 @@
       "item_index": 3,
       "wording": "Find the incorrect session and reclassify it.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14012,7 +14012,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No session correction UI exists.",
+      "audit_note": "Every session exposes an accessible classification picker and durable Apply Correction action, and store tests prove reclassification survives reopening and recalculates totals; the packaged interaction still needs visible click-through proof (`DailyReviewView.swift`; `DailyReviewTests.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).",
       "tracker_line": 877
     },
     {
@@ -14022,8 +14022,8 @@
       "item_index": 4,
       "wording": "Split or attach the session to a task if needed.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14034,7 +14034,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No split, merge, or task-attachment controls exist.",
+      "audit_note": "The user can correct the second half of a session and attach a trimmed task identifier or title, with deterministic tests proving the first half remains unchanged and the task attachment persists; selecting a canonical Reminder task and visible signed-QA interaction remain as finishing touches (`DailyReviewStore.swift`; `DailyReviewTests.swift`).",
       "tracker_line": 878
     },
     {
@@ -14044,8 +14044,8 @@
       "item_index": 5,
       "wording": "See totals and review language update.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14056,7 +14056,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Review corrections and narratives do not exist.",
+      "audit_note": "Applying a correction reloads the snapshot, recalculates category totals, and regenerates explicitly tentative review language without exposing titles, URLs, or screenshots; visible signed-QA before-and-after proof remains outstanding (`DailyReviewStore.swift`; `DailyReviewView.swift`; `DailyReviewTests.swift`).",
       "tracker_line": 879
     },
     {
@@ -14066,8 +14066,8 @@
       "item_index": 6,
       "wording": "Reject an unsupported causal hypothesis.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14078,7 +14078,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No hypothesis review UI exists.",
+      "audit_note": "The review presents Accept Explanation and Reject Explanation actions, persists rejection locally, labels the explanation as a hypothesis rather than fact, and invalidates a prior confirmation when the decision changes; the signed-QA control was not visibly clicked while the Mac was locked (`DailyReviewView.swift`; `DailyReviewStore.swift`; `DailyReviewTests.swift`).",
       "tracker_line": 880
     },
     {
@@ -14088,8 +14088,8 @@
       "item_index": 7,
       "wording": "Confirm the corrected review.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14100,7 +14100,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No review confirmation state exists.",
+      "audit_note": "Confirmation is durable and remains editable, while any later correction atomically returns the hypothesis to pending and clears confirmation so learning cannot use stale approval; visible relaunch confirmation proof remains outstanding (`DailyReviewStore.swift`; `DailyReviewTests.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).",
       "tracker_line": 881
     },
     {
@@ -14212,7 +14212,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Live behavior minutes and app-percentage disclosure are visible, and fresh ingestion was captured once after recovery, but the later recheck found Screenwatch stale and category totals and correction flows remain incomplete.",
+      "audit_note": "Live behavior minutes and app-percentage disclosure are visible, and the new daily review derives privacy-safe category totals plus durable corrections from the same canonical behavior records. The later recheck found Screenwatch stale, and the complete signed-QA correction journey remains unverified (`DailyReviewStore.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).",
       "tracker_line": 889
     },
     {
@@ -14258,7 +14258,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Planning and task tracking are partial; gaming response, recovery, and review are missing.",
+      "audit_note": "Planning, task tracking, and daily review now exist as separate durable journeys, but the gaming intervention, response, recovery, and continuous cross-surface acceptance run remain missing.",
       "tracker_line": 891
     },
     {
@@ -14281,7 +14281,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The canonical database is healthy now, but no controlled seven-day acceptance run has been completed and session corrections are not implemented.",
+      "audit_note": "Corrections, hypothesis decisions, and confirmations now persist through restart in deterministic tests, but no controlled seven-day acceptance run has been completed.",
       "tracker_line": 892
     },
     {
@@ -14337,8 +14337,8 @@
       "item_index": 8,
       "wording": "Correct wrong classifications and see the product adapt.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14350,7 +14350,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No correction and learned-rule end-user flow exists.",
+      "audit_note": "Daily review now supports durable whole-session and midpoint reclassification, task attachment, recalculated totals, and confirmation invalidation after later edits. Turning an accepted correction into a scoped future classification rule and visibly proving adaptation are still missing (`DailyReviewStore.swift`; `DailyReviewTests.swift`).",
       "tracker_line": 895
     },
     {

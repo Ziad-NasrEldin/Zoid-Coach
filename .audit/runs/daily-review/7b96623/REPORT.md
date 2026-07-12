@@ -34,7 +34,7 @@ The focused tests prove grouping, whole-session correction, midpoint split, task
 
 `swift build -c release` passed.
 
-`python3 -m unittest discover -s Tests -p "test_*.py"` passed all 41 registry and evidence tests.
+`python3 -m unittest discover -s Tests/ScenarioRegistryTests -p "test_*.py"` passed all 41 registry and evidence tests.
 
 `git diff --check` passed.
 
@@ -53,3 +53,23 @@ The visible Computer Use attempt reached the signed app but reported that the Ma
 No scenario is claimed fully usable solely from source and automated tests.
 
 A parallel verifier must unlock the Mac, seed the isolated QA behavior records, open Reviews, exercise correction, split, task attachment, hypothesis rejection, confirmation, and relaunch, then update the authoritative tracker and registry.
+
+## Independent integration verification
+
+The verifier integrated the feature as commits `1b4a6aa`, `e3e8230`, and `c4c3ca9` on `codex/full-system`.
+
+The focused Daily Review suite passed all five feature tests.
+
+An additional migration regression now proves an existing version 27 database advances through migration 28, preserves behavior evidence, and creates both daily-review tables in the correct sequence.
+
+The integrated full suite passed all 456 Swift tests in five suites.
+
+The 41 Python registry and evidence tests passed.
+
+The release build passed.
+
+A clean signed-QA package passed identity, signing, LaunchAgent, Mach-service, and QA-isolation verification from `/private/tmp/zoid-daily-review-verify/.build/app-qa/Zoid 666 QA.app` with isolated root `/tmp/zoid-daily-review-qa`.
+
+Computer Use independently reported that the Mac was locked, so the verifier did not claim visible correction, relaunch, or confirmation proof.
+
+The authoritative scenario statuses therefore move only to Touches remaining rather than Fully implemented.

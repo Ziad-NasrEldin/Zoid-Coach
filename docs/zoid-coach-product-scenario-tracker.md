@@ -8,18 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-12 against branch `codex/full-system` with the clean installed Zoid 666 QA build at `cfe7fbd34801`, 436 passing Swift tests, 38 passing registry and evidence tests, deterministic operating-system fixtures, the exact 666-scenario registry, and visible macOS accessibility click-through testing.
+Updated on 2026-07-12 against branch `codex/full-system` through daily-review verification commit `c4c3ca9`, 456 passing Swift tests, 41 passing registry and evidence tests, a clean signed-QA package, deterministic operating-system fixtures, the exact 666-scenario registry, and the previously recorded visible macOS accessibility click-through testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
 - **Fully implemented:** 28
-- **Touches remaining:** 129
+- **Touches remaining:** 148
 - **Frontend only left:** 26
-- **Partially implemented:** 145
-- **Barely started:** 49
-- **Not implemented:** 256
+- **Partially implemented:** 142
+- **Barely started:** 48
+- **Not implemented:** 241
 - **Blocked from verification:** 33
 - **Total:** 666
 
@@ -872,13 +872,13 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 63. Complete correction-and-learning journey
 
-- [ ] Finish a day containing an incorrectly classified session. **Status: Barely started.** Behavior evidence is collected, but a user-visible classified daily session history is absent.
-- [ ] Open the daily review. **Status: Not implemented.** The Reviews navigation item does not render a review workflow.
-- [ ] Find the incorrect session and reclassify it. **Status: Not implemented.** No session correction UI exists.
-- [ ] Split or attach the session to a task if needed. **Status: Not implemented.** No split, merge, or task-attachment controls exist.
-- [ ] See totals and review language update. **Status: Not implemented.** Review corrections and narratives do not exist.
-- [ ] Reject an unsupported causal hypothesis. **Status: Not implemented.** No hypothesis review UI exists.
-- [ ] Confirm the corrected review. **Status: Not implemented.** No review confirmation state exists.
+- [ ] Finish a day containing an incorrectly classified session. **Status: Touches remaining.** The Reviews surface now groups local behavior observations into privacy-safe application sessions and displays the stored classification, but a signed-QA day containing a known incorrect session could not be visibly exercised while the Mac was locked (`Sources/ZoidCoachCore/DailyReview.swift`; `Sources/ZoidCoachInfrastructure/DailyReviewStore.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).
+- [ ] Open the daily review. **Status: Touches remaining.** Reviews navigation now renders the complete daily review surface with day selection, loading, empty, failure, retry, and populated states in the clean signed-QA package; visible navigation proof remains outstanding because Computer Use reported a locked Mac (`Sources/ZoidCoachApp/Views/DashboardView.swift`; `Sources/ZoidCoachApp/Views/DailyReviewView.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).
+- [ ] Find the incorrect session and reclassify it. **Status: Touches remaining.** Every session exposes an accessible classification picker and durable Apply Correction action, and store tests prove reclassification survives reopening and recalculates totals; the packaged interaction still needs visible click-through proof (`DailyReviewView.swift`; `DailyReviewTests.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).
+- [ ] Split or attach the session to a task if needed. **Status: Touches remaining.** The user can correct the second half of a session and attach a trimmed task identifier or title, with deterministic tests proving the first half remains unchanged and the task attachment persists; selecting a canonical Reminder task and visible signed-QA interaction remain as finishing touches (`DailyReviewStore.swift`; `DailyReviewTests.swift`).
+- [ ] See totals and review language update. **Status: Touches remaining.** Applying a correction reloads the snapshot, recalculates category totals, and regenerates explicitly tentative review language without exposing titles, URLs, or screenshots; visible signed-QA before-and-after proof remains outstanding (`DailyReviewStore.swift`; `DailyReviewView.swift`; `DailyReviewTests.swift`).
+- [ ] Reject an unsupported causal hypothesis. **Status: Touches remaining.** The review presents Accept Explanation and Reject Explanation actions, persists rejection locally, labels the explanation as a hypothesis rather than fact, and invalidates a prior confirmation when the decision changes; the signed-QA control was not visibly clicked while the Mac was locked (`DailyReviewView.swift`; `DailyReviewStore.swift`; `DailyReviewTests.swift`).
+- [ ] Confirm the corrected review. **Status: Touches remaining.** Confirmation is durable and remains editable, while any later correction atomically returns the hypothesis to pending and clears confirmation so learning cannot use stale approval; visible relaunch confirmation proof remains outstanding (`DailyReviewStore.swift`; `DailyReviewTests.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).
 - [ ] Complete enough well-covered days for a weekly review. **Status: Barely started.** Daily evidence and learning aggregates exist, but weekly review generation is absent.
 - [ ] Inspect the evidence behind a weekly pattern. **Status: Not implemented.** No weekly pattern surface exists.
 - [ ] Accept, edit, or reject one proposed experiment. **Status: Not implemented.** No weekly experiment workflow exists.
@@ -886,13 +886,13 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 ## 64. Release 1 end-user acceptance
 
 - [ ] Use real Apple Reminders for daily planning. **Status: Touches remaining.** The installed app displays real Reminders, builds plans, and now persists through the canonical store, but permission-denied and manual fallback remain incomplete.
-- [ ] Use real Screenwatch activity for understandable behavior totals. **Status: Touches remaining.** Live behavior minutes and app-percentage disclosure are visible, and fresh ingestion was captured once after recovery, but the later recheck found Screenwatch stale and category totals and correction flows remain incomplete.
+- [ ] Use real Screenwatch activity for understandable behavior totals. **Status: Touches remaining.** Live behavior minutes and app-percentage disclosure are visible, and the new daily review derives privacy-safe category totals plus durable corrections from the same canonical behavior records. The later recheck found Screenwatch stale, and the complete signed-QA correction journey remains unverified (`DailyReviewStore.swift`; `.audit/runs/daily-review/7b96623/REPORT.md`).
 - [ ] Use notifications or the Today dashboard for timely status and prompts. **Status: Partially implemented.** Both delivery surfaces exist, but the core gaming-drift coaching episode is not complete.
-- [ ] Complete morning planning, task tracking, one gaming intervention, response, recovery, and review as one continuous flow. **Status: Not implemented.** Planning and task tracking are partial; gaming response, recovery, and review are missing.
-- [ ] Use the app for seven consecutive days without losing plans, estimates, task sessions, corrections, or prompt responses. **Status: Blocked from verification.** The canonical database is healthy now, but no controlled seven-day acceptance run has been completed and session corrections are not implemented.
+- [ ] Complete morning planning, task tracking, one gaming intervention, response, recovery, and review as one continuous flow. **Status: Not implemented.** Planning, task tracking, and daily review now exist as separate durable journeys, but the gaming intervention, response, recovery, and continuous cross-surface acceptance run remain missing.
+- [ ] Use the app for seven consecutive days without losing plans, estimates, task sessions, corrections, or prompt responses. **Status: Blocked from verification.** Corrections, hypothesis decisions, and confirmations now persist through restart in deterministic tests, but no controlled seven-day acceptance run has been completed.
 - [ ] Complete the baseline week without unwanted behavior interruptions. **Status: Partially implemented.** Trust gates exist, but the original seven-day behavior-observation flow is not visible or verified.
 - [ ] Understand every intervention and the evidence that caused it. **Status: Partially implemented.** Prompt context is stored and some UI explanations exist, but the core gaming intervention evidence surface is incomplete.
-- [ ] Correct wrong classifications and see the product adapt. **Status: Not implemented.** No correction and learned-rule end-user flow exists.
+- [ ] Correct wrong classifications and see the product adapt. **Status: Partially implemented.** Daily review now supports durable whole-session and midpoint reclassification, task attachment, recalculated totals, and confirmation invalidation after later edits. Turning an accepted correction into a scoped future classification rule and visibly proving adaptation are still missing (`DailyReviewStore.swift`; `DailyReviewTests.swift`).
 - [ ] Pause or override coaching without punishment. **Status: Partially implemented.** Automation can be paused, but intentional gaming override and coaching-specific pause durations are incomplete.
 - [ ] Continue using planning and task tracking when behavior sources fail. **Status: Partially implemented.** The architecture and canonical persistence separate planning from behavior sources, but a live source outage and complete manual-control flow were not verified.
 - [ ] Export or delete personal data without hidden dependencies. **Status: Touches remaining.** Export, inventory, retention, and every deletion route run locally through the database and agent without network services, source-file ownership, or Keychain deletion; the complete packaged UI journey still needs isolated destructive verification.
