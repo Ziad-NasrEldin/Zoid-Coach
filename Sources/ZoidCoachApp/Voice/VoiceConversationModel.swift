@@ -30,7 +30,7 @@ final class VoiceConversationModel: ObservableObject {
 
     let wakeWord = LocalWakeWordDetector()
 
-    private let xpc = TodayDashboardXPCClient()
+    private let xpc: TodayDashboardXPCClient
     private let userDefaults: UserDefaults
     private let keyStore: GeminiAPIKeyStore
     private let audio = VoiceAudioEngine()
@@ -56,8 +56,14 @@ final class VoiceConversationModel: ObservableObject {
     private var transportGeneration = UUID()
     private var audioStarted = false
     private var alwaysAvailableStarted = false
+    var isDashboardConnectionEnabled: Bool { xpc.isEnabled }
 
     init(runtimeEnvironment: RuntimeEnvironment = .current()) {
+        if case .qa = runtimeEnvironment.mode {
+            xpc = .disabled
+        } else {
+            xpc = TodayDashboardXPCClient()
+        }
         userDefaults = runtimeEnvironment.makeUserDefaults()
         keyStore = GeminiAPIKeyStore(runtimeEnvironment: runtimeEnvironment)
         hotKeyPreset = VoiceHotKeyPreset(
@@ -71,8 +77,12 @@ final class VoiceConversationModel: ObservableObject {
         alwaysAvailableStarted = true
         registerHotKey()
         if wakeWordEnabled { startWakeWord() }
-        Task { usage = try? await xpc.fetchVoiceUsage() }
-        proactive.start { [xpc] in try await xpc.fetchVoiceContext() }
+        if xpc.isEnabled {
+            Task { usage = try? await xpc.fetchVoiceUsage() }
+            proactive.start { [xpc] in try await xpc.fetchVoiceContext() }
+        } else {
+            statusMessage = "QA voice agent is disabled until it has a dedicated service identity"
+        }
     }
 
     func stopAlwaysAvailable() {
@@ -150,6 +160,11 @@ final class VoiceConversationModel: ObservableObject {
 
     private func startSession(source: VoiceActivationSource) async {
         guard state == .idle || state == .disconnected || state == .localFallback else { return }
+        guard xpc.isEnabled else {
+            state = .disconnected
+            statusMessage = "QA voice agent is disabled until it has a dedicated service identity"
+            return
+        }
         state = .activating
         statusMessage = "Connecting to Zoid"
         wakeWord.stop()

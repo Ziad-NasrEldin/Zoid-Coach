@@ -133,14 +133,44 @@ public struct RuntimeEnvironment: Equatable, Sendable {
             defaults = .production(directories: directories)
         }
 
+        let userDefaultsSuiteName: String?
+        let keychainServiceSuffix: String
+        if case .qa = mode {
+            if values.userDefaultsSuiteName == Self.productionUserDefaultsDomain {
+                throw RuntimeEnvironmentError.productionIdentityInQA(
+                    name: "UserDefaults suite",
+                    value: Self.productionUserDefaultsDomain
+                )
+            }
+            if let requested = values.userDefaultsSuiteName,
+               requested != defaults.userDefaultsSuiteName {
+                throw RuntimeEnvironmentError.qaIdentityOverrideNotAllowed(
+                    name: "UserDefaults suite"
+                )
+            }
+            if let requested = values.keychainServiceSuffix,
+               requested != defaults.keychainServiceSuffix {
+                throw RuntimeEnvironmentError.qaIdentityOverrideNotAllowed(
+                    name: "Keychain service suffix"
+                )
+            }
+            userDefaultsSuiteName = defaults.userDefaultsSuiteName
+            keychainServiceSuffix = defaults.keychainServiceSuffix
+        } else {
+            userDefaultsSuiteName = try optionalNonempty(values.userDefaultsSuiteName)
+                ?? defaults.userDefaultsSuiteName
+            keychainServiceSuffix = try optionalNonempty(values.keychainServiceSuffix)
+                ?? defaults.keychainServiceSuffix
+        }
+
         let resolved = Self(
             mode: mode,
             databaseURL: values.databaseURL.map { canonicalURL($0, isDirectory: false) } ?? defaults.databaseURL,
             screenwatchDirectory: values.screenwatchDirectory.map { canonicalURL($0, isDirectory: true) } ?? defaults.screenwatchDirectory,
             applicationSupportRoot: values.applicationSupportRoot.map { canonicalURL($0, isDirectory: true) } ?? defaults.applicationSupportRoot,
             exportRoot: values.exportRoot.map { canonicalURL($0, isDirectory: true) } ?? defaults.exportRoot,
-            userDefaultsSuiteName: try optionalNonempty(values.userDefaultsSuiteName) ?? defaults.userDefaultsSuiteName,
-            keychainServiceSuffix: try optionalNonempty(values.keychainServiceSuffix) ?? defaults.keychainServiceSuffix
+            userDefaultsSuiteName: userDefaultsSuiteName,
+            keychainServiceSuffix: keychainServiceSuffix
         )
 
         try resolved.validateIsolation()
@@ -193,14 +223,10 @@ public struct RuntimeEnvironment: Equatable, Sendable {
         _ runRoot: URL,
         directories: SystemDirectories
     ) throws {
-        let productionLibrary = directories.home
-            .appendingPathComponent("Library", isDirectory: true)
-            .resolvingSymlinksInPath()
-            .standardizedFileURL
-        let productionApplicationSupport = directories.applicationSupport
-            .resolvingSymlinksInPath()
-            .standardizedFileURL
-        for protectedPath in [productionLibrary, productionApplicationSupport] {
+        let actualDirectories = SystemDirectories.current()
+        let protectedPaths = protectedProductionRoots(actualDirectories)
+            + (directories == actualDirectories ? [] : protectedProductionRoots(directories))
+        for protectedPath in protectedPaths {
             if contains(runRoot, in: protectedPath) || contains(protectedPath, in: runRoot) {
                 throw RuntimeEnvironmentError.qaRunRootOverlapsProductionPath(
                     runRoot: runRoot.path,
@@ -208,6 +234,16 @@ public struct RuntimeEnvironment: Equatable, Sendable {
                 )
             }
         }
+    }
+
+    private static func protectedProductionRoots(
+        _ directories: SystemDirectories
+    ) -> [URL] {
+        [
+            directories.home.appendingPathComponent("screenwatch", isDirectory: true),
+            directories.home.appendingPathComponent("Library", isDirectory: true),
+            directories.applicationSupport,
+        ].map(canonicalURL)
     }
 
     private static func canonicalURL(_ path: String, isDirectory: Bool) -> URL {
@@ -266,6 +302,7 @@ public enum RuntimeEnvironmentError: LocalizedError, Equatable {
     case qaRunRootOverlapsProductionPath(runRoot: String, productionPath: String)
     case pathOutsideQARunRoot(name: String, path: String, runRoot: String)
     case productionIdentityInQA(name: String, value: String)
+    case qaIdentityOverrideNotAllowed(name: String)
     case emptyIdentifier
 
     public var errorDescription: String? {
@@ -280,6 +317,8 @@ public enum RuntimeEnvironmentError: LocalizedError, Equatable {
             "QA \(name) path \(path) is outside run root \(runRoot)"
         case let .productionIdentityInQA(name, value):
             "QA \(name) cannot use production identity \(value)"
+        case let .qaIdentityOverrideNotAllowed(name):
+            "QA \(name) is derived from the run root and cannot be overridden"
         case .emptyIdentifier:
             "Runtime identifiers cannot be empty"
         }

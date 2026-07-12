@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import ZoidCoachApp
+import ZoidCoachCore
 
 @Test
 func initialSourcesRepresentAllRequiredIntegrations() {
@@ -32,4 +33,33 @@ func sourceCheckCompletesWithStableSourceStates() async {
 
     #expect(model.sources.allSatisfy { $0.state != .checking })
     #expect(model.isCheckingSources == false)
+}
+
+@MainActor
+@Test
+func appModelPropagatesQARuntimeToBackgroundAgentControl() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-app-model-qa-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let runtimeEnvironment = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", root.path],
+        processEnvironment: [:]
+    ).environment
+    let model = AppModel(
+        runtimeEnvironment: runtimeEnvironment,
+        screenwatchReader: ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory)
+    )
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(2))
+
+    while model.sources.first(where: { $0.id == .agent })?.detail
+        != "QA background agent is disabled",
+        clock.now < deadline {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+
+    #expect(
+        model.sources.first(where: { $0.id == .agent })?.detail
+            == "QA background agent is disabled"
+    )
 }

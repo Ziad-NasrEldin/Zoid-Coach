@@ -40,7 +40,7 @@ final class AppModel: ObservableObject {
     private let meetingArchive: ScreenwatchArchive?
     private let todaySnapshotStore: TodaySnapshotStore?
     private let policyStore: PolicyStore?
-    private let todayDashboardXPCClient = TodayDashboardXPCClient()
+    private let todayDashboardXPCClient: TodayDashboardXPCClient
     private var reminderTasksAreAvailable = false
 
     init(
@@ -49,20 +49,27 @@ final class AppModel: ObservableObject {
         remindersService: RemindersService = RemindersService(),
         calendarService: CalendarService = CalendarService(),
         notificationService: NotificationService = NotificationService(),
-        agentLaunchService: AgentLaunchService = AgentLaunchService(),
+        agentLaunchService: AgentLaunchService? = nil,
         eventStore: EventStore? = nil
     ) {
+        let resolvedAgentLaunchService = agentLaunchService
+            ?? AgentLaunchService(runtimeEnvironment: runtimeEnvironment)
+        if case .qa = runtimeEnvironment.mode {
+            todayDashboardXPCClient = .disabled
+        } else {
+            todayDashboardXPCClient = TodayDashboardXPCClient()
+        }
         self.screenwatchReader = screenwatchReader ?? ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory)
         self.remindersService = remindersService
         self.calendarService = calendarService
         self.notificationService = notificationService
-        self.agentLaunchService = agentLaunchService
+        self.agentLaunchService = resolvedAgentLaunchService
         self.eventStore = eventStore ?? EventStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         meetingArchive = try? ScreenwatchArchive(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         todaySnapshotStore = try? TodaySnapshotStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         policyStore = try? PolicyStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         Task {
-            updateSource(agentLaunchService.enableAndInspect())
+            updateSource(resolvedAgentLaunchService.enableAndInspect())
             await refreshAllSources()
             await refreshReminderTasks()
             await reloadDailyPlan()

@@ -337,14 +337,22 @@ private final class XPCReplyBox: @unchecked Sendable {
 }
 
 public final class TodayDashboardXPCClient: @unchecked Sendable {
-    private let machServiceName: String
+    private let machServiceName: String?
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder
     }()
 
-    public init(machServiceName: String = todayDashboardMachServiceName) { self.machServiceName = machServiceName }
+    public init(machServiceName: String? = todayDashboardMachServiceName) {
+        self.machServiceName = machServiceName
+    }
+
+    public static var disabled: TodayDashboardXPCClient {
+        TodayDashboardXPCClient(machServiceName: nil)
+    }
+
+    public var isEnabled: Bool { machServiceName != nil }
 
     public func fetchTodaySnapshot() async throws -> TodaySnapshot {
         try await call { proxy, reply in proxy.fetchTodaySnapshot(withReply: reply) }
@@ -450,7 +458,8 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         timeout: Duration = .seconds(3),
         _ invocation: @escaping (any TodayDashboardXPCProtocol, @escaping (Data?, String?) -> Void) -> Void
     ) async throws -> T {
-        try await withCheckedThrowingContinuation { continuation in
+        guard let machServiceName else { throw TodayDashboardXPCError.disabled }
+        return try await withCheckedThrowingContinuation { continuation in
             let connection = NSXPCConnection(machServiceName: machServiceName, options: [])
             connection.remoteObjectInterface = NSXPCInterface(with: TodayDashboardXPCProtocol.self)
             let gate = XPCResultGate<T>(continuation: continuation, connection: connection, decoder: decoder)
@@ -513,10 +522,12 @@ private final class XPCResultGate<Value: Decodable & Sendable>: @unchecked Senda
 }
 
 public enum TodayDashboardXPCError: LocalizedError {
+    case disabled
     case remote(String)
     case timeout
     public var errorDescription: String? {
         switch self {
+        case .disabled: return "The background agent connection is disabled in this runtime."
         case let .remote(message): return message
         case .timeout: return "The background agent did not respond within three seconds."
         }

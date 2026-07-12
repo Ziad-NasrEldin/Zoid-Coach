@@ -85,6 +85,109 @@ func qaRuntimeConsumersUseOnlyRunSpecificSuitesServicesAndPaths() throws {
 }
 
 @Test
+func separateQARunsUseDifferentPreferencesAndKeychainIdentities() throws {
+    let base = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-two-run-isolation-\(UUID().uuidString)", isDirectory: true)
+    let first = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", base.appendingPathComponent("first").path],
+        processEnvironment: [:]
+    ).environment
+    let second = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", base.appendingPathComponent("second").path],
+        processEnvironment: [:]
+    ).environment
+    let key = "shared-test-key"
+    let firstDefaults = first.makeUserDefaults()
+    let secondDefaults = second.makeUserDefaults()
+    defer {
+        firstDefaults.removeObject(forKey: key)
+        secondDefaults.removeObject(forKey: key)
+        try? FileManager.default.removeItem(at: base)
+    }
+
+    firstDefaults.set("first", forKey: key)
+
+    #expect(first.userDefaultsSuiteName != second.userDefaultsSuiteName)
+    #expect(first.keychainServiceSuffix != second.keychainServiceSuffix)
+    #expect(secondDefaults.object(forKey: key) == nil)
+    #expect(
+        GeminiAPIKeyStore.serviceName(runtimeEnvironment: first)
+            != GeminiAPIKeyStore.serviceName(runtimeEnvironment: second)
+    )
+    #expect(
+        LocalEvidenceCipher.serviceName(runtimeEnvironment: first)
+            != LocalEvidenceCipher.serviceName(runtimeEnvironment: second)
+    )
+}
+
+@Test
+func qaRuntimeRejectsPreferenceAndKeychainIdentityOverrides() {
+    #expect(throws: RuntimeEnvironmentError.qaIdentityOverrideNotAllowed(
+        name: "UserDefaults suite"
+    )) {
+        try RuntimeEnvironment.resolve(
+            arguments: [
+                "--qa-run-root", "/tmp/zoid-qa/preference-override",
+                "--user-defaults-suite", "com.example.shared"
+            ],
+            processEnvironment: [:]
+        )
+    }
+    #expect(throws: RuntimeEnvironmentError.qaIdentityOverrideNotAllowed(
+        name: "Keychain service suffix"
+    )) {
+        try RuntimeEnvironment.resolve(
+            arguments: [
+                "--qa-run-root", "/tmp/zoid-qa/keychain-override",
+                "--keychain-service-suffix", ".shared"
+            ],
+            processEnvironment: [:]
+        )
+    }
+    #expect(throws: RuntimeEnvironmentError.qaIdentityOverrideNotAllowed(
+        name: "UserDefaults suite"
+    )) {
+        try RuntimeEnvironment.resolve(
+            arguments: [],
+            processEnvironment: [
+                "ZOID_COACH_QA_RUN_ROOT": "/tmp/zoid-qa/environment-override",
+                "ZOID_COACH_USER_DEFAULTS_SUITE": "com.example.environment-shared"
+            ]
+        )
+    }
+}
+
+@Test
+func injectedDirectoriesCannotReplaceRealProductionScreenwatchProtection() {
+    let actual = RuntimeEnvironment.SystemDirectories.current()
+    let actualScreenwatch = actual.home.appendingPathComponent("screenwatch", isDirectory: true)
+    let fakeRoot = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-fake-system-directories-\(UUID().uuidString)", isDirectory: true)
+    let injected = RuntimeEnvironment.SystemDirectories(
+        home: fakeRoot,
+        applicationSupport: fakeRoot.appendingPathComponent("Application Support", isDirectory: true)
+    )
+
+    #expect(throws: RuntimeEnvironmentError.self) {
+        try RuntimeEnvironment.resolve(
+            arguments: [
+                "--qa-run-root",
+                actualScreenwatch.appendingPathComponent("qa-run", isDirectory: true).path
+            ],
+            processEnvironment: [:],
+            directories: injected
+        )
+    }
+    #expect(throws: RuntimeEnvironmentError.self) {
+        try RuntimeEnvironment.resolve(
+            arguments: ["--qa-run-root", actual.home.path],
+            processEnvironment: [:],
+            directories: injected
+        )
+    }
+}
+
+@Test
 func qaRuntimeRejectsTheProductionUserDefaultsIdentity() {
     #expect(throws: RuntimeEnvironmentError.productionIdentityInQA(
         name: "UserDefaults suite",

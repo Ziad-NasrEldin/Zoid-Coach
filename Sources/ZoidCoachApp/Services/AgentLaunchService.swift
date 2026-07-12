@@ -2,17 +2,67 @@ import Foundation
 import ServiceManagement
 import ZoidCoachCore
 
+enum AgentRegistrationStatus: Equatable {
+    case enabled
+    case requiresApproval
+    case notRegistered
+    case notFound
+    case unknown
+}
+
+@MainActor
+protocol AgentServiceRegistration: AnyObject {
+    var status: AgentRegistrationStatus { get }
+    func register() throws
+    func unregister() throws
+}
+
+@MainActor
+private final class SystemAgentServiceRegistration: AgentServiceRegistration {
+    private let service: SMAppService
+
+    init(plistName: String) {
+        service = SMAppService.agent(plistName: plistName)
+    }
+
+    var status: AgentRegistrationStatus {
+        switch service.status {
+        case .enabled: .enabled
+        case .requiresApproval: .requiresApproval
+        case .notRegistered: .notRegistered
+        case .notFound: .notFound
+        @unknown default: .unknown
+        }
+    }
+
+    func register() throws { try service.register() }
+    func unregister() throws { try service.unregister() }
+}
+
 @MainActor
 final class AgentLaunchService {
     private let plistName = "com.ziadnasreldin.ZoidCoach.agent.plist"
     private let registrationFingerprintKey = "ZoidCoachAgentRegistrationFingerprint"
     private let userDefaults: UserDefaults
+    private let service: (any AgentServiceRegistration)?
+    private let isIsolatedQA: Bool
 
-    init(runtimeEnvironment: RuntimeEnvironment = .current()) {
+    init(
+        runtimeEnvironment: RuntimeEnvironment = .current(),
+        service: (any AgentServiceRegistration)? = nil
+    ) {
         userDefaults = runtimeEnvironment.makeUserDefaults()
+        if case .qa = runtimeEnvironment.mode {
+            isIsolatedQA = true
+            self.service = service
+        } else {
+            isIsolatedQA = false
+            self.service = service ?? SystemAgentServiceRegistration(plistName: plistName)
+        }
     }
 
     func inspect() -> SourceHealth {
+        guard !isIsolatedQA else { return isolatedQAHealth }
         guard isBundled else {
             return SourceHealth(
                 id: .agent,
@@ -24,6 +74,7 @@ final class AgentLaunchService {
                 actionTitle: "Package"
             )
         }
+        guard let service else { return unavailableProductionServiceHealth }
 
         switch service.status {
         case .enabled:
@@ -66,7 +117,7 @@ final class AgentLaunchService {
                 evidence: "Repackage Zoid Coach before enabling autonomy",
                 actionTitle: "Package"
             )
-        @unknown default:
+        case .unknown:
             return SourceHealth(
                 id: .agent,
                 title: "Zoid Coach Agent",
@@ -80,7 +131,9 @@ final class AgentLaunchService {
     }
 
     func enableAndInspect() -> SourceHealth {
+        guard !isIsolatedQA else { return isolatedQAHealth }
         guard isBundled else { return inspect() }
+        guard let service else { return unavailableProductionServiceHealth }
         // A package assembled under .build is a staging artifact. Registering it
         // would let a disposable build take ownership away from the installed app.
         if Self.isDevelopmentBundle(Bundle.main.bundleURL) {
@@ -113,7 +166,9 @@ final class AgentLaunchService {
     }
 
     func disableAndInspect() -> SourceHealth {
+        guard !isIsolatedQA else { return isolatedQAHealth }
         guard isBundled else { return inspect() }
+        guard let service else { return unavailableProductionServiceHealth }
         do {
             if service.status != .notRegistered && service.status != .notFound {
                 try service.unregister()
@@ -133,8 +188,28 @@ final class AgentLaunchService {
         return inspect()
     }
 
-    private var service: SMAppService {
-        SMAppService.agent(plistName: plistName)
+    private var isolatedQAHealth: SourceHealth {
+        SourceHealth(
+            id: .agent,
+            title: "Zoid Coach Agent",
+            eyebrow: "Autonomy",
+            state: .unavailable,
+            detail: "QA background agent is disabled",
+            evidence: "A dedicated QA launchd identity is required before background control is enabled",
+            actionTitle: "Unavailable"
+        )
+    }
+
+    private var unavailableProductionServiceHealth: SourceHealth {
+        SourceHealth(
+            id: .agent,
+            title: "Zoid Coach Agent",
+            eyebrow: "Autonomy",
+            state: .unavailable,
+            detail: "The background agent service is unavailable",
+            evidence: "Repackage Zoid Coach before enabling autonomy",
+            actionTitle: "Package"
+        )
     }
 
     private var isBundled: Bool {
