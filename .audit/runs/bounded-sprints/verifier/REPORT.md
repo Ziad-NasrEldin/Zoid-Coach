@@ -24,4 +24,11 @@
 
 ## Signed installed application
 
-- Pending clean signed-QA packaging and installed-app interaction.
+- The QA package passed coherent application, LaunchAgent, Mach-service, signing-identity, designated-requirement, and deep code-sign validation with isolated root `/private/tmp/zoid-bounded-sprint-qa`.
+- The signed installed application opened the canonical Today dashboard with the seeded `Draft the launch brief` task and a 45-minute estimate.
+- The installed menu visibly offered 10-minute, 20-minute, 25-minute, and custom-duration choices.
+- Selecting `10-minute recovery sprint` changed the task from Ready to Active through the installed helper.
+- The installed active-task card visibly rendered `BOUNDED SPRINT`, `9 minutes and 54 seconds remaining`, and the explanation that completing the sprint never completes the task automatically.
+- The same visible state retained labelled Pause and Complete controls and announced the remaining time through accessibility.
+- The orchestration cutoff stopped the journey before pause, relaunch, expiry, continuation, custom submission, and duplicate clicking.
+- Those unwalked installed states remain conservatively classified as Touches remaining even though focused persistence and agent tests pass.

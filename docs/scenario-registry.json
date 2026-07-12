@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "40eac371ea3ee727f70c609adca1cb01b7c579635de877b58b9d110c4d29f87b",
+  "tracker_sha256": "0e04c3f08f54e94e74c88ab9d8768e3ba53e024138f2605e3fec1c29b9c347c4",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3596,8 +3596,8 @@
       "item_index": 2,
       "wording": "Start a 10-minute recovery sprint.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3608,7 +3608,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`startShortSprint` exists as a prompt action kind, but there is no duration model, effect routing, timer, or direct UI (`PromptInbox.swift:47-64`).",
+      "audit_note": "The signed QA Today surface visibly offered the preset, started it through the installed helper, changed the task to Active, and showed a live `9 minutes and 54 seconds remaining` countdown; the longer pause, expiry, and completion journey remains (`.audit/runs/bounded-sprints/verifier/REPORT.md`).",
       "tracker_line": 266
     },
     {
@@ -3618,8 +3618,8 @@
       "item_index": 3,
       "wording": "Start a 20-minute work sprint.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3630,7 +3630,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No sprint-duration state or 20-minute action exists.",
+      "audit_note": "Today exposes the distinct preset and the same durable XPC/store lifecycle is covered by focused tests, but the installed 20-minute selection was not clicked (`TaskExecutionStoreTests`; `.audit/runs/bounded-sprints/verifier/REPORT.md`).",
       "tracker_line": 267
     },
     {
@@ -3640,8 +3640,8 @@
       "item_index": 4,
       "wording": "Start a 25-minute focus sprint.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3652,7 +3652,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No sprint-duration state or 25-minute action exists.",
+      "audit_note": "Today exposes the distinct preset and the same durable XPC/store lifecycle is covered by focused tests, but the installed 25-minute selection was not clicked (`TaskExecutionStoreTests`; `.audit/runs/bounded-sprints/verifier/REPORT.md`).",
       "tracker_line": 268
     },
     {
@@ -3662,8 +3662,8 @@
       "item_index": 5,
       "wording": "Enter a custom sprint duration.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3674,7 +3674,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no sprint input or bounded-session model.",
+      "audit_note": "A labelled custom-duration sheet validates whole minutes from 1 through 240 and routes the chosen value through XPC to migration-32 storage; focused tests pass, but the installed custom sheet was not completed (`TodayDashboardCommandOverview.swift`; `TaskExecutionStoreTests`).",
       "tracker_line": 269
     },
     {
@@ -3728,8 +3728,8 @@
       "item_index": 8,
       "wording": "See remaining time for a bounded sprint.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3740,7 +3740,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No bounded sprint deadline or remaining-time field exists.",
+      "audit_note": "The signed installed Today surface visibly counted down once per second and exposed an accessibility remaining-time announcement; relaunch and boundary acceptance remain (`.audit/runs/bounded-sprints/verifier/REPORT.md`).",
       "tracker_line": 272
     },
     {
@@ -3750,8 +3750,8 @@
       "item_index": 9,
       "wording": "Reach the end of a sprint without having the task completed automatically.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3762,7 +3762,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no sprint end event or bounded timer behavior.",
+      "audit_note": "Store and agent restart tests prove expiry leaves the task Active and incomplete, and the UI explains this before start and during countdown; installed expiry was not awaited (`TaskExecutionStoreTests`; `TodayDashboardAgentTests`).",
       "tracker_line": 273
     },
     {
@@ -3772,8 +3772,8 @@
       "item_index": 10,
       "wording": "Continue working after a sprint ends.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3784,7 +3784,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no sprint lifecycle or continue action.",
+      "audit_note": "The expired panel exposes `CONTINUE OPEN-ENDED`, while the backend now rejects early or missing-sprint continuation and preserves duplicate idempotence; the installed expiry action was not clicked (`TaskExecutionStore.swift`; `TaskExecutionStoreTests`).",
       "tracker_line": 274
     },
     {
@@ -3794,8 +3794,8 @@
       "item_index": 11,
       "wording": "Pause and later resume a bounded sprint with understandable timing.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3806,7 +3806,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Generic task pause/resume correctly preserves elapsed interval time, but bounded duration and remaining-time semantics do not exist (`TaskExecutionStore.swift:46-49`; `TaskExecutionStoreTests`).",
+      "audit_note": "Migration-32 storage preserves accumulated active seconds across pause, restart, and resume, and Today exposes the normal labelled pause and resume controls; the installed pause-relaunch-resume sequence remains (`TaskExecutionStoreTests`; `.audit/runs/bounded-sprints/verifier/REPORT.md`).",
       "tracker_line": 275
     },
     {
@@ -3838,8 +3838,8 @@
       "item_index": 2,
       "wording": "See sprint time remaining when applicable.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3850,7 +3850,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no sprint session model, countdown field, or active sprint UI. The only short-sprint artifact is a prompt action enum.",
+      "audit_note": "The signed installed active-task card visibly showed a live remaining-time countdown with a dedicated accessibility status container; relaunch and expiry states remain to be walked (`.audit/runs/bounded-sprints/verifier/REPORT.md`).",
       "tracker_line": 280
     },
     {
@@ -8144,8 +8144,8 @@
       "item_index": 3,
       "wording": "See remaining time for a sprint.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8156,7 +8156,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no sprint execution mode, countdown, or remaining-time field in the active-task model or UI.",
+      "audit_note": "The signed installed Today dashboard visibly rendered the active bounded-sprint countdown and the active task stayed available with pause and complete controls; the full persisted lifecycle remains (`.audit/runs/bounded-sprints/verifier/REPORT.md`).",
       "tracker_line": 530
     },
     {
@@ -8420,7 +8420,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Response tokens and `PromptInboxStore.respond` are idempotent and concurrency tests pass; sprint effects themselves are not implemented and no multi-surface UI test exists.",
+      "audit_note": "Prompt tokens are idempotent and bounded-sprint duplicate starts preserve the original deadline, while duplicate open-ended continuation is also idempotent; a simultaneous installed multi-surface click remains (`PromptInboxStore`; `TaskExecutionStoreTests`).",
       "tracker_line": 545
     },
     {
@@ -11980,8 +11980,8 @@
       "item_index": 5,
       "wording": "Sleep during a sprint and see an understandable reconciled result on wake.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11992,7 +11992,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed product has active commitments but no visible sprint pause/reconciliation explanation after wake.",
+      "audit_note": "Wall-clock reconciliation computes expiry after a long absence without completing the task and presents the expired explanation on refresh; a physical installed sleep and wake cycle remains (`TaskExecutionStoreTests`; `TodayDashboardAgentTests`).",
       "tracker_line": 751
     },
     {
