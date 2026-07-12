@@ -122,7 +122,7 @@ func offlineWorkCanBeCorrectedIdempotentlyAndReopensAConfirmedReview() throws {
         taskID: nil,
         startedAt: startedAt,
         durationMinutes: 20,
-        note: nil
+        note: "Unassigned work"
     )
     try fixture.store.confirm(sourceDay: fixture.sourceDay)
 
@@ -158,9 +158,27 @@ func offlineWorkValidatesDurationAndCanBeDeletedWithoutTouchingObservations() th
             note: nil
         )
     }
+    #expect(throws: DailyReviewStoreError.self) {
+        _ = try fixture.store.saveOfflineWork(
+            sourceDay: fixture.sourceDay,
+            taskID: "   ",
+            startedAt: startedAt,
+            durationMinutes: 15,
+            note: "\n"
+        )
+    }
+    #expect(throws: DailyReviewStoreError.self) {
+        _ = try fixture.store.saveOfflineWork(
+            sourceDay: fixture.sourceDay,
+            taskID: String(repeating: "x", count: 201),
+            startedAt: startedAt,
+            durationMinutes: 15,
+            note: nil
+        )
+    }
     let id = try fixture.store.saveOfflineWork(
         sourceDay: fixture.sourceDay,
-        taskID: nil,
+        taskID: "Research",
         startedAt: startedAt,
         durationMinutes: 15,
         note: nil
