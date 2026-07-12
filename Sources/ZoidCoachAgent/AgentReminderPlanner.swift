@@ -57,6 +57,17 @@ final class AgentReminderPlanner: @unchecked Sendable {
                 AgentReminderSnapshot(id: $0.id, title: $0.title, dueDate: $0.dueDate, priority: priority(for: $0.priority), project: $0.listName)
             }
         }
+        if !overwriteExisting {
+            let usableTaskIDs = Set(reminders.compactMap {
+                $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0.id
+            })
+            let existing = try planStore.loadDailyPlan(for: day)
+            if !existing.isEmpty,
+               existing.allSatisfy({ usableTaskIDs.contains($0.reminderID) }),
+               existing.filter(\.isMainObjective).count == 1 {
+                return .retainedExisting
+            }
+        }
         guard !reminders.isEmpty else { return .remindersAccessUnavailable }
         let history = try taskHistoryStore.evidence(for: reminders.map(\.id))
         var candidates = reminders.map {

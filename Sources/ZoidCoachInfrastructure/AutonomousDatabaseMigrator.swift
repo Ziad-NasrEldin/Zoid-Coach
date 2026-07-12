@@ -790,8 +790,20 @@ private extension AutonomousDatabaseMigrator {
                 declaration: "TEXT NOT NULL DEFAULT 'reminders'"
             ),
             .sql("""
-            CREATE INDEX source_tasks_kind_idx
+            CREATE INDEX IF NOT EXISTS source_tasks_kind_idx
             ON source_tasks(source_kind);
+            CREATE TRIGGER IF NOT EXISTS source_tasks_validate_kind_insert
+            BEFORE INSERT ON source_tasks
+            WHEN NEW.source_kind NOT IN ('reminders', 'local')
+            BEGIN
+                SELECT RAISE(ABORT, 'invalid source_kind');
+            END;
+            CREATE TRIGGER IF NOT EXISTS source_tasks_validate_kind_update
+            BEFORE UPDATE OF source_kind ON source_tasks
+            WHEN NEW.source_kind NOT IN ('reminders', 'local')
+            BEGIN
+                SELECT RAISE(ABORT, 'invalid source_kind');
+            END;
             """)
         ])
     ]

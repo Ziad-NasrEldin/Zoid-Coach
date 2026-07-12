@@ -85,3 +85,24 @@ func externalReminderSynchronizationRejectsLocalTasksAndSourceIdentifierCollisio
     }
     #expect(try store.loadIncomplete() == [local])
 }
+
+@Test
+func externalReminderSynchronizationPrevalidatesDuplicateIDsAndAllSourceCollisionsBeforeWriting() throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-source-preflight-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let store = try ReminderSnapshotStore(databaseURL: databaseURL)
+    let local = ReminderSourceSnapshot(id: "owned", title: "Local", dueDate: nil, priority: 0, sourceKind: .local)
+    _ = try store.upsertLocal(local)
+    let duplicate = ReminderSourceSnapshot(id: "duplicate", title: "Duplicate", dueDate: nil, priority: 0)
+
+    #expect(throws: ReminderSnapshotStoreError.self) {
+        try store.synchronize([duplicate, duplicate])
+    }
+    #expect(throws: ReminderSnapshotStoreError.self) {
+        try store.synchronize([
+            ReminderSourceSnapshot(id: "would-write-first", title: "Must not persist", dueDate: nil, priority: 0),
+            ReminderSourceSnapshot(id: "owned", title: "Collision", dueDate: nil, priority: 0)
+        ])
+    }
+    #expect(try store.loadIncomplete() == [local])
+}

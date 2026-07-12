@@ -25,6 +25,9 @@ func cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() throws {
     try execute(databaseURL, "INSERT INTO source_tasks(source_id, title, updated_at) VALUES ('legacy-default', 'Legacy default', '2026-01-01T00:00:00Z');")
     #expect(try scalarText(databaseURL, "SELECT source_kind FROM source_tasks WHERE source_id = 'legacy-default';") == "reminders")
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'source_tasks_kind_idx';") == 1)
+    #expect(throws: (any Error).self) {
+        try execute(databaseURL, "INSERT INTO source_tasks(source_id, title, updated_at, source_kind) VALUES ('invalid-kind', 'Invalid', '2026-01-01T00:00:00Z', 'unknown');")
+    }
 }
 
 @Test

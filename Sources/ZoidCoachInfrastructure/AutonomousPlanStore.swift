@@ -27,6 +27,7 @@ public enum DailyPlanInstallResult: Equatable, Sendable {
 
 public final class AutonomousPlanStore: @unchecked Sendable {
     private let database: OpaquePointer
+    private let lock = NSRecursiveLock()
     private let dateFormatter = ISO8601DateFormatter()
     private let timeZoneIdentifier: @Sendable () -> String
 
@@ -48,6 +49,8 @@ public final class AutonomousPlanStore: @unchecked Sendable {
     deinit { sqlite3_close(database) }
 
     public func hasPlan(for day: Date) throws -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
         let sql = "SELECT 1 FROM daily_plan_entries WHERE day_key = ? LIMIT 1;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -59,13 +62,13 @@ public final class AutonomousPlanStore: @unchecked Sendable {
     }
 
     public func replaceDailyPlan(_ proposal: DailyPlanProposal, for day: Date) throws {
+        lock.lock()
+        defer { lock.unlock() }
         guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
             throw AutonomousPlanStoreError.transaction
         }
         var committed = false
-        defer {
-            _ = sqlite3_exec(database, committed ? "COMMIT;" : "ROLLBACK;", nil, nil, nil)
-        }
+        defer { if !committed { _ = sqlite3_exec(database, "ROLLBACK;", nil, nil, nil) } }
         let dayKey = dayKey(for: day)
         let previous = try loadDailyPlan(for: day)
         if !previous.isEmpty { try saveRevision(previous, dayKey: dayKey) }
@@ -89,6 +92,9 @@ public final class AutonomousPlanStore: @unchecked Sendable {
             guard sqlite3_step(statement) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
         }
         try insertScheduleIntent(dayKey: dayKey)
+        guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+            throw AutonomousPlanStoreError.transaction
+        }
         committed = true
     }
 
@@ -97,21 +103,34 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         for day: Date,
         usableTaskIDs: Set<String>
     ) throws -> DailyPlanInstallResult {
+        lock.lock()
+        defer { lock.unlock() }
+        let proposedIDs = proposal.items.map(\.taskID)
+        let proposedRanks = proposal.items.map(\.rank)
         guard !proposal.items.isEmpty,
-              proposal.items.filter({ $0.taskID == proposal.mainObjectiveTaskID }).count == 1,
-              Set(proposal.items.map(\.taskID)).count == proposal.items.count
+              proposedIDs.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
+              Set(proposedIDs).count == proposedIDs.count,
+              Set(proposedIDs).isSubset(of: usableTaskIDs),
+              proposal.items.allSatisfy({ $0.estimateMinutes > 0 }),
+              proposedRanks.allSatisfy({ $0 > 0 }),
+              Set(proposedRanks).count == proposedRanks.count,
+              Set(proposedRanks) == Set(1...proposal.items.count),
+              proposal.items.filter({ $0.taskID == proposal.mainObjectiveTaskID }).count == 1
         else { throw AutonomousPlanStoreError.invalidPlan }
 
         guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
             throw AutonomousPlanStoreError.transaction
         }
         var committed = false
-        defer { _ = sqlite3_exec(database, committed ? "COMMIT;" : "ROLLBACK;", nil, nil, nil) }
+        defer { if !committed { _ = sqlite3_exec(database, "ROLLBACK;", nil, nil, nil) } }
 
         let dayKey = dayKey(for: day)
         let previous = try loadDailyPlan(for: day)
         let visible = previous.filter { usableTaskIDs.contains($0.reminderID) }
-        if !visible.isEmpty, visible.filter(\.isMainObjective).count == 1 {
+        if visible.count == previous.count, !visible.isEmpty, visible.filter(\.isMainObjective).count == 1 {
+            guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+                throw AutonomousPlanStoreError.transaction
+            }
             committed = true
             return .retained(visible)
         }
@@ -129,12 +148,18 @@ public final class AutonomousPlanStore: @unchecked Sendable {
             )
         }
         for entry in entries { try insert(entry, dayKey: dayKey) }
+        try supersedePendingScheduleIntents(dayKey: dayKey)
         try insertScheduleIntent(dayKey: dayKey)
+        guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+            throw AutonomousPlanStoreError.transaction
+        }
         committed = true
         return .installed(entries)
     }
 
     public func loadDailyPlan(for day: Date) throws -> [StoredAutonomousPlanEntry] {
+        lock.lock()
+        defer { lock.unlock() }
         let sql = "SELECT reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score FROM daily_plan_entries WHERE day_key = ? ORDER BY rank ASC;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -159,6 +184,8 @@ public final class AutonomousPlanStore: @unchecked Sendable {
 
     @discardableResult
     public func restoreLatestRevision(for day: Date) throws -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
         let dayKey = dayKey(for: day)
         let sql = "SELECT id, entries_json FROM daily_plan_revisions WHERE day_key = ? AND restored_at_utc IS NULL ORDER BY revision DESC LIMIT 1;"
         var statement: OpaquePointer?
@@ -173,7 +200,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         let entries = try JSONDecoder().decode([StoredAutonomousPlanEntry].self, from: data)
         guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else { throw AutonomousPlanStoreError.transaction }
         var committed = false
-        defer { _ = sqlite3_exec(database, committed ? "COMMIT;" : "ROLLBACK;", nil, nil, nil) }
+        defer { if !committed { _ = sqlite3_exec(database, "ROLLBACK;", nil, nil, nil) } }
         try execute("DELETE FROM daily_plan_entries WHERE day_key = ?;", binding: dayKey)
         for entry in entries { try insert(entry, dayKey: dayKey) }
         var update: OpaquePointer?
@@ -183,6 +210,9 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         bind(revisionID, to: update, at: 2)
         guard sqlite3_step(update) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
         try insertScheduleIntent(dayKey: dayKey)
+        guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+            throw AutonomousPlanStoreError.transaction
+        }
         committed = true
         return true
     }
@@ -217,6 +247,18 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         bind(dayKey, to: statement, at: 3)
         bind(timestamp, to: statement, at: 4)
         bind(timestamp, to: statement, at: 5)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
+    }
+
+    private func supersedePendingScheduleIntents(dayKey: String) throws {
+        var statement: OpaquePointer?
+        let sql = "UPDATE plan_schedule_requests SET state = 'superseded', updated_at_utc = ? WHERE day_key = ? AND state = 'pending';"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw AutonomousPlanStoreError.prepare
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(dateFormatter.string(from: Date()), to: statement, at: 1)
+        bind(dayKey, to: statement, at: 2)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
     }
 
