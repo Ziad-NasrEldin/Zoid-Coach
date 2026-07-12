@@ -320,15 +320,91 @@ func staleSettingsWindowCannotOverwriteANewerPolicyVersion() async throws {
     #expect(try store.current()?.policy.schedule.planningCapacityPercent == 80)
     #expect(try store.current()?.version == 2)
     #expect(stale.activeVersion == 2)
-    #expect(stale.hasUnsavedChanges)
-    #expect(stale.statusMessage?.contains("not saved") == true)
+    #expect(!stale.hasUnsavedChanges)
+    #expect(stale.statusMessage?.contains("won the concurrent save") == true)
+    #expect(stale.saveConflict?.winningVersion == 2)
+    #expect(stale.saveConflict?.overlappingChanges == ["Planning capacity"])
+    #expect(stale.draft.capacityPercent == 80)
 
-    await stale.save()?.value
+    await stale.reapplyMyChanges()?.value
 
     #expect(try store.current()?.policy.schedule.planningCapacityPercent == 95)
     #expect(try store.current()?.version == 3)
     #expect(stale.activeVersion == 3)
     #expect(!stale.hasUnsavedChanges)
+    #expect(stale.saveConflict == nil)
+}
+
+@Test
+func settingsConflictResolverPreservesIndependentEditsAndCurrentWinners() {
+    let base = SettingsPolicyDraft(policy: .defaults(timeZoneIdentifier: "UTC"))
+    var mine = base
+    mine.capacityPercent = 90
+    mine.quietStart = LocalTime(hour: 20, minute: 30)
+    var current = base
+    current.capacityPercent = 80
+    current.screenshotAnalysisEnabled = false
+
+    let result = SettingsPolicyConflictResolver.resolve(
+        base: base,
+        mine: mine,
+        current: current
+    )
+
+    #expect(result.safeDraft.capacityPercent == 80)
+    #expect(result.safeDraft.quietStart == LocalTime(hour: 20, minute: 30))
+    #expect(!result.safeDraft.screenshotAnalysisEnabled)
+    #expect(result.retryDraft.capacityPercent == 90)
+    #expect(result.retryDraft.quietStart == LocalTime(hour: 20, minute: 30))
+    #expect(!result.retryDraft.screenshotAnalysisEnabled)
+    #expect(result.overlappingChanges == ["Planning capacity"])
+    #expect(result.concurrentChanges == ["Planning capacity", "Screenshot analysis"])
+}
+
+@MainActor
+@Test
+func repeatedConcurrentSettingsChangesRequireAChoiceEveryTimeWithoutDuplicateVersions() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-repeated-settings-conflict-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.saveSystemMaintenancePolicy(.defaults(timeZoneIdentifier: "UTC"))
+    let apply: @Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt = { request in
+        let receipt = try store.saveMutation(request)
+        return AgentMutationReceipt(
+            accepted: true,
+            message: "saved",
+            policyVersion: receipt.resultingVersion,
+            policyMutationReceipt: receipt
+        )
+    }
+    let writer = SettingsPolicyController(databaseURL: databaseURL, savePolicyThroughAgent: apply)
+    let stale = SettingsPolicyController(databaseURL: databaseURL, savePolicyThroughAgent: apply)
+    stale.draft.capacityPercent = 95
+    writer.draft.capacityPercent = 80
+    await writer.save()?.value
+    await stale.save()?.value
+    #expect(stale.saveConflict?.winningVersion == 2)
+
+    let secondWriter = SettingsPolicyController(databaseURL: databaseURL, savePolicyThroughAgent: apply)
+    secondWriter.draft.capacityPercent = 75
+    await secondWriter.save()?.value
+    await stale.reapplyMyChanges()?.value
+
+    #expect(try store.current()?.version == 3)
+    #expect(try store.current()?.policy.schedule.planningCapacityPercent == 75)
+    #expect(stale.activeVersion == 3)
+    #expect(stale.saveConflict?.winningVersion == 3)
+    #expect(stale.saveConflict?.overlappingChanges == ["Planning capacity"])
+
+    stale.keepCurrentWinningValues()
+    #expect(stale.saveConflict == nil)
+    #expect(stale.draft.capacityPercent == 75)
+    #expect(try store.history().map(\.version) == [3, 2, 1])
 }
 
 @MainActor
