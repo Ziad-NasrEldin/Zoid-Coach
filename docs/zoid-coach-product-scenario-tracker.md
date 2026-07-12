@@ -8,18 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-12 against branch `codex/full-system` through daily-review verification commit `c4c3ca9`, 456 passing Swift tests, 41 passing registry and evidence tests, a clean signed-QA package, deterministic operating-system fixtures, the exact 666-scenario registry, and the previously recorded visible macOS accessibility click-through testing.
+Updated on 2026-07-12 against branch `codex/full-system` rebased through settings verification commit `c7046a9`, 466 passing Swift tests, 41 passing registry and evidence tests, a clean signed-QA package, deterministic operating-system fixtures, the exact 666-scenario registry, and visible notification plus Today-fallback macOS accessibility click-through testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 28
-- **Touches remaining:** 148
-- **Frontend only left:** 26
-- **Partially implemented:** 142
+- **Fully implemented:** 33
+- **Touches remaining:** 160
+- **Frontend only left:** 23
+- **Partially implemented:** 135
 - **Barely started:** 48
-- **Not implemented:** 241
+- **Not implemented:** 234
 - **Blocked from verification:** 33
 - **Total:** 666
 
@@ -88,10 +88,10 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 ## 4. Notification setup
 
 - [x] Understand that the Today dashboard remains available without notification permission. **Status: Fully implemented.** The Notifications onboarding step explicitly explains the Today fallback, and the visible signed-QA run clicked Not Now and continued successfully (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:132`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).
-- [ ] Grant notification permission for timely prompts. **Status: Touches remaining.** The installed signed-QA run exercised the granted fixture path and visibly delivered the bounded onboarding notification. A real macOS notification authorization reset and system delivery remain before full qualification (`NotificationService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).
-- [ ] Resolve a test notification action. **Status: Not implemented.** There is no test-notification control or synthetic test prompt anywhere in the app.
-- [ ] Deny notification permission and continue with in-app prompts. **Status: Touches remaining.** The explicit Not Now path keeps Today prompts available and advanced the visible signed-QA flow to application inventory, while deterministic QA covers denial; an actual macOS denial remains to be clicked through (`OnboardingCoordinator.swift`; `OnboardingCoordinatorTests.swift`).
-- [ ] Test the Today dashboard prompt inbox. **Status: Partially implemented.** The inbox renders actions and sends responses through XPC, but no user-facing test prompt is available and several task-related prompt action kinds have no effect router (`DashboardView.swift:312-353`; `PromptResponseEffectRouter.swift:43-108`).
+- [ ] Grant notification permission for timely prompts. **Status: Touches remaining.** The fresh installed signed-QA run visibly reported healthy notification access, accepted Request Notification Access, scheduled the canonical prompt, and processed its action through the running agent, while a real macOS authorization reset and Notification Center click remain before full qualification (`NotificationService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).
+- [x] Resolve a test notification action. **Status: Fully implemented.** The installed signed-QA app created one canonical `ONBOARDING_TEST` prompt, the running agent accepted only its whitelisted `continue_intentionally` action from the delivered fixture notification, the response persisted with surface `notification`, onboarding changed to Prompt Resolved, and relaunch retained the result (`OnboardingTestPromptService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).
+- [ ] Deny notification permission and continue with in-app prompts. **Status: Touches remaining.** A fresh installed signed-QA denial journey visibly reported Attention without touching production Notification Center, continued through every remaining preference step, and completed the canonical Today fallback, while an actual macOS authorization-panel denial remains before full qualification (`OnboardingCoordinator.swift`; `OnboardingTestPromptService.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).
+- [x] Test the Today dashboard prompt inbox. **Status: Fully implemented.** With notification permission denied, step 11 visibly reported Today Fallback, Exit For Now exposed the same unresolved canonical prompt and actions under Today Decisions, Continue Setup resolved it with persisted surface `dashboard`, and Resume Setup returned to step 11 with Prompt Resolved and Continue enabled (`DashboardView.swift`; `TodayDashboardXPC.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).
 
 ## 5. Initial preferences
 
@@ -540,7 +540,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Receive a macOS notification when notification permission is available. **Status: Partially implemented.** `PromptNotificationCoordinator` schedules authorized plan, meeting, and plan-change notifications, but behavior prompts are not produced and live delivery was not exercised.
 - [ ] See a menu bar badge if notifications are unavailable. **Status: Not implemented.** No prompt badge exists in `MenuBarExtra` or another menu-bar surface.
 - [ ] Find every unresolved prompt in the dashboard. **Status: Touches remaining.** `PromptInboxLedger` displays the shared unresolved prompt store and explains the shared surface; persistence tests pass, but the installed app had no healthy live prompt journey to verify.
-- [ ] Respond from any available surface. **Status: Partially implemented.** Dashboard and notification response paths exist for supported prompt categories, but behavior actions are not registered as notification categories and several action kinds have no effects.
+- [ ] Respond from any available surface. **Status: Touches remaining.** The signed canonical prompt was independently resolved from both the notification action and Today dashboard through the same durable XPC store, but unrelated behavior action kinds and the absent menu-bar prompt surface still need completion (`PromptNotificationCoordinator.swift`; `TodayDashboardXPC.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).
 - [ ] See all other surfaces update after responding once. **Status: Partially implemented.** The shared store is atomic, but there is no demonstrated notification withdrawal or menu-bar synchronization after a dashboard response.
 - [ ] Avoid having two surfaces start duplicate sprints or apply the same choice twice. **Status: Touches remaining.** Response tokens and `PromptInboxStore.respond` are idempotent and concurrency tests pass; sprint effects themselves are not implemented and no multi-surface UI test exists.
 - [ ] See only the latest relevant notification when delivery is throttled. **Status: Not implemented.** Notifications use prompt-specific identifiers, but there is no relevance/throttling policy that cancels older decisions.
@@ -713,12 +713,12 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 50. Notification failure
 
-- [ ] Continue using Zoid 666 when notification permission is unavailable. **Status: Touches remaining.** Notification scheduling returns false without blocking Today, planning, or task controls; installed-app denied-permission E2E was not run.
+- [x] Continue using Zoid 666 when notification permission is unavailable. **Status: Fully implemented.** The fresh installed signed-QA denial journey continued through onboarding, opened the complete Today dashboard, exposed the paused-setup recovery strip, and resolved the canonical choice without touching the production notification center (`OnboardingRootView.swift`; `DashboardView.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).
 - [ ] See a permission repair path when notification access is revoked. **Status: Partially implemented.** Source Health explains enabling notifications and offers Retry, but does not directly open Notification settings after denial.
-- [ ] Receive prompts through the Today dashboard when notification delivery fails. **Status: Touches remaining.** Prompt episodes persist in the shared inbox independently of notification scheduling, with store tests; no live failed-delivery prompt was created.
+- [x] Receive prompts through the Today dashboard when notification delivery fails. **Status: Fully implemented.** A fresh signed-QA run with notification permission denied created the canonical prompt, visibly reported Today Fallback, and displayed the same title, summary, and harmless actions in Today Decisions (`OnboardingTestPromptService.swift`; `DashboardView.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).
 - [ ] Continue seeing active-task state in the dashboard and menu bar. **Status: Partially implemented.** The dashboard state is independent of notifications, but the menu bar has only Zoid Voice and no active-task state.
 - [ ] Avoid losing a prompt response when notification handling is interrupted. **Status: Touches remaining.** Prompt response plus pending effect is transactional, token-bound, idempotent, and concurrency tested; notification-process interruption itself lacks a live E2E test.
-- [ ] Continue using in-app prompts when notification permission is denied. **Status: Touches remaining.** Dashboard prompt controls read/write the same local store without checking notification authorization; a live denied-permission acceptance test remains.
+- [x] Continue using in-app prompts when notification permission is denied. **Status: Fully implemented.** The installed denial journey resolved Continue Setup directly from Today, removed the decision from the dashboard, persisted response surface `dashboard`, and returned to onboarding with the same resolved state and enabled continuation (`PromptInboxStore.swift`; `TodayDashboardXPC.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).
 - [ ] Avoid receiving stacked duplicate notifications for one coaching decision. **Status: Touches remaining.** Unresolved `decisionKey` deduplication and deterministic notification identifiers prevent duplicate scheduling for supported prompt types, but behavior-coaching decisions are not implemented and live Notification Center stacking was not inspected.
 
 ## 51. Reminders failure and recovery

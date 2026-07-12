@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "0e99700234fa35f94dbe1cee658bf9fb9e7f17103ccad586664b22c2e8a47afd",
+  "tracker_sha256": "00cc0bb38dea1623e091124c79f022fa42447f6930730324e7d13767fee91ab3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -656,7 +656,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed signed-QA run exercised the granted fixture path and visibly delivered the bounded onboarding notification. A real macOS notification authorization reset and system delivery remain before full qualification (`NotificationService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
+      "audit_note": "The fresh installed signed-QA run visibly reported healthy notification access, accepted Request Notification Access, scheduled the canonical prompt, and processed its action through the running agent, while a real macOS authorization reset and Notification Center click remain before full qualification (`NotificationService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 91
     },
     {
@@ -665,9 +665,9 @@
       "section_title": "Notification setup",
       "item_index": 3,
       "wording": "Resolve a test notification action.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -675,10 +675,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "There is no test-notification control or synthetic test prompt anywhere in the app.",
+      "evidence_paths": [
+        ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
+      ],
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
+      "audit_note": "The installed signed-QA app created one canonical `ONBOARDING_TEST` prompt, the running agent accepted only its whitelisted `continue_intentionally` action from the delivered fixture notification, the response persisted with surface `notification`, onboarding changed to Prompt Resolved, and relaunch retained the result (`OnboardingTestPromptService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 92
     },
     {
@@ -700,7 +702,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The explicit Not Now path keeps Today prompts available and advanced the visible signed-QA flow to application inventory, while deterministic QA covers denial; an actual macOS denial remains to be clicked through (`OnboardingCoordinator.swift`; `OnboardingCoordinatorTests.swift`).",
+      "audit_note": "A fresh installed signed-QA denial journey visibly reported Attention without touching production Notification Center, continued through every remaining preference step, and completed the canonical Today fallback, while an actual macOS authorization-panel denial remains before full qualification (`OnboardingCoordinator.swift`; `OnboardingTestPromptService.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 93
     },
     {
@@ -709,9 +711,9 @@
       "section_title": "Notification setup",
       "item_index": 5,
       "wording": "Test the Today dashboard prompt inbox.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -719,10 +721,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The inbox renders actions and sends responses through XPC, but no user-facing test prompt is available and several task-related prompt action kinds have no effect router (`DashboardView.swift:312-353`; `PromptResponseEffectRouter.swift:43-108`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
+      ],
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
+      "audit_note": "With notification permission denied, step 11 visibly reported Today Fallback, Exit For Now exposed the same unresolved canonical prompt and actions under Today Decisions, Continue Setup resolved it with persisted surface `dashboard`, and Resume Setup returned to step 11 with Prompt Resolved and Continue enabled (`DashboardView.swift`; `TodayDashboardXPC.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 94
     },
     {
@@ -8336,8 +8340,8 @@
       "item_index": 4,
       "wording": "Respond from any available surface.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8348,7 +8352,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Dashboard and notification response paths exist for supported prompt categories, but behavior actions are not registered as notification categories and several action kinds have no effects.",
+      "audit_note": "The signed canonical prompt was independently resolved from both the notification action and Today dashboard through the same durable XPC store, but unrelated behavior action kinds and the absent menu-bar prompt surface still need completion (`PromptNotificationCoordinator.swift`; `TodayDashboardXPC.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 543
     },
     {
@@ -11325,9 +11329,9 @@
       "section_title": "Notification failure",
       "item_index": 1,
       "wording": "Continue using Zoid 666 when notification permission is unavailable.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11335,10 +11339,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Notification scheduling returns false without blocking Today, planning, or task controls; installed-app denied-permission E2E was not run.",
+      "evidence_paths": [
+        ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
+      ],
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
+      "audit_note": "The fresh installed signed-QA denial journey continued through onboarding, opened the complete Today dashboard, exposed the paused-setup recovery strip, and resolved the canonical choice without touching the production notification center (`OnboardingRootView.swift`; `DashboardView.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 716
     },
     {
@@ -11369,9 +11375,9 @@
       "section_title": "Notification failure",
       "item_index": 3,
       "wording": "Receive prompts through the Today dashboard when notification delivery fails.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11379,10 +11385,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Prompt episodes persist in the shared inbox independently of notification scheduling, with store tests; no live failed-delivery prompt was created.",
+      "evidence_paths": [
+        ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
+      ],
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
+      "audit_note": "A fresh signed-QA run with notification permission denied created the canonical prompt, visibly reported Today Fallback, and displayed the same title, summary, and harmless actions in Today Decisions (`OnboardingTestPromptService.swift`; `DashboardView.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 718
     },
     {
@@ -11435,9 +11443,9 @@
       "section_title": "Notification failure",
       "item_index": 6,
       "wording": "Continue using in-app prompts when notification permission is denied.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11445,10 +11453,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Dashboard prompt controls read/write the same local store without checking notification authorization; a live denied-permission acceptance test remains.",
+      "evidence_paths": [
+        ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
+      ],
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
+      "audit_note": "The installed denial journey resolved Continue Setup directly from Today, removed the decision from the dashboard, persisted response surface `dashboard`, and returned to onboarding with the same resolved state and enabled continuation (`PromptInboxStore.swift`; `TodayDashboardXPC.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 721
     },
     {

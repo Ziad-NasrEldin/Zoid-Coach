@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "run_id": "signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56",
+  "verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+  "build_identity": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
+  "fixture": "signed-qa-canonical-notification-and-today-fallback",
+  "qa_root": "/private/tmp/zoid-666-canonical-prompt-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "2605c97764fbf24c1c78c602c4d28a3570cd7b4cc67828519cefe3f2bb084062",
+  "scenario_ids": [
+    "ZC-004-003",
+    "ZC-004-005",
+    "ZC-050-001",
+    "ZC-050-003",
+    "ZC-050-006"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-12T17:13:12.352530+00:00",
+  "completed_at": "2026-07-12T17:14:00+00:00",
+  "artifacts": [
+    {
+      "path": "acceptance-report.md",
+      "sha256": "65573d10383622b44bb7c759b6e871d2a03c953d37988e8c501ce076b2c0eca1"
+    },
+    {
+      "path": "notification-response.json",
+      "sha256": "8ba56d04bc6d7befc7af46dd15f7844b0694983d709d6d9930b102847ba73fd6"
+    },
+    {
+      "path": "today-response.json",
+      "sha256": "7d6e4e4f2b61eec04fbefb12f36284f9d4d91b584133720dfa5d09b04591fd72"
+    }
+  ],
+  "assertions": [
+    "Canonical prompt scheduled and resolved from the signed QA notification action",
+    "Denied notification permission exposed and resolved the same prompt in Today",
+    "Resume Setup and relaunch restored the exact delivery-test step and resolved state"
+  ],
+  "commands": [
+    "swift test --scratch-path .build/canonical-authoritative --parallel --num-workers 4",
+    "python3 -m unittest discover -s Tests/ScenarioRegistryTests -p test_*.py",
+    "swift build --configuration release --scratch-path .build/canonical-release"
+  ]
+}

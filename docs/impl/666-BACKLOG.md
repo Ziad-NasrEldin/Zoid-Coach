@@ -18,7 +18,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | --- | --- | --- | --- | --- |
 | 1 | Standardize signed-QA app installation, LaunchAgent registration, and cleanup | done | Repeat-install verifier at `c8ea825` | First install, same-path replacement, changed-path replacement, uninstall/reinstall, final cleanup, exact helper ownership, and production isolation passed in `.audit/runs/signed-qa-repeat-install/10cc1da/REPORT.md` |
 | 2 | Rebrand the complete product from Zoid Coach to Zoid 666 | active | Lane B | App bundle display names, visible UI, packaging, docs, scripts, tests, and installed artifact use Zoid 666 while durable identifiers and migrations remain compatible |
-| 3 | Complete the canonical onboarding test-prompt loop | verify | Lane D on `codex/lane-canonical-test-prompt` | Implementation proof is recorded in `.audit/runs/onboarding-test-prompt/canonical-loop/REPORT.md`; fresh signed-QA notification and Today acceptance remains |
+| 3 | Complete the canonical onboarding test-prompt loop | done | Canonical verifier at `0920a29` before final rebase | Agent-owned idempotent creation, notification delivery and action resolution, denied Today fallback, dashboard response, exact-step Resume Setup, and relaunch durability passed in `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md` |
 | 4 | Prove all 12 onboarding steps in one fresh signed-QA journey | ready | Unowned | One evidence run completes every step, persists app classifications and preferences through XPC, creates the first plan, reaches Today, and survives restart |
 | 5 | Finish Reminders permission grant, denial, repair, and recovery UX | ready | Unowned | Real or deterministic signed-QA flows prove grant, denial, System Settings repair, recheck, no prompt loop, and useful local fallback |
 | 6 | Finish Screenwatch healthy, invalid, alternate-folder, denial, and repair UX | ready | Unowned | Signed-QA flows prove each state without exposing screenshot content and preserve the selected source through restart |
@@ -92,7 +92,8 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Persisted the local test task and restored the canonical prompt after restart.
 - Added a visible Resume Setup strip and foreground prompt reconciliation.
 - Focused service, category, restart, and gating tests pass.
-- Release build proof and the remaining signed-QA acceptance are recorded in `.audit/runs/onboarding-test-prompt/canonical-loop/REPORT.md`.
+- Release build proof is recorded in `.audit/runs/onboarding-test-prompt/canonical-loop/REPORT.md`.
+- Independent installed-product notification, Today fallback, Resume Setup, and relaunch acceptance passed in `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`.
 
 ### Signed-QA repeat-install lifecycle - `10cc1da`
 
