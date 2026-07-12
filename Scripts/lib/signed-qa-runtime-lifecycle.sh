@@ -18,7 +18,7 @@ qa_unregister_installed_agent() {
     local app_executable="$2"
     local command="$installed_app/Contents/MacOS/$app_executable"
 
-    if [[ -x "$command" ]]; then
+    if [[ -x "$command" ]] && strings "$command" | grep -Fq -- "--qa-unregister-agent"; then
         "$command" --qa-unregister-agent
     fi
 }

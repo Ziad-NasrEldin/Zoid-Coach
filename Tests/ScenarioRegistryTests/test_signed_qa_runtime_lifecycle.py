@@ -77,7 +77,9 @@ class SignedQARuntimeLifecycleTests(unittest.TestCase):
             executable = installed / "Contents/MacOS/ZoidCoachQA"
             log = root / "calls.log"
             executable.parent.mkdir(parents=True)
-            executable.write_text(f"#!/bin/zsh\nprint -r -- \"$1\" >> {str(log)!r}\n")
+            executable.write_text(
+                f"#!/bin/zsh\n# --qa-unregister-agent\nprint -r -- \"$1\" >> {str(log)!r}\n"
+            )
             executable.chmod(0o755)
 
             self.run_zsh(
@@ -86,6 +88,23 @@ class SignedQARuntimeLifecycleTests(unittest.TestCase):
             )
 
             self.assertEqual(log.read_text().strip(), "--qa-unregister-agent")
+
+    def test_uninstall_skips_an_older_app_without_the_lifecycle_command(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            installed = root / "qa.app"
+            executable = installed / "Contents/MacOS/ZoidCoachQA"
+            log = root / "calls.log"
+            executable.parent.mkdir(parents=True)
+            executable.write_text(f"#!/bin/zsh\nprint invoked >> {str(log)!r}\n")
+            executable.chmod(0o755)
+
+            self.run_zsh(
+                f"qa_unregister_installed_agent {str(installed)!r} ZoidCoachQA",
+                root,
+            )
+
+            self.assertFalse(log.exists())
 
 
 if __name__ == "__main__":
