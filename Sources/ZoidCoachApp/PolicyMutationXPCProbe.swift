@@ -6,6 +6,7 @@ import ZoidCoachInfrastructure
 enum PolicyMutationXPCProbe {
     static let argument = "--qa-policy-mutation-xpc-probe"
     static let registerAgentArgument = "--qa-register-agent"
+    static let unregisterAgentArgument = "--qa-unregister-agent"
 
     static func registerAgent() -> Int32 {
         let runtime = RuntimeEnvironment.current()
@@ -14,16 +15,9 @@ enum PolicyMutationXPCProbe {
             return 2
         }
 
-        let service = SMAppService.agent(plistName: runtime.identity.launchAgentPlistName)
+        let service = SMAppServiceAgentRegistration(plistName: runtime.identity.launchAgentPlistName)
         do {
-            if service.status == .enabled {
-                print("PASS: QA LaunchAgent is already registered")
-                return 0
-            }
-            if service.status != .notRegistered && service.status != .notFound {
-                try service.unregister()
-            }
-            try service.register()
+            try QAAgentRegistrationLifecycle.install(service: service)
             guard service.status != .requiresApproval else {
                 fputs("FAIL: QA LaunchAgent registration requires user approval\n", stderr)
                 return 3
@@ -36,6 +30,24 @@ enum PolicyMutationXPCProbe {
             return 0
         } catch {
             fputs("FAIL: QA LaunchAgent registration failed: \(error.localizedDescription)\n", stderr)
+            return 5
+        }
+    }
+
+    static func unregisterAgent() -> Int32 {
+        let runtime = RuntimeEnvironment.current()
+        guard case .qa = runtime.mode, runtime.packageMode == .qa else {
+            fputs("FAIL: QA agent unregistration requires a packaged QA runtime\n", stderr)
+            return 2
+        }
+
+        let service = SMAppServiceAgentRegistration(plistName: runtime.identity.launchAgentPlistName)
+        do {
+            try QAAgentRegistrationLifecycle.uninstall(service: service)
+            print("PASS: QA LaunchAgent unregistered")
+            return 0
+        } catch {
+            fputs("FAIL: QA LaunchAgent unregistration failed: \(error.localizedDescription)\n", stderr)
             return 5
         }
     }
@@ -144,6 +156,83 @@ enum PolicyMutationXPCProbe {
             }
         }
         throw PolicyMutationXPCProbeError.agentUnavailable(lastFailure)
+    }
+}
+
+protocol QAAgentServiceRegistration: AnyObject {
+    var status: AgentRegistrationStatus { get }
+    func register() throws
+    func unregister() throws
+}
+
+private final class SMAppServiceAgentRegistration: QAAgentServiceRegistration {
+    private let service: SMAppService
+
+    init(plistName: String) {
+        service = SMAppService.agent(plistName: plistName)
+    }
+
+    var status: AgentRegistrationStatus {
+        switch service.status {
+        case .enabled: .enabled
+        case .requiresApproval: .requiresApproval
+        case .notRegistered: .notRegistered
+        case .notFound: .notFound
+        @unknown default: .unknown
+        }
+    }
+
+    func register() throws { try service.register() }
+    func unregister() throws { try service.unregister() }
+}
+
+enum QAAgentRegistrationLifecycle {
+    private static let maximumAttempts = 3
+    private static let statusPollCount = 30
+    private static let statusPollInterval: TimeInterval = 0.1
+
+    static func install(service: any QAAgentServiceRegistration) throws {
+        var lastError: Error?
+        for _ in 0..<maximumAttempts {
+            do {
+                try uninstall(service: service)
+                try service.register()
+                if service.status == .enabled || service.status == .requiresApproval {
+                    return
+                }
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError ?? QAAgentRegistrationLifecycleError.didNotEnable
+    }
+
+    static func uninstall(service: any QAAgentServiceRegistration) throws {
+        guard service.status != .notRegistered, service.status != .notFound else {
+            return
+        }
+        try service.unregister()
+        for _ in 0..<statusPollCount {
+            if service.status == .notRegistered || service.status == .notFound {
+                return
+            }
+            Thread.sleep(forTimeInterval: statusPollInterval)
+        }
+        throw QAAgentRegistrationLifecycleError.didNotUnregister
+    }
+}
+
+private enum QAAgentRegistrationLifecycleError: LocalizedError {
+    case didNotEnable
+    case didNotUnregister
+
+    var errorDescription: String? {
+        switch self {
+        case .didNotEnable:
+            "The QA background agent did not become enabled after registration."
+        case .didNotUnregister:
+            "The previous QA background agent registration did not clear."
+        }
     }
 }
 
