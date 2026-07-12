@@ -1,6 +1,7 @@
 import Foundation
 import SQLite3
 import Testing
+@testable import ZoidCoachApp
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
 
@@ -158,6 +159,72 @@ func whatsappOCRPersistsEncryptedPositionedEvidenceAndLinksTheCandidate() async 
     #expect(try archiveScalar(databaseURL: databaseURL, sql: "SELECT COUNT(*) FROM meeting_evidence;") == 1)
     #expect(try archive.unresolvedMeetingCandidates(cipher: cipher).first?.sourceEvidence == "Meeting tomorrow at 3 pm for 30 minutes")
     #expect(try archiveText(databaseURL: databaseURL, sql: "SELECT source_evidence FROM meeting_candidates LIMIT 1;") == "")
+}
+
+@MainActor
+@Test
+func qaAppModelUsesRuntimeMeetingEvidenceCipherWithoutConsultingProductionFactory() async throws {
+    let runRoot = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-meeting-evidence-qa-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: runRoot) }
+    let runtimeEnvironment = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", runRoot.path],
+        processEnvironment: [:]
+    ).environment
+    let day = runtimeEnvironment.screenwatchDirectory
+        .appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+    let log = "{\"t\":\"09-00-00\",\"epoch\":1783663200,\"app\":\"WhatsApp\",\"window\":\"Sarah\",\"url\":\"\",\"img\":true}\n"
+    try Data(log.utf8).write(to: day.appendingPathComponent("log.jsonl"))
+    try Data([0x01, 0x02, 0x03]).write(to: day.appendingPathComponent("09-00-00.jpg"))
+    let archive = try ScreenwatchArchive(databaseURL: runtimeEnvironment.databaseURL)
+    _ = try archive.ingestToday(
+        from: runtimeEnvironment.screenwatchDirectory,
+        now: Date(timeIntervalSince1970: 1_783_663_200)
+    )
+    let result = ScreenshotOCRResult(blocks: [
+        OCRTextBlock(
+            text: "QA meeting tomorrow at 3 pm for 30 minutes",
+            confidence: 0.96,
+            boundingBox: NormalizedBoundingBox(x: 0.1, y: 0.2, width: 0.7, height: 0.1),
+            localeHint: "en"
+        )
+    ])
+    let qaCipher = try LocalEvidenceCipher(keyData: Data(repeating: 9, count: 32))
+    _ = try await archive.analyzePendingWhatsAppScreenshots(
+        using: FakeScreenshotRecognizer(result: result),
+        cipher: qaCipher
+    )
+    var productionFactoryCallCount = 0
+    var qaFactoryCallCount = 0
+    var receivedRuntime: RuntimeEnvironment?
+    let factory = AppMeetingEvidenceCipherFactory(
+        production: { _ in
+            productionFactoryCallCount += 1
+            return qaCipher
+        },
+        qa: { runtimeEnvironment in
+            qaFactoryCallCount += 1
+            receivedRuntime = runtimeEnvironment
+            return qaCipher
+        }
+    )
+
+    let model = AppModel(
+        runtimeEnvironment: runtimeEnvironment,
+        screenwatchReader: ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory),
+        meetingEvidenceCipherFactory: factory
+    )
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(5))
+    while model.meetingCandidates.isEmpty, clock.now < deadline {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+
+    #expect(productionFactoryCallCount == 0)
+    #expect(qaFactoryCallCount == 1)
+    #expect(receivedRuntime == runtimeEnvironment)
+    #expect(model.meetingCandidates.first?.sourceEvidence == result.text)
 }
 
 @Test

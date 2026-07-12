@@ -17,6 +17,26 @@ struct AppOSServiceFactory {
 }
 
 @MainActor
+struct AppMeetingEvidenceCipherFactory {
+    let production: (RuntimeEnvironment) throws -> any EvidenceCiphering
+    let qa: (RuntimeEnvironment) throws -> any EvidenceCiphering
+
+    static let live = Self(
+        production: { try LocalEvidenceCipher(runtimeEnvironment: $0) },
+        qa: { try LocalEvidenceCipher(runtimeEnvironment: $0) }
+    )
+
+    func makeCipher(for runtimeEnvironment: RuntimeEnvironment) throws -> any EvidenceCiphering {
+        switch runtimeEnvironment.mode {
+        case .production:
+            try production(runtimeEnvironment)
+        case .qa:
+            try qa(runtimeEnvironment)
+        }
+    }
+}
+
+@MainActor
 final class AppModel: ObservableObject {
     @Published var selectedSection: AppSection = .today
     @Published var coachingState: CoachingState = .observation
@@ -51,6 +71,7 @@ final class AppModel: ObservableObject {
     private let agentLaunchService: AgentLaunchService
     private let eventStore: EventStore
     private let meetingArchive: ScreenwatchArchive?
+    private let meetingEvidenceCipherFactory: () throws -> any EvidenceCiphering
     private let todaySnapshotStore: TodaySnapshotStore?
     private let policyStore: PolicyStore?
     private let todayDashboardXPCClient: TodayDashboardXPCClient
@@ -63,6 +84,7 @@ final class AppModel: ObservableObject {
         calendarService: (any CalendarServicing)? = nil,
         notificationService: (any NotificationServicing)? = nil,
         liveServiceFactory: AppOSServiceFactory = .live,
+        meetingEvidenceCipherFactory: AppMeetingEvidenceCipherFactory = .live,
         agentLaunchService: AgentLaunchService? = nil,
         eventStore: EventStore? = nil
     ) {
@@ -88,6 +110,9 @@ final class AppModel: ObservableObject {
         }
         self.agentLaunchService = resolvedAgentLaunchService
         self.eventStore = eventStore ?? EventStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
+        self.meetingEvidenceCipherFactory = {
+            try meetingEvidenceCipherFactory.makeCipher(for: runtimeEnvironment)
+        }
         meetingArchive = try? ScreenwatchArchive(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         todaySnapshotStore = try? TodaySnapshotStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         policyStore = try? PolicyStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
@@ -545,7 +570,9 @@ final class AppModel: ObservableObject {
             return
         }
         do {
-            meetingCandidates = try meetingArchive.unresolvedMeetingCandidates()
+            meetingCandidates = try meetingArchive.unresolvedMeetingCandidates(
+                cipherFactory: meetingEvidenceCipherFactory
+            )
             meetingCandidateError = nil
         } catch {
             meetingCandidates = []
