@@ -151,7 +151,7 @@ func versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() throws {
         if let backupURL = result.backupURL { removeDatabaseFiles(at: backupURL) }
     }
 
-    #expect(result.appliedVersions == [23, 24, 25, 26, 27, 28, 29, 30, 31])
+    #expect(result.appliedVersions == [23, 24, 25, 26, 27, 28, 29, 30, 31, 32])
     #expect(result.backupURL != nil)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses;") == 2)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses WHERE surface = 'dashboard';") == 1)
@@ -187,7 +187,7 @@ func versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [24, 25, 26, 27, 28, 29, 30, 31])
+    #expect(result.appliedVersions == [24, 25, 26, 27, 28, 29, 30, 31, 32])
     #expect(try columnExists(databaseURL, table: "gaming_reward_ledger", column: "reward_minutes"))
     #expect(try scalarInt(databaseURL, "SELECT reward_minutes FROM gaming_reward_ledger;") == 15)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
@@ -212,7 +212,7 @@ func versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() throws {
     let first = try migrator.migrate()
     let second = try migrator.migrate()
 
-    #expect(first.appliedVersions == [25, 26, 27, 28, 29, 30, 31])
+    #expect(first.appliedVersions == [25, 26, 27, 28, 29, 30, 31, 32])
     #expect(second.appliedVersions.isEmpty)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM schema_migrations WHERE version = 25;") == 1)
@@ -241,7 +241,7 @@ func versionTwentySevenRebrandsPersistedPromptSummaries() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [27, 28, 29, 30, 31])
+    #expect(result.appliedVersions == [27, 28, 29, 30, 31, 32])
     #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'old';")
         == "Meeting details are available in Zoid 666.")
     #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'neutral';")
@@ -274,8 +274,8 @@ func dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEviden
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 27)
-    #expect(result.currentVersion == 31)
-    #expect(result.appliedVersions == [28, 29, 30, 31])
+    #expect(result.currentVersion == 32)
+    #expect(result.appliedVersions == [28, 29, 30, 31, 32])
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM behavior_records;") == 1)
     #expect(try tableExists(databaseURL, "daily_reviews"))
     #expect(try tableExists(databaseURL, "daily_review_corrections"))
@@ -389,4 +389,16 @@ private func columnExists(_ url: URL, table: String, column: String) throws -> B
 private enum TestDatabaseError: Error {
     case open
     case sql(String)
+}
+
+@Test
+func migration32CreatesRestartSafeBoundedSprintStorage() throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-migration-32-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.currentVersion == 32)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'task_sprint_sessions';") == 1)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'task_sprint_sessions_one_open';") == 1)
 }
