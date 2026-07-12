@@ -329,11 +329,11 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 - [ ] Mark a task session as work completed away from the Mac. **Status: Not implemented.** No offline-work domain type, command, or UI exists.
 - [ ] Add offline work during the task session. **Status: Not implemented.** No duration entry is available from the active task.
-- [ ] Add offline work during end-of-day review. **Status: Not implemented.** Reviews are not connected to editable offline work.
-- [ ] See offline work included in actual task time. **Status: Not implemented.** Actual time is derived only from local task activity intervals.
-- [ ] See offline work kept separate from Screenwatch-aligned time. **Status: Not implemented.** Neither offline time nor aligned task time is modeled in the user surface.
-- [ ] Correct the duration of an offline work session. **Status: Not implemented.** There is no offline session record to edit.
-- [ ] Distinguish intentional offline work from missing telemetry. **Status: Not implemented.** The app only shows a general limited-coverage explanation.
+- [x] Add offline work during end-of-day review. **Status: Fully implemented.** The signed-QA Reviews screen accepted a labeled 30-minute away-from-Mac entry and immediately displayed it in the selected day's review (`.audit/runs/offline-work/9cb54454/REPORT.md`).
+- [x] See offline work included in actual task time. **Status: Fully implemented.** The signed-QA review changed Actual Time from 0 to 30 minutes and then to 45 minutes after correction, with restart preserving the corrected total (`.audit/runs/offline-work/9cb54454/REPORT.md`).
+- [x] See offline work kept separate from Screenwatch-aligned time. **Status: Fully implemented.** The signed-QA coverage summary kept Screenwatch-observed at 0 minutes while Away from Mac and Actual Time changed independently, and the persisted entry retained that separation after relaunch (`.audit/runs/offline-work/9cb54454/REPORT.md`).
+- [x] Correct the duration of an offline work session. **Status: Fully implemented.** The signed-QA Edit flow changed one entry from 30 to 45 minutes without duplication, and the corrected duration, task, note, and totals survived process termination and relaunch (`.audit/runs/offline-work/9cb54454/REPORT.md`).
+- [x] Distinguish intentional offline work from missing telemetry. **Status: Fully implemented.** Reviews explicitly explain that missing telemetry is never invented as work, require a bounded task or note before enabling Add, preserve Screenwatch observations during scoped removal, and expose the same distinction to accessibility (`.audit/runs/offline-work/9cb54454/REPORT.md`).
 
 ## 23. Menu bar use
 

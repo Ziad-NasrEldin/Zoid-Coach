@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "62b762080d8f8bdbfac01c821436021f44dd88b10b8e47df61bd436682d7ebe1",
+  "tracker_sha256": "f030b8df13271bf60ed805d7de0b594a88728386369ba746a893bb9944b53a98",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4707,9 +4707,9 @@
       "section_title": "Work away from the Mac",
       "item_index": 3,
       "wording": "Add offline work during end-of-day review.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4717,10 +4717,12 @@
         "ui_automation"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/offline-work/9cb54454/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Reviews are not connected to editable offline work.",
+      "audit_note": "The signed-QA Reviews screen accepted a labeled 30-minute away-from-Mac entry and immediately displayed it in the selected day's review (`.audit/runs/offline-work/9cb54454/REPORT.md`).",
       "tracker_line": 332
     },
     {
@@ -4729,9 +4731,9 @@
       "section_title": "Work away from the Mac",
       "item_index": 4,
       "wording": "See offline work included in actual task time.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4739,10 +4741,12 @@
         "ui_automation"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/offline-work/9cb54454/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Actual time is derived only from local task activity intervals.",
+      "audit_note": "The signed-QA review changed Actual Time from 0 to 30 minutes and then to 45 minutes after correction, with restart preserving the corrected total (`.audit/runs/offline-work/9cb54454/REPORT.md`).",
       "tracker_line": 333
     },
     {
@@ -4751,9 +4755,9 @@
       "section_title": "Work away from the Mac",
       "item_index": 5,
       "wording": "See offline work kept separate from Screenwatch-aligned time.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4761,10 +4765,12 @@
         "ui_automation"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/offline-work/9cb54454/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Neither offline time nor aligned task time is modeled in the user surface.",
+      "audit_note": "The signed-QA coverage summary kept Screenwatch-observed at 0 minutes while Away from Mac and Actual Time changed independently, and the persisted entry retained that separation after relaunch (`.audit/runs/offline-work/9cb54454/REPORT.md`).",
       "tracker_line": 334
     },
     {
@@ -4773,9 +4779,9 @@
       "section_title": "Work away from the Mac",
       "item_index": 6,
       "wording": "Correct the duration of an offline work session.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4783,10 +4789,12 @@
         "ui_automation"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/offline-work/9cb54454/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no offline session record to edit.",
+      "audit_note": "The signed-QA Edit flow changed one entry from 30 to 45 minutes without duplication, and the corrected duration, task, note, and totals survived process termination and relaunch (`.audit/runs/offline-work/9cb54454/REPORT.md`).",
       "tracker_line": 335
     },
     {
@@ -4795,9 +4803,9 @@
       "section_title": "Work away from the Mac",
       "item_index": 7,
       "wording": "Distinguish intentional offline work from missing telemetry.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4805,10 +4813,12 @@
         "ui_automation"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/offline-work/9cb54454/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The app only shows a general limited-coverage explanation.",
+      "audit_note": "Reviews explicitly explain that missing telemetry is never invented as work, require a bounded task or note before enabling Add, preserve Screenwatch observations during scoped removal, and expose the same distinction to accessibility (`.audit/runs/offline-work/9cb54454/REPORT.md`).",
       "tracker_line": 336
     },
     {
