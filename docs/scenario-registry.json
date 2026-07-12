@@ -20,9 +20,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/ZoidCoachApp.swift:18-46"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The installed app opens directly to a Today screen labelled around reminders and local sources, but there is no first-launch explanation or guided context (`ZoidCoachApp.swift:18-46`).",
@@ -43,9 +41,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:594-604"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Source health labels Reminders as `Intent` and Today says it is grounded in reminders, but the relationship is not explained during first launch (`AppModel.swift:594-604`; runtime screenshot).",
@@ -66,9 +62,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:634-644"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Source health labels Screenwatch as `Behavior`, but there is no first-launch explanation connecting captured activity to coaching (`AppModel.swift:634-644`).",
@@ -89,9 +83,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:312-353"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The dashboard visibly contains source status and a shared prompt inbox, but first launch never explains persistence or how prompts return (`DashboardView.swift:312-353`).",
@@ -154,9 +146,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/SettingsView.swift:281-294"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Persistent `LOCAL ONLY` and `LOCAL-FIRST` labels are visible, with remote evidence controls, but the default privacy boundary is not introduced on first launch (`SettingsView.swift:281-294,572-648`).",
@@ -241,10 +231,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:106-115",
-        "Sources/ZoidCoachApp/Services/RemindersService.swift:39-48"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Source health says EventKit access is required for task sync, but clicking Connect requests permission immediately and there is no pre-permission explainer (`RemindersService.swift:39-48`; `AppModel.swift:106-115`).",
@@ -266,10 +253,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:106-115",
-        "Sources/ZoidCoachApp/Services/RemindersService.swift:72-88"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The Connect action requests full EventKit access and refreshes tasks on success, but there is no setup flow to continue (`RemindersService.swift:72-88`; `AppModel.swift:106-115`).",
@@ -291,10 +275,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:507-512",
-        "Sources/ZoidCoachApp/Services/RemindersService.swift:49-58"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Denial produces `Reminders access is unavailable` and a task-load error, but the UI does not enumerate unavailable planning, completion, and sync features (`RemindersService.swift:49-58`; `AppModel.swift:507-512`).",
@@ -338,10 +319,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:106-115",
-        "Sources/ZoidCoachApp/Views/SettingsView.swift:826-842"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The Reminders repair button retries the permission request; no Reminders privacy deep link is wired, unlike native-capture repair links (`AppModel.swift:106-115`; `SettingsView.swift:826-842`).",
@@ -363,10 +341,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:85-130",
-        "Sources/ZoidCoachApp/ZoidCoachApp.swift:34-42"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Foreground activation does not refresh source health, though a manual Retry or global source check updates it (`ZoidCoachApp.swift:34-42`; `AppModel.swift:85-130`).",
@@ -389,11 +364,10 @@
       ],
       "affected_capability": "onboarding_and_source_setup",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Services/RemindersService.swift:33-69"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "EventKit and macOS authorization handling support the behavior, but the independent `a068d27` verifier could not run the packaged deny-and-retry UI flow without mutating real permission state (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 69
     },
@@ -413,9 +387,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:491-513"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Manual plan items can only be added from fetched `ReminderTask` records, and unavailable access clears that inventory (`AppModel.swift:491-513,200-218`).",
@@ -437,9 +409,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Services/ScreenwatchReader.swift:13-23"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The reader automatically checks `~/screenwatch/days/YYYY-MM-DD/log.jsonl`, and tests cover healthy and missing streams, but no onboarding confirmation was exercised (`ScreenwatchReader.swift:13-23,83-92`).",
@@ -462,12 +432,10 @@
       ],
       "affected_capability": "onboarding_and_source_setup",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Services/ScreenwatchReader.swift:22-80",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:510-529"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Source health code and the live backend verifier support the behavior, but the independent `a068d27` verifier had no current packaged UI or accessibility proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 75
     },
@@ -487,9 +455,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Services/ScreenwatchReader.swift:13-20"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "`ScreenwatchReader` is constructed with a fixed default base directory and no folder picker or persisted bookmark is exposed (`ScreenwatchReader.swift:13-20`).",
@@ -533,9 +499,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Services/ScreenwatchReader.swift:25-35"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The app remains usable when the stream is missing and shows `Unavailable`, but no setup choice or explicit consequence summary exists (`ScreenwatchReader.swift:25-35`).",
@@ -579,9 +543,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:116-118"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "A manual source refresh will re-inspect and update health, but foreground return is not automatically detected (`AppModel.swift:116-118,445-455`).",
@@ -603,9 +565,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/SettingsView.swift:572-575"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Settings exposes an opt-in `Analyze Screenwatch screenshots` toggle, but the first-use source flow never explains the default behavior (`SettingsView.swift:572-575`).",
@@ -627,9 +587,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/SettingsView.swift:572-575"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The persisted screenshot-analysis toggle exists and is covered by settings-policy tests, but its UI copy does not limit use specifically to ambiguous situations (`SettingsView.swift:572-575`).",
@@ -673,10 +631,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Services/NotificationService.swift:75-90",
-        "Sources/ZoidCoachInfrastructure/PromptNotificationCoordinator.swift:38-56"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Source health requests alert, sound, and badge permission and the prompt coordinator can schedule authorized notifications, but this path was not exercised live (`NotificationService.swift:75-90`; `PromptNotificationCoordinator.swift:38-56`).",
@@ -720,10 +675,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Services/NotificationService.swift:52-61",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:312-353"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Denial yields an attention state while the dashboard prompt inbox remains functional, though no explicit continue action or explanatory handoff exists (`NotificationService.swift:52-61`; `DashboardView.swift:312-353`).",
@@ -745,10 +697,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:312-353",
-        "Sources/ZoidCoachInfrastructure/PromptResponseEffectRouter.swift:43-108"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The inbox renders actions and sends responses through XPC, but no user-facing test prompt is available and several task-related prompt action kinds have no effect router (`DashboardView.swift:312-353`; `PromptResponseEffectRouter.swift:43-108`).",
@@ -769,10 +718,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Services/RemindersService.swift:90-126",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:298-308"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The app fetches every incomplete Reminder from all calendars and only lets users reorder list presentation (`RemindersService.swift:90-126`; `DashboardView.swift:298-308`).",
@@ -814,10 +760,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/AppClassificationLedger.swift",
-        "Sources/ZoidCoachApp/Views/SettingsView.swift:486-492"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Settings inventory merges installed and observed apps and presents classification controls, with passing inventory tests, but the first-use flow is not guided or live-verified (`SettingsView.swift:486-492`; `AppClassificationLedger.swift`).",
@@ -838,9 +781,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/SettingsPolicyDraft.swift:66-78"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The app-classification ledger persists exact work overrides and tests pass, but the installed interaction was not exercised end to end (`SettingsPolicyDraft.swift:66-78`).",
@@ -861,9 +802,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/SettingsPolicyDraft.swift:66-78"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The same ledger supports gaming overrides and persistence tests pass, but live selection and subsequent behavior reclassification were not verified (`SettingsPolicyDraft.swift:66-78`).",
@@ -905,9 +844,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/SettingsView.swift:464-483"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Work start and end time fields persist in the versioned policy, but no initial-preferences flow or live scheduling proof was completed (`SettingsView.swift:464-483`).",
@@ -928,9 +865,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/SettingsView.swift:464-483"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Quiet start and end controls exist and persist, but there is no onboarding preview or live prompt-suppression proof (`SettingsView.swift:464-483`).",
@@ -951,10 +886,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachCore/TodayDashboard.swift:232-257",
-        "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:57-60"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Core gaming budget and reward policy exists and dashboard status is calculated, but Settings exposes no budget, reward, or unlock-policy controls (`TodayDashboard.swift:232-257`; `TodayDashboardAgent.swift:57-60`).",
@@ -975,10 +907,7 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/SettingsView.swift:572-648",
-        "Sources/ZoidCoachInfrastructure/AIProviderCapabilities.swift"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Settings offers the Disabled rules-only AI provider and local-only behavior, but it is not presented as an initial Release 1 choice (`SettingsView.swift:572-648`; `AIProviderCapabilities.swift`).",
@@ -1020,10 +949,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachAgent/AgentMain.swift:776-813",
-        "Sources/ZoidCoachInfrastructure/PromptNotificationCoordinator.swift:93-102"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The agent schedules a PLAN_READY notification at morning confirmation time, but the wording was not assessed as low-pressure and no live delivery was verified (`AgentMain.swift:776-813`; `PromptNotificationCoordinator.swift:93-102`).",
@@ -1066,11 +992,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:57-81"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The Today source exposes `DRAFT TODAY`, but the independent `a068d27` verifier did not activate the control in a current isolated packaged-app run (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 110
     },
@@ -1089,9 +1014,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachInfrastructure/PromptNotificationCoordinator.swift:93-102"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "PLAN_READY notification actions are only Accept and Review, and the prompt action model has no planning snooze (`PromptNotificationCoordinator.swift:93-102`).",
@@ -1154,9 +1077,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:143-162"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "An empty state says `PLAN BEFORE MOTION` and `0 / 3 PROPOSED`, but there is no explicit day-state label such as Unplanned (`DashboardView.swift:143-162,872-952`).",
@@ -1219,10 +1140,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Services/RemindersService.swift:90-126",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:774-776"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "All incomplete reminders are fetched and due dates render, so due-today items appear, but the installed list was not populated during runtime verification (`RemindersService.swift:90-126`; `DashboardView.swift:774-776`).",
@@ -1243,9 +1161,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:682-688"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Overdue reminders are included and active-plan rows label them Overdue, but there is no dedicated overdue grouping and live data was not exercised (`TodayTaskRowView`, `DashboardView.swift:682-688`).",
@@ -1266,10 +1182,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:200-218",
-        "Sources/ZoidCoachApp/Services/EventStore.swift:88-155"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Added reminders persist as daily-plan entries and render in the proposed plan, with store tests passing, but a complete live add-and-reopen flow was not performed (`AppModel.swift:200-218`; `EventStore.swift:88-155`).",
@@ -1311,9 +1224,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Services/RemindersService.swift:90-126"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Undated incomplete reminders are fetched and can be added to the plan, but the installed flow was not exercised (`RemindersService.swift:90-126`; `InboxReminderTaskRow`).",
@@ -1334,9 +1245,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Services/RemindersService.swift:93-97"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The full inventory intentionally contains all incomplete reminders, including future-dated tasks, because fetch predicates have no date boundary (`RemindersService.swift:93-97`).",
@@ -1378,9 +1287,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:202-205"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "EventKit identifiers and plan reconciliation prevent one ID from being added twice, but no UI/E2E duplicate-source fixture was verified (`AppModel.swift:202-205`).",
@@ -1402,12 +1309,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/AppModel.swift:517-541",
-        "Sources/ZoidCoachApp/Services/RemindersService.swift:93-97"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "EventKit filtering and plan reconciliation support the behavior, but the independent `a068d27` verifier could not seed a completed Reminder fixture and assert the packaged UI without touching real data (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 128
     },
@@ -1426,10 +1331,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:21-29",
-        "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:120-127"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Task completion history is persisted and tested, but the Reviews navigation currently renders the generic foundation/source-health page rather than a day history (`TodayDashboardAgent.swift:120-127`; `DashboardView.swift:21-29`).",
@@ -1472,12 +1374,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/AppModel.swift:507-512",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:223-239"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Failure copy exists in Today and source health, but the independent `a068d27` verifier did not have an isolated failure fixture or current packaged UI proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 131
     },
@@ -1496,10 +1396,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:918-932",
-        "Sources/ZoidCoachCore/AutonomousPlanner.swift"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The autonomous planner chooses a capacity-safe main objective and Today renders it prominently, with planner tests passing, but no live populated plan was verified (`AutonomousPlanner.swift`; `DashboardView.swift:918-932`).",
@@ -1520,9 +1417,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:872-952"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The planner supports a bounded commitment set and the UI targets `3 PROPOSED`, but capacity may yield fewer and no live three-task draft was exercised (`DashboardView.swift:872-952`).",
@@ -1543,9 +1438,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:1022-1041"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Suggested entries persist and display a selection reason; manually selected items truthfully say no ranking claim, but live reason quality was not verified (`DashboardView.swift:1022-1041`).",
@@ -1566,9 +1459,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:868-870"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Entries persist rank and render in rank order with numeric labels in the proposal ledger (`DashboardView.swift:868-870,981-1058`).",
@@ -1631,9 +1522,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:250-283"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The populated Today overview has one `DO THIS NEXT` card and recommendation sentence, but no populated live plan was exercised (`TodayDashboardCommandOverview.swift:250-283`).",
@@ -1654,9 +1543,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:172-191"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The Today behavior panel shows current gaming budget and next unlock reason, but this is not a proposed-plan unlock condition users can review (`TodayDashboardCommandOverview.swift:172-191`).",
@@ -1677,9 +1564,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:200-218"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Inbox rows call `addToDailyPlan`, enforce uniqueness and maximum five, and persist through the agent, but the installed add flow was not exercised (`AppModel.swift:200-218`).",
@@ -1700,10 +1585,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:220-245",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:1044-1051"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "`EXCLUDE` and `REMOVE` update and persist the plan, with fallback restoration on failure, but the live flow was not exercised (`DashboardView.swift:1044-1051`; `AppModel.swift:220-245`).",
@@ -1745,10 +1627,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:247-263",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:1044-1049"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "`ADJUST: MAKE MAIN` updates exactly one main objective and persists it, but the installed interaction was not exercised (`DashboardView.swift:1044-1049`; `AppModel.swift:247-263`).",
@@ -1790,10 +1669,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:660-670",
-        "Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift:53-55"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Active plan task rows can be marked blocked, but there is no reason-entry field or explanation persistence (`DashboardView.swift:660-670`; `TaskExecutionStore.swift:53-55`).",
@@ -1856,10 +1732,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:305-330",
-        "Sources/ZoidCoachInfrastructure/PromptResponseEffectRouter.swift:43-50"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "`ACCEPT BLOCKS` sends a schedule-plan mutation and the PLAN_READY notification has Accept, with tests proving durable queueing, but an actual Calendar end-to-end acceptance was not exercised (`AppModel.swift:305-330`; `PromptResponseEffectRouter.swift:43-50`).",
@@ -1880,10 +1753,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:55-71",
-        "Sources/ZoidCoachApp/Services/EventStore.swift:133-155"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Daily plan persistence and migration tests pass and AppModel reloads it at launch, but the installed approve-restart-compare sequence was not performed (`AppModel.swift:55-71,515-522`; `EventStore.swift:133-155`).",
@@ -1993,9 +1863,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:265-280"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Estimate selection updates persisted entries immediately, but no displayed capacity value reacts to it (`AppModel.swift:265-280`).",
@@ -2237,10 +2105,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:1230-1305",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:750-779"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Both proposal and Today estimate selectors offer 15 and persist it, but the live click-and-reload flow was not exercised (`DashboardView.swift:1230-1305`; `TodayDashboardCommandOverview.swift:750-779`).",
@@ -2350,10 +2215,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:1236",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:755"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Estimate selectors expose only `[15, 30, 45, 60, 90]` and no text or stepper input (`DashboardView.swift:1236`; `TodayDashboardCommandOverview.swift:755`).",
@@ -2463,9 +2325,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:1246-1296"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "A selected estimate can be reopened with the pencil control or clicked in Today and persisted before task start (`DashboardView.swift:1246-1296`).",
@@ -2487,10 +2347,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:305-330",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:944-952"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Empty plans say estimates are required, but `ACCEPT BLOCKS` is disabled only for an empty plan and AppModel does not validate every estimate (`DashboardView.swift:944-952`; `AppModel.swift:305-330`).",
@@ -2512,10 +2369,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachInfrastructure/LearningAggregateStore.swift",
-        "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:140-165"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Estimate learning records robust aggregates and tests pass, but no UI reads or displays a learned suggestion (`TodayDashboardAgent.swift:140-165`; `LearningAggregateStore.swift`).",
@@ -2712,9 +2566,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:23-43"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "A populated snapshot shows the full date, while the empty installed state omits it and neither surface names a formal day state (`TodayDashboardCommandOverview.swift:23-43`; runtime screenshot).",
@@ -2735,9 +2587,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/SettingsView.swift:223-236"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Settings header clearly shows automation Running or Paused, but Today does not show coaching state and `AppModel.coachingState` is not rendered there (`SettingsView.swift:223-236`).",
@@ -2759,11 +2609,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:510-529"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Today and Source health contain the ledger and repair controls, but the independent `a068d27` verifier had no current main-window accessibility proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 206
     },
@@ -2783,12 +2632,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:918-932",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:57-105"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Source styling makes the main objective visually prominent, but the independent `a068d27` verifier could not capture and assess the current packaged UI (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 207
     },
@@ -2808,11 +2655,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:57-105"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The focus and `DO THIS NEXT` cards exist in source, but the independent `a068d27` verifier had no isolated current UI state or visual proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 208
     },
@@ -2831,10 +2677,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:202-204",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:864-979"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Planned rows precede the full unplanned inventory, but the product does not enforce exactly three and can hold up to five (`DashboardView.swift:864-979,215-274`; `AppModel.swift:202-204`).",
@@ -2855,10 +2698,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:106-191",
-        "Sources/ZoidCoachCore/TodayDashboard.swift:128-192"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Core snapshot tracks all five and the usage popover separates categories, but the primary card emphasizes work and older installed UI combines gaming/distraction (`TodayDashboard.swift:128-192`; `TodayDashboardCommandOverview.swift:106-191`).",
@@ -2880,12 +2720,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:172-191",
-        "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:57-60"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Budget calculation tests pass and the Today surface exists, but the independent `a068d27` verifier could not capture the current packaged UI or seed controlled budget states (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 211
     },
@@ -2925,10 +2763,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachCore/PromptInbox.swift:47-64",
-        "Sources/ZoidCoachInfrastructure/PromptResponseEffectRouter.swift:43-108"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "`endWorkday` exists only as an unused prompt action kind; no fixed dashboard control or effect is implemented (`PromptInbox.swift:47-64`; `PromptResponseEffectRouter.swift:43-108`).",
@@ -2970,10 +2805,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:160-163",
-        "Sources/ZoidCoachCore/TodayDashboard.swift:196-205"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Coverage explanations distinguish limited telemetry from observed values, but empty-plan/loading states still mix absence with zero-like counts (`TodayDashboard.swift:196-205`; `TodayDashboardCommandOverview.swift:160-163`).",
@@ -2994,9 +2826,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:57-105"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The focus card shows title, estimate, deadline, and urgency, while status is implied by the command/heading rather than explicitly labelled (`TodayDashboardCommandOverview.swift:57-105`).",
@@ -3017,10 +2847,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:1022-1041",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:344-347"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Suggested plan entries can show selection evidence and the next-reason text identifies the main objective, but manual plans only say no ranking claim (`DashboardView.swift:1022-1041`; `TodayDashboardCommandOverview.swift:344-347`).",
@@ -3041,9 +2868,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:95-98"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The primary focus card maps ready to Start and paused to Resume through XPC-backed task commands, but this installed-app action and persisted effect were not exercised end to end (`TodayDashboardCommandOverview.swift:95-98,368-374`).",
@@ -3064,10 +2889,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:981-1058",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:662-748"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Proposal rows show numeric rank, title, estimate, and evidence, while active Today rows show deadline, urgency, and status; neither unified row includes all fields and planned rows omit list/project (`DashboardView.swift:981-1058`; `TodayDashboardCommandOverview.swift:662-748`).",
@@ -3088,10 +2910,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:650-659",
-        "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:120-127"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Active rows expose Complete and the agent queues Reminder completion, with passing store tests, but a live Reminder completion was not exercised (`DashboardView.swift:650-659`; `TodayDashboardAgent.swift:120-127`).",
@@ -3112,9 +2931,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:656-659"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Ready rows expose Start and task execution tests pass, but the installed app had no runnable planned row during verification (`DashboardView.swift:656-659`).",
@@ -3156,9 +2973,7 @@
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:681-701"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Task titles wrap to two lines with layout priority and controls remain separate, but longer-than-two-line truncation was not visually tested (`TodayDashboardCommandOverview.swift:681-701`).",
@@ -3201,11 +3016,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:215-274"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The inventory is positioned below priority surfaces in source, but the independent `a068d27` verifier had no current packaged UI hierarchy proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 228
     },
@@ -3226,12 +3040,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:250-283",
-        "Sources/ZoidCoachCore/TodayDashboard.swift:308-319"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "`TodaySnapshot` and the Today source model one card, but the independent `a068d27` verifier did not run the current packaged recommendation journey (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 232
     },
@@ -3252,11 +3064,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:260-278"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The recommendation explanation exists in source, but the independent `a068d27` verifier had no current packaged visual or accessibility proof of its clarity (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 233
     },
@@ -3277,11 +3088,10 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
-        ".audit/runs/baseline/a068d27/REPORT.md",
-        "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:38-61"
+        ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Recommender tests cover selected daily rows, but the independent `a068d27` verifier could not prove the complete packaged UI and persisted recommendation effect (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 234
     },
@@ -3301,10 +3111,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachCore/TodayDashboard.swift:208-229",
-        "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:61"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The recommender has a short-fit reason and receives available minutes, but the rendered recommendation does not create or start a bounded sprint (`TodayDashboard.swift:208-229`; `TodayDashboardAgent.swift:61`).",
@@ -3326,9 +3133,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:279-282"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "A ready recommended row has a direct Begin/Start control routed to `.start`, but the installed-app action and persisted result were not exercised end to end (`TodayDashboardCommandOverview.swift:279-282,368-374`).",
@@ -3416,9 +3221,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:660-670"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The task can be blocked from its row's More menu, but not directly from the recommendation card and no reason can be entered (`DashboardView.swift:660-670`).",
@@ -3484,10 +3287,7 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/AppModel.swift:136-145",
-        "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:112-168"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Starting, completing, or blocking through task commands refreshes the snapshot and recommendation, but the requested feedback controls are absent (`AppModel.swift:136-145`; `TodayDashboardAgent.swift:112-168`).",
@@ -3531,10 +3331,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:656-659",
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:368-374"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Ready task rows issue `.start` through the agent and task-execution tests pass, but this audit did not safely execute a start against a real planned Reminder and then prove its persisted effect in the installed app (`DashboardView.swift:656-659`; `TodayDashboardCommandOverview.swift:368-374`).",
@@ -3556,9 +3353,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/ZoidCoachApp.swift:51-55"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The only menu-bar extra is Zoid Voice and it contains no active-task or task-start menu (`ZoidCoachApp.swift:51-55`).",
@@ -3580,10 +3375,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachCore/PromptInbox.swift:47-64",
-        "Sources/ZoidCoachInfrastructure/PromptResponseEffectRouter.swift:43-108"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Prompt actions can render generically and the enum includes `startRecommendedTask`, but the prompt response effect router ignores task actions, so clicking cannot start work end to end (`PromptInbox.swift:47-64`; `PromptResponseEffectRouter.swift:43-108`).",
@@ -3605,9 +3397,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:279-282"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The recommendation card routes a ready row through `.start`, but the installed-app action and persisted result were not exercised end to end during this audit (`TodayDashboardCommandOverview.swift:279-282,368-374`).",
@@ -3651,10 +3441,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift:35-46",
-        "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:60-61"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Backend execution enforces one open interval and Today updates to the active row, but the menu bar does not show task state and no cross-surface live test exists (`TaskExecutionStore.swift:35-46`; `TodayDashboardAgent.swift:60-61`).",
@@ -3676,9 +3463,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift:39-45"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The transactional store pauses the prior task and a passing test proves the state transition, but no populated UI E2E sequence was exercised (`TaskExecutionStore.swift:39-45`; `TaskExecutionStoreTests`).",
@@ -3700,9 +3485,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift:35-46"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "One database open interval and idempotent state updates prevent simultaneous active tasks, but multi-surface rapid-click behavior was not runtime-tested (`TaskExecutionStore.swift:35-46,142-148`).",
@@ -3724,10 +3507,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/DashboardView.swift:644-659",
-        "Sources/ZoidCoachApp/ZoidCoachApp.swift:51-55"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Dashboard rows show Active and switch commands, while the menu bar remains voice-only (`DashboardView.swift:644-659`; `ZoidCoachApp.swift:51-55`).",
@@ -3749,9 +3529,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift:63-75"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Open intervals and elapsed time persist in SQLite, and pause/restart timing tests pass, but an installed app start-restart-clock sequence was not performed (`TaskExecutionStore.swift:63-75,142-160`; `TaskExecutionStoreTests`).",
@@ -3773,9 +3551,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift:39-45"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Starting a task opens an unbounded activity interval and persists it, but the UI never labels the commitment as open-ended (`TaskExecutionStore.swift:39-45,123-129`).",
@@ -3797,9 +3573,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachCore/PromptInbox.swift:47-64"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "`startShortSprint` exists as a prompt action kind, but there is no duration model, effect routing, timer, or direct UI (`PromptInbox.swift:47-64`).",
@@ -3909,10 +3683,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:57-105",
-        "Sources/ZoidCoachCore/TodayDashboard.swift:37-58"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The snapshot carries `elapsedMinutes`, but current Today task rows and focus card do not render it (`TodayDashboard.swift:37-58`; `TodayDashboardCommandOverview.swift:57-105,662-748`).",
@@ -4000,9 +3771,7 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [
-        "Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift:46-49"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Generic task pause/resume correctly preserves elapsed interval time, but bounded duration and remaining-time semantics do not exist (`TaskExecutionStore.swift:46-49`; `TaskExecutionStoreTests`).",
@@ -13147,8 +12916,8 @@
       "evidence_paths": [
         ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Build 8, signing, agent, database, and service checks pass, but the independent `a068d27` verifier did not launch the main app because it would refresh real EventKit and XPC state (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 809
     },
@@ -13171,8 +12940,8 @@
       "evidence_paths": [
         ".audit/runs/baseline/a068d27/REPORT.md"
       ],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Source and live database evidence show Reminder ingestion, but the independent `a068d27` verifier could not run the current packaged UI against isolated Reminder fixtures (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 810
     },
@@ -14702,9 +14471,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md"
+      ],
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The installed app is single-user and local-first with no team or remote-admin surface.",
       "tracker_line": 900
     },
@@ -14725,9 +14496,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md"
+      ],
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The product is a native local macOS app and has no public web dashboard.",
       "tracker_line": 901
     },
@@ -14748,9 +14521,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md"
+      ],
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Screenwatch evidence remains local and no cloud screenshot-sync feature is exposed.",
       "tracker_line": 902
     },
@@ -14771,9 +14546,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md"
+      ],
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "No mobile companion or cross-device behavior surface exists.",
       "tracker_line": 903
     },
@@ -14816,9 +14593,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md"
+      ],
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The app plans existing tasks and does not expose automatic decomposition into multiple new Reminders.",
       "tracker_line": 905
     },
@@ -14839,9 +14618,11 @@
         "ui_automation"
       ],
       "affected_capability": "release_scope_guardrail",
-      "evidence_paths": [],
-      "last_verified_commit": "f519b2bd28ce",
-      "last_verified_build": "0.1.0 (8)",
+      "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md"
+      ],
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "No blocking controls or enforcement service are present.",
       "tracker_line": 906
     },
