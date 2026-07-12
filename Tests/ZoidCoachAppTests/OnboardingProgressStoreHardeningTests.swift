@@ -875,6 +875,40 @@ func onboardingProductionAndQAStoresUseTheirIsolatedRuntimePaths() throws {
     #expect(!FileManager.default.fileExists(atPath: productionStore.fileURL.path))
 }
 
+@Test
+func onboardingStoreRequiresADurableEffectWhenCompletingAPolicyStep() throws {
+    let fixture = try OnboardingStoreFixture(name: "durable-effect")
+    defer { fixture.remove() }
+    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    var progress = try OnboardingProgress()
+    while progress.currentStep != .activityClassification {
+        if [.reminders, .screenwatch, .notifications].contains(progress.currentStep) {
+            try progress.recordAccessDecision(.deferred, for: progress.currentStep)
+        }
+        try progress.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
+        progress = try store.save(progress)
+    }
+    var missingReceipt = progress
+    try missingReceipt.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+
+    #expect(throws: OnboardingProgressStoreError.missingDurableEffect(.activityClassification)) {
+        try store.save(missingReceipt)
+    }
+
+    var withReceipt = progress
+    let effect = OnboardingCompletedEffect(
+        step: .activityClassification,
+        requestID: "onboarding-policy:activityClassification:\(progress.persistenceRevision):0",
+        payloadDigest: String(repeating: "a", count: 64),
+        resourceVersion: 1
+    )
+    try withReceipt.recordCompletedEffect(effect)
+    try withReceipt.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+    let saved = try store.save(withReceipt)
+
+    #expect(saved.completedEffects == [effect])
+}
+
 private enum OnboardingStoreInterruption: Error, Equatable {
     case injected
 }

@@ -4,6 +4,27 @@ import ZoidCoachCore
 import ZoidCoachInfrastructure
 
 @Test
+func legacyOnboardingWithoutEffectReceiptsStillDecodes() throws {
+    let legacy = """
+    {
+      "version": 1,
+      "persistenceRevision": 9,
+      "currentStep": "schedule",
+      "completedSteps": ["welcome", "localPrivacy", "reminders", "screenwatch", "notifications", "applicationInventory", "activityClassification"],
+      "remindersAccess": "deferred",
+      "screenwatchAccess": "unavailable",
+      "notificationAccess": "denied"
+    }
+    """
+
+    let decoded = try JSONDecoder().decode(OnboardingProgress.self, from: Data(legacy.utf8))
+
+    #expect(decoded.version == 1)
+    #expect(decoded.currentStep == .schedule)
+    #expect(decoded.completedEffects.isEmpty)
+}
+
+@Test
 func onboardingProgressAdvancesInOrderAndRequiresAnExplicitCoachingMode() throws {
     var progress = try OnboardingProgress()
     let now = Date(timeIntervalSince1970: 1_800_000_000)

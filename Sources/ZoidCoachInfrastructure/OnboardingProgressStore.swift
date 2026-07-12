@@ -23,6 +23,9 @@ public enum OnboardingProgressStoreError: LocalizedError, Equatable, Sendable {
     case staleRevision(expected: UInt64, actual: UInt64)
     case revisionExhausted
     case structuralRegression
+    case missingDurableEffect(OnboardingStep)
+    case unexpectedDurableEffect(OnboardingStep)
+    case durableEffectRegression(OnboardingStep)
 
     public var errorDescription: String? {
         switch self {
@@ -38,6 +41,12 @@ public enum OnboardingProgressStoreError: LocalizedError, Equatable, Sendable {
             "Onboarding progress revision cannot advance beyond UInt64.max"
         case .structuralRegression:
             "Onboarding progress cannot move backward without an explicit reset"
+        case let .missingDurableEffect(step):
+            "Onboarding cannot complete \(step.rawValue) before its side effect is durable"
+        case let .unexpectedDurableEffect(step):
+            "Onboarding cannot record a durable effect without completing \(step.rawValue)"
+        case let .durableEffectRegression(step):
+            "Onboarding cannot replace or remove the durable effect for \(step.rawValue)"
         }
     }
 }
@@ -118,6 +127,10 @@ public final class OnboardingProgressStore: @unchecked Sendable {
                         incoming: progress
                     )
                 }
+                try validateDurableEffects(
+                    current: stored.isPersisted ? stored.progress : nil,
+                    incoming: progress
+                )
                 guard expectedRevision < UInt64.max else {
                     throw OnboardingProgressStoreError.revisionExhausted
                 }
@@ -209,6 +222,39 @@ public final class OnboardingProgressStore: @unchecked Sendable {
             }
         }
     }
+
+    private func validateDurableEffects(
+        current: OnboardingProgress?,
+        incoming: OnboardingProgress
+    ) throws {
+        let currentCompleted = Set(current?.completedSteps ?? [])
+        let newlyCompleted = Set(incoming.completedSteps).subtracting(currentCompleted)
+        let currentEffects = Dictionary(
+            uniqueKeysWithValues: (current?.completedEffects ?? []).map { ($0.step, $0) }
+        )
+        let incomingEffects = Dictionary(
+            uniqueKeysWithValues: incoming.completedEffects.map { ($0.step, $0) }
+        )
+        for (step, effect) in currentEffects where incomingEffects[step] != effect {
+            throw OnboardingProgressStoreError.durableEffectRegression(step)
+        }
+        for step in Self.effectRequiredSteps where newlyCompleted.contains(step) {
+            guard incomingEffects[step] != nil else {
+                throw OnboardingProgressStoreError.missingDurableEffect(step)
+            }
+        }
+        for step in incomingEffects.keys where currentEffects[step] == nil
+            && !newlyCompleted.contains(step) {
+            throw OnboardingProgressStoreError.unexpectedDurableEffect(step)
+        }
+    }
+
+    private static let effectRequiredSteps: Set<OnboardingStep> = [
+        .activityClassification,
+        .schedule,
+        .gamingPolicy,
+        .coachingMode,
+    ]
 
     private func recoverCorruptProgress(
         storage: DescriptorRelativeStateDirectory<OnboardingProgressStoreError>
