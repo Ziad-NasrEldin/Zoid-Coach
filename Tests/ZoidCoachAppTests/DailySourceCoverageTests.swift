@@ -1,6 +1,7 @@
 import Foundation
 import SQLite3
 import Testing
+@testable import ZoidCoachApp
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
 
@@ -140,6 +141,83 @@ func historicalCoverageNeverUsesASourceCheckpointFromALaterDay() throws {
 
     #expect(coverage.source?.state == "healthy")
     #expect(coverage.source?.detail == "Historical day was current")
+}
+
+@MainActor
+@Test
+func selectedDayGenerationPreventsAnOlderLoadFromReplacingTheNewDay() async throws {
+    let firstDay = Date(timeIntervalSince1970: 1_780_000_000)
+    let secondDay = firstDay.addingTimeInterval(86_400)
+    let firstStarted = DispatchSemaphore(value: 0)
+    let releaseFirst = DispatchSemaphore(value: 0)
+    let controller = DailySourceCoverageController(loader: { day, _ in
+        if day == firstDay {
+            firstStarted.signal()
+            releaseFirst.wait()
+            return coverageResult(day: "first")
+        }
+        return coverageResult(day: "second")
+    })
+
+    let firstLoad = try #require(controller.load(day: firstDay))
+    await Task.detached { firstStarted.wait() }.value
+    let secondLoad = try #require(controller.load(day: secondDay))
+    await secondLoad.value
+    releaseFirst.signal()
+    await firstLoad.value
+
+    #expect(controller.coverage?.localDay == "second")
+    #expect(controller.errorMessage == nil)
+    #expect(controller.isLoading == false)
+}
+
+@MainActor
+@Test
+func retryReplacesCoverageErrorWithFreshSelectedDayEvidence() async throws {
+    let attempts = LockedAttemptCounter()
+    let controller = DailySourceCoverageController(loader: { _, _ in
+        if attempts.next() == 1 { throw DailySourceCoverageStoreError.openDatabase }
+        return coverageResult(day: "recovered")
+    })
+    let day = Date(timeIntervalSince1970: 1_780_000_000)
+
+    let failedLoad = try #require(controller.load(day: day))
+    await failedLoad.value
+    #expect(controller.errorMessage != nil)
+    #expect(controller.coverage == nil)
+
+    let retryLoad = try #require(controller.load(day: day))
+    await retryLoad.value
+    #expect(controller.coverage?.localDay == "recovered")
+    #expect(controller.errorMessage == nil)
+}
+
+private final class LockedAttemptCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+
+    func next() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        value += 1
+        return value
+    }
+}
+
+private func coverageResult(day: String) -> DailySourceCoverage {
+    DailySourceCoverage(
+        localDay: day,
+        activeTaskMinutes: 0,
+        observedTaskMinutes: 0,
+        alignedTaskMinutes: 0,
+        missingTaskMinutes: 0,
+        workMinutes: 0,
+        gamingMinutes: 0,
+        distractingMinutes: 0,
+        idleMinutes: 0,
+        unknownMinutes: 0,
+        source: nil
+    )
 }
 
 private final class CoverageFixture: @unchecked Sendable {
