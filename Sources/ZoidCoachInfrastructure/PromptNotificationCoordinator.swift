@@ -18,6 +18,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
     private let center: UNUserNotificationCenter?
     private let promptStore: PromptInboxStore
     private let notificationIdentity: RuntimeNotificationIdentity
+    private let deliveryLedger: NotificationDeliveryLedger?
     private let fixtureAdapter: DeterministicOSFixtureAdapters?
     private let onResponse: @Sendable (PromptResponseResult) async -> Void
 
@@ -31,6 +32,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         self.center = center
         fixtureAdapter = nil
         notificationIdentity = runtimeEnvironment.identity.notification
+        deliveryLedger = try? NotificationDeliveryLedger(databaseURL: runtimeEnvironment.databaseURL)
         self.onResponse = onResponse
         super.init()
     }
@@ -45,6 +47,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         center = nil
         self.fixtureAdapter = fixtureAdapter
         notificationIdentity = runtimeEnvironment.identity.notification
+        deliveryLedger = try? NotificationDeliveryLedger(databaseURL: runtimeEnvironment.databaseURL)
         self.onResponse = onResponse
         super.init()
     }
@@ -58,21 +61,50 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
     @discardableResult
     public func schedule(_ episode: PromptEpisode, deliveryDate: Date? = nil) async throws -> Bool {
         guard let category = PromptNotificationCategory.forPromptType(episode.type) else { return false }
+        let requestIdentifier = notificationIdentity.promptRequestPrefix + episode.id
         if let fixtureAdapter {
-            _ = try await fixtureAdapter.schedule(.init(
-                category: category.rawValue,
-                title: episode.title,
-                body: episode.summary,
-                promptID: episode.id,
-                deliveryDate: deliveryDate
-            ))
-            _ = try fixtureAdapter.deliverDueNotifications()
-            try await processFixtureActions()
-            return true
+            do {
+                _ = try await fixtureAdapter.schedule(.init(
+                    category: category.rawValue,
+                    title: episode.title,
+                    body: episode.summary,
+                    promptID: episode.id,
+                    deliveryDate: deliveryDate
+                ))
+                _ = try fixtureAdapter.deliverDueNotifications()
+                try await processFixtureActions()
+                recordDelivery(
+                    requestIdentifier: requestIdentifier,
+                    episode: episode,
+                    category: category,
+                    outcome: .deliveredByFixture,
+                    scheduledFor: deliveryDate
+                )
+                return true
+            } catch {
+                recordDelivery(
+                    requestIdentifier: requestIdentifier,
+                    episode: episode,
+                    category: category,
+                    outcome: .schedulingFailed,
+                    scheduledFor: deliveryDate,
+                    error: error
+                )
+                throw error
+            }
         }
         guard let center else { return false }
         let settings = await center.notificationSettings()
-        guard [.authorized, .provisional].contains(settings.authorizationStatus) else { return false }
+        guard [.authorized, .provisional].contains(settings.authorizationStatus) else {
+            recordDelivery(
+                requestIdentifier: requestIdentifier,
+                episode: episode,
+                category: category,
+                outcome: .authorizationUnavailable,
+                scheduledFor: deliveryDate
+            )
+            return false
+        }
         let content = UNMutableNotificationContent()
         content.title = episode.title
         content.body = episode.summary
@@ -86,12 +118,50 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             trigger = nil
         }
         let request = UNNotificationRequest(
-            identifier: notificationIdentity.promptRequestPrefix + episode.id,
+            identifier: requestIdentifier,
             content: content,
             trigger: trigger
         )
-        try await center.add(request)
-        return true
+        do {
+            try await center.add(request)
+            recordDelivery(
+                requestIdentifier: requestIdentifier,
+                episode: episode,
+                category: category,
+                outcome: .acceptedBySystem,
+                scheduledFor: deliveryDate
+            )
+            return true
+        } catch {
+            recordDelivery(
+                requestIdentifier: requestIdentifier,
+                episode: episode,
+                category: category,
+                outcome: .schedulingFailed,
+                scheduledFor: deliveryDate,
+                error: error
+            )
+            throw error
+        }
+    }
+
+    private func recordDelivery(
+        requestIdentifier: String,
+        episode: PromptEpisode,
+        category: PromptNotificationCategory,
+        outcome: NotificationDeliveryOutcome,
+        scheduledFor: Date?,
+        error: Error? = nil
+    ) {
+        _ = try? deliveryLedger?.record(
+            requestIdentifier: requestIdentifier,
+            promptID: episode.id,
+            category: category.rawValue,
+            outcome: outcome,
+            scheduledFor: scheduledFor,
+            error: error?.localizedDescription
+        )
+        _ = try? deliveryLedger?.enforceRetention()
     }
 
     public func processFixtureActions() async throws {
