@@ -248,6 +248,19 @@ public final class PrivacyDataService: @unchecked Sendable {
         guard sqlite3_exec(database, "BEGIN IMMEDIATE;", nil, nil, nil) == SQLITE_OK else { throw PrivacyDataServiceError.write }
         var deleted = 0
         do {
+            // Delete every local-day keyed planning projection, not only the legacy
+            // daily_plan_entries projection. The canonical planner tables are kept
+            // alongside the UI projection and must disappear from the same range.
+            try execute("DELETE FROM daily_plan_items WHERE plan_id IN (SELECT id FROM daily_plans WHERE local_day >= ? AND local_day < ?);", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM daily_plans WHERE local_day >= ? AND local_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM scheduled_blocks WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM daily_plan_revisions WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM plan_undo_requests WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM plan_schedule_requests WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM today_snapshots WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM gaming_reward_ledger WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM planner_trust_cycles WHERE local_day >= ? AND local_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM domain_events WHERE local_day >= ? AND local_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM meeting_evidence WHERE artifact_id IN (SELECT id FROM screenshot_artifacts WHERE behavior_day >= ? AND behavior_day < ?);", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM extracted_facts WHERE artifact_id IN (SELECT id FROM screenshot_artifacts WHERE behavior_day >= ? AND behavior_day < ?);", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM screenshot_artifacts WHERE behavior_day >= ? AND behavior_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))

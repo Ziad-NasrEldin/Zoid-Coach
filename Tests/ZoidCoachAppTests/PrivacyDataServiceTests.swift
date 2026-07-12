@@ -3,6 +3,8 @@ import SQLite3
 import Testing
 @testable import ZoidCoachInfrastructure
 
+private let privacySQLiteTransientForTests = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
 @Test
 func privacyDataServiceExportsOnlyRedactedCountsAndDeletesConversationText() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-data-\(UUID().uuidString)", isDirectory: true)
@@ -54,6 +56,54 @@ func privacyDateDeletionNeverDeletesScreenwatchOwnedSourceFiles() throws {
     _ = try PrivacyDataService(databaseURL: databaseURL).deleteDateRange(start: start, end: end)
 
     #expect(FileManager.default.fileExists(atPath: screenshot.path))
+}
+
+@Test
+func privacyDateDeletionRemovesCanonicalAndProjectedPlansForTheInclusiveLocalDay() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-plan-range-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("coach.sqlite")
+    try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+    var database: OpaquePointer?
+    #expect(sqlite3_open(databaseURL.path, &database) == SQLITE_OK)
+    let setup = """
+    INSERT INTO daily_plans (id, local_day, timezone_identifier, state, capacity_minutes, usable_capacity_minutes, policy_version, generated_at_utc)
+    VALUES ('delete-plan', '2026-07-12', 'Africa/Cairo', 'draft', 480, 420, 1, '2026-07-12T06:00:00Z'),
+           ('keep-plan', '2026-07-13', 'Africa/Cairo', 'draft', 480, 420, 1, '2026-07-13T06:00:00Z');
+    INSERT INTO daily_plan_items (id, plan_id, source_task_id, rank, estimate_minutes, estimate_confidence, reason, evidence_ids_json, is_main_objective, state)
+    VALUES ('delete-item', 'delete-plan', 'task-1', 0, 30, 'high', 'test', '[]', 1, 'planned'),
+           ('keep-item', 'keep-plan', 'task-2', 0, 30, 'high', 'test', '[]', 1, 'planned');
+    INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, updated_at)
+    VALUES ('2026-07-12', 'task-1', 0, 1, 30, '2026-07-12T06:00:00Z'),
+           ('2026-07-13', 'task-2', 0, 1, 30, '2026-07-13T06:00:00Z');
+    """
+    #expect(sqlite3_exec(database, setup, nil, nil, nil) == SQLITE_OK)
+    sqlite3_close(database)
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try #require(TimeZone(identifier: "Africa/Cairo"))
+    let start = try #require(calendar.date(from: DateComponents(year: 2026, month: 7, day: 12)))
+    let end = try #require(calendar.date(byAdding: .day, value: 1, to: start))
+
+    _ = try PrivacyDataService(databaseURL: databaseURL).deleteDateRange(start: start, end: end)
+
+    #expect(sqlite3_open(databaseURL.path, &database) == SQLITE_OK)
+    defer { sqlite3_close(database) }
+    func count(_ table: String, id: String) -> Int32 {
+        var statement: OpaquePointer?
+        let column = table == "daily_plan_entries" ? "reminder_id" : "id"
+        guard sqlite3_prepare_v2(database, "SELECT COUNT(*) FROM \(table) WHERE \(column) = ?;", -1, &statement, nil) == SQLITE_OK,
+              let statement else { return -1 }
+        defer { sqlite3_finalize(statement) }
+        _ = id.withCString { sqlite3_bind_text(statement, 1, $0, -1, privacySQLiteTransientForTests) }
+        return sqlite3_step(statement) == SQLITE_ROW ? sqlite3_column_int(statement, 0) : -1
+    }
+    #expect(count("daily_plans", id: "delete-plan") == 0)
+    #expect(count("daily_plan_items", id: "delete-item") == 0)
+    #expect(count("daily_plan_entries", id: "task-1") == 0)
+    #expect(count("daily_plans", id: "keep-plan") == 1)
+    #expect(count("daily_plan_items", id: "keep-item") == 1)
+    #expect(count("daily_plan_entries", id: "task-2") == 1)
 }
 
 @Test
