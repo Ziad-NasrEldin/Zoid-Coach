@@ -210,6 +210,8 @@ private struct TodayCommandView: View {
                 DailyPlanLedger()
             }
 
+            PlanningCapacityPanel()
+
             if let calendarError = model.calendarScheduleError {
                 Text(calendarError)
                     .font(Sumi.body(13))
@@ -1077,8 +1079,6 @@ private struct DailyPlanLedger: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
 
-            PlanningCapacityPanel(entries: entries)
-
             VStack(alignment: .leading, spacing: 5) {
                 Text("MAIN OBJECTIVE")
                     .font(Sumi.label(9))
@@ -1144,7 +1144,6 @@ private struct DailyPlanLedger: View {
 
 private struct PlanningCapacityPanel: View {
     @EnvironmentObject private var model: AppModel
-    let entries: [DailyPlanEntry]
 
     var body: some View {
         let state = model.planningCapacityState
