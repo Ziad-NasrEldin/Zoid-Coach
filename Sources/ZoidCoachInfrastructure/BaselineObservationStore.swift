@@ -11,6 +11,10 @@ public final class BaselineObservationStore: @unchecked Sendable {
         let classification: BehaviorClassification
     }
 
+    private struct PlannedTaskCompletion {
+        let completedAt: Date?
+    }
+
     private let database: OpaquePointer
     private let now: @Sendable () -> Date
     private let requiredCompleteDays: Int
@@ -109,14 +113,14 @@ public final class BaselineObservationStore: @unchecked Sendable {
         else { return try readStatus() }
 
         let grouped = Dictionary(grouping: observations, by: \.localDay)
-        let daysWithIncompletePlannedWork = try readDaysWithIncompletePlannedWork(before: todayKey)
+        let plannedCompletions = try readPlannedCompletions(before: todayKey)
         var cursor = calendar.startOfDay(for: firstDate)
         while cursor <= yesterday {
             let localDay = dayFormatter.string(from: cursor)
             let day = Self.summarize(
                 localDay: localDay,
                 observations: grouped[localDay] ?? [],
-                hasIncompletePlannedWork: daysWithIncompletePlannedWork.contains(localDay),
+                plannedCompletions: plannedCompletions[localDay] ?? [],
                 recordedAt: now()
             )
             try write(day)
@@ -225,21 +229,18 @@ public final class BaselineObservationStore: @unchecked Sendable {
         return observations
     }
 
-    private func readDaysWithIncompletePlannedWork(before localDay: String) throws -> Set<String> {
+    private func readPlannedCompletions(before localDay: String) throws -> [String: [PlannedTaskCompletion]] {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
             """
-            SELECT DISTINCT plan.day_key
+            SELECT plan.day_key, MIN(history.occurred_at)
             FROM daily_plan_entries plan
+            LEFT JOIN task_history history
+              ON history.task_id = plan.reminder_id
+             AND history.state = 'completed'
             WHERE plan.day_key < ?
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM task_history history
-                  WHERE history.task_id = plan.reminder_id
-                    AND history.state = 'completed'
-                    AND SUBSTR(history.occurred_at, 1, 10) <= plan.day_key
-              );
+            GROUP BY plan.day_key, plan.reminder_id;
             """,
             -1,
             &statement,
@@ -249,9 +250,11 @@ public final class BaselineObservationStore: @unchecked Sendable {
         }
         defer { sqlite3_finalize(statement) }
         bind(localDay, statement, 1)
-        var days: Set<String> = []
+        var days: [String: [PlannedTaskCompletion]] = [:]
         while sqlite3_step(statement) == SQLITE_ROW {
-            if let day = text(statement, 0) { days.insert(day) }
+            guard let day = text(statement, 0) else { continue }
+            let completedAt = text(statement, 1).flatMap(timestampFormatter.date(from:))
+            days[day, default: []].append(PlannedTaskCompletion(completedAt: completedAt))
         }
         return days
     }
@@ -289,7 +292,7 @@ public final class BaselineObservationStore: @unchecked Sendable {
     private static func summarize(
         localDay: String,
         observations: [Observation],
-        hasIncompletePlannedWork: Bool,
+        plannedCompletions: [PlannedTaskCompletion],
         recordedAt: Date
     ) -> BaselineObservationDay {
         guard !observations.isEmpty else {
@@ -302,6 +305,7 @@ public final class BaselineObservationStore: @unchecked Sendable {
         var seconds: [BehaviorClassification: Int] = [:]
         var eligibleDriftCount = 0
         var currentDriftSeconds = 0
+        var currentDriftLastEpoch: Int64?
         var previousEpoch: Int64?
         for (index, observation) in observations.enumerated() {
             let nextEpoch = index + 1 < observations.count ? observations[index + 1].epoch : observation.epoch + 60
@@ -310,15 +314,32 @@ public final class BaselineObservationStore: @unchecked Sendable {
             let isDrift = observation.classification == .gaming || observation.classification == .distracting
             let continuesEpisode = previousEpoch.map { observation.epoch - $0 <= 180 } ?? true
             if isDrift {
-                if !continuesEpisode { currentDriftSeconds = 0 }
+                if !continuesEpisode {
+                    if currentDriftSeconds >= 600,
+                       let currentDriftLastEpoch,
+                       hasIncompletePlannedWork(at: currentDriftLastEpoch, completions: plannedCompletions) {
+                        eligibleDriftCount += 1
+                    }
+                    currentDriftSeconds = 0
+                }
                 currentDriftSeconds += duration
+                currentDriftLastEpoch = observation.epoch
             } else {
-                if currentDriftSeconds >= 600 { eligibleDriftCount += 1 }
+                if currentDriftSeconds >= 600,
+                   let currentDriftLastEpoch,
+                   hasIncompletePlannedWork(at: currentDriftLastEpoch, completions: plannedCompletions) {
+                    eligibleDriftCount += 1
+                }
                 currentDriftSeconds = 0
+                currentDriftLastEpoch = nil
             }
             previousEpoch = observation.epoch
         }
-        if currentDriftSeconds >= 600 { eligibleDriftCount += 1 }
+        if currentDriftSeconds >= 600,
+           let currentDriftLastEpoch,
+           hasIncompletePlannedWork(at: currentDriftLastEpoch, completions: plannedCompletions) {
+            eligibleDriftCount += 1
+        }
         let minutes: (BehaviorClassification) -> Int = { classification in
             Int((Double(seconds[classification, default: 0]) / 60).rounded())
         }
@@ -330,10 +351,20 @@ public final class BaselineObservationStore: @unchecked Sendable {
             gamingMinutes: minutes(.gaming),
             distractingMinutes: minutes(.distracting),
             unknownMinutes: minutes(.unknown) + minutes(.idle),
-            eligibleDriftCount: hasIncompletePlannedWork ? eligibleDriftCount : 0,
+            eligibleDriftCount: eligibleDriftCount,
             coverage: observedMinutes >= 30 ? .complete : .limited,
             recordedAt: recordedAt
         )
+    }
+
+    private static func hasIncompletePlannedWork(
+        at epoch: Int64,
+        completions: [PlannedTaskCompletion]
+    ) -> Bool {
+        let observedAt = Date(timeIntervalSince1970: TimeInterval(epoch))
+        return completions.contains { completion in
+            completion.completedAt.map { $0 > observedAt } ?? true
+        }
     }
 
     private static func report(for days: [BaselineObservationDay]) -> BaselineObservationReport {
