@@ -56,3 +56,17 @@ Migration 29 creates append-only `task_pause_events` with constrained reason val
 An independent verifier should click through the pause-reason menu, switch confirmation, resume action, and paused-task completion in the installed signed-QA app before the root tracker upgrades any row to Fully implemented.
 
 The broader backlog item still needs skip, defer, reorder, and revise behavior, so priority 14 returns to `ready` after this delivered sub-slice.
+
+## Independent Integration Verification
+
+The verifier rebased this slice onto canonical commit `586d8db`, where daily review already owns migration 28, and confirmed that task lifecycle correctly owns migration 29 without renumbering or collision.
+
+Focused `TaskExecutionStoreTests`, `AutonomousDatabaseMigratorTests`, and `TodayDashboardAgentTests` passed.
+
+The full suite passed all 460 Swift tests in five suites, all 41 Python registry and evidence tests, the release build, registry validation for exactly 666 scenarios, and `git diff --check`.
+
+A fresh clean signed-QA package passed package, deep-signing, LaunchAgent identity, and Mach-service verification from the integration worktree.
+
+The Mac was locked during the independent acceptance attempt, so no scenario was promoted to Fully implemented from deterministic evidence alone.
+
+The tracker retains Touches remaining or Partially implemented status until the installed pause, switch, resume, and paused-completion click-through is captured.
