@@ -959,6 +959,76 @@ func onboardingStoreRequiresADurableEffectWhenCompletingAPolicyStep() throws {
 }
 
 @Test
+func onboardingStoreRequiresADurableEffectForGrantedRemindersButNotDegradedAccess() throws {
+    let fixture = try OnboardingStoreFixture(name: "durable-reminders-effect")
+    defer { fixture.remove() }
+    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    var progress = try store.load()
+    while progress.currentStep != .reminders {
+        try progress.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
+        progress = try store.save(progress)
+    }
+    var missingReceipt = progress
+    try missingReceipt.recordAccessDecision(.granted, for: .reminders)
+    missingReceipt.setReminderListDecision(true, listID: "work-id")
+    try missingReceipt.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+
+    #expect(throws: OnboardingProgressStoreError.missingDurableEffect(.reminders)) {
+        try store.save(missingReceipt)
+    }
+
+    var withReceipt = progress
+    try withReceipt.recordAccessDecision(.granted, for: .reminders)
+    withReceipt.setReminderListDecision(true, listID: "work-id")
+    let policy = UserPolicy.defaults().replacingReminderListPolicy(ReminderListPolicy(
+        isConfigured: true,
+        decisions: [ReminderListDecision(listID: "work-id", isIncluded: true)]
+    ))
+    let digest = try PolicyMutationRequest.canonicalPayloadDigest(for: policy)
+    let requestID = [
+        "onboarding-policy-v1",
+        progress.flowID,
+        OnboardingStep.reminders.rawValue,
+        String(progress.persistenceRevision),
+        digest,
+    ].joined(separator: ":")
+    let receipt = try PolicyStore(databaseURL: fixture.runtime.databaseURL).saveMutation(
+        PolicyMutationRequest(
+            requestID: requestID,
+            expectedVersion: 0,
+            policy: policy,
+            origin: .onboarding(
+                flowID: progress.flowID,
+                step: .reminders,
+                progressRevision: progress.persistenceRevision
+            )
+        )
+    )
+    try withReceipt.recordCompletedEffect(OnboardingCompletedEffect(
+        step: .reminders,
+        requestID: receipt.requestID,
+        payloadDigest: receipt.payloadDigest,
+        resourceVersion: receipt.resultingVersion
+    ))
+    try withReceipt.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+
+    let saved = try store.save(withReceipt)
+    #expect(saved.currentStep == .screenwatch)
+    #expect(saved.completedEffects.map(\.step) == [.reminders])
+
+    try store.reset()
+    var degraded = try store.load()
+    while degraded.currentStep != .reminders {
+        try degraded.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
+        degraded = try store.save(degraded)
+    }
+    try degraded.recordAccessDecision(.denied, for: .reminders)
+    try degraded.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+
+    #expect(try store.save(degraded).currentStep == .screenwatch)
+}
+
+@Test
 func onboardingResetCreatesANewFlowIdentity() throws {
     let fixture = try OnboardingStoreFixture(name: "flow-reset")
     defer { fixture.remove() }

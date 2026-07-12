@@ -138,6 +138,52 @@ func emptyReminderListDiscoveryRequiresExplicitLocalFallbackConfirmation() async
 
 @MainActor
 @Test
+func staleReminderListDiscoveryCannotOverwriteTheLatestRetry() async throws {
+    var progress = try progressAt(.reminders)
+    try progress.recordAccessDecision(.granted, for: .reminders)
+    let store = RecordingOnboardingStore(progress: progress)
+    let gate = ReminderListRequestGate()
+    let base = testDependencies()
+    let dependencies = OnboardingDependencies(
+        inspectReminders: { SelfHealth.remindersHealthy },
+        requestReminders: { .init(health: SelfHealth.remindersHealthy, decision: .granted) },
+        discoverReminderLists: { await gate.wait() },
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        loadPolicy: base.loadPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: base.openSystemSettings
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    let first = Task { await coordinator.loadReminderLists() }
+    while gate.requestCount < 1 { await Task.yield() }
+    let second = Task { await coordinator.loadReminderLists() }
+    while gate.requestCount < 2 { await Task.yield() }
+
+    gate.resumeRequest(1, with: .available([
+        ReminderListChoice(id: "latest", name: "Latest")
+    ]))
+    await second.value
+    gate.resumeRequest(0, with: .available([
+        ReminderListChoice(id: "stale", name: "Stale")
+    ]))
+    await first.value
+
+    #expect(coordinator.reminderListDiscovery == .available([
+        ReminderListChoice(id: "latest", name: "Latest")
+    ]))
+}
+
+@MainActor
+@Test
 func grantedRemindersRequireDurableExplicitListChoicesBeforeAdvancing() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
     let recorder = PolicyRecorder()
@@ -809,6 +855,21 @@ private final class DeliveryRequestGate {
     func resume(with result: OnboardingDeliveryResult) {
         continuation?.resume(returning: result)
         continuation = nil
+    }
+}
+
+@MainActor
+private final class ReminderListRequestGate {
+    private var continuations: [CheckedContinuation<ReminderListLoad, Never>] = []
+
+    var requestCount: Int { continuations.count }
+
+    func wait() async -> ReminderListLoad {
+        await withCheckedContinuation { continuations.append($0) }
+    }
+
+    func resumeRequest(_ index: Int, with result: ReminderListLoad) {
+        continuations[index].resume(returning: result)
     }
 }
 
