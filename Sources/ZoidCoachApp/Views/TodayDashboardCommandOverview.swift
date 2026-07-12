@@ -13,6 +13,7 @@ struct TodayDashboardCommandOverview: View {
     @State private var isPointerOverUsagePanel = false
     @State private var isUsageSelectorActive = false
     @State private var usageDismissTask: Task<Void, Never>?
+    @State private var pendingSwitchTask: TodayTaskRow?
     @FocusState private var isUsageFocused: Bool
 
     var body: some View {
@@ -60,6 +61,19 @@ struct TodayDashboardCommandOverview: View {
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 20)
+        .alert("Switch active task?", isPresented: Binding(
+            get: { pendingSwitchTask != nil },
+            set: { if !$0 { pendingSwitchTask = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { pendingSwitchTask = nil }
+            Button("Switch and preserve time") {
+                guard let row = pendingSwitchTask else { return }
+                pendingSwitchTask = nil
+                model.applyTaskCommand(.start, taskID: row.taskID)
+            }
+        } message: {
+            Text("The current task will pause as Switching tasks. Its tracked time will be preserved, and \"\(pendingSwitchTask?.title ?? "the selected task")\" will start.")
+        }
     }
 
     private var focusCommitment: some View {
@@ -79,6 +93,9 @@ struct TodayDashboardCommandOverview: View {
                     detail("Estimate", planEntry(for: row)?.estimateMinutes.map { "\($0)m" } ?? "Choose")
                     detail("Deadline", deadlineLabel(row.dueDate))
                     detail("Urgency", "\(row.urgency.rawValue.capitalized)")
+                    if let reason = row.latestPauseReason {
+                        detail("Last pause", reason.userFacingLabel.replacingOccurrences(of: "Paused ", with: ""))
+                    }
                 }
                 .padding(.top, 12)
                 if let entry = planEntry(for: row) {
@@ -92,9 +109,19 @@ struct TodayDashboardCommandOverview: View {
             }
             Spacer(minLength: 22)
             if let row = primaryFocusRow {
-                Button(commandLabel(for: row)) { applyPrimaryCommand(to: row) }
-                    .buttonStyle(SumiActionButtonStyle(role: .accent, size: .large))
-                    .accessibilityLabel("\(commandLabel(for: row).capitalized) \(row.title)")
+                HStack(spacing: 10) {
+                    Button(commandLabel(for: row)) { applyPrimaryCommand(to: row) }
+                        .buttonStyle(SumiActionButtonStyle(role: .accent, size: .large))
+                        .accessibilityLabel("\(commandLabel(for: row).capitalized) \(row.title)")
+                    if row.state == .active {
+                        pauseMenu(for: row)
+                    } else if row.state == .paused {
+                        Button("COMPLETE") { model.applyTaskCommand(.complete, taskID: row.taskID) }
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
+                            .accessibilityLabel("Complete paused task \(row.title)")
+                    }
+                }
+                .disabled(model.isAnyTaskCommandPending)
             }
         }
         .padding(24)
@@ -307,7 +334,13 @@ struct TodayDashboardCommandOverview: View {
 
     private var primaryFocusHeading: String {
         guard let row = primaryFocusRow else { return "MAIN OBJECTIVE" }
-        return "ACTIVE COMMITMENT · \(row.estimateMinutes) MIN"
+        if row.state == .active {
+            return "ACTIVE COMMITMENT · \(row.elapsedMinutes) MIN TRACKED"
+        }
+        if row.state == .paused, let reason = row.latestPauseReason {
+            return reason.userFacingLabel.uppercased()
+        }
+        return "ACTIVE COMMITMENT · \(row.estimateMinutes) MIN ESTIMATE"
     }
 
     private var plannedRows: [TodayTaskRow] {
@@ -364,9 +397,31 @@ struct TodayDashboardCommandOverview: View {
         switch row.state {
         case .active: model.applyTaskCommand(.complete, taskID: row.taskID)
         case .paused: model.applyTaskCommand(.resume, taskID: row.taskID)
-        case .ready: model.applyTaskCommand(.start, taskID: row.taskID)
+        case .ready:
+            if let activeTaskID = snapshot.activeTask?.taskID, activeTaskID != row.taskID {
+                pendingSwitchTask = row
+            } else {
+                model.applyTaskCommand(.start, taskID: row.taskID)
+            }
         case .blocked, .completed, .rescheduled: break
         }
+    }
+
+    private func pauseMenu(for row: TodayTaskRow) -> some View {
+        Menu {
+            Button("Take a break") { model.applyTaskCommand(.pauseForBreak, taskID: row.taskID) }
+            Button("External interruption") { model.applyTaskCommand(.pauseForExternalInterruption, taskID: row.taskID) }
+            Button("Done for now") { model.applyTaskCommand(.pauseDoneForNow, taskID: row.taskID) }
+            Button("End the workday") { model.applyTaskCommand(.pauseForEndOfDay, taskID: row.taskID) }
+            Divider()
+            Button("Task is blocked") { model.applyTaskCommand(.block, taskID: row.taskID) }
+        } label: {
+            SumiSelectorLabel("PAUSE", systemImage: "pause.fill", size: .standard)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .accessibilityLabel("Pause \(row.title)")
+        .accessibilityHint("Choose a reason. Zoid 666 preserves it in local task history.")
     }
 }
 

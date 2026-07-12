@@ -68,6 +68,48 @@ func completingActiveTaskEndsItsIntervalAndRefreshesRecommendation() throws {
 }
 
 @Test
+func agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-task-lifecycle-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "first", title: "Write the brief", dueDate: day, priority: 9),
+        ReminderSourceSnapshot(id: "second", title: "Review the draft", dueDate: day, priority: 5)
+    ])
+    let plans = try AutonomousPlanStore(databaseURL: url)
+    try plans.replaceDailyPlan(DailyPlanProposal(items: [
+        PlannedTask(taskID: "first", title: "Write the brief", rank: 1, estimateMinutes: 30, reason: "Main", score: 100),
+        PlannedTask(taskID: "second", title: "Review the draft", rank: 2, estimateMinutes: 20, reason: "Next", score: 50)
+    ], mainObjectiveTaskID: "first", plannedFocusMinutes: 50, availableFocusMinutes: 60), for: day)
+    let agent = try TodayDashboardAgent(databaseURL: url)
+
+    _ = try agent.apply(.start, taskID: "first", now: day)
+    let pausedForBreak = try agent.apply(.pauseForBreak, taskID: "first", now: day.addingTimeInterval(300))
+    #expect(pausedForBreak.taskRows.first(where: { $0.taskID == "first" })?.latestPauseReason == .break)
+    #expect(pausedForBreak.taskRows.first(where: { $0.taskID == "first" })?.elapsedMinutes == 5)
+
+    _ = try agent.apply(.resume, taskID: "first", now: day.addingTimeInterval(600))
+    let switched = try agent.apply(.start, taskID: "second", now: day.addingTimeInterval(720))
+    let firstAfterSwitch = switched.taskRows.first(where: { $0.taskID == "first" })
+    #expect(firstAfterSwitch?.state == .paused)
+    #expect(firstAfterSwitch?.latestPauseReason == .switchingTasks)
+    #expect(firstAfterSwitch?.elapsedMinutes == 7)
+    #expect(switched.activeTask?.taskID == "second")
+
+    let restarted = try TodayDashboardAgent(databaseURL: url)
+    let restored = try restarted.snapshot(now: day.addingTimeInterval(840))
+    #expect(restored.activeTask?.taskID == "second")
+    #expect(restored.taskRows.first(where: { $0.taskID == "first" })?.latestPauseReason == .switchingTasks)
+
+    _ = try restarted.apply(.pauseDoneForNow, taskID: "second", now: day.addingTimeInterval(900))
+    let completedPaused = try restarted.apply(.complete, taskID: "second", now: day.addingTimeInterval(960))
+    #expect(completedPaused.activeTask == nil)
+    #expect(completedPaused.taskRows.first(where: { $0.taskID == "second" })?.state == .completed)
+    #expect(completedPaused.taskRows.first(where: { $0.taskID == "second" })?.latestPauseReason == .doneForNow)
+}
+
+@Test
 func dashboardUsesPersistedGamingBudgetAndRewardAcrossAgentRestart() throws {
     let url = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-coach-persisted-gaming-\(UUID().uuidString).sqlite")
