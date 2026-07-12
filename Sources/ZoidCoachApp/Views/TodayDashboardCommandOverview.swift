@@ -547,7 +547,7 @@ private struct SprintCommitmentPanel: View {
                         .font(.system(size: 18, weight: .medium, design: .monospaced))
                         .foregroundStyle(Sumi.ink)
                         .monospacedDigit()
-                        .accessibilityLabel(hasEnded ? "Sprint complete" : "\(remaining / 60) minutes and \(remaining % 60) seconds remaining")
+                        .accessibilityLabel(timerAccessibilityLabel(remaining: remaining, hasEnded: hasEnded))
                 }
                 Text(statusExplanation(hasEnded: hasEnded))
                     .font(Sumi.body(10))
@@ -572,6 +572,12 @@ private struct SprintCommitmentPanel: View {
 
     private func timeLabel(_ seconds: Int) -> String {
         String(format: "%02d:%02d", seconds / 60, seconds % 60)
+    }
+
+    private func timerAccessibilityLabel(remaining: Int, hasEnded: Bool) -> String {
+        if sprint.state == .continuedOpenEnded { return "Open-ended continuation" }
+        if hasEnded { return "Sprint complete" }
+        return "\(remaining / 60) minutes and \(remaining % 60) seconds remaining"
     }
 
     private func statusTitle(hasEnded: Bool) -> String {
