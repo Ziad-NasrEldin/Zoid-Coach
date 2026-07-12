@@ -118,6 +118,16 @@ struct TodayDashboardCommandOverview: View {
                     }
                 }
                 .padding(.top, 12)
+                if row.state == .active || row.state == .paused {
+                    TaskEstimateProgressView(
+                        progress: TaskEstimateProgress(
+                            elapsedMinutes: row.elapsedMinutes,
+                            estimateMinutes: row.estimateMinutes
+                        ),
+                        identifier: "today.focus.estimate-progress"
+                    )
+                    .padding(.top, 14)
+                }
                 if let sprint = row.sprint {
                     SprintCommitmentPanel(sprint: sprint, taskID: row.taskID)
                         .padding(.top, 14)
