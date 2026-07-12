@@ -252,6 +252,12 @@ public final class OnboardingProgressStore: @unchecked Sendable {
                 throw OnboardingProgressStoreError.structuralRegression
             }
         }
+        if current.completedSteps.contains(.reminders),
+           (incoming.reminderListDecisions != current.reminderListDecisions
+               || incoming.emptyReminderListFallbackConfirmed
+               != current.emptyReminderListFallbackConfirmed) {
+            throw OnboardingProgressStoreError.structuralRegression
+        }
     }
 
     private func validateDurableEffects(
