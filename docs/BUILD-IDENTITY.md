@@ -9,6 +9,8 @@ The package contains these keys:
 - `ZoidCoachGitState`
 - `ZoidCoachBuildIdentity`
 
-`Scripts/verify-package.sh` rejects a package when any value is missing, malformed, or incoherent.
+Settings displays the short commit and state, while its accessibility label and help text expose the exact identity.
+`Scripts/verify-package.sh` rejects a package when any value is missing, malformed, incoherent, or different from an expected commit.
+Verifiers pass `--require-clean` when the package is intended to prove scenario completion.
 Scenario completion evidence must reference a clean build identity whose embedded commit equals the verified commit.
 A dirty identity is useful for diagnosis but cannot prove scenario completion.

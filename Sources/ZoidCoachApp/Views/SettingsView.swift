@@ -230,6 +230,9 @@ struct SettingsView: View {
                     label: "MODE",
                     value: operatingModeLabel(controller.draft.operatingMode).uppercased()
                 )
+                SettingsHeaderFact(label: "BUILD", value: AppBuildIdentity.current.shortLabel)
+                    .accessibilityLabel("Build identity \(AppBuildIdentity.current.identity)")
+                    .help(AppBuildIdentity.current.identity)
                 if let version = controller.activeVersion {
                     SettingsHeaderFact(label: "POLICY", value: "V\(version)")
                 }
