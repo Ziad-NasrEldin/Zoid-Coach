@@ -1,0 +1,22 @@
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test staleSettingsReminderListEditSurvivesConflictAndRetriesAgainstTheNewVersion() started.
+◇ Test calendarPickerSelectionsRoundTripWithoutExposingIdentifiersAsInput() started.
+◇ Test categoryUsageGroupsAppsAndPreservesOneHundredPercentTotal() started.
+◇ Test capturePolicyNormalizesDisplayIDsAndRoundTripsThroughRuntimeConfiguration() started.
+◇ Test gamingToWorkPolicyBoundaryPreservesEarlierGamingUsageAndLabelsBothSessions() started.
+◇ Test replayClassifiesEachBehaviorBucketWithoutTreatingGapsAsTime() started.
+◇ Test appUsagePercentagesUseObservedSessionTimeAndSortLargestFirst() started.
+... (100 more lines)
+Building for debugging...
+[0/9] Write sources
+[3/9] Write swift-version--58304C5D6DBC2206.txt
+[5/11] Emitting mod ZoidCoachCore
+[6/11] CC ZoidCoachCore UserPolicy.swift
+[6/12] Write Objects.LinkFileList
+[7/14] Linking ZoidCoachAgent
+[8/14] Applying ZoidCoachAgent
+[10/14] Emitting mod ZoidCoachApp
+[11/14] CC ZoidCoachApp AppClassificationLedger.swift
+... (9 more lines)

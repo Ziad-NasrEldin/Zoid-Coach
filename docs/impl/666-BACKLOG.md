@@ -32,7 +32,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 14 | Complete daily-plan task lifecycle | ready | Unowned after pause-and-switch batch `78ca9f9` | Start, pause, resume, complete, skip, defer, reorder, and revise all persist and reconcile with the underlying plan |
 | 15 | Complete drift detection and compassionate recovery | ready | Unowned | Real activity drift produces a timely, non-shaming recovery choice whose result changes the plan durably |
 | 16 | Complete meeting-aware planning and calendar boundaries | ready | Unowned | Calendar grant, denial, changes, overlap, cancellation, and offline states produce usable plans and repair paths |
-| 17 | Complete app-classification management in Settings | ready | Unowned | User can search, classify, bulk-edit, reset, and verify runtime use of work, gaming, communication, and automatic categories |
+| 17 | Complete app-classification management in Settings | verify | App-classification lane on `codex/app-classification-management` | User can search, classify, bulk-edit, reset, and verify runtime use of work, gaming, communication, and automatic categories |
 | 18 | Complete Settings policy mutation conflict UX | verify | Settings conflict lane at `87f326f` | Concurrent edits never silently overwrite; the user sees the winning state and can retry safely without duplicates |
 | 19 | Complete background-agent lifecycle and Login Items repair | ready | Unowned | Install, enable, approval-required, update, crash recovery, disable, and uninstall are understandable and preserve data integrity |
 | 20 | Complete privacy, export, deletion, and local-data controls | verify | Lane C at `f4085ed` | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
@@ -49,6 +49,21 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### App-classification management - `codex/app-classification-management`
+
+- Added a distinct Communication application rule that is persisted separately and explicitly counts as work at runtime.
+- Preserved schema-5 and idempotency compatibility by omitting the new optional key when no Communication rules exist and decoding older policies with an empty list.
+- Added search and All, Auto, Work, Communication, and Gaming filters with per-app editing.
+- Added confirmation-backed bulk classification for the current filtered result and confirmation-backed reset of every explicit app rule.
+- Added reviewed JSON import and atomic JSON export containing classification rules only.
+- Import rejects blank, duplicate, conflicting, oversized, symbolic-link, wrong-type, malformed, and unsupported-schema inputs before changing the Settings draft.
+- Imported, bulk-edited, and reset rules remain drafts until the existing conflict-safe Save Settings flow persists them.
+- Focused four-worker tests passed for policy compatibility, draft mutation, runtime classification, and import/export safety.
+- The serial full suite passed 476 tests after the repository-wide four-worker run exposed an existing Swift Testing parallel-runner hang and was terminated with a sampled idle stack preserved in worktree-local evidence.
+- Release and 41 Python registry/evidence gates passed.
+- Evidence is recorded in `.audit/runs/app-classification-management/candidate/REPORT.md`.
+- A fresh verifier must complete the signed-QA import, bulk edit, save, relaunch, export, and reset journey before authoritative tracker statuses advance.
 
 ### Settings policy mutation conflict UX - `87f326f`
 

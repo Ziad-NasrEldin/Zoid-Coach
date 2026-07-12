@@ -165,6 +165,16 @@ func explicitAppClassificationOverridesBuiltInRulesWithoutUsingPartialMatches() 
 }
 
 @Test
+func communicationAppRulesOverrideBuiltInGamingAndCountAsWorkAtRuntime() {
+    let classifier = BehaviorClassifier(
+        policy: BehaviorPolicy(communicationApplications: ["Discord"])
+    )
+
+    #expect(classifier.classify(application: "DISCORD") == .work)
+    #expect(classifier.classify(application: "Discord Helper") == .gaming)
+}
+
+@Test
 func gamingToWorkPolicyBoundaryPreservesEarlierGamingUsageAndLabelsBothSessions() {
     let start = Date(timeIntervalSince1970: 1_700_000_000)
     let observations = [

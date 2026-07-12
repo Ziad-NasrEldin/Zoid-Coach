@@ -1,0 +1,122 @@
+Building for debugging...
+[0/7] Write sources
+[1/7] Write swift-version--58304C5D6DBC2206.txt
+[3/7] Compiling ZoidCoachApp AppClassificationLedger.swift
+[4/7] Emitting module ZoidCoachApp
+[4/9] Write Objects.LinkFileList
+[5/9] Linking ZoidCoach
+[6/9] Applying ZoidCoach
+[8/10] Emitting module ZoidCoachAppTests
+[8/10] Write Objects.LinkFileList
+[9/10] Linking ZoidCoachPackageTests
+Build complete! (6.73s)
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test reminderListPolicyUsesStableIdentifiersAndExcludesNewListsAfterConfiguration() started.
+◇ Test reminderListDraftPersistsExplicitChoicesByIdentifier() started.
+◇ Test settingsDraftKeepsWakeDisabledByDefault() started.
+◇ Test versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() started.
+◇ Test gamingPolicyPresetsMatchTheOnboardingContractAndDefaultsToBalanced() started.
+◇ Test policyRollbackRestoresPreviousSettingsAsANewVersion() started.
+◇ Test staleSettingsReminderListEditSurvivesConflictAndRetriesAgainstTheNewVersion() started.
+◇ Test gamingAllowanceUsesOnlyClassifiedGamingTime() started.
+◇ Test gamingStatusUsesTheRecordedRewardAmountAndTruthfulFlexibleCopy() started.
+◇ Test repeatedConcurrentSettingsChangesRequireAChoiceEveryTimeWithoutDuplicateVersions() started.
+◇ Test capturePolicyNormalizesDisplayIDsAndRoundTripsThroughRuntimeConfiguration() started.
+◇ Test recommendationIsStableAndSkipsBlockedTasks() started.
+◇ Test alternateSettingsSaveRefreshesChangedReminderPolicyExactlyOnce() started.
+◇ Test automationPauseChangePreservesConfiguredReminderLists() started.
+◇ Test behaviorPolicyValidationRejectsBlankAndDuplicateApplications() started.
+◇ Test urgencyUsesDeadlineBeforeReminderPriority() started.
+◇ Test categoryUsageGroupsAppsAndPreservesOneHundredPercentTotal() started.
+◇ Test staleTelemetryReportsLimitedCoverageWithoutFakeTotals() started.
+◇ Test communicationRulesRoundTripAndRemainDistinctWhileCountingAsWork() started.
+◇ Test settingsDraftBulkEditsCommunicationRulesAndCanResetEveryExplicitRule() started.
+◇ Test settingsPermissionRecheckIgnoresAnOlderInFlightResult() started.
+◇ Test userPolicyKeepsLocalScheduleMeaningAcrossTimeZones() started.
+◇ Test classificationRulesExportRefusesSymlinkDestination() started.
+◇ Test replayClassifiesEachBehaviorBucketWithoutTreatingGapsAsTime() started.
+◇ Test userPolicyValidationReturnsEveryViolationInDeterministicOrder() started.
+◇ Test settingsDraftPersistsGlobalAppChoicesAndReturnsAppsToAutomatic() started.
+◇ Test behaviorPolicyNormalizesExactOverridesAndRejectsConflicts() started.
+◇ Test settingsDraftCannotPersistAnUnavailableAIProvider() started.
+◇ Test gamingToWorkPolicyBoundaryPreservesEarlierGamingUsageAndLabelsBothSessions() started.
+◇ Test settingsDraftPresentsPersistedUnavailableProviderAsDisabled() started.
+◇ Test classificationRulesImportRejectsSymlinksOversizedFilesAndUnknownSchemas() started.
+◇ Test classificationRulesImportRejectsConflictsBlanksAndDuplicates() started.
+◇ Test settingsDraftPersistsSelectedCodexModel() started.
+◇ Test classificationRulesExportAndImportRoundTripWithoutOtherSettings() started.
+◇ Test savedAppClassificationLoadsInANewSettingsController() started.
+◇ Test gamingPolicyValidationRejectsUnsupportedOrUnboundedValues() started.
+◇ Test settingsDraftPersistsCodexCLIWithRemoteEvidencePolicy() started.
+◇ Test communicationAppRulesOverrideBuiltInGamingAndCountAsWorkAtRuntime() started.
+◇ Test appUsagePercentagesUseObservedSessionTimeAndSortLargestFirst() started.
+◇ Test settingsDoNotAdvanceWithoutAnExactDurableMutationReceipt() started.
+◇ Test planningCapacityUsesConfiguredWorkWindowMinusFixedCommitmentsAtSeventyPercent() started.
+◇ Test versionFourPolicyKeepsLegacyAllListsBehaviorUntilExplicitlyConfigured() started.
+◇ Test oneStepPausePersistsImmediatelyWithoutSavingOtherDraftEdits() started.
+◇ Test settingsExposeTypedReminderPermissionAndExplicitEmptyLocalOnlyChoice() started.
+◇ Test settingsConflictResolverPreservesIndependentEditsAndCurrentWinners() started.
+◇ Test codexCLIAllowsAnExplicitRemoteEvidencePolicy() started.
+◇ Test behaviorPolicyNormalizesPersistedApplicationNamesWhileDecoding() started.
+◇ Test calendarPickerSelectionsRoundTripWithoutExposingIdentifiersAsInput() started.
+◇ Test reminderListFilteringPreservesOpaqueIDsAndExcludesUnknownListsAfterConfiguration() started.
+◇ Test staleSettingsWindowCannotOverwriteANewerPolicyVersion() started.
+◇ Test gamingStatusAppliesPriorityRewardOnlyWhenRecorded() started.
+◇ Test settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() started.
+◇ Test explicitAppClassificationOverridesBuiltInRulesWithoutUsingPartialMatches() started.
+✔ Test gamingStatusUsesTheRecordedRewardAmountAndTruthfulFlexibleCopy() passed after 0.002 seconds.
+✔ Test gamingAllowanceUsesOnlyClassifiedGamingTime() passed after 0.002 seconds.
+✔ Test reminderListDraftPersistsExplicitChoicesByIdentifier() passed after 0.002 seconds.
+✔ Test automationPauseChangePreservesConfiguredReminderLists() passed after 0.002 seconds.
+✔ Test capturePolicyNormalizesDisplayIDsAndRoundTripsThroughRuntimeConfiguration() passed after 0.002 seconds.
+✔ Test settingsDraftKeepsWakeDisabledByDefault() passed after 0.002 seconds.
+✔ Test settingsDraftBulkEditsCommunicationRulesAndCanResetEveryExplicitRule() passed after 0.002 seconds.
+✔ Test gamingPolicyPresetsMatchTheOnboardingContractAndDefaultsToBalanced() passed after 0.002 seconds.
+✔ Test categoryUsageGroupsAppsAndPreservesOneHundredPercentTotal() passed after 0.002 seconds.
+✔ Test settingsDraftPersistsGlobalAppChoicesAndReturnsAppsToAutomatic() passed after 0.002 seconds.
+✔ Test userPolicyValidationReturnsEveryViolationInDeterministicOrder() passed after 0.002 seconds.
+✔ Test communicationRulesRoundTripAndRemainDistinctWhileCountingAsWork() passed after 0.002 seconds.
+✔ Test urgencyUsesDeadlineBeforeReminderPriority() passed after 0.002 seconds.
+✔ Test behaviorPolicyNormalizesExactOverridesAndRejectsConflicts() passed after 0.002 seconds.
+✔ Test settingsDraftCannotPersistAnUnavailableAIProvider() passed after 0.002 seconds.
+✔ Test userPolicyKeepsLocalScheduleMeaningAcrossTimeZones() passed after 0.002 seconds.
+✔ Test staleTelemetryReportsLimitedCoverageWithoutFakeTotals() passed after 0.002 seconds.
+✔ Test behaviorPolicyValidationRejectsBlankAndDuplicateApplications() passed after 0.002 seconds.
+✔ Test reminderListPolicyUsesStableIdentifiersAndExcludesNewListsAfterConfiguration() passed after 0.003 seconds.
+✔ Test settingsDraftPresentsPersistedUnavailableProviderAsDisabled() passed after 0.002 seconds.
+✔ Test settingsDraftPersistsSelectedCodexModel() passed after 0.002 seconds.
+✔ Test gamingPolicyValidationRejectsUnsupportedOrUnboundedValues() passed after 0.002 seconds.
+✔ Test appUsagePercentagesUseObservedSessionTimeAndSortLargestFirst() passed after 0.002 seconds.
+✔ Test settingsDraftPersistsCodexCLIWithRemoteEvidencePolicy() passed after 0.002 seconds.
+✔ Test communicationAppRulesOverrideBuiltInGamingAndCountAsWorkAtRuntime() passed after 0.002 seconds.
+✔ Test codexCLIAllowsAnExplicitRemoteEvidencePolicy() passed after 0.002 seconds.
+✔ Test planningCapacityUsesConfiguredWorkWindowMinusFixedCommitmentsAtSeventyPercent() passed after 0.002 seconds.
+✔ Test behaviorPolicyNormalizesPersistedApplicationNamesWhileDecoding() passed after 0.002 seconds.
+✔ Test versionFourPolicyKeepsLegacyAllListsBehaviorUntilExplicitlyConfigured() passed after 0.002 seconds.
+✔ Test settingsConflictResolverPreservesIndependentEditsAndCurrentWinners() passed after 0.002 seconds.
+✔ Test calendarPickerSelectionsRoundTripWithoutExposingIdentifiersAsInput() passed after 0.002 seconds.
+✔ Test versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() passed after 0.003 seconds.
+✔ Test reminderListFilteringPreservesOpaqueIDsAndExcludesUnknownListsAfterConfiguration() passed after 0.002 seconds.
+✔ Test settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() passed after 0.002 seconds.
+✔ Test explicitAppClassificationOverridesBuiltInRulesWithoutUsingPartialMatches() passed after 0.002 seconds.
+✔ Test gamingStatusAppliesPriorityRewardOnlyWhenRecorded() passed after 0.002 seconds.
+✔ Test classificationRulesImportRejectsSymlinksOversizedFilesAndUnknownSchemas() passed after 0.005 seconds.
+✔ Test classificationRulesExportRefusesSymlinkDestination() passed after 0.005 seconds.
+✔ Test recommendationIsStableAndSkipsBlockedTasks() passed after 0.006 seconds.
+✔ Test gamingToWorkPolicyBoundaryPreservesEarlierGamingUsageAndLabelsBothSessions() passed after 0.006 seconds.
+✔ Test replayClassifiesEachBehaviorBucketWithoutTreatingGapsAsTime() passed after 0.006 seconds.
+✔ Test classificationRulesExportAndImportRoundTripWithoutOtherSettings() passed after 0.007 seconds.
+✔ Test classificationRulesImportRejectsConflictsBlanksAndDuplicates() passed after 0.007 seconds.
+✔ Test settingsExposeTypedReminderPermissionAndExplicitEmptyLocalOnlyChoice() passed after 0.175 seconds.
+✔ Test settingsDoNotAdvanceWithoutAnExactDurableMutationReceipt() passed after 0.193 seconds.
+✔ Test alternateSettingsSaveRefreshesChangedReminderPolicyExactlyOnce() passed after 0.199 seconds.
+✔ Test savedAppClassificationLoadsInANewSettingsController() passed after 0.202 seconds.
+✔ Test policyRollbackRestoresPreviousSettingsAsANewVersion() passed after 0.205 seconds.
+✔ Test oneStepPausePersistsImmediatelyWithoutSavingOtherDraftEdits() passed after 0.207 seconds.
+✔ Test settingsPermissionRecheckIgnoresAnOlderInFlightResult() passed after 0.207 seconds.
+✔ Test staleSettingsWindowCannotOverwriteANewerPolicyVersion() passed after 0.225 seconds.
+✔ Test staleSettingsReminderListEditSurvivesConflictAndRetriesAgainstTheNewVersion() passed after 0.230 seconds.
+✔ Test repeatedConcurrentSettingsChangesRequireAChoiceEveryTimeWithoutDuplicateVersions() passed after 0.240 seconds.
+✔ Test run with 53 tests in 0 suites passed after 0.241 seconds.

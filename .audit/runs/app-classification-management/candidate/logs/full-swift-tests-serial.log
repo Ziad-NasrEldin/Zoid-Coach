@@ -1,0 +1,977 @@
+Building for debugging...
+[0/6] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.09s)
+Test Suite 'All tests' started at 2026-07-12 20:44:57.008.
+Test Suite 'All tests' passed at 2026-07-12 20:44:57.009.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test localDiagnosticsListOnlyRecentProviderFailuresWithoutPrivateContent() started.
+◇ Test settingsExposeTypedReminderPermissionAndExplicitEmptyLocalOnlyChoice() started.
+◇ Test calendarReconciliationUpdatesAnOwnedBlockToTheDesiredState() started.
+◇ Test staleAndConflictingPolicyMutationsDoNotTripTheDatabaseBreaker() started.
+◇ Test recommendationIsStableAndSkipsBlockedTasks() started.
+◇ Test reminderMetadataCommandReplacesOnlyZoidOwnedMetadata() started.
+◇ Test switchingTasksRecordsReasonAndPreservesEarlierElapsedTime() started.
+◇ Test communicationAppRulesOverrideBuiltInGamingAndCountAsWorkAtRuntime() started.
+◇ Test plannerTrustGateDoesNotCountEmptyPlans() started.
+◇ Test whatsappOCRPersistsEncryptedPositionedEvidenceAndLinksTheCandidate() started.
+◇ Test lateInspectionCannotOverwriteANewerExplicitDecision() started.
+◇ Test unbundledOrMismatchedQAIdentityCannotEnableFixtures() started.
+◇ Test settingsDraftPersistsGlobalAppChoicesAndReturnsAppsToAutomatic() started.
+◇ Test settingsDraftKeepsWakeDisabledByDefault() started.
+◇ Test grantedRemindersRequireDurableExplicitListChoicesBeforeAdvancing() started.
+◇ Test hypothesisDecisionAndConfirmationAreDurableAndCorrectionReopensReview() started.
+◇ Test eventStoreReplaysImmutableSourceCheckSequence() started.
+◇ Test schedulerPlacesTheFirstCommitmentInsideTheLearnedPreferredWindow() started.
+◇ Test databaseBreakerTripsWhenExternalEffectSucceedsButOutboxFinalizationFails() started.
+◇ Test versionFourPolicyKeepsLegacyAllListsBehaviorUntilExplicitlyConfigured() started.
+◇ Test osFixtureAdapterHasNoProductionFrameworkOrAdapterDependency() started.
+◇ Test policyStoreVersionsChangesAndRollsBackTheActivePolicy() started.
+◇ Test alternateSettingsSaveRefreshesChangedReminderPolicyExactlyOnce() started.
+◇ Test reminderSnapshotStoreMakesForegroundReminderDataAvailableToTheBackgroundAgent() started.
+◇ Test osFixtureRecoveryResumesAfterQuarantineInterruption() started.
+◇ Test reminderPriorityCommandUpdatesPriorityAndOwnedMetadataMarker() started.
+◇ Test versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() started.
+◇ Test screenwatchSetupUsesAndPersistsAnAlternateDaysFolder() started.
+◇ Test oneStepPausePersistsImmediatelyWithoutSavingOtherDraftEdits() started.
+◇ Test onboardingCanNavigateBackButCannotSkipAhead() started.
+◇ Test canonicalScreenwatchStaleOrInvalidBookmarkNeverFallsBackToDefault() started.
+◇ Test schedulerPlacesWorkOnlyInsideFreeIntervalsAndLeavesTransitionTime() started.
+◇ Test versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() started.
+◇ Suite XPCSigningIdentityTests started.
+◇ Test meetingPolicyRoutesOverlapAsConflictAndLowConfidenceWithoutInterruption() started.
+◇ Test onboardingStoreRejectsIntermediateAndFinalDirectorySymlinks() started.
+◇ Test externalReminderSynchronizationPrevalidatesDuplicateIDsAndAllSourceCollisionsBeforeWriting() started.
+◇ Test privacyDataServiceExportsOnlyRedactedCountsAndDeletesConversationText() started.
+◇ Test settingsDraftPresentsPersistedUnavailableProviderAsDisabled() started.
+◇ Test screenwatchSetupExposesRepairWhenBookmarkResolutionFails() started.
+◇ Test agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() started.
+◇ Test leavingAutomaticModeCancelsOnlyUnapprovedPlanWrites() started.
+◇ Test onboardingRecoveryResumesAfterReplacementPersistedInterruption() started.
+◇ Test estimateSamplesAreImmutableAndSparseEvidenceDoesNotCreateAnAggregate() started.
+◇ Test versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() started.
+◇ Test privacyDateDeletionRemovesCanonicalAndProjectedPlansForTheInclusiveLocalDay() started.
+◇ Test screenwatchMaintenanceAppliesIndependentBehaviorSessionPromptAndReviewRetention() started.
+◇ Test osFixtureSerializesConcurrentMutationsWithUniquePersistentIDs() started.
+◇ Test fixtureChildProcessMutationWorker() started.
+◇ Suite AgentLivenessPolicyTests started.
+◇ Test appModelPropagatesQARuntimeToBackgroundAgentControl() started.
+◇ Test signedQABoundaryAllowsOnlyFixtureBackedOperations() started.
+◇ Test productionProviderSummaryExplainsCodexRemoteTransmission() started.
+◇ Test appRefreshUsesExactReminderListPolicyAndExcludesUnknownLists() started.
+◇ Test canonicalScreenwatchBookmarkFinalSymlinkIsRejectedWithoutReadingTarget() started.
+◇ Test onboardingFirstPlanUsesDurableLocalFallbackWhenRemindersAreUnavailable() started.
+◇ Test reminderListPolicyUsesStableIdentifiersAndExcludesNewListsAfterConfiguration() started.
+◇ Test preferredWorkWindowUsesLocalMedianAndCarriesPolicyAndRollbackValues() started.
+◇ Test descriptorDirectoryCreationSyncsEachParentImmediatelyAfterMkdir() started.
+◇ Test onboardingTestPromptIsCanonicalIdempotentAndDurablyResolved() started.
+◇ Test agentSnapshotCarriesRequiredDashboardFieldsAndCommandsRefreshIt() started.
+◇ Test onboardingMatchingRevisionCannotRegressCompletedPrefix() started.
+◇ Test osFixtureWaitsForChildProcessAdvisoryLock() started.
+◇ Test screenwatchSetupKeepsQABookmarksInsideEachRunAndOutOfProductionDefaults() started.
+◇ Test onboardingDelayedStaleSavesCannotRegressProgressDecisionsOrCompletion() started.
+◇ Test confirmedMeetingUsesFingerprintLookupForExactOnceRecovery() started.
+◇ Test privacyPolicyDefaultsLegacyPoliciesToGPT56Terra() started.
+◇ Test calendarUpdateMutatesOnlyTheBlockWithTheCommandsOwnershipToken() started.
+◇ Test descriptorRootCreationRetriesWithParentSyncAfterFailOnceFsync() started.
+◇ Test historicalShadowAuditReportsEvidenceGapsWithoutFabricatingTrustCycles() started.
+◇ Test osFixturesRefuseIntermediateFixturesSymlinkBeforeInitialization() started.
+◇ Test localEvidenceCipherRoundTripsAndRejectsTampering() started.
+◇ Test promptInboxSerializesConcurrentResponseDelivery() started.
+◇ Test onboardingResetWaitsForAnInFlightSaveAndWinsWhenRequestedAfterIt() started.
+◇ Test screenwatchSetupRejectsAStaleBookmarkWithoutFallingBack() started.
+◇ Test realtimeAudioMessageUsesSixteenKilohertzPCM() started.
+◇ Test osFixtureRejectsCoherentlyTamperedStableProviderID() started.
+◇ Suite QAAgentRegistrationLifecycleTests started.
+◇ Test qaAppModelUsesRuntimeMeetingEvidenceCipherWithoutConsultingProductionFactory() started.
+◇ Test classificationRulesImportRejectsConflictsBlanksAndDuplicates() started.
+◇ Test plannerKeepsTheDailyCommitmentSetWithinCapacityAndMakesTheUrgentTaskMain() started.
+◇ Test reminderDueDateCommandCanSetAndClearDueDateDeterministically() started.
+◇ Test outboxDeduplicatesEquivalentDesiredActions() started.
+◇ Test staleReminderListDiscoveryCannotOverwriteTheLatestRetry() started.
+◇ Test migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() started.
+◇ Test osFixtureRejectsInvalidCalendarRangeSeed() started.
+◇ Test newVersionFourMutationIsRejectedAfterSchemaFive() started.
+◇ Test appUsagePopupDoesNotDismissDuringPanelOrSelectorInteraction() started.
+◇ Test concurrentAppAgentMutationsAndControlIngestionLoseNoState() started.
+◇ Test newLocalMonthResetsVoiceSpendBeforeRecordingNewUsage() started.
+◇ Test observeModeRecordsWouldDoCommandsWithoutClaimingExternalWrites() started.
+◇ Test codexCLIAdvisorCanSendExplicitPrivateContentWithoutLeakingInternalIDs() started.
+◇ Test completingPausedTaskRetainsTimeAndEndsItsPauseEpisode() started.
+◇ Test fixtureNotificationActionMatrixMatchesEveryLiveCategoryAction() started.
+◇ Test externalVoiceToolCreatesApprovalWithoutExecuting() started.
+◇ Test qaRuntimeEnvironmentRejectsAnyPathOutsideRunRoot() started.
+◇ Test osFixtureRecoveryResumesFromReplacementWrittenPhaseWithoutDuplicateAudit() started.
+◇ Test geminiServerMessageDecodesAudioToolCallsUsageAndLifecycleSignals() started.
+◇ Test classificationRulesExportRefusesSymlinkDestination() started.
+◇ Test appSurfacesSignedQAFixtureStartupFailure() started.
+◇ Test qaRuntimeRejectsRootsInsideOrAliasedToTheProductionLibrary() started.
+◇ Test screenwatchSetupFindsAHealthyDefaultStreamWithoutExposingContent() started.
+◇ Test latePermissionResultCannotOverwriteExplicitDeferral() started.
+◇ Test inclusivePrivacyDeletionRangeRejectsReversedDates() started.
+◇ Test transientAttentionUsesTypedUnavailableDecisionRatherThanDenial() started.
+◇ Test interruptedCalendarCreationRecoversTheExistingOwnedBlockWithoutDuplicatingIt() started.
+◇ Test screenwatchSetupReportsAMissingDefaultAsExplicitDegradedMode() started.
+◇ Test inFlightDeliveryBlocksNavigationAndOtherStepMutations() started.
+◇ Test freshOnboardingPersistsEachStepAndResumesAfterRestart() started.
+◇ Test onboardingFirstPlanAllExcludedRemovesImportedRowsButPreservesLocalRows() started.
+◇ Test sanitizedWhatsAppFixtureMatrixCoversEveryRequiredPresentationVariant() started.
+◇ Test taskHistoryStoreCountsPostponementsForFuturePlanning() started.
+◇ Test osFixtureRejectsNotificationWithProviderProvenance() started.
+◇ Test localFallbackParsesOnlyTheBoundedChiefOfStaffGrammar() started.
+◇ Test onboardingPersistsEveryAccessDecisionAcrossAStoreRestart() started.
+◇ Test osFixturesRepresentEveryPermissionStateAndAuditRefusals() started.
+◇ Test controlRequestResumesAfterAProcessingFailure() started.
+◇ Test explicitAppClassificationOverridesBuiltInRulesWithoutUsingPartialMatches() started.
+◇ Test onboardingFailedAtomicWritePreservesTheLastCommittedProgress() started.
+◇ Test fixtureCalendarRefusesMutationOfExternalCommitment() started.
+◇ Test osFixtureCoordinatesTwoInstancesWithoutLostActionsOrReusedIDs() started.
+◇ Test atomicPlanInstallRetainsAUsableVisiblePlanWithoutDuplicateIntentOrRevision() started.
+◇ Test settingsDraftCannotPersistAnUnavailableAIProvider() started.
+◇ Test processCodexRunnerPrependsTheExecutableDirectoryForLaunchd() started.
+◇ Test productionRuntimeConsumersKeepExistingPathsAndIdentities() started.
+◇ Test privacyDateDeletionNeverDeletesScreenwatchOwnedSourceFiles() started.
+◇ Suite AgentLaunchServiceTests started.
+◇ Test durablePolicyReceiptReplaysAfterProgressSaveFailure() started.
+◇ Test existingUnreadablePolicyDatabaseStillFailsOnboardingClosed() started.
+◇ Test unconfirmedConversationFactsCannotAuthorizeActions() started.
+◇ Test screenwatchDecoderPreservesTheObservationNeededForLaterEvidenceAnalysis() started.
+◇ Test versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() started.
+◇ Test missedNightlyRunUsesLocalDSTSemanticsAndExecutesOnlyOnceAfterWake() started.
+◇ Test signedQAFixtureFlowsFromSeedThroughAppAgentMutationAndAppRefresh() started.
+◇ Test zeroRewardPolicyDoesNotWriteARewardLedgerEntry() started.
+◇ Test packagedQADirectExecutableUsesEmbeddedRootWhenEnvironmentIsStripped() started.
+◇ Test executingCommandsRemainVisibleForCrashReconciliation() started.
+◇ Test voiceBudgetReachesTheTwentyDollarCapAtThePublishedDailyBaseline() started.
+◇ Test eventStorePersistsReminderListOrder() started.
+◇ Test retryableActionResumesOnceAndRetainsAttemptHistory() started.
+◇ Test runtimeParsingReportsMissingValues() started.
+◇ Test separateQARunsUseDifferentPreferencesAndKeychainIdentities() started.
+◇ Test onboardingStoreRequiresADurableEffectWhenCompletingAPolicyStep() started.
+◇ Suite RuntimeSafetyAndCapturePolicyTests started.
+◇ Test onboardingStoreRejectsCorruptProgressWithoutOverwritingIt() started.
+◇ Test atomicPlanInstallRepairsAPartiallyOrphanedPlanAndSupersedesItsPendingScheduleIntent() started.
+◇ Test geminiSetupEnablesAudioToolsCompressionAndSessionResumptionWithoutEmbeddingTheAPIKey() started.
+◇ Test fixtureErrorsExposeActionableLocalizedDescriptions() started.
+◇ Test policyMutationUsesExpectedVersionAndReplaysTheWinningRequest() started.
+◇ Test staleSettingsWindowCannotOverwriteANewerPolicyVersion() started.
+◇ Test productionAIProviderCapabilitiesDoNotOfferUnimplementedProviders() started.
+◇ Test osFixtureWriteFailureDoesNotPublishPartialMutation() started.
+◇ Test policyMutationRejectsMalformedAndUnboundRequestsWithoutWriting() started.
+◇ Test externalReminderSynchronizationRejectsLocalTasksAndSourceIdentifierCollisions() started.
+◇ Test onboardingCorruptionRecoveryQuarantinesExactBytesAndPersistsAReplacement() started.
+◇ Test osFixtureDeleteOfAbsentOwnedBlockIsIdempotent() started.
+◇ Test targetedPrivacyDeletionSeparatesBehaviorAIAndLearningRecords() started.
+◇ Test onboardingTestPromptFallsBackToTodayWhenNotificationsAreDenied() started.
+◇ Test savedAppClassificationLoadsInANewSettingsController() started.
+◇ Test undeclaredAndArbitraryShellToolsAreDenied() started.
+◇ Test voiceActionPolicyAllowsReversibleToolsButConfirmsExternalEffects() started.
+◇ Test supersedingEnqueueAtomicallyCancelsAnOlderRetryableCommand() started.
+◇ Test canonicalScreenwatchFingerprintTracksOpenedDirectoryIdentityNotPath() started.
+◇ Test qaRuntimeRejectsAnExistingParentSymlinkEscape() started.
+◇ Test osFixtureDescriptorRemainsContainedAfterParentReplacement() started.
+◇ Test localDiagnosticsExposeDatabaseAndRulesOnlyAIState() started.
+◇ Test onboardingRecoveryResumesAfterPreparedInterruption() started.
+◇ Test urgencyUsesDeadlineBeforeReminderPriority() started.
+◇ Test splitCorrectionChangesOnlyTheSecondHalfOfASession() started.
+◇ Test voicePersistenceRetainsDurableFactsAndPrunesExpiredTranscripts() started.
+◇ Test qaRuntimeRejectsTheProductionUserDefaultsIdentity() started.
+◇ Test fixedClockAlwaysReturnsTheConfiguredInstant() started.
+◇ Test osFixturesPersistReminderMutationsAcrossRestartAndReset() started.
+◇ Test acceptingAPlanDurablyQueuesItsApprovalScheduleRequest() started.
+◇ Test everyControlOperationIsIdempotentByRequestID() started.
+◇ Test initialSourcesRepresentAllRequiredIntegrations() started.
+◇ Test meetingPolicySuppressesLikelyDuplicateBeforeConflictRouting() started.
+◇ Test allTwelveStepsFinishAndRouteToToday() started.
+◇ Test estimateLearningPersistsEvidencePolicyConfidenceAndRollbackAcrossReopen() started.
+◇ Test meetingExtractorResolvesAnExplicitWeekdayAndTimeAsAConfirmableCandidate() started.
+◇ Test preferredWorkWindowPersistsTimezoneEvidenceAndRollback() started.
+◇ Test appBuildIdentityExposesStampedCommitAndState() started.
+◇ Test fixtureBuilderRefusesPreexistingSymlinkEscape() started.
+◇ Test screenwatchSetupRejectsMalformedSchemaWithPrivacySafeDiagnostics() started.
+◇ Test delayedScreenwatchIngestionFreezesThePolicyEffectiveAtEachObservation() started.
+◇ Test failedDeliveryCannotCompleteTheDeliveryStep() started.
+◇ Test meetingExtractorRecognizesArabicTomorrowTimeAndDuration() started.
+◇ Test osFixtureRejectsInvalidPersistedAuditAndCounterState() started.
+◇ Test settingsSaveImmediatelyRemovesExcludedReminderFromCurrentAppSession() started.
+◇ Test osFixturesDeliverAndRespondToNotificationsEndToEnd() started.
+◇ Test replayIsDeterministicAndExercisesEverySimulatedSourceWithoutLiveAccess() started.
+◇ Test onboardingStoreRequiresADurableEffectForGrantedRemindersButNotDegradedAccess() started.
+◇ Test repeatedConcurrentSettingsChangesRequireAChoiceEveryTimeWithoutDuplicateVersions() started.
+◇ Test codexCLIAdvisorRefusesLocalOnlyEvidenceWithoutLaunchingCodex() started.
+◇ Test versionFourMutationReceiptReplaysAfterSchemaFiveWithoutRewritingPolicy() started.
+◇ Test signedQACompositionAcceptsOnlyThePlatformTmpAlias() started.
+◇ Test duplicateQAListIdentifiersReturnTypedValidationErrorWithoutCrashing() started.
+◇ Test osFixtureRejectsResponseBeforeDeliverySeed() started.
+◇ Test unbundledQAInjectionRemainsExplicitAndPackageModeCannotBeSpoofed() started.
+◇ Test policyStoreResolvesTheClassificationPolicyActiveAtAnObservationTime() started.
+◇ Test behaviorPolicyNormalizesExactOverridesAndRejectsConflicts() started.
+◇ Test calendarPickerSelectionsRoundTripWithoutExposingIdentifiersAsInput() started.
+◇ Test onboardingConcurrentStoreInstancesAlwaysLeaveAValidWholeState() started.
+◇ Test canonicalScreenwatchDescriptorRejectsLogSwappedToSymlink() started.
+◇ Test notificationControlRejectsUnknownAndForeignNamespacedActionsBeforeMutation() started.
+◇ Test inclusivePrivacyDeletionRangeIncludesTheWholeThroughDayAcrossDST() started.
+◇ Test screenwatchMaintenanceEnforcesIndependentRetentionAndAuditsTheRun() started.
+◇ Test policyRollbackRestoresPreviousSettingsAsANewVersion() started.
+◇ Test taskHistoryStoreSummarizesTheCompletedAndPostponedDay() started.
+◇ Test emptyReminderListDiscoveryRequiresExplicitLocalFallbackConfirmation() started.
+◇ Test correctionAndTaskAttachmentPersistAndRecalculateTotalsAfterRestart() started.
+◇ Test screenwatchSetupDefaultsToThirtySecondsAndAllowsAConfiguredStaleThreshold() started.
+◇ Test dashboardUsesBalancedGamingDefaultsWhenNoPolicyHasBeenSaved() started.
+◇ Test codexCLIAllowsAnExplicitRemoteEvidencePolicy() started.
+◇ Test automationPauseChangePreservesConfiguredReminderLists() started.
+◇ Test gamingStatusAppliesPriorityRewardOnlyWhenRecorded() started.
+◇ Test onboardingVersionOneSequenceIsExplicitAndComplete() started.
+◇ Test meetingExtractorKeepsAMeridiemFreeTimeAsAnEditableDraft() started.
+◇ Test onboardingLatestRevisionCanCorrectAMigratedCompletedAccessDecision() started.
+◇ Test behaviorPolicyNormalizesPersistedApplicationNamesWhileDecoding() started.
+◇ Test osFixtureRejectsRegressedCalendarCounterAtLoad() started.
+◇ Test autonomousPlanStoreCanRestoreThePreviousRevisionAfterAReplan() started.
+◇ Test qaAgentRejectsEveryProductionOSAdapterOperation() started.
+◇ Test packagedQATemporaryAliasCanonicalizesToPrivateTmp() started.
+◇ Test osFixturesRefuseSymlinkEscapeBeforeWriting() started.
+◇ Test osFixturesPreserveOwnedBlocksAndRefuseExternalCalendarMutation() started.
+◇ Test onboardingFirstPlanUsesOnlyTodayEligibleRemindersAndCapsTheDefaultAtThree() started.
+◇ Test appSurfacesExactMalformedControlRecoveryCopy() started.
+◇ Test deniedAndDeferredSourcesRemainExplicitAndDoNotBlockSetup() started.
+◇ Test promptResponseIsAppliedExactlyOnceAcrossRepeatedSurfaceDelivery() started.
+◇ Test alternateScreenwatchFolderCanCompleteTheSourceStep() started.
+◇ Test historicalScreenwatchCheckpointsAreScopedToOpenedSourceIdentity() started.
+◇ Test userCanInspectAndDeleteExactlyOneDerivedBehaviorSession() started.
+◇ Test fixtureBuilderRejectsQARootThatContainsProtectedStorage() started.
+◇ Test promptNotificationContractMapsRequiredCategoriesAndActions() started.
+◇ Test settingsDraftPersistsCodexCLIWithRemoteEvidencePolicy() started.
+◇ Test qaRuntimeConsumersUseOnlyRunSpecificSuitesServicesAndPaths() started.
+◇ Test agentSchedulerConstrainsBlocksByFixedCalendarAndEnqueuesReminderMutations() started.
+◇ Test gamingPolicyMutationRoundTripsThroughTheAgentCommandBoundary() started.
+◇ Test onboardingPromptNotificationAcceptsOnlyItsHarmlessActions() started.
+◇ Test qaVoiceUsesDedicatedDashboardIdentityWhileOSControlsFailClosed() started.
+◇ Test policyMutationRejectsAReusedRequestIDWithDifferentPayload() started.
+◇ Test trippedDatabaseBreakerStopsExternalActionsBeforeClaimingOutboxWork() started.
+◇ Test userPolicyKeepsLocalScheduleMeaningAcrossTimeZones() started.
+◇ Test sparseWorkEvidenceDoesNotInventAPreferredWindow() started.
+◇ Test recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() started.
+◇ Test packagedRuntimeMarkerRejectsInfoAndLaunchEnvironmentMismatch() started.
+◇ Test fixtureServicesExposeDeniedAndDeferredPermissionStates() started.
+◇ Test startingAnotherTaskAtomicallyPausesTheExistingTask() started.
+◇ Test onboardingFirstPlanPersistsRealReminderTasksAndReturnsExactlyWhatTodayCanRender() started.
+◇ Test screenwatchSetupRejectsASymlinkedDayDirectoryBelowAnAlternateFolder() started.
+◇ Test screenContextSelectsNewestDistinctFramesAndSuppressesPerceptualDuplicates() started.
+◇ Test gamingBoundaryMustPersistBeforeTheStepCompletes() started.
+◇ Test fixtureWorkspacePreparationIsRepeatableAndRemovesStaleState() started.
+◇ Test operatingModeMigratesLegacyPolicyValuesAndPersistsTheFourRolloutModes() started.
+◇ Test explicitRedactedExportUsesChosenJSONDestinationAndStillExcludesSecrets() started.
+◇ Test injectedDirectoriesCannotReplaceRealProductionScreenwatchProtection() started.
+◇ Test childProcessAppAgentMutationsContendWithControlIngestion() started.
+◇ Test gamingRewardLedgerAppliesOnlyOncePerDayAndPolicy() started.
+◇ Test inFlightBudgetReservationSurvivesCrashAndSettlesToActualUsage() started.
+◇ Test qaRuntimeEnvironmentDerivesEveryWritableLocationFromRunRoot() started.
+◇ Test fixtureBuilderRefusesProductionEnvironmentBeforeWriting() started.
+◇ Test productionRuntimeEnvironmentPreservesExistingDefaults() started.
+◇ Test promptInboxKeepsOnlyOneUnresolvedEpisodePerDecision() started.
+◇ Test screenwatchSetupRejectsASymlinkedLogBelowAnAlternateFolder() started.
+◇ Test gamingAllowanceUsesOnlyClassifiedGamingTime() started.
+◇ Test osFixturesRefuseStateFileSymlinkEscapeBeforeReading() started.
+◇ Test malformedOrPartialBuildIdentityFailsClosed(infoDictionary:) started.
+◇ Test descriptorDirectoryCreationSurfacesInjectedMkdirFailureWithoutCheckpoint() started.
+◇ Test onboardingRecoveryResumesAfterQuarantineWithoutLosingCorruptBytes() started.
+◇ Test versionTwentySevenRebrandsPersistedPromptSummaries() started.
+◇ Test meetingCandidateCardDoesNotRenderRawConversationEvidence() started.
+◇ Test remoteStructuredProviderRequiresExplicitAuthorizationWhileLoopbackDoesNot() started.
+◇ Test staleTelemetryReportsLimitedCoverageWithoutFakeTotals() started.
+◇ Test screenwatchReaderReportsMissingDailyStream() started.
+◇ Test canonicalScreenwatchLeaseRetainsSecurityScopeUntilRelease() started.
+✔ Test calendarReconciliationUpdatesAnOwnedBlockToTheDesiredState() passed after 0.097 seconds.
+◇ Test replayClassifiesEachBehaviorBucketWithoutTreatingGapsAsTime() started.
+◇ Test legacyOnboardingWithoutEffectReceiptsStillDecodes() started.
+◇ Test cancellingCodexJobPersistsCancelledState() started.
+◇ Test reminderListDraftPersistsExplicitChoicesByIdentifier() started.
+◇ Test appRefreshRetainsAnIncompleteLocalStarterPlanWhenExternalReminderListsAreFiltered() started.
+◇ Test runtimeEnvironmentRejectsRealProductionRootBeforeFixtureConstruction() started.
+◇ Test classificationRulesExportAndImportRoundTripWithoutOtherSettings() started.
+◇ Test qaRuntimeRejectsPreferenceAndKeychainIdentityOverrides() started.
+◇ Test onboardingFirstPlanFailsHonestlyWhenEligibleWorkExceedsConfiguredCapacity() started.
+◇ Test onboardingStoreRejectsTheFinalStateFileSymlink() started.
+◇ Test screenwatchArchiveAdvancesThroughLargeLogsInBoundedChunks() started.
+◇ Test pausedTaskRestoresElapsedTimeWithoutDoubleCounting() started.
+◇ Test meetingPolicyRequiresTimeProximityAndTitleOrParticipantEvidenceForDuplicate() started.
+◇ Test onboardingMigratesLegacyVersionOneAccessDecisionsAtEveryProgressPoint() started.
+◇ Test onboardingFirstPlanUsesTheExactConfiguredReminderListIDs() started.
+◇ Test codexCLIAdvisorSurfacesCommandFailureForRulesFallback() started.
+◇ Test controlRequestDoesNotReplayAfterCrashFollowingSnapshotPersistence() started.
+◇ Test behaviorPolicyValidationRejectsBlankAndDuplicateApplications() started.
+◇ Test fixtureBuilderRejectsPathTraversal() started.
+◇ Test fixtureBuilderRefusesAdditionalProtectedRoot() started.
+◇ Test onboardingMatchingRevisionCannotReplaceFinishedStateWithWelcome() started.
+◇ Test gamingToWorkPolicyBoundaryPreservesEarlierGamingUsageAndLabelsBothSessions() started.
+◇ Test dailyReviewGroupsCoveredActivityWithoutExposingPrivateFields() started.
+◇ Test plannerTrustGateRequiresSevenDistinctCapacitySafeShadowDays() started.
+◇ Test cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() started.
+◇ Test localFallbackTaskIsIdempotentAndSurvivesExternalReminderSynchronization() started.
+◇ Test meetingExtractorSanitizedFixtureSetHasFullRecallWithoutObviousFalsePositives() started.
+◇ Test twoWindowsWithDifferentDraftsCannotOverwriteTheWinner() started.
+◇ Test onboardingProductionAndQAStoresUseTheirIsolatedRuntimePaths() started.
+◇ Test downstreamCodeCannotForgeFixtureAuthorization() started.
+◇ Test onboardingPersistsPermissionDenialAndDegradedContinuationDecisions() started.
+◇ Test onboardingFirstPlanRepairsAnOrphanInsteadOfClaimingItIsPrepared() started.
+◇ Test declaredReversibleVoiceToolExecutesOnlyWithExplicitIntent() started.
+◇ Test onboardingStoreAcceptsTheTrustedMacOSTemporaryDirectoryAlias() started.
+◇ Test oneOutboxStoreSerializesConcurrentEnqueues() started.
+◇ Test onboardingFirstPlanFailsClosedWhenListPolicyCannotBeVerified() started.
+✔ Test reminderMetadataCommandReplacesOnlyZoidOwnedMetadata() passed after 0.122 seconds.
+◇ Test meetingPromptResponseEnqueuesExactlyOneConfirmedMeetingActionAcrossSurfaces() started.
+◇ Test firstPlanMustReturnVisiblePreparedItemsBeforeFinishing() started.
+◇ Test appFailsClosedWhenReminderListPolicyCannotBeVerified() started.
+✔ Test communicationAppRulesOverrideBuiltInGamingAndCountAsWorkAtRuntime() passed after 0.123 seconds.
+◇ Test onboardingOnlyFinishesAfterTheFirstDailyPlan() started.
+◇ Test staleSettingsReminderListEditSurvivesConflictAndRetriesAgainstTheNewVersion() started.
+◇ Test runtimeArgumentsOverrideEnvironmentAndLeaveAgentArgumentsUntouched() started.
+◇ Test canonicalScreenwatchBookmarkMigratesOnceWithPrivateAtomicStorage() started.
+◇ Test settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() started.
+◇ Test confirmedMeetingPropagatesCapturedContextToCalendarMutation() started.
+◇ Test processCodexRunnerEnforcesTimeout() started.
+◇ Test unavailableAIProvidersHaveTruthfulSettingsLabels() started.
+◇ Test realStorePersistsExactResumeStepAcrossCoordinatorRestart() started.
+◇ Test invalidModelRunsAreAuditedButNeverUsedAsCacheHits() started.
+◇ Test onlyCompleteRetrospectiveComparisonsCanAdvanceTrustGate() started.
+◇ Test fixtureNotificationDeliveryAndActionRoutesToPromptInbox() started.
+◇ Test appUsagePercentagesUseObservedSessionTimeAndSortLargestFirst() started.
+◇ Test deleteAllUserDataLeavesMigratedEmptyDatabaseReadyForRestart() started.
+◇ Test historicalScreenwatchBackfillInvokesEachCompletedDayExactlyOnce() started.
+◇ Test canonicalScreenwatchRejectsIntermediateSourceSymlink() started.
+◇ Test planningCapacityUsesConfiguredWorkWindowMinusFixedCommitmentsAtSeventyPercent() started.
+◇ Test expiredPromptReleasesItsDecisionForANewEpisode() started.
+◇ Test eventStoreLoadsOnlyIncompleteLocalTaskIdentifiersForPlanReconciliation() started.
+◇ Test twoWindowsWithTheSameDraftShareOneEffectAndReconcileProgress() started.
+◇ Test capturePolicyNormalizesDisplayIDsAndRoundTripsThroughRuntimeConfiguration() started.
+◇ Test eventStorePersistsDailyPlanEntries() started.
+◇ Test gamingStatusUsesTheRecordedRewardAmountAndTruthfulFlexibleCopy() started.
+◇ Test userPolicyValidationReturnsEveryViolationInDeterministicOrder() started.
+◇ Test localDiagnosticsFailClosedForMissingOrCorruptDatabase() started.
+◇ Test categoryUsageGroupsAppsAndPreservesOneHundredPercentTotal() started.
+◇ Test qaAgentFlagsMapToFailClosedOSOperations() started.
+◇ Test reminderPriorityRejectsValuesOutsideEventKitsDefinedScale() started.
+◇ Test codexCLIAdvisorRejectsInvalidStructuredOutput() started.
+◇ Test qaPromptNotificationActionsUseOnlyTheQANamespace() started.
+◇ Test onboardingProgressAdvancesInOrderAndRequiresAnExplicitCoachingMode() started.
+✔ Test settingsDraftPersistsGlobalAppChoicesAndReturnsAppsToAutomatic() passed after 0.153 seconds.
+✔ Test versionFourPolicyKeepsLegacyAllListsBehaviorUntilExplicitlyConfigured() passed after 0.195 seconds.
+✔ Test settingsDraftKeepsWakeDisabledByDefault() passed after 0.196 seconds.
+◇ Test onboardingFirstPlanRepairsAPartialOrphanBeforeReturningPrepared() started.
+◇ Test settingsDraftPersistsSelectedCodexModel() started.
+✔ Test unbundledOrMismatchedQAIdentityCannotEnableFixtures() passed after 0.196 seconds.
+◇ Test canonicalScreenwatchBookmarkReadsRemainWholeDuringConcurrentReplacement() started.
+◇ Test onboardingProgressRejectsSkippedOrUnreachablePersistedState() started.
+◇ Test packagedRuntimeRejectsModeRootAndBundleIdentityMismatches() started.
+◇ Test canonicalScreenwatchReadsAreBoundedEvenWhenFileExceedsAdvertisedLimit() started.
+◇ Test wakePolicyRequiresAHighConsequencePlanAndRespectsTheDailyInterventionBudget() started.
+◇ Test temporarySourceFailureIsRetriedWhilePermissionFailureIsTerminal() started.
+◇ Test osFixtureRejectsRegressedAuditCounterAtLoad() started.
+✔ Test schedulerPlacesTheFirstCommitmentInsideTheLearnedPreferredWindow() passed after 0.198 seconds.
+✔ Test databaseBreakerTripsWhenExternalEffectSucceedsButOutboxFinalizationFails() passed after 0.198 seconds.
+✔ Test recommendationIsStableAndSkipsBlockedTasks() passed after 0.198 seconds.
+◇ Test sameStoreConcurrentAtomicPlanInstallsDoNotNestTransactions() started.
+◇ Test conversationalQuestionDoesNotAuthorizeAMacMutation() started.
+◇ Test behaviorClassificationMigrationFreezesLegacyRecords() started.
+◇ Test descriptorStateDirectoryRetriesWithParentSyncAfterFailOnceFsync() started.
+◇ Test gamingPolicyDefaultsAndSurvivesAStoreRestartWithoutResettingOtherPolicy() started.
+◇ Test onboardingStoreWaitsForAChildProcessAdvisoryLock() started.
+◇ Test eventStorePersistsZoidOwnedScheduledBlocksForTheCurrentDay() started.
+✔ Test osFixtureAdapterHasNoProductionFrameworkOrAdapterDependency() passed after 0.202 seconds.
+◇ Test settingsDoNotAdvanceWithoutAnExactDurableMutationReceipt() started.
+◇ Test appInventoryMergesInstalledAndObservedAppsWithoutDescendingIntoBundles() started.
+◇ Test whatsappOCRSkipsOnlyByteIdenticalFrames() started.
+◇ Test reminderListFilteringPreservesOpaqueIDsAndExcludesUnknownListsAfterConfiguration() started.
+◇ Test privacyInventoryExplainsEveryStoredDataClassWithoutExposingRecordContent() started.
+◇ Test coachingStepDoesNotPersistProgressBeforePolicyIsDurable() started.
+◇ Test grantedRemindersCannotBeDeferredIntoLegacyIncludeAllBehavior() started.
+◇ Test screenwatchMaintenanceDryRunNeverMutatesFilesDatabaseOrCheckpoints() started.
+◇ Test productionRuntimeMigratesLegacyProductDirectoryWithoutLosingData() started.
+◇ Test osFixtureRejectsReusedGeneratedCounterIndexAtLoad() started.
+◇ Test osFixtureRejectsRegressedReminderCounterAtLoad() started.
+◇ Test atomicPlanInstallRejectsEveryStructurallyInvalidProposalBeforeMutation() started.
+◇ Test voiceUsageAndCodexJobsSurviveProcessRestart() started.
+◇ Test promptEpisodeStateMachineEnforcesTheDocumentedLifecycle() started.
+◇ Test executorConsumesAndFinalizesARealSQLiteOutboxCommand() started.
+◇ Test dashboardUsesPersistedGamingBudgetAndRewardAcrossAgentRestart() started.
+◇ Test reminderSynchronizationEmitsOnlyRealChangesAndPreservesEventKitPriorityMeaning() started.
+◇ Test osFixtureRejectsUnsupportedReminderPrioritySeed() started.
+◇ Test fixtureWorkspacesAreIsolatedAndCleanupDoesNotRemoveSiblings() started.
+◇ Test runtimeIdentityExactlyMatchesPackageIdentityManifest() started.
+◇ Test productionPackageRejectsEveryQARuntimeInjection() started.
+✔ Test eventStoreReplaysImmutableSourceCheckSequence() passed after 0.208 seconds.
+◇ Test onboardingProgressRejectsContradictoryTerminalState() started.
+◇ Test osFixtureRejectsMalformedRecoveryMarker() started.
+◇ Test autonomousPlanStoreMakesAnAgentDraftAvailableToTheAppForItsTargetDay() started.
+◇ Test qaRuntimeIdentityDoesNotCollideWithAnyProductionIdentity() started.
+◇ Test screenwatchSetupRejectsASymlinkedAlternateFolder() started.
+◇ Test daytimeReplanPreservesPastAndActiveOwnedBlocks() started.
+◇ Test qaDeliveryWithoutAuthorizedFixtureFailsClosed() started.
+◇ Test meetingDesiredStateDecodesCommandsWrittenBeforeFidelityFieldsExisted() started.
+◇ Test codexCLIAdvisorUsesBoundedExecutionAndRedactsPrivateEvidence() started.
+◇ Test reminderListDiscoveryFailureBlocksGrantedSetupUntilRetrySucceeds() started.
+◇ Test autonomousPlanStoreUsesTheConfiguredPolicyTimezoneForOwnership() started.
+◇ Test promptResponseAndPendingEffectAreCommittedAtomically() started.
+◇ Test pauseReasonPersistsAcrossRestartAndClosesWhenWorkResumes() started.
+◇ Test controlRequestDoesNotReplayAfterCrashFollowingMutationCommit() started.
+✔ Test osFixtureRecoveryResumesAfterQuarantineInterruption() passed after 0.213 seconds.
+◇ Test unpackagedBuildIdentityIsExplicitlyDevelopmentOnly() started.
+◇ Test meetingPromptBatchDoesNotLetPresentedCandidatesStarveNewCandidates() started.
+◇ Test screenwatchAlternateFolderSurvivesAServiceRestart() started.
+◇ Test osFixtureNotificationOperationUsesOneClockInstant() started.
+◇ Test controlDirectorySymlinkFailsClosed() started.
+✔ Test reminderPriorityCommandUpdatesPriorityAndOwnedMetadataMarker() passed after 0.213 seconds.
+◇ Test privacyPolicyUsesCustomCodexModelID() started.
+◇ Test screenwatchArchiveIngestsEachObservationOnlyOnceAcrossRepeatedRuns() started.
+◇ Test osFixtureRejectsDeliveryBeforeRequestedDateSeed() started.
+◇ Test onboardingStoreResumesReminderListDraftAcrossRestarts() started.
+◇ Test versionTwoFixtureUpgradesWithoutLosingExistingPlanOrSourceHistory() started.
+◇ Test meetingPolicyUsesInclusiveFifteenMinuteDuplicateWindowWithoutRequiringOverlap() started.
+✔ Test screenwatchSetupUsesAndPersistsAnAlternateDaysFolder() passed after 0.215 seconds.
+◇ Test gamingPolicyValidationRejectsUnsupportedOrUnboundedValues() started.
+◇ Test approvedExternalVoiceToolExecutesExactlyOnceAfterConfirmation() started.
+◇ Test privacyExportHonorsTheIsolatedRuntimeExportRoot() started.
+◇ Test promptResponseTokensAreStableAndBoundToOnePromptActionPair() started.
+◇ Test auditedStructuredProviderRecordsValidationAndEnforcesDailyBudget() started.
+◇ Test dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEvidence() started.
+◇ Test settingsPermissionRecheckIgnoresAnOlderInFlightResult() started.
+◇ Test canonicalScreenwatchLegacyMigrationKeepsLegacyValueWhenStoreParentIsUnsafe() started.
+◇ Test sanitizedWhatsAppFixtureMatrixMeetsAgreedPrecisionAndRecallThresholds() started.
+◇ Test estimateLearningUsesRecentRobustMedianAndKeepsRollbackDataWithinBounds() started.
+◇ Test reminderListPermissionErrorIncludesTheExactRecoveryDetail() started.
+◇ Test qaReminderListDiscoveryUsesStableIdentifiersAndCurrentVisibleNames() started.
+◇ Test osFixtureRejectsRegressedNotificationCounterAtLoad() started.
+◇ Test atomicPlanInstallRepairsAnOrphanAndPreservesItAsOneRevision() started.
+◇ Test productionAgentAllowsExistingOSAdapterOperations() started.
+◇ Test canonicalScreenwatchQABookmarkCannotEscapeOrCrossRunRoots() started.
+◇ Test appUsagePopupDismissesAfterLeavingEveryInteractionRegion() started.
+◇ Test freshAgentStyleConsumerIngestsCanonicalAlternateAndNotDefault() started.
+◇ Test meetingPromptBuilderProducesOneDraftForEveryUnresolvedCandidate() started.
+◇ Test editMeetingResponseRoutesCandidateIntoTheDashboardEditorQueue() started.
+◇ Test descriptorDirectoryCreationFailsBeforeUseWhenParentSyncFails() started.
+✔ Test canonicalScreenwatchStaleOrInvalidBookmarkNeverFallsBackToDefault() passed after 0.228 seconds.
+◇ Test signedQACompositionCreatesOnlyItsMissingFinalRunRoot() started.
+◇ Test osFixturesFailClosedOnCorruptionAndRecoverInsideWorkspace() started.
+◇ Test onboardingRevisionExhaustionFailsWithoutTrappingOrOverwriting() started.
+◇ Test appModelConsumesCanonicalAlternateScreenwatchAfterFreshResolution() started.
+◇ Test modelRunLedgerCachesValidatedStructuredOutputAndEnforcesDailyBudget() started.
+◇ Test classificationAndScheduleAreAppliedBeforeAdvancing() started.
+✔ Test onboardingCanNavigateBackButCannotSkipAhead() passed after 0.237 seconds.
+◇ Test completingActiveTaskEndsItsIntervalAndRefreshesRecommendation() started.
+◇ Test codexJobTransitionsFromQueuedThroughRunningToSucceeded() started.
+◇ Test plannerUsesBoundedLocalAIAdviceWithoutAllowingItToBypassCapacity() started.
+◇ Test signedQACompositionStillRejectsArbitraryTmpRootSymlink() started.
+◇ Test firstLaunchWithoutAPolicyDatabaseUsesDefaultsWithoutShowingAStorageError() started.
+◇ Test staleSaveRestoresLatestProgressAndOffersRetry() started.
+◇ Test osFixturesRefuseReplacedWorkspaceRootSymlink() started.
+◇ Test communicationRulesRoundTripAndRemainDistinctWhileCountingAsWork() started.
+◇ Test screenwatchReaderReportsHealthySchemaValidStream() started.
+◇ Test promptInboxRejectsATokenBoundToAnotherAction() started.
+◇ Test gamingPolicyPresetsMatchTheOnboardingContractAndDefaultsToBalanced() started.
+◇ Test sourceCheckCompletesWithStableSourceStates() started.
+◇ Test concurrentAtomicPlanInstallsCommitExactlyOnePlan() started.
+◇ Test canonicalDeliveryPromptAndLocalTaskSurviveRestartAndGateContinuation() started.
+◇ Test onboardingStoreResumesTheExactPersistedStepAcrossRestarts() started.
+◇ Test meetingPromptIncludesDecisionEvidenceAndCalendarContext() started.
+◇ Test settingsConflictResolverPreservesIndependentEditsAndCurrentWinners() started.
+◇ Test classificationRulesImportRejectsSymlinksOversizedFilesAndUnknownSchemas() started.
+◇ Test settingsDraftBulkEditsCommunicationRulesAndCanResetEveryExplicitRule() started.
+◇ Test screenwatchCheckpointLeavesPartialLineForTheNextTailPass() started.
+◇ Test healthStatesAlwaysExposeWrittenLabels() started.
+◇ Test onboardingResetCreatesANewFlowIdentity() started.
+◇ Test deliveryStepRequiresTheTestTaskAndAUsablePromptPath() started.
+◇ Test canonicalScreenwatchLegacyMigrationFinishesCleanupAfterPostRenameCrash() started.
+✔ Test schedulerPlacesWorkOnlyInsideFreeIntervalsAndLeavesTransitionTime() passed after 0.259 seconds.
+◇ Test qaClientListenerAndPeerValidationUseOneRuntimeIdentity() started.
+◇ Test downstreamPackagesCompileDocumentedImportsAndRejectTheRemovedCoreOnlyPath() started.
+◇ Test acceptsOnlyTheExplicitAppAndAgentSigningIdentifiers() started.
+◇ Test nightlyScheduleTargetsTomorrowOnlyAfterTheConfiguredEveningTime() started.
+✔ Test versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() passed after 0.259 seconds.
+✔ Test meetingPolicyRoutesOverlapAsConflictAndLowConfidenceWithoutInterruption() passed after 0.273 seconds.
+✔ Test versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() passed after 0.328 seconds.
+✔ Test onboardingStoreRejectsIntermediateAndFinalDirectorySymlinks() passed after 0.353 seconds.
+✔ Test hypothesisDecisionAndConfirmationAreDurableAndCorrectionReopensReview() passed after 0.365 seconds.
+✔ Test plannerTrustGateDoesNotCountEmptyPlans() passed after 0.396 seconds.
+✔ Test settingsDraftPresentsPersistedUnavailableProviderAsDisabled() passed after 0.399 seconds.
+✔ Test reminderSnapshotStoreMakesForegroundReminderDataAvailableToTheBackgroundAgent() passed after 0.428 seconds.
+✔ Test screenwatchSetupExposesRepairWhenBookmarkResolutionFails() passed after 0.442 seconds.
+✔ Test policyStoreVersionsChangesAndRollsBackTheActivePolicy() passed after 0.442 seconds.
+✔ Test switchingTasksRecordsReasonAndPreservesEarlierElapsedTime() passed after 0.442 seconds.
+✔ Test whatsappOCRPersistsEncryptedPositionedEvidenceAndLinksTheCandidate() passed after 0.452 seconds.
+✔ Test localDiagnosticsListOnlyRecentProviderFailuresWithoutPrivateContent() passed after 0.454 seconds.
+✔ Test onboardingRecoveryResumesAfterReplacementPersistedInterruption() passed after 0.474 seconds.
+✔ Test fixtureChildProcessMutationWorker() passed after 0.513 seconds.
+◇ Test restartsOnlyAfterProgressExceedsTheStallBudget() started.
+◇ Test enforcesAMinimumStallBudget() started.
+✔ Test signedQABoundaryAllowsOnlyFixtureBackedOperations() passed after 0.513 seconds.
+✔ Test productionProviderSummaryExplainsCodexRemoteTransmission() passed after 0.513 seconds.
+◇ Test case passing 1 argument infoDictionary → ["ZoidCoachGitState": "clean", "ZoidCoachGitCommit": "abc", "ZoidCoachBuildIdentity": "zoid-coach-abc-clean"] to malformedOrPartialBuildIdentityFailsClosed(infoDictionary:) started.
+◇ Test case passing 1 argument infoDictionary → ["ZoidCoachGitState": "clean", "ZoidCoachGitCommit": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "ZoidCoachBuildIdentity": "zoid-coach-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-clean"] to malformedOrPartialBuildIdentityFailsClosed(infoDictionary:) started.
+◇ Test case passing 1 argument infoDictionary → ["ZoidCoachGitCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "ZoidCoachBuildIdentity": "zoid-coach-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-maybe", "ZoidCoachGitState": "maybe"] to malformedOrPartialBuildIdentityFailsClosed(infoDictionary:) started.
+◇ Test case passing 1 argument infoDictionary → ["ZoidCoachBuildIdentity": "zoid-coach-dddddddddddddddddddddddddddddddddddddddd-clean", "ZoidCoachGitCommit": "cccccccccccccccccccccccccccccccccccccccc", "ZoidCoachGitState": "clean"] to malformedOrPartialBuildIdentityFailsClosed(infoDictionary:) started.
+◇ Test case passing 1 argument infoDictionary → ["ZoidCoachGitCommit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"] to malformedOrPartialBuildIdentityFailsClosed(infoDictionary:) started.
+✔ Test externalReminderSynchronizationPrevalidatesDuplicateIDsAndAllSourceCollisionsBeforeWriting() passed after 0.544 seconds.
+✔ Test reminderListPolicyUsesStableIdentifiersAndExcludesNewListsAfterConfiguration() passed after 0.547 seconds.
+✔ Test staleAndConflictingPolicyMutationsDoNotTripTheDatabaseBreaker() passed after 0.577 seconds.
+✔ Test preferredWorkWindowUsesLocalMedianAndCarriesPolicyAndRollbackValues() passed after 0.598 seconds.
+✔ Test descriptorDirectoryCreationSyncsEachParentImmediatelyAfterMkdir() passed after 0.599 seconds.
+✔ Test onboardingMatchingRevisionCannotRegressCompletedPrefix() passed after 0.618 seconds.
+✔ Test canonicalScreenwatchBookmarkFinalSymlinkIsRejectedWithoutReadingTarget() passed after 0.619 seconds.
+✔ Test privacyDataServiceExportsOnlyRedactedCountsAndDeletesConversationText() passed after 0.643 seconds.
+✔ Test versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() passed after 0.643 seconds.
+✔ Test confirmedMeetingUsesFingerprintLookupForExactOnceRecovery() passed after 0.649 seconds.
+✔ Test privacyPolicyDefaultsLegacyPoliciesToGPT56Terra() passed after 0.649 seconds.
+✔ Test calendarUpdateMutatesOnlyTheBlockWithTheCommandsOwnershipToken() passed after 0.656 seconds.
+✔ Test descriptorRootCreationRetriesWithParentSyncAfterFailOnceFsync() passed after 0.687 seconds.
+✔ Test screenwatchSetupKeepsQABookmarksInsideEachRunAndOutOfProductionDefaults() passed after 0.689 seconds.
+✔ Test estimateSamplesAreImmutableAndSparseEvidenceDoesNotCreateAnAggregate() passed after 0.690 seconds.
+✔ Test localEvidenceCipherRoundTripsAndRejectsTampering() passed after 0.689 seconds.
+✔ Test onboardingDelayedStaleSavesCannotRegressProgressDecisionsOrCompletion() passed after 0.698 seconds.
+✔ Test leavingAutomaticModeCancelsOnlyUnapprovedPlanWrites() passed after 0.739 seconds.
+✔ Test osFixturesRefuseIntermediateFixturesSymlinkBeforeInitialization() passed after 0.752 seconds.
+✔ Test realtimeAudioMessageUsesSixteenKilohertzPCM() passed after 0.752 seconds.
+✔ Test privacyDateDeletionRemovesCanonicalAndProjectedPlansForTheInclusiveLocalDay() passed after 0.758 seconds.
+◇ Test firstInstallRegistersAnUnregisteredAgent() started.
+◇ Test uninstallAndReinstallAreBothIdempotent() started.
+◇ Test staleEnabledRegistrationIsPolledBeforeRegisteringReplacement() started.
+◇ Test repeatInstallReplacesAnEnabledRegistration() started.
+◇ Test interruptedRegistrationRetriesFromAReconciledState() started.
+✔ Test classificationRulesImportRejectsConflictsBlanksAndDuplicates() passed after 0.760 seconds.
+✔ Test plannerKeepsTheDailyCommitmentSetWithinCapacityAndMakesTheUrgentTaskMain() passed after 0.760 seconds.
+✔ Test screenwatchSetupRejectsAStaleBookmarkWithoutFallingBack() passed after 0.761 seconds.
+✔ Test reminderDueDateCommandCanSetAndClearDueDateDeterministically() passed after 0.760 seconds.
+✔ Test screenwatchMaintenanceAppliesIndependentBehaviorSessionPromptAndReviewRetention() passed after 0.761 seconds.
+✔ Test osFixtureRejectsCoherentlyTamperedStableProviderID() passed after 0.761 seconds.
+✔ Test osFixtureRejectsInvalidCalendarRangeSeed() passed after 0.760 seconds.
+✔ Test appUsagePopupDoesNotDismissDuringPanelOrSelectorInteraction() passed after 0.760 seconds.
+✔ Test newLocalMonthResetsVoiceSpendBeforeRecordingNewUsage() passed after 0.761 seconds.
+✔ Test onboardingTestPromptIsCanonicalIdempotentAndDurablyResolved() passed after 0.762 seconds.
+✔ Test historicalShadowAuditReportsEvidenceGapsWithoutFabricatingTrustCycles() passed after 0.762 seconds.
+✔ Test codexCLIAdvisorCanSendExplicitPrivateContentWithoutLeakingInternalIDs() passed after 0.762 seconds.
+✔ Test fixtureNotificationActionMatrixMatchesEveryLiveCategoryAction() passed after 0.762 seconds.
+✔ Test externalVoiceToolCreatesApprovalWithoutExecuting() passed after 0.762 seconds.
+✔ Test qaRuntimeEnvironmentRejectsAnyPathOutsideRunRoot() passed after 0.762 seconds.
+✔ Test geminiServerMessageDecodesAudioToolCallsUsageAndLifecycleSignals() passed after 0.766 seconds.
+✔ Test classificationRulesExportRefusesSymlinkDestination() passed after 0.766 seconds.
+✔ Test qaRuntimeRejectsRootsInsideOrAliasedToTheProductionLibrary() passed after 0.766 seconds.
+✔ Test osFixtureRecoveryResumesFromReplacementWrittenPhaseWithoutDuplicateAudit() passed after 0.766 seconds.
+✔ Test inclusivePrivacyDeletionRangeRejectsReversedDates() passed after 0.765 seconds.
+✔ Test interruptedCalendarCreationRecoversTheExistingOwnedBlockWithoutDuplicatingIt() passed after 0.765 seconds.
+✔ Test outboxDeduplicatesEquivalentDesiredActions() passed after 0.766 seconds.
+✔ Test sanitizedWhatsAppFixtureMatrixCoversEveryRequiredPresentationVariant() passed after 0.765 seconds.
+✔ Test screenwatchSetupFindsAHealthyDefaultStreamWithoutExposingContent() passed after 0.773 seconds.
+✔ Test newVersionFourMutationIsRejectedAfterSchemaFive() passed after 0.773 seconds.
+✔ Test screenwatchSetupReportsAMissingDefaultAsExplicitDegradedMode() passed after 0.775 seconds.
+✔ Test localFallbackParsesOnlyTheBoundedChiefOfStaffGrammar() passed after 0.774 seconds.
+✔ Test migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() passed after 0.781 seconds.
+✔ Test onboardingPersistsEveryAccessDecisionAcrossAStoreRestart() passed after 0.778 seconds.
+✔ Test explicitAppClassificationOverridesBuiltInRulesWithoutUsingPartialMatches() passed after 0.777 seconds.
+✔ Test controlRequestResumesAfterAProcessingFailure() passed after 0.782 seconds.
+✔ Test onboardingFailedAtomicWritePreservesTheLastCommittedProgress() passed after 0.785 seconds.
+✔ Test osFixtureRejectsNotificationWithProviderProvenance() passed after 0.855 seconds.
+✔ Test fixtureCalendarRefusesMutationOfExternalCommitment() passed after 0.891 seconds.
+✔ Test settingsDraftCannotPersistAnUnavailableAIProvider() passed after 0.883 seconds.
+✔ Test processCodexRunnerPrependsTheExecutableDirectoryForLaunchd() passed after 0.893 seconds.
+✔ Test productionRuntimeConsumersKeepExistingPathsAndIdentities() passed after 0.908 seconds.
+✔ Test agentSnapshotCarriesRequiredDashboardFieldsAndCommandsRefreshIt() passed after 0.924 seconds.
+◇ Test qaRuntimeNeverInspectsRegistersOrUnregistersProductionService() started.
+◇ Test registrationFingerprintChangesWhenTheInstalledAppMoves() started.
+◇ Test developmentPackageCannotTakeOwnershipFromTheInstalledApp() started.
+◇ Test packagedQAUsesOnlyItsDedicatedServiceAndSupportsFullUIControl() started.
+◇ Test registrationFingerprintIsStableForTheSameBuildAndPath() started.
+✔ Test unconfirmedConversationFactsCannotAuthorizeActions() passed after 0.938 seconds.
+✔ Test screenwatchDecoderPreservesTheObservationNeededForLaterEvidenceAnalysis() passed after 0.943 seconds.
+✔ Test observeModeRecordsWouldDoCommandsWithoutClaimingExternalWrites() passed after 0.965 seconds.
+✔ Test missedNightlyRunUsesLocalDSTSemanticsAndExecutesOnlyOnceAfterWake() passed after 0.945 seconds.
+✔ Test osFixturesRepresentEveryPermissionStateAndAuditRefusals() passed after 1.006 seconds.
+✔ Test completingPausedTaskRetainsTimeAndEndsItsPauseEpisode() passed after 1.009 seconds.
+✔ Test voiceBudgetReachesTheTwentyDollarCapAtThePublishedDailyBaseline() passed after 0.987 seconds.
+✔ Test packagedQADirectExecutableUsesEmbeddedRootWhenEnvironmentIsStripped() passed after 0.995 seconds.
+✔ Test eventStorePersistsReminderListOrder() passed after 0.995 seconds.
+✔ Test runtimeParsingReportsMissingValues() passed after 1.009 seconds.
+✔ Test separateQARunsUseDifferentPreferencesAndKeychainIdentities() passed after 1.012 seconds.
+✔ Test taskHistoryStoreCountsPostponementsForFuturePlanning() passed after 1.062 seconds.
+◇ Test capturePolicyHonorsConfiguredDisplaysAndDefaultsToAll() started.
+◇ Test nativeCaptureDirectoryIsAppOwnedAndCannotCollideWithLegacyScreenwatch() started.
+◇ Test firstWriteFailureRemainsTheCircuitBreakerReason() started.
+◇ Test captureConfigurationPersistsAtomicallyAndEnforcesParityGate() started.
+◇ Test writeFailureTripsReadOnlyCircuitUntilExplicitReset() started.
+◇ Test capturePolicyUsesFiveSecondCadenceAndSkipsImagesAtNinetySecondsIdle() started.
+✔ Test onboardingStoreRejectsCorruptProgressWithoutOverwritingIt() passed after 1.025 seconds.
+✔ Test agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() passed after 1.093 seconds.
+✔ Test atomicPlanInstallRetainsAUsableVisiblePlanWithoutDuplicateIntentOrRevision() passed after 1.077 seconds.
+✔ Test geminiSetupEnablesAudioToolsCompressionAndSessionResumptionWithoutEmbeddingTheAPIKey() passed after 1.057 seconds.
+✔ Test fixtureErrorsExposeActionableLocalizedDescriptions() passed after 1.058 seconds.
+✔ Test productionAIProviderCapabilitiesDoNotOfferUnimplementedProviders() passed after 1.070 seconds.
+✔ Test osFixtureWriteFailureDoesNotPublishPartialMutation() passed after 1.070 seconds.
+✔ Test versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() passed after 1.089 seconds.
+✔ Test executingCommandsRemainVisibleForCrashReconciliation() passed after 1.083 seconds.
+✔ Test privacyDateDeletionNeverDeletesScreenwatchOwnedSourceFiles() passed after 1.096 seconds.
+✔ Test onboardingCorruptionRecoveryQuarantinesExactBytesAndPersistsAReplacement() passed after 1.070 seconds.
+✔ Test retryableActionResumesOnceAndRetainsAttemptHistory() passed after 1.083 seconds.
+✔ Test osFixtureDeleteOfAbsentOwnedBlockIsIdempotent() passed after 1.070 seconds.
+✔ Test undeclaredAndArbitraryShellToolsAreDenied() passed after 1.070 seconds.
+✔ Test voiceActionPolicyAllowsReversibleToolsButConfirmsExternalEffects() passed after 1.070 seconds.
+✔ Test onboardingStoreRequiresADurableEffectWhenCompletingAPolicyStep() passed after 1.071 seconds.
+✔ Test atomicPlanInstallRepairsAPartiallyOrphanedPlanAndSupersedesItsPendingScheduleIntent() passed after 1.071 seconds.
+✔ Test qaRuntimeRejectsAnExistingParentSymlinkEscape() passed after 1.070 seconds.
+✔ Test canonicalScreenwatchFingerprintTracksOpenedDirectoryIdentityNotPath() passed after 1.070 seconds.
+✔ Test osFixtureDescriptorRemainsContainedAfterParentReplacement() passed after 1.070 seconds.
+✔ Test policyMutationUsesExpectedVersionAndReplaysTheWinningRequest() passed after 1.071 seconds.
+✔ Test policyMutationRejectsMalformedAndUnboundRequestsWithoutWriting() passed after 1.071 seconds.
+✔ Test externalReminderSynchronizationRejectsLocalTasksAndSourceIdentifierCollisions() passed after 1.071 seconds.
+✔ Test urgencyUsesDeadlineBeforeReminderPriority() passed after 1.068 seconds.
+✔ Test qaRuntimeRejectsTheProductionUserDefaultsIdentity() passed after 1.068 seconds.
+✔ Test fixedClockAlwaysReturnsTheConfiguredInstant() passed after 1.068 seconds.
+✔ Test onboardingRecoveryResumesAfterPreparedInterruption() passed after 1.070 seconds.
+✔ Test zeroRewardPolicyDoesNotWriteARewardLedgerEntry() passed after 1.084 seconds.
+✔ Test osFixturesPersistReminderMutationsAcrossRestartAndReset() passed after 1.068 seconds.
+✔ Test initialSourcesRepresentAllRequiredIntegrations() passed after 1.068 seconds.
+✔ Test meetingPolicySuppressesLikelyDuplicateBeforeConflictRouting() passed after 1.068 seconds.
+✔ Test onboardingTestPromptFallsBackToTodayWhenNotificationsAreDenied() passed after 1.071 seconds.
+✔ Test targetedPrivacyDeletionSeparatesBehaviorAIAndLearningRecords() passed after 1.071 seconds.
+✔ Test everyControlOperationIsIdempotentByRequestID() passed after 1.068 seconds.
+✔ Test appBuildIdentityExposesStampedCommitAndState() passed after 1.068 seconds.
+✔ Test meetingExtractorResolvesAnExplicitWeekdayAndTimeAsAConfirmableCandidate() passed after 1.068 seconds.
+✔ Test fixtureBuilderRefusesPreexistingSymlinkEscape() passed after 1.068 seconds.
+✔ Test supersedingEnqueueAtomicallyCancelsAnOlderRetryableCommand() passed after 1.071 seconds.
+✔ Test meetingExtractorRecognizesArabicTomorrowTimeAndDuration() passed after 1.060 seconds.
+✔ Test screenwatchSetupRejectsMalformedSchemaWithPrivacySafeDiagnostics() passed after 1.068 seconds.
+✔ Test osFixtureRejectsInvalidPersistedAuditAndCounterState() passed after 1.060 seconds.
+✔ Test replayIsDeterministicAndExercisesEverySimulatedSourceWithoutLiveAccess() passed after 1.060 seconds.
+✔ Test osFixturesDeliverAndRespondToNotificationsEndToEnd() passed after 1.060 seconds.
+✔ Test codexCLIAdvisorRefusesLocalOnlyEvidenceWithoutLaunchingCodex() passed after 1.060 seconds.
+✔ Test localDiagnosticsExposeDatabaseAndRulesOnlyAIState() passed after 1.071 seconds.
+✔ Test signedQACompositionAcceptsOnlyThePlatformTmpAlias() passed after 1.051 seconds.
+✔ Test duplicateQAListIdentifiersReturnTypedValidationErrorWithoutCrashing() passed after 1.053 seconds.
+✔ Test acceptingAPlanDurablyQueuesItsApprovalScheduleRequest() passed after 1.071 seconds.
+✔ Test voicePersistenceRetainsDurableFactsAndPrunesExpiredTranscripts() passed after 1.071 seconds.
+✔ Test unbundledQAInjectionRemainsExplicitAndPackageModeCannotBeSpoofed() passed after 1.053 seconds.
+✔ Test behaviorPolicyNormalizesExactOverridesAndRejectsConflicts() passed after 1.053 seconds.
+✔ Test calendarPickerSelectionsRoundTripWithoutExposingIdentifiersAsInput() passed after 1.053 seconds.
+✔ Test osFixtureRejectsResponseBeforeDeliverySeed() passed after 1.061 seconds.
+✔ Test splitCorrectionChangesOnlyTheSecondHalfOfASession() passed after 1.079 seconds.
+✔ Test inclusivePrivacyDeletionRangeIncludesTheWholeThroughDayAcrossDST() passed after 1.061 seconds.
+✔ Test canonicalScreenwatchDescriptorRejectsLogSwappedToSymlink() passed after 1.061 seconds.
+✔ Test notificationControlRejectsUnknownAndForeignNamespacedActionsBeforeMutation() passed after 1.061 seconds.
+✔ Test estimateLearningPersistsEvidencePolicyConfidenceAndRollbackAcrossReopen() passed after 1.079 seconds.
+✔ Test preferredWorkWindowPersistsTimezoneEvidenceAndRollback() passed after 1.079 seconds.
+✔ Test codexCLIAllowsAnExplicitRemoteEvidencePolicy() passed after 1.061 seconds.
+✔ Test screenwatchSetupDefaultsToThirtySecondsAndAllowsAConfiguredStaleThreshold() passed after 1.061 seconds.
+✔ Test automationPauseChangePreservesConfiguredReminderLists() passed after 1.061 seconds.
+✔ Test gamingStatusAppliesPriorityRewardOnlyWhenRecorded() passed after 1.060 seconds.
+✔ Test meetingExtractorKeepsAMeridiemFreeTimeAsAnEditableDraft() passed after 1.060 seconds.
+✔ Test onboardingVersionOneSequenceIsExplicitAndComplete() passed after 1.060 seconds.
+✔ Test delayedScreenwatchIngestionFreezesThePolicyEffectiveAtEachObservation() passed after 1.078 seconds.
+✔ Test behaviorPolicyNormalizesPersistedApplicationNamesWhileDecoding() passed after 1.060 seconds.
+✔ Test onboardingLatestRevisionCanCorrectAMigratedCompletedAccessDecision() passed after 1.061 seconds.
+✔ Test versionFourMutationReceiptReplaysAfterSchemaFiveWithoutRewritingPolicy() passed after 1.062 seconds.
+✔ Test packagedQATemporaryAliasCanonicalizesToPrivateTmp() passed after 1.060 seconds.
+✔ Test osFixtureRejectsRegressedCalendarCounterAtLoad() passed after 1.060 seconds.
+✔ Test qaAgentRejectsEveryProductionOSAdapterOperation() passed after 1.061 seconds.
+✔ Test onboardingStoreRequiresADurableEffectForGrantedRemindersButNotDegradedAccess() passed after 1.071 seconds.
+✔ Test policyStoreResolvesTheClassificationPolicyActiveAtAnObservationTime() passed after 1.062 seconds.
+✔ Test osFixturesRefuseSymlinkEscapeBeforeWriting() passed after 1.061 seconds.
+✔ Test osFixturesPreserveOwnedBlocksAndRefuseExternalCalendarMutation() passed after 1.061 seconds.
+✔ Test fixtureBuilderRejectsQARootThatContainsProtectedStorage() passed after 1.058 seconds.
+✔ Test promptNotificationContractMapsRequiredCategoriesAndActions() passed after 1.058 seconds.
+✔ Test settingsDraftPersistsCodexCLIWithRemoteEvidencePolicy() passed after 1.058 seconds.
+✔ Test taskHistoryStoreSummarizesTheCompletedAndPostponedDay() passed after 1.062 seconds.
+✔ Test qaRuntimeConsumersUseOnlyRunSpecificSuitesServicesAndPaths() passed after 1.053 seconds.
+✔ Test screenwatchMaintenanceEnforcesIndependentRetentionAndAuditsTheRun() passed after 1.062 seconds.
+✔ Test onboardingPromptNotificationAcceptsOnlyItsHarmlessActions() passed after 1.053 seconds.
+✔ Test correctionAndTaskAttachmentPersistAndRecalculateTotalsAfterRestart() passed after 1.062 seconds.
+✔ Test trippedDatabaseBreakerStopsExternalActionsBeforeClaimingOutboxWork() passed after 1.052 seconds.
+✔ Test userPolicyKeepsLocalScheduleMeaningAcrossTimeZones() passed after 1.052 seconds.
+✔ Test sparseWorkEvidenceDoesNotInventAPreferredWindow() passed after 1.052 seconds.
+✔ Test autonomousPlanStoreCanRestoreThePreviousRevisionAfterAReplan() passed after 1.061 seconds.
+✔ Test packagedRuntimeMarkerRejectsInfoAndLaunchEnvironmentMismatch() passed after 1.050 seconds.
+✔ Test promptResponseIsAppliedExactlyOnceAcrossRepeatedSurfaceDelivery() passed after 1.061 seconds.
+✔ Test dashboardUsesBalancedGamingDefaultsWhenNoPolicyHasBeenSaved() passed after 1.062 seconds.
+✔ Test settingsExposeTypedReminderPermissionAndExplicitEmptyLocalOnlyChoice() passed after 1.127 seconds.
+✔ Test grantedRemindersRequireDurableExplicitListChoicesBeforeAdvancing() passed after 1.127 seconds.
+✔ Test userCanInspectAndDeleteExactlyOneDerivedBehaviorSession() passed after 1.059 seconds.
+✔ Test screenwatchSetupRejectsASymlinkedDayDirectoryBelowAnAlternateFolder() passed after 1.051 seconds.
+✔ Test operatingModeMigratesLegacyPolicyValuesAndPersistsTheFourRolloutModes() passed after 1.043 seconds.
+✔ Test fixtureWorkspacePreparationIsRepeatableAndRemovesStaleState() passed after 1.043 seconds.
+✔ Test historicalScreenwatchCheckpointsAreScopedToOpenedSourceIdentity() passed after 1.061 seconds.
+✔ Test agentSchedulerConstrainsBlocksByFixedCalendarAndEnqueuesReminderMutations() passed after 1.053 seconds.
+✔ Test policyMutationRejectsAReusedRequestIDWithDifferentPayload() passed after 1.053 seconds.
+✔ Test startingAnotherTaskAtomicallyPausesTheExistingTask() passed after 1.051 seconds.
+✔ Test recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() passed after 1.051 seconds.
+✔ Test gamingPolicyMutationRoundTripsThroughTheAgentCommandBoundary() passed after 1.054 seconds.
+✔ Test inFlightBudgetReservationSurvivesCrashAndSettlesToActualUsage() passed after 1.036 seconds.
+✔ Test injectedDirectoriesCannotReplaceRealProductionScreenwatchProtection() passed after 1.037 seconds.
+✔ Test fixtureBuilderRefusesProductionEnvironmentBeforeWriting() passed after 1.036 seconds.
+✔ Test productionRuntimeEnvironmentPreservesExistingDefaults() passed after 1.036 seconds.
+✔ Test qaRuntimeEnvironmentDerivesEveryWritableLocationFromRunRoot() passed after 1.037 seconds.
+✔ Test gamingAllowanceUsesOnlyClassifiedGamingTime() passed after 1.031 seconds.
+✔ Test malformedOrPartialBuildIdentityFailsClosed(infoDictionary:) with 5 test cases passed after 1.031 seconds.
+✔ Test descriptorDirectoryCreationSurfacesInjectedMkdirFailureWithoutCheckpoint() passed after 1.031 seconds.
+✔ Test meetingCandidateCardDoesNotRenderRawConversationEvidence() passed after 1.030 seconds.
+✔ Test screenwatchSetupRejectsASymlinkedLogBelowAnAlternateFolder() passed after 1.031 seconds.
+✔ Test osFixturesRefuseStateFileSymlinkEscapeBeforeReading() passed after 1.031 seconds.
+✔ Test screenwatchReaderReportsMissingDailyStream() passed after 1.030 seconds.
+✔ Test staleTelemetryReportsLimitedCoverageWithoutFakeTotals() passed after 1.030 seconds.
+✔ Test onboardingRecoveryResumesAfterQuarantineWithoutLosingCorruptBytes() passed after 1.031 seconds.
+✔ Test replayClassifiesEachBehaviorBucketWithoutTreatingGapsAsTime() passed after 1.030 seconds.
+✔ Test legacyOnboardingWithoutEffectReceiptsStillDecodes() passed after 1.030 seconds.
+✔ Test remoteStructuredProviderRequiresExplicitAuthorizationWhileLoopbackDoesNot() passed after 1.030 seconds.
+✔ Test runtimeEnvironmentRejectsRealProductionRootBeforeFixtureConstruction() passed after 1.030 seconds.
+✔ Test reminderListDraftPersistsExplicitChoicesByIdentifier() passed after 1.030 seconds.
+✔ Test classificationRulesExportAndImportRoundTripWithoutOtherSettings() passed after 1.030 seconds.
+✔ Test canonicalScreenwatchLeaseRetainsSecurityScopeUntilRelease() passed after 1.030 seconds.
+✔ Test qaRuntimeRejectsPreferenceAndKeychainIdentityOverrides() passed after 1.029 seconds.
+✔ Test screenContextSelectsNewestDistinctFramesAndSuppressesPerceptualDuplicates() passed after 1.044 seconds.
+✔ Test onboardingStoreRejectsTheFinalStateFileSymlink() passed after 1.029 seconds.
+✔ Test meetingPolicyRequiresTimeProximityAndTitleOrParticipantEvidenceForDuplicate() passed after 1.029 seconds.
+✔ Test codexCLIAdvisorSurfacesCommandFailureForRulesFallback() passed after 1.029 seconds.
+✔ Test onboardingMigratesLegacyVersionOneAccessDecisionsAtEveryProgressPoint() passed after 1.029 seconds.
+✔ Test explicitRedactedExportUsesChosenJSONDestinationAndStillExcludesSecrets() passed after 1.037 seconds.
+✔ Test behaviorPolicyValidationRejectsBlankAndDuplicateApplications() passed after 1.029 seconds.
+✔ Test fixtureBuilderRejectsPathTraversal() passed after 1.028 seconds.
+✔ Test fixtureBuilderRefusesAdditionalProtectedRoot() passed after 1.028 seconds.
+✔ Test promptInboxKeepsOnlyOneUnresolvedEpisodePerDecision() passed after 1.031 seconds.
+✔ Test controlRequestDoesNotReplayAfterCrashFollowingSnapshotPersistence() passed after 1.029 seconds.
+✔ Test gamingToWorkPolicyBoundaryPreservesEarlierGamingUsageAndLabelsBothSessions() passed after 1.028 seconds.
+✔ Test gamingRewardLedgerAppliesOnlyOncePerDayAndPolicy() passed after 1.037 seconds.
+✔ Test onboardingMatchingRevisionCannotReplaceFinishedStateWithWelcome() passed after 1.028 seconds.
+✔ Test versionTwentySevenRebrandsPersistedPromptSummaries() passed after 1.031 seconds.
+✔ Test meetingExtractorSanitizedFixtureSetHasFullRecallWithoutObviousFalsePositives() passed after 1.022 seconds.
+✔ Test cancellingCodexJobPersistsCancelledState() passed after 1.030 seconds.
+✔ Test onboardingProductionAndQAStoresUseTheirIsolatedRuntimePaths() passed after 1.014 seconds.
+✔ Test declaredReversibleVoiceToolExecutesOnlyWithExplicitIntent() passed after 1.005 seconds.
+✔ Test onboardingPersistsPermissionDenialAndDegradedContinuationDecisions() passed after 1.005 seconds.
+✔ Test pausedTaskRestoresElapsedTimeWithoutDoubleCounting() passed after 1.030 seconds.
+✔ Test onboardingStoreAcceptsTheTrustedMacOSTemporaryDirectoryAlias() passed after 1.005 seconds.
+✔ Test dailyReviewGroupsCoveredActivityWithoutExposingPrivateFields() passed after 1.028 seconds.
+✔ Test plannerTrustGateRequiresSevenDistinctCapacitySafeShadowDays() passed after 1.023 seconds.
+✔ Test onboardingOnlyFinishesAfterTheFirstDailyPlan() passed after 1.006 seconds.
+✔ Test localFallbackTaskIsIdempotentAndSurvivesExternalReminderSynchronization() passed after 1.023 seconds.
+✔ Test confirmedMeetingPropagatesCapturedContextToCalendarMutation() passed after 1.002 seconds.
+✔ Test settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() passed after 1.002 seconds.
+✔ Test unavailableAIProvidersHaveTruthfulSettingsLabels() passed after 1.002 seconds.
+✔ Test runtimeArgumentsOverrideEnvironmentAndLeaveAgentArgumentsUntouched() passed after 1.002 seconds.
+✔ Test canonicalScreenwatchBookmarkMigratesOnceWithPrivateAtomicStorage() passed after 1.002 seconds.
+✔ Test appUsagePercentagesUseObservedSessionTimeAndSortLargestFirst() passed after 0.998 seconds.
+✔ Test cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() passed after 1.031 seconds.
+✔ Test childProcessAppAgentMutationsContendWithControlIngestion() passed after 1.046 seconds.
+✔ Test canonicalScreenwatchRejectsIntermediateSourceSymlink() passed after 0.998 seconds.
+✔ Test planningCapacityUsesConfiguredWorkWindowMinusFixedCommitmentsAtSeventyPercent() passed after 0.998 seconds.
+✔ Test invalidModelRunsAreAuditedButNeverUsedAsCacheHits() passed after 1.000 seconds.
+✔ Test onlyCompleteRetrospectiveComparisonsCanAdvanceTrustGate() passed after 0.999 seconds.
+✔ Test fixtureNotificationDeliveryAndActionRoutesToPromptInbox() passed after 0.998 seconds.
+✔ Test capturePolicyNormalizesDisplayIDsAndRoundTripsThroughRuntimeConfiguration() passed after 0.990 seconds.
+✔ Test eventStorePersistsDailyPlanEntries() passed after 0.990 seconds.
+✔ Test gamingStatusUsesTheRecordedRewardAmountAndTruthfulFlexibleCopy() passed after 0.990 seconds.
+✔ Test userPolicyValidationReturnsEveryViolationInDeterministicOrder() passed after 0.990 seconds.
+✔ Test categoryUsageGroupsAppsAndPreservesOneHundredPercentTotal() passed after 0.990 seconds.
+✔ Test qaAgentFlagsMapToFailClosedOSOperations() passed after 0.990 seconds.
+✔ Test localDiagnosticsFailClosedForMissingOrCorruptDatabase() passed after 0.990 seconds.
+✔ Test deleteAllUserDataLeavesMigratedEmptyDatabaseReadyForRestart() passed after 0.998 seconds.
+✔ Test reminderPriorityRejectsValuesOutsideEventKitsDefinedScale() passed after 0.990 seconds.
+✔ Test qaPromptNotificationActionsUseOnlyTheQANamespace() passed after 0.990 seconds.
+✔ Test onboardingProgressAdvancesInOrderAndRequiresAnExplicitCoachingMode() passed after 0.986 seconds.
+✔ Test codexCLIAdvisorRejectsInvalidStructuredOutput() passed after 0.990 seconds.
+✔ Test settingsDraftPersistsSelectedCodexModel() passed after 0.941 seconds.
+✔ Test meetingPromptResponseEnqueuesExactlyOneConfirmedMeetingActionAcrossSurfaces() passed after 1.014 seconds.
+✔ Test historicalScreenwatchBackfillInvokesEachCompletedDayExactlyOnce() passed after 0.998 seconds.
+✔ Test onboardingProgressRejectsSkippedOrUnreachablePersistedState() passed after 0.940 seconds.
+✔ Test wakePolicyRequiresAHighConsequencePlanAndRespectsTheDailyInterventionBudget() passed after 0.939 seconds.
+✔ Test temporarySourceFailureIsRetriedWhilePermissionFailureIsTerminal() passed after 0.939 seconds.
+✔ Test canonicalScreenwatchReadsAreBoundedEvenWhenFileExceedsAdvertisedLimit() passed after 0.940 seconds.
+✔ Test packagedRuntimeRejectsModeRootAndBundleIdentityMismatches() passed after 0.941 seconds.
+✔ Test conversationalQuestionDoesNotAuthorizeAMacMutation() passed after 0.939 seconds.
+✔ Test expiredPromptReleasesItsDecisionForANewEpisode() passed after 0.998 seconds.
+✔ Test eventStoreLoadsOnlyIncompleteLocalTaskIdentifiersForPlanReconciliation() passed after 0.998 seconds.
+✔ Test descriptorStateDirectoryRetriesWithParentSyncAfterFailOnceFsync() passed after 0.939 seconds.
+✔ Test osFixtureRejectsRegressedAuditCounterAtLoad() passed after 0.939 seconds.
+✔ Test reminderListFilteringPreservesOpaqueIDsAndExcludesUnknownListsAfterConfiguration() passed after 0.931 seconds.
+✔ Test appInventoryMergesInstalledAndObservedAppsWithoutDescendingIntoBundles() passed after 0.931 seconds.
+✔ Test eventStorePersistsZoidOwnedScheduledBlocksForTheCurrentDay() passed after 0.935 seconds.
+✔ Test behaviorClassificationMigrationFreezesLegacyRecords() passed after 0.939 seconds.
+✔ Test productionRuntimeMigratesLegacyProductDirectoryWithoutLosingData() passed after 0.934 seconds.
+✔ Test gamingPolicyDefaultsAndSurvivesAStoreRestartWithoutResettingOtherPolicy() passed after 0.942 seconds.
+✔ Test osFixtureRejectsReusedGeneratedCounterIndexAtLoad() passed after 0.934 seconds.
+✔ Test osFixtureRejectsRegressedReminderCounterAtLoad() passed after 0.934 seconds.
+✔ Test privacyInventoryExplainsEveryStoredDataClassWithoutExposingRecordContent() passed after 0.934 seconds.
+✔ Test promptEpisodeStateMachineEnforcesTheDocumentedLifecycle() passed after 0.933 seconds.
+✔ Test whatsappOCRSkipsOnlyByteIdenticalFrames() passed after 0.935 seconds.
+✔ Test screenwatchMaintenanceDryRunNeverMutatesFilesDatabaseOrCheckpoints() passed after 0.934 seconds.
+✔ Test atomicPlanInstallRejectsEveryStructurallyInvalidProposalBeforeMutation() passed after 0.934 seconds.
+✔ Test osFixtureRejectsUnsupportedReminderPrioritySeed() passed after 0.933 seconds.
+✔ Test runtimeIdentityExactlyMatchesPackageIdentityManifest() passed after 0.933 seconds.
+✔ Test voiceUsageAndCodexJobsSurviveProcessRestart() passed after 0.934 seconds.
+✔ Test executorConsumesAndFinalizesARealSQLiteOutboxCommand() passed after 0.933 seconds.
+✔ Test productionPackageRejectsEveryQARuntimeInjection() passed after 0.933 seconds.
+✔ Test fixtureWorkspacesAreIsolatedAndCleanupDoesNotRemoveSiblings() passed after 0.933 seconds.
+✔ Test onboardingProgressRejectsContradictoryTerminalState() passed after 0.931 seconds.
+✔ Test osFixtureRejectsMalformedRecoveryMarker() passed after 0.931 seconds.
+✔ Test screenwatchSetupRejectsASymlinkedAlternateFolder() passed after 0.931 seconds.
+✔ Test qaRuntimeIdentityDoesNotCollideWithAnyProductionIdentity() passed after 0.931 seconds.
+✔ Test meetingDesiredStateDecodesCommandsWrittenBeforeFidelityFieldsExisted() passed after 0.931 seconds.
+✔ Test codexCLIAdvisorUsesBoundedExecutionAndRedactsPrivateEvidence() passed after 0.931 seconds.
+✔ Test canonicalScreenwatchBookmarkReadsRemainWholeDuringConcurrentReplacement() passed after 0.945 seconds.
+✔ Test reminderSynchronizationEmitsOnlyRealChangesAndPreservesEventKitPriorityMeaning() passed after 0.933 seconds.
+✔ Test autonomousPlanStoreMakesAnAgentDraftAvailableToTheAppForItsTargetDay() passed after 0.931 seconds.
+✔ Test controlRequestDoesNotReplayAfterCrashFollowingMutationCommit() passed after 0.929 seconds.
+✔ Test unpackagedBuildIdentityIsExplicitlyDevelopmentOnly() passed after 0.929 seconds.
+✔ Test meetingPromptBatchDoesNotLetPresentedCandidatesStarveNewCandidates() passed after 0.929 seconds.
+✔ Test autonomousPlanStoreUsesTheConfiguredPolicyTimezoneForOwnership() passed after 0.931 seconds.
+✔ Test promptResponseAndPendingEffectAreCommittedAtomically() passed after 0.931 seconds.
+✔ Test privacyPolicyUsesCustomCodexModelID() passed after 0.929 seconds.
+✔ Test screenwatchAlternateFolderSurvivesAServiceRestart() passed after 0.929 seconds.
+✔ Test daytimeReplanPreservesPastAndActiveOwnedBlocks() passed after 0.931 seconds.
+✔ Test controlDirectorySymlinkFailsClosed() passed after 0.929 seconds.
+✔ Test screenwatchArchiveAdvancesThroughLargeLogsInBoundedChunks() passed after 1.044 seconds.
+✔ Test osFixtureNotificationOperationUsesOneClockInstant() passed after 0.929 seconds.
+✔ Test onboardingStoreResumesReminderListDraftAcrossRestarts() passed after 0.927 seconds.
+✔ Test osFixtureRejectsDeliveryBeforeRequestedDateSeed() passed after 0.929 seconds.
+✔ Test meetingPolicyUsesInclusiveFifteenMinuteDuplicateWindowWithoutRequiringOverlap() passed after 0.927 seconds.
+✔ Test pauseReasonPersistsAcrossRestartAndClosesWhenWorkResumes() passed after 0.929 seconds.
+✔ Test versionTwoFixtureUpgradesWithoutLosingExistingPlanOrSourceHistory() passed after 0.927 seconds.
+✔ Test gamingPolicyValidationRejectsUnsupportedOrUnboundedValues() passed after 0.927 seconds.
+✔ Test screenwatchArchiveIngestsEachObservationOnlyOnceAcrossRepeatedRuns() passed after 0.929 seconds.
+✔ Test promptResponseTokensAreStableAndBoundToOnePromptActionPair() passed after 0.927 seconds.
+✔ Test dashboardUsesPersistedGamingBudgetAndRewardAcrossAgentRestart() passed after 0.934 seconds.
+✔ Test estimateLearningUsesRecentRobustMedianAndKeepsRollbackDataWithinBounds() passed after 0.925 seconds.
+✔ Test canonicalScreenwatchLegacyMigrationKeepsLegacyValueWhenStoreParentIsUnsafe() passed after 0.925 seconds.
+✔ Test osFixtureRejectsRegressedNotificationCounterAtLoad() passed after 0.925 seconds.
+✔ Test productionAgentAllowsExistingOSAdapterOperations() passed after 0.925 seconds.
+✔ Test sanitizedWhatsAppFixtureMatrixMeetsAgreedPrecisionAndRecallThresholds() passed after 0.925 seconds.
+✔ Test canonicalScreenwatchQABookmarkCannotEscapeOrCrossRunRoots() passed after 0.922 seconds.
+✔ Test meetingPromptBuilderProducesOneDraftForEveryUnresolvedCandidate() passed after 0.915 seconds.
+✔ Test dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEvidence() passed after 0.925 seconds.
+✔ Test auditedStructuredProviderRecordsValidationAndEnforcesDailyBudget() passed after 0.927 seconds.
+✔ Test appUsagePopupDismissesAfterLeavingEveryInteractionRegion() passed after 0.922 seconds.
+✔ Test descriptorDirectoryCreationFailsBeforeUseWhenParentSyncFails() passed after 0.914 seconds.
+✔ Test signedQACompositionCreatesOnlyItsMissingFinalRunRoot() passed after 0.914 seconds.
+✔ Test osFixturesFailClosedOnCorruptionAndRecoverInsideWorkspace() passed after 0.914 seconds.
+✔ Test approvedExternalVoiceToolExecutesExactlyOnceAfterConfirmation() passed after 0.927 seconds.
+✔ Test privacyExportHonorsTheIsolatedRuntimeExportRoot() passed after 0.927 seconds.
+✔ Test onboardingRevisionExhaustionFailsWithoutTrappingOrOverwriting() passed after 0.913 seconds.
+✔ Test plannerUsesBoundedLocalAIAdviceWithoutAllowingItToBypassCapacity() passed after 0.905 seconds.
+✔ Test signedQACompositionStillRejectsArbitraryTmpRootSymlink() passed after 0.905 seconds.
+✔ Test atomicPlanInstallRepairsAnOrphanAndPreservesItAsOneRevision() passed after 0.925 seconds.
+✔ Test communicationRulesRoundTripAndRemainDistinctWhileCountingAsWork() passed after 0.902 seconds.
+✔ Test screenwatchReaderReportsHealthySchemaValidStream() passed after 0.902 seconds.
+✔ Test gamingPolicyPresetsMatchTheOnboardingContractAndDefaultsToBalanced() passed after 0.902 seconds.
+✔ Test osFixturesRefuseReplacedWorkspaceRootSymlink() passed after 0.902 seconds.
+✔ Test freshAgentStyleConsumerIngestsCanonicalAlternateAndNotDefault() passed after 0.915 seconds.
+✔ Test onboardingStoreResumesTheExactPersistedStepAcrossRestarts() passed after 0.902 seconds.
+✔ Test meetingPromptIncludesDecisionEvidenceAndCalendarContext() passed after 0.885 seconds.
+✔ Test settingsConflictResolverPreservesIndependentEditsAndCurrentWinners() passed after 0.885 seconds.
+✔ Test classificationRulesImportRejectsSymlinksOversizedFilesAndUnknownSchemas() passed after 0.884 seconds.
+✔ Test settingsDraftBulkEditsCommunicationRulesAndCanResetEveryExplicitRule() passed after 0.884 seconds.
+✔ Test onboardingResetCreatesANewFlowIdentity() passed after 0.884 seconds.
+✔ Test healthStatesAlwaysExposeWrittenLabels() passed after 0.884 seconds.
+✔ Test modelRunLedgerCachesValidatedStructuredOutputAndEnforcesDailyBudget() passed after 0.914 seconds.
+✔ Test qaClientListenerAndPeerValidationUseOneRuntimeIdentity() passed after 0.884 seconds.
+✔ Test acceptsOnlyTheExplicitAppAndAgentSigningIdentifiers() passed after 0.884 seconds.
+✔ Test nightlyScheduleTargetsTomorrowOnlyAfterTheConfiguredEveningTime() passed after 0.884 seconds.
+✔ Test canonicalScreenwatchLegacyMigrationFinishesCleanupAfterPostRenameCrash() passed after 0.884 seconds.
+✔ Test onboardingFirstPlanUsesDurableLocalFallbackWhenRemindersAreUnavailable() passed after 1.142 seconds.
+✔ Test promptInboxRejectsATokenBoundToAnotherAction() passed after 0.902 seconds.
+✔ Test transientAttentionUsesTypedUnavailableDecisionRatherThanDenial() passed after 1.140 seconds.
+✔ Test freshOnboardingPersistsEachStepAndResumesAfterRestart() passed after 1.140 seconds.
+✔ Test editMeetingResponseRoutesCandidateIntoTheDashboardEditorQueue() passed after 0.915 seconds.
+✔ Test restartsOnlyAfterProgressExceedsTheStallBudget() passed after 0.630 seconds.
+✔ Test enforcesAMinimumStallBudget() passed after 0.630 seconds.
+✔ Test onboardingFirstPlanAllExcludedRemovesImportedRowsButPreservesLocalRows() passed after 1.140 seconds.
+✔ Test existingUnreadablePolicyDatabaseStillFailsOnboardingClosed() passed after 1.120 seconds.
+✔ Test osFixtureSerializesConcurrentMutationsWithUniquePersistentIDs() passed after 1.143 seconds.
+✔ Test completingActiveTaskEndsItsIntervalAndRefreshesRecommendation() passed after 0.906 seconds.
+✔ Test processCodexRunnerEnforcesTimeout() passed after 1.017 seconds.
+✔ Test firstInstallRegistersAnUnregisteredAgent() passed after 0.382 seconds.
+✔ Test repeatInstallReplacesAnEnabledRegistration() passed after 0.382 seconds.
+✔ Test interruptedRegistrationRetriesFromAReconciledState() passed after 0.382 seconds.
+✔ Test uninstallAndReinstallAreBothIdempotent() passed after 0.382 seconds.
+✔ Test staleEnabledRegistrationIsPolledBeforeRegisteringReplacement() passed after 0.382 seconds.
+✔ Test allTwelveStepsFinishAndRouteToToday() passed after 1.098 seconds.
+✔ Test promptInboxSerializesConcurrentResponseDelivery() passed after 1.145 seconds.
+✔ Test developmentPackageCannotTakeOwnershipFromTheInstalledApp() passed after 0.221 seconds.
+✔ Test registrationFingerprintChangesWhenTheInstalledAppMoves() passed after 0.221 seconds.
+✔ Test registrationFingerprintIsStableForTheSameBuildAndPath() passed after 0.221 seconds.
+✔ Test emptyReminderListDiscoveryRequiresExplicitLocalFallbackConfirmation() passed after 1.082 seconds.
+✔ Test onboardingFirstPlanUsesOnlyTodayEligibleRemindersAndCapsTheDefaultAtThree() passed after 1.089 seconds.
+✔ Test deniedAndDeferredSourcesRemainExplicitAndDoNotBlockSetup() passed after 1.089 seconds.
+✔ Test alternateScreenwatchFolderCanCompleteTheSourceStep() passed after 1.088 seconds.
+✔ Test screenwatchCheckpointLeavesPartialLineForTheNextTailPass() passed after 0.895 seconds.
+✔ Test fixtureServicesExposeDeniedAndDeferredPermissionStates() passed after 1.078 seconds.
+✔ Test firstWriteFailureRemainsTheCircuitBreakerReason() passed after 0.088 seconds.
+✔ Test capturePolicyUsesFiveSecondCadenceAndSkipsImagesAtNinetySecondsIdle() passed after 0.088 seconds.
+✔ Test capturePolicyHonorsConfiguredDisplaysAndDefaultsToAll() passed after 0.088 seconds.
+✔ Test writeFailureTripsReadOnlyCircuitUntilExplicitReset() passed after 0.088 seconds.
+✔ Test nativeCaptureDirectoryIsAppOwnedAndCannotCollideWithLegacyScreenwatch() passed after 0.090 seconds.
+✔ Test captureConfigurationPersistsAtomicallyAndEnforcesParityGate() passed after 0.091 seconds.
+✔ Test onboardingConcurrentStoreInstancesAlwaysLeaveAValidWholeState() passed after 1.092 seconds.
+✔ Test onboardingResetWaitsForAnInFlightSaveAndWinsWhenRequestedAfterIt() passed after 1.156 seconds.
+✔ Test concurrentAppAgentMutationsAndControlIngestionLoseNoState() passed after 1.156 seconds.
+✔ Test oneOutboxStoreSerializesConcurrentEnqueues() passed after 1.035 seconds.
+✔ Test sameStoreConcurrentAtomicPlanInstallsDoNotNestTransactions() passed after 0.959 seconds.
+✔ Suite XPCSigningIdentityTests passed after 1.158 seconds.
+✔ Suite AgentLivenessPolicyTests passed after 1.157 seconds.
+✔ Suite QAAgentRegistrationLifecycleTests passed after 1.157 seconds.
+✔ Test codexJobTransitionsFromQueuedThroughRunningToSucceeded() passed after 0.920 seconds.
+✔ Test onboardingFirstPlanPersistsRealReminderTasksAndReturnsExactlyWhatTodayCanRender() passed after 1.082 seconds.
+✔ Test gamingBoundaryMustPersistBeforeTheStepCompletes() passed after 1.075 seconds.
+✔ Suite RuntimeSafetyAndCapturePolicyTests passed after 1.116 seconds.
+✔ Test concurrentAtomicPlanInstallsCommitExactlyOnePlan() passed after 0.918 seconds.
+✔ Test osFixtureCoordinatesTwoInstancesWithoutLostActionsOrReusedIDs() passed after 1.155 seconds.
+✔ Test onboardingFirstPlanFailsHonestlyWhenEligibleWorkExceedsConfiguredCapacity() passed after 1.106 seconds.
+✔ Test onboardingStoreWaitsForAChildProcessAdvisoryLock() passed after 1.024 seconds.
+✔ Test downstreamCodeCannotForgeFixtureAuthorization() passed after 1.112 seconds.
+✔ Test onboardingFirstPlanUsesTheExactConfiguredReminderListIDs() passed after 1.145 seconds.
+✔ Test onboardingFirstPlanRepairsAnOrphanInsteadOfClaimingItIsPrepared() passed after 1.148 seconds.
+✔ Test onboardingFirstPlanFailsClosedWhenListPolicyCannotBeVerified() passed after 1.168 seconds.
+✔ Test osFixtureWaitsForChildProcessAdvisoryLock() passed after 1.298 seconds.
+✔ Test realStorePersistsExactResumeStepAcrossCoordinatorRestart() passed after 1.200 seconds.
+✔ Test twoWindowsWithTheSameDraftShareOneEffectAndReconcileProgress() passed after 1.181 seconds.
+✔ Test onboardingFirstPlanRepairsAPartialOrphanBeforeReturningPrepared() passed after 1.158 seconds.
+✔ Test grantedRemindersCannotBeDeferredIntoLegacyIncludeAllBehavior() passed after 1.162 seconds.
+✔ Test qaDeliveryWithoutAuthorizedFixtureFailsClosed() passed after 1.160 seconds.
+✔ Test reminderListDiscoveryFailureBlocksGrantedSetupUntilRetrySucceeds() passed after 1.160 seconds.
+✔ Test reminderListPermissionErrorIncludesTheExactRecoveryDetail() passed after 1.170 seconds.
+✔ Test qaReminderListDiscoveryUsesStableIdentifiersAndCurrentVisibleNames() passed after 1.173 seconds.
+✔ Test classificationAndScheduleAreAppliedBeforeAdvancing() passed after 1.156 seconds.
+✔ Test firstLaunchWithoutAPolicyDatabaseUsesDefaultsWithoutShowingAStorageError() passed after 1.157 seconds.
+✔ Test canonicalDeliveryPromptAndLocalTaskSurviveRestartAndGateContinuation() passed after 1.156 seconds.
+✔ Test deliveryStepRequiresTheTestTaskAndAUsablePromptPath() passed after 1.140 seconds.
+✔ Test durablePolicyReceiptReplaysAfterProgressSaveFailure() passed after 1.383 seconds.
+✔ Test failedDeliveryCannotCompleteTheDeliveryStep() passed after 1.355 seconds.
+✔ Test qaRuntimeNeverInspectsRegistersOrUnregistersProductionService() passed after 0.478 seconds.
+✔ Test packagedQAUsesOnlyItsDedicatedServiceAndSupportsFullUIControl() passed after 0.479 seconds.
+✔ Suite AgentLaunchServiceTests passed after 1.388 seconds.
+✔ Test alternateSettingsSaveRefreshesChangedReminderPolicyExactlyOnce() passed after 1.408 seconds.
+✔ Test appModelPropagatesQARuntimeToBackgroundAgentControl() passed after 1.407 seconds.
+✔ Test qaVoiceUsesDedicatedDashboardIdentityWhileOSControlsFailClosed() passed after 1.334 seconds.
+✔ Test appSurfacesSignedQAFixtureStartupFailure() passed after 1.407 seconds.
+✔ Test twoWindowsWithDifferentDraftsCannotOverwriteTheWinner() passed after 1.296 seconds.
+✔ Test firstPlanMustReturnVisiblePreparedItemsBeforeFinishing() passed after 1.288 seconds.
+✔ Test coachingStepDoesNotPersistProgressBeforePolicyIsDurable() passed after 1.205 seconds.
+✔ Test staleSaveRestoresLatestProgressAndOffersRetry() passed after 1.175 seconds.
+✔ Test oneStepPausePersistsImmediatelyWithoutSavingOtherDraftEdits() passed after 1.416 seconds.
+✔ Test appFailsClosedWhenReminderListPolicyCannotBeVerified() passed after 1.295 seconds.
+✔ Test savedAppClassificationLoadsInANewSettingsController() passed after 1.380 seconds.
+✔ Test policyRollbackRestoresPreviousSettingsAsANewVersion() passed after 1.361 seconds.
+✔ Test lateInspectionCannotOverwriteANewerExplicitDecision() passed after 1.426 seconds.
+✔ Test latePermissionResultCannotOverwriteExplicitDeferral() passed after 1.424 seconds.
+✔ Test inFlightDeliveryBlocksNavigationAndOtherStepMutations() passed after 1.423 seconds.
+✔ Test settingsDoNotAdvanceWithoutAnExactDurableMutationReceipt() passed after 1.225 seconds.
+✔ Test appModelConsumesCanonicalAlternateScreenwatchAfterFreshResolution() passed after 1.199 seconds.
+✔ Test appRefreshRetainsAnIncompleteLocalStarterPlanWhenExternalReminderListsAreFiltered() passed after 1.332 seconds.
+✔ Test staleReminderListDiscoveryCannotOverwriteTheLatestRetry() passed after 1.487 seconds.
+✔ Test appSurfacesExactMalformedControlRecoveryCopy() passed after 1.424 seconds.
+✔ Test appRefreshUsesExactReminderListPolicyAndExcludesUnknownLists() passed after 1.489 seconds.
+✔ Test qaAppModelUsesRuntimeMeetingEvidenceCipherWithoutConsultingProductionFactory() passed after 1.489 seconds.
+✔ Test settingsPermissionRecheckIgnoresAnOlderInFlightResult() passed after 1.276 seconds.
+✔ Test staleSettingsWindowCannotOverwriteANewerPolicyVersion() passed after 1.462 seconds.
+✔ Test staleSettingsReminderListEditSurvivesConflictAndRetriesAgainstTheNewVersion() passed after 1.383 seconds.
+✔ Test repeatedConcurrentSettingsChangesRequireAChoiceEveryTimeWithoutDuplicateVersions() passed after 1.460 seconds.
+✔ Test signedQAFixtureFlowsFromSeedThroughAppAgentMutationAndAppRefresh() passed after 1.560 seconds.
+✔ Test settingsSaveImmediatelyRemovesExcludedReminderFromCurrentAppSession() passed after 1.540 seconds.
+✔ Test sourceCheckCompletesWithStableSourceStates() passed after 1.580 seconds.
+✔ Test downstreamPackagesCompileDocumentedImportsAndRejectTheRemovedCoreOnlyPath() passed after 23.192 seconds.
+✔ Test run with 476 tests in 5 suites passed after 23.451 seconds.
