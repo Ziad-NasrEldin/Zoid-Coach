@@ -49,6 +49,15 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Signed-QA repeat-install lifecycle - `10cc1da`
+
+- Reconciles the dedicated QA SMAppService registration before every app replacement instead of treating stale `enabled` state as proof that the replacement helper owns the registration.
+- Stages and verifies the replacement app before mutation, swaps it atomically, restores the prior app on registration failure, and recovers a prior interrupted replacement on the next run.
+- Adds an explicit packaged-QA unregister command so uninstall and repeat install operate through the owning app while preserving the production registration.
+- Covers first install, repeat install, stale enabled state, replacement helper path changes, interrupted registration and replacement recovery, and uninstall/reinstall with deterministic tests.
+- Signed runtime proof passed twice in place, passed uninstall/reinstall, and preserved the running production helper.
+- Evidence is recorded in `.audit/runs/signed-qa-repeat-install/10cc1da/REPORT.md`.
+
 ### Signed-QA persistent runtime - `343310a`
 
 - Added identity-driven install and uninstall commands with no hardcoded bundle, executable, or LaunchAgent identity.
