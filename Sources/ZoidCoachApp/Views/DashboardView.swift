@@ -20,6 +20,7 @@ struct DashboardView: View {
     @EnvironmentObject private var model: AppModel
     @StateObject private var modalCoordinator = SumiModalCoordinator()
     @State private var editingMeetingCandidate: StoredMeetingCandidate?
+    @State private var isCreatingLocalTask = false
 
     var body: some View {
         ZStack {
@@ -32,7 +33,10 @@ struct DashboardView: View {
                 ScrollView {
                     Group {
                         if model.selectedSection == .today {
-                            TodayCommandView(editingCandidate: $editingMeetingCandidate)
+                            TodayCommandView(
+                                editingCandidate: $editingMeetingCandidate,
+                                createLocalTask: { isCreatingLocalTask = true }
+                            )
                         } else if model.selectedSection == .reviews {
                             DailyReviewView()
                         } else if model.selectedSection == .settings {
@@ -52,7 +56,16 @@ struct DashboardView: View {
             }
             .environmentObject(modalCoordinator)
 
-            if let candidate = editingMeetingCandidate {
+            if isCreatingLocalTask {
+                SumiModalOverlay(dismiss: { isCreatingLocalTask = false }) {
+                    LocalTaskCreationView {
+                        isCreatingLocalTask = false
+                        Task { await model.refreshTodaySnapshot() }
+                    } cancel: {
+                        isCreatingLocalTask = false
+                    }
+                }
+            } else if let candidate = editingMeetingCandidate {
                 SumiModalOverlay(dismiss: {
                     model.deferMeetingCandidateEdit(candidate)
                     editingMeetingCandidate = nil
@@ -94,6 +107,7 @@ struct DashboardView: View {
 private struct TodayCommandView: View {
     @EnvironmentObject private var model: AppModel
     @Binding var editingCandidate: StoredMeetingCandidate?
+    let createLocalTask: () -> Void
     @State private var draggedReminderListID: String?
 
     var body: some View {
@@ -240,10 +254,14 @@ private struct TodayCommandView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("FULL INVENTORY / UNPLANNED REMINDERS")
+                    Text("FULL INVENTORY / UNPLANNED TASKS")
                         .font(Sumi.label(10))
                         .sumiLabelTracking()
                     Spacer()
+                    Button("NEW LOCAL TASK", action: createLocalTask)
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                        .accessibilityHint("Creates a task stored only on this Mac, even when Reminders is unavailable.")
+                        .accessibilityIdentifier("create-local-task")
                     Text("\(unplannedTasks.count) AVAILABLE")
                         .font(Sumi.label(9))
                         .sumiLabelTracking()
@@ -264,10 +282,15 @@ private struct TodayCommandView: View {
                     ProgressView("Loading your incomplete reminders")
                         .padding(28)
                 } else if unplannedTasks.isEmpty {
-                    Text("No incomplete reminders are available. Connect Apple Reminders from Source health if access has not been granted.")
-                        .font(Sumi.body(14))
-                        .foregroundStyle(Sumi.muted)
-                        .padding(28)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("No incomplete tasks are available. You can create a local task now or connect Apple Reminders from Source health.")
+                            .font(Sumi.body(14))
+                            .foregroundStyle(Sumi.muted)
+                        Button("CREATE LOCAL TASK", action: createLocalTask)
+                            .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
+                            .accessibilityIdentifier("create-local-task-empty-state")
+                    }
+                    .padding(28)
                 } else {
                     let groups = groupedUnplannedTasks
                     ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in

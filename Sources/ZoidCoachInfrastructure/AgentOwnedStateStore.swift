@@ -38,6 +38,35 @@ public final class AgentOwnedStateStore: @unchecked Sendable {
         }
     }
 
+    public func appendLocalTaskToDailyPlan(
+        taskID: String,
+        estimateMinutes: Int,
+        day: Date,
+        now: Date = Date()
+    ) throws {
+        try transaction {
+            let dayKey = Self.dayKey(day)
+            try execute(
+                """
+                INSERT OR IGNORE INTO daily_plan_entries
+                (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, updated_at)
+                SELECT ?, ?, COALESCE(MAX(rank), 0) + 1,
+                       CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END,
+                       ?, 'Created locally by the user', NULL, ?
+                FROM daily_plan_entries
+                WHERE day_key = ?;
+                """,
+                values: [
+                    .text(dayKey),
+                    .text(taskID),
+                    .integer(estimateMinutes),
+                    .text(formatter.string(from: now)),
+                    .text(dayKey)
+                ]
+            )
+        }
+    }
+
     public func replaceReminderListOrder(_ listIDs: [String], now: Date = Date()) throws {
         try transaction {
             try execute("DELETE FROM reminder_list_order;", values: [])
