@@ -44,15 +44,22 @@ public struct TaskEstimateProgress: Equatable, Sendable {
         case .notStarted:
             return "Not started"
         case .underway:
-            return "(remainingMinutes) min remaining in estimate"
+            return "\(remainingMinutes) min remaining in estimate"
         case .nearingEstimate:
-            return remainingMinutes == 0 ? "Estimate reached" : "(remainingMinutes) min remaining in estimate"
+            return remainingMinutes == 0 ? "Estimate reached" : "\(remainingMinutes) min remaining in estimate"
         case .overEstimate:
-            return "(overrunMinutes) min over estimate"
+            return "\(overrunMinutes) min over estimate"
         }
     }
 
     public var accessibilitySummary: String {
-        "(elapsedMinutes) minutes tracked of (estimateMinutes) estimated, (statusLabel.lowercased())."
+        "\(elapsedMinutes) minutes tracked of \(estimateMinutes) estimated, \(statusLabel.lowercased())."
+    }
+
+    public func addingElapsedMinutes(_ additionalMinutes: Int) -> TaskEstimateProgress {
+        TaskEstimateProgress(
+            elapsedMinutes: elapsedMinutes + max(0, additionalMinutes),
+            estimateMinutes: estimateMinutes
+        )
     }
 }
