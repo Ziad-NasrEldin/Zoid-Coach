@@ -11,6 +11,7 @@ struct OnboardingDeliveryResult: Equatable, Sendable {
         case scheduled
         case unavailable
         case failed
+        case todayFallback
     }
 
     let state: State
@@ -46,6 +47,7 @@ enum OnboardingDependencyError: LocalizedError {
     case firstDailyPlanUnavailable
     case invalidPolicyMutationReceipt
     case reminderListSelectionRequired
+    case testPromptUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -57,6 +59,8 @@ enum OnboardingDependencyError: LocalizedError {
             "The agent did not return a durable policy receipt. Setup was not advanced."
         case .reminderListSelectionRequired:
             "Choose Include or Exclude for every discovered Reminder list before continuing."
+        case .testPromptUnavailable:
+            "The canonical onboarding prompt service is unavailable."
         }
     }
 }
@@ -76,6 +80,13 @@ struct OnboardingDependencies {
     let requestNotifications: () async -> OnboardingAccessRequestResult
     let loadInventory: () -> AppInventoryLoadResult
     let testDelivery: () async -> OnboardingDeliveryResult
+    var createTestPrompt: (String) async throws -> OnboardingTestPromptResult = { _ in
+        throw OnboardingDependencyError.testPromptUnavailable
+    }
+    var loadTestPrompt: (String) async throws -> PromptEpisode? = { _ in nil }
+    var respondToTestPrompt: (PromptResponseCommand) async throws -> PromptEpisode = { _ in
+        throw OnboardingDependencyError.testPromptUnavailable
+    }
     let loadPolicy: () throws -> VersionedUserPolicy?
     let applyPolicyMutation: (PolicyMutationRequest) async throws -> PolicyMutationReceipt
     let prepareFirstDailyPlan: () async -> OnboardingFirstDailyPlanResult
@@ -146,6 +157,9 @@ struct OnboardingDependencies {
             },
             loadInventory: { inventory.load() },
             testDelivery: { await delivery.run() },
+            createTestPrompt: { try await xpcClient.createOnboardingTestPrompt(flowID: $0) },
+            loadTestPrompt: { try await xpcClient.fetchOnboardingTestPrompt(flowID: $0) },
+            respondToTestPrompt: { try await xpcClient.respondToPrompt($0) },
             loadPolicy: {
                 guard FileManager.default.fileExists(
                     atPath: runtimeEnvironment.databaseURL.path

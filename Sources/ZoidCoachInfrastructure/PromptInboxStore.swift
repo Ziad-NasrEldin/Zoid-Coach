@@ -222,6 +222,16 @@ public final class PromptInboxStore: @unchecked Sendable {
         return try episode(id: promptID)
     }
 
+    public func latestEpisode(decisionKey: String) throws -> PromptEpisode? {
+        lock.lock()
+        defer { lock.unlock() }
+        return try episodes(
+            where: "decision_key = ? OR decision_key LIKE ?",
+            bindings: [decisionKey, "resolved:%:\(decisionKey)"],
+            suffix: "ORDER BY created_at_utc DESC, id DESC LIMIT 1"
+        ).first
+    }
+
     public func responses(promptID: String) throws -> [PromptResponse] {
         lock.lock()
         defer { lock.unlock() }

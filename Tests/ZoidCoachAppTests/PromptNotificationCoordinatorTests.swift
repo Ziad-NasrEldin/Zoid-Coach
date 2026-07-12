@@ -7,9 +7,28 @@ func promptNotificationContractMapsRequiredCategoriesAndActions() {
     #expect(PromptNotificationCategory.forPromptType("PLAN_READY") == .planReady)
     #expect(PromptNotificationCategory.forPromptType("MEETING_CANDIDATE") == .meetingCandidate)
     #expect(PromptNotificationCategory.forPromptType("PLAN_CHANGED") == .planChanged)
+    #expect(PromptNotificationCategory.forPromptType("ONBOARDING_TEST") == .onboardingTest)
     for action in [PromptActionKind.acceptPlan, .reviewPlan, .addMeeting, .editMeeting, .ignore, .undoPlanChange] {
         #expect(PromptNotificationCoordinator.actionKind(identifier: PromptNotificationCoordinator.actionIdentifier(action)) == action)
     }
+}
+
+@Test
+func onboardingPromptNotificationAcceptsOnlyItsHarmlessActions() {
+    let identity = RuntimeIdentity.qa.notification
+
+    for action in [PromptActionKind.continueIntentionally, .ignore] {
+        #expect(PromptNotificationCoordinator.fixtureActionKind(
+            identifier: action.rawValue,
+            category: PromptNotificationCategory.onboardingTest.rawValue,
+            notificationIdentity: identity
+        ) == action)
+    }
+    #expect(PromptNotificationCoordinator.fixtureActionKind(
+        identifier: PromptActionKind.acceptPlan.rawValue,
+        category: PromptNotificationCategory.onboardingTest.rawValue,
+        notificationIdentity: identity
+    ) == nil)
 }
 
 @Test

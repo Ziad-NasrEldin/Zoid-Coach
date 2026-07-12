@@ -7,6 +7,7 @@ public enum PromptNotificationCategory: String, CaseIterable, Sendable {
     case meetingCandidate = "MEETING_CANDIDATE"
     case planChanged = "PLAN_CHANGED"
     case wakeIntervention = "WAKE_INTERVENTION"
+    case onboardingTest = "ONBOARDING_TEST"
 
     public static func forPromptType(_ type: String) -> PromptNotificationCategory? {
         PromptNotificationCategory(rawValue: type)
@@ -194,6 +195,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         case .meetingCandidate: [.addMeeting, .editMeeting, .ignore]
         case .planChanged: [.reviewPlan, .undoPlanChange]
         case .wakeIntervention: []
+        case .onboardingTest: [.continueIntentionally, .ignore]
         }
         return allowed.contains(action) ? action : nil
     }
@@ -230,6 +232,14 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             UNNotificationCategory(
                 identifier: notificationIdentity.promptCategoryIdentifier(PromptNotificationCategory.wakeIntervention.rawValue),
                 actions: [],
+                intentIdentifiers: []
+            ),
+            UNNotificationCategory(
+                identifier: notificationIdentity.promptCategoryIdentifier(PromptNotificationCategory.onboardingTest.rawValue),
+                actions: [
+                    action(.continueIntentionally, title: "Continue Setup", foreground: true, notificationIdentity: notificationIdentity),
+                    action(.ignore, title: "Use Today", foreground: true, notificationIdentity: notificationIdentity)
+                ],
                 intentIdentifiers: []
             )
         ]

@@ -36,6 +36,9 @@ struct OnboardingRootView: View {
             if coordinator.progress.currentStep == .firstDailyPlan {
                 await coordinator.prepareFirstDailyPlan()
             }
+            if coordinator.progress.currentStep == .deliveryTest {
+                await coordinator.restoreTestPrompt()
+            }
         }
     }
 
@@ -640,11 +643,11 @@ struct OnboardingRootView: View {
             }
             .padding(14)
             .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
-            Button(coordinator.isWorking ? "TESTING…" : "SEND TEST NOTIFICATION") {
+            Button(coordinator.isWorking ? "TESTING…" : "SEND TEST PROMPT") {
                 Task { await coordinator.runDeliveryTest() }
             }
             .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
-            .disabled(coordinator.isWorking || coordinator.progress.notificationAccess != .granted)
+            .disabled(coordinator.isWorking)
             .accessibilityIdentifier("onboarding.delivery.test")
             if let result = coordinator.deliveryResult {
                 VStack(alignment: .leading, spacing: 6) {
@@ -661,6 +664,44 @@ struct OnboardingRootView: View {
                 ))
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("onboarding.delivery.test-result")
+            }
+            if let prompt = coordinator.testPrompt {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(prompt.state == .responded ? "PROMPT RESOLVED" : "CHOOSE AN ACTION")
+                        .font(Sumi.label())
+                        .tracking(1.2)
+                    Text(prompt.title).font(Sumi.body(15))
+                    Text(prompt.summary).font(Sumi.body(13)).foregroundStyle(Sumi.muted)
+                    if prompt.state.isUnresolved {
+                        HStack(spacing: 8) {
+                            ForEach(prompt.actions) { action in
+                                Button(action.title.uppercased()) {
+                                    Task { await coordinator.respondToTestPrompt(action.kind) }
+                                }
+                                .buttonStyle(SumiActionButtonStyle(
+                                    role: action.role == .primary ? .primary : .quiet,
+                                    size: .standard
+                                ))
+                                .disabled(coordinator.isWorking)
+                                .accessibilityIdentifier("onboarding.delivery.prompt.\(action.kind.rawValue)")
+                            }
+                        }
+                        Button("REFRESH PROMPT STATUS") {
+                            Task { await coordinator.restoreTestPrompt() }
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                        .disabled(coordinator.isWorking)
+                        .accessibilityIdentifier("onboarding.delivery.prompt.refresh")
+                    } else {
+                        Text(coordinator.testPromptMessage ?? "Your choice is saved.")
+                            .font(Sumi.body(13))
+                            .foregroundStyle(Sumi.okay)
+                    }
+                }
+                .padding(14)
+                .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("onboarding.delivery.prompt")
             }
         }
     }
@@ -732,6 +773,7 @@ struct OnboardingRootView: View {
         case .scheduled: "SCHEDULED"
         case .unavailable: "UNAVAILABLE"
         case .failed: "FAILED"
+        case .todayFallback: "TODAY FALLBACK"
         }
     }
 

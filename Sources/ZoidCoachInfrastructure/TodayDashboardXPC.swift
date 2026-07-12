@@ -5,6 +5,14 @@ import ZoidCoachCore
 
 public let todayDashboardMachServiceName = RuntimeIdentity.production.machServiceName
 
+private final class XPCDataReplyBox: @unchecked Sendable {
+    let reply: (Data?, String?) -> Void
+
+    init(_ reply: @escaping (Data?, String?) -> Void) {
+        self.reply = reply
+    }
+}
+
 public struct TodayDashboardXPCConfiguration: Equatable, Sendable {
     public let machServiceName: String
     public let allowedSigningIdentifiers: Set<String>
@@ -85,6 +93,8 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
     func applyTaskCommand(_ command: String, taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func fetchPromptInbox(withReply reply: @escaping (Data?, String?) -> Void)
     func respondToPrompt(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void)
+    func createOnboardingTestPrompt(_ flowID: String, withReply reply: @escaping (Data?, String?) -> Void)
+    func fetchOnboardingTestPrompt(_ flowID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func applyAgentMutation(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void)
     func fetchActionAudit(withReply reply: @escaping (Data?, String?) -> Void)
     func fetchVoiceContext(withReply reply: @escaping (Data?, String?) -> Void)
@@ -105,6 +115,7 @@ public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
     private let authorizer: any XPCConnectionAuthorizing
     private let promptStore: PromptInboxStore?
     private let promptEffectRouter: PromptResponseEffectRouter?
+    private let onboardingTestPrompts: OnboardingTestPromptService?
     private let mutationRouter: AgentMutationRouter?
     private let voiceController: VoiceAgentController?
     private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
@@ -114,6 +125,7 @@ public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
         agent: TodayDashboardAgent? = nil,
         promptStore: PromptInboxStore? = nil,
         promptEffectRouter: PromptResponseEffectRouter? = nil,
+        onboardingTestPrompts: OnboardingTestPromptService? = nil,
         mutationRouter: AgentMutationRouter? = nil,
         voiceController: VoiceAgentController? = nil,
         writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(),
@@ -128,6 +140,7 @@ public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
         self.agent = agent
         self.promptStore = promptStore
         self.promptEffectRouter = promptEffectRouter
+        self.onboardingTestPrompts = onboardingTestPrompts
         self.mutationRouter = mutationRouter
         self.voiceController = voiceController
         self.writeCircuitBreaker = writeCircuitBreaker
@@ -148,7 +161,7 @@ public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
             return false
         }
         connection.exportedInterface = NSXPCInterface(with: TodayDashboardXPCProtocol.self)
-        connection.exportedObject = TodayDashboardXPCEndpoint(agent: agent, promptStore: promptStore, promptEffectRouter: promptEffectRouter, mutationRouter: mutationRouter, voiceController: voiceController, writeCircuitBreaker: writeCircuitBreaker, captureHealthStore: captureHealthStore)
+        connection.exportedObject = TodayDashboardXPCEndpoint(agent: agent, promptStore: promptStore, promptEffectRouter: promptEffectRouter, onboardingTestPrompts: onboardingTestPrompts, mutationRouter: mutationRouter, voiceController: voiceController, writeCircuitBreaker: writeCircuitBreaker, captureHealthStore: captureHealthStore)
         connection.resume()
         return true
     }
@@ -158,6 +171,7 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
     private let agent: TodayDashboardAgent?
     private let promptStore: PromptInboxStore?
     private let promptEffectRouter: PromptResponseEffectRouter?
+    private let onboardingTestPrompts: OnboardingTestPromptService?
     private let mutationRouter: AgentMutationRouter?
     private let voiceController: VoiceAgentController?
     private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
@@ -173,10 +187,11 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
         return decoder
     }()
 
-    init(agent: TodayDashboardAgent?, promptStore: PromptInboxStore?, promptEffectRouter: PromptResponseEffectRouter?, mutationRouter: AgentMutationRouter?, voiceController: VoiceAgentController?, writeCircuitBreaker: DatabaseWriteCircuitBreaker, captureHealthStore: AgentCaptureHealthStore?) {
+    init(agent: TodayDashboardAgent?, promptStore: PromptInboxStore?, promptEffectRouter: PromptResponseEffectRouter?, onboardingTestPrompts: OnboardingTestPromptService?, mutationRouter: AgentMutationRouter?, voiceController: VoiceAgentController?, writeCircuitBreaker: DatabaseWriteCircuitBreaker, captureHealthStore: AgentCaptureHealthStore?) {
         self.agent = agent
         self.promptStore = promptStore
         self.promptEffectRouter = promptEffectRouter
+        self.onboardingTestPrompts = onboardingTestPrompts
         self.mutationRouter = mutationRouter
         self.voiceController = voiceController
         self.writeCircuitBreaker = writeCircuitBreaker
@@ -234,6 +249,39 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
             }
             reply(try encoder.encode(result.episode), nil)
         } catch { reply(nil, error.localizedDescription) }
+    }
+
+    func createOnboardingTestPrompt(
+        _ flowID: String,
+        withReply reply: @escaping (Data?, String?) -> Void
+    ) {
+        guard let onboardingTestPrompts else {
+            reply(nil, "The onboarding prompt service is unavailable.")
+            return
+        }
+        let replyBox = XPCDataReplyBox(reply)
+        Task {
+            do {
+                let result = try await onboardingTestPrompts.createOrDeliver(flowID: flowID)
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                replyBox.reply(try encoder.encode(result), nil)
+            } catch {
+                replyBox.reply(nil, error.localizedDescription)
+            }
+        }
+    }
+
+    func fetchOnboardingTestPrompt(
+        _ flowID: String,
+        withReply reply: @escaping (Data?, String?) -> Void
+    ) {
+        guard let onboardingTestPrompts else {
+            reply(nil, "The onboarding prompt service is unavailable.")
+            return
+        }
+        do { reply(try encoder.encode(onboardingTestPrompts.current(flowID: flowID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
     }
 
     func applyAgentMutation(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void) {
@@ -420,6 +468,18 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(command)
         return try await callData { proxy, reply in proxy.respondToPrompt(data, withReply: reply) }
+    }
+
+    public func createOnboardingTestPrompt(flowID: String) async throws -> OnboardingTestPromptResult {
+        try await callData { proxy, reply in
+            proxy.createOnboardingTestPrompt(flowID, withReply: reply)
+        }
+    }
+
+    public func fetchOnboardingTestPrompt(flowID: String) async throws -> PromptEpisode? {
+        try await callData { proxy, reply in
+            proxy.fetchOnboardingTestPrompt(flowID, withReply: reply)
+        }
     }
 
     public func apply(_ command: AgentMutationCommand) async throws -> AgentMutationReceipt {
