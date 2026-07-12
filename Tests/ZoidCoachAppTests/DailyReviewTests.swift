@@ -85,6 +85,94 @@ func hypothesisDecisionAndConfirmationAreDurableAndCorrectionReopensReview() thr
 }
 
 @Test
+func offlineWorkPersistsAcrossRestartAndRemainsSeparateFromObservedCoverage() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Cursor", classification: .work)
+    let startedAt = Date(timeIntervalSince1970: 1_783_666_800)
+
+    let id = try fixture.store.saveOfflineWork(
+        sourceDay: fixture.sourceDay,
+        taskID: "Draft contract",
+        startedAt: startedAt,
+        durationMinutes: 45,
+        note: "Client workshop"
+    )
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let snapshot = try reopened.load(sourceDay: fixture.sourceDay)
+
+    #expect(snapshot.offlineWork.count == 1)
+    #expect(snapshot.offlineWork[0].id == id)
+    #expect(snapshot.offlineWork[0].taskID == "Draft contract")
+    #expect(snapshot.offlineWork[0].note == "Client workshop")
+    #expect(snapshot.observedMinutes == 1)
+    #expect(snapshot.offlineMinutes == 45)
+    #expect(snapshot.actualMinutes == 46)
+}
+
+@Test
+func offlineWorkCanBeCorrectedIdempotentlyAndReopensAConfirmedReview() throws {
+    let confirmationDate = Date(timeIntervalSince1970: 1_783_700_000)
+    let fixture = try DailyReviewFixture(now: { confirmationDate })
+    defer { fixture.remove() }
+    let startedAt = Date(timeIntervalSince1970: 1_783_666_800)
+    let id = try fixture.store.saveOfflineWork(
+        id: "offline-1",
+        sourceDay: fixture.sourceDay,
+        taskID: nil,
+        startedAt: startedAt,
+        durationMinutes: 20,
+        note: nil
+    )
+    try fixture.store.confirm(sourceDay: fixture.sourceDay)
+
+    _ = try fixture.store.saveOfflineWork(
+        id: id,
+        sourceDay: fixture.sourceDay,
+        taskID: "Research",
+        startedAt: startedAt,
+        durationMinutes: 35,
+        note: "Corrected after review"
+    )
+    let snapshot = try fixture.store.load(sourceDay: fixture.sourceDay)
+
+    #expect(snapshot.offlineWork.count == 1)
+    #expect(snapshot.offlineWork[0].durationMinutes == 35)
+    #expect(snapshot.offlineWork[0].taskID == "Research")
+    #expect(snapshot.confirmedAt == nil)
+}
+
+@Test
+func offlineWorkValidatesDurationAndCanBeDeletedWithoutTouchingObservations() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Cursor", classification: .work)
+    let startedAt = Date(timeIntervalSince1970: 1_783_666_800)
+
+    #expect(throws: DailyReviewStoreError.self) {
+        _ = try fixture.store.saveOfflineWork(
+            sourceDay: fixture.sourceDay,
+            taskID: nil,
+            startedAt: startedAt,
+            durationMinutes: 0,
+            note: nil
+        )
+    }
+    let id = try fixture.store.saveOfflineWork(
+        sourceDay: fixture.sourceDay,
+        taskID: nil,
+        startedAt: startedAt,
+        durationMinutes: 15,
+        note: nil
+    )
+    try fixture.store.deleteOfflineWork(id: id, sourceDay: fixture.sourceDay)
+    let snapshot = try fixture.store.load(sourceDay: fixture.sourceDay)
+
+    #expect(snapshot.offlineWork.isEmpty)
+    #expect(snapshot.observedMinutes == 1)
+}
+
+@Test
 func migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
@@ -94,7 +182,7 @@ func migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() throws {
 
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM behavior_records;") == 1)
-    #expect(try fixture.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('daily_reviews', 'daily_review_corrections');") == 2)
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('daily_reviews', 'daily_review_corrections', 'offline_work_entries');") == 3)
 }
 
 private final class DailyReviewFixture {

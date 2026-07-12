@@ -45,6 +45,37 @@ public struct DailyReviewTotal: Identifiable, Equatable, Sendable {
     public var id: BehaviorClassification { classification }
 }
 
+public struct OfflineWorkEntry: Identifiable, Equatable, Sendable {
+    public let id: String
+    public let sourceDay: String
+    public let taskID: String?
+    public let startedAt: Date
+    public let durationMinutes: Int
+    public let note: String?
+    public let createdAt: Date
+    public let updatedAt: Date
+
+    public init(
+        id: String,
+        sourceDay: String,
+        taskID: String? = nil,
+        startedAt: Date,
+        durationMinutes: Int,
+        note: String? = nil,
+        createdAt: Date,
+        updatedAt: Date
+    ) {
+        self.id = id
+        self.sourceDay = sourceDay
+        self.taskID = taskID
+        self.startedAt = startedAt
+        self.durationMinutes = max(1, durationMinutes)
+        self.note = note
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
 public enum DailyReviewHypothesisState: String, Codable, Sendable {
     case pending
     case accepted
@@ -58,6 +89,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
     public let hypothesis: String?
     public let hypothesisState: DailyReviewHypothesisState
     public let confirmedAt: Date?
+    public let offlineWork: [OfflineWorkEntry]
 
     public init(
         sourceDay: String,
@@ -65,7 +97,8 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         totals: [DailyReviewTotal],
         hypothesis: String?,
         hypothesisState: DailyReviewHypothesisState,
-        confirmedAt: Date?
+        confirmedAt: Date?,
+        offlineWork: [OfflineWorkEntry] = []
     ) {
         self.sourceDay = sourceDay
         self.sessions = sessions
@@ -73,7 +106,12 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         self.hypothesis = hypothesis
         self.hypothesisState = hypothesisState
         self.confirmedAt = confirmedAt
+        self.offlineWork = offlineWork
     }
+
+    public var observedMinutes: Int { totals.reduce(0) { $0 + $1.minutes } }
+    public var offlineMinutes: Int { offlineWork.reduce(0) { $0 + $1.durationMinutes } }
+    public var actualMinutes: Int { observedMinutes + offlineMinutes }
 }
 
 public enum DailyReviewSessionizer {
