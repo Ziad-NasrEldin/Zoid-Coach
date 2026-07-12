@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 29
+    public static let currentVersion = 30
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -865,6 +865,20 @@ private extension AutonomousDatabaseMigrator {
         ON task_pause_events(task_id, paused_at DESC);
         CREATE UNIQUE INDEX IF NOT EXISTS task_pause_events_one_open
         ON task_pause_events(task_id) WHERE resumed_at IS NULL;
+        """)]),
+        Migration(version: 30, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS offline_work_entries (
+            id TEXT PRIMARY KEY,
+            source_day TEXT NOT NULL,
+            task_id TEXT,
+            started_at_utc TEXT NOT NULL,
+            duration_minutes INTEGER NOT NULL CHECK(duration_minutes > 0 AND duration_minutes <= 1440),
+            note TEXT,
+            created_at_utc TEXT NOT NULL,
+            updated_at_utc TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS offline_work_entries_day_start
+        ON offline_work_entries(source_day, started_at_utc, id);
         """)])
     ]
 }

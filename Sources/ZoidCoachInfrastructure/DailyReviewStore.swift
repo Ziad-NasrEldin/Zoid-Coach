@@ -43,14 +43,76 @@ public final class DailyReviewStore: @unchecked Sendable {
         let sessions = DailyReviewSessionizer.sessions(from: observations)
         let totals = DailyReviewSessionizer.totals(for: sessions)
         let state = try readReviewState(sourceDay: sourceDay)
+        let offlineWork = try readOfflineWork(sourceDay: sourceDay)
         return DailyReviewSnapshot(
             sourceDay: sourceDay,
             sessions: sessions,
             totals: totals,
             hypothesis: Self.hypothesis(for: totals),
             hypothesisState: state.hypothesisState,
-            confirmedAt: state.confirmedAt
+            confirmedAt: state.confirmedAt,
+            offlineWork: offlineWork
         )
+    }
+
+    @discardableResult
+    public func saveOfflineWork(
+        id: String? = nil,
+        sourceDay: String,
+        taskID: String?,
+        startedAt: Date,
+        durationMinutes: Int,
+        note: String?
+    ) throws -> String {
+        guard (1...1_440).contains(durationMinutes) else {
+            throw DailyReviewStoreError.invalidOfflineDuration
+        }
+        let entryID = id ?? UUID().uuidString
+        let normalizedTaskID = Self.normalized(taskID)
+        let normalizedNote = Self.normalized(note)
+        let timestamp = Self.timestamp(now())
+        lock.lock()
+        defer { lock.unlock() }
+        try transaction {
+            try execute(
+                """
+                INSERT INTO offline_work_entries(id, source_day, task_id, started_at_utc, duration_minutes, note, created_at_utc, updated_at_utc)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    source_day = excluded.source_day,
+                    task_id = excluded.task_id,
+                    started_at_utc = excluded.started_at_utc,
+                    duration_minutes = excluded.duration_minutes,
+                    note = excluded.note,
+                    updated_at_utc = excluded.updated_at_utc;
+                """,
+                bindings: [
+                    .text(entryID),
+                    .text(sourceDay),
+                    normalizedTaskID.map(Binding.text) ?? .null,
+                    .text(Self.timestamp(startedAt)),
+                    .integer(Int64(durationMinutes)),
+                    normalizedNote.map(Binding.text) ?? .null,
+                    .text(timestamp),
+                    .text(timestamp)
+                ]
+            )
+            try reopenReview(sourceDay: sourceDay, timestamp: timestamp)
+        }
+        return entryID
+    }
+
+    public func deleteOfflineWork(id: String, sourceDay: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let timestamp = Self.timestamp(now())
+        try transaction {
+            try execute(
+                "DELETE FROM offline_work_entries WHERE id = ? AND source_day = ?;",
+                bindings: [.text(id), .text(sourceDay)]
+            )
+            try reopenReview(sourceDay: sourceDay, timestamp: timestamp)
+        }
     }
 
     public func correct(
@@ -157,6 +219,49 @@ public final class DailyReviewStore: @unchecked Sendable {
         return result
     }
 
+    private func readOfflineWork(sourceDay: String) throws -> [OfflineWorkEntry] {
+        var statement: OpaquePointer?
+        let sql = "SELECT id, task_id, started_at_utc, duration_minutes, note, created_at_utc, updated_at_utc FROM offline_work_entries WHERE source_day = ? ORDER BY started_at_utc, id;"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError(.read) }
+        defer { sqlite3_finalize(statement) }
+        bind(sourceDay, statement, 1)
+        var entries: [OfflineWorkEntry] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let id = text(statement, 0),
+                  let started = text(statement, 2).flatMap(ISO8601DateFormatter().date(from:)),
+                  let created = text(statement, 5).flatMap(ISO8601DateFormatter().date(from:)),
+                  let updated = text(statement, 6).flatMap(ISO8601DateFormatter().date(from:)) else { continue }
+            entries.append(OfflineWorkEntry(
+                id: id,
+                sourceDay: sourceDay,
+                taskID: text(statement, 1),
+                startedAt: started,
+                durationMinutes: Int(sqlite3_column_int(statement, 3)),
+                note: text(statement, 4),
+                createdAt: created,
+                updatedAt: updated
+            ))
+        }
+        return entries
+    }
+
+    private func reopenReview(sourceDay: String, timestamp: String) throws {
+        try execute(
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES (?, 'pending', NULL, ?) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
+            bindings: [.text(sourceDay), .text(timestamp)]
+        )
+    }
+
+    private func text(_ statement: OpaquePointer, _ column: Int32) -> String? {
+        sqlite3_column_text(statement, column).map { String(cString: $0) }
+    }
+
+    private static func normalized(_ value: String?) -> String? {
+        let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.flatMap { $0.isEmpty ? nil : $0 }
+    }
+
     private func readReviewState(sourceDay: String) throws -> (
         hypothesisState: DailyReviewHypothesisState,
         confirmedAt: Date?
@@ -240,6 +345,7 @@ public enum DailyReviewStoreError: LocalizedError {
     public enum Operation: String, Sendable { case read, write }
     case openDatabase
     case invalidCorrectionRange
+    case invalidOfflineDuration
     case database(Operation, String)
 
     public var errorDescription: String? {
@@ -248,6 +354,8 @@ public enum DailyReviewStoreError: LocalizedError {
             "The local review database could not be opened."
         case .invalidCorrectionRange:
             "The selected split point does not leave any activity to correct."
+        case .invalidOfflineDuration:
+            "Away-from-Mac work must be between 1 minute and 24 hours."
         case let .database(operation, detail):
             "The daily review could not \(operation.rawValue) local data. \(detail)"
         }

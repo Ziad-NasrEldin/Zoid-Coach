@@ -12,6 +12,16 @@ protocol DailyReviewServicing: AnyObject {
     ) throws
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws
     func confirm(sourceDay: String) throws
+    @discardableResult
+    func saveOfflineWork(
+        id: String?,
+        sourceDay: String,
+        taskID: String?,
+        startedAt: Date,
+        durationMinutes: Int,
+        note: String?
+    ) throws -> String
+    func deleteOfflineWork(id: String, sourceDay: String) throws
 }
 
 extension DailyReviewStore: DailyReviewServicing {}
@@ -115,6 +125,45 @@ final class DailyReviewController: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
+
+    func saveOfflineWork(
+        id: String?,
+        startedAt: Date,
+        durationMinutes: Int,
+        taskID: String,
+        note: String
+    ) -> Bool {
+        do {
+            _ = try service.saveOfflineWork(
+                id: id,
+                sourceDay: sourceDay,
+                taskID: taskID,
+                startedAt: startedAt,
+                durationMinutes: durationMinutes,
+                note: note
+            )
+            snapshot = try service.load(sourceDay: sourceDay)
+            errorMessage = nil
+            successMessage = id == nil
+                ? "Away-from-Mac work added. It is included in actual time and kept separate from Screenwatch coverage."
+                : "Away-from-Mac work updated. Actual time was recalculated."
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func deleteOfflineWork(_ entry: OfflineWorkEntry) {
+        do {
+            try service.deleteOfflineWork(id: entry.id, sourceDay: entry.sourceDay)
+            snapshot = try service.load(sourceDay: sourceDay)
+            errorMessage = nil
+            successMessage = "Away-from-Mac work removed. Actual time was recalculated."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }
 
 private final class UnavailableDailyReviewService: DailyReviewServicing {
@@ -124,6 +173,8 @@ private final class UnavailableDailyReviewService: DailyReviewServicing {
     func correct(_ session: DailyReviewSession, to classification: BehaviorClassification, taskID: String?, from splitDate: Date?) throws { throw error }
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws { throw error }
     func confirm(sourceDay: String) throws { throw error }
+    func saveOfflineWork(id: String?, sourceDay: String, taskID: String?, startedAt: Date, durationMinutes: Int, note: String?) throws -> String { throw error }
+    func deleteOfflineWork(id: String, sourceDay: String) throws { throw error }
 }
 
 struct DailyReviewView: View {
@@ -179,6 +230,7 @@ struct DailyReviewView: View {
 
     @ViewBuilder
     private func snapshotContent(_ snapshot: DailyReviewSnapshot) -> some View {
+        reviewCoverage(snapshot)
         if snapshot.sessions.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 Text("NO COVERED ACTIVITY")
@@ -211,9 +263,40 @@ struct DailyReviewView: View {
                     }
                 }
             }
-            hypothesis(snapshot)
-            confirmation(snapshot)
         }
+        OfflineWorkSection(
+            entries: snapshot.offlineWork,
+            selectedDay: controller.selectedDay,
+            onSave: controller.saveOfflineWork,
+            onDelete: controller.deleteOfflineWork
+        )
+        hypothesis(snapshot)
+        confirmation(snapshot)
+    }
+
+    private func reviewCoverage(_ snapshot: DailyReviewSnapshot) -> some View {
+        HStack(spacing: 0) {
+            reviewMetric("ACTUAL TIME", minutes: snapshot.actualMinutes, identifier: "reviews.actual-minutes")
+            reviewMetric("SCREENWATCH-OBSERVED", minutes: snapshot.observedMinutes, identifier: "reviews.observed-minutes")
+            reviewMetric("AWAY FROM MAC", minutes: snapshot.offlineMinutes, identifier: "reviews.offline-minutes")
+        }
+        .accessibilityIdentifier("reviews.coverage-summary")
+    }
+
+    private func reviewMetric(_ title: String, minutes: Int, identifier: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("\(minutes) MIN")
+                .font(Sumi.display(22))
+            Text(title)
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
     }
 
     private func totals(_ totals: [DailyReviewTotal]) -> some View {
@@ -301,6 +384,144 @@ struct DailyReviewView: View {
         .background(Sumi.sealWash)
         .overlay(Rectangle().stroke(Sumi.seal, lineWidth: 1))
         .accessibilityIdentifier("reviews.error")
+    }
+}
+
+private struct OfflineWorkSection: View {
+    let entries: [OfflineWorkEntry]
+    let selectedDay: Date
+    let onSave: (String?, Date, Int, String, String) -> Bool
+    let onDelete: (OfflineWorkEntry) -> Void
+
+    @State private var editingID: String?
+    @State private var startedAt = Date()
+    @State private var durationMinutes = 30
+    @State private var taskID = ""
+    @State private var note = ""
+    @State private var entryToDelete: OfflineWorkEntry?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("AWAY-FROM-MAC WORK")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            Text("Record intentional work that Screenwatch could not observe. It counts toward actual task time but remains visibly separate from computer-observed time, so missing telemetry is never invented as work.")
+                .font(Sumi.body(13))
+                .foregroundStyle(Sumi.muted)
+            if entries.isEmpty {
+                Text("No intentional offline work has been recorded for this day.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("reviews.offline.empty")
+            } else {
+                ForEach(entries) { entry in
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(entry.durationMinutes) MIN · \(entry.startedAt.formatted(date: .omitted, time: .shortened))")
+                                .font(Sumi.label(10))
+                                .sumiLabelTracking()
+                            if let taskID = entry.taskID {
+                                Text("Task: \(taskID)").font(Sumi.body(12))
+                            }
+                            if let note = entry.note {
+                                Text(note).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
+                            }
+                        }
+                        Spacer()
+                        Button("EDIT") { edit(entry) }
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                            .accessibilityIdentifier("reviews.offline.edit.\(entry.id)")
+                        Button("REMOVE") { entryToDelete = entry }
+                            .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                            .accessibilityIdentifier("reviews.offline.remove.\(entry.id)")
+                    }
+                    .padding(12)
+                    .background(Sumi.paper)
+                    .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                    .accessibilityIdentifier("reviews.offline.entry.\(entry.id)")
+                }
+            }
+            Divider()
+            Text(editingID == nil ? "ADD INTENTIONAL OFFLINE WORK" : "CORRECT OFFLINE WORK")
+                .font(Sumi.label(10))
+                .sumiLabelTracking()
+            HStack(alignment: .bottom, spacing: 12) {
+                DatePicker("Started", selection: $startedAt, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.compact)
+                    .accessibilityIdentifier("reviews.offline.started-at")
+                Stepper("\(durationMinutes) minutes", value: $durationMinutes, in: 1...1_440, step: 5)
+                    .accessibilityIdentifier("reviews.offline.duration")
+            }
+            TextField("Task identifier or title (optional)", text: $taskID)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("reviews.offline.task")
+            TextField("What did you work on? (optional)", text: $note)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("reviews.offline.note")
+            HStack {
+                Button(editingID == nil ? "ADD WORK" : "SAVE CORRECTION") {
+                    if onSave(editingID, startedAt, durationMinutes, taskID, note) {
+                        reset()
+                    }
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                .accessibilityIdentifier("reviews.offline.save")
+                if editingID != nil {
+                    Button("CANCEL") { reset() }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                        .accessibilityIdentifier("reviews.offline.cancel")
+                }
+            }
+        }
+        .padding(18)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityIdentifier("reviews.offline")
+        .onAppear { alignStartToSelectedDay() }
+        .onChange(of: selectedDay) { reset() }
+        .confirmationDialog(
+            "Remove this away-from-Mac work entry?",
+            isPresented: Binding(
+                get: { entryToDelete != nil },
+                set: { if !$0 { entryToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove entry", role: .destructive) {
+                if let entryToDelete { onDelete(entryToDelete) }
+                entryToDelete = nil
+            }
+            Button("Cancel", role: .cancel) { entryToDelete = nil }
+        } message: {
+            Text("Only this intentional offline-work record will be removed. Screenwatch observations are unchanged.")
+        }
+    }
+
+    private func edit(_ entry: OfflineWorkEntry) {
+        editingID = entry.id
+        startedAt = entry.startedAt
+        durationMinutes = entry.durationMinutes
+        taskID = entry.taskID ?? ""
+        note = entry.note ?? ""
+    }
+
+    private func reset() {
+        editingID = nil
+        durationMinutes = 30
+        taskID = ""
+        note = ""
+        alignStartToSelectedDay()
+    }
+
+    private func alignStartToSelectedDay() {
+        let calendar = Calendar.current
+        let time = calendar.dateComponents([.hour, .minute], from: Date())
+        startedAt = calendar.date(
+            bySettingHour: time.hour ?? 9,
+            minute: time.minute ?? 0,
+            second: 0,
+            of: selectedDay
+        ) ?? selectedDay
     }
 }
 
