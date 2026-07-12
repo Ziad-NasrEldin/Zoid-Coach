@@ -268,6 +268,7 @@ struct DailyReviewView: View {
                 }
             }
         }
+        CompletedTaskHistorySection(entries: snapshot.completedTasks)
         OfflineWorkSection(
             entries: snapshot.offlineWork,
             selectedDay: controller.selectedDay,
@@ -539,6 +540,83 @@ private struct OfflineWorkSection: View {
         return (!trimmedTask.isEmpty || !trimmedNote.isEmpty)
             && trimmedTask.count <= 200
             && trimmedNote.count <= 1_000
+    }
+}
+
+private struct CompletedTaskHistorySection: View {
+    let entries: [CompletedTaskHistoryEntry]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("COMPLETED TODAY")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            Text("Finished work leaves the active list, but stays here as a local record of what you completed.")
+                .font(Sumi.body(13))
+                .foregroundStyle(Sumi.muted)
+
+            if entries.isEmpty {
+                Text("No tasks were completed on this day.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("reviews.completed.empty")
+            } else {
+                ForEach(entries) { entry in
+                    HStack(alignment: .firstTextBaseline, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(entry.title)
+                                .font(Sumi.body(15))
+                            HStack(spacing: 6) {
+                                Text(entry.completedAt.formatted(date: .omitted, time: .shortened))
+                                Text("·")
+                                Text(sourceLabel(entry.sourceKind))
+                                if let reason = entry.lastPauseReason {
+                                    Text("·")
+                                    Text(reason.userFacingLabel)
+                                }
+                            }
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                        }
+                        Spacer(minLength: 12)
+                        Text("COMPLETED")
+                            .font(Sumi.label(10))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.seal)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.paper)
+                    .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(accessibilityLabel(entry))
+                    .accessibilityIdentifier("reviews.completed.\(entry.id)")
+                }
+            }
+        }
+        .padding(16)
+        .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+        .accessibilityIdentifier("reviews.completed")
+    }
+
+    private func sourceLabel(_ source: CompletedTaskSourceKind) -> String {
+        switch source {
+        case .reminders: "Apple Reminders"
+        case .local: "Local task"
+        case .unknown: "Local history"
+        }
+    }
+
+    private func accessibilityLabel(_ entry: CompletedTaskHistoryEntry) -> String {
+        var parts = [
+            entry.title,
+            "Completed at \(entry.completedAt.formatted(date: .omitted, time: .shortened))",
+            sourceLabel(entry.sourceKind)
+        ]
+        if let reason = entry.lastPauseReason {
+            parts.append(reason.userFacingLabel)
+        }
+        return parts.joined(separator: ", ")
     }
 }
 

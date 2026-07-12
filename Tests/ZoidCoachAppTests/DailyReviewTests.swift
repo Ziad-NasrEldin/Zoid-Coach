@@ -24,6 +24,33 @@ func dailyReviewGroupsCoveredActivityWithoutExposingPrivateFields() throws {
 }
 
 @Test
+func dailyReviewKeepsCompletedTasksVisibleAfterTheyLeaveTheActiveList() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    let formatter = DateFormatter()
+    formatter.calendar = .current
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = .current
+    formatter.dateFormat = "yyyy-MM-dd"
+    let completedAt = formatter.date(from: fixture.sourceDay)!.addingTimeInterval(12 * 3_600)
+    let history = try TaskHistoryStore(databaseURL: fixture.databaseURL)
+    try history.record(
+        taskID: "reminder:launch",
+        state: .completed,
+        title: "Ship the launch brief",
+        sourceKind: .reminders,
+        at: completedAt
+    )
+
+    let snapshot = try fixture.store.load(sourceDay: fixture.sourceDay)
+
+    #expect(snapshot.completedTasks.count == 1)
+    #expect(snapshot.completedTasks[0].title == "Ship the launch brief")
+    #expect(snapshot.completedTasks[0].sourceKind == .reminders)
+    #expect(snapshot.sessions.isEmpty)
+}
+
+@Test
 func correctionAndTaskAttachmentPersistAndRecalculateTotalsAfterRestart() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }

@@ -1,0 +1,82 @@
+[0/1] Planning build
+Building for debugging...
+[0/7] Write sources
+[1/7] Write swift-version--58304C5D6DBC2206.txt
+[3/9] Compiling ZoidCoachInfrastructure AutonomousDatabaseMigrator.swift
+[4/27] Emitting module ZoidCoachInfrastructure
+[5/29] Compiling ZoidCoachInfrastructure TaskHistoryStore.swift
+[6/29] Compiling ZoidCoachInfrastructure TodaySnapshotStore.swift
+[7/29] Compiling ZoidCoachInfrastructure DomainEventStore.swift
+[8/29] Compiling ZoidCoachInfrastructure LearningAggregateStore.swift
+[9/29] Compiling ZoidCoachInfrastructure AutonomousPlanStore.swift
+[10/29] Compiling ZoidCoachInfrastructure DailyReviewStore.swift
+[11/29] Compiling ZoidCoachInfrastructure ModelRunStore.swift
+[12/29] Compiling ZoidCoachInfrastructure PlanScheduleRequestStore.swift
+[13/29] Compiling ZoidCoachInfrastructure ProcessingCheckpointStore.swift
+[14/29] Compiling ZoidCoachInfrastructure PromptInboxStore.swift
+[15/29] Compiling ZoidCoachInfrastructure ScreenwatchMaintenanceService.swift
+[16/29] Compiling ZoidCoachInfrastructure TaskExecutionStore.swift
+[17/29] Compiling ZoidCoachInfrastructure PlanUndoRequestStore.swift
+[18/29] Compiling ZoidCoachInfrastructure PlannerTrustGateStore.swift
+[19/29] Compiling ZoidCoachInfrastructure ReminderSnapshotStore.swift
+[20/29] Compiling ZoidCoachInfrastructure ScreenwatchArchive.swift
+[21/29] Compiling ZoidCoachInfrastructure PolicyStore.swift
+[22/29] Compiling ZoidCoachInfrastructure PrivacyDataService.swift
+[23/29] Compiling ZoidCoachInfrastructure ActionOutboxStore.swift
+[24/29] Compiling ZoidCoachInfrastructure AgentOwnedStateStore.swift
+[25/33] Compiling ZoidCoachApp LocalSystemDiagnosticsService.swift
+[26/33] Emitting module ZoidCoachApp
+[27/33] Emitting module ZoidCoachAgent
+[28/33] Compiling ZoidCoachAgent AgentMain.swift
+[28/34] Write Objects.LinkFileList
+[30/35] Linking ZoidCoachAgent
+[31/35] Applying ZoidCoachAgent
+[32/35] Linking ZoidCoach
+[33/35] Applying ZoidCoach
+[35/45] Compiling ZoidCoachAppTests CodexJobCoordinatorTests.swift
+[36/45] Compiling ZoidCoachAppTests ScreenContextSelectorTests.swift
+[37/45] Compiling ZoidCoachAppTests LocalSystemDiagnosticsServiceTests.swift
+[38/45] Compiling ZoidCoachAppTests VoiceToolRouterTests.swift
+[39/45] Compiling ZoidCoachAppTests AutonomousDatabaseMigratorTests.swift
+[40/45] Compiling ZoidCoachAppTests DailyReviewTests.swift
+[41/45] Compiling ZoidCoachAppTests VoicePersistenceStoreTests.swift
+[42/45] Compiling ZoidCoachAppTests WeeklyReviewTests.swift
+[43/45] Emitting module ZoidCoachAppTests
+[44/45] Compiling ZoidCoachAppTests PrivacyDataServiceTests.swift
+[44/46] Write Objects.LinkFileList
+[45/46] Linking ZoidCoachPackageTests
+Build complete! (8.49s)
+Test Suite 'Selected tests' started at 2026-07-12 23:50:19.059.
+Test Suite 'ZoidCoachPackageTests.xctest' started at 2026-07-12 23:50:19.060.
+Test Suite 'ZoidCoachPackageTests.xctest' passed at 2026-07-12 23:50:19.060.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-07-12 23:50:19.060.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test weeklyReviewMigrationAddsOneExperimentPerReviewWeekWithoutChangingReviewHistory() started.
+◇ Test versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() started.
+◇ Test dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEvidence() started.
+◇ Test versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() started.
+◇ Test migration33AddsAppendOnlyCompletedTaskHistoryContext() started.
+◇ Test behaviorClassificationMigrationFreezesLegacyRecords() started.
+◇ Test versionTwentySevenRebrandsPersistedPromptSummaries() started.
+◇ Test recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() started.
+◇ Test versionTwoFixtureUpgradesWithoutLosingExistingPlanOrSourceHistory() started.
+◇ Test migration32CreatesRestartSafeBoundedSprintStorage() started.
+◇ Test versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() started.
+◇ Test cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() started.
+✔ Test versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() passed after 0.078 seconds.
+✔ Test versionTwentySevenRebrandsPersistedPromptSummaries() passed after 0.078 seconds.
+✔ Test dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEvidence() passed after 0.078 seconds.
+✔ Test migration33AddsAppendOnlyCompletedTaskHistoryContext() passed after 0.086 seconds.
+✔ Test migration32CreatesRestartSafeBoundedSprintStorage() passed after 0.087 seconds.
+✔ Test behaviorClassificationMigrationFreezesLegacyRecords() passed after 0.087 seconds.
+✔ Test versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() passed after 0.088 seconds.
+✔ Test versionTwoFixtureUpgradesWithoutLosingExistingPlanOrSourceHistory() passed after 0.089 seconds.
+✔ Test recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() passed after 0.093 seconds.
+✔ Test weeklyReviewMigrationAddsOneExperimentPerReviewWeekWithoutChangingReviewHistory() passed after 0.095 seconds.
+✔ Test versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() passed after 0.105 seconds.
+✔ Test cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() passed after 0.109 seconds.
+✔ Test run with 12 tests in 0 suites passed after 0.109 seconds.

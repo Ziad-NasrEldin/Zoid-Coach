@@ -1,0 +1,29 @@
+[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-07-12 23:50:42.888.
+Test Suite 'ZoidCoachPackageTests.xctest' started at 2026-07-12 23:50:42.889.
+Test Suite 'ZoidCoachPackageTests.xctest' passed at 2026-07-12 23:50:42.889.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-07-12 23:50:42.889.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test completingActiveTaskEndsItsIntervalAndRefreshesRecommendation() started.
+◇ Test agentSnapshotCarriesRequiredDashboardFieldsAndCommandsRefreshIt() started.
+◇ Test unplannedTaskStartIsVisiblePersistsAndNeverInventsAPlanViolation() started.
+◇ Test agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() started.
+◇ Test dashboardUsesPersistedGamingBudgetAndRewardAcrossAgentRestart() started.
+◇ Test dashboardUsesBalancedGamingDefaultsWhenNoPolicyHasBeenSaved() started.
+◇ Test agentBoundedSprintRemainsActiveAfterExpiryAndSurvivesRestart() started.
+◇ Test gamingRewardLedgerAppliesOnlyOncePerDayAndPolicy() started.
+◇ Test zeroRewardPolicyDoesNotWriteARewardLedgerEntry() started.
+✔ Test gamingRewardLedgerAppliesOnlyOncePerDayAndPolicy() passed after 0.061 seconds.
+✔ Test dashboardUsesBalancedGamingDefaultsWhenNoPolicyHasBeenSaved() passed after 0.120 seconds.
+✔ Test agentSnapshotCarriesRequiredDashboardFieldsAndCommandsRefreshIt() passed after 0.125 seconds.
+✔ Test completingActiveTaskEndsItsIntervalAndRefreshesRecommendation() passed after 0.128 seconds.
+✔ Test zeroRewardPolicyDoesNotWriteARewardLedgerEntry() passed after 0.130 seconds.
+✔ Test agentBoundedSprintRemainsActiveAfterExpiryAndSurvivesRestart() passed after 0.136 seconds.
+✔ Test unplannedTaskStartIsVisiblePersistsAndNeverInventsAPlanViolation() passed after 0.139 seconds.
+✔ Test dashboardUsesPersistedGamingBudgetAndRewardAcrossAgentRestart() passed after 0.140 seconds.
+✔ Test agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() passed after 0.146 seconds.
+✔ Test run with 9 tests in 0 suites passed after 0.147 seconds.
