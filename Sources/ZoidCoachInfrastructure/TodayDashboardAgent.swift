@@ -171,7 +171,13 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                     planVersion: 1
                 )
             }
-            try taskHistory.record(taskID: taskID, state: .completed, at: now)
+            try taskHistory.record(
+                taskID: taskID,
+                state: .completed,
+                title: reminderBefore?.title,
+                sourceKind: reminderBefore?.sourceKind,
+                at: now
+            )
         case .reschedule:
             try taskHistory.record(taskID: taskID, state: .postponed, at: now)
         case .start, .startSprint10, .startSprint20, .startSprint25:

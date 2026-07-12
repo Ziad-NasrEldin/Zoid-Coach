@@ -1,0 +1,32 @@
+[0/1] Planning build
+Building for debugging...
+[0/7] Write sources
+[1/7] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Compiling ZoidCoachAppTests TaskHistoryStoreTests.swift
+[4/6] Compiling ZoidCoachAppTests AutonomousDatabaseMigratorTests.swift
+[5/6] Emitting module ZoidCoachAppTests
+[5/7] Write Objects.LinkFileList
+[6/7] Linking ZoidCoachPackageTests
+Build complete! (4.06s)
+Test Suite 'Selected tests' started at 2026-07-12 23:51:26.840.
+Test Suite 'ZoidCoachPackageTests.xctest' started at 2026-07-12 23:51:26.841.
+Test Suite 'ZoidCoachPackageTests.xctest' passed at 2026-07-12 23:51:26.841.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-07-12 23:51:26.841.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test completedTaskHistoryKeepsReadableLocalEvidenceAcrossRestart() started.
+◇ Test completedTaskHistoryShowsOneLatestCompletionAndItsLastPauseReason() started.
+◇ Test taskHistoryStoreCountsPostponementsForFuturePlanning() started.
+◇ Test completedTaskHistoryDoesNotLeakAcrossDayBoundaries() started.
+◇ Test completedTaskRemainsInHistoryWhileExcludedFromTheActiveSourceList() started.
+◇ Test taskHistoryStoreSummarizesTheCompletedAndPostponedDay() started.
+✔ Test completedTaskHistoryDoesNotLeakAcrossDayBoundaries() passed after 0.035 seconds.
+✔ Test taskHistoryStoreCountsPostponementsForFuturePlanning() passed after 0.044 seconds.
+✔ Test taskHistoryStoreSummarizesTheCompletedAndPostponedDay() passed after 0.045 seconds.
+✔ Test completedTaskRemainsInHistoryWhileExcludedFromTheActiveSourceList() passed after 0.045 seconds.
+✔ Test completedTaskHistoryKeepsReadableLocalEvidenceAcrossRestart() passed after 0.046 seconds.
+✔ Test completedTaskHistoryShowsOneLatestCompletionAndItsLastPauseReason() passed after 0.046 seconds.
+✔ Test run with 6 tests in 0 suites passed after 0.046 seconds.

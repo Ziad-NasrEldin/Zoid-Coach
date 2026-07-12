@@ -90,6 +90,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
     public let hypothesisState: DailyReviewHypothesisState
     public let confirmedAt: Date?
     public let offlineWork: [OfflineWorkEntry]
+    public let completedTasks: [CompletedTaskHistoryEntry]
 
     public init(
         sourceDay: String,
@@ -98,7 +99,8 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         hypothesis: String?,
         hypothesisState: DailyReviewHypothesisState,
         confirmedAt: Date?,
-        offlineWork: [OfflineWorkEntry] = []
+        offlineWork: [OfflineWorkEntry] = [],
+        completedTasks: [CompletedTaskHistoryEntry] = []
     ) {
         self.sourceDay = sourceDay
         self.sessions = sessions
@@ -107,11 +109,43 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         self.hypothesisState = hypothesisState
         self.confirmedAt = confirmedAt
         self.offlineWork = offlineWork
+        self.completedTasks = completedTasks
     }
 
     public var observedMinutes: Int { totals.reduce(0) { $0 + $1.minutes } }
     public var offlineMinutes: Int { offlineWork.reduce(0) { $0 + $1.durationMinutes } }
     public var actualMinutes: Int { observedMinutes + offlineMinutes }
+}
+
+public struct CompletedTaskHistoryEntry: Identifiable, Equatable, Sendable {
+    public let id: Int64
+    public let taskID: String
+    public let title: String
+    public let sourceKind: CompletedTaskSourceKind
+    public let completedAt: Date
+    public let lastPauseReason: TaskPauseReason?
+
+    public init(
+        id: Int64,
+        taskID: String,
+        title: String,
+        sourceKind: CompletedTaskSourceKind,
+        completedAt: Date,
+        lastPauseReason: TaskPauseReason?
+    ) {
+        self.id = id
+        self.taskID = taskID
+        self.title = title
+        self.sourceKind = sourceKind
+        self.completedAt = completedAt
+        self.lastPauseReason = lastPauseReason
+    }
+}
+
+public enum CompletedTaskSourceKind: String, Equatable, Sendable {
+    case reminders
+    case local
+    case unknown
 }
 
 public enum DailyReviewSessionizer {
