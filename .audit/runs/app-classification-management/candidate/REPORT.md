@@ -41,3 +41,32 @@
 
 - A fresh verifier must use the clean signed-QA package to search, individually classify, bulk classify a filtered set, save, relaunch, export, inspect the JSON, import a replacement, save, relaunch, and reset.
 - The root integrator owns tracker and registry changes after visible proof.
+
+## Independent verifier pass
+
+- Verification branch `codex/verify-app-classification` reproduced the exact 53-test affected set with four workers.
+- All 53 affected tests passed.
+- All 41 Python registry and evidence tests passed, and the registry validated exactly 666 scenarios with no tracker drift.
+- The release build passed independently.
+- A clean scratch-path full serial test run compiled successfully but the SwiftPM testing helper became idle while three other repository-wide test helpers were concurrently active in sibling worktrees.
+- The verifier stopped only its own idle helper and did not count that attempt as a pass.
+- The candidate's preserved authoritative serial run remains the current 476-test full-suite proof until an uncontended post-integration run replaces it.
+
+## Visible signed-QA evidence
+
+- The signed-QA Settings surface visibly loaded 131 installed, observed, and saved applications.
+- Searching for `Discord` reduced the ledger to exactly one result.
+- The verifier individually assigned Discord to Communication and confirmed the visible distinct selection.
+- The verifier bulk-assigned the filtered result to Gaming only after the confirmation stated the exact one-app count and draft-only behavior.
+- Export created `zoid-666-app-classification-verifier.json` with only `schemaVersion`, `workApplications`, `communicationApplications`, and `gamingApplications`.
+- The exported document normalized Discord to `discord` and contained no unrelated settings or secrets.
+- Import reviewed `verification-import.json`, previewed one Work, one Communication, and one Gaming rule, and required explicit replacement confirmation before mutating the draft.
+- The imported draft visibly returned Discord to the distinct Communication category.
+- Reset presented an explicit destructive confirmation explaining that every Work, Communication, and Gaming rule would return to Automatic and remain a draft until Save Settings.
+
+## Remaining installed-runtime gate
+
+- The directly launched candidate bundle had no installed QA policy database and correctly exposed `Policy storage is unavailable. Settings are read-only until local storage recovers.`
+- That environment could prove the complete draft interaction, import, export, and reset surfaces but could not prove Save Settings or relaunch persistence.
+- A root-controlled signed-runtime installation is still required after the existing offline-work package lock is released.
+- ScreenCaptureKit also returned `SCStreamErrorDomain -3811` after the reset confirmation, so the post-reset frame was not claimed as proof.
