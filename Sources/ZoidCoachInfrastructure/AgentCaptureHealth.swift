@@ -47,17 +47,36 @@ public final class NativeCaptureConfigurationStore: @unchecked Sendable {
 
     public func load() throws -> NativeCaptureConfiguration {
         try lock.withLock {
-            guard FileManager.default.fileExists(atPath: fileURL.path) else { return .legacy }
-            return try JSONDecoder().decode(NativeCaptureConfiguration.self, from: Data(contentsOf: fileURL))
+            let storage = try makeStorage()
+            return try storage.withLock(exclusive: false) {
+                guard try storage.exists(fileURL.lastPathComponent) else { return .legacy }
+                return try JSONDecoder().decode(
+                    NativeCaptureConfiguration.self,
+                    from: storage.read(fileURL.lastPathComponent)
+                )
+            }
         }
     }
 
     public func save(_ configuration: NativeCaptureConfiguration) throws {
         try lock.withLock {
-            try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let storage = try makeStorage()
             let data = try JSONEncoder().encode(configuration)
-            try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUnlessOpen])
+            try storage.withLock(exclusive: true) {
+                try storage.writeAtomic(data, name: fileURL.lastPathComponent)
+            }
         }
+    }
+
+    private func makeStorage() throws -> DescriptorRelativeStateDirectory<NativeCaptureConfigurationStoreError> {
+        let directoryURL = fileURL.deletingLastPathComponent()
+        return try DescriptorRelativeStateDirectory(
+            rootURL: directoryURL.deletingLastPathComponent(),
+            directoryName: directoryURL.lastPathComponent,
+            createRootIfMissing: true,
+            unsafeEntryError: NativeCaptureConfigurationStoreError.unsafeFilesystemEntry,
+            filesystemError: NativeCaptureConfigurationStoreError.filesystemOperation
+        )
     }
 
     public static func defaultURL(fileManager: FileManager = .default) -> URL {
@@ -67,6 +86,20 @@ public final class NativeCaptureConfigurationStore: @unchecked Sendable {
 
     public static func defaultURL(runtimeEnvironment: RuntimeEnvironment) -> URL {
         runtimeEnvironment.nativeCaptureConfigurationURL
+    }
+}
+
+public enum NativeCaptureConfigurationStoreError: LocalizedError, Equatable, Sendable {
+    case unsafeFilesystemEntry(String)
+    case filesystemOperation(String, Int32)
+
+    public var errorDescription: String? {
+        switch self {
+        case let .unsafeFilesystemEntry(path):
+            "Capture configuration storage rejected the unsafe entry '\(path)'."
+        case let .filesystemOperation(operation, code):
+            "Capture configuration storage could not \(operation) (errno \(code))."
+        }
     }
 }
 

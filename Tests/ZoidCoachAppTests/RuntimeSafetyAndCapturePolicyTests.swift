@@ -73,5 +73,9 @@ struct RuntimeSafetyAndCapturePolicyTests {
 
         try store.save(NativeCaptureConfiguration(mode: .native, configuredDisplayIDs: [2], parityPassed: true))
         #expect(try store.load().mode == .native)
+        let attributes = try FileManager.default.attributesOfItem(
+            atPath: root.appendingPathComponent("native-capture-config.json").path
+        )
+        #expect(attributes[.posixPermissions] as? Int == 0o600)
     }
 }
