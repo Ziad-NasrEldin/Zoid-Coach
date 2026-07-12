@@ -4,7 +4,7 @@ import ZoidCoachInfrastructure
 
 @MainActor
 final class DailySourceCoverageController: ObservableObject {
-    typealias Loader = @Sendable (Date, Calendar) throws -> DailySourceCoverage
+    typealias Loader = @Sendable (Date, Calendar) async throws -> DailySourceCoverage
 
     @Published private(set) var coverage: DailySourceCoverage?
     @Published private(set) var isLoading = false
@@ -26,7 +26,11 @@ final class DailySourceCoverageController: ObservableObject {
     }
 
     init(store: DailySourceCoverageStore, calendar: Calendar = .current) {
-        loader = { day, calendar in try store.load(day: day, calendar: calendar) }
+        loader = { day, calendar in
+            try await Task.detached(priority: .utility) {
+                try store.load(day: day, calendar: calendar)
+            }.value
+        }
         unavailableError = nil
         self.calendar = calendar
     }
@@ -56,9 +60,7 @@ final class DailySourceCoverageController: ObservableObject {
         let loadCalendar = calendar
         return Task { [weak self] in
             do {
-                let result = try await Task.detached(priority: .utility) {
-                    try loader(day, loadCalendar)
-                }.value
+                let result = try await loader(day, loadCalendar)
                 guard let self, generation == self.loadGeneration else { return }
                 self.coverage = result
                 self.errorMessage = nil

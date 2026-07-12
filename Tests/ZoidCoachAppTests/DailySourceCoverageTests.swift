@@ -148,20 +148,20 @@ func historicalCoverageNeverUsesASourceCheckpointFromALaterDay() throws {
 func selectedDayGenerationPreventsAnOlderLoadFromReplacingTheNewDay() async throws {
     let firstDay = Date(timeIntervalSince1970: 1_780_000_000)
     let secondDay = firstDay.addingTimeInterval(86_400)
-    let firstLoadGate = LockedLoadGate()
+    let firstLoadGate = AsyncLoadGate()
     let controller = DailySourceCoverageController(loader: { day, _ in
         if day == firstDay {
-            firstLoadGate.markStartedAndWait()
+            await firstLoadGate.markStartedAndWait()
             return coverageResult(day: "first")
         }
         return coverageResult(day: "second")
     })
 
     let firstLoad = try #require(controller.load(day: firstDay))
-    while !firstLoadGate.hasStarted { await Task.yield() }
+    await firstLoadGate.waitUntilStarted()
     let secondLoad = try #require(controller.load(day: secondDay))
     await secondLoad.value
-    firstLoadGate.release()
+    await firstLoadGate.release()
     await firstLoad.value
 
     #expect(controller.coverage?.localDay == "second")
@@ -202,30 +202,29 @@ private final class LockedAttemptCounter: @unchecked Sendable {
     }
 }
 
-private final class LockedLoadGate: @unchecked Sendable {
-    private let condition = NSCondition()
+private actor AsyncLoadGate {
     private var started = false
     private var released = false
+    private var startedContinuation: CheckedContinuation<Void, Never>?
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
 
-    var hasStarted: Bool {
-        condition.lock()
-        defer { condition.unlock() }
-        return started
+    func waitUntilStarted() async {
+        guard !started else { return }
+        await withCheckedContinuation { startedContinuation = $0 }
     }
 
-    func markStartedAndWait() {
-        condition.lock()
+    func markStartedAndWait() async {
         started = true
-        condition.broadcast()
-        while !released { condition.wait() }
-        condition.unlock()
+        startedContinuation?.resume()
+        startedContinuation = nil
+        guard !released else { return }
+        await withCheckedContinuation { releaseContinuation = $0 }
     }
 
     func release() {
-        condition.lock()
         released = true
-        condition.broadcast()
-        condition.unlock()
+        releaseContinuation?.resume()
+        releaseContinuation = nil
     }
 }
 
