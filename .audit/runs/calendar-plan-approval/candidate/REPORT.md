@@ -47,3 +47,17 @@ Raw compact command output and explicit exit-code files are stored beside this r
 The root-owned signed-QA installation lease was not taken during this batch.
 
 A fresh verifier must run one signed-QA journey for review, confirmation, visible pending state, confirmed Calendar write, restart-safe result, conflict-induced atomic refusal, and Calendar-denied repair before the authoritative tracker can advance to fully implemented.
+
+## Independent verifier pass
+
+The candidate was independently replayed on `0fb9507` in an isolated worktree.
+
+The verifier fixed one direct usability blocker where atomic conflict refusal and Calendar-permission errors were retained behind the modal instead of shown to the user.
+
+The approval preview now presents an explicit `NOTHING WAS WRITTEN` explanation and a direct Source Health repair action.
+
+The verifier also corrected reconciliation so a cancelled exact command is treated as failed instead of ever being summarized as an applied Calendar write.
+
+Focused `CalendarPlanApprovalStateTests` and `AgentPlanSchedulerTests` both pass after these fixes.
+
+The root-owned signed-QA acceptance journey remains intentionally unclaimed until the package lease is available.

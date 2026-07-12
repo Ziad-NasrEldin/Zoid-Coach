@@ -83,6 +83,29 @@ struct CalendarPlanApprovalSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(model.calendarPlanApproval.usesCalendarAvailability ? Sumi.paper : Sumi.sealWash)
 
+            if let error = model.calendarScheduleError {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("NOTHING WAS WRITTEN")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Text(error)
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("OPEN SOURCE HEALTH") {
+                        model.selectedSection = .diagnostics
+                        model.dismissCalendarPlanApproval()
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                }
+                .padding(18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Sumi.sealWash)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("calendar-plan-write-refusal")
+            }
+
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(model.calendarPlanApproval.items) { item in
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
