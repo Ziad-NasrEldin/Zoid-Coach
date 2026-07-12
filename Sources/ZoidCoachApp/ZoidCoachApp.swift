@@ -56,7 +56,14 @@ struct ZoidCoachApplication: App {
                     }
                 }
                 .onChange(of: onboarding.route) { _, route in
-                    if route == .today { voiceModel.startAlwaysAvailable() }
+                    if route == .today {
+                        voiceModel.startAlwaysAvailable()
+                        Task {
+                            await model.refreshTodaySnapshot()
+                            await model.refreshPromptInbox()
+                            await model.refreshActionAudit()
+                        }
+                    }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
