@@ -37,6 +37,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 19 | Complete background-agent lifecycle and Login Items repair | ready | Unowned | Install, enable, approval-required, update, crash recovery, disable, and uninstall are understandable and preserve data integrity |
 | 20 | Complete privacy, export, deletion, and local-data controls | verify | Lane C at `f4085ed` | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
 | 21 | Complete daily behavior review and correction | verify | Lane D at `7b96623` | User can review grouped activity sessions, correct or split classifications, attach work to a task, reject unsupported explanations, confirm the review, and see durable corrected totals after restart |
+| 22 | Complete away-from-Mac work recording and correction | verify | Offline-work lane at `55fcca3` | Reviews supports add, edit, delete, restart-safe persistence, actual-time inclusion, explicit separation from Screenwatch coverage, and honest missing-telemetry copy; active-task entry remains a separate follow-up |
 
 ## Pull Rules
 
@@ -49,6 +50,18 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Away-from-Mac work recording and correction - `55fcca3`
+
+- Added a dedicated Reviews flow for intentional away-from-Mac work with start time, bounded duration, optional task attachment, and optional note.
+- Added migration 30 and restart-safe create, correction, and scoped deletion without rewriting Screenwatch observations.
+- Added separate Actual Time, Screenwatch-observed, and Away From Mac totals so intentional offline work never disguises missing telemetry.
+- Reopens a confirmed review after every offline-work mutation so changed totals cannot silently influence learning.
+- Added focused migration, persistence, idempotency, validation, correction, deletion, and review-reopening tests.
+- All 469 Swift tests, 41 registry and evidence tests, the release build, and a clean signed-QA package passed.
+- Evidence is recorded in `.audit/runs/offline-work/55fcca39050d1ce92f9a712d7421421e763fe441/REPORT.md`.
+- A fresh verifier must complete the signed-QA Reviews click-through before the authoritative tracker advances.
+- Active-task entry scenarios `ZC-022-001` and `ZC-022-002` remain ready because this batch deliberately avoided the concurrently owned task-lifecycle surface.
 
 ### Settings policy mutation conflict UX - `87f326f`
 
