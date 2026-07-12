@@ -20,7 +20,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 2 | Rebrand the complete product from Zoid Coach to Zoid 666 | active | Lane B | App bundle display names, visible UI, packaging, docs, scripts, tests, and installed artifact use Zoid 666 while durable identifiers and migrations remain compatible |
 | 3 | Complete the canonical onboarding test-prompt loop | done | Canonical verifier at `0920a29` before final rebase | Agent-owned idempotent creation, notification delivery and action resolution, denied Today fallback, dashboard response, exact-step Resume Setup, and relaunch durability passed in `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md` |
 | 4 | Prove all 12 onboarding steps in one fresh signed-QA journey | ready | Unowned | One evidence run completes every step, persists app classifications and preferences through XPC, creates the first plan, reaches Today, and survives restart |
-| 5 | Finish Reminders permission grant, denial, repair, and recovery UX | active | Reminders permission lane `codex/reminders-permission-recovery` | `ZC-002-002` through `ZC-002-008`: grant, denial, System Settings repair, recheck, no prompt loop, and useful local fallback |
+| 5 | Finish Reminders permission grant, denial, repair, and recovery UX | verify | Reminders permission candidate at `6c6b5d2` | `ZC-002-002` through `ZC-002-008`: focused grant, denial, System Settings repair, foreground recheck, no-prompt-loop, QA restart, and local fallback proof passed in `.audit/runs/reminders-permission-recovery/6c6b5d2/REPORT.md` |
 | 6 | Finish Screenwatch healthy, invalid, alternate-folder, denial, and repair UX | ready | Unowned | Signed-QA flows prove each state without exposing screenshot content and preserve the selected source through restart |
 | 7 | Finish notification permission and Today fallback UX | ready | Unowned | Grant and denial both leave coaching actionable, repair is discoverable, and no prompt becomes inaccessible |
 | 8 | Complete flexible work-window and quiet-hours onboarding | ready | Unowned | User can configure, validate, persist, edit, and observe both policies in runtime behavior after restart |
@@ -52,6 +52,17 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Reminders permission grant, denial, repair, and recovery - `6c6b5d2`
+
+- Added explicit denied and deferred copy that names unavailable Apple-task behavior while preserving local-task usability.
+- Added automatic foreground permission recheck in onboarding and Settings without repeating the macOS permission request.
+- Added successful System Settings handoff guidance and a manual Privacy & Security recovery path when the handoff fails.
+- Repaired access immediately loads Reminder lists during onboarding and refreshes incomplete tasks plus last-success state in Settings.
+- Added a deterministic QA denial, repair, grant, foreground return, task read, and reconstruction journey.
+- Focused Reminders connection and onboarding recovery tests pass.
+- Evidence is recorded in `.audit/runs/reminders-permission-recovery/6c6b5d2/REPORT.md`.
+- A fresh verifier owns signed-QA click-through, tracker and registry integration, and Lavish refresh.
 
 ### Evidence-gated weekly review and next-week experiment - candidate
 
