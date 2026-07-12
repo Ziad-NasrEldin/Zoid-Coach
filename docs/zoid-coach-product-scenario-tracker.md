@@ -8,18 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-12 against branch `codex/full-system` rebased through settings verification commit `c7046a9`, 466 passing Swift tests, 41 passing registry and evidence tests, a clean signed-QA package, deterministic operating-system fixtures, the exact 666-scenario registry, and visible notification plus Today-fallback macOS accessibility click-through testing.
+Updated on 2026-07-12 against branch `codex/full-system` through offline-work tip `4166a43` plus the independently accepted application-classification batch, 41 passing registry and evidence tests, a passing release build, a clean installed signed-QA runtime, deterministic operating-system fixtures, the exact 666-scenario registry, and visible macOS accessibility click-through testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 33
-- **Touches remaining:** 160
+- **Fully implemented:** 38
+- **Touches remaining:** 157
 - **Frontend only left:** 23
 - **Partially implemented:** 135
 - **Barely started:** 48
-- **Not implemented:** 234
+- **Not implemented:** 232
 - **Blocked from verification:** 33
 - **Total:** 666
 
@@ -365,8 +365,8 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 25. Ambiguous applications and activity
 
-- [ ] See known work applications classified according to configured rules. **Status: Touches remaining.** Settings exposes per-app `Auto`, `Work`, and `Gaming` choices, policy is persisted, and classification overrides are tested. The Today popover reflects the resulting category, but no live reclassification cycle was performed.
-- [ ] See known games classified as gaming. **Status: Touches remaining.** Built-in matching covers common game names and user overrides, with unit coverage. The heuristic is application-name based and not context aware.
+- [x] See known work applications classified according to configured rules. **Status: Fully implemented.** The signed-QA Settings ledger discovered 131 installed, observed, and saved applications, exposed distinct Auto, Work, Communication, and Gaming choices, persisted an explicit rule through the agent, and restored that exact normalized rule after relaunch. Runtime tests prove that Work and Communication rules count as work while Communication remains visibly distinct (`AppClassificationLedger.swift`; `UserPolicyTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).
+- [x] See known games classified as gaming. **Status: Fully implemented.** The signed-QA ledger exposes Gaming for every discovered application, the visible verifier applied Gaming individually and through a confirmed filtered bulk action, and runtime tests prove configured Gaming overrides classification and budget accounting (`AppClassificationLedger.swift`; `TodayDashboardTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).
 - [ ] See browsers, Discord, Slack, Notion, YouTube, and Preview treated according to context rather than permanently judged. **Status: Not implemented.** Discord is always gaming, Slack always work, YouTube always distracting, and browsers/Notion/Preview generally unknown unless globally overridden. No task or window context classifier exists.
 - [ ] See uncertain activity remain unknown. **Status: Touches remaining.** Unmatched applications are classified `unknown` and shown as `Unclassified`; this behavior is implemented and tested at the classifier/sessionizer level.
 - [ ] Avoid a strong drift warning based only on uncertain activity. **Status: Barely started.** Unknown classification exists, but drift warning generation does not.
@@ -644,13 +644,13 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Change cooldowns. **Status: Not implemented.** No cooldown controls or policy fields exist.
 - [ ] Change the task-start grace period. **Status: Not implemented.** No grace-period setting exists.
 - [ ] Change the default coaching-pause duration. **Status: Not implemented.** Only an indefinite pause exists.
-- [ ] Review application rules. **Status: Touches remaining.** `AppClassificationLedger` lists known/saved applications and work, gaming, or automatic choices. Persistence and conflict-retry tests preserve a newer classification winner and independent local edits without duplicate versions, but a live classify-observe-result journey was not run.
+- [x] Review application rules. **Status: Fully implemented.** The signed-QA Settings ledger loaded 131 installed, observed, and saved applications with search plus All, Auto, Work, Communication, and Gaming filters. The visible verifier searched Discord, changed its distinct category, saved through the agent, killed and relaunched the app, and saw policy V3 with Communication still selected (`AppClassificationLedger.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).
 - [ ] Review domain rules. **Status: Not implemented.** URL/domain classification rules are not exposed or modeled.
 - [ ] Review project mappings. **Status: Not implemented.** No project-mapping model or UI exists.
 - [ ] Review unknown sessions. **Status: Not implemented.** Unknown time can appear in totals, but there is no session review queue.
 - [ ] Enable or disable screenshot analysis. **Status: Touches remaining.** A persisted Screenwatch screenshot-analysis toggle exists, participates in field-level conflict recovery, and has persistence coverage. Live agent behavior after toggling was not verified.
-- [ ] Import classification rules. **Status: Not implemented.** No import command or UI exists.
-- [ ] Export classification rules. **Status: Not implemented.** No export command or UI exists.
+- [x] Import classification rules. **Status: Fully implemented.** The signed-QA native chooser accepted a reviewed JSON replacement only after previewing one Work, one Communication, and one Gaming rule and requiring destructive confirmation. Focused tests reject wrong types, folders, symlinks, oversized data, malformed documents, unsupported schemas, blanks, duplicates, and cross-category conflicts before draft mutation (`AppClassificationRulesDocumentService.swift`; `AppClassificationRulesDocumentServiceTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).
+- [x] Export classification rules. **Status: Fully implemented.** The signed-QA native destination chooser exported the visible draft, and inspection confirmed a normalized schema-only JSON document containing no unrelated settings or secrets. Atomic writing and symlink-destination rejection are covered by focused tests (`AppClassificationRulesDocumentService.swift`; `AppClassificationRulesDocumentServiceTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).
 - [ ] Reset learned rules. **Status: Not implemented.** Policy rollback exists, but there is no targeted learned-rule reset.
 
 ## 46. AI settings and behavior

@@ -66,7 +66,24 @@
 
 ## Remaining installed-runtime gate
 
-- The directly launched candidate bundle had no installed QA policy database and correctly exposed `Policy storage is unavailable. Settings are read-only until local storage recovers.`
-- That environment could prove the complete draft interaction, import, export, and reset surfaces but could not prove Save Settings or relaunch persistence.
-- A root-controlled signed-runtime installation is still required after the existing offline-work package lock is released.
-- ScreenCaptureKit also returned `SCStreamErrorDomain -3811` after the reset confirmation, so the post-reset frame was not claimed as proof.
+- The directly launched candidate bundle initially had no installed QA policy database and correctly exposed `Policy storage is unavailable. Settings are read-only until local storage recovers.`
+- The exclusive verifier later installed the canonical default-root signed QA runtime and registered its exact embedded LaunchAgent.
+- The verifier saved Discord as the distinct Communication category through the agent and received the visible durable `V3` receipt.
+- Killing and relaunching the signed application visibly restored policy `V3`, and searching Discord showed Communication still selected.
+- The active database independently stored version 3 with exactly one normalized `discord` communication rule.
+- The verifier opened the destructive reset confirmation, reset every explicit rule to Automatic, saved through the agent, and received the visible durable `V4` receipt.
+- ScreenCaptureKit intermittently returned `SCStreamErrorDomain -3811`, but retrying accessibility inspection recovered without changing product state.
+
+## Installer compatibility fix
+
+- The first canonical-runtime recovery exposed an older installed QA app that predated `--qa-unregister-agent`.
+- Invoking the unknown argument launched that old app normally and left the installer waiting in the AppKit event loop.
+- The lifecycle helper now checks that the installed executable advertises the command before invoking it, allowing the existing LaunchAgent bootout fallback to replace legacy packages without hanging.
+- Focused lifecycle coverage proves both supported command invocation and safe legacy-package skipping.
+- The recovered canonical installer then passed signing checks, registered the embedded helper, and started the expected QA agent from `/Users/ziadnasreldin/Applications/Zoid 666 QA E2E.app`.
+
+## Final full-suite runner note
+
+- After rebasing onto authoritative offline-work tip `4166a43`, a fresh uncontended scratch-path full suite compiled but the SwiftPM testing helper again entered the repository's known idle-runner state with no child process or CPU use.
+- The verifier terminated only that idle helper and did not claim the attempt as a pass.
+- The exact 53 affected tests passed independently with four workers, all 41 Python tests passed, registry validation covered exactly 666 scenarios, the release build passed, and the candidate's preserved 476-test serial pass remains the broadest completed Swift proof for this batch.

@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "f030b8df13271bf60ed805d7de0b594a88728386369ba746a893bb9944b53a98",
+  "tracker_sha256": "79a3a978ca446afe2aa8fbd378ca7ea4a55ed2b9a90c8ab55882a85b50fb2b6c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5321,9 +5321,9 @@
       "section_title": "Ambiguous applications and activity",
       "item_index": 1,
       "wording": "See known work applications classified according to configured rules.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5332,10 +5332,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/app-classification-management/candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings exposes per-app `Auto`, `Work`, and `Gaming` choices, policy is persisted, and classification overrides are tested. The Today popover reflects the resulting category, but no live reclassification cycle was performed.",
+      "audit_note": "The signed-QA Settings ledger discovered 131 installed, observed, and saved applications, exposed distinct Auto, Work, Communication, and Gaming choices, persisted an explicit rule through the agent, and restored that exact normalized rule after relaunch. Runtime tests prove that Work and Communication rules count as work while Communication remains visibly distinct (`AppClassificationLedger.swift`; `UserPolicyTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).",
       "tracker_line": 368
     },
     {
@@ -5344,9 +5346,9 @@
       "section_title": "Ambiguous applications and activity",
       "item_index": 2,
       "wording": "See known games classified as gaming.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5355,10 +5357,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/app-classification-management/candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Built-in matching covers common game names and user overrides, with unit coverage. The heuristic is application-name based and not context aware.",
+      "audit_note": "The signed-QA ledger exposes Gaming for every discovered application, the visible verifier applied Gaming individually and through a confirmed filtered bulk action, and runtime tests prove configured Gaming overrides classification and budget accounting (`AppClassificationLedger.swift`; `TodayDashboardTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).",
       "tracker_line": 369
     },
     {
@@ -10171,19 +10175,21 @@
       "section_title": "Coaching and classification settings",
       "item_index": 8,
       "wording": "Review application rules.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/app-classification-management/candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`AppClassificationLedger` lists known/saved applications and work, gaming, or automatic choices. Persistence and conflict-retry tests preserve a newer classification winner and independent local edits without duplicate versions, but a live classify-observe-result journey was not run.",
+      "audit_note": "The signed-QA Settings ledger loaded 131 installed, observed, and saved applications with search plus All, Auto, Work, Communication, and Gaming filters. The visible verifier searched Discord, changed its distinct category, saved through the agent, killed and relaunched the app, and saw policy V3 with Communication still selected (`AppClassificationLedger.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).",
       "tracker_line": 647
     },
     {
@@ -10276,19 +10282,21 @@
       "section_title": "Coaching and classification settings",
       "item_index": 13,
       "wording": "Import classification rules.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/app-classification-management/candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No import command or UI exists.",
+      "audit_note": "The signed-QA native chooser accepted a reviewed JSON replacement only after previewing one Work, one Communication, and one Gaming rule and requiring destructive confirmation. Focused tests reject wrong types, folders, symlinks, oversized data, malformed documents, unsupported schemas, blanks, duplicates, and cross-category conflicts before draft mutation (`AppClassificationRulesDocumentService.swift`; `AppClassificationRulesDocumentServiceTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).",
       "tracker_line": 652
     },
     {
@@ -10297,19 +10305,21 @@
       "section_title": "Coaching and classification settings",
       "item_index": 14,
       "wording": "Export classification rules.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/app-classification-management/candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No export command or UI exists.",
+      "audit_note": "The signed-QA native destination chooser exported the visible draft, and inspection confirmed a normalized schema-only JSON document containing no unrelated settings or secrets. Atomic writing and symlink-destination rejection are covered by focused tests (`AppClassificationRulesDocumentService.swift`; `AppClassificationRulesDocumentServiceTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).",
       "tracker_line": 653
     },
     {
