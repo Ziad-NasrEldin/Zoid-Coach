@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "kind": "independent-baseline-verification",
+    "startedAtUTC": "2026-07-12T01:13:00Z",
+    "completedAtUTC": "2026-07-12T01:19:21Z",
+    "repositoryHead": "a068d2786c7725204cefa270a736e02f1a910b52",
+    "expectedBaseline": "a068d27",
+    "branch": "codex/zc-baseline-verifier",
+    "worktree": "/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/baseline-verifier",
+    "initialWorktreeClean": true,
+    "productionStateMutated": false,
+    "macOS": "26.5.2 (25F84)",
+    "architecture": "arm64"
+  },
+  "build": {
+    "swiftTest": {
+      "result": "pass",
+      "testCount": 188,
+      "suiteCount": 4,
+      "failures": 0
+    },
+    "releaseBuild": {
+      "result": "pass",
+      "command": "swift build -c release"
+    },
+    "installedApp": {
+      "path": "/Users/ziadnasreldin/Applications/Zoid Coach.app",
+      "shortVersion": "0.1.0",
+      "build": "8",
+      "bundleIdentifier": "com.ziadnasreldin.ZoidCoach",
+      "appSigningIdentifier": "com.ziadnasreldin.ZoidCoach",
+      "agentSigningIdentifier": "com.ziadnasreldin.ZoidCoach.agent",
+      "teamIdentifier": "377QC32T9T",
+      "appCDHash": "d76e35fb38e52e8733f563e13a65450718fc8871",
+      "agentCDHash": "3364ec2db4035e3b93700326a476621fdb129815",
+      "packageVerification": "pass"
+    }
+  },
+  "runtime": {
+    "mainAppRunning": false,
+    "accessibilityInspection": {
+      "result": "blocked",
+      "reason": "The installed main app was not running. Launching it would refresh real EventKit and XPC state, which this read-only baseline run was forbidden to mutate."
+    },
+    "agent": {
+      "running": true,
+      "pidObserved": 41612,
+      "installedBuild": "8",
+      "launchAgent": "pass",
+      "machService": "pass",
+      "screenwatchFreshness": "pass",
+      "zoidIngestionFreshness": "pass",
+      "heartbeatFreshness": "pass"
+    },
+    "canonicalDatabase": {
+      "path": "/Users/ziadnasreldin/Library/Application Support/Zoid Coach/zoid-coach.sqlite",
+      "readMode": "sqlite3 -readonly",
+      "integrityCheck": "ok",
+      "tableCount": 44,
+      "sourceTaskCount": 316,
+      "dailyPlanItemCount": 0,
+      "behaviorRecordCount": 15141,
+      "todaySnapshotCount": 1,
+      "promptEpisodeCount": 12,
+      "policyVersionCount": 1,
+      "taskHistoryCount": 0,
+      "agentUsesCanonicalPath": true,
+      "deletedOrTrashDatabaseHandleObserved": false
+    }
+  },
+  "policy": {
+    "checkedScenarioCount": 21,
+    "positiveScenarioCount": 15,
+    "negativeInvariantCount": 6,
+    "rule": "A positive end-user scenario requires current packaged UI proof plus the relevant durable or external effect. Source and unit tests alone are insufficient. Negative deferred-scope invariants may be retained when source, package shape, and framework searches prove the capability is absent."
+  },
+  "summary": {
+    "retainFullyImplemented": 6,
+    "recommendDowngrade": 15,
+    "blockedPositiveScenarios": 15
+  },
+  "scenarios": [
+    {
+      "id": "checked-001",
+      "trackerLine": 69,
+      "scenario": "Avoid seeing the same permission dialog repeatedly after declining it.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "unit-suite", "os-contract"],
+      "evidence": ["RemindersService inspects authorization before requesting access", "188-test suite passes"],
+      "blockers": ["No current deny-retry packaged-app flow was run because permission mutation was prohibited"]
+    },
+    {
+      "id": "checked-002",
+      "trackerLine": 75,
+      "scenario": "See whether the detected Screenwatch source is healthy.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "unit-suite", "live-backend"],
+      "evidence": ["Screenwatch source-state UI exists", "Background verifier passed Screenwatch and ingestion freshness"],
+      "blockers": ["No current packaged UI or accessibility proof because the app was not running"]
+    },
+    {
+      "id": "checked-003",
+      "trackerLine": 110,
+      "scenario": "Open planning manually before the configured time.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source"],
+      "evidence": ["Today source contains the DRAFT TODAY control"],
+      "blockers": ["The installed app was not running and the control was not activated end to end"]
+    },
+    {
+      "id": "checked-004",
+      "trackerLine": 128,
+      "scenario": "Hide completed tasks from the active task list.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "unit-suite", "live-database"],
+      "evidence": ["EventKit uses predicateForIncompleteReminders", "Canonical database contains 316 source tasks"],
+      "blockers": ["No completed Reminder fixture or current packaged UI assertion was permitted"]
+    },
+    {
+      "id": "checked-005",
+      "trackerLine": 131,
+      "scenario": "Understand when Reminders could not be refreshed.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source"],
+      "evidence": ["Unavailable state and user-facing error copy exist"],
+      "blockers": ["No packaged failure-recovery flow or accessibility proof"]
+    },
+    {
+      "id": "checked-006",
+      "trackerLine": 206,
+      "scenario": "See whether connected data sources are healthy.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "live-backend"],
+      "evidence": ["Source freshness UI and repair controls exist", "Agent, package, database, Screenwatch, and heartbeat checks passed"],
+      "blockers": ["No current packaged UI or accessibility proof"]
+    },
+    {
+      "id": "checked-007",
+      "trackerLine": 207,
+      "scenario": "See the main objective as the strongest task-level element.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source"],
+      "evidence": ["Main objective uses display typography in Today source"],
+      "blockers": ["Canonical database has no daily plan items", "No current populated UI, screenshot, or accessibility proof"]
+    },
+    {
+      "id": "checked-008",
+      "trackerLine": 208,
+      "scenario": "See the active task or recommended next task prominently.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "unit-suite"],
+      "evidence": ["Focus commitment and DO THIS NEXT surfaces exist"],
+      "blockers": ["No current active-task or populated recommendation UI proof"]
+    },
+    {
+      "id": "checked-009",
+      "trackerLine": 211,
+      "scenario": "See gaming budget status.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "unit-suite"],
+      "evidence": ["Gaming remaining-minutes UI exists", "Gaming calculator tests pass within the full suite"],
+      "blockers": ["No current packaged UI proof"]
+    },
+    {
+      "id": "checked-010",
+      "trackerLine": 228,
+      "scenario": "Find remaining non-priority tasks without letting them dominate the plan.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "live-database"],
+      "evidence": ["Inventory source is below plan surfaces", "Canonical database contains 316 source tasks"],
+      "blockers": ["No current populated UI hierarchy proof"]
+    },
+    {
+      "id": "checked-011",
+      "trackerLine": 232,
+      "scenario": "See one recommended next task rather than a list of competing recommendations.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "unit-suite"],
+      "evidence": ["TodaySnapshot carries one recommendation and one DO THIS NEXT card"],
+      "blockers": ["No current packaged UI proof with a populated plan"]
+    },
+    {
+      "id": "checked-012",
+      "trackerLine": 233,
+      "scenario": "See one concise reason for the recommendation.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source"],
+      "evidence": ["The card renders one sentence and one Why this line"],
+      "blockers": ["No current packaged UI or content-quality proof"]
+    },
+    {
+      "id": "checked-013",
+      "trackerLine": 234,
+      "scenario": "Receive recommendations that prefer today's selected tasks.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "unit-suite"],
+      "evidence": ["TodayDashboardAgent recommends from daily-plan rows", "Recommendation tests pass"],
+      "blockers": ["No packaged plan-selection-to-recommendation journey was run"]
+    },
+    {
+      "id": "checked-014",
+      "trackerLine": 809,
+      "scenario": "Open Zoid Coach at the start of the day.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["package", "live-agent"],
+      "evidence": ["Installed Build 8 and background agent validate"],
+      "blockers": ["The main app was not running and was not launched under the non-mutation rule"]
+    },
+    {
+      "id": "checked-015",
+      "trackerLine": 810,
+      "scenario": "Review eligible Reminders.",
+      "currentStatus": "Fully implemented",
+      "verdict": "recommend-downgrade",
+      "recommendedStatus": "Blocked from verification",
+      "proofTypes": ["source", "live-database"],
+      "evidence": ["Incomplete-reminder fetch code exists", "Canonical database contains 316 source tasks"],
+      "blockers": ["No current packaged UI proof and no EventKit mutation was permitted"]
+    },
+    {
+      "id": "checked-016",
+      "trackerLine": 900,
+      "scenario": "Keep team workspaces, managers, shared permissions, and monitoring of other people out of Release 1.",
+      "currentStatus": "Fully implemented",
+      "verdict": "retain",
+      "recommendedStatus": "Fully implemented",
+      "proofTypes": ["negative-invariant", "package-shape"],
+      "evidence": ["No team, multi-tenant, manager, shared-permission, or remote-admin implementation found", "Installed bundle contains only the native app, local agent, plist, and signature"]
+    },
+    {
+      "id": "checked-017",
+      "trackerLine": 901,
+      "scenario": "Keep a public web dashboard out of Release 1.",
+      "currentStatus": "Fully implemented",
+      "verdict": "retain",
+      "recommendedStatus": "Fully implemented",
+      "proofTypes": ["negative-invariant", "package-shape"],
+      "evidence": ["Package exposes macOS app, agent, and core library only", "No HTTP server framework or listener implementation found"]
+    },
+    {
+      "id": "checked-018",
+      "trackerLine": 902,
+      "scenario": "Keep cloud screenshot synchronization off by default and outside the MVP.",
+      "currentStatus": "Fully implemented",
+      "verdict": "retain",
+      "recommendedStatus": "Fully implemented",
+      "proofTypes": ["negative-invariant", "source"],
+      "evidence": ["No CloudKit, iCloud, ubiquitous-container, or screenshot synchronization implementation found", "Screenshot analysis and explicit remote-evidence controls are not a cloud synchronization subsystem"]
+    },
+    {
+      "id": "checked-019",
+      "trackerLine": 903,
+      "scenario": "Keep mobile and cross-device behavior correlation outside the MVP.",
+      "currentStatus": "Fully implemented",
+      "verdict": "retain",
+      "recommendedStatus": "Fully implemented",
+      "proofTypes": ["negative-invariant", "package-shape"],
+      "evidence": ["Package platform is macOS 14 only", "No iOS, watchOS, mobile-companion, or cross-device implementation found"]
+    },
+    {
+      "id": "checked-020",
+      "trackerLine": 905,
+      "scenario": "Keep automatic multi-task Reminder decomposition outside the MVP.",
+      "currentStatus": "Fully implemented",
+      "verdict": "retain",
+      "recommendedStatus": "Fully implemented",
+      "proofTypes": ["negative-invariant", "source"],
+      "evidence": ["No decomposition feature or multi-task generation surface found", "Planner consumes existing source tasks"]
+    },
+    {
+      "id": "checked-021",
+      "trackerLine": 906,
+      "scenario": "Keep hard application or website blocking outside Release 1.",
+      "currentStatus": "Fully implemented",
+      "verdict": "retain",
+      "recommendedStatus": "Fully implemented",
+      "proofTypes": ["negative-invariant", "source"],
+      "evidence": ["No FamilyControls, ManagedSettings, DeviceActivity, NetworkExtension, app blocker, or website blocker implementation found"]
+    }
+  ]
+}
