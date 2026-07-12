@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "run_id": "phase0-proof-fixes/0eb22f8",
+  "target_commit": "0eb22f8311d5a00cda29ebc6a4b4b8068d393236",
+  "completed_at": "2026-07-12T02:47:53Z",
+  "status": "failed",
+  "proof_substrate_verdict": "fail",
+  "closed_findings": [
+    "ambient Git repository redirection in build stamping",
+    "ambient Git repository redirection in scenario evidence",
+    "parent-symlink artifact escape",
+    "null and failed assertions",
+    "red runtime fixture guard test"
+  ],
+  "tests": {
+    "python_proof": {"passed": 33, "failed": 0},
+    "swift": {"passed": 227, "failed": 0},
+    "former_runtime_guard": "passed"
+  },
+  "remaining_findings": [
+    {
+      "id": "P0-PROOF-FIX-001",
+      "severity": "P2",
+      "title": "Scenario evidence does not enforce authoritative registry semantics",
+      "reproduction": {
+        "original_proof_classes": ["installed_app_e2e", "ui_automation"],
+        "mutated_proof_classes": ["unit_rule"],
+        "json_schema": "accepted as structurally valid",
+        "authoritative_registry_cli": "rejected as tracker drift",
+        "scenario_evidence_create": "accepted",
+        "scenario_evidence_validate": "accepted passed manifest"
+      }
+    }
+  ],
+  "audited_artifacts": [
+    {"path": "Scripts/stamp-build-identity.sh", "sha256": "e7f4ee45fe0a77fba17355630fb9a156804e19119ecc5446bd9429307c364679"},
+    {"path": "Scripts/scenario_evidence.py", "sha256": "aa6a2f4483e8a7b2e7fb7246b9d8a724290cec80bcba1348a2063a8544725566"},
+    {"path": "Scripts/scenario_registry.py", "sha256": "62525fe492205adebf8e8d68f0c380096f77ac3702c546e3819be47d664dfa75"},
+    {"path": "Tests/ScenarioRegistryTests/test_build_identity.py", "sha256": "048ad8d7456fcd90dcd261796098b38879c26d67d90934dce0edd99671610c06"},
+    {"path": "Tests/ScenarioRegistryTests/test_scenario_evidence.py", "sha256": "c145553e44dfb1d79ac00b4551b463b00da9d4d05845d23b3bd979c41a7dd7ff"},
+    {"path": "Tests/ScenarioRegistryTests/test_scenario_registry.py", "sha256": "4be70cf9f27318b6a1c2d60389af2cbe4cc239f2ed2c71005ff7727a32ccc91f"},
+    {"path": "Tests/ZoidCoachAppTests/DeterministicTestControlTests.swift", "sha256": "89ff0f3b23aa6787a7ef8f549f3d38760f090393d04ef0ff5d6ded862017e82c"},
+    {"path": "docs/SCENARIO-REGISTRY.md", "sha256": "addd3f179d5d2e668569dc7e36cadec6b128646b5e32773e4409019fc89e2241"},
+    {"path": "docs/SCENARIO-EVIDENCE.md", "sha256": "23c4561947807a0ca8d1b36e179915df6474075593f39ddee69a8544474f9c64"},
+    {"path": "docs/scenario-registry.schema.json", "sha256": "c27270eb3c02e909cf44fe65a45b463f62c17f420a7d809b369c2d865703ed10"},
+    {"path": "docs/scenario-registry.json", "sha256": "9f795d349a7aa3325c4ff0ccd20c5604aa9cf892b5def715af43d13e6adea1e3"}
+  ]
+}
