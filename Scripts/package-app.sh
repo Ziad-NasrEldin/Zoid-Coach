@@ -20,6 +20,7 @@ swift build --configuration "$CONFIGURATION" --product ZoidCoachAgent
 rm -rf "$APP_ROOT"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources" "$CONTENTS/Library/LaunchAgents"
 cp "$ROOT/App/Info.plist" "$CONTENTS/Info.plist"
+"$ROOT/Scripts/stamp-build-identity.sh" "$CONTENTS/Info.plist" >/dev/null
 cp "$BUILD_ROOT/ZoidCoach" "$CONTENTS/MacOS/ZoidCoach"
 cp "$BUILD_ROOT/ZoidCoachAgent" "$CONTENTS/MacOS/ZoidCoachAgent"
 cp "$ROOT/App/LaunchAgents/com.ziadnasreldin.ZoidCoach.agent.plist" "$CONTENTS/Library/LaunchAgents/com.ziadnasreldin.ZoidCoach.agent.plist"

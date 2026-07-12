@@ -21,6 +21,13 @@ plutil -lint "$PLIST" "$AGENT_PLIST" >/dev/null
 
 [[ "$(plutil -extract CFBundleIdentifier raw -o - "$PLIST")" == "com.ziadnasreldin.ZoidCoach" ]] \
     || fail "unexpected app bundle identifier"
+build_commit="$(plutil -extract ZoidCoachGitCommit raw -o - "$PLIST")"
+build_state="$(plutil -extract ZoidCoachGitState raw -o - "$PLIST")"
+build_identity="$(plutil -extract ZoidCoachBuildIdentity raw -o - "$PLIST")"
+[[ "$build_commit" =~ '^[0-9a-f]{40}$' ]] || fail "packaged build commit is invalid"
+[[ "$build_state" == "clean" || "$build_state" == "dirty" ]] || fail "packaged build state is invalid"
+[[ "$build_identity" == "zoid-coach-$build_commit-$build_state" ]] \
+    || fail "packaged build identity does not match its commit and state"
 [[ "$(plutil -extract BundleProgram raw -o - "$AGENT_PLIST")" == "Contents/MacOS/ZoidCoachAgent" ]] \
     || fail "LaunchAgent BundleProgram does not point to the bundled helper"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :MachServices:com.ziadnasreldin.ZoidCoach.agent' "$AGENT_PLIST")" == "true" ]] \
