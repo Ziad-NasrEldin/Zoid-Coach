@@ -757,9 +757,10 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     private static func canonicalReminderLists(
         _ state: PersistedState
     ) -> [QAFixtureReminderList] {
-        var byID = Dictionary(
-            uniqueKeysWithValues: state.reminderLists.map { ($0.id, $0) }
-        )
+        var byID: [String: QAFixtureReminderList] = [:]
+        for list in state.reminderLists where byID[list.id] == nil {
+            byID[list.id] = list
+        }
         for listID in Set(state.reminders.map(\.listIdentifier)) where byID[listID] == nil {
             byID[listID] = QAFixtureReminderList(id: listID, name: listID)
         }

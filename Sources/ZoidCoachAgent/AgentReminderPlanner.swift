@@ -17,7 +17,7 @@ final class AgentReminderPlanner: @unchecked Sendable {
     private let taskHistoryStore: TaskHistoryStore
     private let learningStore: LearningAggregateStore
     private let advisorProvider: @Sendable () -> (any PlanningAdvising)?
-    private let reminderListPolicyProvider: @Sendable () -> ReminderListPolicy
+    private let reminderListPolicyProvider: @Sendable () throws -> ReminderListPolicy
 
     init(
         eventStore: EKEventStore? = nil,
@@ -27,7 +27,7 @@ final class AgentReminderPlanner: @unchecked Sendable {
         taskHistoryStore: TaskHistoryStore,
         learningStore: LearningAggregateStore,
         advisorProvider: @escaping @Sendable () -> (any PlanningAdvising)? = { nil },
-        reminderListPolicyProvider: @escaping @Sendable () -> ReminderListPolicy = {
+        reminderListPolicyProvider: @escaping @Sendable () throws -> ReminderListPolicy = {
             .legacyAllLists
         }
     ) {
@@ -47,30 +47,45 @@ final class AgentReminderPlanner: @unchecked Sendable {
         recentBehavior: [PlanningBehaviorEvidence] = [],
         availableFocusMinutes: Int = 240
     ) async throws -> AgentPlanDraftResult {
-        let unfilteredReminders: [AgentReminderSnapshot]
+        let storedSnapshots = try reminderSnapshotStore.loadIncomplete()
+        let localReminders = storedSnapshots.filter { $0.sourceKind == .local }.map {
+            AgentReminderSnapshot(
+                id: $0.id, title: $0.title, dueDate: $0.dueDate,
+                priority: priority(for: $0.priority), listID: nil,
+                project: $0.listName, isLocal: true
+            )
+        }
+        let unfilteredExternalReminders: [AgentReminderSnapshot]
         if let fixtureAdapter {
-            unfilteredReminders = try fixtureAdapter.allReminders(includeCompleted: false).map {
+            let fixtureSnapshot = try fixtureAdapter.snapshot()
+            let namesByID = Dictionary(uniqueKeysWithValues: fixtureSnapshot.reminderLists.map {
+                ($0.id, $0.name)
+            })
+            unfilteredExternalReminders = fixtureSnapshot.reminders.filter { !$0.isCompleted }.map {
                 AgentReminderSnapshot(
                     id: $0.id, title: $0.title, dueDate: $0.dueDate,
                     priority: priority(for: $0.priority), listID: $0.listIdentifier,
-                    project: $0.listIdentifier
+                    project: namesByID[$0.listIdentifier] ?? $0.listIdentifier
                 )
             }
         } else if hasFullAccess {
-            unfilteredReminders = await incompleteReminders()
+            unfilteredExternalReminders = await incompleteReminders()
         } else {
-            unfilteredReminders = try reminderSnapshotStore.loadIncomplete().map {
+            unfilteredExternalReminders = storedSnapshots.filter {
+                $0.sourceKind == .reminders
+            }.map {
                 AgentReminderSnapshot(
                     id: $0.id, title: $0.title, dueDate: $0.dueDate,
                     priority: priority(for: $0.priority), listID: $0.listID,
-                    project: $0.listName, isLocal: $0.sourceKind == .local
+                    project: $0.listName
                 )
             }
         }
-        let reminderListPolicy = reminderListPolicyProvider()
-        let reminders = unfilteredReminders.filter {
-            $0.isLocal || reminderListPolicy.includes(listID: $0.listID)
+        let reminderListPolicy = try reminderListPolicyProvider()
+        let externalReminders = unfilteredExternalReminders.filter {
+            reminderListPolicy.includes(listID: $0.listID)
         }
+        let reminders = localReminders + externalReminders
         if !overwriteExisting {
             let usableTaskIDs = Set(reminders.compactMap {
                 $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0.id
@@ -157,8 +172,12 @@ final class AgentReminderPlanner: @unchecked Sendable {
 
     func synchronizeReminderSource() async throws -> ReminderSyncResult? {
         if let fixtureAdapter {
-            let reminderListPolicy = reminderListPolicyProvider()
-            let externalReminders = try fixtureAdapter.allReminders()
+            let reminderListPolicy = try reminderListPolicyProvider()
+            let fixtureSnapshot = try fixtureAdapter.snapshot()
+            let namesByID = Dictionary(uniqueKeysWithValues: fixtureSnapshot.reminderLists.map {
+                ($0.id, $0.name)
+            })
+            let externalReminders = fixtureSnapshot.reminders
             let snapshots = reminderListPolicy.filteringExternalTasks(
                 externalReminders,
                 listID: { $0.listIdentifier }
@@ -166,7 +185,8 @@ final class AgentReminderPlanner: @unchecked Sendable {
                 ReminderSourceSnapshot(
                     id: $0.id, title: $0.title, dueDate: $0.dueDate,
                     priority: $0.priority, notes: $0.notes,
-                    listID: $0.listIdentifier, listName: $0.listIdentifier,
+                    listID: $0.listIdentifier,
+                    listName: namesByID[$0.listIdentifier] ?? $0.listIdentifier,
                     modificationDate: nil, isCompleted: $0.isCompleted
                 )
             }
@@ -176,7 +196,7 @@ final class AgentReminderPlanner: @unchecked Sendable {
         guard let eventStore else { return nil }
         let previouslyIncomplete = Set(try reminderSnapshotStore.loadIncomplete().map(\.id))
         let predicate = eventStore.predicateForReminders(in: nil)
-        let reminderListPolicy = reminderListPolicyProvider()
+        let reminderListPolicy = try reminderListPolicyProvider()
         let snapshots: [ReminderSourceSnapshot] = await withCheckedContinuation { continuation in
             eventStore.fetchReminders(matching: predicate) { reminders in
                 let permitted = reminderListPolicy.filteringExternalTasks(

@@ -4,6 +4,10 @@ import Testing
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
 
+private enum FirstPlanPolicyFailure: Error {
+    case failed
+}
+
 @MainActor
 @Test
 func onboardingFirstPlanPersistsRealReminderTasksAndReturnsExactlyWhatTodayCanRender() async throws {
@@ -62,6 +66,29 @@ func onboardingFirstPlanUsesTheExactConfiguredReminderListIDs() async throws {
     #expect(result.items.map(\.id) == ["included"])
     #expect(stored.filter { $0.sourceKind == .reminders }.map(\.id) == ["included"])
     #expect(stored.first?.listID == opaqueID)
+}
+
+@MainActor
+@Test
+func onboardingFirstPlanFailsClosedWhenListPolicyCannotBeVerified() async throws {
+    let databaseURL = onboardingPlanDatabaseURL("list-policy-read-failure")
+    defer { removeOnboardingPlanDatabase(databaseURL) }
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let service = try OnboardingFirstDailyPlanService(
+        databaseURL: databaseURL,
+        remindersService: FirstPlanRemindersStub(load: .available([
+            ReminderTask(id: "must-not-import", title: "Hidden", listID: "private", listName: "Private", dueDate: now, priority: 1, notes: nil, modificationDate: nil)
+        ])),
+        now: { now },
+        planningCapacityOverride: { _ in 240 },
+        reminderListPolicyOverride: { throw FirstPlanPolicyFailure.failed }
+    )
+
+    let result = await service.prepare()
+
+    #expect(result.state == .failed)
+    #expect(result.items.isEmpty)
+    #expect(try ReminderSnapshotStore(databaseURL: databaseURL).loadIncomplete().isEmpty)
 }
 
 @MainActor

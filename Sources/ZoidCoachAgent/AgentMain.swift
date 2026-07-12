@@ -265,7 +265,7 @@ struct ZoidCoachAgentMain {
                     }
                 },
                 reminderListPolicyProvider: {
-                    (try? policyStore.current()?.policy.reminderLists) ?? .legacyAllLists
+                    try policyStore.current()?.policy.reminderLists ?? .legacyAllLists
                 }
             )
             _ = try? await reminderPlanner.synchronizeReminderSource()

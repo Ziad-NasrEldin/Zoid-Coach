@@ -29,6 +29,7 @@ struct ReminderListChoice: Identifiable, Equatable, Sendable {
 
 enum ReminderListLoad: Equatable, Sendable {
     case available([ReminderListChoice])
+    case permissionRequired(String)
     case unavailable(String)
 }
 
@@ -153,7 +154,7 @@ final class RemindersService: RemindersServicing {
 
     func discoverLists() async -> ReminderListLoad {
         guard hasFullAccess else {
-            return .unavailable("Reminders full access is required to discover lists.")
+            return .permissionRequired("Reminders full access is required to discover lists.")
         }
         let lists: [ReminderListChoice] = store.calendars(for: .reminder).compactMap { calendar in
             let id = calendar.calendarIdentifier

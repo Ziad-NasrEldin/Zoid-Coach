@@ -26,7 +26,7 @@ final class QAFixtureRemindersService: RemindersServicing {
     func discoverLists() async -> ReminderListLoad {
         do {
             guard try adapter.permission(.reminders) == .granted else {
-                return .unavailable("QA Reminders permission is not granted.")
+                return .permissionRequired("QA Reminders permission is not granted.")
             }
             return .available(try adapter.snapshot().reminderLists.map {
                 ReminderListChoice(id: $0.id, name: $0.name)
@@ -38,12 +38,19 @@ final class QAFixtureRemindersService: RemindersServicing {
 
     func fetchIncompleteTasks() async -> ReminderTaskLoad {
         do {
-            return .available(try adapter.allReminders(includeCompleted: false).map {
+            guard try adapter.permission(.reminders) == .granted else {
+                return .unavailable
+            }
+            let snapshot = try adapter.snapshot()
+            let namesByID = Dictionary(uniqueKeysWithValues: snapshot.reminderLists.map {
+                ($0.id, $0.name)
+            })
+            return .available(snapshot.reminders.filter { !$0.isCompleted }.map {
                 ReminderTask(
                     id: $0.id,
                     title: $0.title,
                     listID: $0.listIdentifier,
-                    listName: $0.listIdentifier,
+                    listName: namesByID[$0.listIdentifier] ?? $0.listIdentifier,
                     dueDate: $0.dueDate,
                     priority: $0.priority,
                     notes: $0.notes,

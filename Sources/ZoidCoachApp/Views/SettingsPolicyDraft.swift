@@ -107,6 +107,15 @@ struct SettingsPolicyDraft: Equatable {
         )
     }
 
+    mutating func configureReminderListsLocalOnly() {
+        reminderListPolicy = ReminderListPolicy(
+            isConfigured: true,
+            decisions: reminderListPolicy.decisions.map {
+                ReminderListDecision(listID: $0.listID, isIncluded: false)
+            }
+        )
+    }
+
     var visibleCalendarIdentifierList: [String] {
         get {
             visibleCalendarIdentifiers

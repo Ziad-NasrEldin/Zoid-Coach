@@ -13,13 +13,14 @@ final class OnboardingFirstDailyPlanService {
     private let now: @Sendable () -> Date
     private let timeZoneIdentifier: @Sendable () -> String
     private let planningCapacityMinutes: @Sendable (Date) -> Int
-    private let reminderListPolicy: @Sendable () -> ReminderListPolicy
+    private let reminderListPolicy: @Sendable () throws -> ReminderListPolicy
 
     init(
         databaseURL: URL,
         remindersService: any RemindersServicing,
         now: @escaping @Sendable () -> Date = { Date() },
-        planningCapacityOverride: (@Sendable (Date) -> Int)? = nil
+        planningCapacityOverride: (@Sendable (Date) -> Int)? = nil,
+        reminderListPolicyOverride: (@Sendable () throws -> ReminderListPolicy)? = nil
     ) throws {
         let policyStore = try PolicyStore(databaseURL: databaseURL)
         let timeZoneIdentifier: @Sendable () -> String = {
@@ -33,8 +34,8 @@ final class OnboardingFirstDailyPlanService {
         todayAgent = try TodayDashboardAgent(databaseURL: databaseURL)
         self.now = now
         self.timeZoneIdentifier = timeZoneIdentifier
-        reminderListPolicy = {
-            (try? policyStore.current()?.policy.reminderLists) ?? .legacyAllLists
+        reminderListPolicy = reminderListPolicyOverride ?? {
+            try policyStore.current()?.policy.reminderLists ?? .legacyAllLists
         }
         planningCapacityMinutes = planningCapacityOverride ?? { date in
             let schedule = (try? policyStore.current()?.policy.schedule)
@@ -46,8 +47,13 @@ final class OnboardingFirstDailyPlanService {
     func prepare() async -> OnboardingFirstDailyPlanResult {
         do {
             let referenceDate = now()
+            let policy = try reminderListPolicy()
             let explicitlySelectedTaskIDs = Set(try planStore.loadDailyPlan(for: referenceDate).map(\.reminderID))
-            if let prepared = try persistedPreparedResult(at: referenceDate, message: "Your existing Today plan is ready.") {
+            if let prepared = try persistedPreparedResult(
+                at: referenceDate,
+                message: "Your existing Today plan is ready.",
+                reminderListPolicy: policy
+            ) {
                 return prepared
             }
 
@@ -55,13 +61,16 @@ final class OnboardingFirstDailyPlanService {
             let preparationMessage: String
             switch await remindersService.fetchIncompleteTasks() {
             case let .available(tasks):
-                let policy = reminderListPolicy()
                 let snapshots = policy.filteringExternalTasks(
                     tasks,
                     listID: { $0.listID }
                 ).map(Self.snapshot(from:))
                 _ = try reminderStore.synchronize(snapshots, observedAt: referenceDate)
-                if let prepared = try persistedPreparedResult(at: referenceDate, message: "Your existing Today plan is ready.") {
+                if let prepared = try persistedPreparedResult(
+                    at: referenceDate,
+                    message: "Your existing Today plan is ready.",
+                    reminderListPolicy: policy
+                ) {
                     return prepared
                 }
                 planningTasks = snapshots.filter {
@@ -114,7 +123,11 @@ final class OnboardingFirstDailyPlanService {
 
             let usableTaskIDs = Set(try reminderStore.loadIncomplete().filter(Self.isUsable).map(\.id))
             _ = try planStore.installDailyPlanIfNoUsablePlan(proposal, for: referenceDate, usableTaskIDs: usableTaskIDs)
-            return try persistedPreparedResult(at: referenceDate, message: successMessage) ?? .init(
+            return try persistedPreparedResult(
+                at: referenceDate,
+                message: successMessage,
+                reminderListPolicy: policy
+            ) ?? .init(
                 state: .failed,
                 items: [],
                 message: "The first plan could not be verified in Today. Setup was not advanced."
@@ -128,13 +141,25 @@ final class OnboardingFirstDailyPlanService {
         }
     }
 
-    private func persistedPreparedResult(at date: Date, message: String) throws -> OnboardingFirstDailyPlanResult? {
+    private func persistedPreparedResult(
+        at date: Date,
+        message: String,
+        reminderListPolicy: ReminderListPolicy
+    ) throws -> OnboardingFirstDailyPlanResult? {
         let snapshot = try todayAgent.snapshot(now: date)
         let rows = snapshot.taskRows
         let persistedPlan = try planStore.loadDailyPlan(for: date)
+        let sourcesByID = Dictionary(uniqueKeysWithValues: try reminderStore.loadIncomplete().map {
+            ($0.id, $0)
+        })
         guard !rows.isEmpty,
               rows.count == persistedPlan.count,
               rows.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
+              rows.allSatisfy({ row in
+                  guard let source = sourcesByID[row.taskID] else { return false }
+                  return source.sourceKind == .local
+                      || reminderListPolicy.includes(listID: source.listID)
+              }),
               rows.filter(\.isMainObjective).count == 1
         else { return nil }
         return .init(

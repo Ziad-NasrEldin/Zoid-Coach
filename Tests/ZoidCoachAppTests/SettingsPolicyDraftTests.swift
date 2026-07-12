@@ -354,6 +354,7 @@ func staleSettingsReminderListEditSurvivesConflictAndRetriesAgainstTheNewVersion
     #expect(try store.current()?.version == 3)
     #expect(try store.current()?.policy.reminderLists.isConfigured == true)
     #expect(try store.current()?.policy.reminderLists.decision(for: "  opaque-id  ") == true)
+    #expect(try store.current()?.policy.schedule.planningCapacityPercent == 80)
     #expect(!stale.hasUnsavedChanges)
 }
 
@@ -380,6 +381,50 @@ func settingsDoNotAdvanceWithoutAnExactDurableMutationReceipt() async throws {
     #expect(controller.activeVersion == 1)
     #expect(controller.hasUnsavedChanges)
     #expect(controller.statusMessage?.contains("did not confirm") == true)
+}
+
+@MainActor
+@Test
+func settingsExposeTypedReminderPermissionAndExplicitEmptyLocalOnlyChoice() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-settings-reminder-recovery-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    _ = try PolicyStore(databaseURL: databaseURL)
+        .saveSystemMaintenancePolicy(.defaults(timeZoneIdentifier: "UTC"))
+    let permission = SettingsPolicyController(
+        databaseURL: databaseURL,
+        savePolicyThroughAgent: { _ in
+            AgentMutationReceipt(accepted: false, message: "unused", policyVersion: nil)
+        },
+        discoverReminderLists: {
+            .permissionRequired("Grant Reminders full access.")
+        }
+    )
+
+    await permission.loadReminderLists()
+
+    #expect(permission.reminderListDiscovery == .permissionRequired(
+        "Grant Reminders full access."
+    ))
+
+    let empty = SettingsPolicyController(
+        databaseURL: databaseURL,
+        savePolicyThroughAgent: { _ in
+            AgentMutationReceipt(accepted: false, message: "unused", policyVersion: nil)
+        },
+        discoverReminderLists: { .available([]) }
+    )
+    await empty.loadReminderLists()
+    empty.configureReminderListsLocalOnly()
+
+    #expect(empty.reminderListDiscovery == .empty)
+    #expect(empty.draft.reminderListPolicy.isConfigured)
+    #expect(empty.draft.reminderListPolicy.decisions.allSatisfy { !$0.isIncluded })
+    #expect(empty.hasUnsavedChanges)
 }
 
 private enum RestartTestError: Error {

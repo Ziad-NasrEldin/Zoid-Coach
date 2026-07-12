@@ -181,6 +181,16 @@ struct OnboardingRootView: View {
                 case .idle, .loading:
                     ProgressView("Loading Reminder lists...")
                         .accessibilityIdentifier("onboarding.reminders.lists.loading")
+                case let .permissionRequired(message):
+                    Text(message)
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .accessibilityIdentifier("onboarding.reminders.lists.permission")
+                    Button("OPEN SYSTEM SETTINGS") {
+                        coordinator.openSystemSettings(for: .reminders)
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .accessibilityIdentifier("onboarding.reminders.lists.permission-repair")
                 case let .failed(message):
                     Text(message)
                         .font(Sumi.body(13))
@@ -296,7 +306,12 @@ struct OnboardingRootView: View {
                 Button("NOT NOW") { coordinator.deferAccess(for: step) }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .keyboardShortcut("d", modifiers: [.option])
-                    .disabled(coordinator.isWorking)
+                    .disabled(
+                        coordinator.isWorking
+                            || (step == .reminders
+                                && (accessDecision(for: step) == .granted
+                                    || coordinator.sourceHealth[.reminders]?.state == .healthy))
+                    )
                     .accessibilityHint("Continues setup in degraded mode without asking again.")
                     .accessibilityIdentifier("onboarding.source.\(step.rawValue).defer")
                 Button("RECHECK") {

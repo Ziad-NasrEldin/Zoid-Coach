@@ -20,6 +20,7 @@ enum OnboardingReminderListDiscovery: Equatable {
     case loading
     case available([ReminderListChoice])
     case empty
+    case permissionRequired(String)
     case failed(String)
 }
 
@@ -159,6 +160,12 @@ final class OnboardingCoordinator: ObservableObject {
     }
 
     func deferAccess(for step: OnboardingStep) {
+        if step == .reminders,
+           progress.remindersAccess == .granted
+            || sourceHealth[.reminders]?.state == .healthy {
+            errorMessage = "Reminders is already connected. Choose each list, or explicitly choose local-only planning from the list controls."
+            return
+        }
         sourceRequestGeneration = UUID()
         recordAccess(.deferred, for: step)
     }
@@ -234,6 +241,9 @@ final class OnboardingCoordinator: ObservableObject {
         case let .available(lists):
             reminderListDiscovery = lists.isEmpty ? .empty : .available(lists)
             errorMessage = nil
+        case let .permissionRequired(message):
+            reminderListDiscovery = .permissionRequired(message)
+            errorMessage = "Reminder permission is required before lists can be loaded. (message)"
         case let .unavailable(message):
             reminderListDiscovery = .failed(message)
             errorMessage = "Reminder lists could not be loaded. \(message)"
@@ -389,7 +399,7 @@ final class OnboardingCoordinator: ObservableObject {
             }
         case .empty:
             return progress.emptyReminderListFallbackConfirmed
-        case .idle, .loading, .failed:
+        case .idle, .loading, .permissionRequired, .failed:
             return false
         }
     }

@@ -88,6 +88,8 @@ final class SettingsPolicyController: ObservableObject {
         switch await discoverReminderLists() {
         case let .available(lists):
             reminderListDiscovery = lists.isEmpty ? .empty : .available(lists)
+        case let .permissionRequired(message):
+            reminderListDiscovery = .permissionRequired(message)
         case let .unavailable(message):
             reminderListDiscovery = .failed(message)
         }
@@ -98,14 +100,25 @@ final class SettingsPolicyController: ObservableObject {
         draft.confirmReminderListConfiguration()
     }
 
+    func configureReminderListsLocalOnly() {
+        draft.configureReminderListsLocalOnly()
+    }
+
     @discardableResult
-    func save() -> Task<Void, Never>? {
+    func save(
+        onSuccess: (@MainActor @Sendable () -> Void)? = nil
+    ) -> Task<Void, Never>? {
         guard store != nil else { return nil }
         isSaving = true
+        let reminderListPolicyChanged = draft.reminderListPolicy != persistedPolicy.reminderLists
         let policy = draft.policy(preserving: persistedPolicy)
         return Task {
             do {
-                try await persist(policy)
+                try await persist(
+                    policy,
+                    rebaseReminderListDraftOnConflict: reminderListPolicyChanged
+                )
+                onSuccess?()
             } catch {
                 statusMessage = "Settings were not saved: \(error.localizedDescription)"
             }
@@ -156,7 +169,11 @@ final class SettingsPolicyController: ObservableObject {
         NSWorkspace.shared.open(ZoidCoachStorage.databaseURL().deletingLastPathComponent())
     }
 
-    private func persist(_ policy: UserPolicy, restoring pendingDraft: SettingsPolicyDraft? = nil) async throws {
+    private func persist(
+        _ policy: UserPolicy,
+        restoring pendingDraft: SettingsPolicyDraft? = nil,
+        rebaseReminderListDraftOnConflict: Bool = false
+    ) async throws {
         let policy = policy.upgradedToCurrentSchema()
         let request = PolicyMutationRequest(
             requestID: "settings-policy-v1:\(UUID().uuidString)",
@@ -168,7 +185,9 @@ final class SettingsPolicyController: ObservableObject {
         do {
             agentReceipt = try await savePolicyThroughAgent(request)
         } catch {
-            refreshPersistedPolicyPreservingDraft()
+            refreshPersistedPolicyPreservingDraft(
+                rebaseReminderListDraft: rebaseReminderListDraftOnConflict
+            )
             throw error
         }
         let digest = try PolicyMutationRequest.canonicalPayloadDigest(for: policy)
@@ -189,11 +208,18 @@ final class SettingsPolicyController: ObservableObject {
         statusMessage = agentReceipt.message
     }
 
-    private func refreshPersistedPolicyPreservingDraft() {
+    private func refreshPersistedPolicyPreservingDraft(
+        rebaseReminderListDraft: Bool = false
+    ) {
+        let pendingReminderListPolicy = draft.reminderListPolicy
         guard let current = try? store?.current() else { return }
         persistedPolicy = current.policy
         activeVersion = current.version
         policyHistory = (try? store?.history()) ?? policyHistory
+        if rebaseReminderListDraft {
+            draft = SettingsPolicyDraft(policy: current.policy)
+            draft.reminderListPolicy = pendingReminderListPolicy
+        }
     }
 }
 
@@ -318,7 +344,11 @@ struct SettingsView: View {
             }
 
             if controller.hasUnsavedChanges || controller.isSaving {
-                Button(controller.isSaving ? "SAVING" : "SAVE CHANGES") { controller.save() }
+                Button(controller.isSaving ? "SAVING" : "SAVE CHANGES") {
+                    controller.save {
+                        model.refreshReminderTasks()
+                    }
+                }
                     .buttonStyle(SumiActionButtonStyle(role: .accent, size: .large))
                     .disabled(controller.isSaving || controller.isReadOnly)
             } else {
@@ -436,6 +466,20 @@ struct SettingsView: View {
             case .idle, .loading:
                 ProgressView("Loading Reminder lists...")
                     .accessibilityIdentifier("settings.reminders.lists.loading")
+            case let .permissionRequired(message):
+                Text(message)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .accessibilityIdentifier("settings.reminders.lists.permission")
+                Button("OPEN REMINDERS SETTINGS") {
+                    if let url = URL(
+                        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders"
+                    ) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .accessibilityIdentifier("settings.reminders.lists.permission-repair")
             case let .failed(message):
                 Text(message).font(Sumi.body(12)).foregroundStyle(Sumi.sealDeep)
                     .accessibilityIdentifier("settings.reminders.lists.error")
@@ -447,6 +491,20 @@ struct SettingsView: View {
                 Text("No Apple Reminder lists are currently available. Local tasks remain usable.")
                     .font(Sumi.body(12)).foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("settings.reminders.lists.empty")
+                Button(
+                    controller.draft.reminderListPolicy.isConfigured
+                        && controller.draft.reminderListPolicy.decisions.allSatisfy { !$0.isIncluded }
+                        ? "LOCAL-ONLY PLANNING SELECTED"
+                        : "USE LOCAL-ONLY PLANNING"
+                ) {
+                    controller.configureReminderListsLocalOnly()
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .disabled(
+                    controller.draft.reminderListPolicy.isConfigured
+                        && controller.draft.reminderListPolicy.decisions.allSatisfy { !$0.isIncluded }
+                )
+                .accessibilityIdentifier("settings.reminders.lists.empty-local-only")
             case let .available(lists):
                 VStack(spacing: 0) {
                     ForEach(lists) { list in
