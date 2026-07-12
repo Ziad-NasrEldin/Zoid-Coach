@@ -17,7 +17,8 @@ public struct TaskEstimateProgress: Equatable, Sendable {
     }
 
     public var percent: Int {
-        Int((Double(elapsedMinutes) / Double(estimateMinutes) * 100).rounded())
+        let rawPercent = Double(elapsedMinutes) / Double(estimateMinutes) * 100
+        return rawPercent >= Double(Int.max) ? Int.max : Int(rawPercent.rounded())
     }
 
     public var boundedFraction: Double {
@@ -57,8 +58,9 @@ public struct TaskEstimateProgress: Equatable, Sendable {
     }
 
     public func addingElapsedMinutes(_ additionalMinutes: Int) -> TaskEstimateProgress {
-        TaskEstimateProgress(
-            elapsedMinutes: elapsedMinutes + max(0, additionalMinutes),
+        let (updatedElapsed, overflowed) = elapsedMinutes.addingReportingOverflow(max(0, additionalMinutes))
+        return TaskEstimateProgress(
+            elapsedMinutes: overflowed ? Int.max : updatedElapsed,
             estimateMinutes: estimateMinutes
         )
     }

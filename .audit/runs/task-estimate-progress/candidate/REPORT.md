@@ -25,8 +25,8 @@ Defensive normalization prevents corrupt negative elapsed values or a zero estim
 
 ## Focused verification
 
-`swift test --filter TaskEstimateProgress` passed six Swift Testing scenarios on 2026-07-13 after independent verification corrected literal placeholder copy in the candidate.
-The tests cover not-started, underway, nearing-estimate, reached-estimate, over-estimate, invalid persisted inputs, live active-task advancement, and database reopen recovery.
+`swift test --filter TaskEstimateProgress` passed seven Swift Testing scenarios on 2026-07-13 after independent verification corrected literal placeholder copy in the candidate.
+The tests cover not-started, underway, nearing-estimate, reached-estimate, over-estimate, invalid and extreme persisted inputs, live active-task advancement, and database reopen recovery.
 `swift build --target ZoidCoachApp` passed on 2026-07-13.
 `git diff --check` passed on 2026-07-13.
 
