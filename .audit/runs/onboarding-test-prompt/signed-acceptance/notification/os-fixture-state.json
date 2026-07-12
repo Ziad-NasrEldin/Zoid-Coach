@@ -1,0 +1,225 @@
+{
+  "audit" : [
+    {
+      "id" : "qa-audit-0",
+      "operation" : "seed",
+      "outcome" : "succeeded",
+      "subsystem" : "fixture",
+      "targetID" : "canonical-notifications-granted",
+      "timestamp" : 805568310.500186
+    },
+    {
+      "id" : "qa-audit-1",
+      "operation" : "schedule",
+      "outcome" : "succeeded",
+      "subsystem" : "notifications",
+      "timestamp" : 805568399.410466
+    },
+    {
+      "id" : "qa-audit-2",
+      "operation" : "deliver-due",
+      "outcome" : "succeeded",
+      "subsystem" : "notifications",
+      "timestamp" : 805568399.411773
+    },
+    {
+      "id" : "qa-audit-3",
+      "operation" : "respond",
+      "outcome" : "succeeded",
+      "subsystem" : "notifications",
+      "targetID" : "1FD3D516-05C3-4938-9A6C-4ECF7482CB37",
+      "timestamp" : 805568428.529415
+    }
+  ],
+  "calendarCommitments" : [
+
+  ],
+  "controlReceipts" : [
+    {
+      "request" : {
+        "operation" : "seed",
+        "requestID" : "canonical-notifications-granted",
+        "seed" : {
+          "calendarCommitments" : [
+
+          ],
+          "notifications" : [
+
+          ],
+          "permissions" : [
+            "notifications",
+            "granted"
+          ],
+          "reminderLists" : [
+
+          ],
+          "reminders" : [
+
+          ]
+        }
+      },
+      "snapshot" : {
+        "audit" : [
+          {
+            "id" : "qa-audit-0",
+            "operation" : "seed",
+            "outcome" : "succeeded",
+            "subsystem" : "fixture",
+            "targetID" : "canonical-notifications-granted",
+            "timestamp" : 805568310.500186
+          }
+        ],
+        "calendarCommitments" : [
+
+        ],
+        "notifications" : [
+
+        ],
+        "permissions" : [
+          "notifications",
+          "granted"
+        ],
+        "reminderLists" : [
+
+        ],
+        "reminders" : [
+
+        ]
+      }
+    },
+    {
+      "request" : {
+        "actionIdentifier" : "continue_intentionally",
+        "notificationID" : "1FD3D516-05C3-4938-9A6C-4ECF7482CB37",
+        "operation" : "notificationAction",
+        "requestID" : "canonical-notification-action-continue"
+      },
+      "snapshot" : {
+        "audit" : [
+          {
+            "id" : "qa-audit-0",
+            "operation" : "seed",
+            "outcome" : "succeeded",
+            "subsystem" : "fixture",
+            "targetID" : "canonical-notifications-granted",
+            "timestamp" : 805568310.500186
+          },
+          {
+            "id" : "qa-audit-1",
+            "operation" : "schedule",
+            "outcome" : "succeeded",
+            "subsystem" : "notifications",
+            "timestamp" : 805568399.410466
+          },
+          {
+            "id" : "qa-audit-2",
+            "operation" : "deliver-due",
+            "outcome" : "succeeded",
+            "subsystem" : "notifications",
+            "timestamp" : 805568399.411773
+          },
+          {
+            "id" : "qa-audit-3",
+            "operation" : "respond",
+            "outcome" : "succeeded",
+            "subsystem" : "notifications",
+            "targetID" : "1FD3D516-05C3-4938-9A6C-4ECF7482CB37",
+            "timestamp" : 805568428.529415
+          }
+        ],
+        "calendarCommitments" : [
+
+        ],
+        "notifications" : [
+          {
+            "actionIdentifier" : "continue_intentionally",
+            "deliveredAt" : 805568399.411773,
+            "desired" : {
+              "body" : "This harmless setup prompt proves that every notification choice is also available in Today.",
+              "category" : "ONBOARDING_TEST",
+              "promptID" : "1FD3D516-05C3-4938-9A6C-4ECF7482CB37",
+              "title" : "Choose where coaching should continue"
+            },
+            "id" : "1FD3D516-05C3-4938-9A6C-4ECF7482CB37",
+            "respondedAt" : 805568428.529415,
+            "status" : "responded"
+          }
+        ],
+        "permissions" : [
+          "notifications",
+          "granted"
+        ],
+        "reminderLists" : [
+
+        ],
+        "reminders" : [
+
+        ]
+      }
+    }
+  ],
+  "counters" : [
+    "audit",
+    4,
+    "notification",
+    1
+  ],
+  "generatedIdentifiers" : [
+    {
+      "id" : "qa-audit-0",
+      "index" : 0,
+      "kind" : "audit",
+      "provenance" : "stableProvider"
+    },
+    {
+      "id" : "1FD3D516-05C3-4938-9A6C-4ECF7482CB37",
+      "index" : 0,
+      "kind" : "notification",
+      "provenance" : "callerSupplied"
+    },
+    {
+      "id" : "qa-audit-1",
+      "index" : 1,
+      "kind" : "audit",
+      "provenance" : "stableProvider"
+    },
+    {
+      "id" : "qa-audit-2",
+      "index" : 2,
+      "kind" : "audit",
+      "provenance" : "stableProvider"
+    },
+    {
+      "id" : "qa-audit-3",
+      "index" : 3,
+      "kind" : "audit",
+      "provenance" : "stableProvider"
+    }
+  ],
+  "notifications" : [
+    {
+      "actionIdentifier" : "continue_intentionally",
+      "deliveredAt" : 805568399.411773,
+      "desired" : {
+        "body" : "This harmless setup prompt proves that every notification choice is also available in Today.",
+        "category" : "ONBOARDING_TEST",
+        "promptID" : "1FD3D516-05C3-4938-9A6C-4ECF7482CB37",
+        "title" : "Choose where coaching should continue"
+      },
+      "id" : "1FD3D516-05C3-4938-9A6C-4ECF7482CB37",
+      "respondedAt" : 805568428.529415,
+      "status" : "responded"
+    }
+  ],
+  "permissions" : [
+    "notifications",
+    "granted"
+  ],
+  "reminderLists" : [
+
+  ],
+  "reminders" : [
+
+  ],
+  "schemaVersion" : 1
+}
