@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 35
+    public static let currentVersion = 36
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -946,14 +946,43 @@ private extension AutonomousDatabaseMigrator {
             """)
         ]),
         Migration(version: 35, isDestructive: false, operations: [
-            .addColumn(
+            .sqlIfTableExists(
                 table: "daily_plan_entries",
-                column: "is_optional",
-                declaration: "INTEGER NOT NULL DEFAULT 0 CHECK(is_optional IN (0, 1))"
+                sql: "ALTER TABLE daily_plan_entries ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0 CHECK(is_optional IN (0, 1));"
             ),
-            .addColumn(table: "daily_plan_entries", column: "blocked_reason", declaration: "TEXT"),
-            .addColumn(table: "daily_plan_entries", column: "deferred_until_utc", declaration: "TEXT")
-        ])
+            .sqlIfTableExists(
+                table: "daily_plan_entries",
+                sql: "ALTER TABLE daily_plan_entries ADD COLUMN blocked_reason TEXT;"
+            ),
+            .sqlIfTableExists(
+                table: "daily_plan_entries",
+                sql: "ALTER TABLE daily_plan_entries ADD COLUMN deferred_until_utc TEXT;"
+            )
+        ]),
+        Migration(version: 36, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS notification_delivery_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_identifier TEXT NOT NULL CHECK(length(request_identifier) BETWEEN 1 AND 240),
+            prompt_id TEXT NOT NULL CHECK(length(prompt_id) BETWEEN 1 AND 240),
+            category TEXT NOT NULL CHECK(length(category) BETWEEN 1 AND 240),
+            outcome TEXT NOT NULL CHECK(outcome IN (
+                'authorization_unavailable',
+                'accepted_by_system',
+                'delivered_by_fixture',
+                'scheduling_failed'
+            )),
+            scheduled_for TEXT,
+            recorded_at TEXT NOT NULL,
+            attempt INTEGER NOT NULL CHECK(attempt > 0),
+            replaced_prior_request INTEGER NOT NULL DEFAULT 0 CHECK(replaced_prior_request IN (0, 1)),
+            redacted_error TEXT CHECK(redacted_error IS NULL OR length(redacted_error) <= 240),
+            UNIQUE(request_identifier, attempt)
+        );
+        CREATE INDEX IF NOT EXISTS notification_delivery_events_recent
+        ON notification_delivery_events(recorded_at DESC, id DESC);
+        CREATE INDEX IF NOT EXISTS notification_delivery_events_request
+        ON notification_delivery_events(request_identifier, attempt DESC);
+        """)])
     ]
 }
 

@@ -151,7 +151,7 @@ func versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() throws {
         if let backupURL = result.backupURL { removeDatabaseFiles(at: backupURL) }
     }
 
-    #expect(result.appliedVersions == [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35])
+    #expect(result.appliedVersions == [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36])
     #expect(result.backupURL != nil)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses;") == 2)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses WHERE surface = 'dashboard';") == 1)
@@ -187,7 +187,7 @@ func versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35])
+    #expect(result.appliedVersions == [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36])
     #expect(try columnExists(databaseURL, table: "gaming_reward_ledger", column: "reward_minutes"))
     #expect(try scalarInt(databaseURL, "SELECT reward_minutes FROM gaming_reward_ledger;") == 15)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
@@ -212,7 +212,7 @@ func versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() throws {
     let first = try migrator.migrate()
     let second = try migrator.migrate()
 
-    #expect(first.appliedVersions == [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35])
+    #expect(first.appliedVersions == [25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36])
     #expect(second.appliedVersions.isEmpty)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM schema_migrations WHERE version = 25;") == 1)
@@ -241,7 +241,7 @@ func versionTwentySevenRebrandsPersistedPromptSummaries() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [27, 28, 29, 30, 31, 32, 33, 34, 35])
+    #expect(result.appliedVersions == [27, 28, 29, 30, 31, 32, 33, 34, 35, 36])
     #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'old';")
         == "Meeting details are available in Zoid 666.")
     #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'neutral';")
@@ -274,8 +274,8 @@ func dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEviden
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 27)
-    #expect(result.currentVersion == 35)
-    #expect(result.appliedVersions == [28, 29, 30, 31, 32, 33, 34, 35])
+    #expect(result.currentVersion == 36)
+    #expect(result.appliedVersions == [28, 29, 30, 31, 32, 33, 34, 35, 36])
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM behavior_records;") == 1)
     #expect(try tableExists(databaseURL, "daily_reviews"))
     #expect(try tableExists(databaseURL, "daily_review_corrections"))
@@ -398,7 +398,7 @@ func migration32CreatesRestartSafeBoundedSprintStorage() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.currentVersion == 35)
+    #expect(result.currentVersion == 36)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'task_sprint_sessions';") == 1)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'task_sprint_sessions_one_open';") == 1)
 }
@@ -410,7 +410,7 @@ func migration33AddsAppendOnlyCompletedTaskHistoryContext() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.currentVersion == 35)
+    #expect(result.currentVersion == 36)
     #expect(try columnExists(databaseURL, table: "task_history", column: "title_snapshot"))
     #expect(try columnExists(databaseURL, table: "task_history", column: "source_kind"))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'task_history_day_state';") == 1)
@@ -423,7 +423,7 @@ func migration34AddsDurableFutureClassificationRulesWithoutRewritingHistory() th
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.currentVersion == 35)
+    #expect(result.currentVersion == 36)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'app_classification_correction_rules';") == 1)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'app_classification_correction_rules_updated';") == 1)
 }
@@ -435,8 +435,23 @@ func migration35AddsDurableDailyPlanRevisionFieldsWithoutChangingExistingRows() 
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.currentVersion == 35)
+    #expect(result.currentVersion == 36)
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "is_optional"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "blocked_reason"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "deferred_until_utc"))
+}
+
+@Test
+func migration36AddsPrivacyBoundedNotificationDeliveryHistoryAfterDailyPlanRevision() throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-migration-36-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.currentVersion == 36)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM schema_migrations WHERE version = 35;") == 1)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM schema_migrations WHERE version = 36;") == 1)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'notification_delivery_events';") == 1)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'notification_delivery_events_recent';") == 1)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'notification_delivery_events_request';") == 1)
 }

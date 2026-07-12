@@ -77,7 +77,7 @@ public final class PrivacyDataService: @unchecked Sendable {
             ("learning", "Learned estimates and rules", "Local estimate samples, aggregates, and planner trust history.", ["learning_samples", "learning_aggregates", "planner_trust_cycles"]),
             ("voice", "Voice conversations", "Local voice sessions, turns, confirmed memory facts, approvals, and tool history.", ["voice_sessions", "conversation_turns", "conversation_memory_facts", "voice_tool_invocations", "voice_approval_requests"]),
             ("ai", "AI request metadata", "Local provider run metadata, cache records, Codex jobs, and transmission receipts. Credentials are stored separately in Keychain.", ["model_runs", "codex_jobs", "screen_context_transmissions"]),
-            ("settings", "Settings and diagnostics", "Versioned local policy, source checkpoints, action audit, and saved Today snapshots.", ["policy_versions", "settings", "source_checkpoints", "processing_checkpoints", "action_commands", "action_attempts", "today_snapshots"])
+            ("settings", "Settings and diagnostics", "Versioned local policy, source checkpoints, notification delivery results, action audit, and saved Today snapshots.", ["policy_versions", "settings", "source_checkpoints", "processing_checkpoints", "notification_delivery_events", "action_commands", "action_attempts", "today_snapshots"])
         ]
         let classes = try definitions.map { definition in
             PrivacyStoredDataClass(
@@ -261,6 +261,8 @@ public final class PrivacyDataService: @unchecked Sendable {
             try execute("DELETE FROM gaming_reward_ledger WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM planner_trust_cycles WHERE local_day >= ? AND local_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM domain_events WHERE local_day >= ? AND local_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            let iso8601 = ISO8601DateFormatter()
+            try execute("DELETE FROM notification_delivery_events WHERE recorded_at >= ? AND recorded_at < ?;", bindings: [iso8601.string(from: start), iso8601.string(from: end)]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM meeting_evidence WHERE artifact_id IN (SELECT id FROM screenshot_artifacts WHERE behavior_day >= ? AND behavior_day < ?);", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM extracted_facts WHERE artifact_id IN (SELECT id FROM screenshot_artifacts WHERE behavior_day >= ? AND behavior_day < ?);", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM screenshot_artifacts WHERE behavior_day >= ? AND behavior_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))

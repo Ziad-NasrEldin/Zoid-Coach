@@ -38,6 +38,12 @@ func onboardingTestPromptIsCanonicalIdempotentAndDurablyResolved() async throws 
     #expect(first.episode.id == "onboarding-prompt-1")
     #expect(replay.episode.id == first.episode.id)
     #expect(first.delivery == .notification)
+    let deliveryRecords = try NotificationDeliveryLedger(databaseURL: runtime.databaseURL).recent()
+    #expect(deliveryRecords.count == 2)
+    #expect(deliveryRecords.allSatisfy { $0.promptID == first.episode.id })
+    #expect(deliveryRecords.allSatisfy { $0.outcome == .deliveredByFixture })
+    #expect(deliveryRecords[0].replacedPriorRequest)
+    #expect(!deliveryRecords[1].replacedPriorRequest)
     #expect(try store.unresolved().count == 1)
     #expect(first.episode.actions.map(\.kind) == [.continueIntentionally, .ignore])
 
@@ -90,4 +96,8 @@ func onboardingTestPromptFallsBackToTodayWhenNotificationsAreDenied() async thro
 
     #expect(result.delivery == .todayFallback)
     #expect(try store.unresolved().map(\.id) == [result.episode.id])
+    let deliveryRecords = try NotificationDeliveryLedger(databaseURL: runtime.databaseURL).recent()
+    #expect(deliveryRecords.count == 1)
+    #expect(deliveryRecords[0].promptID == result.episode.id)
+    #expect(deliveryRecords[0].outcome == .authorizationUnavailable)
 }
