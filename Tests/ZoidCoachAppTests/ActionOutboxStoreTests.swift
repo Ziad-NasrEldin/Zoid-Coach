@@ -173,6 +173,33 @@ func explicitRetryRejectsPendingSucceededAndUnknownCommands() throws {
 }
 
 @Test
+func latestCommandFindsTaskCompletionBeyondTheGeneralAuditWindow() throws {
+    let url = temporaryOutboxURL("latest-by-entity")
+    defer { removeOutboxDatabase(url) }
+    let clock = OutboxTestClock(Date(timeIntervalSince1970: 1_700_000_000))
+    let store = try ActionOutboxStore(databaseURL: url, now: { clock.now })
+    let completion = try store.enqueue(
+        type: .completeReminder,
+        entityID: "important-task",
+        desiredState: .completeReminder,
+        planVersion: 1
+    ).command
+    for index in 0..<75 {
+        clock.advance(by: 1)
+        _ = try store.enqueue(
+            type: .completeReminder,
+            entityID: "later-task-\(index)",
+            desiredState: .completeReminder,
+            planVersion: 1
+        )
+    }
+
+    #expect(try store.recentCommands(limit: 50).contains(where: { $0.id == completion.id }) == false)
+    #expect(try store.latestCommand(type: .completeReminder, entityID: "important-task")?.id == completion.id)
+    #expect(try store.latestCommand(type: .completeReminder, entityID: "missing") == nil)
+}
+
+@Test
 func executingCommandsRemainVisibleForCrashReconciliation() throws {
     let url = temporaryOutboxURL("recovery")
     defer { removeOutboxDatabase(url) }

@@ -342,6 +342,21 @@ public final class ActionOutboxStore: @unchecked Sendable {
         try lock.withLock { try command(id: commandID) }
     }
 
+    public func latestCommand(type: ActionCommandType, entityID: String) throws -> ActionCommand? {
+        try lock.withLock {
+            let sql = Self.commandSelect + " WHERE action_type = ? AND entity_id = ? ORDER BY created_at_utc DESC, rowid DESC LIMIT 1;"
+            var statement: OpaquePointer?
+            guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+                  let statement
+            else { throw ActionOutboxStoreError.prepare(errorMessage) }
+            defer { sqlite3_finalize(statement) }
+            bind(type.rawValue, statement, 1)
+            bind(entityID, statement, 2)
+            guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+            return try decodeCommand(statement)
+        }
+    }
+
     public func attempts(commandID: String) throws -> [ActionAttempt] {
         try lock.withLock { try attemptsLocked(commandID: commandID) }
     }
