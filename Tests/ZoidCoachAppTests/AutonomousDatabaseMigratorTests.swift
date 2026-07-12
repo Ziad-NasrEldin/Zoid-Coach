@@ -457,8 +457,8 @@ func migration35ToleratesLegacyFixtureWithoutDailyPlanTable() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [35, 36])
-    #expect(result.currentVersion == 36)
+    #expect(result.appliedVersions == [35, 36, 37])
+    #expect(result.currentVersion == 37)
     #expect(try tableExists(databaseURL, "daily_plan_entries") == false)
 }
 
@@ -483,7 +483,7 @@ func migration35CompletesPartiallyUpgradedDailyPlanTable() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [35, 36])
+    #expect(result.appliedVersions == [35, 36, 37])
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "is_optional"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "blocked_reason"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "deferred_until_utc"))
