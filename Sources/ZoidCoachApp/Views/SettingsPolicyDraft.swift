@@ -36,6 +36,7 @@ struct SettingsPolicyDraft: Equatable {
     var captureMode: CaptureMode
     var captureDisplayIDs: [UInt32]
     var reminderListPolicy: ReminderListPolicy
+    var coachingLevel: CoachingLevel
 
     init(policy: UserPolicy) {
         operatingMode = policy.operatingMode
@@ -72,6 +73,7 @@ struct SettingsPolicyDraft: Equatable {
         captureMode = policy.capture.mode
         captureDisplayIDs = policy.capture.configuredDisplayIDs
         reminderListPolicy = policy.reminderLists
+        coachingLevel = policy.gaming.coachingLevel
     }
 
     func classification(for application: String) -> AppClassificationChoice {
@@ -227,7 +229,12 @@ struct SettingsPolicyDraft: Equatable {
             ),
             behavior: behaviorPolicy,
             capture: CapturePolicy(mode: captureMode, configuredDisplayIDs: captureDisplayIDs),
-            gaming: original.gaming,
+            gaming: GamingPolicy(
+                version: original.gaming.version,
+                dailyBudgetMinutes: original.gaming.dailyBudgetMinutes,
+                priorityTaskRewardMinutes: original.gaming.priorityTaskRewardMinutes,
+                coachingLevel: coachingLevel
+            ),
             reminderLists: reminderListPolicy
         )
     }

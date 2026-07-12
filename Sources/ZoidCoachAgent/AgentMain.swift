@@ -144,6 +144,13 @@ struct ZoidCoachAgentMain {
             let learningStore = try LearningAggregateStore(databaseURL: configuration.databaseURL)
             let trustGateStore = try PlannerTrustGateStore(databaseURL: configuration.databaseURL)
             let promptStore = try PromptInboxStore(databaseURL: configuration.databaseURL)
+            let gamingDriftPrompts = try GamingDriftPromptService(
+                databaseURL: configuration.databaseURL,
+                promptStore: promptStore
+            )
+            let coachingTaskExecutionStore = try TaskExecutionStore(
+                databaseURL: configuration.databaseURL
+            )
             let planningInvitations = PlanningInvitationService(store: promptStore)
             let actionOutbox = try ActionOutboxStore(databaseURL: configuration.databaseURL)
             let planUndoRequests = try PlanUndoRequestStore(databaseURL: configuration.databaseURL)
@@ -157,6 +164,7 @@ struct ZoidCoachAgentMain {
                 planScheduleRequests: planScheduleRequests,
                 promptStore: promptStore,
                 planningInvitations: planningInvitations,
+                taskExecution: coachingTaskExecutionStore,
                 schedulingCalendarIdentifier: {
                     try policyStore.current()?.policy.calendar.schedulingCalendarIdentifier
                 }
@@ -561,7 +569,13 @@ struct ZoidCoachAgentMain {
                         )
                     }
                     print("Zoid 666 agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
-                    _ = try? todayDashboardAgent.snapshot(now: Date())
+                    if let snapshot = try? todayDashboardAgent.snapshot(now: Date()),
+                       let promptResult = try? gamingDriftPrompts.produce(
+                           policy: policy,
+                           gamingStatus: snapshot.gaming
+                       ), case let .queued(episode, wasInserted) = promptResult, wasInserted {
+                        _ = try? await notificationCoordinator.schedule(episode)
+                    }
                     let now = Date()
                     _ = try promptStore.expireDue()
                     if policy.automationPause.isPaused {
@@ -736,7 +750,13 @@ struct ZoidCoachAgentMain {
                     calendar: calendarSource
                 )
                 print("Zoid 666 agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
-                _ = try? todayDashboardAgent.snapshot(now: Date())
+                if let snapshot = try? todayDashboardAgent.snapshot(now: Date()),
+                   let promptResult = try? gamingDriftPrompts.produce(
+                       policy: initialPolicy,
+                       gamingStatus: snapshot.gaming
+                   ), case let .queued(episode, wasInserted) = promptResult, wasInserted {
+                    _ = try? await notificationCoordinator.schedule(episode)
+                }
             }
         } catch let error as AgentOSAdapterBoundaryError {
             fputs("Zoid 666 agent refused QA OS access: \(error.localizedDescription)\n", stderr)

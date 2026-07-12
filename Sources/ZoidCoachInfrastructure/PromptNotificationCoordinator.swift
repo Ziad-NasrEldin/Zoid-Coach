@@ -8,6 +8,7 @@ public enum PromptNotificationCategory: String, CaseIterable, Sendable {
     case planChanged = "PLAN_CHANGED"
     case wakeIntervention = "WAKE_INTERVENTION"
     case onboardingTest = "ONBOARDING_TEST"
+    case gamingDrift = "GAMING_DRIFT"
 
     public static func forPromptType(_ type: String) -> PromptNotificationCategory? {
         PromptNotificationCategory(rawValue: type)
@@ -276,6 +277,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         case .planChanged: [.reviewPlan, .undoPlanChange]
         case .wakeIntervention: []
         case .onboardingTest: [.continueIntentionally, .ignore]
+        case .gamingDrift: [.returnToActiveTask, .fiveMoreMinutes, .startBreak, .continueIntentionally]
         }
         return allowed.contains(action) ? action : nil
     }
@@ -321,6 +323,16 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                 actions: [
                     action(.continueIntentionally, title: "Continue Setup", foreground: true, notificationIdentity: notificationIdentity),
                     action(.ignore, title: "Use Today", foreground: true, notificationIdentity: notificationIdentity)
+                ],
+                intentIdentifiers: []
+            ),
+            UNNotificationCategory(
+                identifier: notificationIdentity.promptCategoryIdentifier(PromptNotificationCategory.gamingDrift.rawValue),
+                actions: [
+                    action(.returnToActiveTask, title: "Return to task", foreground: true, notificationIdentity: notificationIdentity),
+                    action(.fiveMoreMinutes, title: "Five more minutes", notificationIdentity: notificationIdentity),
+                    action(.startBreak, title: "Take a break", notificationIdentity: notificationIdentity),
+                    action(.continueIntentionally, title: "Continue intentionally", notificationIdentity: notificationIdentity)
                 ],
                 intentIdentifiers: []
             )
