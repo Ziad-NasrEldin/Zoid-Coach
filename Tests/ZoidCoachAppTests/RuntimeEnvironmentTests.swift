@@ -51,6 +51,11 @@ func packagedQATemporaryAliasCanonicalizesToPrivateTmp() throws {
     let token = "zoid-qa-tmp-alias-\(UUID().uuidString)"
     let aliasRoot = URL(fileURLWithPath: "/tmp/\(token)", isDirectory: true)
     let canonicalRoot = URL(fileURLWithPath: "/private/tmp/\(token)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: canonicalRoot) }
+    try FileManager.default.createDirectory(
+        at: canonicalRoot,
+        withIntermediateDirectories: true
+    )
     let resolution = try RuntimeEnvironment.resolve(
         arguments: ["--qa-run-root", canonicalRoot.path],
         processEnvironment: [:],

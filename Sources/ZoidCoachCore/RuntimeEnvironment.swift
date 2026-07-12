@@ -548,7 +548,7 @@ public struct RuntimeEnvironment: Equatable, Sendable {
             return URL(
                 fileURLWithPath: "/private/tmp\(suffix)",
                 isDirectory: url.hasDirectoryPath
-            ).standardizedFileURL
+            )
         }
         #endif
         return url

@@ -795,6 +795,10 @@ func signedQACompositionAcceptsOnlyThePlatformTmpAlias() throws {
     )
     let canonicalRoot = canonicalContainer.appendingPathComponent("run", isDirectory: true)
     defer { try? FileManager.default.removeItem(at: canonicalContainer) }
+    try FileManager.default.createDirectory(
+        at: canonicalRoot,
+        withIntermediateDirectories: true
+    )
     let environment = try RuntimeEnvironment.resolve(
         arguments: [],
         processEnvironment: [:],
@@ -805,10 +809,6 @@ func signedQACompositionAcceptsOnlyThePlatformTmpAlias() throws {
         ),
         executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
     ).environment
-    try FileManager.default.createDirectory(
-        at: canonicalContainer,
-        withIntermediateDirectories: true
-    )
     let composition = try QAFixtureOSComposition.makeAuthorizedComposition(
         runtimeEnvironment: environment,
         clock: .fixed(Date(timeIntervalSince1970: 1_735_732_800))
