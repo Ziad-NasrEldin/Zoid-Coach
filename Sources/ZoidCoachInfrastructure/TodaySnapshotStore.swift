@@ -17,6 +17,7 @@ public final class TodaySnapshotStore: @unchecked Sendable {
               let handle
         else { throw TodaySnapshotStoreError.openDatabase }
         database = handle
+        sqlite3_busy_timeout(database, 5_000)
         encoder.dateEncodingStrategy = .iso8601
         decoder.dateDecodingStrategy = .iso8601
     }
