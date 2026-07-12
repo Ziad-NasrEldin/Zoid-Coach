@@ -92,6 +92,8 @@ public final class ScreenwatchArchive: @unchecked Sendable {
     private let database: OpaquePointer
     private let decoder = ScreenwatchLogDecoder()
     private let policyStore: PolicyStore
+    private let canonicalSourceLock = NSLock()
+    private var canonicalSource: ScreenwatchDirectoryLease?
 
     public init(databaseURL: URL, readOnly: Bool = false) throws {
         if !readOnly { try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate() }
@@ -113,10 +115,11 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         return try ingestToday(from: source, now: now)
     }
 
-    public func ingestToday(
+    package func ingestToday(
         from source: ScreenwatchDirectoryLease,
         now: Date = Date()
     ) throws -> ScreenwatchIngestionResult {
+        canonicalSourceLock.withLock { canonicalSource = source }
         let dayKey = Self.dayKey(for: now)
         let logComponents = [dayKey, "log.jsonl"]
         guard try source.fileExists(logComponents) else {
@@ -200,7 +203,14 @@ public final class ScreenwatchArchive: @unchecked Sendable {
                     try? updateScreenshotOCRState(artifactID: "\(screenshot.sourceDay):\(screenshot.epoch)", state: "duplicate_suppressed")
                     continue
                 }
-                let result = try await recognizer.recognize(in: screenshot.path)
+                guard let canonicalSource = canonicalSourceLock.withLock({ self.canonicalSource }) else {
+                    throw ScreenwatchSourceResolutionError.securityScopeUnavailable
+                }
+                let result = try await canonicalSource.withReadOnlyDescriptorURL(
+                    at: [screenshot.sourceDay, screenshot.path.lastPathComponent]
+                ) { descriptorURL in
+                    try await recognizer.recognize(in: descriptorURL)
+                }
                 let evidenceHash = try persistOCRResult(result, for: screenshot, cipher: evidenceCipher)
                 try recordAnalysis(for: screenshot, outcome: "recognized")
                 guard let candidate = extractor.extract(
@@ -645,7 +655,13 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         if let stored = screenshot.contentHash {
             contentHash = stored
         } else {
-            let data = try Data(contentsOf: screenshot.path, options: [.mappedIfSafe])
+            guard let canonicalSource = canonicalSourceLock.withLock({ self.canonicalSource }) else {
+                throw ScreenwatchSourceResolutionError.securityScopeUnavailable
+            }
+            let data = try canonicalSource.data(
+                at: [screenshot.sourceDay, screenshot.path.lastPathComponent],
+                maximumBytes: 64 * 1_024 * 1_024
+            )
             contentHash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         }
         let sql = """

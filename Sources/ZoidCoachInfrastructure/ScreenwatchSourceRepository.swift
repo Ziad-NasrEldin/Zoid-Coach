@@ -282,6 +282,16 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
         try read(at: components, maximumBytes: maximumBytes).data
     }
 
+    package func withReadOnlyDescriptorURL<T: Sendable>(
+        at components: [String],
+        operation: @Sendable (URL) async throws -> T
+    ) async throws -> T {
+        let descriptor = try lock.withLock { try openFile(components) }
+        defer { Darwin.close(descriptor) }
+        let descriptorURL = URL(fileURLWithPath: "/dev/fd/\(descriptor)", isDirectory: false)
+        return try await operation(descriptorURL)
+    }
+
     package func removeFile(_ components: [String]) throws {
         try lock.withLock {
             guard let fileName = components.last, isValidComponent(fileName) else {
