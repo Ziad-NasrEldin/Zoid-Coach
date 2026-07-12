@@ -89,6 +89,32 @@ func calendarCapacityMergesOverlapsClipsToWorkHoursAndIgnoresZoidBlocks() throws
     #expect(occupied == 105)
 }
 
+@Test
+func calendarCapacityUsesOnlyConfiguredVisibleCalendars() throws {
+    let calendar = Calendar(identifier: .gregorian)
+    let day = try #require(calendar.date(from: DateComponents(year: 2026, month: 7, day: 13)))
+    let workStart = try #require(calendar.date(byAdding: .hour, value: 9, to: day))
+    let workEnd = try #require(calendar.date(byAdding: .hour, value: 17, to: day))
+    let commitments = [
+        commitment("visible", from: workStart, minutes: 60, calendarIdentifier: "work"),
+        commitment("hidden", from: workStart.addingTimeInterval(2 * 3_600), minutes: 120, calendarIdentifier: "personal")
+    ]
+
+    let calculator = PlanningCapacityCalculator()
+    let selected = calculator.occupiedMinutes(
+        workIntervals: [CalendarInterval(start: workStart, end: workEnd)],
+        commitments: commitments,
+        visibleCalendarIdentifiers: ["work"]
+    )
+    let all = calculator.occupiedMinutes(
+        workIntervals: [CalendarInterval(start: workStart, end: workEnd)],
+        commitments: commitments
+    )
+
+    #expect(selected == 60)
+    #expect(all == 180)
+}
+
 private func entry(_ id: String, rank: Int, minutes: Int?) -> DailyPlanEntry {
     DailyPlanEntry(
         reminderID: id,
@@ -102,6 +128,7 @@ private func commitment(
     _ id: String,
     from start: Date,
     minutes: Int,
+    calendarIdentifier: String = "work",
     owned: Bool = false
 ) -> ZoidCoachApp.CalendarCommitment {
     ZoidCoachApp.CalendarCommitment(
@@ -109,7 +136,7 @@ private func commitment(
         title: id,
         start: start,
         end: start.addingTimeInterval(TimeInterval(minutes * 60)),
-        calendarIdentifier: "work",
+        calendarIdentifier: calendarIdentifier,
         isZoidOwned: owned
     )
 }

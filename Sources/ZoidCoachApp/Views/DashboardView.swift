@@ -165,6 +165,7 @@ private struct TodayCommandView: View {
                 .disabled(model.isSchedulingDailyPlan || !model.planningCapacityState.canApprove)
                 .accessibilityLabel("Accept proposed work blocks and reserve them in Apple Calendar")
                 .accessibilityHint(model.planningCapacityState.canApprove ? "The plan fits today's focus capacity." : "Resolve the plan capacity warning first.")
+                .accessibilityIdentifier("planning-capacity-accept")
 
                 Button {
                     model.refreshReminderTasks()
@@ -1191,6 +1192,7 @@ private struct PlanningCapacityPanel: View {
                     .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
                     .accessibilityLabel("Reduce plan by removing \(suggestedTaskTitle)")
                     .accessibilityHint("Removes the lowest-ranked proposed task and recalculates capacity immediately.")
+                    .accessibilityIdentifier("planning-capacity-reduce")
                 }
             }
         }

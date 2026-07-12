@@ -51,11 +51,17 @@ struct PlanningCapacityState: Equatable, Sendable {
 struct PlanningCapacityCalculator: Sendable {
     func occupiedMinutes(
         workIntervals: [CalendarInterval],
-        commitments: [CalendarCommitment]
+        commitments: [CalendarCommitment],
+        visibleCalendarIdentifiers: Set<String> = []
     ) -> Int {
         let occupiedSeconds = workIntervals.reduce(TimeInterval.zero) { total, workInterval in
             let clipped = commitments
-                .filter { !$0.isZoidOwned && $0.end > workInterval.start && $0.start < workInterval.end }
+                .filter {
+                    !$0.isZoidOwned
+                        && (visibleCalendarIdentifiers.isEmpty || visibleCalendarIdentifiers.contains($0.calendarIdentifier))
+                        && $0.end > workInterval.start
+                        && $0.start < workInterval.end
+                }
                 .map {
                     DateInterval(
                         start: max($0.start, workInterval.start),
