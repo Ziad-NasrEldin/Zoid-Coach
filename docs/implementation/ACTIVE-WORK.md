@@ -9,7 +9,7 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | Field | Value |
 | --- | --- |
 | Integration branch | `codex/full-system` |
-| Current integration baseline | `1d4cfd3` after strict proof, isolated QA identities, deterministic OS fixtures, hardened onboarding persistence, and safe Screenwatch setup integration |
+| Current integration baseline | `3f9a13c` after strict proof, isolated QA identities, deterministic OS fixtures, hardened onboarding persistence, safe Screenwatch setup, durable gaming policy, and fail-closed 12-step onboarding UI |
 | Program | `docs/ZOID-COACH-666-IMPLEMENTATION-PROGRAM.md` |
 | Acceptance tracker | `docs/zoid-coach-product-scenario-tracker.md` |
 | Phase | Phase 1: first-launch onboarding and first daily-plan usability |
@@ -20,9 +20,11 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | --- | --- | --- | --- | --- |
 | First-launch acceptance audit | Read-only root audit | Root checkout at `a8c8420` | Map the 12-step first-launch journey to scenario IDs, UI/service gaps, and E2E hooks | Complete, with no status upgrades |
 | Integrated OS-fixture verification | Read-only root verification | Root checkout at `a8c8420` | Reproduce full suites, signed packaging, bounded agent behavior, and exactly-once replay | Passed: 321 Swift, 38 Python, 666 registry, release, signed QA replay |
-| First-launch builder | `codex/zc-onboarding-ui` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/onboarding-ui` | Implement resumable 12-step onboarding and first daily-plan handoff | In progress from `a8c8420` |
+| First-launch builder | `codex/zc-onboarding-ui` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/onboarding-ui` | Implement resumable 12-step onboarding and first daily-plan handoff | Merged fail-closed at `3f9a13c`; integration seams remain |
 | Screenwatch setup builder | `codex/zc-screenwatch-setup` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/screenwatch-setup` | Add privacy-safe default and security-scoped alternate-folder setup with repair and restart persistence | Merged at `1d4cfd3`; root gates passed |
-| Gaming policy backend builder | `codex/zc-gaming-policy` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/gaming-policy` | Persist onboarding gaming posture in versioned user policy and consume it in Today | In progress from `5cba88d` |
+| Gaming policy backend builder | `codex/zc-gaming-policy` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/gaming-policy` | Persist onboarding gaming posture in versioned user policy and consume it in Today | Merged at `5557c4e`; root gates passed |
+| Onboarding policy saga builder | `codex/zc-onboarding-policy-saga` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/onboarding-policy-saga` | Add migration 25, idempotent policy receipts, CAS, and onboarding reconciliation | In progress from `3f9a13c` |
+| Canonical Screenwatch source builder | `codex/zc-screenwatch-canonical-source` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/screenwatch-canonical-source` | Make alternate selection a shared no-follow source consumed by app and agent | In progress from `3f9a13c` |
 
 ## Exclusive file locks
 
@@ -36,10 +38,12 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | Deterministic OS fixture adapters and composition wiring | Root integrator | Integrated signed-QA Reminders, Calendar, notification, permission, and action fixtures | `a8c8420` | Permanent unless temporarily granted |
 | `.audit/runs/phase0-proof/` | Root integrator | Immutable independent proof evidence | `8ce11dc` | Permanent |
 | Onboarding progress model, store, and descriptor-relative state directory | Root integrator | Integrated hardened resumable persistence | `712ff71` | Permanent unless temporarily granted |
-| New onboarding coordinator, dependencies, views, and focused tests | First-launch builder | Add complete first-launch UI without changing proof or persistence primitives | `a8c8420` | Current Phase 1 wave |
-| `Sources/ZoidCoachApp/ZoidCoachApp.swift` root-view hunk only | First-launch builder | Gate Dashboard behind persisted onboarding completion | `a8c8420` | Current Phase 1 wave |
+| Onboarding coordinator, dependencies, views, and focused tests | Root integrator | Integrated complete UI with fail-closed gaming and first-plan seams | `3f9a13c` | Permanent unless temporarily granted |
+| `Sources/ZoidCoachApp/ZoidCoachApp.swift` root-view hunk only | Root integrator | Gate Dashboard behind persisted onboarding completion | `3f9a13c` | Permanent unless temporarily granted |
 | Screenwatch onboarding setup service and focused tests | Root integrator | Integrated health, bookmark, repair, QA-isolation, freshness, and no-follow boundaries | `1d4cfd3` | Permanent unless temporarily granted |
-| `Sources/ZoidCoachCore/UserPolicy.swift`, `Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift`, and focused policy consumers/tests | Gaming policy backend builder | Add backward-compatible durable gaming policy and runtime consumption | `5cba88d` | Current Phase 1 wave |
+| Gaming policy model, migration 24, agent mutation, reward ledger, and Today consumers | Root integrator | Integrated backward-compatible durable policy and exact reward semantics | `5557c4e` | Permanent unless temporarily granted |
+| Migration 25, policy mutation receipts, onboarding effect receipts, Settings CAS, and saga coordinator files | Onboarding policy saga builder | Add crash-safe idempotent cross-store orchestration | `3f9a13c` | Current Phase 1 wave |
+| AppModel, AgentMain, and Screenwatch source/setup/reader/archive/maintenance files | Canonical Screenwatch source builder | Add shared canonical source lease and app-agent consumption | `3f9a13c` | Current Phase 1 wave |
 | Runtime preference, keychain, export, capture, OS-adapter, and evidence-cipher consumers | Root integrator | Integrated and independently reviewed | `4a2bd85` | Permanent unless temporarily granted |
 | `Scripts/scenario_registry.py`, registry schema, and registry tests | Root integrator | Strict proof coherence integrated | `1223680` | Permanent unless temporarily granted |
 | `.audit/runs/deterministic-fixture/515016a/` | Root integrator | Immutable independent evidence | `3031040` | Permanent |
