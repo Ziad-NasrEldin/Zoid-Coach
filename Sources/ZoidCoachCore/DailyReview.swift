@@ -1,0 +1,155 @@
+import Foundation
+
+public struct DailyReviewSession: Identifiable, Equatable, Sendable {
+    public let sourceDay: String
+    public let start: Date
+    public let end: Date
+    public let application: String
+    public let classification: BehaviorClassification
+    public let taskID: String?
+    public let observationCount: Int
+
+    public init(
+        sourceDay: String,
+        start: Date,
+        end: Date,
+        application: String,
+        classification: BehaviorClassification,
+        taskID: String? = nil,
+        observationCount: Int
+    ) {
+        self.sourceDay = sourceDay
+        self.start = start
+        self.end = max(start, end)
+        self.application = application
+        self.classification = classification
+        self.taskID = taskID
+        self.observationCount = max(1, observationCount)
+    }
+
+    public var id: String { "\(sourceDay):\(Int(start.timeIntervalSince1970))" }
+    public var durationMinutes: Int {
+        max(1, Int((end.timeIntervalSince(start) / 60).rounded(.up)))
+    }
+}
+
+public struct DailyReviewTotal: Identifiable, Equatable, Sendable {
+    public let classification: BehaviorClassification
+    public let minutes: Int
+
+    public init(classification: BehaviorClassification, minutes: Int) {
+        self.classification = classification
+        self.minutes = max(0, minutes)
+    }
+
+    public var id: BehaviorClassification { classification }
+}
+
+public enum DailyReviewHypothesisState: String, Codable, Sendable {
+    case pending
+    case accepted
+    case rejected
+}
+
+public struct DailyReviewSnapshot: Equatable, Sendable {
+    public let sourceDay: String
+    public let sessions: [DailyReviewSession]
+    public let totals: [DailyReviewTotal]
+    public let hypothesis: String?
+    public let hypothesisState: DailyReviewHypothesisState
+    public let confirmedAt: Date?
+
+    public init(
+        sourceDay: String,
+        sessions: [DailyReviewSession],
+        totals: [DailyReviewTotal],
+        hypothesis: String?,
+        hypothesisState: DailyReviewHypothesisState,
+        confirmedAt: Date?
+    ) {
+        self.sourceDay = sourceDay
+        self.sessions = sessions
+        self.totals = totals
+        self.hypothesis = hypothesis
+        self.hypothesisState = hypothesisState
+        self.confirmedAt = confirmedAt
+    }
+}
+
+public enum DailyReviewSessionizer {
+    public struct Observation: Equatable, Sendable {
+        public let sourceDay: String
+        public let observedAt: Date
+        public let application: String
+        public let classification: BehaviorClassification
+        public let taskID: String?
+
+        public init(
+            sourceDay: String,
+            observedAt: Date,
+            application: String,
+            classification: BehaviorClassification,
+            taskID: String? = nil
+        ) {
+            self.sourceDay = sourceDay
+            self.observedAt = observedAt
+            self.application = application
+            self.classification = classification
+            self.taskID = taskID
+        }
+    }
+
+    public static func sessions(
+        from observations: [Observation],
+        maximumGap: TimeInterval = 5 * 60
+    ) -> [DailyReviewSession] {
+        let ordered = observations.sorted { $0.observedAt < $1.observedAt }
+        guard let first = ordered.first else { return [] }
+        var result: [DailyReviewSession] = []
+        var start = first.observedAt
+        var previous = first
+        var count = 1
+
+        func appendSession(endingAt end: Date) {
+            result.append(DailyReviewSession(
+                sourceDay: previous.sourceDay,
+                start: start,
+                end: end.addingTimeInterval(60),
+                application: previous.application,
+                classification: previous.classification,
+                taskID: previous.taskID,
+                observationCount: count
+            ))
+        }
+
+        for observation in ordered.dropFirst() {
+            let continues = observation.sourceDay == previous.sourceDay
+                && observation.application == previous.application
+                && observation.classification == previous.classification
+                && observation.taskID == previous.taskID
+                && observation.observedAt.timeIntervalSince(previous.observedAt) <= maximumGap
+            if continues {
+                previous = observation
+                count += 1
+            } else {
+                appendSession(endingAt: previous.observedAt)
+                start = observation.observedAt
+                previous = observation
+                count = 1
+            }
+        }
+        appendSession(endingAt: previous.observedAt)
+        return result
+    }
+
+    public static func totals(for sessions: [DailyReviewSession]) -> [DailyReviewTotal] {
+        let grouped = Dictionary(grouping: sessions, by: \.classification)
+        return BehaviorClassification.allCases.compactMap { classification in
+            guard let values = grouped[classification], !values.isEmpty else { return nil }
+            return DailyReviewTotal(
+                classification: classification,
+                minutes: values.reduce(0) { $0 + $1.durationMinutes }
+            )
+        }
+    }
+}
