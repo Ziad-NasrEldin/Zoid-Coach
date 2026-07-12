@@ -168,6 +168,8 @@ final class OnboardingFirstDailyPlanService {
         at date: Date,
         explicitlySelectedTaskIDs: Set<String>
     ) -> Bool {
+        // UserPolicy has no configured Today-list identifier yet.
+        // Do not infer that policy from a mutable list display name or ordering.
         if explicitlySelectedTaskIDs.contains(task.id) {
             return true
         }
