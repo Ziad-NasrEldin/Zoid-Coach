@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="${0:A:h:h}"
-QA_ROOT="$ROOT/.build/qa-policy-mutation-xpc-$PPID"
+QA_ROOT="/private/tmp/zoid-coach-qa-policy-mutation-xpc-$PPID"
 PACKAGED_APP="$ROOT/.build/app-qa/Zoid Coach QA.app"
 INSTALLED_APP="$HOME/Applications/Zoid Coach QA Policy Probe.app"
 LABEL="qa.ziadnasreldin.ZoidCoach.agent"
