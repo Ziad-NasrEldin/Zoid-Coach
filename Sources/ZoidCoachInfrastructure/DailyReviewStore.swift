@@ -11,6 +11,7 @@ public final class DailyReviewStore: @unchecked Sendable {
     }
 
     private let database: OpaquePointer
+    private let taskHistory: TaskHistoryStore
     private let lock = NSLock()
     private let now: @Sendable () -> Date
 
@@ -19,6 +20,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         now: @escaping @Sendable () -> Date = Date.init
     ) throws {
         try AutonomousDatabaseMigrator(databaseURL: databaseURL, now: now).migrate()
+        taskHistory = try TaskHistoryStore(databaseURL: databaseURL)
         var handle: OpaquePointer?
         guard sqlite3_open_v2(
             databaseURL.path,
@@ -44,6 +46,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         let totals = DailyReviewSessionizer.totals(for: sessions)
         let state = try readReviewState(sourceDay: sourceDay)
         let offlineWork = try readOfflineWork(sourceDay: sourceDay)
+        let completedTasks = try completedTasks(sourceDay: sourceDay)
         return DailyReviewSnapshot(
             sourceDay: sourceDay,
             sessions: sessions,
@@ -51,8 +54,19 @@ public final class DailyReviewStore: @unchecked Sendable {
             hypothesis: Self.hypothesis(for: totals),
             hypothesisState: state.hypothesisState,
             confirmedAt: state.confirmedAt,
-            offlineWork: offlineWork
+            offlineWork: offlineWork,
+            completedTasks: completedTasks
         )
+    }
+
+    private func completedTasks(sourceDay: String) throws -> [CompletedTaskHistoryEntry] {
+        let formatter = DateFormatter()
+        formatter.calendar = .current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let date = formatter.date(from: sourceDay) else { return [] }
+        return try taskHistory.completedEntries(for: date, calendar: formatter.calendar)
     }
 
     @discardableResult

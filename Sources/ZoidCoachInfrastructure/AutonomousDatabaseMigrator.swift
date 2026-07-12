@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 32
+    public static let currentVersion = 33
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -910,7 +910,24 @@ private extension AutonomousDatabaseMigrator {
         CREATE UNIQUE INDEX IF NOT EXISTS task_sprint_sessions_one_open
         ON task_sprint_sessions(task_id)
         WHERE state IN ('active', 'paused', 'expired', 'continuedOpenEnded');
-        """)])
+        """)]),
+        Migration(version: 33, isDestructive: false, operations: [
+            .sql("""
+            CREATE TABLE IF NOT EXISTS task_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                occurred_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS task_history_task_state ON task_history(task_id, state);
+            """),
+            .addColumn(table: "task_history", column: "title_snapshot", declaration: "TEXT"),
+            .addColumn(table: "task_history", column: "source_kind", declaration: "TEXT NOT NULL DEFAULT 'unknown'"),
+            .sql("""
+            CREATE INDEX IF NOT EXISTS task_history_day_state
+            ON task_history(state, occurred_at DESC, id DESC);
+            """)
+        ])
     ]
 }
 
