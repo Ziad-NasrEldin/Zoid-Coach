@@ -279,7 +279,16 @@ func staleSettingsWindowCannotOverwriteANewerPolicyVersion() async throws {
 
     #expect(try store.current()?.policy.schedule.planningCapacityPercent == 80)
     #expect(try store.current()?.version == 2)
+    #expect(stale.activeVersion == 2)
+    #expect(stale.hasUnsavedChanges)
     #expect(stale.statusMessage?.contains("not saved") == true)
+
+    await stale.save()?.value
+
+    #expect(try store.current()?.policy.schedule.planningCapacityPercent == 95)
+    #expect(try store.current()?.version == 3)
+    #expect(stale.activeVersion == 3)
+    #expect(!stale.hasUnsavedChanges)
 }
 
 @MainActor

@@ -130,7 +130,13 @@ final class SettingsPolicyController: ObservableObject {
             policy: policy,
             origin: .settings
         )
-        let agentReceipt = try await savePolicyThroughAgent(request)
+        let agentReceipt: AgentMutationReceipt
+        do {
+            agentReceipt = try await savePolicyThroughAgent(request)
+        } catch {
+            refreshPersistedPolicyPreservingDraft()
+            throw error
+        }
         let digest = try PolicyMutationRequest.canonicalPayloadDigest(for: policy)
         guard agentReceipt.accepted,
               let receipt = agentReceipt.policyMutationReceipt,
@@ -147,6 +153,13 @@ final class SettingsPolicyController: ObservableObject {
         activeVersion = receipt.resultingVersion
         policyHistory = (try? store?.history()) ?? policyHistory
         statusMessage = agentReceipt.message
+    }
+
+    private func refreshPersistedPolicyPreservingDraft() {
+        guard let current = try? store?.current() else { return }
+        persistedPolicy = current.policy
+        activeVersion = current.version
+        policyHistory = (try? store?.history()) ?? policyHistory
     }
 }
 
