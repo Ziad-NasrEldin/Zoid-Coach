@@ -785,6 +785,7 @@ private struct TodayTaskRowView: View {
     @State private var isSwitchConfirmationPresented = false
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
         HStack(alignment: .center, spacing: 12) {
             Button { primaryAction() } label: {
                 Image(systemName: row.state == .completed ? "checkmark.circle.fill" : "circle")
@@ -828,6 +829,27 @@ private struct TodayTaskRowView: View {
             }
             .fixedSize()
         }
+        if let detail = completionSync.userFacingDetail,
+           completionSync.phase != .confirmed {
+            HStack(spacing: 10) {
+                Image(systemName: completionSync.phase == .failed ? "exclamationmark.arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath")
+                    .foregroundStyle(completionSync.phase == .failed ? Sumi.seal : Sumi.muted)
+                Text(detail)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(completionSync.phase == .failed ? Sumi.seal : Sumi.muted)
+                Spacer()
+                if completionSync.canRetry {
+                    Button("RETRY SYNC") {
+                        model.retryReminderCompletionSync(taskID: row.taskID)
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
+                    .accessibilityIdentifier("today.task.\(row.taskID).retry-reminders-completion")
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("today.task.\(row.taskID).reminders-completion-sync")
+        }
+        }
         .font(Sumi.label(8))
         .sumiLabelTracking()
         .padding(.horizontal, 28)
@@ -845,8 +867,15 @@ private struct TodayTaskRowView: View {
         }
     }
 
+    private var completionSync: ReminderCompletionSyncState {
+        model.reminderCompletionSyncState(for: row.taskID)
+    }
+
     private var taskDetail: String {
-        var parts = ["\(row.estimateMinutes)m", relativeDeadline(row.dueDate), "\(row.urgency.rawValue.capitalized) urgency", row.state.rawValue.capitalized]
+        let stateLabel = completionSync.isAwaitingConfirmation || completionSync.phase == .failed
+            ? "Completion pending Reminders"
+            : row.state.rawValue.capitalized
+        var parts = ["\(row.estimateMinutes)m", relativeDeadline(row.dueDate), "\(row.urgency.rawValue.capitalized) urgency", stateLabel]
         if row.elapsedMinutes > 0 { parts.append("\(row.elapsedMinutes)m tracked") }
         if let reason = row.latestPauseReason {
             parts.append(row.state == .paused ? reason.userFacingLabel : "Last pause: \(reason.userFacingLabel.lowercased())")
