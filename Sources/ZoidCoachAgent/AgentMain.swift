@@ -529,9 +529,7 @@ struct ZoidCoachAgentMain {
                     try Self.replayPendingPromptEffects(store: promptStore, router: promptEffectRouter)
                     await Self.deliverDuePlanningInvitations(
                         planningInvitations,
-                        notifications: notificationCoordinator,
-                        plans: planStore,
-                        timeZoneIdentifier: policy.schedule.timeZoneIdentifier
+                        notifications: notificationCoordinator
                     )
                     if !resourceConstrained,
                        lastMaintenanceAttempt.map({ Date().timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true {
@@ -984,18 +982,10 @@ struct ZoidCoachAgentMain {
     private static func deliverDuePlanningInvitations(
         _ service: PlanningInvitationService,
         notifications: PromptNotificationCoordinator,
-        plans: AutonomousPlanStore,
-        timeZoneIdentifier: String,
         now: Date = Date()
     ) async {
         guard let due = try? service.dueFollowUps(at: now) else { return }
         for episode in due {
-            if let localDay = episode.payload["localDay"],
-               let day = date(localDay: localDay, timeZoneIdentifier: timeZoneIdentifier),
-               (try? plans.hasPlan(for: day)) == true {
-                _ = try? service.dismiss(episode.id)
-                continue
-            }
             guard (try? service.markPresented(episode.id)) != nil else { continue }
             _ = try? await notifications.schedule(episode)
         }

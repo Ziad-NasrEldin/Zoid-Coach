@@ -52,17 +52,22 @@ public final class PlanningInvitationService: @unchecked Sendable {
     }
 
     public func status(localDay: String, hasPlan: Bool, hasActiveUnplannedTask: Bool) throws -> PlanningDayStatus {
-        if hasPlan {
-            return PlanningDayStatus(mode: .planning, driftInterventionsAllowed: false)
-        }
         guard let latest = try store.latestEpisode(decisionKeyPrefix: "plan-ready:\(localDay)") else {
-            return PlanningDayStatus(mode: .invitation)
+            return hasPlan
+                ? PlanningDayStatus(mode: .planning, driftInterventionsAllowed: false)
+                : PlanningDayStatus(mode: .invitation)
         }
         if let raw = latest.payload["notBefore"],
            let resumesAt = formatter.date(from: raw), resumesAt > now(),
            let rawMode = latest.payload["followUpKind"],
            let mode = PlanningDayMode(rawValue: rawMode) {
             return PlanningDayStatus(mode: mode, resumesAt: resumesAt)
+        }
+        if latest.state.isUnresolved, latest.payload["followUpKind"] != nil {
+            return PlanningDayStatus(mode: .invitation)
+        }
+        if hasPlan {
+            return PlanningDayStatus(mode: .planning, driftInterventionsAllowed: false)
         }
         if let response = try store.responses(promptID: latest.id).last {
             switch response.action {

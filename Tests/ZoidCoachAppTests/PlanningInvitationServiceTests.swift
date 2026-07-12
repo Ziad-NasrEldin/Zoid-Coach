@@ -37,7 +37,7 @@ func planningSnoozeHidesInvitationThenReturnsOnceAndSurvivesRestart() throws {
     #expect(try store.unresolved().isEmpty)
     #expect(try service.status(
         localDay: "2027-01-15",
-        hasPlan: false,
+        hasPlan: true,
         hasActiveUnplannedTask: false
     ) == PlanningDayStatus(mode: .snoozed, resumesAt: until))
 
@@ -45,7 +45,7 @@ func planningSnoozeHidesInvitationThenReturnsOnceAndSurvivesRestart() throws {
     let reopened = PlanningInvitationService(store: reopenedStore, now: { clock.now })
     #expect(try reopened.status(
         localDay: "2027-01-15",
-        hasPlan: false,
+        hasPlan: true,
         hasActiveUnplannedTask: false
     ).mode == .snoozed)
 
@@ -56,7 +56,7 @@ func planningSnoozeHidesInvitationThenReturnsOnceAndSurvivesRestart() throws {
     #expect(try reopenedStore.unresolved().map(\.id) == ["prompt-2"])
     #expect(try reopened.status(
         localDay: "2027-01-15",
-        hasPlan: false,
+        hasPlan: true,
         hasActiveUnplannedTask: false
     ).mode == .invitation)
 }
