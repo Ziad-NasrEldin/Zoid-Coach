@@ -76,6 +76,7 @@ final class AppModel: ObservableObject {
     private let policyStore: PolicyStore?
     private let reminderListPolicyLoader: @Sendable () throws -> ReminderListPolicy
     private let todayDashboardXPCClient: TodayDashboardXPCClient
+    private let synchronizeReminderSnapshots: @Sendable ([AgentReminderSnapshot]) async throws -> Void
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
 
@@ -90,13 +91,20 @@ final class AppModel: ObservableObject {
         meetingEvidenceCipherFactory: AppMeetingEvidenceCipherFactory = .live,
         agentLaunchService: AgentLaunchService? = nil,
         eventStore: EventStore? = nil,
-        reminderListPolicyLoader: (@Sendable () throws -> ReminderListPolicy)? = nil
+        reminderListPolicyLoader: (@Sendable () throws -> ReminderListPolicy)? = nil,
+        synchronizeReminderSnapshots: (@Sendable ([AgentReminderSnapshot]) async throws -> Void)? = nil
     ) {
         let resolvedAgentLaunchService = agentLaunchService
             ?? AgentLaunchService(runtimeEnvironment: runtimeEnvironment)
-        todayDashboardXPCClient = TodayDashboardXPCClient(
+        let resolvedTodayDashboardXPCClient = TodayDashboardXPCClient(
             runtimeEnvironment: runtimeEnvironment
         )
+        todayDashboardXPCClient = resolvedTodayDashboardXPCClient
+        self.synchronizeReminderSnapshots = synchronizeReminderSnapshots ?? { snapshots in
+            _ = try await resolvedTodayDashboardXPCClient.apply(
+                .synchronizeReminderSnapshots(snapshots)
+            )
+        }
         if let screenwatchReader {
             self.screenwatchReader = screenwatchReader
         } else {
@@ -594,17 +602,13 @@ final class AppModel: ObservableObject {
                 reminderTasksAreAvailable = false
                 reminderTasks = []
                 reminderTaskError = "Reminder tasks are hidden because the saved list policy could not be verified. Repair local storage, then refresh."
-                _ = try? await todayDashboardXPCClient.apply(
-                    .synchronizeReminderSnapshots([])
-                )
                 isLoadingReminderTasks = false
                 return
             }
             let tasks = reminderListPolicy.filteringExternalTasks(tasks, listID: { $0.listID })
             reminderTasksAreAvailable = true
             reminderTasks = tasks
-            _ = try? await todayDashboardXPCClient.apply(
-                .synchronizeReminderSnapshots(tasks.map {
+            try? await synchronizeReminderSnapshots(tasks.map {
                     AgentReminderSnapshot(
                         id: $0.id,
                         title: $0.title,
@@ -616,7 +620,6 @@ final class AppModel: ObservableObject {
                         modificationDate: $0.modificationDate
                     )
                 })
-            )
             reconcileDailyPlan(with: tasks)
         case .unavailable:
             reminderTasksAreAvailable = false

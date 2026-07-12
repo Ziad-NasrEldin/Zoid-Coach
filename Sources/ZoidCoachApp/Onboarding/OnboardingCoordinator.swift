@@ -243,7 +243,7 @@ final class OnboardingCoordinator: ObservableObject {
             errorMessage = nil
         case let .permissionRequired(message):
             reminderListDiscovery = .permissionRequired(message)
-            errorMessage = "Reminder permission is required before lists can be loaded. (message)"
+            errorMessage = "Reminder permission is required before lists can be loaded. \(message)"
         case let .unavailable(message):
             reminderListDiscovery = .failed(message)
             errorMessage = "Reminder lists could not be loaded. \(message)"

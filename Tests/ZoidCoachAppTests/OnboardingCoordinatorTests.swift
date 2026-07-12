@@ -104,6 +104,37 @@ func reminderListDiscoveryFailureBlocksGrantedSetupUntilRetrySucceeds() async th
 
 @MainActor
 @Test
+func reminderListPermissionErrorIncludesTheExactRecoveryDetail() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
+    let base = testDependencies()
+    let dependencies = OnboardingDependencies(
+        inspectReminders: { SelfHealth.remindersHealthy },
+        requestReminders: { .init(health: SelfHealth.remindersHealthy, decision: .granted) },
+        discoverReminderLists: {
+            .permissionRequired("Grant access in Privacy & Security.")
+        },
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        loadPolicy: base.loadPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: base.openSystemSettings
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    await coordinator.requestAccess(for: .reminders)
+
+    #expect(coordinator.errorMessage == "Reminder permission is required before lists can be loaded. Grant access in Privacy & Security.")
+}
+
+@MainActor
+@Test
 func emptyReminderListDiscoveryRequiresExplicitLocalFallbackConfirmation() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
     let base = testDependencies()

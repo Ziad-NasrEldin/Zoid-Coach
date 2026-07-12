@@ -4,6 +4,28 @@ import Testing
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
 
+@MainActor
+private final class SettingsRefreshRecorder {
+    private(set) var count = 0
+
+    func record() { count += 1 }
+}
+
+@MainActor
+private final class SettingsReminderLoadGate {
+    private var continuations: [CheckedContinuation<ReminderListLoad, Never>] = []
+
+    var count: Int { continuations.count }
+
+    func wait() async -> ReminderListLoad {
+        await withCheckedContinuation { continuations.append($0) }
+    }
+
+    func resume(_ index: Int, with result: ReminderListLoad) {
+        continuations[index].resume(returning: result)
+    }
+}
+
 @Test
 func settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() {
     let original = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
@@ -425,6 +447,79 @@ func settingsExposeTypedReminderPermissionAndExplicitEmptyLocalOnlyChoice() asyn
     #expect(empty.draft.reminderListPolicy.isConfigured)
     #expect(empty.draft.reminderListPolicy.decisions.allSatisfy { !$0.isIncluded })
     #expect(empty.hasUnsavedChanges)
+}
+
+@MainActor
+@Test
+func alternateSettingsSaveRefreshesChangedReminderPolicyExactlyOnce() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-settings-alternate-refresh-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.saveSystemMaintenancePolicy(.defaults(timeZoneIdentifier: "UTC"))
+    let refresh = SettingsRefreshRecorder()
+    let controller = SettingsPolicyController(
+        databaseURL: databaseURL,
+        savePolicyThroughAgent: { request in
+            let receipt = try store.saveMutation(request)
+            return AgentMutationReceipt(
+                accepted: true,
+                message: "saved",
+                policyVersion: receipt.resultingVersion,
+                policyMutationReceipt: receipt
+            )
+        },
+        onReminderListPolicySaved: { refresh.record() }
+    )
+    controller.setReminderListDecision(false, listID: "personal")
+
+    controller.requestWakeChange(false)
+    while controller.isSaving { await Task.yield() }
+
+    #expect(refresh.count == 1)
+    #expect(try store.current()?.policy.reminderLists.decision(for: "personal") == false)
+    #expect(!controller.hasUnsavedChanges)
+}
+
+@MainActor
+@Test
+func settingsPermissionRecheckIgnoresAnOlderInFlightResult() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-settings-reminder-race-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    _ = try PolicyStore(databaseURL: databaseURL)
+        .saveSystemMaintenancePolicy(.defaults(timeZoneIdentifier: "UTC"))
+    let gate = SettingsReminderLoadGate()
+    let controller = SettingsPolicyController(
+        databaseURL: databaseURL,
+        savePolicyThroughAgent: { _ in
+            AgentMutationReceipt(accepted: false, message: "unused", policyVersion: nil)
+        },
+        discoverReminderLists: { await gate.wait() }
+    )
+    let first = Task { await controller.loadReminderLists() }
+    while gate.count < 1 { await Task.yield() }
+    let recheck = Task { await controller.loadReminderLists() }
+    while gate.count < 2 { await Task.yield() }
+
+    gate.resume(1, with: .available([
+        ReminderListChoice(id: "work", name: "Work")
+    ]))
+    await recheck.value
+    gate.resume(0, with: .permissionRequired("Stale permission state"))
+    await first.value
+
+    #expect(controller.reminderListDiscovery == .available([
+        ReminderListChoice(id: "work", name: "Work")
+    ]))
 }
 
 private enum RestartTestError: Error {

@@ -9,6 +9,14 @@ private enum InjectedReminderListPolicyError: Error {
     case failed
 }
 
+private actor ReminderSnapshotSyncRecorder {
+    private(set) var callCount = 0
+
+    func record(_: [AgentReminderSnapshot]) {
+        callCount += 1
+    }
+}
+
 @MainActor
 @Test
 func signedQAFixtureFlowsFromSeedThroughAppAgentMutationAndAppRefresh() async throws {
@@ -240,13 +248,27 @@ func appFailsClosedWhenReminderListPolicyCannotBeVerified() async throws {
         ),
         runtime: fixture.environment
     )
+    let reminderStore = try ReminderSnapshotStore(
+        databaseURL: fixture.environment.databaseURL
+    )
+    _ = try reminderStore.synchronize([
+        ReminderSourceSnapshot(
+            id: "durable-existing",
+            title: "Existing durable import",
+            dueDate: nil,
+            priority: 1,
+            listID: "private"
+        )
+    ])
+    let syncRecorder = ReminderSnapshotSyncRecorder()
     let model = AppModel(
         runtimeEnvironment: fixture.environment,
         agentLaunchService: AgentLaunchService(
             runtimeEnvironment: fixture.environment,
             service: NoopAgentRegistration()
         ),
-        reminderListPolicyLoader: { throw InjectedReminderListPolicyError.failed }
+        reminderListPolicyLoader: { throw InjectedReminderListPolicyError.failed },
+        synchronizeReminderSnapshots: { await syncRecorder.record($0) }
     )
 
     await model.refreshQAFixtureState()
@@ -254,6 +276,8 @@ func appFailsClosedWhenReminderListPolicyCannotBeVerified() async throws {
     #expect(model.reminderTasks.isEmpty)
     #expect(!model.isLoadingReminderTasks)
     #expect(model.reminderTaskError?.contains("could not be verified") == true)
+    #expect(await syncRecorder.callCount == 0)
+    #expect(try reminderStore.loadIncomplete().map(\.id) == ["durable-existing"])
 }
 
 @MainActor
@@ -307,14 +331,15 @@ func settingsSaveImmediatelyRemovesExcludedReminderFromCurrentAppSession() async
                 ReminderListChoice(id: "work", name: "Work"),
                 ReminderListChoice(id: "personal", name: "Personal"),
             ])
+        },
+        onReminderListPolicySaved: {
+            model.refreshReminderTasks()
         }
     )
     controller.setReminderListDecision(true, listID: "work")
     controller.setReminderListDecision(false, listID: "personal")
 
-    await controller.save {
-        model.refreshReminderTasks()
-    }?.value
+    await controller.save()?.value
     while model.isLoadingReminderTasks { await Task.yield() }
 
     #expect(model.reminderTasks.map(\.id) == ["work-task"])
