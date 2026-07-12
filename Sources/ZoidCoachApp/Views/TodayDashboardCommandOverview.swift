@@ -14,6 +14,7 @@ struct TodayDashboardCommandOverview: View {
     @State private var isUsageSelectorActive = false
     @State private var usageDismissTask: Task<Void, Never>?
     @State private var pendingSwitchTask: TodayTaskRow?
+    @State private var customSprintTask: TodayTaskRow?
     @FocusState private var isUsageFocused: Bool
 
     var body: some View {
@@ -74,6 +75,17 @@ struct TodayDashboardCommandOverview: View {
         } message: {
             Text("The current task will pause as Switching tasks. Its tracked time will be preserved, and \"\(pendingSwitchTask?.title ?? "the selected task")\" will start.")
         }
+        .sheet(item: $customSprintTask) { row in
+            CustomSprintDurationSheet(
+                taskTitle: row.title,
+                isPending: model.isAnyTaskCommandPending,
+                cancel: { customSprintTask = nil },
+                start: { durationMinutes in
+                    customSprintTask = nil
+                    model.startSprint(taskID: row.taskID, durationMinutes: durationMinutes)
+                }
+            )
+        }
     }
 
     private var focusCommitment: some View {
@@ -98,6 +110,13 @@ struct TodayDashboardCommandOverview: View {
                     }
                 }
                 .padding(.top, 12)
+                if let sprint = row.sprint {
+                    SprintCommitmentPanel(sprint: sprint, taskID: row.taskID)
+                        .padding(.top, 14)
+                } else if row.state == .ready || row.state == .active {
+                    sprintStartMenu(for: row)
+                        .padding(.top, 14)
+                }
                 if let entry = planEntry(for: row) {
                     TodayEstimateStrip(
                         selectedMinutes: entry.estimateMinutes,
@@ -423,6 +442,78 @@ struct TodayDashboardCommandOverview: View {
         .accessibilityLabel("Pause \(row.title)")
         .accessibilityHint("Choose a reason. Zoid 666 preserves it in local task history.")
     }
+
+    private func sprintStartMenu(for row: TodayTaskRow) -> some View {
+        Menu {
+            Button("10-minute recovery sprint") { model.applyTaskCommand(.startSprint10, taskID: row.taskID) }
+            Button("20-minute work sprint") { model.applyTaskCommand(.startSprint20, taskID: row.taskID) }
+            Button("25-minute focus sprint") { model.applyTaskCommand(.startSprint25, taskID: row.taskID) }
+            Divider()
+            Button("Custom duration…") { customSprintTask = row }
+        } label: {
+            SumiSelectorLabel("START A BOUNDED SPRINT", systemImage: "timer", size: .standard)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .disabled(model.isAnyTaskCommandPending)
+        .accessibilityIdentifier("today.sprint.start.\(row.taskID)")
+        .accessibilityHint("Choose a time boundary. The task will stay incomplete when the sprint ends.")
+    }
+}
+
+private struct CustomSprintDurationSheet: View {
+    let taskTitle: String
+    let isPending: Bool
+    let cancel: () -> Void
+    let start: (Int) -> Void
+    @State private var durationText = "30"
+
+    private var durationMinutes: Int? {
+        guard let value = Int(durationText.trimmingCharacters(in: .whitespacesAndNewlines)),
+              (1...240).contains(value)
+        else { return nil }
+        return value
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("CUSTOM SPRINT")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            Text(taskTitle)
+                .font(Sumi.display(24))
+                .foregroundStyle(Sumi.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Choose 1 to 240 minutes. When the timer reaches zero, the task stays active until you complete, pause, or continue it.")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            SumiTextField("DURATION IN MINUTES", placeholder: "30", text: $durationText)
+                .accessibilityIdentifier("today.sprint.custom.duration")
+            if durationMinutes == nil {
+                Text("Enter a whole number from 1 to 240.")
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.seal)
+                    .accessibilityIdentifier("today.sprint.custom.error")
+            }
+            HStack {
+                Button("CANCEL", action: cancel)
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                Spacer()
+                Button("START SPRINT") {
+                    guard let durationMinutes else { return }
+                    start(durationMinutes)
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
+                .disabled(durationMinutes == nil || isPending)
+                .accessibilityIdentifier("today.sprint.custom.start")
+            }
+        }
+        .padding(24)
+        .frame(width: 440)
+        .background(Sumi.paper)
+    }
 }
 
 enum AppUsagePopoverDismissalPolicy {
@@ -433,6 +524,76 @@ enum AppUsagePopoverDismissalPolicy {
         isSelectorActive: Bool
     ) -> Bool {
         !isAnchorFocused && !isPointerOverAnchor && !isPointerOverPanel && !isSelectorActive
+    }
+}
+
+private struct SprintCommitmentPanel: View {
+    @EnvironmentObject private var model: AppModel
+    let sprint: SprintSnapshot
+    let taskID: String
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = sprint.remainingSeconds(at: context.date)
+            let hasEnded = remaining == 0 && sprint.isBounded
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(statusTitle(hasEnded: hasEnded))
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(hasEnded ? Sumi.seal : Sumi.muted)
+                    Spacer()
+                    Text(sprint.state == .continuedOpenEnded ? "OPEN" : timeLabel(remaining))
+                        .font(.system(size: 18, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Sumi.ink)
+                        .monospacedDigit()
+                        .accessibilityLabel(timerAccessibilityLabel(remaining: remaining, hasEnded: hasEnded))
+                }
+                Text(statusExplanation(hasEnded: hasEnded))
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                if hasEnded {
+                    Button("CONTINUE OPEN-ENDED") {
+                        model.applyTaskCommand(.continueOpenEnded, taskID: taskID)
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .disabled(model.isAnyTaskCommandPending)
+                    .accessibilityIdentifier("today.sprint.continue.\(taskID)")
+                }
+            }
+            .padding(12)
+            .background(Sumi.mist)
+            .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("today.sprint.status.\(taskID)")
+        }
+    }
+
+    private func timeLabel(_ seconds: Int) -> String {
+        String(format: "%02d:%02d", seconds / 60, seconds % 60)
+    }
+
+    private func timerAccessibilityLabel(remaining: Int, hasEnded: Bool) -> String {
+        if sprint.state == .continuedOpenEnded { return "Open-ended continuation" }
+        if hasEnded { return "Sprint complete" }
+        return "\(remaining / 60) minutes and \(remaining % 60) seconds remaining"
+    }
+
+    private func statusTitle(hasEnded: Bool) -> String {
+        if sprint.state == .continuedOpenEnded { return "OPEN-ENDED CONTINUATION" }
+        if sprint.state == .paused { return "SPRINT PAUSED" }
+        return hasEnded ? "SPRINT COMPLETE" : "BOUNDED SPRINT"
+    }
+
+    private func statusExplanation(hasEnded: Bool) -> String {
+        if sprint.state == .continuedOpenEnded {
+            return "The sprint boundary ended. Work is continuing without a timer, and the task remains incomplete."
+        }
+        if hasEnded {
+            return "The time boundary ended. Your task is still active and was not marked complete."
+        }
+        return "\(sprint.durationMinutes) minutes, with pause and restart-safe timing. Completing the sprint never completes the task automatically."
     }
 }
 

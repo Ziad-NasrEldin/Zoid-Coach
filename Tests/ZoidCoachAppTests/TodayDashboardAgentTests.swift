@@ -146,6 +146,44 @@ func agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() throws {
 }
 
 @Test
+func agentBoundedSprintRemainsActiveAfterExpiryAndSurvivesRestart() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-agent-sprint-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([ReminderSourceSnapshot(id: "focus", title: "Write the proposal", dueDate: day, priority: 9)])
+    let plans = try AutonomousPlanStore(databaseURL: url)
+    try plans.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: "focus", title: "Write the proposal", rank: 1, estimateMinutes: 45, reason: "Main", score: 100)],
+            mainObjectiveTaskID: "focus",
+            plannedFocusMinutes: 45,
+            availableFocusMinutes: 60
+        ),
+        for: day
+    )
+
+    let agent = try TodayDashboardAgent(databaseURL: url)
+    let started = try agent.startSprint(taskID: "focus", durationMinutes: 37, now: day)
+    #expect(started.activeTask?.sprint?.remainingSeconds == 2_220)
+
+    let restarted = try TodayDashboardAgent(databaseURL: url)
+    let afterWake = try restarted.snapshot(now: day.addingTimeInterval(2_500))
+    #expect(afterWake.activeTask?.taskID == "focus")
+    #expect(afterWake.activeTask?.sprint?.state == .expired)
+    #expect(afterWake.taskRows.first?.state == .active)
+
+    let continued = try restarted.apply(.continueOpenEnded, taskID: "focus", now: day.addingTimeInterval(2_500))
+    #expect(continued.activeTask?.taskID == "focus")
+    #expect(continued.activeTask?.sprint?.state == .continuedOpenEnded)
+    #expect(continued.taskRows.first?.state == .active)
+}
+
+@Test
 func dashboardUsesPersistedGamingBudgetAndRewardAcrossAgentRestart() throws {
     let url = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-coach-persisted-gaming-\(UUID().uuidString).sqlite")

@@ -8,13 +8,15 @@ public struct TaskExecutionSnapshot: Equatable, Sendable {
     public let elapsedMinutes: Int
     public let activeSince: Date?
     public let latestPauseReason: TaskPauseReason?
+    public let sprint: SprintSnapshot?
 
-    public init(taskID: String, state: TaskExecutionState, elapsedMinutes: Int, activeSince: Date?, latestPauseReason: TaskPauseReason? = nil) {
+    public init(taskID: String, state: TaskExecutionState, elapsedMinutes: Int, activeSince: Date?, latestPauseReason: TaskPauseReason? = nil, sprint: SprintSnapshot? = nil) {
         self.taskID = taskID
         self.state = state
         self.elapsedMinutes = elapsedMinutes
         self.activeSince = activeSince
         self.latestPauseReason = latestPauseReason
+        self.sprint = sprint
     }
 }
 
@@ -38,33 +40,63 @@ public final class TaskExecutionStore: @unchecked Sendable {
         try transaction {
             let current = try state(for: taskID)
             switch command {
-            case .start, .resume:
+            case .start, .resume, .startSprint10, .startSprint20, .startSprint25, .continueOpenEnded:
                 if let existing = try openInterval(), existing.taskID != taskID {
                     try upsertState(taskID: existing.taskID, state: .paused, at: date)
                     try recordPause(taskID: existing.taskID, reason: .switchingTasks, at: date)
+                    try pauseSprint(taskID: existing.taskID, at: date)
                 }
                 try closeOpenInterval(at: date)
                 try closeOpenPause(taskID: taskID, at: date)
                 try upsertState(taskID: taskID, state: .active, at: date)
                 try openInterval(taskID: taskID, at: date)
+                if let durationMinutes = command.sprintDurationMinutes {
+                    try beginSprint(taskID: taskID, durationMinutes: durationMinutes, at: date)
+                } else if command == .resume {
+                    try resumeSprint(taskID: taskID, at: date)
+                } else if command == .continueOpenEnded {
+                    try continueSprintOpenEnded(taskID: taskID, at: date)
+                } else {
+                    try finishSprint(taskID: taskID, at: date)
+                }
             case .pause, .pauseForBreak, .pauseForExternalInterruption, .pauseDoneForNow, .pauseForEndOfDay:
                 guard current == .active else { return }
                 try closeOpenInterval(taskID: taskID, at: date)
                 try upsertState(taskID: taskID, state: .paused, at: date)
                 try recordPause(taskID: taskID, reason: command.pauseReason ?? .unspecified, at: date)
+                try pauseSprint(taskID: taskID, at: date)
             case .complete:
                 try closeOpenInterval(taskID: taskID, at: date)
                 try closeOpenPause(taskID: taskID, at: date)
                 try upsertState(taskID: taskID, state: .completed, at: date)
+                try finishSprint(taskID: taskID, at: date)
             case .block:
                 try closeOpenInterval(taskID: taskID, at: date)
                 try recordPause(taskID: taskID, reason: .blocked, at: date)
                 try upsertState(taskID: taskID, state: .blocked, at: date)
+                try finishSprint(taskID: taskID, at: date)
             case .reschedule:
                 try closeOpenInterval(taskID: taskID, at: date)
                 try closeOpenPause(taskID: taskID, at: date)
                 try upsertState(taskID: taskID, state: .rescheduled, at: date)
+                try finishSprint(taskID: taskID, at: date)
             }
+        }
+    }
+
+    public func startSprint(taskID: String, durationMinutes: Int, at date: Date = Date()) throws {
+        guard (1...240).contains(durationMinutes) else { throw TaskExecutionStoreError.invalidSprintDuration }
+        try transaction {
+            if let existing = try openInterval(), existing.taskID != taskID {
+                try upsertState(taskID: existing.taskID, state: .paused, at: date)
+                try recordPause(taskID: existing.taskID, reason: .switchingTasks, at: date)
+                try pauseSprint(taskID: existing.taskID, at: date)
+            }
+            try closeOpenInterval(at: date)
+            try closeOpenPause(taskID: taskID, at: date)
+            try upsertState(taskID: taskID, state: .active, at: date)
+            try openInterval(taskID: taskID, at: date)
+            try beginSprint(taskID: taskID, durationMinutes: durationMinutes, at: date)
         }
     }
 
@@ -74,13 +106,167 @@ public final class TaskExecutionStore: @unchecked Sendable {
         return Dictionary(uniqueKeysWithValues: taskIDs.map { taskID in
             let state = states[taskID] ?? .ready
             let elapsed = (try? elapsedMinutes(taskID: taskID, now: now)) ?? 0
-            return (taskID, TaskExecutionSnapshot(taskID: taskID, state: state, elapsedMinutes: elapsed, activeSince: open?.taskID == taskID ? open?.startedAt : nil, latestPauseReason: try? latestPauseReason(taskID: taskID)))
+            return (taskID, TaskExecutionSnapshot(taskID: taskID, state: state, elapsedMinutes: elapsed, activeSince: open?.taskID == taskID ? open?.startedAt : nil, latestPauseReason: try? latestPauseReason(taskID: taskID), sprint: try? sprintSnapshot(taskID: taskID, now: now)))
         })
     }
 
     public func activeTask(now: Date = Date()) throws -> ActiveTaskSnapshot? {
         guard let open = try openInterval() else { return nil }
-        return ActiveTaskSnapshot(taskID: open.taskID, startedAt: open.startedAt, elapsedMinutes: try elapsedMinutes(taskID: open.taskID, now: now))
+        return ActiveTaskSnapshot(
+            taskID: open.taskID,
+            startedAt: open.startedAt,
+            elapsedMinutes: try elapsedMinutes(taskID: open.taskID, now: now),
+            sprint: try sprintSnapshot(taskID: open.taskID, now: now)
+        )
+    }
+
+    public func sprintSnapshot(taskID: String, now: Date = Date()) throws -> SprintSnapshot? {
+        guard let sprint = try openSprint(taskID: taskID) else { return nil }
+        let elapsedSeconds = sprint.elapsedSeconds(at: now)
+        let durationSeconds = sprint.durationMinutes * 60
+        let visibleState: SprintExecutionState
+        if sprint.state == .active, elapsedSeconds >= TimeInterval(durationSeconds) {
+            visibleState = .expired
+        } else {
+            visibleState = sprint.state
+        }
+        return SprintSnapshot(
+            durationMinutes: sprint.durationMinutes,
+            elapsedSeconds: Int(elapsedSeconds.rounded(.down)),
+            remainingSeconds: max(0, durationSeconds - Int(elapsedSeconds.rounded(.down))),
+            state: visibleState,
+            observedAt: now
+        )
+    }
+
+    private struct StoredSprint {
+        let id: Int64
+        let durationMinutes: Int
+        let activeSegmentStartedAt: Date?
+        let accumulatedActiveSeconds: TimeInterval
+        let state: SprintExecutionState
+
+        func elapsedSeconds(at date: Date) -> TimeInterval {
+            guard state == .active, let activeSegmentStartedAt else {
+                return accumulatedActiveSeconds
+            }
+            return accumulatedActiveSeconds + max(0, date.timeIntervalSince(activeSegmentStartedAt))
+        }
+    }
+
+    private func beginSprint(taskID: String, durationMinutes: Int, at date: Date) throws {
+        if let current = try openSprint(taskID: taskID),
+           current.durationMinutes == durationMinutes,
+           current.state == .active,
+           current.elapsedSeconds(at: date) < TimeInterval(durationMinutes * 60) {
+            return
+        }
+        try finishSprint(taskID: taskID, at: date)
+        var statement: OpaquePointer?
+        let sql = "INSERT INTO task_sprint_sessions(task_id, duration_minutes, started_at_utc, active_segment_started_at_utc, accumulated_active_seconds, state, ended_at_utc) VALUES (?, ?, ?, ?, 0, 'active', NULL);"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw TaskExecutionStoreError.write
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        sqlite3_bind_int(statement, 2, Int32(durationMinutes))
+        let timestamp = formatter.string(from: date)
+        bind(timestamp, statement, 3)
+        bind(timestamp, statement, 4)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
+    }
+
+    private func pauseSprint(taskID: String, at date: Date) throws {
+        guard let sprint = try openSprint(taskID: taskID), sprint.state == .active else { return }
+        let elapsed = sprint.elapsedSeconds(at: date)
+        let state: SprintExecutionState = elapsed >= TimeInterval(sprint.durationMinutes * 60) ? .expired : .paused
+        try updateSprint(id: sprint.id, state: state, accumulatedSeconds: elapsed, activeSince: nil, endedAt: nil)
+    }
+
+    private func resumeSprint(taskID: String, at date: Date) throws {
+        guard let sprint = try openSprint(taskID: taskID), sprint.state == .paused else { return }
+        guard sprint.accumulatedActiveSeconds < TimeInterval(sprint.durationMinutes * 60) else {
+            try updateSprint(id: sprint.id, state: .expired, accumulatedSeconds: sprint.accumulatedActiveSeconds, activeSince: nil, endedAt: nil)
+            return
+        }
+        try updateSprint(id: sprint.id, state: .active, accumulatedSeconds: sprint.accumulatedActiveSeconds, activeSince: date, endedAt: nil)
+    }
+
+    private func continueSprintOpenEnded(taskID: String, at date: Date) throws {
+        guard let sprint = try openSprint(taskID: taskID) else {
+            throw TaskExecutionStoreError.sprintUnavailable
+        }
+        if sprint.state == .continuedOpenEnded {
+            return
+        }
+        guard sprint.state == .expired
+                || sprint.elapsedSeconds(at: date) >= TimeInterval(sprint.durationMinutes * 60)
+        else {
+            throw TaskExecutionStoreError.sprintStillActive
+        }
+        try updateSprint(
+            id: sprint.id,
+            state: .continuedOpenEnded,
+            accumulatedSeconds: sprint.elapsedSeconds(at: date),
+            activeSince: nil,
+            endedAt: nil
+        )
+    }
+
+    private func finishSprint(taskID: String, at date: Date) throws {
+        guard let sprint = try openSprint(taskID: taskID) else { return }
+        try updateSprint(
+            id: sprint.id,
+            state: .finished,
+            accumulatedSeconds: sprint.elapsedSeconds(at: date),
+            activeSince: nil,
+            endedAt: date
+        )
+    }
+
+    private func openSprint(taskID: String) throws -> StoredSprint? {
+        var statement: OpaquePointer?
+        let sql = "SELECT id, duration_minutes, active_segment_started_at_utc, accumulated_active_seconds, state FROM task_sprint_sessions WHERE task_id = ? AND state IN ('active', 'paused', 'expired', 'continuedOpenEnded') ORDER BY id DESC LIMIT 1;"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw TaskExecutionStoreError.read
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let stateText = sqlite3_column_text(statement, 4),
+              let state = SprintExecutionState(rawValue: String(cString: stateText))
+        else { return nil }
+        let activeSince = sqlite3_column_type(statement, 2) == SQLITE_NULL
+            ? nil
+            : sqlite3_column_text(statement, 2).flatMap { formatter.date(from: String(cString: $0)) }
+        return StoredSprint(
+            id: sqlite3_column_int64(statement, 0),
+            durationMinutes: Int(sqlite3_column_int(statement, 1)),
+            activeSegmentStartedAt: activeSince,
+            accumulatedActiveSeconds: sqlite3_column_double(statement, 3),
+            state: state
+        )
+    }
+
+    private func updateSprint(
+        id: Int64,
+        state: SprintExecutionState,
+        accumulatedSeconds: TimeInterval,
+        activeSince: Date?,
+        endedAt: Date?
+    ) throws {
+        var statement: OpaquePointer?
+        let sql = "UPDATE task_sprint_sessions SET state = ?, accumulated_active_seconds = ?, active_segment_started_at_utc = ?, ended_at_utc = ? WHERE id = ?;"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw TaskExecutionStoreError.write
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(state.rawValue, statement, 1)
+        sqlite3_bind_double(statement, 2, max(0, accumulatedSeconds))
+        if let activeSince { bind(formatter.string(from: activeSince), statement, 3) } else { sqlite3_bind_null(statement, 3) }
+        if let endedAt { bind(formatter.string(from: endedAt), statement, 4) } else { sqlite3_bind_null(statement, 4) }
+        sqlite3_bind_int64(statement, 5, id)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
     }
 
     private func transaction(_ body: () throws -> Void) throws {
@@ -203,9 +389,16 @@ public final class TaskExecutionStore: @unchecked Sendable {
 }
 
 public enum TaskExecutionStoreError: LocalizedError {
-    case openDatabase, schema, read, write
+    case openDatabase, schema, read, write, invalidSprintDuration, sprintUnavailable, sprintStillActive
 
-    public var errorDescription: String? { "Could not persist task execution state." }
+    public var errorDescription: String? {
+        switch self {
+        case .invalidSprintDuration: "Choose a sprint from 1 to 240 minutes."
+        case .sprintUnavailable: "Start a bounded sprint before continuing without a timer."
+        case .sprintStillActive: "The sprint is still running. Wait for the boundary before continuing without a timer."
+        case .openDatabase, .schema, .read, .write: "Could not persist task execution state."
+        }
+    }
 }
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
