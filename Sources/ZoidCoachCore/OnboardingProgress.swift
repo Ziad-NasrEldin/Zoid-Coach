@@ -79,6 +79,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public private(set) var notificationAccess: OnboardingAccessDecision?
     public private(set) var reminderListDecisions: [ReminderListDecision]
     public private(set) var emptyReminderListFallbackConfirmed: Bool
+    public private(set) var deliveryTestTaskCompleted: Bool
     public private(set) var completedEffects: [OnboardingCompletedEffect]
     public private(set) var finishedAt: Date?
 
@@ -94,6 +95,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         notificationAccess: OnboardingAccessDecision? = nil,
         reminderListDecisions: [ReminderListDecision] = [],
         emptyReminderListFallbackConfirmed: Bool = false,
+        deliveryTestTaskCompleted: Bool = false,
         completedEffects: [OnboardingCompletedEffect] = [],
         finishedAt: Date? = nil
     ) throws {
@@ -108,6 +110,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         self.notificationAccess = notificationAccess
         self.reminderListDecisions = reminderListDecisions.sorted { $0.listID < $1.listID }
         self.emptyReminderListFallbackConfirmed = emptyReminderListFallbackConfirmed
+        self.deliveryTestTaskCompleted = deliveryTestTaskCompleted
         self.completedEffects = completedEffects
         self.finishedAt = finishedAt
         try validate()
@@ -125,6 +128,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         case notificationAccess
         case reminderListDecisions
         case emptyReminderListFallbackConfirmed
+        case deliveryTestTaskCompleted
         case completedEffects
         case finishedAt
     }
@@ -166,6 +170,10 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .emptyReminderListFallbackConfirmed
         ) ?? false
+        deliveryTestTaskCompleted = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .deliveryTestTaskCompleted
+        ) ?? false
         completedEffects = try container.decodeIfPresent(
             [OnboardingCompletedEffect].self,
             forKey: .completedEffects
@@ -191,6 +199,9 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         if emptyReminderListFallbackConfirmed {
             try container.encode(true, forKey: .emptyReminderListFallbackConfirmed)
         }
+        if deliveryTestTaskCompleted {
+            try container.encode(true, forKey: .deliveryTestTaskCompleted)
+        }
         if !completedEffects.isEmpty {
             try container.encode(completedEffects, forKey: .completedEffects)
         }
@@ -215,6 +226,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
             notificationAccess: notificationAccess,
             reminderListDecisions: reminderListDecisions,
             emptyReminderListFallbackConfirmed: emptyReminderListFallbackConfirmed,
+            deliveryTestTaskCompleted: deliveryTestTaskCompleted,
             completedEffects: completedEffects,
             finishedAt: finishedAt
         )
@@ -235,6 +247,10 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
 
     public mutating func confirmEmptyReminderListFallback() {
         emptyReminderListFallbackConfirmed = true
+    }
+
+    public mutating func completeDeliveryTestTask() {
+        deliveryTestTaskCompleted = true
     }
 
     public mutating func recordAccessDecision(

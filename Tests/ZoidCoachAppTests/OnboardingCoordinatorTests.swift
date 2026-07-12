@@ -815,6 +815,52 @@ func coachingStepDoesNotPersistProgressBeforePolicyIsDurable() async throws {
 }
 
 @MainActor
+@Test
+func canonicalDeliveryPromptAndLocalTaskSurviveRestartAndGateContinuation() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.deliveryTest))
+    let queued = PromptEpisode(
+        id: "setup-prompt",
+        decisionKey: "onboarding-test-prompt:flow",
+        type: OnboardingTestPromptService.promptType,
+        state: .queued,
+        title: "Choose where coaching should continue",
+        summary: "This prompt is available in Today.",
+        actions: [.init(kind: .continueIntentionally, title: "Continue setup")],
+        createdAt: Date(timeIntervalSince1970: 100)
+    )
+    let resolved = try queued.applying(.present, at: Date(timeIntervalSince1970: 101))
+        .applying(.respond, at: Date(timeIntervalSince1970: 102))
+    let first = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(
+            createTestPrompt: { _ in .init(
+                episode: queued,
+                delivery: .todayFallback,
+                message: "Available in Today"
+            ) },
+            loadTestPrompt: { _ in resolved },
+            respondToTestPrompt: { _ in resolved }
+        )
+    )
+
+    first.completeTestTask()
+    await first.runDeliveryTest()
+    #expect(!first.canContinue)
+    await first.respondToTestPrompt(.continueIntentionally)
+    #expect(first.canContinue)
+
+    let restarted = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(loadTestPrompt: { _ in resolved })
+    )
+    await restarted.restoreTestPrompt()
+
+    #expect(restarted.testTaskCompleted)
+    #expect(restarted.testPrompt?.state == .responded)
+    #expect(restarted.canContinue)
+}
+
+@MainActor
 private final class RecordingOnboardingStore: OnboardingProgressPersisting {
     var saved: OnboardingProgress?
 
@@ -997,7 +1043,14 @@ private func testDependencies(
         message: "Delivered by test fixture"
     ),
     firstPlan: OnboardingFirstDailyPlanResult = preparedFirstPlan,
-    failPolicyMutation: Bool = false
+    failPolicyMutation: Bool = false,
+    createTestPrompt: @escaping (String) async throws -> OnboardingTestPromptResult = { _ in
+        throw OnboardingDependencyError.testPromptUnavailable
+    },
+    loadTestPrompt: @escaping (String) async throws -> PromptEpisode? = { _ in nil },
+    respondToTestPrompt: @escaping (PromptResponseCommand) async throws -> PromptEpisode = { _ in
+        throw OnboardingDependencyError.testPromptUnavailable
+    }
 ) -> OnboardingDependencies {
     OnboardingDependencies(
         inspectReminders: { SelfHealth.remindersDenied },
@@ -1010,6 +1063,9 @@ private func testDependencies(
         requestNotifications: { .init(health: SelfHealth.notificationsDenied, decision: .denied) },
         loadInventory: { inventory },
         testDelivery: { deliveryResult },
+        createTestPrompt: createTestPrompt,
+        loadTestPrompt: loadTestPrompt,
+        respondToTestPrompt: respondToTestPrompt,
         loadPolicy: { policyRecorder.versionedPolicy },
         applyPolicyMutation: {
             if failPolicyMutation { throw SagaTestError.injected }
