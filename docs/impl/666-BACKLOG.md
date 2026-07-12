@@ -33,7 +33,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 15 | Complete drift detection and compassionate recovery | ready | Unowned | Real activity drift produces a timely, non-shaming recovery choice whose result changes the plan durably |
 | 16 | Complete meeting-aware planning and calendar boundaries | ready | Unowned | Calendar grant, denial, changes, overlap, cancellation, and offline states produce usable plans and repair paths |
 | 17 | Complete app-classification management in Settings | ready | Unowned | User can search, classify, bulk-edit, reset, and verify runtime use of work, gaming, communication, and automatic categories |
-| 18 | Complete Settings policy mutation conflict UX | ready | Unowned | Concurrent edits never silently overwrite; the user sees the winning state and can retry safely without duplicates |
+| 18 | Complete Settings policy mutation conflict UX | verify | Settings conflict lane at `87f326f` | Concurrent edits never silently overwrite; the user sees the winning state and can retry safely without duplicates |
 | 19 | Complete background-agent lifecycle and Login Items repair | ready | Unowned | Install, enable, approval-required, update, crash recovery, disable, and uninstall are understandable and preserve data integrity |
 | 20 | Complete privacy, export, deletion, and local-data controls | verify | Lane C at `f4085ed` | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
 | 21 | Complete daily behavior review and correction | verify | Lane D at `7b96623` | User can review grouped activity sessions, correct or split classifications, attach work to a task, reject unsupported explanations, confirm the review, and see durable corrected totals after restart |
@@ -49,6 +49,18 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Settings policy mutation conflict UX - `87f326f`
+
+- Added field-level three-way merging for every Settings policy control so independent edits survive while concurrent winning values remain authoritative.
+- Added a global Sumi-Ink conflict panel that identifies the winning policy version, changed groups, and overlapping groups.
+- Added explicit `KEEP CURRENT VALUES` and `REAPPLY MY CHANGES` actions with stable accessibility identifiers.
+- Reapply uses the refreshed policy version and repeats the conflict decision if another writer wins before the retry.
+- Extracted the Settings controller from the monolithic view so the mutation state machine and its UI can be verified independently.
+- Added focused proof for disjoint merging, overlapping winner preservation, deliberate reapply, repeated races, and duplicate-free policy history.
+- All 462 Swift tests, the release build, 41 Python registry and evidence tests, and a clean signed-QA package passed.
+- Evidence is recorded in `.audit/runs/settings-policy-conflict/87f326f4ba78ef2e9ba08b0f4c6e3eb77f7cca01/REPORT.md`.
+- A fresh parallel verifier must complete the visible signed-QA two-writer click-through before the authoritative tracker advances.
 
 ### Task pause and switch lifecycle - `78ca9f9`
 
