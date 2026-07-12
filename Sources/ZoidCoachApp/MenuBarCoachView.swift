@@ -51,6 +51,7 @@ final class MenuBarCoachController: ObservableObject {
 }
 
 struct MenuBarCoachView: View {
+    @Environment(\.openWindow) private var openWindow
     @ObservedObject var appModel: AppModel
     @ObservedObject var voiceModel: VoiceConversationModel
     @StateObject private var controller: MenuBarCoachController
@@ -228,9 +229,12 @@ struct MenuBarCoachView: View {
 
     private func open(_ section: AppSection) {
         appModel.selectedSection = section
+        openWindow(id: "main")
         NSApp.activate(ignoringOtherApps: true)
-        if let window = NSApp.windows.first(where: { $0.canBecomeKey && $0.level == .normal }) {
-            window.makeKeyAndOrderFront(nil)
+        DispatchQueue.main.async {
+            if let window = NSApp.windows.first(where: { $0.canBecomeKey && $0.level == .normal }) {
+                window.makeKeyAndOrderFront(nil)
+            }
         }
     }
 }
