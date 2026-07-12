@@ -44,22 +44,23 @@ final class AppModel: ObservableObject {
     private var reminderTasksAreAvailable = false
 
     init(
-        screenwatchReader: ScreenwatchReader = ScreenwatchReader(),
+        runtimeEnvironment: RuntimeEnvironment = .current(),
+        screenwatchReader: ScreenwatchReader? = nil,
         remindersService: RemindersService = RemindersService(),
         calendarService: CalendarService = CalendarService(),
         notificationService: NotificationService = NotificationService(),
         agentLaunchService: AgentLaunchService = AgentLaunchService(),
-        eventStore: EventStore = EventStore(readOnly: true)
+        eventStore: EventStore? = nil
     ) {
-        self.screenwatchReader = screenwatchReader
+        self.screenwatchReader = screenwatchReader ?? ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory)
         self.remindersService = remindersService
         self.calendarService = calendarService
         self.notificationService = notificationService
         self.agentLaunchService = agentLaunchService
-        self.eventStore = eventStore
-        meetingArchive = try? ScreenwatchArchive(databaseURL: ZoidCoachStorage.databaseURL(), readOnly: true)
-        todaySnapshotStore = try? TodaySnapshotStore(databaseURL: ZoidCoachStorage.databaseURL(), readOnly: true)
-        policyStore = try? PolicyStore(databaseURL: ZoidCoachStorage.databaseURL(), readOnly: true)
+        self.eventStore = eventStore ?? EventStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
+        meetingArchive = try? ScreenwatchArchive(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
+        todaySnapshotStore = try? TodaySnapshotStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
+        policyStore = try? PolicyStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         Task {
             updateSource(agentLaunchService.enableAndInspect())
             await refreshAllSources()

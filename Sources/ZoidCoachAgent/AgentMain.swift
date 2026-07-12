@@ -15,7 +15,13 @@ struct ZoidCoachAgentMain {
             detail: "Capture runtime has not started"
         ))
         do {
-            let configuration = try AgentConfiguration(arguments: Array(CommandLine.arguments.dropFirst()))
+            let runtimeResolution = try RuntimeEnvironment.resolve(
+                arguments: Array(CommandLine.arguments.dropFirst())
+            )
+            let configuration = try AgentConfiguration(
+                runtimeEnvironment: runtimeResolution.environment,
+                arguments: runtimeResolution.remainingArguments
+            )
             let captureConfigurationStore = NativeCaptureConfigurationStore()
             var persistedCaptureConfiguration = try captureConfigurationStore.load()
             if configuration.nativeCapture || !configuration.captureDisplayIDs.isEmpty {
@@ -1024,10 +1030,9 @@ private struct AgentConfiguration {
         return mode == .native ? nativeCaptureDirectory : screenwatchDirectory
     }
 
-    init(arguments: [String]) throws {
-        var screenwatchDirectory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("screenwatch/days", isDirectory: true)
-        var databaseURL = ZoidCoachStorage.databaseURL()
+    init(runtimeEnvironment: RuntimeEnvironment, arguments: [String]) throws {
+        let screenwatchDirectory = runtimeEnvironment.screenwatchDirectory
+        let databaseURL = runtimeEnvironment.databaseURL
         var watch = true
         var draftPlan = false
         var overwritePlan = false
@@ -1064,10 +1069,6 @@ private struct AgentConfiguration {
             case "--reminders-status":
                 watch = false
                 printRemindersStatus = true
-            case "--screenwatch-directory":
-                index += 1
-                guard index < arguments.count else { throw AgentConfigurationError.missingValue("--screenwatch-directory") }
-                screenwatchDirectory = URL(fileURLWithPath: arguments[index], isDirectory: true)
             case "--native-capture":
                 nativeCapture = true
             case "--capture-displays":
@@ -1078,10 +1079,6 @@ private struct AgentConfiguration {
                 index += 1
                 guard index < arguments.count else { throw AgentConfigurationError.missingValue("--native-capture-directory") }
                 nativeCaptureDirectory = URL(fileURLWithPath: arguments[index], isDirectory: true)
-            case "--database":
-                index += 1
-                guard index < arguments.count else { throw AgentConfigurationError.missingValue("--database") }
-                databaseURL = URL(fileURLWithPath: arguments[index], isDirectory: false)
             case "--once":
                 watch = false
             default:
