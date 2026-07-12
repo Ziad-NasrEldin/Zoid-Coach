@@ -13,9 +13,14 @@ protocol NotificationServicing: AnyObject {
 final class NotificationService: NotificationServicing {
     let isProductionAdapter = true
     private let center: UNUserNotificationCenter?
+    private let notificationIdentity: RuntimeNotificationIdentity
 
-    init(center: UNUserNotificationCenter? = nil) {
+    init(
+        center: UNUserNotificationCenter? = nil,
+        runtimeEnvironment: RuntimeEnvironment = .production()
+    ) {
         self.center = center
+        notificationIdentity = runtimeEnvironment.identity.notification
     }
 
     private var notificationCenter: UNUserNotificationCenter { center ?? .current() }
@@ -98,7 +103,7 @@ final class NotificationService: NotificationServicing {
     }
 
     func scheduleWake(for day: Date, policy: WakeUpPolicy, reason: String) async throws {
-        let identifier = "zoid-coach.wake." + dayKey(for: day)
+        let identifier = notificationIdentity.wakeRequestPrefix + dayKey(for: day)
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
         let calendar = Calendar.current
         let dayComponents = calendar.dateComponents([.year, .month, .day], from: day)
@@ -115,7 +120,7 @@ final class NotificationService: NotificationServicing {
         content.title = "Zoid Coach"
         content.body = "Wake for your main objective. \(reason)"
         content.sound = .default
-        content.categoryIdentifier = "ZOID_WAKE"
+        content.categoryIdentifier = notificationIdentity.wakeCategoryIdentifier
         let request = UNNotificationRequest(
             identifier: identifier,
             content: content,

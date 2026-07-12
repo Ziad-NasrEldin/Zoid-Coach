@@ -18,6 +18,12 @@ func productionRuntimeEnvironmentPreservesExistingDefaults() {
     #expect(environment.exportRoot.path == "/Users/tester/Library/Application Support/Zoid Coach/Diagnostics")
     #expect(environment.userDefaultsSuiteName == nil)
     #expect(environment.keychainServiceSuffix.isEmpty)
+    #expect(environment.identity == .production)
+    #expect(environment.identity.appBundleIdentifier == "com.ziadnasreldin.ZoidCoach")
+    #expect(environment.identity.appExecutableName == "ZoidCoach")
+    #expect(environment.identity.agentSigningIdentifier == "com.ziadnasreldin.ZoidCoach.agent")
+    #expect(environment.identity.launchAgentPlistName == "com.ziadnasreldin.ZoidCoach.agent.plist")
+    #expect(environment.identity.machServiceName == "com.ziadnasreldin.ZoidCoach.agent")
 }
 
 @Test
@@ -34,7 +40,57 @@ func qaRuntimeEnvironmentDerivesEveryWritableLocationFromRunRoot() throws {
     #expect(resolution.environment.exportRoot.path == "/tmp/zoid-qa/run-42/Exports")
     #expect(resolution.environment.userDefaultsSuiteName?.hasPrefix("com.ziadnasreldin.ZoidCoach.qa.") == true)
     #expect(resolution.environment.keychainServiceSuffix.hasPrefix(".qa."))
+    #expect(resolution.environment.identity == .qa)
     #expect(resolution.remainingArguments == ["--once"])
+}
+
+@Test
+func qaRuntimeIdentityDoesNotCollideWithAnyProductionIdentity() throws {
+    let environment = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", "/tmp/zoid-qa/identity-noncollision"],
+        processEnvironment: [:]
+    ).environment
+    let production = RuntimeIdentity.production
+    let qa = environment.identity
+    let productionValues = Set([
+        production.appBundleIdentifier,
+        production.appSigningIdentifier,
+        production.appExecutableName,
+        production.agentBundleIdentifier,
+        production.agentSigningIdentifier,
+        production.agentExecutableName,
+        production.launchAgentLabel,
+        production.launchAgentPlistName,
+        production.machServiceName,
+        production.notification.promptRequestPrefix,
+        production.notification.promptActionPrefix,
+        production.notification.wakeRequestPrefix,
+        production.notification.wakeCategoryIdentifier,
+        production.notification.proactiveRequestPrefix,
+    ])
+    let qaValues = Set([
+        qa.appBundleIdentifier,
+        qa.appSigningIdentifier,
+        qa.appExecutableName,
+        qa.agentBundleIdentifier,
+        qa.agentSigningIdentifier,
+        qa.agentExecutableName,
+        qa.launchAgentLabel,
+        qa.launchAgentPlistName,
+        qa.machServiceName,
+        qa.notification.promptRequestPrefix,
+        qa.notification.promptActionPrefix,
+        qa.notification.wakeRequestPrefix,
+        qa.notification.wakeCategoryIdentifier,
+        qa.notification.proactiveRequestPrefix,
+    ])
+
+    #expect(productionValues.isDisjoint(with: qaValues))
+    #expect(qa.allowedXPCSigningIdentifiers == [
+        "qa.ziadnasreldin.ZoidCoach",
+        "qa.ziadnasreldin.ZoidCoach.agent",
+    ])
+    #expect(qaValues.allSatisfy { !$0.contains("com.ziadnasreldin.ZoidCoach") })
 }
 
 @Test

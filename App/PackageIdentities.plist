@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>production</key>
+    <dict>
+        <key>appBundleIdentifier</key>
+        <string>com.ziadnasreldin.ZoidCoach</string>
+        <key>appDisplayName</key>
+        <string>Zoid Coach</string>
+        <key>appExecutableName</key>
+        <string>ZoidCoach</string>
+        <key>appPath</key>
+        <string>.build/app/Zoid Coach.app</string>
+        <key>appSigningIdentifier</key>
+        <string>com.ziadnasreldin.ZoidCoach</string>
+        <key>agentExecutableName</key>
+        <string>ZoidCoachAgent</string>
+        <key>agentSigningIdentifier</key>
+        <string>com.ziadnasreldin.ZoidCoach.agent</string>
+        <key>launchAgentLabel</key>
+        <string>com.ziadnasreldin.ZoidCoach.agent</string>
+        <key>launchAgentPlistName</key>
+        <string>com.ziadnasreldin.ZoidCoach.agent.plist</string>
+        <key>machServiceName</key>
+        <string>com.ziadnasreldin.ZoidCoach.agent</string>
+    </dict>
+    <key>qa</key>
+    <dict>
+        <key>appBundleIdentifier</key>
+        <string>qa.ziadnasreldin.ZoidCoach</string>
+        <key>appDisplayName</key>
+        <string>Zoid Coach QA</string>
+        <key>appExecutableName</key>
+        <string>ZoidCoachQA</string>
+        <key>appPath</key>
+        <string>.build/app-qa/Zoid Coach QA.app</string>
+        <key>appSigningIdentifier</key>
+        <string>qa.ziadnasreldin.ZoidCoach</string>
+        <key>agentExecutableName</key>
+        <string>ZoidCoachAgentQA</string>
+        <key>agentSigningIdentifier</key>
+        <string>qa.ziadnasreldin.ZoidCoach.agent</string>
+        <key>launchAgentLabel</key>
+        <string>qa.ziadnasreldin.ZoidCoach.agent</string>
+        <key>launchAgentPlistName</key>
+        <string>qa.ziadnasreldin.ZoidCoach.agent.plist</string>
+        <key>machServiceName</key>
+        <string>qa.ziadnasreldin.ZoidCoach.agent</string>
+    </dict>
+</dict>
+</plist>

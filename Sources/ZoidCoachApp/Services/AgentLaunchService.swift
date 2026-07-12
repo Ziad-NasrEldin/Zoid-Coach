@@ -41,7 +41,7 @@ private final class SystemAgentServiceRegistration: AgentServiceRegistration {
 
 @MainActor
 final class AgentLaunchService {
-    private let plistName = "com.ziadnasreldin.ZoidCoach.agent.plist"
+    private let plistName: String
     private let registrationFingerprintKey = "ZoidCoachAgentRegistrationFingerprint"
     private let userDefaults: UserDefaults
     private let service: (any AgentServiceRegistration)?
@@ -51,6 +51,7 @@ final class AgentLaunchService {
         runtimeEnvironment: RuntimeEnvironment = .current(),
         service: (any AgentServiceRegistration)? = nil
     ) {
+        plistName = runtimeEnvironment.identity.launchAgentPlistName
         userDefaults = runtimeEnvironment.makeUserDefaults()
         if case .qa = runtimeEnvironment.mode {
             isIsolatedQA = true
@@ -195,7 +196,7 @@ final class AgentLaunchService {
             eyebrow: "Autonomy",
             state: .unavailable,
             detail: "QA background agent is disabled",
-            evidence: "A dedicated QA launchd identity is required before background control is enabled",
+            evidence: "The dedicated QA LaunchAgent is not registered automatically",
             actionTitle: "Unavailable"
         )
     }

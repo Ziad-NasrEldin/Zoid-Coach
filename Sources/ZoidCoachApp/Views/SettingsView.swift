@@ -16,16 +16,20 @@ final class SettingsPolicyController: ObservableObject {
     private var persistedPolicy: UserPolicy
 
     init(
-        databaseURL: URL = ZoidCoachStorage.databaseURL(),
+        databaseURL: URL? = nil,
+        runtimeEnvironment: RuntimeEnvironment = .current(),
         savePolicyThroughAgent: (@Sendable (UserPolicy) async throws -> AgentMutationReceipt)? = nil
     ) {
         if let savePolicyThroughAgent {
             self.savePolicyThroughAgent = savePolicyThroughAgent
         } else {
-            let client = TodayDashboardXPCClient()
+            let client = TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment)
             self.savePolicyThroughAgent = { try await client.apply(.savePolicy($0)) }
         }
-        store = try? PolicyStore(databaseURL: databaseURL, readOnly: true)
+        store = try? PolicyStore(
+            databaseURL: databaseURL ?? runtimeEnvironment.databaseURL,
+            readOnly: true
+        )
         let current: VersionedUserPolicy?
         if let store {
             current = try? store.current()
@@ -139,7 +143,9 @@ struct SettingsView: View {
     @State private var voiceSettingsMessage: String?
     @State private var captureConfiguration = (try? NativeCaptureConfigurationStore().load()) ?? .legacy
     @State private var captureConfigurationMessage: String?
-    private let xpcClient = TodayDashboardXPCClient()
+    private let xpcClient = TodayDashboardXPCClient(
+        runtimeEnvironment: RuntimeEnvironment.current()
+    )
     private let calendarService = CalendarService()
 
     var body: some View {

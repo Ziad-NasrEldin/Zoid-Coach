@@ -11,3 +11,21 @@ func promptNotificationContractMapsRequiredCategoriesAndActions() {
         #expect(PromptNotificationCoordinator.actionKind(identifier: PromptNotificationCoordinator.actionIdentifier(action)) == action)
     }
 }
+
+@Test
+func qaPromptNotificationActionsUseOnlyTheQANamespace() {
+    let identity = RuntimeIdentity.qa.notification
+
+    for action in [PromptActionKind.acceptPlan, .reviewPlan, .addMeeting, .editMeeting, .ignore, .undoPlanChange] {
+        let identifier = PromptNotificationCoordinator.actionIdentifier(
+            action,
+            notificationIdentity: identity
+        )
+        #expect(identifier.hasPrefix("ZCQA_PROMPT_"))
+        #expect(!identifier.contains("ZOID_PROMPT_"))
+        #expect(PromptNotificationCoordinator.actionKind(
+            identifier: identifier,
+            notificationIdentity: identity
+        ) == action)
+    }
+}

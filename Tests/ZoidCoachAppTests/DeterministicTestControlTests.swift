@@ -120,16 +120,9 @@ func fixtureBuilderRejectsQARootThatContainsProtectedStorage() throws {
 @Test
 func extraProtectedRootsCannotReplaceRealProductionRoots() throws {
     let productionRoot = RuntimeEnvironment.production().applicationSupportRoot
-    let environment = try qaEnvironment(runRoot: productionRoot)
-    let unrelatedExtraRoot = temporaryTestRoot("unrelated-protected-root")
 
-    #expect(
-        throws: QAFixtureWorkspaceError.productionRootRefused(path: productionRoot.path)
-    ) {
-        try QAFixtureWorkspaceBuilder(
-            environment: environment,
-            additionalProtectedRoots: [unrelatedExtraRoot]
-        )
+    #expect(throws: RuntimeEnvironmentError.self) {
+        _ = try qaEnvironment(runRoot: productionRoot)
     }
 }
 

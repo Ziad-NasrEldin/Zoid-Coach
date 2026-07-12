@@ -1,5 +1,83 @@
 import Foundation
 
+public struct RuntimeNotificationIdentity: Equatable, Sendable {
+    public let promptRequestPrefix: String
+    public let promptActionPrefix: String
+    public let promptCategoryPrefix: String
+    public let wakeRequestPrefix: String
+    public let wakeCategoryIdentifier: String
+    public let proactiveRequestPrefix: String
+    public let actionRequestPrefix: String
+
+    public func promptCategoryIdentifier(_ baseIdentifier: String) -> String {
+        guard !promptCategoryPrefix.isEmpty,
+              !baseIdentifier.hasPrefix(promptCategoryPrefix) else { return baseIdentifier }
+        promptCategoryPrefix + baseIdentifier
+    }
+}
+
+public struct RuntimeIdentity: Equatable, Sendable {
+    public let appBundleIdentifier: String
+    public let appSigningIdentifier: String
+    public let appExecutableName: String
+    public let appDisplayName: String
+    public let agentBundleIdentifier: String
+    public let agentSigningIdentifier: String
+    public let agentExecutableName: String
+    public let launchAgentLabel: String
+    public let launchAgentPlistName: String
+    public let machServiceName: String
+    public let notification: RuntimeNotificationIdentity
+
+    public var allowedXPCSigningIdentifiers: Set<String> {
+        [appSigningIdentifier, agentSigningIdentifier]
+    }
+
+    public static let production = Self(
+        appBundleIdentifier: "com.ziadnasreldin.ZoidCoach",
+        appSigningIdentifier: "com.ziadnasreldin.ZoidCoach",
+        appExecutableName: "ZoidCoach",
+        appDisplayName: "Zoid Coach",
+        agentBundleIdentifier: "com.ziadnasreldin.ZoidCoach.agent",
+        agentSigningIdentifier: "com.ziadnasreldin.ZoidCoach.agent",
+        agentExecutableName: "ZoidCoachAgent",
+        launchAgentLabel: "com.ziadnasreldin.ZoidCoach.agent",
+        launchAgentPlistName: "com.ziadnasreldin.ZoidCoach.agent.plist",
+        machServiceName: "com.ziadnasreldin.ZoidCoach.agent",
+        notification: RuntimeNotificationIdentity(
+            promptRequestPrefix: "zoid.prompt.",
+            promptActionPrefix: "ZOID_PROMPT_",
+            promptCategoryPrefix: "",
+            wakeRequestPrefix: "zoid-coach.wake.",
+            wakeCategoryIdentifier: "ZOID_WAKE",
+            proactiveRequestPrefix: "zoid-proactive-",
+            actionRequestPrefix: ""
+        )
+    )
+
+    public static let qa = Self(
+        appBundleIdentifier: "qa.ziadnasreldin.ZoidCoach",
+        appSigningIdentifier: "qa.ziadnasreldin.ZoidCoach",
+        appExecutableName: "ZoidCoachQA",
+        appDisplayName: "Zoid Coach QA",
+        agentBundleIdentifier: "qa.ziadnasreldin.ZoidCoach.agent",
+        agentSigningIdentifier: "qa.ziadnasreldin.ZoidCoach.agent",
+        agentExecutableName: "ZoidCoachAgentQA",
+        launchAgentLabel: "qa.ziadnasreldin.ZoidCoach.agent",
+        launchAgentPlistName: "qa.ziadnasreldin.ZoidCoach.agent.plist",
+        machServiceName: "qa.ziadnasreldin.ZoidCoach.agent",
+        notification: RuntimeNotificationIdentity(
+            promptRequestPrefix: "zcqa.prompt.",
+            promptActionPrefix: "ZCQA_PROMPT_",
+            promptCategoryPrefix: "ZCQA_",
+            wakeRequestPrefix: "zcqa.wake.",
+            wakeCategoryIdentifier: "ZCQA_WAKE",
+            proactiveRequestPrefix: "zcqa-proactive-",
+            actionRequestPrefix: "zcqa.action."
+        )
+    )
+}
+
 public struct RuntimeEnvironment: Equatable, Sendable {
     public static let productionUserDefaultsDomain = "com.ziadnasreldin.ZoidCoach"
 
@@ -32,6 +110,7 @@ public struct RuntimeEnvironment: Equatable, Sendable {
     public let exportRoot: URL
     public let userDefaultsSuiteName: String?
     public let keychainServiceSuffix: String
+    public let identity: RuntimeIdentity
 
     public var nativeCaptureConfigurationURL: URL {
         applicationSupportRoot
@@ -80,7 +159,8 @@ public struct RuntimeEnvironment: Equatable, Sendable {
             applicationSupportRoot: applicationSupportRoot,
             exportRoot: productSupport.appendingPathComponent("Diagnostics", isDirectory: true),
             userDefaultsSuiteName: nil,
-            keychainServiceSuffix: ""
+            keychainServiceSuffix: "",
+            identity: .production
         )
     }
 
@@ -126,7 +206,8 @@ public struct RuntimeEnvironment: Equatable, Sendable {
                 applicationSupportRoot: applicationSupportRoot,
                 exportRoot: runRoot.appendingPathComponent("Exports", isDirectory: true),
                 userDefaultsSuiteName: "com.ziadnasreldin.ZoidCoach.qa.\(identifier)",
-                keychainServiceSuffix: ".qa.\(identifier)"
+                keychainServiceSuffix: ".qa.\(identifier)",
+                identity: .qa
             )
         } else {
             mode = .production
@@ -170,7 +251,8 @@ public struct RuntimeEnvironment: Equatable, Sendable {
             applicationSupportRoot: values.applicationSupportRoot.map { canonicalURL($0, isDirectory: true) } ?? defaults.applicationSupportRoot,
             exportRoot: values.exportRoot.map { canonicalURL($0, isDirectory: true) } ?? defaults.exportRoot,
             userDefaultsSuiteName: userDefaultsSuiteName,
-            keychainServiceSuffix: keychainServiceSuffix
+            keychainServiceSuffix: keychainServiceSuffix,
+            identity: defaults.identity
         )
 
         try resolved.validateIsolation()
@@ -183,9 +265,17 @@ public struct RuntimeEnvironment: Equatable, Sendable {
         directories: SystemDirectories = .current()
     ) -> Self {
         do {
+            var resolvedProcessEnvironment = processEnvironment
+            if resolvedProcessEnvironment["ZOID_COACH_QA_RUN_ROOT"] == nil,
+               Bundle.main.object(forInfoDictionaryKey: "ZoidCoachPackageMode") as? String == "qa",
+               let packagedRunRoot = Bundle.main.object(
+                   forInfoDictionaryKey: "ZoidCoachQARunRoot"
+               ) as? String {
+                resolvedProcessEnvironment["ZOID_COACH_QA_RUN_ROOT"] = packagedRunRoot
+            }
             return try resolve(
                 arguments: arguments,
-                processEnvironment: processEnvironment,
+                processEnvironment: resolvedProcessEnvironment,
                 directories: directories
             ).environment
         } catch {

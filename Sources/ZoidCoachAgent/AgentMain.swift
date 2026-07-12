@@ -6,6 +6,7 @@ import ZoidCoachInfrastructure
 @main
 struct ZoidCoachAgentMain {
     static func main() async {
+        var activeRuntimeEnvironment: RuntimeEnvironment?
         let databaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker()
         let captureHealthStore = AgentCaptureHealthStore(initial: AgentCaptureHealthSnapshot(
             isEnabled: false,
@@ -19,6 +20,7 @@ struct ZoidCoachAgentMain {
             let runtimeResolution = try RuntimeEnvironment.resolve(
                 arguments: Array(CommandLine.arguments.dropFirst())
             )
+            activeRuntimeEnvironment = runtimeResolution.environment
             let configuration = try AgentConfiguration(
                 runtimeEnvironment: runtimeResolution.environment,
                 arguments: runtimeResolution.remainingArguments
@@ -54,7 +56,9 @@ struct ZoidCoachAgentMain {
                 return
             }
             if configuration.watch {
-                ParentAppLauncher.launchForBackgroundScheduling()
+                ParentAppLauncher.launchForBackgroundScheduling(
+                    runtimeEnvironment: runtimeResolution.environment
+                )
             }
             let progressMonitor = AgentProgressMonitor()
             let watchdog = configuration.watch ? Self.startWatchdog(progressMonitor: progressMonitor) : nil
@@ -117,7 +121,10 @@ struct ZoidCoachAgentMain {
                 databaseURL: configuration.databaseURL,
                 screenwatchDirectory: configuration.activeCaptureDirectory(using: captureConfigurationStore)
             )
-            let notificationCoordinator = PromptNotificationCoordinator(promptStore: promptStore) { result in
+            let notificationCoordinator = PromptNotificationCoordinator(
+                promptStore: promptStore,
+                runtimeEnvironment: runtimeResolution.environment
+            ) { result in
                 _ = try? promptEffectRouter.apply(result)
             }
             notificationCoordinator.activate()
@@ -136,7 +143,9 @@ struct ZoidCoachAgentMain {
                 outbox: actionOutbox,
                 tasks: taskSource,
                 calendar: calendarSource,
-                notifications: UserNotificationActionSource(),
+                notifications: UserNotificationActionSource(
+                    runtimeEnvironment: runtimeResolution.environment
+                ),
                 writeCircuitBreaker: databaseWriteCircuitBreaker
             )
             let planScheduler = AgentPlanScheduler(
@@ -314,7 +323,8 @@ struct ZoidCoachAgentMain {
                 mutationRouter: mutationRouter,
                 voiceController: voiceController,
                 writeCircuitBreaker: databaseWriteCircuitBreaker,
-                captureHealthStore: captureHealthStore
+                captureHealthStore: captureHealthStore,
+                runtimeEnvironment: runtimeResolution.environment
             )
             xpcService.resume()
             let previousHeartbeat = try checkpointStore.checkpoint(sourceID: "agent-runtime")?.lastSuccessAt
@@ -618,9 +628,14 @@ struct ZoidCoachAgentMain {
         } catch {
             databaseWriteCircuitBreaker.trip(reason: error.localizedDescription)
             fputs("Zoid Coach agent entered read-only mode: \(error.localizedDescription)\n", stderr)
+            guard let activeRuntimeEnvironment else {
+                fputs("Zoid Coach agent cannot start XPC without a validated runtime identity\n", stderr)
+                Darwin.exit(EXIT_FAILURE)
+            }
             let degradedService = TodayDashboardXPCService(
                 writeCircuitBreaker: databaseWriteCircuitBreaker,
-                captureHealthStore: captureHealthStore
+                captureHealthStore: captureHealthStore,
+                runtimeEnvironment: activeRuntimeEnvironment
             )
             degradedService.resume()
             while !Task.isCancelled {

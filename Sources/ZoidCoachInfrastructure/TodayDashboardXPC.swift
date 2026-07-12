@@ -3,7 +3,17 @@ import Foundation
 import Security
 import ZoidCoachCore
 
-public let todayDashboardMachServiceName = "com.ziadnasreldin.ZoidCoach.agent"
+public let todayDashboardMachServiceName = RuntimeIdentity.production.machServiceName
+
+public struct TodayDashboardXPCConfiguration: Equatable, Sendable {
+    public let machServiceName: String
+    public let allowedSigningIdentifiers: Set<String>
+
+    public init(runtimeEnvironment: RuntimeEnvironment) {
+        machServiceName = runtimeEnvironment.identity.machServiceName
+        allowedSigningIdentifiers = runtimeEnvironment.identity.allowedXPCSigningIdentifiers
+    }
+}
 
 public protocol XPCConnectionAuthorizing: Sendable {
     func allows(_ connection: NSXPCConnection) -> Bool
@@ -15,13 +25,20 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
 
     public init(
         expectedUserID: uid_t = geteuid(),
-        allowedSigningIdentifiers: Set<String> = [
-            "com.ziadnasreldin.ZoidCoach",
-            "com.ziadnasreldin.ZoidCoach.agent",
-        ]
+        allowedSigningIdentifiers: Set<String> = RuntimeIdentity.production.allowedXPCSigningIdentifiers
     ) {
         self.expectedUserID = expectedUserID
         self.allowedSigningIdentifiers = allowedSigningIdentifiers
+    }
+
+    public init(runtimeEnvironment: RuntimeEnvironment, expectedUserID: uid_t = geteuid()) {
+        let configuration = TodayDashboardXPCConfiguration(
+            runtimeEnvironment: runtimeEnvironment
+        )
+        self.init(
+            expectedUserID: expectedUserID,
+            allowedSigningIdentifiers: configuration.allowedSigningIdentifiers
+        )
     }
 
     public func allows(_ connection: NSXPCConnection) -> Bool {
@@ -93,7 +110,21 @@ public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
     private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
     private let captureHealthStore: AgentCaptureHealthStore?
 
-    public init(agent: TodayDashboardAgent? = nil, promptStore: PromptInboxStore? = nil, promptEffectRouter: PromptResponseEffectRouter? = nil, mutationRouter: AgentMutationRouter? = nil, voiceController: VoiceAgentController? = nil, writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(), captureHealthStore: AgentCaptureHealthStore? = nil, machServiceName: String = todayDashboardMachServiceName, authorizer: any XPCConnectionAuthorizing = SameUserXPCConnectionAuthorizer()) {
+    public init(
+        agent: TodayDashboardAgent? = nil,
+        promptStore: PromptInboxStore? = nil,
+        promptEffectRouter: PromptResponseEffectRouter? = nil,
+        mutationRouter: AgentMutationRouter? = nil,
+        voiceController: VoiceAgentController? = nil,
+        writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(),
+        captureHealthStore: AgentCaptureHealthStore? = nil,
+        runtimeEnvironment: RuntimeEnvironment = .production(),
+        machServiceName: String? = nil,
+        authorizer: (any XPCConnectionAuthorizing)? = nil
+    ) {
+        let xpcConfiguration = TodayDashboardXPCConfiguration(
+            runtimeEnvironment: runtimeEnvironment
+        )
         self.agent = agent
         self.promptStore = promptStore
         self.promptEffectRouter = promptEffectRouter
@@ -101,8 +132,10 @@ public final class TodayDashboardXPCService: NSObject, NSXPCListenerDelegate {
         self.voiceController = voiceController
         self.writeCircuitBreaker = writeCircuitBreaker
         self.captureHealthStore = captureHealthStore
-        self.authorizer = authorizer
-        listener = NSXPCListener(machServiceName: machServiceName)
+        self.authorizer = authorizer ?? SameUserXPCConnectionAuthorizer(runtimeEnvironment: runtimeEnvironment)
+        listener = NSXPCListener(
+            machServiceName: machServiceName ?? xpcConfiguration.machServiceName
+        )
         super.init()
         listener.delegate = self
     }
@@ -348,11 +381,19 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         self.machServiceName = machServiceName
     }
 
+    public convenience init(runtimeEnvironment: RuntimeEnvironment) {
+        let configuration = TodayDashboardXPCConfiguration(
+            runtimeEnvironment: runtimeEnvironment
+        )
+        self.init(machServiceName: configuration.machServiceName)
+    }
+
     public static var disabled: TodayDashboardXPCClient {
         TodayDashboardXPCClient(machServiceName: nil)
     }
 
     public var isEnabled: Bool { machServiceName != nil }
+    public var configuredMachServiceName: String? { machServiceName }
 
     public func fetchTodaySnapshot() async throws -> TodaySnapshot {
         try await call { proxy, reply in proxy.fetchTodaySnapshot(withReply: reply) }
