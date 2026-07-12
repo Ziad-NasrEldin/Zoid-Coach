@@ -163,6 +163,25 @@ class ScenarioEvidenceTests(unittest.TestCase):
                 else:
                     os.environ[key] = value
 
+    def test_evidence_refuses_structurally_valid_registry_with_tracker_drift(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            drifted_registry = root / "scenario-registry.json"
+            payload = json.loads(REGISTRY.read_text())
+            payload["scenarios"][0]["required_proof_classes"] = ["unit_rule"]
+            drifted_registry.write_text(json.dumps(payload, indent=2) + "\n")
+
+            with self.assertRaisesRegex(MODULE.EvidenceError, "authoritative semantic validation"):
+                MODULE.create_manifest(
+                    run_dir=root / "slice" / self.commit,
+                    scenario_ids=["ZC-001-001"],
+                    build_identity=f"zoid-coach-{self.commit}-clean",
+                    fixture="first-run",
+                    qa_root=root / "qa-root",
+                    commit=self.commit,
+                    registry_path=drifted_registry,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

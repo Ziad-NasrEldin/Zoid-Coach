@@ -31,3 +31,4 @@ python3 Scripts/scenario_evidence.py validate \
 
 Registry drift, missing scenarios, malformed run identity, escaping artifact paths, missing artifacts, and checksum mismatches fail validation.
 A build identity is accepted only when it contains the full existing verified commit and the `clean` state.
+Evidence creation and validation always run the authoritative tracker-aware registry validator before trusting proof requirements.

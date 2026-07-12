@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -17,6 +18,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTRY = ROOT / "docs" / "scenario-registry.json"
+DEFAULT_TRACKER = ROOT / "docs" / "zoid-coach-product-scenario-tracker.md"
+SCENARIO_REGISTRY_SCRIPT = ROOT / "Scripts" / "scenario_registry.py"
 SCENARIO_ID = re.compile(r"^ZC-\d{3}-\d{3}$")
 COMMIT_ID = re.compile(r"^[0-9a-f]{7,40}$")
 RUN_STATUSES = {"in_progress", "passed", "failed", "blocked"}
@@ -66,8 +69,25 @@ def expected_build_identity(commit: str) -> str:
 
 def load_registry(path: Path) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     payload = json.loads(path.read_text())
+    errors = authoritative_registry_errors(payload)
+    if errors:
+        raise EvidenceError(
+            "registry failed authoritative semantic validation: " + "; ".join(errors)
+        )
     scenarios = payload.get("scenarios", [])
     return payload, {item["id"]: item for item in scenarios}
+
+
+def authoritative_registry_errors(payload: dict[str, Any]) -> list[str]:
+    spec = importlib.util.spec_from_file_location(
+        "zoid_scenario_registry_validator",
+        SCENARIO_REGISTRY_SCRIPT,
+    )
+    if spec is None or spec.loader is None:
+        return ["authoritative registry validator could not be loaded"]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.validate_registry(payload, DEFAULT_TRACKER, ROOT)
 
 
 def safe_relative_path(value: str, label: str) -> Path:
