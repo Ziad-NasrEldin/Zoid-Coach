@@ -54,6 +54,7 @@ func cancellingCodexJobPersistsCancelledState() async throws {
 private actor ControlledCodexLauncher: CodexJobLaunching {
     private var continuation: CheckedContinuation<String, Error>?
     private var pendingResult: Result<String, Error>?
+    private var cancellationRequested = false
 
     func run(job: CodexJob) async throws -> String {
         if let pendingResult {
@@ -62,7 +63,11 @@ private actor ControlledCodexLauncher: CodexJobLaunching {
         }
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                self.continuation = continuation
+                if cancellationRequested || Task.isCancelled {
+                    continuation.resume(throwing: CancellationError())
+                } else {
+                    self.continuation = continuation
+                }
             }
         } onCancel: {
             Task { await self.cancelContinuation() }
@@ -79,6 +84,7 @@ private actor ControlledCodexLauncher: CodexJobLaunching {
     }
 
     private func cancelContinuation() {
+        cancellationRequested = true
         guard let continuation else { return }
         self.continuation = nil
         continuation.resume(throwing: CancellationError())
