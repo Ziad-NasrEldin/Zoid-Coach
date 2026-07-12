@@ -9,7 +9,7 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | Field | Value |
 | --- | --- |
 | Integration branch | `codex/full-system` |
-| Current integration baseline | `b5596a04a2f7` before the verifier-driven tracker update |
+| Current integration baseline | `0091652ff15c` after the verifier-driven tracker alignment |
 | Program | `docs/ZOID-COACH-666-IMPLEMENTATION-PROGRAM.md` |
 | Acceptance tracker | `docs/zoid-coach-product-scenario-tracker.md` |
 | Phase | Phase 0: acceptance foundation |
@@ -18,17 +18,21 @@ Builders and verifiers must read it before editing, but must not modify it unles
 
 | Lane | Branch | Worktree | Scope | Status |
 | --- | --- | --- | --- | --- |
-| Runtime environment | `codex/zc-runtime-environment` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/runtime-environment` | Isolated runtime paths, configuration, safety guard, and focused tests | Integrated from `e9aecdb` |
-| Scenario registry | `codex/zc-scenario-registry` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/scenario-registry` | Stable IDs, machine-readable registry, evidence schema, drift validation, and tests | Integrated from `6291c30` |
-| Baseline verifier | `codex/zc-baseline-verifier` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/baseline-verifier` | Independent evidence for the 21 initially checked scenarios | Integrated from `521dc62`; 6 retained and 15 downgraded pending isolated UI proof |
+| Runtime consumers | `codex/zc-runtime-consumers` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/runtime-consumers` | Wire UserDefaults, Keychain, export, and capture consumers through the isolated runtime | In progress from `0091652` |
+| Deterministic fixtures | `codex/zc-deterministic-fixtures` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/deterministic-fixtures` | Deterministic clock, identifiers, fixture workspace, containment tests, and consumer inventory | In progress from `0091652` |
+| Phase 0 verifier | `codex/zc-phase0-verifier` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/phase0-verifier` | Adversarial independent verification of runtime isolation and the scenario registry | In progress from `0091652` |
 
 ## Exclusive file locks
 
 | Path | Owner | Intended change | Baseline | Expires |
 | --- | --- | --- | --- | --- |
 | `Sources/ZoidCoachApp/AppModel.swift` | Root integrator | Runtime environment slice integrated; future composition remains serialized | `e9aecdb` | Permanent unless temporarily granted |
-| `Sources/ZoidCoachAgent/AgentMain.swift` | Root integrator | Runtime environment slice integrated; future composition remains serialized | `e9aecdb` | Permanent unless temporarily granted |
+| `Sources/ZoidCoachAgent/AgentMain.swift` | Runtime consumers | Native-capture path derivation only; temporary narrow grant from root | `0091652` | Current Phase 0 wave |
+| `Sources/ZoidCoachApp/Voice/VoiceConversationModel.swift` | Runtime consumers | Runtime-scoped preferences and keychain construction only | `0091652` | Current Phase 0 wave |
 | `Sources/ZoidCoachCore/ZoidCoachStorage.swift` | Root integrator | Runtime storage helper integrated | `e9aecdb` | Permanent unless temporarily granted |
+| Runtime preference, keychain, export, and capture consumers outside root-owned hotspots | Runtime consumers | Complete isolated runtime consumer wiring and focused tests | `0091652` | Current Phase 0 wave |
+| New deterministic fixture and test-control files | Deterministic fixtures | Add production-safe deterministic foundations without broad consumer wiring | `0091652` | Current Phase 0 wave |
+| `.audit/runs/phase0-foundation/0091652/` | Phase 0 verifier | Independent commands, evidence, and findings only | `0091652` | Current Phase 0 wave |
 | `docs/zoid-coach-product-scenario-tracker.md` | Root integrator | Authoritative status and later stable-ID composition | `a068d27` | Permanent |
 | `Package.swift` | Root integrator | Integration and future UI-test composition | `a068d27` | Permanent unless temporarily granted |
 | Migration registration and schema versions | Root integrator | Serialized append-only migrations | `a068d27` | Permanent unless temporarily granted |
