@@ -63,11 +63,14 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
         guard case let .pending(commandIDs) = writeState else { return }
         let relevant = audit.filter { commandIDs.contains($0.id) }
         guard relevant.count == commandIDs.count else { return }
-        let failed = relevant.filter { $0.state == ActionCommandState.terminalFailure.rawValue }
+        let failed = relevant.filter {
+            $0.state == ActionCommandState.terminalFailure.rawValue
+                || $0.state == ActionCommandState.cancelled.rawValue
+        }
         if !failed.isEmpty {
             writeState = .failed(commandIDs: Set(failed.map(\.id)))
-        } else if relevant.allSatisfy({ $0.state == ActionCommandState.succeeded.rawValue || $0.state == ActionCommandState.cancelled.rawValue }) {
-            writeState = .applied(commandCount: relevant.filter { $0.state == ActionCommandState.succeeded.rawValue }.count)
+        } else if relevant.allSatisfy({ $0.state == ActionCommandState.succeeded.rawValue }) {
+            writeState = .applied(commandCount: relevant.count)
         }
     }
 
