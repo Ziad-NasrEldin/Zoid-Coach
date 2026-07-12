@@ -46,6 +46,20 @@ func canonicalScreenwatchLegacyMigrationKeepsLegacyValueWhenStoreParentIsUnsafe(
 }
 
 @Test
+func canonicalScreenwatchLegacyMigrationFinishesCleanupAfterPostRenameCrash() throws {
+    let fixture = try CanonicalScreenwatchFixture(name: "legacy-post-rename")
+    defer { fixture.remove() }
+    let alternate = try fixture.makeDaysDirectory(named: "Alternate")
+    let repository = fixture.repository()
+    try repository.saveAlternate(alternate)
+    fixture.defaults.set(Data(alternate.path.utf8), forKey: ScreenwatchSourceRepository.legacyBookmarkDefaultsKey)
+
+    _ = try repository.resolveCanonicalSource()
+
+    #expect(fixture.defaults.data(forKey: ScreenwatchSourceRepository.legacyBookmarkDefaultsKey) == nil)
+}
+
+@Test
 func canonicalScreenwatchLeaseRetainsSecurityScopeUntilRelease() throws {
     let fixture = try CanonicalScreenwatchFixture(name: "scope-lifetime")
     defer { fixture.remove() }

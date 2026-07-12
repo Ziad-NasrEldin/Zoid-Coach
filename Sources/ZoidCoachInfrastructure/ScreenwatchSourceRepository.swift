@@ -479,7 +479,8 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
 
     public func clearAlternate() throws {
         try lock.withLock {
-            if let directory = try? storeDirectoryDescriptor(createMissing: false) {
+            do {
+                let directory = try storeDirectoryDescriptor(createMissing: false)
                 defer { Darwin.close(directory) }
                 if unlinkat(directory, Self.storeFileName, 0) != 0, errno != ENOENT {
                     throw ScreenwatchSourceResolutionError.ioFailure
@@ -487,6 +488,8 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
                 guard fsync(directory) == 0 else {
                     throw ScreenwatchSourceResolutionError.ioFailure
                 }
+            } catch ScreenwatchSourceResolutionError.missingDirectory {
+                // No canonical store exists yet, so only the legacy value needs removal.
             }
             for defaults in legacyDefaults {
                 defaults.removeObject(forKey: Self.legacyBookmarkDefaultsKey)
@@ -566,7 +569,12 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
     }
 
     private func loadOrMigrateBookmark() throws -> Data? {
-        if let data = try readBookmarkFile() { return data }
+        if let data = try readBookmarkFile() {
+            for defaults in legacyDefaults {
+                defaults.removeObject(forKey: Self.legacyBookmarkDefaultsKey)
+            }
+            return data
+        }
         for defaults in legacyDefaults {
             guard let data = defaults.data(forKey: Self.legacyBookmarkDefaultsKey) else { continue }
             try writeAtomically(data)
