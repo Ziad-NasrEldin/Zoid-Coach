@@ -958,8 +958,11 @@ final class DescriptorRelativeStateDirectory: @unchecked Sendable {
         }
         var descriptorChain = [root]
         do {
-            let components = url.standardizedFileURL.path
-                .split(separator: "/").map(String.init)
+            let path = platformCanonicalRootPath(url.path)
+            let components = path.split(separator: "/").map(String.init)
+            guard components.allSatisfy({ $0 != "." && $0 != ".." }) else {
+                throw QAFixtureStateError.unsafeFilesystemEntry(path)
+            }
             for (index, component) in components.enumerated() {
                 var next = openat(
                     descriptorChain.last!, component,
@@ -992,6 +995,15 @@ final class DescriptorRelativeStateDirectory: @unchecked Sendable {
             descriptorChain.forEach { Darwin.close($0) }
             throw error
         }
+    }
+
+    private static func platformCanonicalRootPath(_ path: String) -> String {
+        #if os(macOS)
+        if path == "/tmp" || path.hasPrefix("/tmp/") {
+            return "/private/tmp\(path.dropFirst("/tmp".count))"
+        }
+        #endif
+        return path
     }
 
     func exists(_ name: String) throws -> Bool {

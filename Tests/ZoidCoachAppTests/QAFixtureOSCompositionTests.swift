@@ -786,6 +786,73 @@ func signedQABoundaryAllowsOnlyFixtureBackedOperations() throws {
 }
 
 @Test
+func signedQACompositionAcceptsOnlyThePlatformTmpAlias() throws {
+    let token = "zoid-signed-tmp-\(UUID().uuidString)"
+    let aliasRoot = URL(fileURLWithPath: "/tmp/\(token)/run", isDirectory: true)
+    let canonicalContainer = URL(
+        fileURLWithPath: "/private/tmp/\(token)",
+        isDirectory: true
+    )
+    let canonicalRoot = canonicalContainer.appendingPathComponent("run", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: canonicalContainer) }
+    let environment = try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: aliasRoot,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+    try FileManager.default.createDirectory(
+        at: canonicalContainer,
+        withIntermediateDirectories: true
+    )
+    let composition = try QAFixtureOSComposition.makeAuthorizedComposition(
+        runtimeEnvironment: environment,
+        clock: .fixed(Date(timeIntervalSince1970: 1_735_732_800))
+    )
+
+    #expect(environment.mode == .qa(runRoot: canonicalRoot))
+    #expect(composition.adapter.stateFileURL.path.hasPrefix(canonicalRoot.path + "/"))
+    #expect(FileManager.default.fileExists(atPath: composition.adapter.stateFileURL.path))
+}
+
+@Test
+func signedQACompositionStillRejectsArbitraryTmpRootSymlink() throws {
+    let token = "zoid-signed-tmp-symlink-\(UUID().uuidString)"
+    let aliasRoot = URL(fileURLWithPath: "/tmp/\(token)/run", isDirectory: true)
+    let canonicalContainer = URL(
+        fileURLWithPath: "/private/tmp/\(token)",
+        isDirectory: true
+    )
+    let canonicalRoot = canonicalContainer.appendingPathComponent("run", isDirectory: true)
+    let outside = canonicalContainer.appendingPathComponent("outside", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: canonicalContainer) }
+    let environment = try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: aliasRoot,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+    #expect(environment.mode == .qa(runRoot: canonicalRoot))
+    try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+    try FileManager.default.createSymbolicLink(at: canonicalRoot, withDestinationURL: outside)
+
+    #expect(throws: QAFixtureStateError.unsafeFilesystemEntry("run")) {
+        try QAFixtureOSComposition.makeAuthorizedComposition(
+            runtimeEnvironment: environment,
+            clock: .fixed(Date(timeIntervalSince1970: 1_735_732_800))
+        )
+    }
+}
+
+@Test
 func signedQACompositionCreatesOnlyItsMissingFinalRunRoot() throws {
     let parent = try testRoot("missing-root-parent")
     defer { try? FileManager.default.removeItem(at: parent) }
