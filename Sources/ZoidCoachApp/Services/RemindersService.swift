@@ -23,7 +23,16 @@ enum ReminderTaskLoad: Sendable {
 }
 
 @MainActor
-final class RemindersService {
+protocol RemindersServicing: AnyObject {
+    var isProductionAdapter: Bool { get }
+    func inspect() async -> SourceHealth
+    func requestAccessAndInspect() async -> SourceHealth
+    func fetchIncompleteTasks() async -> ReminderTaskLoad
+}
+
+@MainActor
+final class RemindersService: RemindersServicing {
+    let isProductionAdapter = true
     private let store: EKEventStore
 
     init(store: EKEventStore = EKEventStore()) {
@@ -193,5 +202,25 @@ final class RemindersService {
                 continuation.resume(returning: reminders?.count ?? 0)
             }
         }
+    }
+}
+
+@MainActor
+final class DisabledQARemindersService: RemindersServicing {
+    let isProductionAdapter = false
+    func inspect() async -> SourceHealth { health }
+    func requestAccessAndInspect() async -> SourceHealth { health }
+    func fetchIncompleteTasks() async -> ReminderTaskLoad { .unavailable }
+
+    private var health: SourceHealth {
+        SourceHealth(
+            id: .reminders,
+            title: "Apple Reminders",
+            eyebrow: "Intent",
+            state: .unavailable,
+            detail: "QA Reminders integration is disabled",
+            evidence: "A deterministic QA Reminders adapter is required before EventKit access is enabled",
+            actionTitle: "Unavailable"
+        )
     }
 }

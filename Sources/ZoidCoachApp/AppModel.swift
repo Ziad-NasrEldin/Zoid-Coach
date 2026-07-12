@@ -4,6 +4,19 @@ import ZoidCoachCore
 import ZoidCoachInfrastructure
 
 @MainActor
+struct AppOSServiceFactory {
+    let reminders: () -> any RemindersServicing
+    let calendar: () -> any CalendarServicing
+    let notifications: () -> any NotificationServicing
+
+    static let live = Self(
+        reminders: { RemindersService() },
+        calendar: { CalendarService() },
+        notifications: { NotificationService() }
+    )
+}
+
+@MainActor
 final class AppModel: ObservableObject {
     @Published var selectedSection: AppSection = .today
     @Published var coachingState: CoachingState = .observation
@@ -32,9 +45,9 @@ final class AppModel: ObservableObject {
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
-    private let remindersService: RemindersService
-    private let calendarService: CalendarService
-    private let notificationService: NotificationService
+    private let remindersService: any RemindersServicing
+    private let calendarService: any CalendarServicing
+    private let notificationService: any NotificationServicing
     private let agentLaunchService: AgentLaunchService
     private let eventStore: EventStore
     private let meetingArchive: ScreenwatchArchive?
@@ -46,9 +59,10 @@ final class AppModel: ObservableObject {
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
         screenwatchReader: ScreenwatchReader? = nil,
-        remindersService: RemindersService = RemindersService(),
-        calendarService: CalendarService = CalendarService(),
-        notificationService: NotificationService = NotificationService(),
+        remindersService: (any RemindersServicing)? = nil,
+        calendarService: (any CalendarServicing)? = nil,
+        notificationService: (any NotificationServicing)? = nil,
+        liveServiceFactory: AppOSServiceFactory = .live,
         agentLaunchService: AgentLaunchService? = nil,
         eventStore: EventStore? = nil
     ) {
@@ -60,9 +74,18 @@ final class AppModel: ObservableObject {
             todayDashboardXPCClient = TodayDashboardXPCClient()
         }
         self.screenwatchReader = screenwatchReader ?? ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory)
-        self.remindersService = remindersService
-        self.calendarService = calendarService
-        self.notificationService = notificationService
+        if case .qa = runtimeEnvironment.mode {
+            self.remindersService = remindersService.flatMap { $0.isProductionAdapter ? nil : $0 }
+                ?? DisabledQARemindersService()
+            self.calendarService = calendarService.flatMap { $0.isProductionAdapter ? nil : $0 }
+                ?? DisabledQACalendarService()
+            self.notificationService = notificationService.flatMap { $0.isProductionAdapter ? nil : $0 }
+                ?? DisabledQANotificationService()
+        } else {
+            self.remindersService = remindersService ?? liveServiceFactory.reminders()
+            self.calendarService = calendarService ?? liveServiceFactory.calendar()
+            self.notificationService = notificationService ?? liveServiceFactory.notifications()
+        }
         self.agentLaunchService = resolvedAgentLaunchService
         self.eventStore = eventStore ?? EventStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         meetingArchive = try? ScreenwatchArchive(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
@@ -75,7 +98,7 @@ final class AppModel: ObservableObject {
             await reloadDailyPlan()
             await reloadReminderListOrder()
             reloadMeetingCandidates()
-            updateSource(await notificationService.inspect())
+            updateSource(await self.notificationService.inspect())
             await refreshTodaySnapshot()
             await refreshPromptInbox()
             await refreshActionAudit()

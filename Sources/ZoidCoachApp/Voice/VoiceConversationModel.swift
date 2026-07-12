@@ -5,6 +5,54 @@ import ZoidCoachCore
 import ZoidCoachInfrastructure
 
 @MainActor
+protocol VoiceHotKeyControlling: AnyObject {
+    func register(preset: VoiceHotKeyPreset, action: @escaping () -> Void) throws
+    func unregister()
+}
+
+@MainActor
+protocol VoiceWakeWordControlling: AnyObject {
+    var availabilityMessage: String { get }
+    func start(onWake: @escaping () -> Void) async
+    func stop()
+}
+
+@MainActor
+protocol VoiceAudioControlling: AnyObject {
+    func requestMicrophoneAccess() async -> Bool
+    func start(onAudio: @escaping @Sendable (Data) -> Void) throws
+    func play(pcm24: Data)
+    func stopPlayback()
+    func stop()
+}
+
+extension GlobalVoiceHotKey: VoiceHotKeyControlling {}
+extension LocalWakeWordDetector: VoiceWakeWordControlling {}
+extension VoiceAudioEngine: VoiceAudioControlling {}
+
+@MainActor
+private final class DisabledVoiceHotKeyController: VoiceHotKeyControlling {
+    func register(preset: VoiceHotKeyPreset, action: @escaping () -> Void) throws {}
+    func unregister() {}
+}
+
+@MainActor
+private final class DisabledVoiceWakeWordController: VoiceWakeWordControlling {
+    let availabilityMessage = "Wake word is disabled in QA"
+    func start(onWake: @escaping () -> Void) async {}
+    func stop() {}
+}
+
+@MainActor
+private final class DisabledVoiceAudioController: VoiceAudioControlling {
+    func requestMicrophoneAccess() async -> Bool { false }
+    func start(onAudio: @escaping @Sendable (Data) -> Void) throws {}
+    func play(pcm24: Data) {}
+    func stopPlayback() {}
+    func stop() {}
+}
+
+@MainActor
 final class VoiceConversationModel: ObservableObject {
     @Published private(set) var state: VoiceSessionState = .idle
     @Published private(set) var transcript: [ConversationTurn] = []
@@ -28,13 +76,13 @@ final class VoiceConversationModel: ObservableObject {
         }
     }
 
-    let wakeWord = LocalWakeWordDetector()
+    let wakeWord: any VoiceWakeWordControlling
 
     private let xpc: TodayDashboardXPCClient
     private let userDefaults: UserDefaults
     private let keyStore: GeminiAPIKeyStore
-    private let audio = VoiceAudioEngine()
-    private let hotKey = GlobalVoiceHotKey()
+    private let audio: any VoiceAudioControlling
+    private let hotKey: any VoiceHotKeyControlling
     private let localFallback = LocalCommandFallback()
     private let proactive = ProactiveVoiceCoordinator()
     private var transport: (any GeminiLiveTransport)?
@@ -56,13 +104,27 @@ final class VoiceConversationModel: ObservableObject {
     private var transportGeneration = UUID()
     private var audioStarted = false
     private var alwaysAvailableStarted = false
+    private let isIsolatedQA: Bool
     var isDashboardConnectionEnabled: Bool { xpc.isEnabled }
 
-    init(runtimeEnvironment: RuntimeEnvironment = .current()) {
+    init(
+        runtimeEnvironment: RuntimeEnvironment = .current(),
+        hotKey: (any VoiceHotKeyControlling)? = nil,
+        wakeWord: (any VoiceWakeWordControlling)? = nil,
+        audio: (any VoiceAudioControlling)? = nil
+    ) {
         if case .qa = runtimeEnvironment.mode {
+            isIsolatedQA = true
             xpc = .disabled
+            self.hotKey = hotKey ?? DisabledVoiceHotKeyController()
+            self.wakeWord = wakeWord ?? DisabledVoiceWakeWordController()
+            self.audio = audio ?? DisabledVoiceAudioController()
         } else {
+            isIsolatedQA = false
             xpc = TodayDashboardXPCClient()
+            self.hotKey = hotKey ?? GlobalVoiceHotKey()
+            self.wakeWord = wakeWord ?? LocalWakeWordDetector()
+            self.audio = audio ?? VoiceAudioEngine()
         }
         userDefaults = runtimeEnvironment.makeUserDefaults()
         keyStore = GeminiAPIKeyStore(runtimeEnvironment: runtimeEnvironment)
@@ -74,6 +136,10 @@ final class VoiceConversationModel: ObservableObject {
 
     func startAlwaysAvailable() {
         guard !alwaysAvailableStarted else { return }
+        guard !isIsolatedQA else {
+            statusMessage = "QA voice controls are disabled until isolated audio adapters are configured"
+            return
+        }
         alwaysAvailableStarted = true
         registerHotKey()
         if wakeWordEnabled { startWakeWord() }
@@ -104,6 +170,10 @@ final class VoiceConversationModel: ObservableObject {
     }
 
     func toggleSession(source: VoiceActivationSource = .menuBar) {
+        guard !isIsolatedQA else {
+            statusMessage = "QA voice controls are disabled until isolated audio adapters are configured"
+            return
+        }
         if state == .idle || state == .disconnected || state == .localFallback {
             Task { await startSession(source: source) }
         } else {
@@ -542,6 +612,7 @@ final class VoiceConversationModel: ObservableObject {
     }
 
     private func startWakeWord() {
+        guard !isIsolatedQA else { return }
         guard wakeWordEnabled, state == .idle || state == .disconnected else { return }
         // Do not ask TCC for microphone access during SwiftUI startup. On macOS,
         // that request can be suppressed before the app has an active window.
@@ -553,6 +624,7 @@ final class VoiceConversationModel: ObservableObject {
     }
 
     private func registerHotKey() {
+        guard !isIsolatedQA else { return }
         do {
             try hotKey.register(preset: hotKeyPreset) { [weak self] in
                 self?.toggleSession(source: .globalHotkey)

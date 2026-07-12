@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import ZoidCoachCore
 import ZoidCoachInfrastructure
@@ -21,6 +22,13 @@ struct ZoidCoachAgentMain {
             let configuration = try AgentConfiguration(
                 runtimeEnvironment: runtimeResolution.environment,
                 arguments: runtimeResolution.remainingArguments
+            )
+            try AgentOSAdapterBoundary.validate(
+                runtimeEnvironment: runtimeResolution.environment,
+                operations: AgentOSAdapterBoundary.operations(
+                    requestRemindersAccess: configuration.requestRemindersAccess,
+                    printRemindersStatus: configuration.printRemindersStatus
+                )
             )
             let captureConfigurationStore = NativeCaptureConfigurationStore(
                 fileURL: runtimeResolution.environment.nativeCaptureConfigurationURL
@@ -604,6 +612,9 @@ struct ZoidCoachAgentMain {
                 print("Zoid Coach agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
                 _ = try? todayDashboardAgent.snapshot(now: Date())
             }
+        } catch let error as AgentOSAdapterBoundaryError {
+            fputs("Zoid Coach agent refused QA OS access: \(error.localizedDescription)\n", stderr)
+            Darwin.exit(EXIT_FAILURE)
         } catch {
             databaseWriteCircuitBreaker.trip(reason: error.localizedDescription)
             fputs("Zoid Coach agent entered read-only mode: \(error.localizedDescription)\n", stderr)

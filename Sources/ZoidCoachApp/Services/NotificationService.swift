@@ -3,7 +3,15 @@ import UserNotifications
 import ZoidCoachCore
 
 @MainActor
-final class NotificationService {
+protocol NotificationServicing: AnyObject {
+    var isProductionAdapter: Bool { get }
+    func inspect() async -> SourceHealth
+    func requestAccessAndInspect() async -> SourceHealth
+}
+
+@MainActor
+final class NotificationService: NotificationServicing {
+    let isProductionAdapter = true
     private let center: UNUserNotificationCenter?
 
     init(center: UNUserNotificationCenter? = nil) {
@@ -123,5 +131,24 @@ final class NotificationService {
         formatter.timeZone = .current
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
+    }
+}
+
+@MainActor
+final class DisabledQANotificationService: NotificationServicing {
+    let isProductionAdapter = false
+    func inspect() async -> SourceHealth { health }
+    func requestAccessAndInspect() async -> SourceHealth { health }
+
+    private var health: SourceHealth {
+        SourceHealth(
+            id: .notifications,
+            title: "macOS Notifications",
+            eyebrow: "Escalation",
+            state: .unavailable,
+            detail: "QA notifications are disabled",
+            evidence: "A dedicated QA notification adapter and namespace are required before notification access is enabled",
+            actionTitle: "Unavailable"
+        )
     }
 }
