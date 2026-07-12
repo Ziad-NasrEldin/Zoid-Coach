@@ -17,6 +17,7 @@ struct AgentLifecycleView: View {
         }
         .background(Sumi.paper)
         .navigationTitle("Background Agent")
+        .onAppear { controller.refresh() }
         .alert("Disable the background agent?", isPresented: $confirmsDisable) {
             Button("Cancel", role: .cancel) {}
             Button("Disable", role: .destructive) { controller.disable() }
