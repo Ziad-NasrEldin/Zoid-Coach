@@ -114,15 +114,7 @@ struct OnboardingDependencies {
             runtimeEnvironment: runtimeEnvironment,
             fixtureAdapter: fixtureAdapter
         )
-        let policyStore = try? PolicyStore(
-            databaseURL: runtimeEnvironment.databaseURL,
-            readOnly: true
-        )
         let xpcClient = TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment)
-        let firstDailyPlanService = try? OnboardingFirstDailyPlanService(
-            databaseURL: runtimeEnvironment.databaseURL,
-            remindersService: reminders
-        )
         return Self(
             inspectReminders: { await reminders.inspect() },
             requestReminders: {
@@ -155,10 +147,13 @@ struct OnboardingDependencies {
             loadInventory: { inventory.load() },
             testDelivery: { await delivery.run() },
             loadPolicy: {
-                guard let policyStore else {
-                    throw CocoaError(.fileNoSuchFile)
-                }
-                return try policyStore.current()
+                guard FileManager.default.fileExists(
+                    atPath: runtimeEnvironment.databaseURL.path
+                ) else { return nil }
+                return try PolicyStore(
+                    databaseURL: runtimeEnvironment.databaseURL,
+                    readOnly: true
+                ).current()
             },
             applyPolicyMutation: { request in
                 let agentReceipt = try await xpcClient.savePolicyMutation(request)
@@ -168,11 +163,17 @@ struct OnboardingDependencies {
                 return receipt
             },
             prepareFirstDailyPlan: {
-                guard let firstDailyPlanService else {
+                let firstDailyPlanService: OnboardingFirstDailyPlanService
+                do {
+                    firstDailyPlanService = try OnboardingFirstDailyPlanService(
+                        databaseURL: runtimeEnvironment.databaseURL,
+                        remindersService: reminders
+                    )
+                } catch {
                     return .init(
                         state: .failed,
                         items: [],
-                        message: "First-plan storage is unavailable. Setup was not advanced."
+                        message: "First-plan storage is unavailable. Setup was not advanced. \(error.localizedDescription)"
                     )
                 }
                 return await firstDailyPlanService.prepare()

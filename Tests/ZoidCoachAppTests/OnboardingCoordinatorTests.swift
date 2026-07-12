@@ -649,6 +649,56 @@ func realStorePersistsExactResumeStepAcrossCoordinatorRestart() async throws {
 
 @MainActor
 @Test
+func firstLaunchWithoutAPolicyDatabaseUsesDefaultsWithoutShowingAStorageError() throws {
+    let root = URL(fileURLWithPath: "/tmp/zoid-onboarding-empty-policy-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", root.path],
+        processEnvironment: [:]
+    ).environment
+    let dependencies = OnboardingDependencies.live(runtimeEnvironment: runtime)
+
+    #expect(try dependencies.loadPolicy() == nil)
+    let coordinator = OnboardingCoordinator(
+        store: OnboardingProgressStore(runtimeEnvironment: runtime),
+        dependencies: dependencies
+    )
+
+    #expect(coordinator.errorMessage == nil)
+    #expect(coordinator.progress.currentStep == .welcome)
+}
+
+@MainActor
+@Test
+func existingUnreadablePolicyDatabaseStillFailsOnboardingClosed() throws {
+    let root = URL(fileURLWithPath: "/tmp/zoid-onboarding-bad-policy-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", root.path],
+        processEnvironment: [:]
+    ).environment
+    try FileManager.default.createDirectory(
+        at: runtime.databaseURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    try Data("not a sqlite database".utf8).write(to: runtime.databaseURL)
+    let dependencies = OnboardingDependencies.live(runtimeEnvironment: runtime)
+
+    #expect(throws: (any Error).self) {
+        try dependencies.loadPolicy()
+    }
+    let coordinator = OnboardingCoordinator(
+        store: OnboardingProgressStore(runtimeEnvironment: runtime),
+        dependencies: dependencies
+    )
+
+    #expect(coordinator.errorMessage?.contains("Existing settings could not be loaded") == true)
+}
+
+@MainActor
+@Test
 func gamingBoundaryMustPersistBeforeTheStepCompletes() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.gamingPolicy))
     let policyRecorder = PolicyRecorder()
