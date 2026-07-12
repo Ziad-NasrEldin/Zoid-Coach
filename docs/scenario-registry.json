@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "0ff0861b4b24ccfa606d6f8ca7d1807fe467338bc50ea8584d3cd8c0bbc697d9",
+  "tracker_sha256": "a440c3f1e05ac6fb795a276ce3da6ec5374f17efd09a587ba3194167daa471d0",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -408,7 +408,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The visible signed-QA run created and opened a local starter plan when no eligible external task existed, and relaunch retained the same local task after the route-refresh and reconciliation fixes. The exact real-macOS-denied variant remains unperformed (`OnboardingFirstDailyPlanService.swift`; `AppModel.swift`; `OnboardingFirstDailyPlanServiceTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
+      "audit_note": "In an installed signed-QA app with Reminders unavailable, the Today inventory exposed New Local Task, kept Create disabled until a title was entered, created the task through the authenticated agent boundary, and immediately displayed it as today's main objective and in focus-capacity calculations. The signed lifecycle probe also covered exact-payload replay, two agent restarts, start, completion, durable history, and zero Apple Reminders outbox mutation, but this run did not produce the immutable scenario-bound evidence manifest required for a strict completion claim (`Sources/ZoidCoachApp/Views/LocalTaskCreationView.swift`; `Sources/ZoidCoachInfrastructure/AgentMutationRouter.swift`; `Scripts/verify-qa-manual-local-task-xpc.sh`; `.audit/runs/manual-local-task/eb0866b/REPORT.md`).",
       "tracker_line": 74
     },
     {
@@ -11558,8 +11558,8 @@
       "item_index": 1,
       "wording": "Continue manual planning after Reminders access is denied or revoked.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11570,7 +11570,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The Today surface depends on imported Reminders and offers no user-created local task flow; the empty state only directs the user to connect Reminders.",
+      "audit_note": "The installed signed-QA no-access journey visibly created a Mac-local task while the Reminders source reported Not Connected, added it to Today, refreshed the in-memory and durable plan immediately, and left Apple Reminders untouched. Focused tests cover list-policy immunity, idempotent retry, restart persistence, local start/completion/history, and no external completion command, but a strict macOS denied-or-revoked acceptance run with an immutable scenario manifest remains (`Sources/ZoidCoachApp/Views/DashboardView.swift`; `Sources/ZoidCoachInfrastructure/ReminderSnapshotStore.swift`; `Tests/ZoidCoachAppTests/LocalTaskCreationControllerTests.swift`; `Tests/ZoidCoachAppTests/TodayDashboardAgentTests.swift`; `.audit/runs/manual-local-task/eb0866b/REPORT.md`).",
       "tracker_line": 726
     },
     {
