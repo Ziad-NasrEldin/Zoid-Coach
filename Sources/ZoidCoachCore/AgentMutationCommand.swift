@@ -13,14 +13,30 @@ public struct AgentPlanItem: Equatable, Codable, Sendable {
     public let estimateMinutes: Int?
     public let selectionReason: String?
     public let selectionScore: Int?
+    public let isOptional: Bool?
+    public let blockedReason: String?
+    public let deferredUntil: Date?
 
-    public init(reminderID: String, rank: Int, isMainObjective: Bool, estimateMinutes: Int?, selectionReason: String?, selectionScore: Int?) {
+    public init(
+        reminderID: String,
+        rank: Int,
+        isMainObjective: Bool,
+        estimateMinutes: Int?,
+        selectionReason: String?,
+        selectionScore: Int?,
+        isOptional: Bool = false,
+        blockedReason: String? = nil,
+        deferredUntil: Date? = nil
+    ) {
         self.reminderID = reminderID
         self.rank = rank
         self.isMainObjective = isMainObjective
         self.estimateMinutes = estimateMinutes
         self.selectionReason = selectionReason
         self.selectionScore = selectionScore
+        self.isOptional = isOptional
+        self.blockedReason = blockedReason
+        self.deferredUntil = deferredUntil
     }
 }
 

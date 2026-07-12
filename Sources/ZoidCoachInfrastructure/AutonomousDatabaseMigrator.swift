@@ -927,6 +927,15 @@ private extension AutonomousDatabaseMigrator {
             CREATE INDEX IF NOT EXISTS task_history_day_state
             ON task_history(state, occurred_at DESC, id DESC);
             """)
+        ]),
+        Migration(version: 35, isDestructive: false, operations: [
+            .addColumn(
+                table: "daily_plan_entries",
+                column: "is_optional",
+                declaration: "INTEGER NOT NULL DEFAULT 0 CHECK(is_optional IN (0, 1))"
+            ),
+            .addColumn(table: "daily_plan_entries", column: "blocked_reason", declaration: "TEXT"),
+            .addColumn(table: "daily_plan_entries", column: "deferred_until_utc", declaration: "TEXT")
         ])
     ]
 }

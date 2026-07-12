@@ -9,14 +9,30 @@ public struct StoredAutonomousPlanEntry: Equatable, Codable, Sendable {
     public let estimateMinutes: Int
     public let selectionReason: String?
     public let selectionScore: Int?
+    public let isOptional: Bool?
+    public let blockedReason: String?
+    public let deferredUntil: Date?
 
-    public init(reminderID: String, rank: Int, isMainObjective: Bool, estimateMinutes: Int, selectionReason: String? = nil, selectionScore: Int? = nil) {
+    public init(
+        reminderID: String,
+        rank: Int,
+        isMainObjective: Bool,
+        estimateMinutes: Int,
+        selectionReason: String? = nil,
+        selectionScore: Int? = nil,
+        isOptional: Bool = false,
+        blockedReason: String? = nil,
+        deferredUntil: Date? = nil
+    ) {
         self.reminderID = reminderID
         self.rank = rank
         self.isMainObjective = isMainObjective
         self.estimateMinutes = estimateMinutes
         self.selectionReason = selectionReason
         self.selectionScore = selectionScore
+        self.isOptional = isOptional
+        self.blockedReason = blockedReason
+        self.deferredUntil = deferredUntil
     }
 }
 
@@ -74,7 +90,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         if !previous.isEmpty { try saveRevision(previous, dayKey: dayKey) }
         try execute("DELETE FROM daily_plan_entries WHERE day_key = ?;", binding: dayKey)
 
-        let sql = "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"
+        let sql = "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?);"
         for item in proposal.items {
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -160,7 +176,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
     public func loadDailyPlan(for day: Date) throws -> [StoredAutonomousPlanEntry] {
         lock.lock()
         defer { lock.unlock() }
-        let sql = "SELECT reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score FROM daily_plan_entries WHERE day_key = ? ORDER BY rank ASC;"
+        let sql = "SELECT reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc FROM daily_plan_entries WHERE day_key = ? ORDER BY rank ASC;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement
@@ -176,7 +192,12 @@ public final class AutonomousPlanStore: @unchecked Sendable {
                 isMainObjective: sqlite3_column_int(statement, 2) == 1,
                 estimateMinutes: sqlite3_column_type(statement, 3) == SQLITE_NULL ? 45 : Int(sqlite3_column_int(statement, 3)),
                 selectionReason: sqlite3_column_type(statement, 4) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(statement, 4)),
-                selectionScore: sqlite3_column_type(statement, 5) == SQLITE_NULL ? nil : Int(sqlite3_column_int(statement, 5))
+                selectionScore: sqlite3_column_type(statement, 5) == SQLITE_NULL ? nil : Int(sqlite3_column_int(statement, 5)),
+                isOptional: sqlite3_column_int(statement, 6) == 1,
+                blockedReason: sqlite3_column_type(statement, 7) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(statement, 7)),
+                deferredUntil: sqlite3_column_type(statement, 8) == SQLITE_NULL
+                    ? nil
+                    : dateFormatter.date(from: String(cString: sqlite3_column_text(statement, 8)))
             ))
         }
         return entries
@@ -273,7 +294,7 @@ public final class AutonomousPlanStore: @unchecked Sendable {
 
     private func insert(_ entry: StoredAutonomousPlanEntry, dayKey: String) throws {
         var statement: OpaquePointer?
-        let sql = "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);"
+        let sql = "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw AutonomousPlanStoreError.prepare }
         defer { sqlite3_finalize(statement) }
         bind(dayKey, to: statement, at: 1)
@@ -283,7 +304,10 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         sqlite3_bind_int(statement, 5, Int32(entry.estimateMinutes))
         if let reason = entry.selectionReason { bind(reason, to: statement, at: 6) } else { sqlite3_bind_null(statement, 6) }
         if let score = entry.selectionScore { sqlite3_bind_int(statement, 7, Int32(score)) } else { sqlite3_bind_null(statement, 7) }
-        bind(dateFormatter.string(from: Date()), to: statement, at: 8)
+        sqlite3_bind_int(statement, 8, entry.isOptional == true ? 1 : 0)
+        if let reason = entry.blockedReason { bind(reason, to: statement, at: 9) } else { sqlite3_bind_null(statement, 9) }
+        if let deferredUntil = entry.deferredUntil { bind(dateFormatter.string(from: deferredUntil), to: statement, at: 10) } else { sqlite3_bind_null(statement, 10) }
+        bind(dateFormatter.string(from: Date()), to: statement, at: 11)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
     }
 
@@ -299,6 +323,9 @@ public final class AutonomousPlanStore: @unchecked Sendable {
             estimate_minutes INTEGER,
             selection_reason TEXT,
             selection_score INTEGER,
+            is_optional INTEGER NOT NULL DEFAULT 0,
+            blocked_reason TEXT,
+            deferred_until_utc TEXT,
             updated_at TEXT NOT NULL,
             PRIMARY KEY (day_key, reminder_id)
         );
@@ -317,6 +344,9 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         guard sqlite3_exec(database, base, nil, nil, nil) == SQLITE_OK else { throw AutonomousPlanStoreError.schema }
         try addColumnIfNeeded(named: "selection_reason", declaration: "TEXT", to: "daily_plan_entries")
         try addColumnIfNeeded(named: "selection_score", declaration: "INTEGER", to: "daily_plan_entries")
+        try addColumnIfNeeded(named: "is_optional", declaration: "INTEGER NOT NULL DEFAULT 0", to: "daily_plan_entries")
+        try addColumnIfNeeded(named: "blocked_reason", declaration: "TEXT", to: "daily_plan_entries")
+        try addColumnIfNeeded(named: "deferred_until_utc", declaration: "TEXT", to: "daily_plan_entries")
         guard sqlite3_exec(database, "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (1, CURRENT_TIMESTAMP), (2, CURRENT_TIMESTAMP), (3, CURRENT_TIMESTAMP), (4, CURRENT_TIMESTAMP);", nil, nil, nil) == SQLITE_OK else {
             throw AutonomousPlanStoreError.schema
         }
