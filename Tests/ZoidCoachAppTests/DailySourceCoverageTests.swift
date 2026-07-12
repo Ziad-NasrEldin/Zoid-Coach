@@ -129,6 +129,19 @@ func newestScreenwatchCheckpointExplainsTheCoverageProblemAfterRestart() throws 
     #expect(coverage.source?.detail == "No record for 20 minutes")
 }
 
+@Test
+func historicalCoverageNeverUsesASourceCheckpointFromALaterDay() throws {
+    let fixture = try CoverageFixture()
+    defer { fixture.remove() }
+    try fixture.insertSource(state: "healthy", detail: "Historical day was current", checkedMinute: 10)
+    try fixture.insertSource(state: "stale", detail: "A later day became stale", checkedMinute: 24 * 60 + 10)
+
+    let coverage = try fixture.load()
+
+    #expect(coverage.source?.state == "healthy")
+    #expect(coverage.source?.detail == "Historical day was current")
+}
+
 private final class CoverageFixture: @unchecked Sendable {
     let databaseURL: URL
     let day: Date
