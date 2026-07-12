@@ -1378,10 +1378,10 @@ private struct SidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("ZOID")
+                Text("ZOID 666")
                     .font(Sumi.display(26))
                     .tracking(-0.8)
-                Text("COACH / LOCAL COMMAND")
+                Text("LOCAL COMMAND")
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
