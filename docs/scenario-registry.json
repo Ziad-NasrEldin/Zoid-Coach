@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "674097444766675d5da69dcc739ba9f13297345c368dce8ca76cb2f1efa725c3",
+  "tracker_sha256": "cf53c658eb605dda664d631364cf3f9736f6fbe129355e23194a15842e9669eb",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5056,8 +5056,8 @@
       "item_index": 11,
       "wording": "Open source health.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5068,7 +5068,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No menu-bar navigation command exists.",
+      "audit_note": "The signed-QA menu-bar popover now exposes Agent Health and opens a live, repairable Background Agent window; Command-Shift-L and the application menu provide the same route, but the menu bar still does not open the complete multi-source health surface (`.audit/runs/agent-lifecycle/candidate/REPORT.md`).",
       "tracker_line": 350
     },
     {
@@ -9406,7 +9406,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed QA Reviews surface visibly changed from a 0/7 limited state to a factual 7/7 prior-week review after seven confirmed days with at least 30 observed minutes, while focused tests enforce the three-day gate (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9429,7 +9431,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The clean signed QA app visibly showed `DATA QUALITY SUMMARY 0/7 DAYS`, the exact missing-day guidance, no patterns, and no experiment before sufficient evidence was seeded (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9452,7 +9456,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed review visibly reported 14 planned items, 525 estimated minutes, 5 completed items, and a 36 percent outcome rate explicitly labelled as not being a productivity score (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9475,7 +9481,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed review derived estimate accuracy only from eligible prior-week learning samples and visibly expanded three dated estimated-versus-corrected examples (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9498,7 +9506,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed review visibly reported the median corrected aligned start time and duration from five eligible prior-week work-window samples, with dated evidence available on demand (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9521,7 +9531,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed review visibly identified the strongest corrected distracting or gaming application pattern with sample count, confidence, date range, and expandable evidence (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9544,7 +9556,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed review visibly reported six corrected gaming-day samples against the configured 60-minute budget, and each expandable example includes corrected minutes and first observed local time (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9567,7 +9581,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed review visibly reported that 1 of 1 answered prompts was followed by correction-aware observed work within 30 minutes and preserved a non-causal alternative explanation (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9590,7 +9606,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The canonical response-effect relation now drives the signed prompt follow-through pattern, which visibly reported 1 of 1 applied actions without mistaking correlation for behavioral proof (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9613,7 +9631,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed review visibly reported a repeatedly blocked task from two prior-week events and expandable evidence uses the local task title rather than an opaque identifier (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9636,7 +9656,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Every signed pattern visibly exposed sample count, stable prior-week date range, confidence, an evidence control, privacy-safe dated examples, and an alternative explanation; the estimate pattern was expanded in the installed app (`WeeklyReview.swift`; `WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9659,7 +9681,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Migration 31 enforces one experiment per review week and repeated loads preserve the same proposal; the signed review visibly showed exactly one primary experiment (`AutonomousDatabaseMigrator.swift`; `WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9682,7 +9706,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The installed signed app accepted the edited proposal, visibly changed it to `ACCEPTED`, displayed 2/7 next-week tracking, and preserved that state after relaunch (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9705,7 +9731,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The installed signed app changed the proposal title to `Make the first blocked step concrete`, saved it, showed success feedback, and preserved the edited text through acceptance and relaunch (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9728,7 +9756,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The installed signed app changed the accepted experiment to `REJECTED`, removed active tracking, disabled the repeated reject action, and preserved rejection after another relaunch (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -9751,7 +9781,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The installed signed app visibly showed `TRACKING 2/7 DAYS · START 2026-07-11` after acceptance and again after relaunch, proving durable next-week progress from the stable prior-week review (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -13966,7 +13998,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Recovery logic and healthy canonical persistence exist, but a full controlled outage, recovery, and duplicate-action check was not performed.",
+      "audit_note": "The installed signed-QA agent moved visibly through healthy, repaired, not connected, and re-enabled states while a preservation marker survived and the production helper remained isolated; Screenwatch and notification outages, plan preservation with real populated data, and cross-surface duplicate-action checks remain unproven (`.audit/runs/agent-lifecycle/candidate/REPORT.md`).",
       "tracker_line": 870
     },
     {
@@ -14161,7 +14193,9 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed QA journey visibly progressed from 0/7 limited evidence to a 7/7 review for 2026-07-04 through 2026-07-10, and the store tests enforce at least three confirmed days with 30 observed minutes (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -14183,7 +14217,9 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The installed signed app expanded estimate evidence into three dated estimated-versus-corrected examples and an alternative explanation, then collapsed it through the same accessible control (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
@@ -14205,7 +14241,9 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
+      "evidence_paths": [
+        ".audit/runs/weekly-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The installed signed app edited, accepted, relaunched with tracking, rejected, and relaunched with the rejected state preserved for the same single weekly experiment (`WeeklyReviewStore.swift`; `WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",

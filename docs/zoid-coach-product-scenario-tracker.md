@@ -8,19 +8,19 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-12 against branch `codex/full-system` through offline-work tip `4166a43` plus the independently accepted application-classification batch, 41 passing registry and evidence tests, a passing release build, a clean installed signed-QA runtime, deterministic operating-system fixtures, the exact 666-scenario registry, and visible macOS accessibility click-through testing.
+Updated on 2026-07-12 against branch `codex/full-system` through weekly-review tip `2e20227` plus the independently verified background-agent lifecycle batch, 42 passing registry and evidence tests, focused Swift coverage, a passing signed-QA package gate, deterministic operating-system fixtures, the exact 666-scenario registry, and visible macOS accessibility click-through testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 45
-- **Touches remaining:** 157
-- **Frontend only left:** 23
-- **Partially implemented:** 135
-- **Barely started:** 48
-- **Not implemented:** 225
-- **Blocked from verification:** 33
+- **Fully implemented:** 68
+- **Touches remaining:** 165
+- **Frontend only left:** 22
+- **Partially implemented:** 132
+- **Barely started:** 45
+- **Not implemented:** 202
+- **Blocked from verification:** 32
 - **Total:** 666
 
 ### Status meanings
@@ -47,7 +47,7 @@ The persistent signed-QA runtime registered its dedicated helper through SMAppSe
 
 The visible run saved exact Reminder-list choices, application classifications, schedule boundaries, gaming posture, rules-only coaching, bounded notification delivery, and onboarding completion through that installed runtime.
 
-The first daily-plan handoff exposed and fixed two direct blockers: Today now refreshes on the onboarding route transition, and external Reminder reconciliation preserves incomplete local fallback tasks.
+The first daily-plan handoff exposed and fixed two direct blockers: Today now refreshes on the onboarding route transition, and external Reminder reconciliation preserves incomplete local fallback tasks; the installed signed-QA background-agent journey additionally verified live health refresh, Login Items navigation, packaged repair, disabled and re-enabled launchd states, local-data preservation, and simultaneous production/QA identity isolation.
 
 ## 1. First launch
 
@@ -347,7 +347,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Start a break. **Status: Not implemented.** Break sessions are absent from both the model and menu.
 - [ ] Pause coaching. **Status: Not implemented.** Coaching pause is available in Settings policy, not the menu bar extra.
 - [ ] End the workday. **Status: Not implemented.** No end-workday command is wired.
-- [ ] Open source health. **Status: Not implemented.** No menu-bar navigation command exists.
+- [ ] Open source health. **Status: Touches remaining.** The signed-QA menu-bar popover now exposes Agent Health and opens a live, repairable Background Agent window; Command-Shift-L and the application menu provide the same route, but the menu bar still does not open the complete multi-source health surface (`.audit/runs/agent-lifecycle/candidate/REPORT.md`).
 - [ ] Open settings. **Status: Not implemented.** No menu-bar settings command exists.
 
 ## 24. Understanding behavior totals
@@ -867,7 +867,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Receive the prompt through notification or dashboard instead. **Status: Partially implemented.** Prompt inbox fallback exists, but notification-loss routing was not exercised end to end.
 - [ ] Resolve the prompt once from the available surface. **Status: Partially implemented.** Idempotent prompt response infrastructure is tested, but no live degraded-mode episode was resolved.
 - [ ] Recover Screenwatch and notification delivery. **Status: Blocked from verification.** Safe live service disruption and recovery were not attempted.
-- [ ] See source health return to normal without losing the plan or duplicating actions. **Status: Partially implemented.** Recovery logic and healthy canonical persistence exist, but a full controlled outage, recovery, and duplicate-action check was not performed.
+- [ ] See source health return to normal without losing the plan or duplicating actions. **Status: Partially implemented.** The installed signed-QA agent moved visibly through healthy, repaired, not connected, and re-enabled states while a preservation marker survived and the production helper remained isolated; Screenwatch and notification outages, plan preservation with real populated data, and cross-surface duplicate-action checks remain unproven (`.audit/runs/agent-lifecycle/candidate/REPORT.md`).
 - [ ] Confirm a review that clearly identifies the missing coverage period. **Status: Not implemented.** No functional review confirmation path exists.
 
 ## 63. Complete correction-and-learning journey

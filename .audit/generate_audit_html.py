@@ -96,10 +96,10 @@ document = f"""<!doctype html>
   <header>
     <div class="eyebrow">Zoid 666 / End-user usability audit / 12 July 2026</div>
     <h1>{counts['Fully implemented']} of {len(rows)} scenarios are fully usable end to end.</h1>
-    <p class="lede">This tracker was refreshed against branch <code>codex/full-system</code> at <code>64a8ca21cc84</code>, with a clean signed Zoid 666 QA application and registered helper, 469 passing Swift tests in the implementation run, 41 passing registry and evidence tests, exact 666-row registry validation, and visible macOS accessibility click-through. Code presence alone never qualifies as complete.</p>
+    <p class="lede">This tracker was refreshed through weekly-review tip <code>2e20227</code> plus the independently verified background-agent lifecycle batch, with focused Swift coverage, 42 passing registry and evidence tests, a coherent signed Zoid 666 QA package and helper, exact 666-row validation, and visible macOS accessibility click-through. The full Swift runner encountered the documented idle helper defect, so no full-suite pass is claimed. Code presence alone never qualifies as complete.</p>
   </header>
   <main>
-    <div class="critical"><strong>Away-from-Mac review work is now fully usable and restart-safe.</strong> The installed signed-QA app added a labeled 30-minute entry, kept Screenwatch-observed time at zero, corrected the same entry to 45 minutes without duplication, and restored the corrected task, note, and separated totals after relaunch. Blank or oversized descriptions are rejected, missing telemetry is never invented as work, and five scenarios moved from Not implemented to Fully implemented.</div>
+    <div class="critical"><strong>Background-agent control is now visible, repairable, and conservatively tracked.</strong> The installed signed-QA app opened live agent health from Command-Shift-L, navigated directly to Login Items, repaired its dedicated helper, moved visibly through healthy, not-connected, and re-enabled states, preserved local data, and left the production helper isolated. Approval-required guidance is implemented and tested, but the user's macOS background-item switch was not changed, so the broader source-health scenarios remain incomplete.</div>
     <div class="metrics">{cards}</div>
     <div class="controls">
       <input id="search" type="search" placeholder="Search scenarios, sections, status, or evidence">
