@@ -518,7 +518,9 @@ struct ZoidCoachAgentMain {
                 var lastMaintenanceAttempt: Date?
                 var lastDaytimeSourceCheck: Date?
                 var lastCalendarSignature: String?
-                var lastBaselineReconciliationDay: String?
+                var lastBaselineReconciliationDay = try? checkpointStore.checkpoint(
+                    sourceID: "baseline-observation-reconciliation"
+                )?.lastScheduledLocalDay
                 while !Task.isCancelled {
                     do {
                     let versionedPolicy = try policyStore.current() ?? initialVersionedPolicy
@@ -574,11 +576,25 @@ struct ZoidCoachAgentMain {
                         baselineCalendar.timeZone = TimeZone(
                             identifier: policy.schedule.timeZoneIdentifier
                         ) ?? .current
-                        _ = try? baselineObservationStore.reconcileCompletedDays(
-                            before: now,
-                            calendar: baselineCalendar
-                        )
-                        lastBaselineReconciliationDay = baselineDay
+                        do {
+                            _ = try baselineObservationStore.reconcileCompletedDays(
+                                before: now,
+                                calendar: baselineCalendar
+                            )
+                            try checkpointStore.recordSuccess(
+                                sourceID: "baseline-observation-reconciliation",
+                                at: now,
+                                scheduledLocalDay: baselineDay,
+                                timeZoneIdentifier: policy.schedule.timeZoneIdentifier
+                            )
+                            lastBaselineReconciliationDay = baselineDay
+                        } catch {
+                            try? checkpointStore.recordFailure(
+                                sourceID: "baseline-observation-reconciliation",
+                                at: now,
+                                diagnostic: String(describing: type(of: error))
+                            )
+                        }
                     }
                     _ = try promptStore.expireDue()
                     if policy.automationPause.isPaused {
@@ -758,10 +774,34 @@ struct ZoidCoachAgentMain {
                 baselineCalendar.timeZone = TimeZone(
                     identifier: initialPolicy.schedule.timeZoneIdentifier
                 ) ?? .current
-                _ = try? baselineObservationStore.reconcileCompletedDays(
-                    before: Date(),
-                    calendar: baselineCalendar
+                let baselineNow = Date()
+                let baselineDay = Self.localDayKey(
+                    baselineNow,
+                    timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier
                 )
+                let priorBaselineDay = try? checkpointStore.checkpoint(
+                    sourceID: "baseline-observation-reconciliation"
+                )?.lastScheduledLocalDay
+                if priorBaselineDay != baselineDay {
+                    do {
+                        _ = try baselineObservationStore.reconcileCompletedDays(
+                            before: baselineNow,
+                            calendar: baselineCalendar
+                        )
+                        try checkpointStore.recordSuccess(
+                            sourceID: "baseline-observation-reconciliation",
+                            at: baselineNow,
+                            scheduledLocalDay: baselineDay,
+                            timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier
+                        )
+                    } catch {
+                        try? checkpointStore.recordFailure(
+                            sourceID: "baseline-observation-reconciliation",
+                            at: baselineNow,
+                            diagnostic: String(describing: type(of: error))
+                        )
+                    }
+                }
             }
         } catch let error as AgentOSAdapterBoundaryError {
             fputs("Zoid 666 agent refused QA OS access: \(error.localizedDescription)\n", stderr)
