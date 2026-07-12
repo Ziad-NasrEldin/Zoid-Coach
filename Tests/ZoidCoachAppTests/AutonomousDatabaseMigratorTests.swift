@@ -249,6 +249,39 @@ func versionTwentySevenRebrandsPersistedPromptSummaries() throws {
 }
 
 @Test
+func dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEvidence() throws {
+    let databaseURL = temporaryDatabaseURL("daily-review-migration")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    CREATE TABLE behavior_records (
+        source_day TEXT NOT NULL,
+        epoch INTEGER NOT NULL,
+        app_name TEXT NOT NULL,
+        classification TEXT,
+        PRIMARY KEY(source_day, epoch)
+    );
+    INSERT INTO behavior_records(source_day, epoch, app_name, classification)
+    VALUES ('2026-07-10', 1783663200, 'Cursor', 'work');
+    """)
+    for version in 1...27 {
+        try execute(
+            databaseURL,
+            "INSERT INTO schema_migrations(version, applied_at) VALUES (\(version), '2026-01-01T00:00:00Z');"
+        )
+    }
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.previousVersion == 27)
+    #expect(result.currentVersion == 28)
+    #expect(result.appliedVersions == [28])
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM behavior_records;") == 1)
+    #expect(try tableExists(databaseURL, "daily_reviews"))
+    #expect(try tableExists(databaseURL, "daily_review_corrections"))
+}
+
+@Test
 func recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() throws {
     let databaseURL = temporaryDatabaseURL("wal-backup")
     defer { removeDatabaseFiles(at: databaseURL) }
