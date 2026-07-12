@@ -165,10 +165,11 @@ func behaviorPolicyValidationRejectsBlankAndDuplicateApplications() {
 @Test
 func versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() throws {
     let versionOneJSON = try #require(String(data: JSONEncoder.zoidPolicy.encode(UserPolicy.defaults(timeZoneIdentifier: "UTC")), encoding: .utf8))
-        .replacingOccurrences(of: #""schemaVersion":4"#, with: #""schemaVersion":1"#)
+        .replacingOccurrences(of: #""schemaVersion":5"#, with: #""schemaVersion":1"#)
         .replacingOccurrences(of: #",\"behavior\":{\"gamingApplications\":[],\"workApplications\":[]}"#, with: "")
         .replacingOccurrences(of: #",\"capture\":{\"configuredDisplayIDs\":[],\"mode\":\"legacy\"}"#, with: "")
         .replacingOccurrences(of: #",\"gaming\":{\"dailyBudgetMinutes\":60,\"priorityTaskRewardMinutes\":15,\"version\":1}"#, with: "")
+        .replacingOccurrences(of: #",\"reminderLists\":{\"decisions\":[],\"isConfigured\":false}"#, with: "")
 
     let decoded = try JSONDecoder.zoidPolicy.decode(UserPolicy.self, from: Data(versionOneJSON.utf8))
 
@@ -176,6 +177,7 @@ func versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() th
     #expect(decoded.behavior == BehaviorPolicy())
     #expect(decoded.capture == .legacy)
     #expect(decoded.gaming == .balanced)
+    #expect(decoded.reminderLists == .legacyAllLists)
     #expect(decoded.upgradedToCurrentSchema().schemaVersion == UserPolicy.schemaVersion)
     #expect(decoded.upgradedToCurrentSchema().behavior == BehaviorPolicy())
     #expect(decoded.upgradedToCurrentSchema().capture == .legacy)
@@ -223,4 +225,58 @@ func capturePolicyNormalizesDisplayIDsAndRoundTripsThroughRuntimeConfiguration()
     #expect(policy.configuredDisplayIDs == [7, 42])
     #expect(runtime.mode == .native)
     #expect(runtime.policy == policy)
+}
+
+@Test
+func reminderListPolicyUsesStableIdentifiersAndExcludesNewListsAfterConfiguration() throws {
+    let policy = ReminderListPolicy(
+        isConfigured: true,
+        decisions: [
+            ReminderListDecision(listID: "list-work", isIncluded: true),
+            ReminderListDecision(listID: "list-personal", isIncluded: false),
+        ]
+    )
+
+    #expect(policy.includes(listID: "list-work"))
+    #expect(!policy.includes(listID: "list-personal"))
+    #expect(!policy.includes(listID: "list-created-later"))
+    #expect(policy.decision(for: "list-work") == true)
+    #expect(policy.decision(for: "list-personal") == false)
+    #expect(policy.decision(for: "renamed-work") == nil)
+
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    let configured = defaults.replacingReminderListPolicy(policy)
+    let decoded = try JSONDecoder.zoidPolicy.decode(
+        UserPolicy.self,
+        from: JSONEncoder.zoidPolicy.encode(configured)
+    )
+
+    #expect(decoded.schemaVersion == 5)
+    #expect(decoded.reminderLists == policy)
+}
+
+@Test
+func versionFourPolicyKeepsLegacyAllListsBehaviorUntilExplicitlyConfigured() throws {
+    let current = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    let encoded = try #require(String(
+        data: JSONEncoder.zoidPolicy.encode(current),
+        encoding: .utf8
+    ))
+    let versionFour = encoded
+        .replacingOccurrences(of: #""schemaVersion":5"#, with: #""schemaVersion":4"#)
+        .replacingOccurrences(
+            of: #",\"reminderLists\":{\"decisions\":[],\"isConfigured\":false}"#,
+            with: ""
+        )
+
+    let decoded = try JSONDecoder.zoidPolicy.decode(
+        UserPolicy.self,
+        from: Data(versionFour.utf8)
+    )
+
+    #expect(decoded.schemaVersion == 4)
+    #expect(!decoded.reminderLists.isConfigured)
+    #expect(decoded.reminderLists.includes(listID: "any-existing-list"))
+    #expect(decoded.upgradedToCurrentSchema().schemaVersion == 5)
+    #expect(decoded.upgradedToCurrentSchema().reminderLists == .legacyAllLists)
 }

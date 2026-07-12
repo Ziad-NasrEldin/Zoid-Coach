@@ -311,8 +311,45 @@ public struct CapturePolicy: Codable, Equatable, Sendable {
     public static let legacy = CapturePolicy()
 }
 
+public struct ReminderListDecision: Codable, Equatable, Sendable {
+    public let listID: String
+    public let isIncluded: Bool
+
+    public init(listID: String, isIncluded: Bool) {
+        self.listID = listID
+        self.isIncluded = isIncluded
+    }
+}
+
+public struct ReminderListPolicy: Codable, Equatable, Sendable {
+    public let isConfigured: Bool
+    public let decisions: [ReminderListDecision]
+
+    public init(
+        isConfigured: Bool = false,
+        decisions: [ReminderListDecision] = []
+    ) {
+        self.isConfigured = isConfigured
+        self.decisions = decisions.sorted {
+            if $0.listID == $1.listID { return !$0.isIncluded && $1.isIncluded }
+            return $0.listID < $1.listID
+        }
+    }
+
+    public static let legacyAllLists = ReminderListPolicy()
+
+    public func decision(for listID: String) -> Bool? {
+        decisions.first(where: { $0.listID == listID })?.isIncluded
+    }
+
+    public func includes(listID: String) -> Bool {
+        guard isConfigured else { return true }
+        return decision(for: listID) ?? false
+    }
+}
+
 public struct UserPolicy: Codable, Equatable, Sendable {
-    public static let schemaVersion = 4
+    public static let schemaVersion = 5
 
     public let schemaVersion: Int
     public let operatingMode: OperatingMode
@@ -324,6 +361,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
     public let behavior: BehaviorPolicy
     public let capture: CapturePolicy
     public let gaming: GamingPolicy
+    public let reminderLists: ReminderListPolicy
 
     public init(
         schemaVersion: Int = UserPolicy.schemaVersion,
@@ -335,7 +373,8 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         wake: WakePolicyConfiguration,
         behavior: BehaviorPolicy = BehaviorPolicy(),
         capture: CapturePolicy = .legacy,
-        gaming: GamingPolicy = .balanced
+        gaming: GamingPolicy = .balanced,
+        reminderLists: ReminderListPolicy = .legacyAllLists
     ) {
         self.schemaVersion = schemaVersion
         self.operatingMode = operatingMode
@@ -347,6 +386,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         self.behavior = behavior
         self.capture = capture
         self.gaming = gaming
+        self.reminderLists = reminderLists
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -360,6 +400,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         case behavior
         case capture
         case gaming
+        case reminderLists
     }
 
     public init(from decoder: Decoder) throws {
@@ -374,6 +415,10 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         behavior = try container.decodeIfPresent(BehaviorPolicy.self, forKey: .behavior) ?? BehaviorPolicy()
         capture = try container.decodeIfPresent(CapturePolicy.self, forKey: .capture) ?? .legacy
         gaming = try container.decodeIfPresent(GamingPolicy.self, forKey: .gaming) ?? .balanced
+        reminderLists = try container.decodeIfPresent(
+            ReminderListPolicy.self,
+            forKey: .reminderLists
+        ) ?? .legacyAllLists
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -388,6 +433,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         try container.encode(behavior, forKey: .behavior)
         try container.encode(capture, forKey: .capture)
         try container.encode(gaming, forKey: .gaming)
+        try container.encode(reminderLists, forKey: .reminderLists)
     }
 
     public func upgradedToCurrentSchema() -> UserPolicy {
@@ -400,7 +446,8 @@ public struct UserPolicy: Codable, Equatable, Sendable {
             wake: wake,
             behavior: behavior,
             capture: capture,
-            gaming: gaming
+            gaming: gaming,
+            reminderLists: reminderLists
         )
     }
 
@@ -414,7 +461,23 @@ public struct UserPolicy: Codable, Equatable, Sendable {
             wake: wake,
             behavior: behavior,
             capture: capture,
-            gaming: gaming
+            gaming: gaming,
+            reminderLists: reminderLists
+        )
+    }
+
+    public func replacingReminderListPolicy(_ reminderLists: ReminderListPolicy) -> UserPolicy {
+        UserPolicy(
+            operatingMode: operatingMode,
+            automationPause: automationPause,
+            schedule: schedule,
+            calendar: calendar,
+            privacy: privacy,
+            wake: wake,
+            behavior: behavior,
+            capture: capture,
+            gaming: gaming,
+            reminderLists: reminderLists
         )
     }
 
@@ -518,6 +581,21 @@ public struct UserPolicy: Codable, Equatable, Sendable {
             violations.append(.init(code: .remotePolicyWithoutRemoteProvider, field: "privacy.remoteEvidencePolicy"))
         }
         appendApplicationClassificationViolations(to: &violations)
+        let reminderListIDs = reminderLists.decisions.map(\.listID)
+        if reminderListIDs.contains(where: {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }) {
+            violations.append(.init(
+                code: .emptyReminderListIdentifier,
+                field: "reminderLists.decisions"
+            ))
+        }
+        if Set(reminderListIDs).count != reminderListIDs.count {
+            violations.append(.init(
+                code: .duplicateReminderListIdentifier,
+                field: "reminderLists.decisions"
+            ))
+        }
         if gaming.version != 1 {
             violations.append(.init(code: .unsupportedGamingPolicyVersion, field: "gaming.version"))
         }
@@ -620,6 +698,8 @@ public struct PolicyViolation: Codable, Equatable, Sendable {
         case invalidGamingBudget
         case invalidGamingReward
         case invalidWakeBudget
+        case emptyReminderListIdentifier
+        case duplicateReminderListIdentifier
     }
 
     public let code: Code
