@@ -1,4 +1,3 @@
-import Darwin
 import Foundation
 import ZoidCoachCore
 
@@ -66,7 +65,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
 
     private let clock: ZoidClock
     private let stableID: StableIDProvider
-    private let storage: DescriptorRelativeStateDirectory
+    private let storage: DescriptorRelativeStateDirectory<QAFixtureStateError>
     private let storageCheckpoint: @Sendable (QAFixtureStorageCheckpoint) throws -> Void
     private let lock = NSLock()
     private var state: PersistedState
@@ -92,7 +91,12 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         let directory = workspace.root.appendingPathComponent("OS Fixtures", isDirectory: true)
         stateFileURL = directory.appendingPathComponent("state.json")
         corruptStateFileURL = directory.appendingPathComponent("state.corrupt.json")
-        storage = try DescriptorRelativeStateDirectory(workspaceRoot: workspace.root)
+        storage = try DescriptorRelativeStateDirectory(
+            rootURL: workspace.root,
+            directoryName: "OS Fixtures",
+            unsafeEntryError: QAFixtureStateError.unsafeFilesystemEntry,
+            filesystemError: QAFixtureStateError.filesystemOperation
+        )
         state = PersistedState(seed: seed)
         try storage.acquire(exclusive: true)
         defer { storage.release() }
@@ -718,157 +722,5 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         }
         try storage.removeIfPresent("recovery.json")
         return transaction.replacement
-    }
-}
-
-private final class DescriptorRelativeStateDirectory: @unchecked Sendable {
-    private let descriptor: Int32
-
-    init(workspaceRoot: URL) throws {
-        let rootDescriptor = try Self.openAbsoluteDirectoryWithoutFollowing(workspaceRoot)
-        defer { Darwin.close(rootDescriptor) }
-        if mkdirat(rootDescriptor, "OS Fixtures", 0o700) != 0, errno != EEXIST {
-            throw QAFixtureStateError.filesystemOperation("create fixture state directory", errno)
-        }
-        descriptor = openat(rootDescriptor, "OS Fixtures", O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
-        guard descriptor >= 0 else {
-            throw QAFixtureStateError.unsafeFilesystemEntry("OS Fixtures")
-        }
-    }
-
-    deinit { Darwin.close(descriptor) }
-
-    func acquire(exclusive: Bool) throws {
-        guard flock(descriptor, exclusive ? LOCK_EX : LOCK_SH) == 0 else {
-            throw QAFixtureStateError.filesystemOperation("lock fixture state", errno)
-        }
-    }
-
-    func release() {
-        _ = flock(descriptor, LOCK_UN)
-    }
-
-    func withLock<T>(exclusive: Bool, _ body: () throws -> T) throws -> T {
-        try acquire(exclusive: exclusive)
-        defer { release() }
-        return try body()
-    }
-
-    private static func openAbsoluteDirectoryWithoutFollowing(_ url: URL) throws -> Int32 {
-        guard url.path.hasPrefix("/") else {
-            throw QAFixtureStateError.unsafeFilesystemEntry(url.path)
-        }
-        let root = Darwin.open("/", O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
-        guard root >= 0 else {
-            throw QAFixtureStateError.filesystemOperation("open filesystem root", errno)
-        }
-        var descriptorChain = [root]
-        do {
-            for component in url.standardizedFileURL.path
-                .split(separator: "/").map(String.init) {
-                let next = openat(
-                    descriptorChain.last!, component,
-                    O_RDONLY | O_DIRECTORY | O_NOFOLLOW
-                )
-                guard next >= 0 else {
-                    throw QAFixtureStateError.unsafeFilesystemEntry(component)
-                }
-                descriptorChain.append(next)
-            }
-            let result = descriptorChain.removeLast()
-            descriptorChain.forEach { Darwin.close($0) }
-            return result
-        } catch {
-            descriptorChain.forEach { Darwin.close($0) }
-            throw error
-        }
-    }
-
-    func exists(_ name: String) throws -> Bool {
-        var status = stat()
-        if fstatat(descriptor, name, &status, AT_SYMLINK_NOFOLLOW) == 0 {
-            guard status.st_mode & S_IFMT == S_IFREG, status.st_nlink == 1 else {
-                throw QAFixtureStateError.unsafeFilesystemEntry(name)
-            }
-            return true
-        }
-        guard errno == ENOENT else {
-            throw QAFixtureStateError.filesystemOperation("inspect \(name)", errno)
-        }
-        return false
-    }
-
-    func read(_ name: String) throws -> Data {
-        let fileDescriptor = openat(descriptor, name, O_RDONLY | O_NOFOLLOW)
-        guard fileDescriptor >= 0 else {
-            if errno == ELOOP { throw QAFixtureStateError.unsafeFilesystemEntry(name) }
-            throw QAFixtureStateError.filesystemOperation("open \(name)", errno)
-        }
-        let handle = FileHandle(fileDescriptor: fileDescriptor, closeOnDealloc: true)
-        var status = stat()
-        guard fstat(fileDescriptor, &status) == 0,
-              status.st_mode & S_IFMT == S_IFREG,
-              status.st_nlink == 1 else {
-            throw QAFixtureStateError.unsafeFilesystemEntry(name)
-        }
-        return try handle.readToEnd() ?? Data()
-    }
-
-    func writeAtomic(_ data: Data, name: String, beforeCommit: () throws -> Void = {}) throws {
-        let temporaryName = ".\(name).tmp"
-        _ = unlinkat(descriptor, temporaryName, 0)
-        let fileDescriptor = openat(
-            descriptor,
-            temporaryName,
-            O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW,
-            mode_t(0o600)
-        )
-        guard fileDescriptor >= 0 else {
-            throw QAFixtureStateError.filesystemOperation("create temporary \(name)", errno)
-        }
-        var committed = false
-        defer {
-            Darwin.close(fileDescriptor)
-            if !committed { _ = unlinkat(descriptor, temporaryName, 0) }
-        }
-        try data.withUnsafeBytes { rawBuffer in
-            var remaining = rawBuffer.count
-            var cursor = rawBuffer.baseAddress!
-            while remaining > 0 {
-                let count = Darwin.write(fileDescriptor, cursor, remaining)
-                guard count > 0 else {
-                    throw QAFixtureStateError.filesystemOperation("write temporary \(name)", errno)
-                }
-                remaining -= count
-                cursor = cursor.advanced(by: count)
-            }
-        }
-        guard fsync(fileDescriptor) == 0 else {
-            throw QAFixtureStateError.filesystemOperation("sync temporary \(name)", errno)
-        }
-        try beforeCommit()
-        guard renameat(descriptor, temporaryName, descriptor, name) == 0 else {
-            throw QAFixtureStateError.filesystemOperation("commit \(name)", errno)
-        }
-        committed = true
-        guard fsync(descriptor) == 0 else {
-            throw QAFixtureStateError.filesystemOperation("sync state directory", errno)
-        }
-    }
-
-    func rename(_ source: String, to destination: String) throws {
-        guard try exists(source) else { return }
-        if try exists(destination) { try removeIfPresent(destination) }
-        guard renameat(descriptor, source, descriptor, destination) == 0,
-              fsync(descriptor) == 0 else {
-            throw QAFixtureStateError.filesystemOperation("quarantine \(source)", errno)
-        }
-    }
-
-    func removeIfPresent(_ name: String) throws {
-        guard try exists(name) else { return }
-        guard unlinkat(descriptor, name, 0) == 0, fsync(descriptor) == 0 else {
-            throw QAFixtureStateError.filesystemOperation("remove \(name)", errno)
-        }
     }
 }

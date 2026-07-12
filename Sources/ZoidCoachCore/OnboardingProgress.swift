@@ -13,6 +13,21 @@ public enum OnboardingStep: String, CaseIterable, Codable, Sendable {
     case coachingMode
     case deliveryTest
     case firstDailyPlan
+
+    public static let version1Sequence: [Self] = [
+        .welcome,
+        .localPrivacy,
+        .reminders,
+        .screenwatch,
+        .notifications,
+        .applicationInventory,
+        .activityClassification,
+        .schedule,
+        .gamingPolicy,
+        .coachingMode,
+        .deliveryTest,
+        .firstDailyPlan,
+    ]
 }
 
 public enum InitialCoachingMode: String, Codable, Sendable {
@@ -29,6 +44,10 @@ public enum OnboardingAccessDecision: String, Codable, Sendable {
 
 public struct OnboardingProgress: Codable, Equatable, Sendable {
     public static let schemaVersion = 1
+
+    public static var stepSequence: [OnboardingStep] {
+        OnboardingStep.version1Sequence
+    }
 
     public private(set) var version: Int
     public private(set) var currentStep: OnboardingStep
@@ -61,7 +80,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     }
 
     public var isFinished: Bool {
-        finishedAt != nil && Set(completedSteps) == Set(OnboardingStep.allCases)
+        finishedAt != nil && completedSteps == Self.stepSequence
     }
 
     public mutating func chooseCoachingMode(_ mode: InitialCoachingMode) {
@@ -98,27 +117,27 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
             completedSteps.sort(by: Self.stepOrder)
         }
         if currentStep == .firstDailyPlan {
-            guard Set(completedSteps) == Set(OnboardingStep.allCases) else {
+            guard completedSteps == Self.stepSequence else {
                 throw OnboardingProgressError.stepsIncomplete
             }
             finishedAt = date
             return
         }
-        guard let index = OnboardingStep.allCases.firstIndex(of: currentStep) else {
+        guard let index = Self.stepSequence.firstIndex(of: currentStep) else {
             throw OnboardingProgressError.invalidCurrentStep
         }
-        currentStep = OnboardingStep.allCases[index + 1]
+        currentStep = Self.stepSequence[index + 1]
     }
 
     public mutating func navigate(to step: OnboardingStep) throws {
         guard !isFinished else { throw OnboardingProgressError.alreadyFinished }
-        guard let requested = OnboardingStep.allCases.firstIndex(of: step) else {
+        guard let requested = Self.stepSequence.firstIndex(of: step) else {
             throw OnboardingProgressError.invalidCurrentStep
         }
         let furthest = completedSteps
-            .compactMap(OnboardingStep.allCases.firstIndex)
+            .compactMap(Self.stepSequence.firstIndex)
             .max()
-            .map { min($0 + 1, OnboardingStep.allCases.count - 1) }
+            .map { min($0 + 1, Self.stepSequence.count - 1) }
             ?? 0
         guard requested <= furthest else {
             throw OnboardingProgressError.stepNotReachable(step)
@@ -136,11 +155,11 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         guard completedSteps == completedSteps.sorted(by: Self.stepOrder) else {
             throw OnboardingProgressError.completedStepsOutOfOrder
         }
-        guard completedSteps == Array(OnboardingStep.allCases.prefix(completedSteps.count)) else {
+        guard completedSteps == Array(Self.stepSequence.prefix(completedSteps.count)) else {
             throw OnboardingProgressError.completedStepsNotContiguous
         }
-        guard let currentIndex = OnboardingStep.allCases.firstIndex(of: currentStep),
-              currentIndex <= min(completedSteps.count, OnboardingStep.allCases.count - 1) else {
+        guard let currentIndex = Self.stepSequence.firstIndex(of: currentStep),
+              currentIndex <= min(completedSteps.count, Self.stepSequence.count - 1) else {
             throw OnboardingProgressError.invalidCurrentStep
         }
         if completedSteps.contains(.coachingMode), coachingMode == nil {
@@ -150,7 +169,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         where completedSteps.contains(step) && accessDecision(for: step) == nil {
             throw OnboardingProgressError.accessDecisionRequired(step)
         }
-        let allStepsCompleted = Set(completedSteps) == Set(OnboardingStep.allCases)
+        let allStepsCompleted = completedSteps == Self.stepSequence
         if (finishedAt != nil) != allStepsCompleted {
             throw OnboardingProgressError.stepsIncomplete
         }
@@ -160,8 +179,8 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     }
 
     private static func stepOrder(_ lhs: OnboardingStep, _ rhs: OnboardingStep) -> Bool {
-        guard let left = OnboardingStep.allCases.firstIndex(of: lhs),
-              let right = OnboardingStep.allCases.firstIndex(of: rhs) else { return false }
+        guard let left = Self.stepSequence.firstIndex(of: lhs),
+              let right = Self.stepSequence.firstIndex(of: rhs) else { return false }
         return left < right
     }
 
@@ -179,54 +198,6 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     }
 }
 
-public final class OnboardingProgressStore: @unchecked Sendable {
-    public let fileURL: URL
-    private let fileManager: FileManager
-
-    public init(
-        runtimeEnvironment: RuntimeEnvironment = .current(),
-        fileManager: FileManager = .default
-    ) {
-        fileURL = runtimeEnvironment.applicationSupportRoot
-            .appendingPathComponent("Zoid Coach/onboarding-progress.json", isDirectory: false)
-        self.fileManager = fileManager
-    }
-
-    public func load() throws -> OnboardingProgress {
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            return try OnboardingProgress()
-        }
-        do {
-            let progress = try JSONDecoder().decode(
-                OnboardingProgress.self,
-                from: Data(contentsOf: fileURL)
-            )
-            try progress.validate()
-            return progress
-        } catch let error as OnboardingProgressError {
-            throw error
-        } catch {
-            throw OnboardingProgressError.unreadableProgress(error.localizedDescription)
-        }
-    }
-
-    public func save(_ progress: OnboardingProgress) throws {
-        try progress.validate()
-        try fileManager.createDirectory(
-            at: fileURL.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(progress).write(to: fileURL, options: .atomic)
-    }
-
-    public func reset() throws {
-        guard fileManager.fileExists(atPath: fileURL.path) else { return }
-        try fileManager.removeItem(at: fileURL)
-    }
-}
-
 public enum OnboardingProgressError: LocalizedError, Equatable {
     case unsupportedVersion(Int)
     case duplicateCompletedStep
@@ -239,7 +210,6 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
     case accessDecisionNotSupported(OnboardingStep)
     case stepsIncomplete
     case alreadyFinished
-    case unreadableProgress(String)
 
     public var errorDescription: String? {
         switch self {
@@ -265,8 +235,6 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
             "Onboarding cannot finish before every required step is complete"
         case .alreadyFinished:
             "Onboarding is already complete"
-        case let .unreadableProgress(message):
-            "Onboarding progress could not be read: \(message)"
         }
     }
 }
