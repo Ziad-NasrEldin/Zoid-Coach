@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "0ad9ef18eaa9561459a506a79fdfc725fa2a32fd148974840f5406eae3851681",
+  "tracker_sha256": "f51bd3cbc4f32d043a0026b71be4c92de95f313db1ba1a08fc57cea2fc270ee3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5543,9 +5543,9 @@
       "section_title": "Correcting observed activity",
       "item_index": 1,
       "wording": "Reclassify an incorrectly categorized session.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5554,10 +5554,10 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The user can globally classify an application, but cannot correct an individual observed session.",
+      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
+      "audit_note": "The installed signed QA review changed a specific Steam session from Unknown to Work, recalculated the visible category immediately, persisted the correction across relaunch, and retained source observations unchanged (`DailyReviewStore.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 379
     },
     {
@@ -5567,8 +5567,8 @@
       "item_index": 2,
       "wording": "Split a session that contains two different activities.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5580,7 +5580,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No session editor exists.",
+      "audit_note": "Daily Review exposes a midpoint-only correction control and focused tests prove only the second half changes, but that split path has not received a fresh signed-QA click-through (`DailyReviewView.swift`; `DailyReviewTests.swift`).",
       "tracker_line": 380
     },
     {
@@ -5613,8 +5613,8 @@
       "item_index": 4,
       "wording": "Attach a session to the correct task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5626,7 +5626,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Behavior observations have no task attachment workflow.",
+      "audit_note": "Daily Review exposes an accessible task attachment field and restart tests preserve the attachment, but the signed correction acceptance did not exercise a real task association (`DailyReviewView.swift`; `DailyReviewTests.swift`).",
       "tracker_line": 382
     },
     {
@@ -5635,9 +5635,9 @@
       "section_title": "Correcting observed activity",
       "item_index": 5,
       "wording": "See affected totals update after correction.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5646,10 +5646,10 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Future ingested observations can use a changed app rule, but existing observations keep their stored classification and there is no correction recalculation flow.",
+      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
+      "audit_note": "The installed signed QA review changed its visible activity summary from Unknown to Work immediately after correction while keeping the two-minute factual duration intact, and focused tests cover recalculation after whole and midpoint corrections (`DailyReviewStore.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 383
     },
     {
@@ -5682,8 +5682,8 @@
       "item_index": 7,
       "wording": "Apply a correction only once.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5695,7 +5695,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No correction record or idempotency key exists for activity corrections.",
+      "audit_note": "Corrections are append-only and later reads deterministically resolve their effective result, but the correction command does not yet carry an idempotency key that prevents a repeated activation from recording another equivalent event.",
       "tracker_line": 385
     },
     {
@@ -5704,9 +5704,9 @@
       "section_title": "Correcting observed activity",
       "item_index": 8,
       "wording": "Create a reusable rule from a correction.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5715,10 +5715,10 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Reusable global application rules exist in Settings, but they are not created from a session correction flow.",
+      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
+      "audit_note": "The installed signed QA review offered an explicit future-rule toggle, previewed the Steam-to-Work scope, committed the correction and rule atomically, and restored the active rule after app relaunch (`DailyReviewStore.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 386
     },
     {
@@ -5728,8 +5728,8 @@
       "item_index": 9,
       "wording": "Apply a one-time correction without creating a rule.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5741,7 +5741,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Only persistent application-level choices exist.",
+      "audit_note": "The future-rule toggle defaults off and focused restart tests prove a correction can remain historical only, but the signed acceptance journey deliberately enabled adaptation and did not separately click the one-time path (`DailyReviewView.swift`; `DailyReviewTests.swift`).",
       "tracker_line": 387
     },
     {
@@ -5750,9 +5750,9 @@
       "section_title": "Correcting observed activity",
       "item_index": 10,
       "wording": "Preview exactly how broadly a proposed rule will apply.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5761,10 +5761,10 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Settings lists apps but provides no affected-session preview.",
+      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
+      "audit_note": "Before committing, the installed signed QA app visibly stated that new Steam observations would become Work while historical observations stayed unchanged, and replacement previews name the prior and proposed classifications (`DailyReviewView.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 388
     },
     {
@@ -5774,8 +5774,8 @@
       "item_index": 11,
       "wording": "Edit or remove a learned rule later.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5787,7 +5787,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A user can change a global app classification back to `Auto`, but there is no learned-rule ledger or historical impact view.",
+      "audit_note": "The installed app restores an accessible active-rule ledger after relaunch and opens a scoped removal confirmation explaining that history remains; append-only replacement and tombstone removal pass focused tests, but the destructive UI confirmation was conservatively not activated in signed QA (`DailyReviewView.swift`; `DailyReviewTests.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 389
     },
     {
@@ -5796,9 +5796,9 @@
       "section_title": "Correcting observed activity",
       "item_index": 12,
       "wording": "Ensure a user correction continues to outrank future automatic classification.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5807,10 +5807,10 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Explicit work/gaming app overrides outrank built-in automatic classification, with a passing unit test. Session-level user corrections do not exist.",
+      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
+      "audit_note": "After the signed review created a Steam-to-Work rule, the isolated signed agent ingested a later Steam Screenwatch observation as Work even though the normal policy would leave it Unknown; the original historical session remained a separate durable correction (`ScreenwatchArchive.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 390
     },
     {
@@ -9223,9 +9223,9 @@
       "section_title": "Facts, hypotheses, and review corrections",
       "item_index": 4,
       "wording": "Reclassify a behavior session from the review.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9233,10 +9233,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "App classification affects future observations only; session-level review correction is absent.",
+      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
+      "audit_note": "The installed signed QA Reviews surface corrected a concrete Steam session from Unknown to Work, updated the visible category, and preserved the correction after relaunch (`DailyReviewView.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 593
     },
     {
@@ -9246,8 +9246,8 @@
       "item_index": 5,
       "wording": "Split or merge a session from the review when needed.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9258,7 +9258,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no session editor.",
+      "audit_note": "Midpoint splitting is implemented and restart-tested, but arbitrary splits, adjacent-session merge, and fresh signed acceptance remain incomplete (`DailyReviewStore.swift`; `DailyReviewTests.swift`).",
       "tracker_line": 594
     },
     {
@@ -9356,8 +9356,8 @@
       "item_index": 10,
       "wording": "See totals and conclusions update after corrections.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9368,7 +9368,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Review corrections and conclusions do not exist.",
+      "audit_note": "Daily Review now recalculates factual category totals immediately and reopens a prior confirmation after edits, but every downstream conclusion and weekly statement has not been visibly rechecked for this correction journey.",
       "tracker_line": 599
     },
     {
@@ -9378,8 +9378,8 @@
       "item_index": 11,
       "wording": "Confirm the corrected review.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9390,7 +9390,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no review confirmation state.",
+      "audit_note": "Confirmation state, invalidation after a later correction, and restart persistence are implemented and focused-tested, but this signed acceptance stopped after proving correction-to-rule adaptation rather than pressing the final confirmation control.",
       "tracker_line": 600
     },
     {
@@ -14456,9 +14456,9 @@
       "section_title": "Release 1 end-user acceptance",
       "item_index": 8,
       "wording": "Correct wrong classifications and see the product adapt.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14467,10 +14467,10 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Daily review now supports durable whole-session and midpoint reclassification, task attachment, recalculated totals, and confirmation invalidation after later edits. Turning an accepted correction into a scoped future classification rule and visibly proving adaptation are still missing (`DailyReviewStore.swift`; `DailyReviewTests.swift`).",
+      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
+      "audit_note": "In the isolated signed QA app, a user corrected Steam from Unknown to Work, explicitly enabled and previewed future adaptation, saw the active rule survive relaunch, and the signed agent classified a later Screenwatch Steam observation as Work without rewriting the historical observation (`DailyReviewStore.swift`; `ScreenwatchArchive.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 895
     },
     {

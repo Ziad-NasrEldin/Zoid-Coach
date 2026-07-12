@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "run_id": "correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+  "verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+  "build_identity": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
+  "fixture": "Installed signed Zoid 666 QA app with an isolated Screenwatch source and local correction-to-rule database",
+  "qa_root": "/private/tmp/zoid-666-correction-rule-f6a281e",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "2cb7e7bff90d1646fa45e334e17a46d80fb3e6f17f5f4f656879c426e4405d9e",
+  "scenario_ids": [
+    "ZC-026-001",
+    "ZC-026-005",
+    "ZC-026-008",
+    "ZC-026-010",
+    "ZC-026-012",
+    "ZC-042-004",
+    "ZC-064-008"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "live_runtime",
+    "multi_day",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-12T21:55:00Z",
+  "completed_at": "2026-07-12T22:01:00Z",
+  "artifacts": [
+    {
+      "path": "SUMMARY.md",
+      "sha256": "3cc96afec8f75cf654ab97877b573ce4787485c30d29612ede40889384917c9e"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "Installed review correction and future-rule creation completed atomically",
+      "result": "passed"
+    },
+    {
+      "name": "Active rule and historical correction survived app relaunch",
+      "result": "passed"
+    },
+    {
+      "name": "A later isolated Screenwatch observation used the explicit Work rule",
+      "result": "passed"
+    },
+    {
+      "name": "Removal confirmation and focused tombstone restoration proof preserve history",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "swift test --filter DailyReview",
+    "swift test --filter futureClassificationRule",
+    "swift test --filter reviewCorrectionRuleClassifiesOnlyFutureScreenwatchObservationsAndRemovalRestoresPolicy",
+    "swift build -c release",
+    "Scripts/install-signed-qa-runtime.sh",
+    "Computer Use signed correction, preview, apply, relaunch, and removal-confirmation journey",
+    "launchctl kickstart isolated QA agent and verify later behavior record classification"
+  ]
+}
