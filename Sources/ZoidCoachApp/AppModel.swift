@@ -81,6 +81,7 @@ final class AppModel: ObservableObject {
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
         screenwatchReader: ScreenwatchReader? = nil,
+        screenwatchSourceRepository: ScreenwatchSourceRepository? = nil,
         remindersService: (any RemindersServicing)? = nil,
         calendarService: (any CalendarServicing)? = nil,
         notificationService: (any NotificationServicing)? = nil,
@@ -94,7 +95,16 @@ final class AppModel: ObservableObject {
         todayDashboardXPCClient = TodayDashboardXPCClient(
             runtimeEnvironment: runtimeEnvironment
         )
-        self.screenwatchReader = screenwatchReader ?? ScreenwatchReader(baseDirectory: runtimeEnvironment.screenwatchDirectory)
+        if let screenwatchReader {
+            self.screenwatchReader = screenwatchReader
+        } else {
+            let repository = screenwatchSourceRepository
+                ?? ScreenwatchSourceRepository(runtimeEnvironment: runtimeEnvironment)
+            let source: Result<ScreenwatchDirectoryLease, Error> = Result {
+                try repository.resolveCanonicalSource()
+            }
+            self.screenwatchReader = ScreenwatchReader(canonicalSource: source)
+        }
         if case .qa = runtimeEnvironment.mode {
             let adapter: DeterministicOSFixtureAdapters?
             let fixtureFailureDetail: String

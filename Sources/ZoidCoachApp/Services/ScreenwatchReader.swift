@@ -32,6 +32,16 @@ actor ScreenwatchReader {
         let lease: ScreenwatchDirectoryLease
         do {
             lease = try source.get()
+        } catch ScreenwatchSourceResolutionError.missingDirectory {
+            return SourceHealth(
+                id: .screenwatch,
+                title: "Screenwatch",
+                eyebrow: "Behavior",
+                state: .unavailable,
+                detail: "Today’s telemetry stream is missing",
+                evidence: "The canonical local source is not available yet",
+                actionTitle: "Retry"
+            )
         } catch {
             return SourceHealth(
                 id: .screenwatch,
@@ -73,11 +83,11 @@ actor ScreenwatchReader {
                 )
             }
             let age = max(0, now.timeIntervalSince1970 - TimeInterval(lastRecord.epoch))
-            let state = age > 120 ? HealthState.attention : .healthy
-            let detail = state == .healthy
-                ? "Telemetry is current"
-                : "Telemetry is stale by \(age.formattedAge)"
-            let evidence = "\(recordsSeen.formatted()) records observed, \(imageRecordsSeen.formatted()) with screenshots"
+            let state: HealthState = age <= 90 ? .healthy : .attention
+            let detail = age <= 90
+                ? "Live stream updated " + age.formattedAge + " ago"
+                : "Stream is stale by " + age.formattedAge
+            let evidence = "\(recordsSeen.formatted()) records parsed · \(imageRecordsSeen.formatted()) image references"
             return SourceHealth(
                 id: .screenwatch,
                 title: "Screenwatch",

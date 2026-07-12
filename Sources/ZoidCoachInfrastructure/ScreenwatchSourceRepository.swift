@@ -249,7 +249,11 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
     }
 
     private func openDirectory(_ components: [String]) throws -> Int32 {
-        var descriptor = dup(rootDescriptor)
+        var descriptor = Darwin.openat(
+            rootDescriptor,
+            ".",
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
         guard descriptor >= 0 else { throw ScreenwatchSourceResolutionError.ioFailure }
         for component in components {
             guard isValidComponent(component) else {
