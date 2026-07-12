@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import ZoidCoachCore
+import ZoidCoachInfrastructure
 
 @Test
 func onboardingProgressAdvancesInOrderAndRequiresAnExplicitCoachingMode() throws {
@@ -11,7 +12,7 @@ func onboardingProgressAdvancesInOrderAndRequiresAnExplicitCoachingMode() throws
     try progress.completeCurrentStep(at: now)
     #expect(progress.currentStep == .localPrivacy)
 
-    for step in OnboardingStep.allCases.dropFirst().dropLast(3) {
+    for step in OnboardingProgress.stepSequence.dropFirst().dropLast(3) {
         #expect(progress.currentStep == step)
         if [.reminders, .screenwatch, .notifications].contains(step) {
             try progress.recordAccessDecision(.deferred, for: step)
@@ -46,7 +47,7 @@ func onboardingOnlyFinishesAfterTheFirstDailyPlan() throws {
     var progress = try OnboardingProgress()
     let finishedAt = Date(timeIntervalSince1970: 1_800_000_000)
 
-    for step in OnboardingStep.allCases {
+    for step in OnboardingProgress.stepSequence {
         #expect(progress.currentStep == step)
         if [.reminders, .screenwatch, .notifications].contains(step) {
             try progress.recordAccessDecision(.denied, for: step)
@@ -81,7 +82,7 @@ func onboardingStoreResumesTheExactPersistedStepAcrossRestarts() throws {
     try progress.completeCurrentStep(at: Date())
     try progress.completeCurrentStep(at: Date())
     try progress.recordAccessDecision(.denied, for: .reminders)
-    try firstProcess.save(progress)
+    progress = try firstProcess.save(progress)
 
     let restartedProcess = OnboardingProgressStore(runtimeEnvironment: runtime)
     let resumed = try restartedProcess.load()
@@ -109,7 +110,7 @@ func onboardingStoreRejectsCorruptProgressWithoutOverwritingIt() throws {
     let corrupt = Data("not-json".utf8)
     try corrupt.write(to: store.fileURL)
 
-    #expect(throws: OnboardingProgressError.self) {
+    #expect(throws: OnboardingProgressStoreError.corruptProgress(path: store.fileURL.path)) {
         try store.load()
     }
     #expect(try Data(contentsOf: store.fileURL) == corrupt)
@@ -153,7 +154,7 @@ func onboardingPersistsPermissionDenialAndDegradedContinuationDecisions() throws
 
 @Test
 func onboardingProgressRejectsContradictoryTerminalState() {
-    var completed = OnboardingStep.allCases
+    var completed = OnboardingProgress.stepSequence
     completed.removeLast()
     #expect(throws: OnboardingProgressError.stepsIncomplete) {
         try OnboardingProgress(
@@ -169,7 +170,7 @@ func onboardingProgressRejectsContradictoryTerminalState() {
     #expect(throws: OnboardingProgressError.stepsIncomplete) {
         try OnboardingProgress(
             currentStep: .firstDailyPlan,
-            completedSteps: OnboardingStep.allCases,
+            completedSteps: OnboardingProgress.stepSequence,
             coachingMode: .rulesOnly,
             remindersAccess: .granted,
             screenwatchAccess: .granted,
