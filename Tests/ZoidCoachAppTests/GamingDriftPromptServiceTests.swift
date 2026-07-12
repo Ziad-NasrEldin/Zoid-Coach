@@ -145,6 +145,51 @@ func gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() throws {
 }
 
 @Test
+func coachingLevelEnforcesCooldownAndDailyPromptLimitAcrossSeparateSessions() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(level: .accountability)
+    guard case .queued = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected first accountability prompt")
+        return
+    }
+
+    fixture.advance(minutes: 30)
+    try fixture.insertGaming(minutes: 10)
+    #expect(try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) == .suppressed(.cooldownActive))
+
+    fixture.advance(minutes: 31)
+    try fixture.insertGaming(minutes: 10)
+    guard case .queued = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected second accountability prompt after cooldown")
+        return
+    }
+    fixture.advance(minutes: 61)
+    try fixture.insertGaming(minutes: 10)
+    guard case .queued = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected third accountability prompt")
+        return
+    }
+    fixture.advance(minutes: 61)
+    try fixture.insertGaming(minutes: 10)
+    let fourth = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    )
+    #expect(fourth == .suppressed(.dailyLimitReached), "Unexpected fourth result: \(fourth)")
+    #expect(try fixture.promptStore.unresolved().isEmpty)
+}
+
+@Test
 func legacyGamingPolicyDefaultsToGentleCoaching() throws {
     let data = Data(#"{"version":1,"dailyBudgetMinutes":60,"priorityTaskRewardMinutes":15}"#.utf8)
     let decoded = try JSONDecoder().decode(GamingPolicy.self, from: data)
@@ -182,6 +227,10 @@ private final class GamingPromptFixture: @unchecked Sendable {
     }
 
     func remove() { try? FileManager.default.removeItem(at: databaseURL) }
+
+    func advance(minutes: Int) {
+        clock.now = clock.now.addingTimeInterval(TimeInterval(minutes * 60))
+    }
 
     func baseline(completeDays: Int = 7) -> BaselineObservationStatus {
         BaselineObservationStatus(

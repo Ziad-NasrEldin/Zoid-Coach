@@ -97,7 +97,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         }
 
         let decisionKey = "gaming-drift:\(localDay):\(session.startedAtEpoch)"
-        if try prompts.latestEpisode(decisionKey: decisionKey) != nil {
+        if try hasPrompt(decisionKey: decisionKey) {
             return .suppressed(.sessionAlreadyHandled)
         }
         let prefix = "gaming-drift:\(localDay):"
@@ -105,8 +105,8 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         guard try promptCount(decisionKeyPrefix: prefix) < level.maximumDailyPrompts else {
             return .suppressed(.dailyLimitReached)
         }
-        if let latest = try prompts.latestEpisode(decisionKeyPrefix: prefix),
-           date.timeIntervalSince(latest.createdAt) < TimeInterval(level.cooldownMinutes * 60) {
+        if let latestCreatedAt = try latestPromptCreatedAt(decisionKeyPrefix: prefix),
+           date.timeIntervalSince(latestCreatedAt) < TimeInterval(level.cooldownMinutes * 60) {
             return .suppressed(.cooldownActive)
         }
 
@@ -231,19 +231,48 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
-            "SELECT COUNT(*) FROM prompt_episodes WHERE decision_key LIKE ? ESCAPE '\\';",
+            "SELECT COUNT(*) FROM prompt_episodes WHERE decision_key LIKE ? OR decision_key LIKE ?;",
             -1,
             &statement,
             nil
         ) == SQLITE_OK, let statement else { throw databaseError() }
         defer { sqlite3_finalize(statement) }
-        let escaped = decisionKeyPrefix
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "%", with: "\\%")
-            .replacingOccurrences(of: "_", with: "\\_")
-        bind(escaped + "%", statement, 1)
+        bind(decisionKeyPrefix + "%", statement, 1)
+        bind("resolved:%:" + decisionKeyPrefix + "%", statement, 2)
         guard sqlite3_step(statement) == SQLITE_ROW else { throw databaseError() }
         return Int(sqlite3_column_int64(statement, 0))
+    }
+
+    private func hasPrompt(decisionKey: String) throws -> Bool {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT 1 FROM prompt_episodes WHERE decision_key = ? OR decision_key LIKE ? LIMIT 1;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        bind(decisionKey, statement, 1)
+        bind("resolved:%:" + decisionKey, statement, 2)
+        return sqlite3_step(statement) == SQLITE_ROW
+    }
+
+    private func latestPromptCreatedAt(decisionKeyPrefix: String) throws -> Date? {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT created_at_utc FROM prompt_episodes WHERE decision_key LIKE ? OR decision_key LIKE ? ORDER BY created_at_utc DESC, id DESC LIMIT 1;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        bind(decisionKeyPrefix + "%", statement, 1)
+        bind("resolved:%:" + decisionKeyPrefix + "%", statement, 2)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let raw = text(statement, 0) else { return nil }
+        return formatter.date(from: raw)
     }
 
     private func tableExists(_ name: String) throws -> Bool {
