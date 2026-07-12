@@ -302,6 +302,26 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func startSprint(taskID: String, durationMinutes: Int) {
+        guard pendingTaskCommandIDs.isEmpty else { return }
+        guard (1...240).contains(durationMinutes) else {
+            taskCommandError = "Choose a sprint from 1 to 240 minutes."
+            return
+        }
+        pendingTaskCommandIDs.insert(taskID)
+        taskCommandError = nil
+        Task {
+            defer { pendingTaskCommandIDs.remove(taskID) }
+            do {
+                todaySnapshot = try await todayDashboardXPCClient.startSprint(taskID: taskID, durationMinutes: durationMinutes)
+                lastActionMessage = "\(durationMinutes)-minute sprint started."
+            } catch {
+                taskCommandError = error.localizedDescription
+                todaySnapshot = try? todaySnapshotStore?.load()
+            }
+        }
+    }
+
     var isAnyTaskCommandPending: Bool {
         pendingTaskCommandIDs.isEmpty == false
     }
@@ -309,6 +329,10 @@ final class AppModel: ObservableObject {
     private func taskCommandConfirmation(_ command: TaskActivityCommand) -> String {
         switch command {
         case .start: "Task started."
+        case .startSprint10: "10-minute recovery sprint started."
+        case .startSprint20: "20-minute work sprint started."
+        case .startSprint25: "25-minute focus sprint started."
+        case .continueOpenEnded: "Sprint ended. The task is continuing without a timer."
         case .resume: "Task resumed."
         case .pause: "Task paused."
         case .pauseForBreak: "Task paused for a break."

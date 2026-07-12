@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 31
+    public static let currentVersion = 32
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -893,6 +893,23 @@ private extension AutonomousDatabaseMigrator {
         );
         CREATE INDEX IF NOT EXISTS weekly_review_experiments_tracking
         ON weekly_review_experiments(state, tracking_week_start, review_week_start);
+        """)]),
+        Migration(version: 32, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS task_sprint_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id TEXT NOT NULL,
+            duration_minutes INTEGER NOT NULL CHECK(duration_minutes BETWEEN 1 AND 240),
+            started_at_utc TEXT NOT NULL,
+            active_segment_started_at_utc TEXT,
+            accumulated_active_seconds REAL NOT NULL DEFAULT 0 CHECK(accumulated_active_seconds >= 0),
+            state TEXT NOT NULL CHECK(state IN ('active', 'paused', 'expired', 'continuedOpenEnded', 'finished')),
+            ended_at_utc TEXT
+        );
+        CREATE INDEX IF NOT EXISTS task_sprint_sessions_task_time
+        ON task_sprint_sessions(task_id, started_at_utc DESC, id DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS task_sprint_sessions_one_open
+        ON task_sprint_sessions(task_id)
+        WHERE state IN ('active', 'paused', 'expired', 'continuedOpenEnded');
         """)])
     ]
 }
