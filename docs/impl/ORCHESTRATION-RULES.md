@@ -21,9 +21,12 @@ Each item must have one owner, explicit acceptance proof, and an evidence locati
 
 An implementation agent must deliver a clean commit, focused automated tests, relevant integration tests, and end-user proof proportional to the scenario.
 
+Every command log and generated proof artifact must be written beneath the owning worktree or an explicitly named worktree-local audit directory.
+
+Globally shared `lean-ctx` logs, scratch files, and command-output caches are not acceptable evidence because parallel lanes can overwrite or contaminate them.
+
 A parallel verifier checks the acceptance proof without pausing the other implementation lane.
 
 The orchestrator integrates completed commits, updates the tracker and registry, and immediately assigns the next backlog item.
 
 Code presence alone never qualifies a scenario as complete.
-
