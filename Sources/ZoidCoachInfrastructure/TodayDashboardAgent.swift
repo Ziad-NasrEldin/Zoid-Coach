@@ -267,9 +267,16 @@ public final class TodayDashboardAgent: @unchecked Sendable {
     }
 
     public func reminderCompletionSyncState(taskID: String) throws -> ReminderCompletionSyncState {
-        ReminderCompletionSyncState(
+        let command = try outbox.latestCommand(type: .completeReminder, entityID: taskID)
+        let taskTitle = try command.flatMap { command in
+            try taskHistory.completedEntries(for: command.createdAt)
+                .first(where: { $0.taskID == taskID })?
+                .title
+        }
+        return ReminderCompletionSyncState(
             taskID: taskID,
-            command: try outbox.latestCommand(type: .completeReminder, entityID: taskID)
+            command: command,
+            taskTitle: taskTitle
         )
     }
 

@@ -359,7 +359,9 @@ final class AppModel: ObservableObject {
     }
 
     func reminderCompletionTitle(taskID: String) -> String {
-        reminderTasks.first(where: { $0.id == taskID })?.title ?? "Reminder task"
+        reminderCompletionSyncState(for: taskID).taskTitle
+            ?? reminderTasks.first(where: { $0.id == taskID })?.title
+            ?? "Reminder task"
     }
 
     func retryReminderCompletionSync(taskID: String) {

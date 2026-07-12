@@ -11,6 +11,7 @@ public enum ReminderCompletionSyncPhase: String, Codable, Equatable, Sendable {
 
 public struct ReminderCompletionSyncState: Codable, Equatable, Sendable {
     public let taskID: String
+    public let taskTitle: String?
     public let commandID: String?
     public let phase: ReminderCompletionSyncPhase
     public let attemptCount: Int
@@ -18,6 +19,7 @@ public struct ReminderCompletionSyncState: Codable, Equatable, Sendable {
 
     public init(taskID: String, audit: [ActionAuditEntry]) {
         self.taskID = taskID
+        taskTitle = nil
         guard let latest = audit
             .filter({ $0.actionType == ActionCommandType.completeReminder.rawValue && $0.entityID == taskID })
             .max(by: { lhs, rhs in
@@ -45,8 +47,9 @@ public struct ReminderCompletionSyncState: Codable, Equatable, Sendable {
         }
     }
 
-    public init(taskID: String, command: ActionCommand?) {
+    public init(taskID: String, command: ActionCommand?, taskTitle: String? = nil) {
         self.taskID = taskID
+        self.taskTitle = taskTitle
         commandID = command?.id
         attemptCount = command?.attemptCount ?? 0
         updatedAt = command?.updatedAt

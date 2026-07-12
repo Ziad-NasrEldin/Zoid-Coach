@@ -228,7 +228,9 @@ func failedReminderCompletionCanBeRetriedExactlyOnceWithoutLosingHistory() throw
 
     _ = try agent.apply(.start, taskID: taskID, now: day)
     _ = try agent.apply(.complete, taskID: taskID, now: day.addingTimeInterval(120))
-    #expect(try agent.reminderCompletionSyncState(taskID: taskID).phase == .pending)
+    let pending = try agent.reminderCompletionSyncState(taskID: taskID)
+    #expect(pending.phase == .pending)
+    #expect(pending.taskTitle == "Send the final brief")
 
     let outbox = try ActionOutboxStore(databaseURL: url)
     let claimed = try #require(try outbox.claimNextReady())
