@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "run_id": "phase0-proof/fde4f3f",
+  "target_commit": "fde4f3f0b7b83ea561a02e879c407edff489506b",
+  "branch": "codex/zc-proof-reverify",
+  "completed_at": "2026-07-12T02:38:40Z",
+  "status": "failed",
+  "builder_gate": "blocked",
+  "safety": {
+    "app_launched": false,
+    "app_installed": false,
+    "production_services_touched": false,
+    "production_data_touched": false
+  },
+  "assertions": [
+    {"id": "registry-count", "result": "passed", "actual": 666, "expected": 666},
+    {"id": "registry-unique-ids", "result": "passed", "actual": 666, "expected": 666},
+    {"id": "registry-tracker-drift", "result": "passed", "actual": "none", "expected": "none"},
+    {"id": "schema-current-registry", "result": "passed", "actual": "valid", "expected": "valid"},
+    {"id": "schema-manual-semantic-parity", "result": "failed", "actual": "schema accepted a manual-rejected status mutation", "expected": "same decision"},
+    {"id": "evidence-artifact-containment", "result": "failed", "actual": "parent symlink escape accepted", "expected": "rejected"},
+    {"id": "evidence-assertion-structure", "result": "failed", "actual": "null assertion accepted", "expected": "rejected"},
+    {"id": "evidence-commit-binding", "result": "failed", "actual": "foreign Git commit accepted", "expected": "rejected"},
+    {"id": "build-stamp-real-clean-dirty", "result": "passed", "actual": "target clean before evidence and target dirty after evidence files", "expected": "real repository state reflected"},
+    {"id": "build-stamp-commit-binding", "result": "failed", "actual": "foreign Git commit stamped", "expected": "target repository commit stamped"},
+    {"id": "swift-full-suite", "result": "failed", "actual": "220 passed, 1 failed", "expected": "221 passed, 0 failed"},
+    {"id": "swift-release-build", "result": "passed", "actual": "success with warnings", "expected": "success"},
+    {"id": "signed-package-identity", "result": "passed", "actual": "zoid-coach-fde4f3f0b7b83ea561a02e879c407edff489506b-clean", "expected": "zoid-coach-fde4f3f0b7b83ea561a02e879c407edff489506b-clean"},
+    {"id": "settings-visible-build-identity", "result": "passed", "actual": "BUILD fact and settings.buildIdentity", "expected": "visible and accessible"}
+  ],
+  "findings": [
+    {"id": "P0-PROOF-001", "severity": "P1", "title": "Ambient Git variables can forge repository and build commit binding"},
+    {"id": "P0-PROOF-002", "severity": "P1", "title": "Evidence artifact containment can be bypassed through a symlinked parent directory"},
+    {"id": "P0-PROOF-003", "severity": "P1", "title": "Passed evidence can use a meaningless assertion"},
+    {"id": "P0-PROOF-004", "severity": "P1", "title": "The full Swift test suite is red at the integrated commit"},
+    {"id": "P0-PROOF-005", "severity": "P2", "title": "JSON Schema and manual validation are not semantically equivalent"}
+  ],
+  "registry": {
+    "scenario_count": 666,
+    "unique_ids": 666,
+    "checked": 6,
+    "unchecked": 660,
+    "delivery_status": {
+      "fully_implemented": 6,
+      "touches_remaining": 120,
+      "frontend_only_left": 27,
+      "partially_implemented": 156,
+      "barely_started": 49,
+      "not_implemented": 275,
+      "blocked_from_verification": 33
+    },
+    "disposition": {
+      "required_now": 658,
+      "negative_invariant": 6,
+      "superseded_candidate": 1,
+      "deferred_guardrail": 1
+    }
+  },
+  "package": {
+    "bundle_identifier": "com.ziadnasreldin.ZoidCoach",
+    "git_commit": "fde4f3f0b7b83ea561a02e879c407edff489506b",
+    "git_state": "clean",
+    "build_identity": "zoid-coach-fde4f3f0b7b83ea561a02e879c407edff489506b-clean",
+    "app_signing_identifier": "com.ziadnasreldin.ZoidCoach",
+    "agent_signing_identifier": "com.ziadnasreldin.ZoidCoach.agent",
+    "app_and_agent_team_match": true,
+    "app_cdhash": "47213fc001ab403a0631bd72725ca7239cc5ef47"
+  },
+  "audited_artifacts": [
+    {"path": "docs/zoid-coach-product-scenario-tracker.md", "sha256": "2732d57baef4a31a86507b858cd9660a3f3dfcef167fb4d87fa65c4c4326710a"},
+    {"path": "docs/scenario-registry.json", "sha256": "9f795d349a7aa3325c4ff0ccd20c5604aa9cf892b5def715af43d13e6adea1e3"},
+    {"path": "docs/scenario-registry.schema.json", "sha256": "c27270eb3c02e909cf44fe65a45b463f62c17f420a7d809b369c2d865703ed10"},
+    {"path": "Scripts/scenario_registry.py", "sha256": "417f32e1e8d975dab338e7d50a088edaffa4816376c35d0ad0c67b8c3490336c"},
+    {"path": "Scripts/scenario_evidence.py", "sha256": "22b07afd21c2cad4a2bff59f7bb1d453fda16f4123ea46673209d63c3fcc6187"},
+    {"path": "Scripts/stamp-build-identity.sh", "sha256": "88010a03beb2dc9c42dedcf90e72f0018d15c8a23f4b5bba29b0bdcab9e9987e"},
+    {"path": "Scripts/verify-build-identity.sh", "sha256": "5a498b49ba012fa69846843a5b14867a204cdc0a638a7050c6f390fe2287fa5e"},
+    {"path": "Scripts/package-app.sh", "sha256": "7ae133645c0ac2cc9ddb0820553a40305317137f10227093e8756d96a20b55e1"},
+    {"path": "Scripts/verify-package.sh", "sha256": "3b093c94cbcf37613c2568b6d6c16bba3e7409d70c5d2efab3dcc85718131aaa"},
+    {"path": "Sources/ZoidCoachApp/AppBuildIdentity.swift", "sha256": "4dcbf4ae7bfb4b0bec5d440a02d328f97e2f28fce65a63a5c381dd57cddae6c8"},
+    {"path": "Sources/ZoidCoachApp/Views/SettingsView.swift", "sha256": "1e31058ff549b3e31f3e5a244979c94dcf5cfc5901cdd359df550e675d101eaa"},
+    {"path": ".build/app/Zoid Coach.app/Contents/Info.plist", "sha256": "a7f5d4433f5002d179df9fe9a53e77c8e0e7714405a9cfc59364937c25ad6377"},
+    {"path": ".build/app/Zoid Coach.app/Contents/MacOS/ZoidCoach", "sha256": "b7d72a858b28ae8e0bb9f0dd0ce638cbc7ffc1d50591c0b9936994035b1c012a"},
+    {"path": ".build/app/Zoid Coach.app/Contents/MacOS/ZoidCoachAgent", "sha256": "796a8187792432692402057e0dbea7a13f588d7938b185495f5167c54735935c"}
+  ]
+}
