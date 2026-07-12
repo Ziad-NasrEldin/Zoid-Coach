@@ -190,10 +190,10 @@ public final class WeeklyReviewStore: @unchecked Sendable {
         guard evidenceIsSufficient else { return [] }
         var patterns: [WeeklyReviewPattern] = []
 
-        if let estimate = try aggregate(database, type: "estimate", window: window) {
-            let direction = estimate.medianValue > 1.1
+        if let estimate = try estimateEvidence(database, window: window) {
+            let direction = estimate.medianRatio > 1.1
                 ? "Recent focused work usually took longer than its estimate."
-                : estimate.medianValue < 0.9
+                : estimate.medianRatio < 0.9
                     ? "Recent focused work usually finished inside its estimate."
                     : "Recent focused work generally matched its estimate."
             patterns.append(pattern(
@@ -202,21 +202,21 @@ public final class WeeklyReviewStore: @unchecked Sendable {
                 conclusion: direction,
                 sampleCount: estimate.sampleCount,
                 range: range,
-                examples: ["Median actual-to-estimate ratio: \(String(format: "%.2f", estimate.medianValue))"],
-                confidence: estimate.confidence,
+                examples: estimate.examples,
+                confidence: estimate.confidencePercent,
                 alternative: "Task difficulty or incomplete tracking may explain part of the difference."
             ))
         }
 
-        if let workWindow = try aggregate(database, type: "preferred_work_window", window: window) {
+        if let workWindow = try workWindowEvidence(database, window: window) {
             patterns.append(pattern(
                 .bestWorkWindow,
                 title: "Best work window",
-                conclusion: "The strongest repeated work-window signal is \(workWindow.key.replacingOccurrences(of: "|", with: " · ")).",
+                conclusion: "Eligible aligned work most often began around \(timeString(workWindow.medianStart)) and lasted about \(workWindow.medianDurationMinutes) minutes.",
                 sampleCount: workWindow.sampleCount,
                 range: range,
-                examples: ["Local aggregate: \(workWindow.key)"],
-                confidence: workWindow.confidence,
+                examples: workWindow.examples,
+                confidence: workWindow.confidencePercent,
                 alternative: "Meeting load and the kind of work attempted can shift the apparent window."
             ))
         }
@@ -366,32 +366,104 @@ public final class WeeklyReviewStore: @unchecked Sendable {
         )
     }
 
-    private func aggregate(
+    private func estimateEvidence(
+        _ database: OpaquePointer,
+        window: ReviewWindow
+    ) throws -> EstimateWeeklyEvidence? {
+        let payloads = try learningSamplePayloads(database, type: "estimate", window: window)
+        let decoder = weeklyEvidenceDecoder()
+        let samples = payloads.compactMap { try? decoder.decode(WeeklyEstimateSamplePayload.self, from: Data($0.utf8)).sample }
+            .filter {
+                $0.isEligible && $0.estimatedMinutes > 0 && $0.actualAlignedMinutes > 0 && $0.trackingCoverage >= 0.75
+            }
+            .sorted {
+                if $0.completedAt != $1.completedAt { return $0.completedAt < $1.completedAt }
+                return $0.id < $1.id
+            }
+        guard samples.count >= EstimateLearningPolicy().minimumSamples else { return nil }
+        let ratios = samples.map { Double($0.actualAlignedMinutes) / Double($0.estimatedMinutes) }.sorted()
+        guard let medianRatio = median(ratios) else { return nil }
+        let examples = samples.suffix(3).map {
+            "\(dayString($0.completedAt)): estimated \($0.estimatedMinutes) min, corrected aligned work \($0.actualAlignedMinutes) min"
+        }
+        return EstimateWeeklyEvidence(
+            sampleCount: samples.count,
+            medianRatio: medianRatio,
+            confidencePercent: min(90, 40 + samples.count * 8),
+            examples: examples
+        )
+    }
+
+    private func workWindowEvidence(
+        _ database: OpaquePointer,
+        window: ReviewWindow
+    ) throws -> WorkWindowWeeklyEvidence? {
+        let payloads = try learningSamplePayloads(database, type: "preferred_work_window", window: window)
+        let decoder = weeklyEvidenceDecoder()
+        let policy = PreferredWorkWindowLearningPolicy()
+        let samples = payloads.compactMap { try? decoder.decode(WeeklyWorkWindowSamplePayload.self, from: Data($0.utf8)).sample }
+            .filter {
+                $0.isAlignedWork && $0.trackingCoverage >= policy.minimumTrackingCoverage &&
+                    $0.endedAt.timeIntervalSince($0.startedAt) >= Double(policy.minimumSessionMinutes * 60)
+            }
+            .sorted {
+                if $0.startedAt != $1.startedAt { return $0.startedAt < $1.startedAt }
+                return $0.id < $1.id
+            }
+        guard samples.count >= policy.minimumSamples else { return nil }
+        let startEpochs = samples.map { $0.startedAt.timeIntervalSince1970 }.sorted()
+        let durations = samples.map { min(Int(($0.endedAt.timeIntervalSince($0.startedAt) / 60).rounded()), policy.maximumLearnedDurationMinutes) }.sorted()
+        guard let medianStartEpoch = median(startEpochs), let medianDuration = median(durations.map(Double.init)) else { return nil }
+        let examples = samples.suffix(3).map {
+            "\(dayString($0.startedAt)): \(timeString($0.startedAt))-\(timeString($0.endedAt)), corrected aligned coverage \(Int(($0.trackingCoverage * 100).rounded()))%"
+        }
+        return WorkWindowWeeklyEvidence(
+            sampleCount: samples.count,
+            medianStart: Date(timeIntervalSince1970: medianStartEpoch),
+            medianDurationMinutes: Int(medianDuration.rounded()),
+            confidencePercent: min(90, 40 + samples.count * 7),
+            examples: examples
+        )
+    }
+
+    private func learningSamplePayloads(
         _ database: OpaquePointer,
         type: String,
         window: ReviewWindow
-    ) throws -> AggregateRow? {
+    ) throws -> [String] {
         var statement: OpaquePointer?
         let sql = """
-        SELECT aggregate_key, sample_count, median_value, confidence
-        FROM learning_aggregates
-        WHERE aggregate_type = ? AND updated_at_utc >= ? AND updated_at_utc < ?
-        ORDER BY confidence DESC, sample_count DESC, aggregate_key ASC LIMIT 1;
+        SELECT payload_json
+        FROM learning_samples
+        WHERE sample_type = ? AND occurred_at_utc >= ? AND occurred_at_utc < ? AND payload_json IS NOT NULL
+        ORDER BY occurred_at_utc ASC, id ASC;
         """
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
-            throw databaseError(database, operation: "read learning aggregate")
+            throw databaseError(database, operation: "read weekly learning evidence")
         }
         defer { sqlite3_finalize(statement) }
         bind(.text(type), to: statement, at: 1)
         bind(.text(Self.timestamp(window.startDate)), to: statement, at: 2)
         bind(.text(Self.timestamp(window.endExclusive)), to: statement, at: 3)
-        guard sqlite3_step(statement) == SQLITE_ROW, let key = text(statement, 0) else { return nil }
-        return AggregateRow(
-            key: key,
-            sampleCount: Int(sqlite3_column_int(statement, 1)),
-            medianValue: sqlite3_column_double(statement, 2),
-            confidence: Int((sqlite3_column_double(statement, 3) * 100).rounded())
-        )
+        var payloads: [String] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let payload = text(statement, 0) { payloads.append(payload) }
+        }
+        return payloads
+    }
+
+    private func weeklyEvidenceDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
+
+    private func median(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        let midpoint = values.count / 2
+        return values.count.isMultiple(of: 2)
+            ? (values[midpoint - 1] + values[midpoint]) / 2
+            : values[midpoint]
     }
 
     private func promptSummary(_ database: OpaquePointer, window: ReviewWindow) throws -> PromptSummary {
@@ -748,11 +820,27 @@ private struct ReviewWindow {
     let endDay: String
 }
 
-private struct AggregateRow {
-    let key: String
+private struct EstimateWeeklyEvidence {
     let sampleCount: Int
-    let medianValue: Double
-    let confidence: Int
+    let medianRatio: Double
+    let confidencePercent: Int
+    let examples: [String]
+}
+
+private struct WorkWindowWeeklyEvidence {
+    let sampleCount: Int
+    let medianStart: Date
+    let medianDurationMinutes: Int
+    let confidencePercent: Int
+    let examples: [String]
+}
+
+private struct WeeklyEstimateSamplePayload: Decodable {
+    let sample: EstimateLearningSample
+}
+
+private struct WeeklyWorkWindowSamplePayload: Decodable {
+    let sample: WorkWindowLearningSample
 }
 
 private struct PromptSummary {
