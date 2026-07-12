@@ -27,8 +27,8 @@ The agent reconciles prior completed days once per local day and also covers one
 
 ## Focused proof
 
-- `swift test --filter BaselineObservation` passed six focused tests.
-- The tests cover seven-day suppression, completion, restart, frozen results, missing and limited coverage, current-day exclusion, drift counting without prompts, correction-aware aggregation, alert guidance, and migration 37.
+- `swift test --filter BaselineObservation` passed seven focused tests.
+- The tests cover seven-day suppression, completion, restart, frozen results, missing and limited coverage, current-day exclusion, drift eligibility only with unfinished planned work, gaming observation without overclaiming eligibility, correction-aware aggregation, alert guidance, and migration 37.
 - `swift build --target ZoidCoachAgent` passed.
 - `git diff --check` passed.
 

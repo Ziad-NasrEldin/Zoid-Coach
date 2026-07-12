@@ -109,12 +109,14 @@ public final class BaselineObservationStore: @unchecked Sendable {
         else { return try readStatus() }
 
         let grouped = Dictionary(grouping: observations, by: \.localDay)
+        let daysWithIncompletePlannedWork = try readDaysWithIncompletePlannedWork(before: todayKey)
         var cursor = calendar.startOfDay(for: firstDate)
         while cursor <= yesterday {
             let localDay = dayFormatter.string(from: cursor)
             let day = Self.summarize(
                 localDay: localDay,
                 observations: grouped[localDay] ?? [],
+                hasIncompletePlannedWork: daysWithIncompletePlannedWork.contains(localDay),
                 recordedAt: now()
             )
             try write(day)
@@ -223,6 +225,37 @@ public final class BaselineObservationStore: @unchecked Sendable {
         return observations
     }
 
+    private func readDaysWithIncompletePlannedWork(before localDay: String) throws -> Set<String> {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            """
+            SELECT DISTINCT plan.day_key
+            FROM daily_plan_entries plan
+            WHERE plan.day_key < ?
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM task_history history
+                  WHERE history.task_id = plan.reminder_id
+                    AND history.state = 'completed'
+                    AND SUBSTR(history.occurred_at, 1, 10) <= plan.day_key
+              );
+            """,
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else {
+            throw databaseError(.read)
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(localDay, statement, 1)
+        var days: Set<String> = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let day = text(statement, 0) { days.insert(day) }
+        }
+        return days
+    }
+
     private func write(_ day: BaselineObservationDay) throws {
         try execute(
             """
@@ -256,6 +289,7 @@ public final class BaselineObservationStore: @unchecked Sendable {
     private static func summarize(
         localDay: String,
         observations: [Observation],
+        hasIncompletePlannedWork: Bool,
         recordedAt: Date
     ) -> BaselineObservationDay {
         guard !observations.isEmpty else {
@@ -296,7 +330,7 @@ public final class BaselineObservationStore: @unchecked Sendable {
             gamingMinutes: minutes(.gaming),
             distractingMinutes: minutes(.distracting),
             unknownMinutes: minutes(.unknown) + minutes(.idle),
-            eligibleDriftCount: eligibleDriftCount,
+            eligibleDriftCount: hasIncompletePlannedWork ? eligibleDriftCount : 0,
             coverage: observedMinutes >= 30 ? .complete : .limited,
             recordedAt: recordedAt
         )
