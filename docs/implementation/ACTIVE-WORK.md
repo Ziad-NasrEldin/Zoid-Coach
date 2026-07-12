@@ -9,18 +9,18 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | Field | Value |
 | --- | --- |
 | Integration branch | `codex/full-system` |
-| Current integration baseline | `6b4624b` after isolated runtime, strict proof registry, and build-provenance integration |
+| Current integration baseline | `a8c8420` after strict proof, isolated QA identities, deterministic OS fixtures, production wiring, and hardened onboarding persistence |
 | Program | `docs/ZOID-COACH-666-IMPLEMENTATION-PROGRAM.md` |
 | Acceptance tracker | `docs/zoid-coach-product-scenario-tracker.md` |
-| Phase | Phase 0: acceptance foundation |
+| Phase | Phase 1: first-launch onboarding and first daily-plan usability |
 
 ## Active assignments
 
 | Lane | Branch | Worktree | Scope | Status |
 | --- | --- | --- | --- | --- |
-| QA identities | `codex/zc-qa-identities` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/qa-identities` | Dedicated signed QA bundle, launchd, Mach/XPC, notification, and parent-app identity plane | In progress from `fde4f3f` |
-| OS fixtures | `codex/zc-os-fixtures` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/os-fixtures` | Deterministic persisted Reminders, Calendar, notification, permission, and action fixtures | In progress from `fde4f3f` |
-| Proof verifier | `codex/zc-proof-reverify` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/proof-reverify` | Independent registry, manifest, package-provenance, and signed-package reproduction | In progress from `fde4f3f` |
+| First-launch acceptance audit | Read-only root audit | Root checkout at `a8c8420` | Map the 12-step first-launch journey to scenario IDs, UI/service gaps, and E2E hooks | In progress |
+| Integrated OS-fixture verification | Read-only root verification | Root checkout at `a8c8420` | Reproduce full suites, signed packaging, bounded agent behavior, and exactly-once replay | In progress |
+| First-launch builder | To be assigned after acceptance audit | Dedicated worktree from `a8c8420` | Implement resumable 12-step onboarding and first daily-plan handoff | Pending |
 
 ## Exclusive file locks
 
@@ -30,9 +30,10 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | `Sources/ZoidCoachAgent/AgentMain.swift` | Root integrator | QA OS-adapter refusal integrated; future composition remains serialized | `46f635f` | Permanent unless temporarily granted |
 | `Sources/ZoidCoachApp/Voice/VoiceConversationModel.swift` | Root integrator | QA external-boundary refusal integrated | `46f635f` | Permanent unless temporarily granted |
 | `Sources/ZoidCoachCore/ZoidCoachStorage.swift` | Root integrator | Runtime storage helper integrated | `e9aecdb` | Permanent unless temporarily granted |
-| QA package scripts, copied plist identities, XPC identity composition, Settings XPC consumers, notification IDs, and parent launcher | QA identities | Replace every remaining shared runtime identity while preserving production defaults | `fde4f3f` | Current Phase 0 wave |
-| New deterministic OS fixture adapter and test files | OS fixtures | Add persisted fixture adapters without composition-root wiring | `fde4f3f` | Current Phase 0 wave |
-| `.audit/runs/phase0-proof/fde4f3f/` | Proof verifier | Immutable independent evidence only | `fde4f3f` | Current Phase 0 wave |
+| QA package scripts, copied plist identities, XPC identity composition, Settings XPC consumers, notification IDs, and parent launcher | Root integrator | Integrated dedicated QA identity plane | `61b3e43` | Permanent unless temporarily granted |
+| Deterministic OS fixture adapters and composition wiring | Root integrator | Integrated signed-QA Reminders, Calendar, notification, permission, and action fixtures | `a8c8420` | Permanent unless temporarily granted |
+| `.audit/runs/phase0-proof/` | Root integrator | Immutable independent proof evidence | `8ce11dc` | Permanent |
+| Onboarding progress model, store, and descriptor-relative state directory | Root integrator | Integrated hardened resumable persistence | `712ff71` | Permanent unless temporarily granted |
 | Runtime preference, keychain, export, capture, OS-adapter, and evidence-cipher consumers | Root integrator | Integrated and independently reviewed | `4a2bd85` | Permanent unless temporarily granted |
 | `Scripts/scenario_registry.py`, registry schema, and registry tests | Root integrator | Strict proof coherence integrated | `1223680` | Permanent unless temporarily granted |
 | `.audit/runs/deterministic-fixture/515016a/` | Root integrator | Immutable independent evidence | `3031040` | Permanent |
@@ -45,7 +46,7 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | Runtime | Owner | Permission |
 | --- | --- | --- |
 | Production installed app and user data | Root integrator | Read-only verification unless the user explicitly authorizes a controlled mutation |
-| Signed clean QA package | Root integrator | Package and structural verification only until remaining QA identities are isolated |
+| Signed clean QA package | Root integrator and assigned verifier | Deterministic fixture-backed E2E only within the embedded run-specific QA root |
 | Real Reminders and Calendar | None | No destructive or test mutations |
 | TCC and System Settings | None | No permission changes during this wave |
 
