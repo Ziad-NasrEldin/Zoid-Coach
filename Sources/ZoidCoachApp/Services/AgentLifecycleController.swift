@@ -53,7 +53,7 @@ final class AgentLifecycleController: ObservableObject {
     }
 
     var canEnable: Bool {
-        operation == .idle && health.state != .healthy && health.state != .unavailable
+        operation == .idle && health.state == .notConnected
     }
 
     var canRepair: Bool {
