@@ -10,8 +10,8 @@ LABEL="qa.ziadnasreldin.ZoidCoach.agent"
 USER_DOMAIN="gui/$(id -u)"
 
 cleanup() {
-    status=$?
-    if [[ $status -ne 0 ]]; then
+    exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
         launchctl print "$USER_DOMAIN/$LABEL" >&2 || true
     fi
     launchctl bootout "$USER_DOMAIN/$LABEL" >/dev/null 2>&1 || true
