@@ -41,10 +41,11 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         let plan = try plans.loadDailyPlan(for: now)
         let reminderSnapshots = try reminders.loadIncomplete()
         let reminderByID = Dictionary(uniqueKeysWithValues: reminderSnapshots.map { ($0.id, $0) })
-        let executionByID = try execution.snapshot(for: plan.map(\.reminderID), now: now)
+        let executionByID = try execution.snapshot(for: reminderSnapshots.map(\.id), now: now)
         var rows = plan.compactMap { entry -> TodayTaskRow? in
             guard let reminder = reminderByID[entry.reminderID] else { return nil }
             let current = executionByID[entry.reminderID]
+            guard current?.state != .completed else { return nil }
             return TodayTaskRow(
                 taskID: reminder.id,
                 title: reminder.title,
@@ -96,7 +97,10 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         let recommendation = active == nil ? NextTaskRecommender().recommend(tasks: rows, referenceDate: now, availableMinutes: 60, coverage: behavior.coverage) : NextTaskRecommendation(taskID: active?.taskID, sentence: "Continue the active task before starting another one.", reasons: [], coverageUncertainty: behavior.coverage.isLimited ? behavior.coverage.explanation : nil)
         let plannedIDs = Set(rows.map(\.taskID))
         let unplanned = reminderSnapshots
-            .filter { !plannedIDs.contains($0.id) }
+            .filter {
+                !plannedIDs.contains($0.id)
+                    && executionByID[$0.id]?.state != .completed
+            }
             .map {
                 TodayReminderQueueRow(
                     reminderID: $0.id,
