@@ -258,6 +258,11 @@ final class CalendarService: CalendarServicing {
 @MainActor
 final class DisabledQACalendarService: CalendarServicing {
     let isProductionAdapter = false
+    private let detail: String
+
+    init(detail: String = "QA Calendar integration is disabled") {
+        self.detail = detail
+    }
     var selectionAvailability: CalendarSelectionAvailability { .unavailable }
     func availableCalendars() throws -> [CalendarChoice] { [] }
     func inspect() async -> SourceHealth { health }
@@ -269,7 +274,7 @@ final class DisabledQACalendarService: CalendarServicing {
             title: "Apple Calendar",
             eyebrow: "Capacity",
             state: .unavailable,
-            detail: "QA Calendar integration is disabled",
+            detail: detail,
             evidence: "A deterministic QA Calendar adapter is required before EventKit access is enabled",
             actionTitle: "Unavailable"
         )

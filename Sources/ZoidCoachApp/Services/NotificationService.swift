@@ -142,6 +142,11 @@ final class NotificationService: NotificationServicing {
 @MainActor
 final class DisabledQANotificationService: NotificationServicing {
     let isProductionAdapter = false
+    private let detail: String
+
+    init(detail: String = "QA notifications are disabled") {
+        self.detail = detail
+    }
     func inspect() async -> SourceHealth { health }
     func requestAccessAndInspect() async -> SourceHealth { health }
 
@@ -151,7 +156,7 @@ final class DisabledQANotificationService: NotificationServicing {
             title: "macOS Notifications",
             eyebrow: "Escalation",
             state: .unavailable,
-            detail: "QA notifications are disabled",
+            detail: detail,
             evidence: "A dedicated QA notification adapter and namespace are required before notification access is enabled",
             actionTitle: "Unavailable"
         )

@@ -29,6 +29,19 @@ public struct QAFixtureWorkspace: Equatable, Sendable {
     public var screenwatchDirectory: URL { environment.screenwatchDirectory }
     public var exportRoot: URL { environment.exportRoot }
     public var launchArguments: [String] { ["--qa-run-root", root.path] }
+
+    public init(runtimeEnvironment: RuntimeEnvironment) throws {
+        guard case let .qa(runRoot) = runtimeEnvironment.mode else {
+            throw QAFixtureWorkspaceError.productionEnvironmentRefused
+        }
+        root = runRoot
+        environment = runtimeEnvironment
+    }
+
+    init(root: URL, environment: RuntimeEnvironment) {
+        self.root = root
+        self.environment = environment
+    }
 }
 
 public struct QAFixtureWorkspaceBuilder {

@@ -88,15 +88,15 @@ func appModelPropagatesQARuntimeToBackgroundAgentControl() async throws {
     )
     #expect(
         model.sources.first(where: { $0.id == .reminders })?.detail
-            == "QA Reminders integration is disabled"
+            .hasPrefix("QA fixture startup failed:") == true
     )
     #expect(
         model.sources.first(where: { $0.id == .calendar })?.detail
-            == "QA Calendar integration is disabled"
+            .hasPrefix("QA fixture startup failed:") == true
     )
     #expect(
         model.sources.first(where: { $0.id == .notifications })?.detail
-            == "QA notifications are disabled"
+            .hasPrefix("QA fixture startup failed:") == true
     )
     #expect(remindersConstructionCount == 0)
     #expect(calendarConstructionCount == 0)

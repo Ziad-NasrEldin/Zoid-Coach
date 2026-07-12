@@ -721,18 +721,24 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     }
 }
 
-private final class DescriptorRelativeStateDirectory: @unchecked Sendable {
+final class DescriptorRelativeStateDirectory: @unchecked Sendable {
     private let descriptor: Int32
 
-    init(workspaceRoot: URL) throws {
-        let rootDescriptor = try Self.openAbsoluteDirectoryWithoutFollowing(workspaceRoot)
+    init(
+        workspaceRoot: URL,
+        directoryName: String = "OS Fixtures"
+    ) throws {
+        let rootDescriptor = try Self.openAbsoluteDirectoryWithoutFollowing(
+            workspaceRoot,
+            createFinalDirectory: true
+        )
         defer { Darwin.close(rootDescriptor) }
-        if mkdirat(rootDescriptor, "OS Fixtures", 0o700) != 0, errno != EEXIST {
+        if mkdirat(rootDescriptor, directoryName, 0o700) != 0, errno != EEXIST {
             throw QAFixtureStateError.filesystemOperation("create fixture state directory", errno)
         }
-        descriptor = openat(rootDescriptor, "OS Fixtures", O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
+        descriptor = openat(rootDescriptor, directoryName, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
         guard descriptor >= 0 else {
-            throw QAFixtureStateError.unsafeFilesystemEntry("OS Fixtures")
+            throw QAFixtureStateError.unsafeFilesystemEntry(directoryName)
         }
     }
 
@@ -754,7 +760,10 @@ private final class DescriptorRelativeStateDirectory: @unchecked Sendable {
         return try body()
     }
 
-    private static func openAbsoluteDirectoryWithoutFollowing(_ url: URL) throws -> Int32 {
+    private static func openAbsoluteDirectoryWithoutFollowing(
+        _ url: URL,
+        createFinalDirectory: Bool
+    ) throws -> Int32 {
         guard url.path.hasPrefix("/") else {
             throw QAFixtureStateError.unsafeFilesystemEntry(url.path)
         }
@@ -764,12 +773,28 @@ private final class DescriptorRelativeStateDirectory: @unchecked Sendable {
         }
         var descriptorChain = [root]
         do {
-            for component in url.standardizedFileURL.path
-                .split(separator: "/").map(String.init) {
-                let next = openat(
+            let components = url.standardizedFileURL.path
+                .split(separator: "/").map(String.init)
+            for (index, component) in components.enumerated() {
+                var next = openat(
                     descriptorChain.last!, component,
                     O_RDONLY | O_DIRECTORY | O_NOFOLLOW
                 )
+                if next < 0,
+                   errno == ENOENT,
+                   createFinalDirectory,
+                   index == components.count - 1 {
+                    guard mkdirat(descriptorChain.last!, component, 0o700) == 0
+                            || errno == EEXIST else {
+                        throw QAFixtureStateError.filesystemOperation(
+                            "create workspace root", errno
+                        )
+                    }
+                    next = openat(
+                        descriptorChain.last!, component,
+                        O_RDONLY | O_DIRECTORY | O_NOFOLLOW
+                    )
+                }
                 guard next >= 0 else {
                     throw QAFixtureStateError.unsafeFilesystemEntry(component)
                 }

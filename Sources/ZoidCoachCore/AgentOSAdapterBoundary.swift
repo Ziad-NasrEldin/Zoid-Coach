@@ -8,6 +8,10 @@ public enum AgentOSAdapterOperation: String, CaseIterable, Equatable, Sendable {
     case deliverNotifications
 }
 
+public struct AgentOSFixtureAuthorization: Equatable, Sendable {
+    fileprivate let runRoot: URL
+}
+
 public enum AgentOSAdapterBoundary {
     public static func operations(
         requestRemindersAccess: Bool,
@@ -20,12 +24,30 @@ public enum AgentOSAdapterBoundary {
 
     public static func validate(
         runtimeEnvironment: RuntimeEnvironment,
-        operations: Set<AgentOSAdapterOperation>
+        operations: Set<AgentOSAdapterOperation>,
+        fixtureAuthorization: AgentOSFixtureAuthorization? = nil
     ) throws {
         guard case .qa = runtimeEnvironment.mode, !operations.isEmpty else { return }
+        if case let .qa(runRoot) = runtimeEnvironment.mode,
+           fixtureAuthorization?.runRoot == runRoot {
+            return
+        }
         throw AgentOSAdapterBoundaryError.isolatedAdaptersRequired(
             operations: operations.map(\.rawValue).sorted()
         )
+    }
+
+    public static func authorizeFixture(
+        runtimeEnvironment: RuntimeEnvironment
+    ) throws -> AgentOSFixtureAuthorization {
+        guard case let .qa(runRoot) = runtimeEnvironment.mode,
+              runtimeEnvironment.packageMode == .qa,
+              runtimeEnvironment.identity == .qa else {
+            throw AgentOSAdapterBoundaryError.isolatedAdaptersRequired(
+                operations: AgentOSAdapterOperation.allCases.map(\.rawValue).sorted()
+            )
+        }
+        return AgentOSFixtureAuthorization(runRoot: runRoot)
     }
 }
 
