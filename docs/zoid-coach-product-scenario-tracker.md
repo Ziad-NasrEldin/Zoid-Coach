@@ -14,12 +14,12 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 38
+- **Fully implemented:** 45
 - **Touches remaining:** 157
 - **Frontend only left:** 23
 - **Partially implemented:** 135
 - **Barely started:** 48
-- **Not implemented:** 232
+- **Not implemented:** 225
 - **Blocked from verification:** 33
 - **Total:** 666
 
