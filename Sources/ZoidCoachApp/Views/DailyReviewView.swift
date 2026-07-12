@@ -458,6 +458,10 @@ private struct OfflineWorkSection: View {
             TextField("What did you work on? (optional)", text: $note)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("reviews.offline.note")
+            Text("Add a task or note so intentional work remains distinct from missing telemetry.")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .accessibilityIdentifier("reviews.offline.validation")
             HStack {
                 Button(editingID == nil ? "ADD WORK" : "SAVE CORRECTION") {
                     if onSave(editingID, startedAt, durationMinutes, taskID, note) {
@@ -465,6 +469,7 @@ private struct OfflineWorkSection: View {
                     }
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                .disabled(!canSave)
                 .accessibilityIdentifier("reviews.offline.save")
                 if editingID != nil {
                     Button("CANCEL") { reset() }
@@ -522,6 +527,14 @@ private struct OfflineWorkSection: View {
             second: 0,
             of: selectedDay
         ) ?? selectedDay
+    }
+
+    private var canSave: Bool {
+        let trimmedTask = taskID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (!trimmedTask.isEmpty || !trimmedNote.isEmpty)
+            && trimmedTask.count <= 200
+            && trimmedNote.count <= 1_000
     }
 }
 

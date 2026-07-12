@@ -70,6 +70,13 @@ public final class DailyReviewStore: @unchecked Sendable {
         let entryID = id ?? UUID().uuidString
         let normalizedTaskID = Self.normalized(taskID)
         let normalizedNote = Self.normalized(note)
+        guard normalizedTaskID != nil || normalizedNote != nil else {
+            throw DailyReviewStoreError.missingOfflineWorkDescription
+        }
+        guard (normalizedTaskID?.count ?? 0) <= 200,
+              (normalizedNote?.count ?? 0) <= 1_000 else {
+            throw DailyReviewStoreError.offlineWorkDescriptionTooLong
+        }
         let timestamp = Self.timestamp(now())
         lock.lock()
         defer { lock.unlock() }
@@ -346,6 +353,8 @@ public enum DailyReviewStoreError: LocalizedError {
     case openDatabase
     case invalidCorrectionRange
     case invalidOfflineDuration
+    case missingOfflineWorkDescription
+    case offlineWorkDescriptionTooLong
     case database(Operation, String)
 
     public var errorDescription: String? {
@@ -356,6 +365,10 @@ public enum DailyReviewStoreError: LocalizedError {
             "The selected split point does not leave any activity to correct."
         case .invalidOfflineDuration:
             "Away-from-Mac work must be between 1 minute and 24 hours."
+        case .missingOfflineWorkDescription:
+            "Add a task or a short note so this intentional work can be distinguished from missing telemetry."
+        case .offlineWorkDescriptionTooLong:
+            "Keep the task under 200 characters and the note under 1,000 characters."
         case let .database(operation, detail):
             "The daily review could not \(operation.rawValue) local data. \(detail)"
         }
