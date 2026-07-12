@@ -2,6 +2,7 @@ import SwiftUI
 import ZoidCoachCore
 
 struct VoiceMenuView: View {
+    @Environment(\.openWindow) private var openWindow
     @ObservedObject var model: VoiceConversationModel
     @State private var apiKey = ""
     @State private var keyMessage = ""
@@ -141,6 +142,12 @@ struct VoiceMenuView: View {
 
             Divider()
             HStack {
+                Button("AGENT HEALTH") {
+                    openWindow(id: "agent-lifecycle")
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 10, weight: .semibold))
+                .accessibilityIdentifier("voice-menu.agent-health")
                 Text(model.hotKeyPreset.label)
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.secondary)
