@@ -55,6 +55,8 @@ final class AppModel: ObservableObject {
     @Published var calendarScheduleError: String?
     @Published private(set) var databaseError: String?
     @Published private(set) var todaySnapshot: TodaySnapshot?
+    @Published private(set) var pendingTaskCommandIDs: Set<String> = []
+    @Published private(set) var taskCommandError: String?
     @Published private(set) var promptEpisodes: [PromptEpisode] = []
     @Published private(set) var actionAudit: [ActionAuditEntry] = []
     @Published private(set) var actionAuditError: String?
@@ -285,13 +287,37 @@ final class AppModel: ObservableObject {
     }
 
     func applyTaskCommand(_ command: TaskActivityCommand, taskID: String) {
+        guard pendingTaskCommandIDs.isEmpty else { return }
+        pendingTaskCommandIDs.insert(taskID)
+        taskCommandError = nil
         Task {
+            defer { pendingTaskCommandIDs.remove(taskID) }
             do {
                 todaySnapshot = try await todayDashboardXPCClient.apply(command, taskID: taskID)
+                lastActionMessage = taskCommandConfirmation(command)
             } catch {
-                calendarScheduleError = "The background agent is unavailable. Its last saved Today snapshot is still shown."
+                taskCommandError = "The task change could not be saved. The last confirmed state is still shown. Try again after checking Agent source health."
                 todaySnapshot = try? todaySnapshotStore?.load()
             }
+        }
+    }
+
+    var isAnyTaskCommandPending: Bool {
+        pendingTaskCommandIDs.isEmpty == false
+    }
+
+    private func taskCommandConfirmation(_ command: TaskActivityCommand) -> String {
+        switch command {
+        case .start: "Task started."
+        case .resume: "Task resumed."
+        case .pause: "Task paused."
+        case .pauseForBreak: "Task paused for a break."
+        case .pauseForExternalInterruption: "Task paused for an external interruption."
+        case .pauseDoneForNow: "Task paused. It will remain ready to resume later."
+        case .pauseForEndOfDay: "Task paused for the end of the workday."
+        case .complete: "Task completion is queued for Reminders sync."
+        case .block: "Task marked blocked."
+        case .reschedule: "Task marked for replanning."
         }
     }
 

@@ -7,12 +7,14 @@ public struct TaskExecutionSnapshot: Equatable, Sendable {
     public let state: TaskExecutionState
     public let elapsedMinutes: Int
     public let activeSince: Date?
+    public let latestPauseReason: TaskPauseReason?
 
-    public init(taskID: String, state: TaskExecutionState, elapsedMinutes: Int, activeSince: Date?) {
+    public init(taskID: String, state: TaskExecutionState, elapsedMinutes: Int, activeSince: Date?, latestPauseReason: TaskPauseReason? = nil) {
         self.taskID = taskID
         self.state = state
         self.elapsedMinutes = elapsedMinutes
         self.activeSince = activeSince
+        self.latestPauseReason = latestPauseReason
     }
 }
 
@@ -39,22 +41,28 @@ public final class TaskExecutionStore: @unchecked Sendable {
             case .start, .resume:
                 if let existing = try openInterval(), existing.taskID != taskID {
                     try upsertState(taskID: existing.taskID, state: .paused, at: date)
+                    try recordPause(taskID: existing.taskID, reason: .switchingTasks, at: date)
                 }
                 try closeOpenInterval(at: date)
+                try closeOpenPause(taskID: taskID, at: date)
                 try upsertState(taskID: taskID, state: .active, at: date)
                 try openInterval(taskID: taskID, at: date)
-            case .pause:
+            case .pause, .pauseForBreak, .pauseForExternalInterruption, .pauseDoneForNow, .pauseForEndOfDay:
                 guard current == .active else { return }
                 try closeOpenInterval(taskID: taskID, at: date)
                 try upsertState(taskID: taskID, state: .paused, at: date)
+                try recordPause(taskID: taskID, reason: command.pauseReason ?? .unspecified, at: date)
             case .complete:
                 try closeOpenInterval(taskID: taskID, at: date)
+                try closeOpenPause(taskID: taskID, at: date)
                 try upsertState(taskID: taskID, state: .completed, at: date)
             case .block:
                 try closeOpenInterval(taskID: taskID, at: date)
+                try recordPause(taskID: taskID, reason: .blocked, at: date)
                 try upsertState(taskID: taskID, state: .blocked, at: date)
             case .reschedule:
                 try closeOpenInterval(taskID: taskID, at: date)
+                try closeOpenPause(taskID: taskID, at: date)
                 try upsertState(taskID: taskID, state: .rescheduled, at: date)
             }
         }
@@ -66,7 +74,7 @@ public final class TaskExecutionStore: @unchecked Sendable {
         return Dictionary(uniqueKeysWithValues: taskIDs.map { taskID in
             let state = states[taskID] ?? .ready
             let elapsed = (try? elapsedMinutes(taskID: taskID, now: now)) ?? 0
-            return (taskID, TaskExecutionSnapshot(taskID: taskID, state: state, elapsedMinutes: elapsed, activeSince: open?.taskID == taskID ? open?.startedAt : nil))
+            return (taskID, TaskExecutionSnapshot(taskID: taskID, state: state, elapsedMinutes: elapsed, activeSince: open?.taskID == taskID ? open?.startedAt : nil, latestPauseReason: try? latestPauseReason(taskID: taskID)))
         })
     }
 
@@ -137,6 +145,35 @@ public final class TaskExecutionStore: @unchecked Sendable {
         bind(formatter.string(from: date), statement, 1)
         if let taskID { bind(taskID, statement, 2) }
         guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
+    }
+
+    private func recordPause(taskID: String, reason: TaskPauseReason, at date: Date) throws {
+        try closeOpenPause(taskID: taskID, at: date)
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "INSERT INTO task_pause_events(task_id, reason, paused_at, resumed_at) VALUES (?, ?, ?, NULL);", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        bind(reason.rawValue, statement, 2)
+        bind(formatter.string(from: date), statement, 3)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
+    }
+
+    private func closeOpenPause(taskID: String, at date: Date) throws {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "UPDATE task_pause_events SET resumed_at = ? WHERE task_id = ? AND resumed_at IS NULL;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        bind(formatter.string(from: date), statement, 1)
+        bind(taskID, statement, 2)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
+    }
+
+    private func latestPauseReason(taskID: String) throws -> TaskPauseReason? {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "SELECT reason FROM task_pause_events WHERE task_id = ? ORDER BY paused_at DESC, id DESC LIMIT 1;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW, let value = sqlite3_column_text(statement, 0) else { return nil }
+        return TaskPauseReason(rawValue: String(cString: value))
     }
 
     private func openInterval() throws -> (taskID: String, startedAt: Date)? {

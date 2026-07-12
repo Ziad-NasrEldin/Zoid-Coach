@@ -28,10 +28,47 @@ public enum TaskExecutionState: String, Codable, CaseIterable, Sendable {
 public enum TaskActivityCommand: String, Codable, Sendable {
     case start
     case pause
+    case pauseForBreak
+    case pauseForExternalInterruption
+    case pauseDoneForNow
+    case pauseForEndOfDay
     case resume
     case complete
     case block
     case reschedule
+
+    public var pauseReason: TaskPauseReason? {
+        switch self {
+        case .pause: .unspecified
+        case .pauseForBreak: .break
+        case .pauseForExternalInterruption: .externalInterruption
+        case .pauseDoneForNow: .doneForNow
+        case .pauseForEndOfDay: .endingWorkday
+        case .start, .resume, .complete, .block, .reschedule: nil
+        }
+    }
+}
+
+public enum TaskPauseReason: String, Codable, CaseIterable, Sendable {
+    case unspecified
+    case `break`
+    case switchingTasks
+    case externalInterruption
+    case doneForNow
+    case endingWorkday
+    case blocked
+
+    public var userFacingLabel: String {
+        switch self {
+        case .unspecified: "Paused"
+        case .break: "Paused for a break"
+        case .switchingTasks: "Paused while switching tasks"
+        case .externalInterruption: "Paused for an external interruption"
+        case .doneForNow: "Paused because you are done for now"
+        case .endingWorkday: "Paused at the end of the workday"
+        case .blocked: "Paused because the task is blocked"
+        }
+    }
 }
 
 public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
@@ -42,10 +79,11 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let urgency: TaskUrgency
     public let state: TaskExecutionState
     public let elapsedMinutes: Int
+    public let latestPauseReason: TaskPauseReason?
     public let isMainObjective: Bool
     public let isLocked: Bool
 
-    public init(taskID: String, title: String, estimateMinutes: Int, dueDate: Date?, urgency: TaskUrgency, state: TaskExecutionState, elapsedMinutes: Int = 0, isMainObjective: Bool = false, isLocked: Bool = false) {
+    public init(taskID: String, title: String, estimateMinutes: Int, dueDate: Date?, urgency: TaskUrgency, state: TaskExecutionState, elapsedMinutes: Int = 0, latestPauseReason: TaskPauseReason? = nil, isMainObjective: Bool = false, isLocked: Bool = false) {
         self.taskID = taskID
         self.title = title
         self.estimateMinutes = max(1, estimateMinutes)
@@ -53,6 +91,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         self.urgency = urgency
         self.state = state
         self.elapsedMinutes = max(0, elapsedMinutes)
+        self.latestPauseReason = latestPauseReason
         self.isMainObjective = isMainObjective
         self.isLocked = isLocked
     }

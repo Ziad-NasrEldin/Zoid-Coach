@@ -49,6 +49,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 urgency: TaskUrgency.resolve(dueDate: reminder.dueDate, priority: reminderPriority(reminder.priority), referenceDate: now),
                 state: current?.state ?? .ready,
                 elapsedMinutes: current?.elapsedMinutes ?? 0,
+                latestPauseReason: current?.latestPauseReason,
                 isMainObjective: entry.isMainObjective
             )
         }
@@ -133,7 +134,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             try taskHistory.record(taskID: taskID, state: .postponed, at: now)
         case .start:
             try taskHistory.record(taskID: taskID, state: .selected, at: now)
-        case .pause, .resume, .block:
+        case .pause, .pauseForBreak, .pauseForExternalInterruption, .pauseDoneForNow, .pauseForEndOfDay, .resume, .block:
             break
         }
         if command == .complete,

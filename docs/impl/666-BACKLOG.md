@@ -29,7 +29,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 11 | Complete first-plan preview, edit, install, and conflict recovery | ready | Unowned | User can inspect and alter the proposed plan, install atomically, recover from conflicts, and see identical Today state after restart |
 | 12 | Complete Today source-health and repair actions | ready | Unowned | Every source card reflects current state and each action reaches a useful repair or inspection surface |
 | 13 | Complete Today prompt inbox lifecycle | ready | Unowned | Pending, snoozed, answered, expired, and replayed prompts remain understandable and actionable across restart |
-| 14 | Complete daily-plan task lifecycle | ready | Unowned | Start, pause, resume, complete, skip, defer, reorder, and revise all persist and reconcile with the underlying plan |
+| 14 | Complete daily-plan task lifecycle | active | Daily lifecycle lane on `codex/daily-plan-lifecycle` | Start, pause, resume, complete, skip, defer, reorder, and revise all persist and reconcile with the underlying plan |
 | 15 | Complete drift detection and compassionate recovery | ready | Unowned | Real activity drift produces a timely, non-shaming recovery choice whose result changes the plan durably |
 | 16 | Complete meeting-aware planning and calendar boundaries | ready | Unowned | Calendar grant, denial, changes, overlap, cancellation, and offline states produce usable plans and repair paths |
 | 17 | Complete app-classification management in Settings | ready | Unowned | User can search, classify, bulk-edit, reset, and verify runtime use of work, gaming, communication, and automatic categories |

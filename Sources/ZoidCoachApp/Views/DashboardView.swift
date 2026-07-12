@@ -216,6 +216,17 @@ private struct TodayCommandView: View {
                     .background(Sumi.sealWash)
             }
 
+            if let taskError = model.taskCommandError {
+                Text(taskError)
+                    .font(Sumi.body(13))
+                    .foregroundStyle(Sumi.seal)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.sealWash)
+                    .accessibilityLabel("Task action failed. \(taskError)")
+            }
+
             PromptInboxLedger()
             MeetingCandidateLedger(editingCandidate: $editingCandidate)
             AutomaticActionLedger()
@@ -634,6 +645,7 @@ private struct TodayAgentLedger: View {
 private struct TodayTaskRowView: View {
     @EnvironmentObject private var model: AppModel
     let row: TodayTaskRow
+    @State private var isSwitchConfirmationPresented = false
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -645,13 +657,12 @@ private struct TodayTaskRowView: View {
             .disabled([.completed, .blocked, .rescheduled].contains(row.state))
             VStack(alignment: .leading, spacing: 3) {
                 Text(row.title).font(Sumi.body(14)).foregroundStyle(Sumi.ink)
-                Text("\(row.estimateMinutes)m  ·  \(relativeDeadline(row.dueDate))  ·  \(row.urgency.rawValue.capitalized) urgency  ·  \(row.state.rawValue.capitalized)")
+                Text(taskDetail)
                     .font(Sumi.body(11)).foregroundStyle(Sumi.muted)
             }
             Spacer()
             if row.state == .active {
-                Button("PAUSE") { model.applyTaskCommand(.pause, taskID: row.taskID) }
-                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                pauseMenu
             } else if row.state == .paused {
                 Button("RESUME") { model.applyTaskCommand(.resume, taskID: row.taskID) }
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
@@ -666,6 +677,12 @@ private struct TodayTaskRowView: View {
                     model.applyTaskCommand(.block, taskID: row.taskID)
                     dismiss()
                 }
+                if row.state == .paused {
+                    SumiDropdownOption("Complete paused task", systemImage: "checkmark.circle") {
+                        model.applyTaskCommand(.complete, taskID: row.taskID)
+                        dismiss()
+                    }
+                }
                 SumiDropdownDivider()
                 SumiDropdownOption("Reschedule task", systemImage: "calendar.badge.clock") {
                     model.applyTaskCommand(.reschedule, taskID: row.taskID)
@@ -679,6 +696,40 @@ private struct TodayTaskRowView: View {
         .padding(.horizontal, 28)
         .padding(.vertical, 11)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+        .opacity(model.isAnyTaskCommandPending ? 0.55 : 1)
+        .disabled(model.isAnyTaskCommandPending)
+        .alert("Switch active task?", isPresented: $isSwitchConfirmationPresented) {
+            Button("Cancel", role: .cancel) {}
+            Button("Switch and pause current task") {
+                model.applyTaskCommand(.start, taskID: row.taskID)
+            }
+        } message: {
+            Text("Zoid 666 will preserve the current task's tracked time, pause it with the reason Switching tasks, and start \"\(row.title)\".")
+        }
+    }
+
+    private var taskDetail: String {
+        var parts = ["\(row.estimateMinutes)m", relativeDeadline(row.dueDate), "\(row.urgency.rawValue.capitalized) urgency", row.state.rawValue.capitalized]
+        if row.elapsedMinutes > 0 { parts.append("\(row.elapsedMinutes)m tracked") }
+        if let reason = row.latestPauseReason {
+            parts.append(row.state == .paused ? reason.userFacingLabel : "Last pause: \(reason.userFacingLabel.lowercased())")
+        }
+        return parts.joined(separator: "  ·  ")
+    }
+
+    private var pauseMenu: some View {
+        Menu {
+            Button("Take a break") { model.applyTaskCommand(.pauseForBreak, taskID: row.taskID) }
+            Button("External interruption") { model.applyTaskCommand(.pauseForExternalInterruption, taskID: row.taskID) }
+            Button("Done for now") { model.applyTaskCommand(.pauseDoneForNow, taskID: row.taskID) }
+            Button("End the workday") { model.applyTaskCommand(.pauseForEndOfDay, taskID: row.taskID) }
+        } label: {
+            SumiSelectorLabel("PAUSE", systemImage: "pause.fill", size: .compact)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .accessibilityLabel("Pause \(row.title)")
+        .accessibilityHint("Choose why you are pausing so the reason remains in task history.")
     }
 
     private func relativeDeadline(_ date: Date?) -> String {
@@ -695,7 +746,11 @@ private struct TodayTaskRowView: View {
         case .active:
             model.applyTaskCommand(.complete, taskID: row.taskID)
         case .ready:
-            model.applyTaskCommand(.start, taskID: row.taskID)
+            if let activeTaskID = model.todaySnapshot?.activeTask?.taskID, activeTaskID != row.taskID {
+                isSwitchConfirmationPresented = true
+            } else {
+                model.applyTaskCommand(.start, taskID: row.taskID)
+            }
         case .paused:
             model.applyTaskCommand(.resume, taskID: row.taskID)
         case .blocked, .completed, .rescheduled:
