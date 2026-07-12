@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import ZoidCoachCore
+import ZoidCoachInfrastructure
 
 @MainActor
 final class RemindersConnectionController: ObservableObject {
@@ -29,7 +30,7 @@ final class RemindersConnectionController: ObservableObject {
         now: @escaping () -> Date = Date.init,
         openSystemSettings: (() -> Bool)? = nil
     ) {
-        self.service = service ?? RemindersService()
+        self.service = service ?? Self.makeService(runtimeEnvironment: runtimeEnvironment)
         self.defaults = defaults ?? runtimeEnvironment.makeUserDefaults()
         self.now = now
         self.openSystemSettings = openSystemSettings ?? {
@@ -39,6 +40,25 @@ final class RemindersConnectionController: ObservableObject {
             return NSWorkspace.shared.open(url)
         }
         lastSuccessfulSync = self.defaults.object(forKey: lastSuccessfulSyncKey) as? Date
+    }
+
+    private static func makeService(
+        runtimeEnvironment: RuntimeEnvironment
+    ) -> any RemindersServicing {
+        guard runtimeEnvironment.packageMode == .qa else {
+            return RemindersService()
+        }
+
+        do {
+            let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+                runtimeEnvironment: runtimeEnvironment
+            )
+            return QAFixtureRemindersService(adapter: adapter)
+        } catch {
+            return DisabledQARemindersService(
+                detail: "QA fixture startup failed: \(error.localizedDescription)"
+            )
+        }
     }
 
     var isBusy: Bool { state == .checking }
