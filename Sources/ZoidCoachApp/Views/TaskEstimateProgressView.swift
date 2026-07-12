@@ -4,9 +4,17 @@ import ZoidCoachCore
 struct TaskEstimateProgressView: View {
     let progress: TaskEstimateProgress
     var compact = false
+    var isRunning = false
     let identifier: String
+    @State private var renderedAt = Date()
 
     var body: some View {
+        TimelineView(.periodic(from: renderedAt, by: 60)) { context in
+            content(for: currentProgress(at: context.date))
+        }
+    }
+
+    private func content(for progress: TaskEstimateProgress) -> some View {
         VStack(alignment: .leading, spacing: compact ? 5 : 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text("\(progress.elapsedMinutes) MIN TRACKED")
@@ -40,5 +48,11 @@ struct TaskEstimateProgressView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(progress.accessibilitySummary)
         .accessibilityIdentifier(identifier)
+    }
+
+    private func currentProgress(at date: Date) -> TaskEstimateProgress {
+        guard isRunning else { return progress }
+        let additionalMinutes = Int(max(0, date.timeIntervalSince(renderedAt)) / 60)
+        return progress.addingElapsedMinutes(additionalMinutes)
     }
 }

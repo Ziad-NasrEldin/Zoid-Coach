@@ -916,6 +916,7 @@ private struct TodayTaskRowView: View {
                     estimateMinutes: row.estimateMinutes
                 ),
                 compact: true,
+                isRunning: row.state == .active,
                 identifier: "today.task.\(row.taskID).estimate-progress"
             )
             .padding(.leading, 40)
