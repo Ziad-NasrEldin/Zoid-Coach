@@ -58,6 +58,9 @@ public enum PromptActionKind: String, Codable, CaseIterable, Sendable {
     case ignore
     case acceptPlan = "accept_plan"
     case reviewPlan = "review_plan"
+    case snoozePlanning = "snooze_planning"
+    case dismissPlanning = "dismiss_planning"
+    case workUnplanned = "work_unplanned"
     case undoPlanChange = "undo_plan_change"
     case addMeeting = "add_meeting"
     case editMeeting = "edit_meeting"

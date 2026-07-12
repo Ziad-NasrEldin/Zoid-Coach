@@ -370,8 +370,9 @@ public struct TodaySnapshot: Equatable, Codable, Sendable {
     public let sourceFreshnessExplanation: String
     public let unplannedReminders: [TodayReminderQueueRow]?
     public let sources: [SourceFreshnessSnapshot]?
+    public let planningStatus: PlanningDayStatus?
 
-    public init(localDate: Date, timeZoneIdentifier: String, mainObjective: String?, taskRows: [TodayTaskRow], activeTask: ActiveTaskSnapshot?, recommendation: NextTaskRecommendation, behavior: BehaviorSummary, coverage: TelemetryCoverage, gaming: GamingStatus, sourceFreshnessExplanation: String, unplannedReminders: [TodayReminderQueueRow] = [], sources: [SourceFreshnessSnapshot] = []) {
+    public init(localDate: Date, timeZoneIdentifier: String, mainObjective: String?, taskRows: [TodayTaskRow], activeTask: ActiveTaskSnapshot?, recommendation: NextTaskRecommendation, behavior: BehaviorSummary, coverage: TelemetryCoverage, gaming: GamingStatus, sourceFreshnessExplanation: String, unplannedReminders: [TodayReminderQueueRow] = [], sources: [SourceFreshnessSnapshot] = [], planningStatus: PlanningDayStatus? = nil) {
         self.localDate = localDate
         self.timeZoneIdentifier = timeZoneIdentifier
         self.mainObjective = mainObjective
@@ -384,6 +385,7 @@ public struct TodaySnapshot: Equatable, Codable, Sendable {
         self.sourceFreshnessExplanation = sourceFreshnessExplanation
         self.unplannedReminders = unplannedReminders
         self.sources = sources
+        self.planningStatus = planningStatus
     }
 }
 
