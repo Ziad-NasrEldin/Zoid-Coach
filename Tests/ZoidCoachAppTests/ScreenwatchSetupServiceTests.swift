@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import ZoidCoachApp
 import ZoidCoachCore
+import ZoidCoachInfrastructure
 
 @Test
 func screenwatchSetupFindsAHealthyDefaultStreamWithoutExposingContent() async throws {
@@ -94,14 +95,14 @@ func screenwatchSetupUsesAndPersistsAnAlternateDaysFolder() async throws {
 
     #expect(selected.health == .healthy)
     #expect(selected.source == .alternateFolder)
-    #expect(fixture.defaults.data(forKey: ScreenwatchSetupService.bookmarkDefaultsKey) != nil)
+    #expect(FileManager.default.fileExists(atPath: fixture.bookmarkFileURL.path))
     #expect(codec.createCount == 1)
     #expect(codec.startCount == 1)
     #expect(codec.stopCount == 1)
 }
 
 @Test
-func screenwatchSetupRefreshesAStaleBookmarkBeforeRechecking() async throws {
+func screenwatchSetupRejectsAStaleBookmarkWithoutFallingBack() async throws {
     let fixture = try ScreenwatchSetupFixture(name: "stale-bookmark")
     defer { fixture.remove() }
     let alternate = fixture.root.appendingPathComponent("Chosen Days", isDirectory: true)
@@ -113,9 +114,9 @@ func screenwatchSetupRefreshesAStaleBookmarkBeforeRechecking() async throws {
 
     let refreshed = await service.recheck(now: fixture.now)
 
-    #expect(refreshed.health == .healthy)
+    #expect(refreshed.health == .bookmarkUnavailable)
     #expect(refreshed.source == .alternateFolder)
-    #expect(codec.createCount == 2)
+    #expect(codec.createCount == 1)
     #expect(codec.resolveCount == 2)
 }
 
@@ -167,11 +168,7 @@ func screenwatchSetupKeepsQABookmarksInsideEachRunAndOutOfProductionDefaults() a
     let alternate = first.root.appendingPathComponent("Chosen Days", isDirectory: true)
     try first.writeValidRecord(in: alternate, secret: "QA private record")
     let codec = TestScreenwatchBookmarkCodec()
-    let firstService = ScreenwatchSetupService(
-        runtimeEnvironment: first.runtime,
-        bookmarkAccess: codec.access,
-        calendar: first.calendar
-    )
+    let firstService = first.makeService(bookmarkAccess: codec.access)
     _ = try await firstService.selectAlternateDaysDirectory(alternate, now: first.now)
 
     let secondStatus = await second.makeService(bookmarkAccess: codec.access).inspect(now: second.now)
@@ -204,7 +201,7 @@ func screenwatchSetupRejectsASymlinkedAlternateFolder() async throws {
     await #expect(throws: ScreenwatchSetupServiceError.unsafePath) {
         try await service.selectAlternateDaysDirectory(link, now: fixture.now)
     }
-    #expect(fixture.defaults.data(forKey: ScreenwatchSetupService.bookmarkDefaultsKey) == nil)
+    #expect(!FileManager.default.fileExists(atPath: fixture.bookmarkFileURL.path))
 }
 
 @Test
@@ -321,6 +318,11 @@ private struct ScreenwatchSetupFixture {
     let suiteName: String
     let now = Date(timeIntervalSince1970: 1_800_000_000)
     let calendar: Calendar
+    var bookmarkFileURL: URL {
+        runtime.applicationSupportRoot
+            .appendingPathComponent("Zoid Coach", isDirectory: true)
+            .appendingPathComponent("screenwatch-source-v1.bookmark", isDirectory: false)
+    }
 
     init(name: String, mode: Mode = .production) throws {
         root = FileManager.default.temporaryDirectory
@@ -351,13 +353,13 @@ private struct ScreenwatchSetupFixture {
         bookmarkAccess: ScreenwatchBookmarkAccess = TestScreenwatchBookmarkCodec().access,
         staleThreshold: TimeInterval = 30
     ) -> ScreenwatchSetupService {
-        ScreenwatchSetupService(
+        let repository = ScreenwatchSourceRepository(
             runtimeEnvironment: runtime,
-            bookmarkStore: ScreenwatchBookmarkStore(
-                defaults: defaults,
-                key: ScreenwatchSetupService.bookmarkDefaultsKey
-            ),
             bookmarkAccess: bookmarkAccess,
+            legacyDefaults: [defaults]
+        )
+        return ScreenwatchSetupService(
+            repository: repository,
             calendar: calendar,
             staleThreshold: staleThreshold
         )

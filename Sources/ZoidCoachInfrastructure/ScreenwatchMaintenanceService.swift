@@ -44,27 +44,51 @@ public struct ScreenwatchMaintenanceReport: Equatable, Sendable {
     }
 }
 
-public typealias HistoricalScreenwatchDayIngestor = @Sendable (URL, Date) throws -> ScreenwatchIngestionResult
+package typealias HistoricalScreenwatchDayIngestor = @Sendable (
+    ScreenwatchDirectoryLease,
+    Date
+) throws -> ScreenwatchIngestionResult
 
 public final class ScreenwatchMaintenanceService: @unchecked Sendable {
     private static let healthSourceID = "screenwatch-maintenance"
     private static let historySourcePrefix = "screenwatch-history:"
 
     private let databaseURL: URL
-    private let screenwatchDirectory: URL
+    private let screenwatchSource: ScreenwatchDirectoryLease
     private let fileManager: FileManager
-    private let ingestDay: HistoricalScreenwatchDayIngestor
+    private let ingestDay: @Sendable (Date) throws -> ScreenwatchIngestionResult
     private let database: OpaquePointer
     private let formatter = ISO8601DateFormatter()
+    private var historySourcePrefix: String {
+        Self.historySourcePrefix + screenwatchSource.sourceFingerprint + ":"
+    }
 
-    public init(
+    package convenience init(
         databaseURL: URL = ZoidCoachStorage.databaseURL(),
         screenwatchDirectory: URL,
         fileManager: FileManager = .default,
         ingestDay: HistoricalScreenwatchDayIngestor? = nil
     ) throws {
+        let source = try ScreenwatchDirectoryLease(
+            rootURL: screenwatchDirectory,
+            source: .defaultLocation
+        )
+        try self.init(
+            databaseURL: databaseURL,
+            screenwatchSource: source,
+            fileManager: fileManager,
+            ingestDay: ingestDay
+        )
+    }
+
+    package init(
+        databaseURL: URL = ZoidCoachStorage.databaseURL(),
+        screenwatchSource: ScreenwatchDirectoryLease,
+        fileManager: FileManager = .default,
+        ingestDay: HistoricalScreenwatchDayIngestor? = nil
+    ) throws {
         self.databaseURL = databaseURL
-        self.screenwatchDirectory = screenwatchDirectory.standardizedFileURL
+        self.screenwatchSource = screenwatchSource
         self.fileManager = fileManager
         try AutonomousDatabaseMigrator(databaseURL: databaseURL, fileManager: fileManager).migrate()
         var handle: OpaquePointer?
@@ -74,11 +98,13 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         database = handle
         sqlite3_busy_timeout(database, 5_000)
         if let ingestDay {
-            self.ingestDay = ingestDay
+            self.ingestDay = { day in
+                try ingestDay(screenwatchSource, day)
+            }
         } else {
             let archive = try ScreenwatchArchive(databaseURL: databaseURL)
-            self.ingestDay = { baseDirectory, day in
-                try archive.ingestToday(from: baseDirectory, now: day)
+            self.ingestDay = { day in
+                try archive.ingestToday(from: screenwatchSource, now: day)
             }
         }
     }
@@ -116,7 +142,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         var inserted = 0
         for day in pending {
             do {
-                let result = try ingestDay(screenwatchDirectory, day.date)
+                let result = try ingestDay(day.date)
                 try recordHistoricalCheckpoint(dayKey: day.key, now: now)
                 ingested += 1
                 inserted += result.insertedCount
@@ -143,18 +169,13 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
     }
 
     private func discoverHistoricalDays(before now: Date, timeZone: TimeZone) throws -> [HistoricalDay] {
-        guard fileManager.fileExists(atPath: screenwatchDirectory.path) else { return [] }
         let todayKey = Self.dayKey(now, timeZone: timeZone)
-        let children = try fileManager.contentsOfDirectory(
-            at: screenwatchDirectory,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        )
-        return children.compactMap { url -> HistoricalDay? in
-            let key = url.lastPathComponent
+        let children = try screenwatchSource.entries()
+        return try children.compactMap { entry -> HistoricalDay? in
+            let key = entry.name
             guard key < todayKey,
-                  (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
-                  fileManager.fileExists(atPath: url.appendingPathComponent("log.jsonl").path),
+                  entry.isDirectory,
+                  try screenwatchSource.fileExists([key, "log.jsonl"]),
                   let date = Self.dayDate(key, timeZone: timeZone)
             else { return nil }
             return HistoricalDay(key: key, date: date)
@@ -166,10 +187,10 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw databaseError(.prepare) }
         defer { sqlite3_finalize(statement) }
-        bind(Self.historySourcePrefix + "%", statement, 1)
+        bind(historySourcePrefix + "%", statement, 1)
         var keys = Set<String>()
         while sqlite3_step(statement) == SQLITE_ROW, let source = text(statement, 0) {
-            keys.insert(String(source.dropFirst(Self.historySourcePrefix.count)))
+            keys.insert(String(source.dropFirst(historySourcePrefix.count)))
         }
         return keys
     }
@@ -185,7 +206,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             diagnostic = NULL;
         """
         try execute(sql) { statement in
-            bind(Self.historySourcePrefix + dayKey, statement, 1)
+            bind(historySourcePrefix + dayKey, statement, 1)
             bind(formatter.string(from: now), statement, 2)
         }
     }
@@ -200,7 +221,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             diagnostic = excluded.diagnostic;
         """
         try execute(sql) { statement in
-            bind(Self.historySourcePrefix + dayKey, statement, 1)
+            bind(historySourcePrefix + dayKey, statement, 1)
             bind(formatter.string(from: now), statement, 2)
             bind(Self.redactedDiagnostic(error), statement, 3)
         }
@@ -245,18 +266,23 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
     }
 
     private func screenshotFiles(olderThan cutoff: Date) throws -> Set<URL> {
-        guard fileManager.fileExists(atPath: screenwatchDirectory.path) else { return [] }
         let cutoffKey = Self.dayKey(cutoff, timeZone: .current)
-        let children = try fileManager.contentsOfDirectory(at: screenwatchDirectory, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
+        let children = try screenwatchSource.entries()
         var result = Set<URL>()
-        for day in children where day.lastPathComponent <= cutoffKey {
-            guard (try? day.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
-            let files = (try? fileManager.contentsOfDirectory(at: day, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
-            for file in files where ["jpg", "jpeg", "webp"].contains(file.pathExtension.lowercased()) {
-                if let capturedAt = Self.screenshotDate(dayKey: day.lastPathComponent, filename: file.deletingPathExtension().lastPathComponent) {
-                    if capturedAt < cutoff { result.insert(file.standardizedFileURL) }
-                } else if day.lastPathComponent < cutoffKey {
-                    result.insert(file.standardizedFileURL)
+        for day in children where day.name <= cutoffKey && day.isDirectory {
+            let files = (try? screenwatchSource.entries(in: [day.name])) ?? []
+            for file in files where file.isRegularFile
+                && ["jpg", "jpeg", "webp"].contains(URL(fileURLWithPath: file.name).pathExtension.lowercased()) {
+                let fileURL = screenwatchSource.rootURL
+                    .appendingPathComponent(day.name, isDirectory: true)
+                    .appendingPathComponent(file.name, isDirectory: false)
+                if let capturedAt = Self.screenshotDate(
+                    dayKey: day.name,
+                    filename: URL(fileURLWithPath: file.name).deletingPathExtension().lastPathComponent
+                ) {
+                    if capturedAt < cutoff { result.insert(fileURL) }
+                } else if day.name < cutoffKey {
+                    result.insert(fileURL)
                 }
             }
         }
@@ -395,7 +421,8 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
     }
 
     private func isInsideScreenwatchDirectory(_ url: URL) -> Bool {
-        let root = screenwatchDirectory.path.hasSuffix("/") ? screenwatchDirectory.path : screenwatchDirectory.path + "/"
+        let directory = screenwatchSource.rootURL.path
+        let root = directory.hasSuffix("/") ? directory : directory + "/"
         return url.path.hasPrefix(root)
     }
 
