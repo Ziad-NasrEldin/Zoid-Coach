@@ -249,6 +249,7 @@ struct SettingsView: View {
             automationSection
             scheduleSection
         case .signals:
+            remindersConnectionSection
             reminderListsSection
             appClassificationSection
             calendarSection
@@ -260,6 +261,18 @@ struct SettingsView: View {
         case .records:
             dataSection
             actionAuditSection
+        }
+    }
+
+    private var remindersConnectionSection: some View {
+        SettingsCard(
+            title: "APPLE REMINDERS CONNECTION",
+            detail: "See current permission, the last confirmed task refresh, and a direct recovery path. Refresh only reads task metadata and never changes a Reminder."
+        ) {
+            RemindersConnectionView {
+                controller.configureReminderListsLocalOnly()
+                _ = controller.save()
+            }
         }
     }
 
