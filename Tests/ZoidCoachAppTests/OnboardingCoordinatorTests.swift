@@ -338,9 +338,18 @@ func transientAttentionUsesTypedUnavailableDecisionRatherThanDenial() async thro
 @Test
 func allTwelveStepsFinishAndRouteToToday() async throws {
     let store = RecordingOnboardingStore()
+    let prompt = onboardingTestPrompt()
+    let resolvedPrompt = try resolved(prompt)
     let coordinator = OnboardingCoordinator(
         store: store,
-        dependencies: testDependencies()
+        dependencies: testDependencies(
+            createTestPrompt: { _ in .init(
+                episode: prompt,
+                delivery: .todayFallback,
+                message: "Available in Today"
+            ) },
+            respondToTestPrompt: { _ in resolvedPrompt }
+        )
     )
 
     while coordinator.progress.currentStep != .firstDailyPlan {
@@ -351,6 +360,8 @@ func allTwelveStepsFinishAndRouteToToday() async throws {
             coordinator.selectCoachingMode(.rulesOnly)
         case .deliveryTest:
             coordinator.completeTestTask()
+            await coordinator.runDeliveryTest()
+            await coordinator.respondToTestPrompt(.continueIntentionally)
         default:
             break
         }
@@ -370,11 +381,26 @@ func allTwelveStepsFinishAndRouteToToday() async throws {
 @Test
 func deliveryStepRequiresTheTestTaskAndAUsablePromptPath() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.deliveryTest))
-    let coordinator = OnboardingCoordinator(store: store, dependencies: testDependencies())
+    let prompt = onboardingTestPrompt()
+    let resolvedPrompt = try resolved(prompt)
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(
+            createTestPrompt: { _ in .init(
+                episode: prompt,
+                delivery: .todayFallback,
+                message: "Available in Today"
+            ) },
+            respondToTestPrompt: { _ in resolvedPrompt }
+        )
+    )
 
     #expect(!coordinator.canContinue)
     coordinator.completeTestTask()
-    coordinator.completeTestTask()
+    #expect(!coordinator.canContinue)
+    await coordinator.runDeliveryTest()
+    #expect(!coordinator.canContinue)
+    await coordinator.respondToTestPrompt(.continueIntentionally)
     #expect(coordinator.canContinue)
     try await coordinator.continueFromCurrentStep()
     #expect(coordinator.progress.currentStep == .firstDailyPlan)
@@ -1201,8 +1227,27 @@ private extension OnboardingProgress {
             notificationAccess: notificationAccess,
             reminderListDecisions: reminderListDecisions,
             emptyReminderListFallbackConfirmed: emptyReminderListFallbackConfirmed,
+            deliveryTestTaskCompleted: deliveryTestTaskCompleted,
             completedEffects: completedEffects,
             finishedAt: finishedAt
         )
     }
+}
+
+private func onboardingTestPrompt() -> PromptEpisode {
+    PromptEpisode(
+        id: "setup-prompt",
+        decisionKey: "onboarding-test-prompt:flow",
+        type: OnboardingTestPromptService.promptType,
+        state: .queued,
+        title: "Choose where coaching should continue",
+        summary: "This prompt is available in Today.",
+        actions: [.init(kind: .continueIntentionally, title: "Continue setup")],
+        createdAt: Date(timeIntervalSince1970: 100)
+    )
+}
+
+private func resolved(_ prompt: PromptEpisode) throws -> PromptEpisode {
+    try prompt.applying(.present, at: Date(timeIntervalSince1970: 101))
+        .applying(.respond, at: Date(timeIntervalSince1970: 102))
 }
