@@ -232,6 +232,7 @@ struct SettingsView: View {
                 )
                 SettingsHeaderFact(label: "BUILD", value: AppBuildIdentity.current.shortLabel)
                     .accessibilityLabel("Build identity \(AppBuildIdentity.current.identity)")
+                    .accessibilityIdentifier("settings.buildIdentity")
                     .help(AppBuildIdentity.current.identity)
                 if let version = controller.activeVersion {
                     SettingsHeaderFact(label: "POLICY", value: "V\(version)")

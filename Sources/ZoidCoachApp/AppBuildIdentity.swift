@@ -10,13 +10,33 @@ struct AppBuildIdentity: Equatable, Sendable {
     }
 
     init(infoDictionary: [String: Any]) {
-        commit = infoDictionary["ZoidCoachGitCommit"] as? String ?? "unpackaged"
-        state = infoDictionary["ZoidCoachGitState"] as? String ?? "development"
-        identity = infoDictionary["ZoidCoachBuildIdentity"] as? String
-            ?? "zoid-coach-unpackaged-development"
+        let suppliedCommit = infoDictionary["ZoidCoachGitCommit"] as? String
+        let suppliedState = infoDictionary["ZoidCoachGitState"] as? String
+        let suppliedIdentity = infoDictionary["ZoidCoachBuildIdentity"] as? String
+        if suppliedCommit == nil, suppliedState == nil, suppliedIdentity == nil {
+            commit = "unpackaged"
+            state = "development"
+            identity = "zoid-coach-unpackaged-development"
+        } else if let suppliedCommit,
+                  suppliedCommit.count == 40,
+                  suppliedCommit.allSatisfy({
+                      ("0"..."9").contains(String($0)) || ("a"..."f").contains(String($0))
+                  }),
+                  let suppliedState,
+                  ["clean", "dirty"].contains(suppliedState),
+                  suppliedIdentity == "zoid-coach-\(suppliedCommit)-\(suppliedState)" {
+            commit = suppliedCommit
+            state = suppliedState
+            identity = suppliedIdentity ?? "zoid-coach-invalid"
+        } else {
+            commit = "invalid"
+            state = "invalid"
+            identity = "zoid-coach-invalid"
+        }
     }
 
     var shortLabel: String {
-        "\(commit.prefix(8)) \(state.uppercased())"
+        guard state != "invalid" else { return "INVALID BUILD" }
+        return "\(commit.prefix(8)) \(state.uppercased())"
     }
 }

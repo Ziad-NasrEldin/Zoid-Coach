@@ -117,6 +117,33 @@ class BuildIdentityTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("does not match", result.stderr)
 
+    def test_verifier_rejects_missing_and_malformed_fields(self):
+        cases = [
+            {},
+            {
+                "ZoidCoachGitCommit": "ABC",
+                "ZoidCoachGitState": "clean",
+                "ZoidCoachBuildIdentity": "zoid-coach-ABC-clean",
+            },
+            {
+                "ZoidCoachGitCommit": "f" * 40,
+                "ZoidCoachGitState": "maybe",
+                "ZoidCoachBuildIdentity": "zoid-coach-" + ("f" * 40) + "-maybe",
+            },
+        ]
+        for index, values in enumerate(cases):
+            with self.subTest(index=index):
+                destination = Path(self.directory.name) / f"Malformed-{index}.plist"
+                payload = plistlib.loads(SOURCE_PLIST.read_bytes())
+                payload.update(values)
+                destination.write_bytes(plistlib.dumps(payload))
+                result = subprocess.run(
+                    [str(VERIFY), str(destination)],
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
