@@ -12,7 +12,7 @@ public struct RuntimeNotificationIdentity: Equatable, Sendable {
     public func promptCategoryIdentifier(_ baseIdentifier: String) -> String {
         guard !promptCategoryPrefix.isEmpty,
               !baseIdentifier.hasPrefix(promptCategoryPrefix) else { return baseIdentifier }
-        promptCategoryPrefix + baseIdentifier
+        return promptCategoryPrefix + baseIdentifier
     }
 }
 
