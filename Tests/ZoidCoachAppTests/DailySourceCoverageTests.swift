@@ -148,22 +148,20 @@ func historicalCoverageNeverUsesASourceCheckpointFromALaterDay() throws {
 func selectedDayGenerationPreventsAnOlderLoadFromReplacingTheNewDay() async throws {
     let firstDay = Date(timeIntervalSince1970: 1_780_000_000)
     let secondDay = firstDay.addingTimeInterval(86_400)
-    let firstStarted = DispatchSemaphore(value: 0)
-    let releaseFirst = DispatchSemaphore(value: 0)
+    let firstLoadGate = LockedLoadGate()
     let controller = DailySourceCoverageController(loader: { day, _ in
         if day == firstDay {
-            firstStarted.signal()
-            releaseFirst.wait()
+            firstLoadGate.markStartedAndWait()
             return coverageResult(day: "first")
         }
         return coverageResult(day: "second")
     })
 
     let firstLoad = try #require(controller.load(day: firstDay))
-    await Task.detached { firstStarted.wait() }.value
+    while !firstLoadGate.hasStarted { await Task.yield() }
     let secondLoad = try #require(controller.load(day: secondDay))
     await secondLoad.value
-    releaseFirst.signal()
+    firstLoadGate.release()
     await firstLoad.value
 
     #expect(controller.coverage?.localDay == "second")
@@ -201,6 +199,33 @@ private final class LockedAttemptCounter: @unchecked Sendable {
         defer { lock.unlock() }
         value += 1
         return value
+    }
+}
+
+private final class LockedLoadGate: @unchecked Sendable {
+    private let condition = NSCondition()
+    private var started = false
+    private var released = false
+
+    var hasStarted: Bool {
+        condition.lock()
+        defer { condition.unlock() }
+        return started
+    }
+
+    func markStartedAndWait() {
+        condition.lock()
+        started = true
+        condition.broadcast()
+        while !released { condition.wait() }
+        condition.unlock()
+    }
+
+    func release() {
+        condition.lock()
+        released = true
+        condition.broadcast()
+        condition.unlock()
     }
 }
 
