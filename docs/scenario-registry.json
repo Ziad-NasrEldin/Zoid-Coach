@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "00cc0bb38dea1623e091124c79f022fa42447f6930730324e7d13767fee91ab3",
+  "tracker_sha256": "62b762080d8f8bdbfac01c821436021f44dd88b10b8e47df61bd436682d7ebe1",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10999,9 +10999,9 @@
       "section_title": "Source health and diagnostics",
       "item_index": 5,
       "wording": "See local database health, size, and last migration.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11009,10 +11009,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/local-system-diagnostics/candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The UI has a read-only safety banner but no database size, schema, migration, or canonical-path diagnostic, even though those values can be inspected externally.",
+      "audit_note": "Source Health performs a read-only integrity check and displays the canonical database filename, aggregate database/WAL/SHM size, exact current and expected schema versions, latest migration time, and a clear healthy, attention, or not-ready state. The signed-QA app visibly changed from Not Ready to Healthy after the runtime created storage, Refresh exposed a 660 KB schema 29-of-29 store, and restart preserved the healthy state with the same migration time (`.audit/runs/local-system-diagnostics/candidate/REPORT.md`).",
       "tracker_line": 695
     },
     {
@@ -11021,9 +11023,9 @@
       "section_title": "Source health and diagnostics",
       "item_index": 6,
       "wording": "See the current AI mode and recent provider failures.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11031,10 +11033,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/local-system-diagnostics/candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings shows the selected provider, but Source Health has no AI row or recent failure history.",
+      "audit_note": "Source Health displays the effective rules-only, local Ollama, Codex CLI, Apple on-device, or remote OpenAI mode, explains the processing boundary, and lists only the five newest provider/state/time/redacted-diagnostic failures. The signed-QA app visibly reported Local Ollama with local processing, Refresh succeeded, and restart preserved the same truthful mode (`.audit/runs/local-system-diagnostics/candidate/REPORT.md`).",
       "tracker_line": 696
     },
     {
