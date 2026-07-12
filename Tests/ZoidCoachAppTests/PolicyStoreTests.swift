@@ -35,7 +35,7 @@ func policyMutationUsesExpectedVersionAndReplaysTheWinningRequest() throws {
     let secondStore = try PolicyStore(databaseURL: databaseURL)
     let initial = try firstStore.save(policy(mode: .observe))
     let request = PolicyMutationRequest(
-        requestID: "settings-save-001",
+        requestID: "settings-policy-v1:001",
         expectedVersion: initial.version,
         policy: policy(mode: .assist),
         origin: .settings
@@ -53,7 +53,7 @@ func policyMutationUsesExpectedVersionAndReplaysTheWinningRequest() throws {
     #expect(try firstStore.history().map(\.version) == [2, 1])
 
     let stale = PolicyMutationRequest(
-        requestID: "settings-save-002",
+        requestID: "settings-policy-v1:002",
         expectedVersion: initial.version,
         policy: policy(mode: .autonomous),
         origin: .settings
@@ -70,11 +70,12 @@ func policyMutationRejectsAReusedRequestIDWithDifferentPayload() throws {
     defer { removePolicyDatabaseFiles(at: databaseURL) }
     let store = try PolicyStore(databaseURL: databaseURL)
     let initial = try store.save(policy(mode: .observe))
-    let first = PolicyMutationRequest(
-        requestID: "onboarding-policy:schedule:8:1",
+    let first = try onboardingPolicyRequest(
+        flowID: "flow",
+        step: .schedule,
+        progressRevision: 8,
         expectedVersion: initial.version,
-        policy: policy(mode: .assist),
-        origin: .onboarding(step: .schedule, progressRevision: 8)
+        policy: policy(mode: .assist)
     )
     _ = try store.saveMutation(first)
     let conflicting = PolicyMutationRequest(
@@ -88,6 +89,70 @@ func policyMutationRejectsAReusedRequestIDWithDifferentPayload() throws {
         try store.saveMutation(conflicting)
     }
     #expect(try store.history().map(\.version) == [2, 1])
+}
+
+@Test
+func policyMutationRejectsMalformedAndUnboundRequestsWithoutWriting() throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    let candidate = policy(mode: .assist)
+
+    let invalidRequests = [
+        (
+            PolicyMutationRequest(
+                requestID: " ",
+                expectedVersion: 0,
+                policy: candidate,
+                origin: .settings
+            ),
+            PolicyStoreError.invalidRequest("request_id")
+        ),
+        (
+            PolicyMutationRequest(
+                requestID: "settings-policy-v1:negative",
+                expectedVersion: -1,
+                policy: candidate,
+                origin: .settings
+            ),
+            PolicyStoreError.invalidRequest("expected_version")
+        ),
+        (
+            PolicyMutationRequest(
+                requestID: "wrong-prefix",
+                expectedVersion: 0,
+                policy: candidate,
+                origin: .settings
+            ),
+            PolicyStoreError.invalidRequest("settings_request_id")
+        ),
+        (
+            PolicyMutationRequest(
+                requestID: "onboarding-policy-v1:flow:welcome:0:invalid",
+                expectedVersion: 0,
+                policy: candidate,
+                origin: .onboarding(flowID: "flow", step: .welcome, progressRevision: 0)
+            ),
+            PolicyStoreError.invalidRequest("onboarding_origin")
+        ),
+        (
+            PolicyMutationRequest(
+                requestID: "onboarding-policy-v1:flow:schedule:0:wrong-digest",
+                expectedVersion: 0,
+                policy: candidate,
+                origin: .onboarding(flowID: "flow", step: .schedule, progressRevision: 0)
+            ),
+            PolicyStoreError.invalidRequest("onboarding_request_id")
+        ),
+    ]
+
+    for (request, expectedError) in invalidRequests {
+        #expect(throws: expectedError) {
+            try store.saveMutation(request)
+        }
+    }
+    #expect(try store.current() == nil)
+    #expect(try store.history().isEmpty)
 }
 
 @Test
@@ -170,7 +235,14 @@ func gamingPolicyMutationRoundTripsThroughTheAgentCommandBoundary() async throws
         reminderSnapshots: reminders,
         privacyData: try PrivacyDataService(databaseURL: databaseURL)
     )
-    let command = AgentMutationCommand.saveGamingPolicy(.flexible)
+    let command = AgentMutationCommand.savePolicyMutation(
+        PolicyMutationRequest(
+            requestID: "settings-policy-v1:gaming-command-round-trip",
+            expectedVersion: 0,
+            policy: UserPolicy.defaults().replacingGamingPolicy(.flexible),
+            origin: .settings
+        )
+    )
     let encoded = try JSONEncoder().encode(command)
 
     #expect(try JSONDecoder().decode(AgentMutationCommand.self, from: encoded) == command)
@@ -179,8 +251,77 @@ func gamingPolicyMutationRoundTripsThroughTheAgentCommandBoundary() async throws
 
     #expect(first.accepted)
     #expect(first.policyVersion == 1)
-    #expect(second.policyVersion == 2)
+    #expect(second.policyVersion == 1)
+    #expect(second.policyMutationReceipt?.replayed == true)
     #expect(try policyStore.currentGamingPolicy() == .flexible)
+}
+
+@Test
+func staleAndConflictingPolicyMutationsDoNotTripTheDatabaseBreaker() async throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let outbox = try ActionOutboxStore(databaseURL: databaseURL)
+    let reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
+    let policyStore = try PolicyStore(databaseURL: databaseURL)
+    let breaker = DatabaseWriteCircuitBreaker()
+    let router = AgentMutationRouter(
+        outbox: outbox,
+        stateStore: try AgentOwnedStateStore(databaseURL: databaseURL),
+        taskHistory: try TaskHistoryStore(databaseURL: databaseURL),
+        meetingArchive: try ScreenwatchArchive(databaseURL: databaseURL),
+        planScheduler: AgentPlanScheduler(
+            plans: try AutonomousPlanStore(databaseURL: databaseURL),
+            reminders: reminders,
+            outbox: outbox,
+            calendar: EmptyGamingPolicyCalendar()
+        ),
+        policyStore: policyStore,
+        reminderSnapshots: reminders,
+        privacyData: try PrivacyDataService(databaseURL: databaseURL),
+        writeCircuitBreaker: breaker
+    )
+    let winner = try onboardingPolicyRequest(
+        flowID: "flow",
+        step: .activityClassification,
+        progressRevision: 7,
+        expectedVersion: 0,
+        policy: policy(mode: .assist)
+    )
+    _ = try await router.apply(.savePolicyMutation(winner))
+    let stale = try onboardingPolicyRequest(
+        flowID: "flow",
+        step: .activityClassification,
+        progressRevision: 7,
+        expectedVersion: 0,
+        policy: policy(mode: .autonomous)
+    )
+
+    await #expect(throws: PolicyStoreError.staleVersion(expected: 0, actual: 1)) {
+        try await router.apply(.savePolicyMutation(stale))
+    }
+    #expect(!breaker.snapshot.isTripped)
+
+    let conflict = PolicyMutationRequest(
+        requestID: winner.requestID,
+        expectedVersion: 0,
+        policy: policy(mode: .autonomous),
+        origin: winner.origin
+    )
+    await #expect(throws: PolicyStoreError.idempotencyConflict(winner.requestID)) {
+        try await router.apply(.savePolicyMutation(conflict))
+    }
+    #expect(!breaker.snapshot.isTripped)
+
+    let invalid = PolicyMutationRequest(
+        requestID: "not-a-settings-request",
+        expectedVersion: 1,
+        policy: policy(mode: .observe),
+        origin: .settings
+    )
+    await #expect(throws: PolicyStoreError.invalidRequest("settings_request_id")) {
+        try await router.apply(.savePolicyMutation(invalid))
+    }
+    #expect(!breaker.snapshot.isTripped)
 }
 
 private func policy(mode: OperatingMode) -> UserPolicy {
@@ -192,6 +333,32 @@ private func policy(mode: OperatingMode) -> UserPolicy {
         calendar: defaults.calendar,
         privacy: defaults.privacy,
         wake: defaults.wake
+    )
+}
+
+private func onboardingPolicyRequest(
+    flowID: String,
+    step: OnboardingStep,
+    progressRevision: UInt64,
+    expectedVersion: Int,
+    policy: UserPolicy
+) throws -> PolicyMutationRequest {
+    let digest = try PolicyMutationRequest.canonicalPayloadDigest(for: policy)
+    return PolicyMutationRequest(
+        requestID: [
+            "onboarding-policy-v1",
+            flowID,
+            step.rawValue,
+            String(progressRevision),
+            digest,
+        ].joined(separator: ":"),
+        expectedVersion: expectedVersion,
+        policy: policy,
+        origin: .onboarding(
+            flowID: flowID,
+            step: step,
+            progressRevision: progressRevision
+        )
     )
 }
 

@@ -46,7 +46,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
             throw error
         } catch let error as PolicyStoreError {
             switch error {
-            case .staleVersion, .idempotencyConflict:
+            case .staleVersion, .idempotencyConflict, .invalidPolicy, .invalidRequest:
                 throw error
             default:
                 writeCircuitBreaker.trip(reason: "agent_mutation_write_failed")
@@ -111,22 +111,6 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 }
             )
             return .init(accepted: true, message: "Reminder snapshot synchronized.")
-
-        case let .savePolicy(policy):
-            let saved = try policyStore.save(policy)
-            return .init(
-                accepted: true,
-                message: "Policy version \(saved.version) saved by the agent.",
-                policyVersion: saved.version
-            )
-
-        case let .saveGamingPolicy(policy):
-            let saved = try policyStore.saveGamingPolicy(policy)
-            return .init(
-                accepted: true,
-                message: "Gaming policy version \(saved.version) saved by the agent.",
-                policyVersion: saved.version
-            )
 
         case let .savePolicyMutation(request):
             let receipt = try policyStore.saveMutation(request)

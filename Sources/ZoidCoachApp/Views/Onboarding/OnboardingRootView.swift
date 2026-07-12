@@ -631,7 +631,7 @@ struct OnboardingRootView: View {
                 .font(Sumi.label(9))
                 .foregroundStyle(coordinator.canContinue ? Sumi.okay : Sumi.muted)
             Button(coordinator.progress.currentStep == .firstDailyPlan ? "OPEN TODAY" : "CONTINUE") {
-                do { try coordinator.continueFromCurrentStep() } catch { }
+                Task { try? await coordinator.continueFromCurrentStep() }
             }
             .buttonStyle(SumiActionButtonStyle(role: .primary, size: .large))
             .disabled(!coordinator.canContinue || coordinator.isWorking)

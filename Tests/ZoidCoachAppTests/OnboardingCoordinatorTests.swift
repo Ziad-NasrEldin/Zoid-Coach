@@ -6,13 +6,13 @@ import ZoidCoachInfrastructure
 
 @MainActor
 @Test
-func freshOnboardingPersistsEachStepAndResumesAfterRestart() throws {
+func freshOnboardingPersistsEachStepAndResumesAfterRestart() async throws {
     let store = RecordingOnboardingStore()
     let first = OnboardingCoordinator(store: store, now: { Date(timeIntervalSince1970: 100) })
 
     #expect(first.route == .onboarding)
     #expect(first.progress.currentStep == .welcome)
-    try first.continueFromCurrentStep()
+    try await first.continueFromCurrentStep()
     #expect(first.progress.currentStep == .localPrivacy)
     #expect(store.saved?.persistenceRevision == 1)
 
@@ -40,10 +40,8 @@ func deniedAndDeferredSourcesRemainExplicitAndDoNotBlockSetup() async throws {
         requestNotifications: { .init(health: SelfHealth.notificationsDenied, decision: .denied) },
         loadInventory: { .init(items: [], warning: nil) },
         testDelivery: { .init(state: .unavailable, message: "Notifications are disabled") },
-        loadPolicy: { .defaults() },
-        savePolicy: { _ in },
-        loadGamingPolicy: { GamingPolicy() },
-        saveGamingPolicy: { _ in },
+        loadPolicy: { nil },
+        applyPolicyMutation: { try successfulPolicyMutation($0) },
         prepareFirstDailyPlan: { preparedFirstPlan },
         openSystemSettings: { _ in true }
     )
@@ -52,7 +50,7 @@ func deniedAndDeferredSourcesRemainExplicitAndDoNotBlockSetup() async throws {
     await coordinator.requestAccess(for: .reminders)
     #expect(coordinator.progress.remindersAccess == .denied)
     #expect(coordinator.sourceHealth[.reminders]?.detail == "Reminders access is unavailable")
-    try coordinator.continueFromCurrentStep()
+    try await coordinator.continueFromCurrentStep()
     coordinator.deferAccess(for: .screenwatch)
     #expect(coordinator.progress.screenwatchAccess == .deferred)
     #expect(coordinator.canContinue)
@@ -84,9 +82,7 @@ func transientAttentionUsesTypedUnavailableDecisionRatherThanDenial() async thro
         loadInventory: base.loadInventory,
         testDelivery: base.testDelivery,
         loadPolicy: base.loadPolicy,
-        savePolicy: base.savePolicy,
-        loadGamingPolicy: base.loadGamingPolicy,
-        saveGamingPolicy: base.saveGamingPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
         prepareFirstDailyPlan: base.prepareFirstDailyPlan,
         openSystemSettings: base.openSystemSettings
     )
@@ -119,10 +115,10 @@ func allTwelveStepsFinishAndRouteToToday() async throws {
             break
         }
         #expect(coordinator.canContinue)
-        try coordinator.continueFromCurrentStep()
+        try await coordinator.continueFromCurrentStep()
     }
     await coordinator.prepareFirstDailyPlan()
-    try coordinator.continueFromCurrentStep()
+    try await coordinator.continueFromCurrentStep()
 
     #expect(coordinator.progress.completedSteps == OnboardingProgress.stepSequence)
     #expect(coordinator.progress.isFinished)
@@ -132,7 +128,7 @@ func allTwelveStepsFinishAndRouteToToday() async throws {
 
 @MainActor
 @Test
-func deliveryStepRequiresTheTestTaskAndAUsablePromptPath() throws {
+func deliveryStepRequiresTheTestTaskAndAUsablePromptPath() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.deliveryTest))
     let coordinator = OnboardingCoordinator(store: store, dependencies: testDependencies())
 
@@ -140,7 +136,7 @@ func deliveryStepRequiresTheTestTaskAndAUsablePromptPath() throws {
     coordinator.completeTestTask()
     coordinator.completeTestTask()
     #expect(coordinator.canContinue)
-    try coordinator.continueFromCurrentStep()
+    try await coordinator.continueFromCurrentStep()
     #expect(coordinator.progress.currentStep == .firstDailyPlan)
 }
 
@@ -179,20 +175,20 @@ func firstPlanMustReturnVisiblePreparedItemsBeforeFinishing() async throws {
     )
     await blocked.prepareFirstDailyPlan()
     #expect(!blocked.canContinue)
-    #expect(throws: (any Error).self) { try blocked.continueFromCurrentStep() }
+    await #expect(throws: (any Error).self) { try await blocked.continueFromCurrentStep() }
     #expect(!blocked.progress.isFinished)
 
     let ready = OnboardingCoordinator(store: store, dependencies: testDependencies())
     await ready.prepareFirstDailyPlan()
     #expect(ready.canContinue)
-    try ready.continueFromCurrentStep()
+    try await ready.continueFromCurrentStep()
     #expect(ready.progress.isFinished)
     #expect(ready.route == .today)
 }
 
 @MainActor
 @Test
-func classificationAndScheduleAreAppliedBeforeAdvancing() throws {
+func classificationAndScheduleAreAppliedBeforeAdvancing() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.activityClassification))
     let policyRecorder = PolicyRecorder()
     let app = AppInventoryItem(
@@ -211,14 +207,14 @@ func classificationAndScheduleAreAppliedBeforeAdvancing() throws {
 
     coordinator.loadApplicationInventory()
     coordinator.setClassification(.work, for: app.name)
-    try coordinator.continueFromCurrentStep()
+    try await coordinator.continueFromCurrentStep()
     #expect(policyRecorder.policy.behavior.choice(for: app.name) == .work)
 
     coordinator.workStartHour = 8
     coordinator.workEndHour = 17
     coordinator.quietStartHour = 21
     coordinator.quietEndHour = 6
-    try coordinator.continueFromCurrentStep()
+    try await coordinator.continueFromCurrentStep()
     #expect(policyRecorder.policy.schedule.workWindows.first?.start == LocalTime(hour: 8, minute: 0))
     #expect(policyRecorder.policy.schedule.workWindows.first?.end == LocalTime(hour: 17, minute: 0))
     #expect(policyRecorder.policy.schedule.quietHours == DailyTimeWindow(
@@ -229,12 +225,12 @@ func classificationAndScheduleAreAppliedBeforeAdvancing() throws {
 
 @MainActor
 @Test
-func staleSaveRestoresLatestProgressAndOffersRetry() throws {
+func staleSaveRestoresLatestProgressAndOffersRetry() async throws {
     let store = StaleOnceOnboardingStore()
     let coordinator = OnboardingCoordinator(store: store)
 
-    #expect(throws: (any Error).self) {
-        try coordinator.continueFromCurrentStep()
+    await #expect(throws: (any Error).self) {
+        try await coordinator.continueFromCurrentStep()
     }
 
     #expect(coordinator.progress.currentStep == .localPrivacy)
@@ -263,9 +259,7 @@ func latePermissionResultCannotOverwriteExplicitDeferral() async throws {
         loadInventory: dependencies.loadInventory,
         testDelivery: dependencies.testDelivery,
         loadPolicy: dependencies.loadPolicy,
-        savePolicy: dependencies.savePolicy,
-        loadGamingPolicy: dependencies.loadGamingPolicy,
-        saveGamingPolicy: dependencies.saveGamingPolicy,
+        applyPolicyMutation: dependencies.applyPolicyMutation,
         prepareFirstDailyPlan: dependencies.prepareFirstDailyPlan,
         openSystemSettings: dependencies.openSystemSettings
     )
@@ -306,9 +300,7 @@ func lateInspectionCannotOverwriteANewerExplicitDecision() async throws {
         loadInventory: base.loadInventory,
         testDelivery: base.testDelivery,
         loadPolicy: base.loadPolicy,
-        savePolicy: base.savePolicy,
-        loadGamingPolicy: base.loadGamingPolicy,
-        saveGamingPolicy: base.saveGamingPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
         prepareFirstDailyPlan: base.prepareFirstDailyPlan,
         openSystemSettings: base.openSystemSettings
     )
@@ -344,9 +336,7 @@ func inFlightDeliveryBlocksNavigationAndOtherStepMutations() async throws {
         loadInventory: base.loadInventory,
         testDelivery: { await gate.wait() },
         loadPolicy: base.loadPolicy,
-        savePolicy: base.savePolicy,
-        loadGamingPolicy: base.loadGamingPolicy,
-        saveGamingPolicy: base.saveGamingPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
         prepareFirstDailyPlan: base.prepareFirstDailyPlan,
         openSystemSettings: base.openSystemSettings
     )
@@ -398,7 +388,7 @@ func qaDeliveryWithoutAuthorizedFixtureFailsClosed() async throws {
 
 @MainActor
 @Test
-func realStorePersistsExactResumeStepAcrossCoordinatorRestart() throws {
+func realStorePersistsExactResumeStepAcrossCoordinatorRestart() async throws {
     let root = URL(fileURLWithPath: "/tmp/zoid-onboarding-restart-\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: root) }
     let runtime = try RuntimeEnvironment.resolve(
@@ -407,7 +397,7 @@ func realStorePersistsExactResumeStepAcrossCoordinatorRestart() throws {
     ).environment
     let first = OnboardingCoordinator(store: OnboardingProgressStore(runtimeEnvironment: runtime))
 
-    try first.continueFromCurrentStep()
+    try await first.continueFromCurrentStep()
     let restarted = OnboardingCoordinator(
         store: OnboardingProgressStore(runtimeEnvironment: runtime)
     )
@@ -419,21 +409,118 @@ func realStorePersistsExactResumeStepAcrossCoordinatorRestart() throws {
 
 @MainActor
 @Test
-func gamingBoundaryMustPersistBeforeTheStepCompletes() throws {
+func gamingBoundaryMustPersistBeforeTheStepCompletes() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.gamingPolicy))
-    let gamingRecorder = GamingPolicyRecorder()
+    let policyRecorder = PolicyRecorder()
     let coordinator = OnboardingCoordinator(
         store: store,
-        dependencies: testDependencies(gamingRecorder: gamingRecorder)
+        dependencies: testDependencies(policyRecorder: policyRecorder)
     )
 
     coordinator.gamingPolicy = .firm
-    try coordinator.continueFromCurrentStep()
+    try await coordinator.continueFromCurrentStep()
 
-    #expect(gamingRecorder.policy == GamingPolicy(
+    #expect(policyRecorder.policy.gaming == GamingPolicy(
         dailyBudgetMinutes: 30,
         priorityTaskRewardMinutes: 30
     ))
+    #expect(coordinator.progress.currentStep == .coachingMode)
+}
+
+@MainActor
+@Test
+func durablePolicyReceiptReplaysAfterProgressSaveFailure() async throws {
+    let store = FailFirstProgressSaveStore(progress: try progressAt(.activityClassification))
+    let policyRecorder = PolicyRecorder()
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(policyRecorder: policyRecorder)
+    )
+    coordinator.setClassification(.work, for: "Terminal")
+
+    await #expect(throws: (any Error).self) {
+        try await coordinator.continueFromCurrentStep()
+    }
+    #expect(policyRecorder.version == 1)
+    #expect(coordinator.progress.currentStep == .activityClassification)
+
+    try await coordinator.continueFromCurrentStep()
+
+    #expect(policyRecorder.version == 1)
+    #expect(policyRecorder.applyCallCount == 2)
+    #expect(coordinator.progress.currentStep == .schedule)
+    #expect(coordinator.progress.completedEffects.map(\.step) == [.activityClassification])
+}
+
+@MainActor
+@Test
+func twoWindowsWithTheSameDraftShareOneEffectAndReconcileProgress() async throws {
+    let store = CASRecordingOnboardingStore(progress: try progressAt(.activityClassification))
+    let policyRecorder = PolicyRecorder()
+    let first = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(policyRecorder: policyRecorder)
+    )
+    let second = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(policyRecorder: policyRecorder)
+    )
+    first.setClassification(.work, for: "Terminal")
+    second.setClassification(.work, for: "Terminal")
+
+    try await first.continueFromCurrentStep()
+    try await second.continueFromCurrentStep()
+
+    #expect(policyRecorder.version == 1)
+    #expect(policyRecorder.applyCallCount == 2)
+    #expect(second.progress.currentStep == .schedule)
+    #expect(first.progress.completedEffects == second.progress.completedEffects)
+}
+
+@MainActor
+@Test
+func twoWindowsWithDifferentDraftsCannotOverwriteTheWinner() async throws {
+    let store = CASRecordingOnboardingStore(progress: try progressAt(.activityClassification))
+    let policyRecorder = PolicyRecorder()
+    let first = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(policyRecorder: policyRecorder)
+    )
+    let stale = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(policyRecorder: policyRecorder)
+    )
+    first.setClassification(.work, for: "Terminal")
+    stale.setClassification(.gaming, for: "Terminal")
+
+    try await first.continueFromCurrentStep()
+    await #expect(throws: PolicyStoreError.staleVersion(expected: 0, actual: 1)) {
+        try await stale.continueFromCurrentStep()
+    }
+
+    #expect(policyRecorder.version == 1)
+    #expect(policyRecorder.policy.behavior.choice(for: "Terminal") == .work)
+    #expect(store.saved.currentStep == .schedule)
+}
+
+@MainActor
+@Test
+func coachingStepDoesNotPersistProgressBeforePolicyIsDurable() async throws {
+    let initial = try progressAt(.coachingMode)
+    let store = CASRecordingOnboardingStore(progress: initial)
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(failPolicyMutation: true)
+    )
+    coordinator.selectCoachingMode(.optionalAI)
+
+    await #expect(throws: SagaTestError.injected) {
+        try await coordinator.continueFromCurrentStep()
+    }
+
+    #expect(store.saved.currentStep == .coachingMode)
+    #expect(store.saved.coachingMode == nil)
+    #expect(!store.saved.completedSteps.contains(.coachingMode))
     #expect(coordinator.progress.currentStep == .coachingMode)
 }
 
@@ -447,7 +534,9 @@ private final class RecordingOnboardingStore: OnboardingProgressPersisting {
 
     func load() throws -> OnboardingProgress {
         if let saved { return saved }
-        return try OnboardingProgress()
+        let fresh = try OnboardingProgress()
+        saved = fresh
+        return fresh
     }
 
     func save(_ progress: OnboardingProgress) throws -> OnboardingProgress {
@@ -456,6 +545,49 @@ private final class RecordingOnboardingStore: OnboardingProgressPersisting {
         )
         saved = replacement
         return replacement
+    }
+}
+
+@MainActor
+private final class CASRecordingOnboardingStore: OnboardingProgressPersisting {
+    var saved: OnboardingProgress
+
+    init(progress: OnboardingProgress) {
+        saved = progress
+    }
+
+    func load() throws -> OnboardingProgress { saved }
+
+    func save(_ progress: OnboardingProgress) throws -> OnboardingProgress {
+        guard progress.persistenceRevision == saved.persistenceRevision else {
+            throw OnboardingProgressStoreError.staleRevision(
+                expected: saved.persistenceRevision,
+                actual: progress.persistenceRevision
+            )
+        }
+        saved = try progress.withPersistenceRevisionForAppTests(saved.persistenceRevision + 1)
+        return saved
+    }
+}
+
+@MainActor
+private final class FailFirstProgressSaveStore: OnboardingProgressPersisting {
+    private(set) var saved: OnboardingProgress
+    private var shouldFail = true
+
+    init(progress: OnboardingProgress) {
+        saved = progress
+    }
+
+    func load() throws -> OnboardingProgress { saved }
+
+    func save(_ progress: OnboardingProgress) throws -> OnboardingProgress {
+        if shouldFail {
+            shouldFail = false
+            throw CocoaError(.fileWriteUnknown)
+        }
+        saved = try progress.withPersistenceRevisionForAppTests(saved.persistenceRevision + 1)
+        return saved
     }
 }
 
@@ -482,11 +614,45 @@ private final class StaleOnceOnboardingStore: OnboardingProgressPersisting {
 @MainActor
 private final class PolicyRecorder {
     var policy = UserPolicy.defaults()
-}
+    var version = 0
+    var receipts: [String: PolicyMutationReceipt] = [:]
+    var applyCallCount = 0
 
-@MainActor
-private final class GamingPolicyRecorder {
-    var policy = GamingPolicy()
+    var versionedPolicy: VersionedUserPolicy? {
+        guard version > 0 else { return nil }
+        return VersionedUserPolicy(
+            version: version,
+            policy: policy,
+            createdAtUTC: Date(timeIntervalSince1970: TimeInterval(version)),
+            isActive: true
+        )
+    }
+
+    func apply(_ request: PolicyMutationRequest) throws -> PolicyMutationReceipt {
+        applyCallCount += 1
+        if let receipt = receipts[request.requestID] {
+            let digest = try PolicyMutationRequest.canonicalPayloadDigest(for: request.policy)
+            guard receipt.payloadDigest == digest, receipt.origin == request.origin else {
+                throw PolicyStoreError.idempotencyConflict(request.requestID)
+            }
+            return PolicyMutationReceipt(
+                requestID: receipt.requestID,
+                payloadDigest: receipt.payloadDigest,
+                expectedVersion: receipt.expectedVersion,
+                resultingVersion: receipt.resultingVersion,
+                origin: receipt.origin,
+                replayed: true
+            )
+        }
+        guard request.expectedVersion == version else {
+            throw PolicyStoreError.staleVersion(expected: request.expectedVersion, actual: version)
+        }
+        version += 1
+        policy = request.policy
+        let receipt = try successfulPolicyMutation(request, resultingVersion: version)
+        receipts[request.requestID] = receipt
+        return receipt
+    }
 }
 
 @MainActor
@@ -521,12 +687,12 @@ private final class DeliveryRequestGate {
 private func testDependencies(
     inventory: AppInventoryLoadResult = .init(items: [], warning: nil),
     policyRecorder: PolicyRecorder = PolicyRecorder(),
-    gamingRecorder: GamingPolicyRecorder = GamingPolicyRecorder(),
     deliveryResult: OnboardingDeliveryResult = .init(
         state: .delivered,
         message: "Delivered by test fixture"
     ),
-    firstPlan: OnboardingFirstDailyPlanResult = preparedFirstPlan
+    firstPlan: OnboardingFirstDailyPlanResult = preparedFirstPlan,
+    failPolicyMutation: Bool = false
 ) -> OnboardingDependencies {
     OnboardingDependencies(
         inspectReminders: { SelfHealth.remindersDenied },
@@ -539,12 +705,31 @@ private func testDependencies(
         requestNotifications: { .init(health: SelfHealth.notificationsDenied, decision: .denied) },
         loadInventory: { inventory },
         testDelivery: { deliveryResult },
-        loadPolicy: { policyRecorder.policy },
-        savePolicy: { policyRecorder.policy = $0 },
-        loadGamingPolicy: { gamingRecorder.policy },
-        saveGamingPolicy: { gamingRecorder.policy = $0 },
+        loadPolicy: { policyRecorder.versionedPolicy },
+        applyPolicyMutation: {
+            if failPolicyMutation { throw SagaTestError.injected }
+            return try policyRecorder.apply($0)
+        },
         prepareFirstDailyPlan: { firstPlan },
         openSystemSettings: { _ in true }
+    )
+}
+
+private enum SagaTestError: Error {
+    case injected
+}
+
+private func successfulPolicyMutation(
+    _ request: PolicyMutationRequest,
+    resultingVersion: Int? = nil
+) throws -> PolicyMutationReceipt {
+    PolicyMutationReceipt(
+        requestID: request.requestID,
+        payloadDigest: try PolicyMutationRequest.canonicalPayloadDigest(for: request.policy),
+        expectedVersion: request.expectedVersion,
+        resultingVersion: resultingVersion ?? request.expectedVersion + 1,
+        origin: request.origin,
+        replayed: false
     )
 }
 
@@ -645,6 +830,7 @@ private func progressAt(
 private extension OnboardingProgress {
     func withPersistenceRevisionForAppTests(_ revision: UInt64) throws -> Self {
         try Self(
+            flowID: flowID,
             persistenceRevision: revision,
             currentStep: currentStep,
             completedSteps: completedSteps,
@@ -652,6 +838,7 @@ private extension OnboardingProgress {
             remindersAccess: remindersAccess,
             screenwatchAccess: screenwatchAccess,
             notificationAccess: notificationAccess,
+            completedEffects: completedEffects,
             finishedAt: finishedAt
         )
     }

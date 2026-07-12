@@ -69,6 +69,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     }
 
     public private(set) var version: Int
+    public private(set) var flowID: String
     public private(set) var persistenceRevision: UInt64
     public private(set) var currentStep: OnboardingStep
     public private(set) var completedSteps: [OnboardingStep]
@@ -81,6 +82,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
 
     public init(
         version: Int = Self.schemaVersion,
+        flowID: String = UUID().uuidString,
         persistenceRevision: UInt64 = 0,
         currentStep: OnboardingStep = .welcome,
         completedSteps: [OnboardingStep] = [],
@@ -92,6 +94,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         finishedAt: Date? = nil
     ) throws {
         self.version = version
+        self.flowID = flowID
         self.persistenceRevision = persistenceRevision
         self.currentStep = currentStep
         self.completedSteps = completedSteps
@@ -106,6 +109,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case version
+        case flowID
         case persistenceRevision
         case currentStep
         case completedSteps
@@ -120,6 +124,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decode(Int.self, forKey: .version)
+        flowID = try container.decodeIfPresent(String.self, forKey: .flowID) ?? "legacy"
         persistenceRevision = try container.decodeIfPresent(
             UInt64.self,
             forKey: .persistenceRevision
@@ -156,6 +161,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(version, forKey: .version)
+        try container.encode(flowID, forKey: .flowID)
         try container.encode(persistenceRevision, forKey: .persistenceRevision)
         try container.encode(currentStep, forKey: .currentStep)
         try container.encode(completedSteps, forKey: .completedSteps)
@@ -177,6 +183,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public func withPersistenceRevision(_ revision: UInt64) throws -> Self {
         try Self(
             version: version,
+            flowID: flowID,
             persistenceRevision: revision,
             currentStep: currentStep,
             completedSteps: completedSteps,
@@ -277,6 +284,9 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         guard version == Self.schemaVersion else {
             throw OnboardingProgressError.unsupportedVersion(version)
         }
+        guard !flowID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw OnboardingProgressError.invalidFlowID
+        }
         guard Set(completedSteps).count == completedSteps.count else {
             throw OnboardingProgressError.duplicateCompletedStep
         }
@@ -368,6 +378,7 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
     case invalidCompletedEffect(OnboardingStep)
     case conflictingCompletedEffect(OnboardingStep)
     case duplicateCompletedEffect
+    case invalidFlowID
     @available(*, deprecated, message: "Persistence errors are reported by OnboardingProgressStoreError")
     case unreadableProgress(String)
 
@@ -403,6 +414,8 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
             "Onboarding effect receipt conflicts for \(step.rawValue)"
         case .duplicateCompletedEffect:
             "Onboarding progress contains duplicate effect receipts"
+        case .invalidFlowID:
+            "Onboarding progress flow identity is missing"
         case let .unreadableProgress(message):
             "Onboarding progress could not be read: \(message)"
         }

@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import SQLite3
 import ZoidCoachCore
@@ -50,7 +49,13 @@ public final class PolicyStore: @unchecked Sendable {
     }
 
     @discardableResult
+    @available(*, deprecated, message: "Use saveMutation for user-driven writes. This escape hatch is only for system maintenance and bootstrap.")
     public func save(_ policy: UserPolicy) throws -> VersionedUserPolicy {
+        try saveSystemMaintenancePolicy(policy)
+    }
+
+    @discardableResult
+    public func saveSystemMaintenancePolicy(_ policy: UserPolicy) throws -> VersionedUserPolicy {
         let policy = policy.upgradedToCurrentSchema()
         let violations = policy.validationViolations()
         guard violations.isEmpty else { throw PolicyStoreError.invalidPolicy(violations) }
@@ -66,14 +71,14 @@ public final class PolicyStore: @unchecked Sendable {
         let policy = request.policy.upgradedToCurrentSchema()
         let violations = policy.validationViolations()
         guard violations.isEmpty else { throw PolicyStoreError.invalidPolicy(violations) }
-        let payloadDigest = try Self.payloadDigest(policy)
+        let payloadDigest = try PolicyMutationRequest.canonicalPayloadDigest(for: policy)
+        try Self.validateMutationRequestBasics(request)
 
         lock.lock()
         defer { lock.unlock() }
         return try inTransaction {
             if let existing = try mutationReceiptLocked(requestID: request.requestID) {
                 guard existing.payloadDigest == payloadDigest,
-                      existing.expectedVersion == request.expectedVersion,
                       existing.origin == request.origin else {
                     throw PolicyStoreError.idempotencyConflict(request.requestID)
                 }
@@ -86,6 +91,10 @@ public final class PolicyStore: @unchecked Sendable {
                     replayed: true
                 )
             }
+            try Self.validateNewMutationRequestBinding(
+                request,
+                payloadDigest: payloadDigest
+            )
             let actualVersion = try currentLocked()?.version ?? 0
             guard actualVersion == request.expectedVersion else {
                 throw PolicyStoreError.staleVersion(
@@ -111,6 +120,12 @@ public final class PolicyStore: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return try currentLocked()
+    }
+
+    public func mutationReceipt(requestID: String) throws -> PolicyMutationReceipt? {
+        lock.lock()
+        defer { lock.unlock() }
+        return try mutationReceiptLocked(requestID: requestID)
     }
 
     public func currentGamingPolicy() throws -> GamingPolicy {
@@ -270,7 +285,7 @@ public final class PolicyStore: @unchecked Sendable {
             lock.unlock()
             throw error
         }
-        return try save(target.policy.upgradedToCurrentSchema())
+        return try saveSystemMaintenancePolicy(target.policy.upgradedToCurrentSchema())
     }
 
     private func nextVersion() throws -> Int {
@@ -392,10 +407,62 @@ public final class PolicyStore: @unchecked Sendable {
         }
     }
 
-    private static func payloadDigest(_ policy: UserPolicy) throws -> String {
-        let data = try JSONEncoder.zoidPolicy.encode(policy)
-        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    private static func validateMutationRequestBasics(_ request: PolicyMutationRequest) throws {
+        let requestID = request.requestID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !requestID.isEmpty, requestID.count <= 512 else {
+            throw PolicyStoreError.invalidRequest("request_id")
+        }
+        guard request.expectedVersion >= 0 else {
+            throw PolicyStoreError.invalidRequest("expected_version")
+        }
+        switch request.origin {
+        case .settings:
+            guard requestID.hasPrefix("settings-policy-v1:") else {
+                throw PolicyStoreError.invalidRequest("settings_request_id")
+            }
+        case let .onboarding(flowID, step, progressRevision):
+            let trimmedFlowID = flowID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedFlowID.isEmpty,
+                  effectRequiredOnboardingSteps.contains(step) else {
+                throw PolicyStoreError.invalidRequest("onboarding_origin")
+            }
+            _ = progressRevision
+        case let .system(component):
+            let component = component.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !component.isEmpty,
+                  component.count <= 128,
+                  requestID.hasPrefix("system-policy-v1:\(component):") else {
+                throw PolicyStoreError.invalidRequest("system_origin")
+            }
+        }
     }
+
+    private static func validateNewMutationRequestBinding(
+        _ request: PolicyMutationRequest,
+        payloadDigest: String
+    ) throws {
+        guard case let .onboarding(flowID, step, progressRevision) = request.origin else {
+            return
+        }
+        let trimmedFlowID = flowID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let expectedID = [
+            "onboarding-policy-v1",
+            trimmedFlowID,
+            step.rawValue,
+            String(progressRevision),
+            payloadDigest,
+        ].joined(separator: ":")
+        guard request.requestID == expectedID else {
+            throw PolicyStoreError.invalidRequest("onboarding_request_id")
+        }
+    }
+
+    private static let effectRequiredOnboardingSteps: Set<OnboardingStep> = [
+        .activityClassification,
+        .schedule,
+        .gamingPolicy,
+        .coachingMode,
+    ]
 
     private func inTransaction<T>(_ body: () throws -> T) throws -> T {
         guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
@@ -483,6 +550,7 @@ public enum PolicyStoreError: Error, Equatable, Sendable {
     case staleVersion(expected: Int, actual: Int)
     case idempotencyConflict(String)
     case corruptMutationReceipt(String)
+    case invalidRequest(String)
 }
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)

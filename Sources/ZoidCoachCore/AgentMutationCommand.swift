@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 public enum AgentMeetingDestination: String, Codable, Sendable {
@@ -55,7 +56,8 @@ public struct AgentReminderSnapshot: Equatable, Codable, Sendable {
 
 public enum PolicyMutationOrigin: Equatable, Codable, Sendable {
     case settings
-    case onboarding(step: OnboardingStep, progressRevision: UInt64)
+    case onboarding(flowID: String, step: OnboardingStep, progressRevision: UInt64)
+    case system(component: String)
 }
 
 public struct PolicyMutationRequest: Equatable, Codable, Sendable {
@@ -74,6 +76,11 @@ public struct PolicyMutationRequest: Equatable, Codable, Sendable {
         self.expectedVersion = expectedVersion
         self.policy = policy
         self.origin = origin
+    }
+
+    public static func canonicalPayloadDigest(for policy: UserPolicy) throws -> String {
+        let data = try JSONEncoder.zoidPolicy.encode(policy.upgradedToCurrentSchema())
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }
 
@@ -109,8 +116,6 @@ public enum AgentMutationCommand: Equatable, Codable, Sendable {
     case recordTaskHistory(taskID: String, state: AgentTaskHistoryState, occurredAt: Date)
     case recordSourceCheck(sourceID: String, state: String, detail: String, evidence: String, checkedAt: Date)
     case synchronizeReminderSnapshots([AgentReminderSnapshot])
-    case savePolicy(UserPolicy)
-    case saveGamingPolicy(GamingPolicy)
     case savePolicyMutation(PolicyMutationRequest)
     case undoAction(commandID: String)
     case exportRedactedDiagnostics
