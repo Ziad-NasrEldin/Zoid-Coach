@@ -46,7 +46,8 @@ struct ZoidCoachAgentMain {
                     requestRemindersAccess: configuration.requestRemindersAccess,
                     printRemindersStatus: configuration.printRemindersStatus
                 ),
-                fixtureAuthorization: fixtureAuthorization
+                fixtureAuthorization: fixtureAuthorization,
+                fixtureAdapter: qaFixtureAdapter
             )
             let captureConfigurationStore = NativeCaptureConfigurationStore(
                 fileURL: runtimeResolution.environment.nativeCaptureConfigurationURL

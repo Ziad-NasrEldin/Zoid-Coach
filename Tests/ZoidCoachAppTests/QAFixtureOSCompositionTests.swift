@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Testing
 @testable import ZoidCoachApp
@@ -174,7 +175,7 @@ func controlRequestResumesAfterAProcessingFailure() throws {
         .appendingPathComponent("os-fixture-request.processing.json")
     try Data("{ malformed".utf8).write(to: requestURL)
 
-    #expect(throws: (any Error).self) {
+    #expect(throws: QAFixtureOSCompositionError.malformedControlEncoding) {
         try QAFixtureOSComposition.makeAuthorizedAdapter(
             runtimeEnvironment: fixture.environment,
             clock: .fixed(fixture.now)
@@ -199,7 +200,7 @@ func controlRequestResumesAfterAProcessingFailure() throws {
 }
 
 @Test
-func controlRequestDoesNotReplayAfterCrashFollowingMutationCommit() throws {
+func controlRequestDoesNotReplayAfterCrashFollowingMutationCommit() async throws {
     let fixture = try signedQARuntime("control-after-mutation")
     defer { try? FileManager.default.removeItem(at: fixture.root) }
     try writeControl(.init(
@@ -222,22 +223,32 @@ func controlRequestDoesNotReplayAfterCrashFollowingMutationCommit() throws {
     #expect(throws: InjectedControlInterruption.self) {
         try QAFixtureOSComposition.makeAuthorizedComposition(
             runtimeEnvironment: fixture.environment,
-            clock: .fixed(fixture.now)
-        ) { checkpoint in
-            if checkpoint == .mutationCommitted {
-                throw InjectedControlInterruption.stopped
+            clock: .fixed(fixture.now),
+            controlCheckpoint: { checkpoint in
+                if checkpoint == .mutationCommitted {
+                    throw InjectedControlInterruption.stopped
+                }
             }
-        }
+        )
     }
     let committed = try rawAdapter(for: fixture)
     let committedSnapshot = try committed.snapshot()
     #expect(committedSnapshot.reminders.map(\.id) == ["seed-once"])
+    _ = try await committed.create(
+        title: "Post-crash mutation",
+        dueDate: nil,
+        listIdentifier: "inbox",
+        metadataMarker: "post-crash"
+    )
+    let afterPostCrashMutation = try committed.snapshot()
+    #expect(afterPostCrashMutation.audit.count == committedSnapshot.audit.count + 1)
 
     let recovered = try QAFixtureOSComposition.makeAuthorizedComposition(
         runtimeEnvironment: fixture.environment,
         clock: .fixed(fixture.now)
     ).adapter.snapshot()
-    #expect(recovered == committedSnapshot)
+    #expect(recovered == afterPostCrashMutation)
+    #expect(Set(recovered.reminders.map(\.title)) == ["Seed once", "Post-crash mutation"])
 }
 
 @Test
@@ -266,12 +277,13 @@ func controlRequestDoesNotReplayAfterCrashFollowingSnapshotPersistence() async t
     #expect(throws: InjectedControlInterruption.self) {
         try QAFixtureOSComposition.makeAuthorizedComposition(
             runtimeEnvironment: fixture.environment,
-            clock: .fixed(fixture.now)
-        ) { checkpoint in
-            if checkpoint == .snapshotPersisted {
-                throw InjectedControlInterruption.stopped
+            clock: .fixed(fixture.now),
+            controlCheckpoint: { checkpoint in
+                if checkpoint == .snapshotPersisted {
+                    throw InjectedControlInterruption.stopped
+                }
             }
-        }
+        )
     }
     let committed = try rawAdapter(for: fixture).snapshot()
     #expect(committed.notifications.first?.status == .responded)
@@ -415,6 +427,40 @@ func notificationControlRejectsUnknownAndForeignNamespacedActionsBeforeMutation(
 }
 
 @Test
+func fixtureNotificationActionMatrixMatchesEveryLiveCategoryAction() {
+    let identity = RuntimeIdentity.qa.notification
+    let allowed: [PromptNotificationCategory: Set<PromptActionKind>] = [
+        .planReady: [.acceptPlan, .reviewPlan],
+        .meetingCandidate: [.addMeeting, .editMeeting, .ignore],
+        .planChanged: [.reviewPlan, .undoPlanChange],
+        .wakeIntervention: []
+    ]
+    for category in PromptNotificationCategory.allCases {
+        for action in PromptActionKind.allCases {
+            let expected = allowed[category, default: []].contains(action) ? action : nil
+            #expect(PromptNotificationCoordinator.fixtureActionKind(
+                identifier: action.rawValue,
+                category: category.rawValue,
+                notificationIdentity: identity
+            ) == expected)
+            #expect(PromptNotificationCoordinator.fixtureActionKind(
+                identifier: PromptNotificationCoordinator.actionIdentifier(
+                    action,
+                    notificationIdentity: identity
+                ),
+                category: category.rawValue,
+                notificationIdentity: identity
+            ) == expected)
+        }
+    }
+    #expect(PromptNotificationCoordinator.fixtureActionKind(
+        identifier: "com.ziadnasreldin.ZoidCoach.prompt.action.ACCEPT_PLAN",
+        category: PromptNotificationCategory.planReady.rawValue,
+        notificationIdentity: identity
+    ) == nil)
+}
+
+@Test
 func concurrentAppAgentMutationsAndControlIngestionLoseNoState() async throws {
     let fixture = try signedQARuntime("concurrent-control")
     defer { try? FileManager.default.removeItem(at: fixture.root) }
@@ -458,6 +504,85 @@ func concurrentAppAgentMutationsAndControlIngestionLoseNoState() async throws {
     #expect(Set(final.reminders.map(\.title)) == ["App task", "Agent task"])
     #expect(!FileManager.default.fileExists(atPath: fixture.root
         .appendingPathComponent(QAFixtureOSComposition.controlRelativePath).path))
+}
+
+@Test
+func childProcessAppAgentMutationsContendWithControlIngestion() throws {
+    let fixture = try signedQARuntime("child-process-control")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let adapter = try rawAdapter(for: fixture)
+    try adapter.reset(to: .init(permissions: [.reminders: .granted]))
+    try writeControl(.init(
+        requestID: "child-process-snapshot",
+        operation: .snapshot
+    ), runtime: fixture.environment)
+
+    let roles = ["app", "agent"]
+    let children = try roles.map { role in
+        try launchFixtureMutationChild(role: role, fixture: fixture)
+    }
+    let readyURLs = roles.map {
+        fixture.root.appendingPathComponent("child-\($0).ready")
+    }
+    try waitForFiles(readyURLs)
+    let goURL = fixture.root.appendingPathComponent("children.go")
+    let attemptingURLs = roles.map {
+        fixture.root.appendingPathComponent("child-\($0).attempting")
+    }
+    _ = try QAFixtureOSComposition.makeAuthorizedComposition(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now),
+        storageCheckpoint: { checkpoint in
+            guard case .beforeStateCommit = checkpoint else { return }
+            _ = FileManager.default.createFile(atPath: goURL.path, contents: Data())
+            try waitForFiles(attemptingURLs)
+        }
+    )
+    for child in children {
+        child.waitUntilExit()
+        #expect(child.terminationStatus == 0)
+    }
+
+    let final = try rawAdapter(for: fixture).snapshot()
+    #expect(Set(final.reminders.map(\.title)) == ["Child app task", "Child agent task"])
+}
+
+@Test
+func fixtureChildProcessMutationWorker() async throws {
+    let environment = ProcessInfo.processInfo.environment
+    guard let rootPath = environment["ZOID_FIXTURE_CHILD_ROOT"],
+          let role = environment["ZOID_FIXTURE_CHILD_ROLE"] else { return }
+    let root = URL(fileURLWithPath: rootPath, isDirectory: true)
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: root,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+    let fixture = SignedQAFixture(
+        root: root,
+        environment: runtime,
+        now: Date(timeIntervalSince1970: 1_735_732_800)
+    )
+    _ = FileManager.default.createFile(
+        atPath: root.appendingPathComponent("child-\(role).ready").path,
+        contents: Data()
+    )
+    try waitForFiles([root.appendingPathComponent("children.go")])
+    _ = FileManager.default.createFile(
+        atPath: root.appendingPathComponent("child-\(role).attempting").path,
+        contents: Data()
+    )
+    _ = try await rawAdapter(for: fixture).create(
+        title: "Child \(role) task",
+        dueDate: nil,
+        listIdentifier: "inbox",
+        metadataMarker: "child-\(role)"
+    )
 }
 
 @Test
@@ -518,6 +643,39 @@ func appSurfacesSignedQAFixtureStartupFailure() async throws {
         == expectedDetail)
 }
 
+@MainActor
+@Test
+func appSurfacesExactMalformedControlRecoveryCopy() async throws {
+    let fixture = try signedQARuntime("app-malformed-control")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let requestURL = fixture.root.appendingPathComponent(
+        QAFixtureOSComposition.controlRelativePath
+    )
+    try FileManager.default.createDirectory(
+        at: requestURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    try Data("{ malformed".utf8).write(to: requestURL)
+    let model = AppModel(
+        runtimeEnvironment: fixture.environment,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: fixture.environment,
+            service: NoopAgentRegistration()
+        )
+    )
+    model.runSourceCheck()
+    let deadline = Date().addingTimeInterval(2)
+    while model.sources.contains(where: { $0.state == .checking }), Date() < deadline {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+
+    let expected = "QA fixture startup failed: The QA OS fixture control request is not valid JSON or uses unsupported field values. Fix the processing request and relaunch."
+    #expect(model.qaOSFixtureAdapter == nil)
+    #expect(model.sources.first(where: { $0.id == .reminders })?.detail == expected)
+    #expect(model.sources.first(where: { $0.id == .calendar })?.detail == expected)
+    #expect(model.sources.first(where: { $0.id == .notifications })?.detail == expected)
+}
+
 @Test
 func unbundledOrMismatchedQAIdentityCannotEnableFixtures() throws {
     let root = try testRoot("invalid-identity")
@@ -552,6 +710,46 @@ func fixtureErrorsExposeActionableLocalizedDescriptions() {
 }
 
 @Test
+func downstreamCodeCannotForgeFixtureAuthorization() throws {
+    let root = try testRoot("authorization-compile-guard")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let sourceURL = root.appendingPathComponent("ForgeAuthorization.swift")
+    let source = """
+    import Foundation
+    import ZoidCoachInfrastructure
+
+    func forge(_ adapter: DeterministicOSFixtureAdapters, root: URL) {
+        _ = AgentOSFixtureAuthorization(adapter: adapter, runRoot: root)
+    }
+    """
+    try Data(source.utf8).write(to: sourceURL)
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let modules = repositoryRoot.appendingPathComponent(
+        ".build/arm64-apple-macosx/debug/Modules"
+    )
+    let process = Process()
+    let errorPipe = Pipe()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+    process.arguments = [
+        "swiftc", "-typecheck", "-I", modules.path, sourceURL.path
+    ]
+    process.standardOutput = Pipe()
+    process.standardError = errorPipe
+    try process.run()
+    process.waitUntilExit()
+    let error = String(
+        decoding: errorPipe.fileHandleForReading.readDataToEndOfFile(),
+        as: UTF8.self
+    )
+
+    #expect(process.terminationStatus != 0)
+    #expect(error.contains("inaccessible due to 'fileprivate' protection level"))
+}
+
+@Test
 func signedQABoundaryAllowsOnlyFixtureBackedOperations() throws {
     let fixture = try signedQARuntime("signed-boundary")
     defer { try? FileManager.default.removeItem(at: fixture.root) }
@@ -567,7 +765,8 @@ func signedQABoundaryAllowsOnlyFixtureBackedOperations() throws {
     try AgentOSAdapterBoundary.validate(
         runtimeEnvironment: fixture.environment,
         operations: Set(AgentOSAdapterOperation.allCases),
-        fixtureAuthorization: composition.authorization
+        fixtureAuthorization: composition.authorization,
+        fixtureAdapter: composition.adapter
     )
     #expect(throws: AgentOSAdapterBoundaryError.self) {
         try AgentOSAdapterBoundary.validate(
@@ -575,18 +774,13 @@ func signedQABoundaryAllowsOnlyFixtureBackedOperations() throws {
             operations: [.synchronizeCalendar]
         )
     }
-    let detachedAuthorization: AgentOSFixtureAuthorization = {
-        let shortLived = try! QAFixtureOSComposition.makeAuthorizedComposition(
-            runtimeEnvironment: fixture.environment,
-            clock: .fixed(fixture.now)
-        )
-        return shortLived.authorization
-    }()
+    let substitutedAdapter = try rawAdapter(for: fixture)
     #expect(throws: AgentOSAdapterBoundaryError.self) {
         try AgentOSAdapterBoundary.validate(
             runtimeEnvironment: fixture.environment,
             operations: [.synchronizeReminders],
-            fixtureAuthorization: detachedAuthorization
+            fixtureAuthorization: composition.authorization,
+            fixtureAdapter: substitutedAdapter
         )
     }
 }
@@ -655,6 +849,50 @@ private func rawAdapter(for fixture: SignedQAFixture) throws -> DeterministicOSF
         clock: .fixed(fixture.now),
         stableID: { kind, index in "qa-\(kind.rawValue)-\(index)" }
     )
+}
+
+private func launchFixtureMutationChild(
+    role: String,
+    fixture: SignedQAFixture
+) throws -> Process {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath:
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec/swift/pm/swiftpm-testing-helper"
+    )
+    let bundleExecutable = repositoryRoot.appendingPathComponent(
+        ".build/arm64-apple-macosx/debug/ZoidCoachPackageTests.xctest/Contents/MacOS/ZoidCoachPackageTests"
+    ).path
+    process.arguments = [
+        "--test-bundle-path", bundleExecutable,
+        "--filter", "fixtureChildProcessMutationWorker",
+        bundleExecutable,
+        "--testing-library", "swift-testing"
+    ]
+    var environment = ProcessInfo.processInfo.environment
+    environment["ZOID_FIXTURE_CHILD_ROOT"] = fixture.root.path
+    environment["ZOID_FIXTURE_CHILD_ROLE"] = role
+    process.environment = environment
+    process.currentDirectoryURL = repositoryRoot
+    process.standardOutput = Pipe()
+    process.standardError = Pipe()
+    try process.run()
+    return process
+}
+
+private func waitForFiles(_ urls: [URL]) throws {
+    let deadline = Date().addingTimeInterval(10)
+    while !urls.allSatisfy({ FileManager.default.fileExists(atPath: $0.path) }) {
+        guard Date() < deadline else {
+            throw QAFixtureStateError.invalidPersistedState(
+                "timed out waiting for child-process fixture barrier"
+            )
+        }
+        usleep(10_000)
+    }
 }
 
 private func signedQARuntime(_ label: String) throws -> SignedQAFixture {

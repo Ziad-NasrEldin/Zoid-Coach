@@ -1,9 +1,70 @@
 import Foundation
 import ZoidCoachCore
 
+public enum AgentOSAdapterOperation: String, CaseIterable, Equatable, Sendable {
+    case requestRemindersAccess
+    case inspectRemindersAccess
+    case synchronizeReminders
+    case synchronizeCalendar
+    case deliverNotifications
+}
+
+public struct AgentOSFixtureAuthorization: @unchecked Sendable {
+    fileprivate let adapter: DeterministicOSFixtureAdapters
+    fileprivate let runRoot: URL
+
+    fileprivate init(adapter: DeterministicOSFixtureAdapters, runRoot: URL) {
+        self.adapter = adapter
+        self.runRoot = runRoot
+    }
+}
+
+public enum AgentOSAdapterBoundary {
+    public static func operations(
+        requestRemindersAccess: Bool,
+        printRemindersStatus: Bool
+    ) -> Set<AgentOSAdapterOperation> {
+        if requestRemindersAccess { return [.requestRemindersAccess] }
+        if printRemindersStatus { return [.inspectRemindersAccess] }
+        return [.synchronizeReminders, .synchronizeCalendar, .deliverNotifications]
+    }
+
+    public static func validate(
+        runtimeEnvironment: RuntimeEnvironment,
+        operations: Set<AgentOSAdapterOperation>,
+        fixtureAuthorization: AgentOSFixtureAuthorization? = nil,
+        fixtureAdapter: DeterministicOSFixtureAdapters? = nil
+    ) throws {
+        guard case let .qa(runRoot) = runtimeEnvironment.mode, !operations.isEmpty else { return }
+        if let fixtureAuthorization,
+           let fixtureAdapter,
+           fixtureAuthorization.adapter === fixtureAdapter,
+           fixtureAuthorization.runRoot.standardizedFileURL == runRoot.standardizedFileURL,
+           runtimeEnvironment.packageMode == .qa,
+           runtimeEnvironment.identity == .qa {
+            return
+        }
+        throw AgentOSAdapterBoundaryError.isolatedAdaptersRequired(
+            operations: operations.map(\.rawValue).sorted()
+        )
+    }
+}
+
+public enum AgentOSAdapterBoundaryError: LocalizedError, Equatable {
+    case isolatedAdaptersRequired(operations: [String])
+
+    public var errorDescription: String? {
+        switch self {
+        case let .isolatedAdaptersRequired(operations):
+            "QA agent refused production OS adapters: \(operations.joined(separator: ", "))"
+        }
+    }
+}
+
 public enum QAFixtureOSCompositionError: LocalizedError, Equatable, Sendable {
     case signedQAPackageRequired
     case malformedControl
+    case malformedControlEncoding
     case invalidRequestIdentifier
     case invalidNotificationAction(String)
 
@@ -13,6 +74,8 @@ public enum QAFixtureOSCompositionError: LocalizedError, Equatable, Sendable {
             "QA OS fixtures require a signed QA app or agent with the embedded QA run root."
         case .malformedControl:
             "The QA OS fixture control request is missing fields required by its operation."
+        case .malformedControlEncoding:
+            "The QA OS fixture control request is not valid JSON or uses unsupported field values. Fix the processing request and relaunch."
         case .invalidRequestIdentifier:
             "The QA OS fixture control request requires a non-empty requestID for exactly-once recovery."
         case let .invalidNotificationAction(identifier):
@@ -90,6 +153,7 @@ public enum QAFixtureOSComposition {
     public static func makeAuthorizedComposition(
         runtimeEnvironment: RuntimeEnvironment,
         clock: ZoidClock = .system,
+        storageCheckpoint: @escaping @Sendable (QAFixtureStorageCheckpoint) throws -> Void = { _ in },
         controlCheckpoint: @escaping @Sendable (QAFixtureOSControlCheckpoint) throws -> Void = { _ in }
     ) throws -> AuthorizedQAFixtureOSComposition {
         guard case .qa = runtimeEnvironment.mode,
@@ -101,21 +165,18 @@ public enum QAFixtureOSComposition {
         let adapter = try DeterministicOSFixtureAdapters(
             workspace: workspace,
             clock: clock,
-            stableID: { kind, index in "qa-\(kind.rawValue)-\(index)" }
+            stableID: { kind, index in "qa-\(kind.rawValue)-\(index)" },
+            storageCheckpoint: storageCheckpoint
         )
         try processPendingControl(
             runtimeEnvironment: runtimeEnvironment,
             adapter: adapter,
             checkpoint: controlCheckpoint
         )
-        let authorization = AgentOSFixtureAuthorization { [weak adapter] environment in
-            guard adapter != nil,
-                  case let .qa(candidateRoot) = environment.mode,
-                  case let .qa(expectedRoot) = runtimeEnvironment.mode else { return false }
-            return environment.packageMode == .qa
-                && environment.identity == .qa
-                && candidateRoot.standardizedFileURL == expectedRoot.standardizedFileURL
+        guard case let .qa(runRoot) = runtimeEnvironment.mode else {
+            throw QAFixtureOSCompositionError.signedQAPackageRequired
         }
+        let authorization = AgentOSFixtureAuthorization(adapter: adapter, runRoot: runRoot)
         return AuthorizedQAFixtureOSComposition(
             adapter: adapter,
             authorization: authorization
@@ -178,10 +239,15 @@ public enum QAFixtureOSComposition {
                 guard try control.exists(requestName) else { return }
                 try control.rename(requestName, to: processingName)
             }
-            let request = try JSONDecoder().decode(
-                QAFixtureOSControlRequest.self,
-                from: control.read(processingName)
-            )
+            let request: QAFixtureOSControlRequest
+            do {
+                request = try JSONDecoder().decode(
+                    QAFixtureOSControlRequest.self,
+                    from: control.read(processingName)
+                )
+            } catch {
+                throw QAFixtureOSCompositionError.malformedControlEncoding
+            }
             let snapshot = try apply(
                 request,
                 runtimeEnvironment: runtimeEnvironment,
