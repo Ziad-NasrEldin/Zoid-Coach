@@ -263,6 +263,9 @@ struct ZoidCoachAgentMain {
                     case .disabled, .appleOnDevice, .remoteOpenAI:
                         return nil
                     }
+                },
+                reminderListPolicyProvider: {
+                    (try? policyStore.current()?.policy.reminderLists) ?? .legacyAllLists
                 }
             )
             _ = try? await reminderPlanner.synchronizeReminderSource()

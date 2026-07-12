@@ -460,6 +460,7 @@ public final class PolicyStore: @unchecked Sendable {
     }
 
     private static let effectRequiredOnboardingSteps: Set<OnboardingStep> = [
+        .reminders,
         .activityClassification,
         .schedule,
         .gamingPolicy,

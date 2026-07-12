@@ -18,16 +18,35 @@ final class SettingsPolicyController: ObservableObject {
     @Published private(set) var policyHistory: [VersionedUserPolicy] = []
     @Published private(set) var statusMessage: String?
     @Published private(set) var isSaving = false
+    @Published private(set) var reminderListDiscovery: OnboardingReminderListDiscovery = .idle
 
     private let store: PolicyStore?
     private let savePolicyThroughAgent: @Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt
     private var persistedPolicy: UserPolicy
+    private let discoverReminderLists: @MainActor () async -> ReminderListLoad
 
     init(
         databaseURL: URL? = nil,
         runtimeEnvironment: RuntimeEnvironment = .current(),
-        savePolicyThroughAgent: (@Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt)? = nil
+        savePolicyThroughAgent: (@Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt)? = nil,
+        discoverReminderLists: (@MainActor () async -> ReminderListLoad)? = nil
     ) {
+        if let discoverReminderLists {
+            self.discoverReminderLists = discoverReminderLists
+        } else if runtimeEnvironment.packageMode == .qa,
+                  let adapter = try? QAFixtureOSComposition.makeAuthorizedAdapter(
+                      runtimeEnvironment: runtimeEnvironment
+                  ) {
+            let reminders = QAFixtureRemindersService(adapter: adapter)
+            self.discoverReminderLists = { await reminders.discoverLists() }
+        } else if runtimeEnvironment.packageMode == .qa {
+            self.discoverReminderLists = {
+                .unavailable("The signed QA Reminder fixture could not be loaded.")
+            }
+        } else {
+            let reminders = RemindersService()
+            self.discoverReminderLists = { await reminders.discoverLists() }
+        }
         if let savePolicyThroughAgent {
             self.savePolicyThroughAgent = savePolicyThroughAgent
         } else {
@@ -62,6 +81,21 @@ final class SettingsPolicyController: ObservableObject {
 
     var previousPolicyVersion: Int? {
         policyHistory.first(where: { $0.version != activeVersion })?.version
+    }
+
+    func loadReminderLists() async {
+        reminderListDiscovery = .loading
+        switch await discoverReminderLists() {
+        case let .available(lists):
+            reminderListDiscovery = lists.isEmpty ? .empty : .available(lists)
+        case let .unavailable(message):
+            reminderListDiscovery = .failed(message)
+        }
+    }
+
+    func setReminderListDecision(_ isIncluded: Bool, listID: String) {
+        draft.setReminderListDecision(isIncluded, listID: listID)
+        draft.confirmReminderListConfiguration()
     }
 
     @discardableResult
@@ -203,6 +237,7 @@ struct SettingsView: View {
         }
         .task { await refreshActionAudit() }
         .task { await refreshCalendars() }
+        .task { await controller.loadReminderLists() }
     }
 
     private var actionAuditSection: some View {
@@ -378,6 +413,7 @@ struct SettingsView: View {
             automationSection
             scheduleSection
         case .signals:
+            reminderListsSection
             appClassificationSection
             calendarSection
             captureSection
@@ -389,6 +425,83 @@ struct SettingsView: View {
             dataSection
             actionAuditSection
         }
+    }
+
+    private var reminderListsSection: some View {
+        SettingsCard(
+            title: "REMINDER LISTS",
+            detail: "Choose which Apple Reminder lists may enter Today and agent planning. Choices use stable identifiers, so renaming a list does not change the policy."
+        ) {
+            switch controller.reminderListDiscovery {
+            case .idle, .loading:
+                ProgressView("Loading Reminder lists...")
+                    .accessibilityIdentifier("settings.reminders.lists.loading")
+            case let .failed(message):
+                Text(message).font(Sumi.body(12)).foregroundStyle(Sumi.sealDeep)
+                    .accessibilityIdentifier("settings.reminders.lists.error")
+                Button("RETRY LISTS") { Task { await controller.loadReminderLists() } }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .keyboardShortcut("r", modifiers: [.option, .shift])
+                    .accessibilityIdentifier("settings.reminders.lists.retry")
+            case .empty:
+                Text("No Apple Reminder lists are currently available. Local tasks remain usable.")
+                    .font(Sumi.body(12)).foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("settings.reminders.lists.empty")
+            case let .available(lists):
+                VStack(spacing: 0) {
+                    ForEach(lists) { list in
+                        settingsReminderListRow(list)
+                    }
+                }
+                .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("settings.reminders.lists")
+
+                let currentIDs = Set(lists.map(\.id))
+                let missingIDs = controller.draft.reminderListPolicy.decisions
+                    .map(\.listID)
+                    .filter { !currentIDs.contains($0) }
+                if !missingIDs.isEmpty {
+                    Text("Saved choices retained for unavailable list IDs: \(missingIDs.joined(separator: ", ")). They will apply again if those exact IDs return.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("settings.reminders.lists.unavailable-saved")
+                }
+            }
+        }
+    }
+
+    private func settingsReminderListRow(_ list: ReminderListChoice) -> some View {
+        let decision = controller.draft.reminderListPolicy.decision(for: list.id)
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(list.name).font(Sumi.body(14))
+                Text(list.id).font(Sumi.body(11)).foregroundStyle(Sumi.muted).textSelection(.enabled)
+            }
+            Spacer(minLength: 12)
+            Picker("Use \(list.name)", selection: Binding(
+                get: { decision },
+                set: { value in
+                    guard let value else { return }
+                    controller.setReminderListDecision(value, listID: list.id)
+                }
+            )) {
+                Text("CHOOSE").tag(Bool?.none)
+                Text("INCLUDE").tag(Bool?.some(true))
+                Text("EXCLUDE").tag(Bool?.some(false))
+            }
+            .labelsHidden()
+            .frame(width: 118)
+            .accessibilityLabel("Reminder list policy for \(list.name)")
+            .accessibilityValue(decision.map { $0 ? "Included" : "Excluded" } ?? "Not chosen")
+            .accessibilityIdentifier("settings.reminders.list.\(list.id).decision")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.reminders.list.\(list.id)")
     }
 
     private var voiceSection: some View {

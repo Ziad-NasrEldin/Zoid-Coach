@@ -13,6 +13,7 @@ final class OnboardingFirstDailyPlanService {
     private let now: @Sendable () -> Date
     private let timeZoneIdentifier: @Sendable () -> String
     private let planningCapacityMinutes: @Sendable (Date) -> Int
+    private let reminderListPolicy: @Sendable () -> ReminderListPolicy
 
     init(
         databaseURL: URL,
@@ -32,6 +33,9 @@ final class OnboardingFirstDailyPlanService {
         todayAgent = try TodayDashboardAgent(databaseURL: databaseURL)
         self.now = now
         self.timeZoneIdentifier = timeZoneIdentifier
+        reminderListPolicy = {
+            (try? policyStore.current()?.policy.reminderLists) ?? .legacyAllLists
+        }
         planningCapacityMinutes = planningCapacityOverride ?? { date in
             let schedule = (try? policyStore.current()?.policy.schedule)
                 ?? UserPolicy.defaults(timeZoneIdentifier: timeZoneIdentifier()).schedule
@@ -51,7 +55,11 @@ final class OnboardingFirstDailyPlanService {
             let preparationMessage: String
             switch await remindersService.fetchIncompleteTasks() {
             case let .available(tasks):
-                let snapshots = tasks.map(Self.snapshot(from:))
+                let policy = reminderListPolicy()
+                let snapshots = policy.filteringExternalTasks(
+                    tasks,
+                    listID: { $0.listID }
+                ).map(Self.snapshot(from:))
                 _ = try reminderStore.synchronize(snapshots, observedAt: referenceDate)
                 if let prepared = try persistedPreparedResult(at: referenceDate, message: "Your existing Today plan is ready.") {
                     return prepared
@@ -60,7 +68,9 @@ final class OnboardingFirstDailyPlanService {
                     Self.isUsable($0)
                         && isEligibleForToday($0, at: referenceDate, explicitlySelectedTaskIDs: explicitlySelectedTaskIDs)
                 }
-                preparationMessage = "Your first Today plan was prepared from Reminders."
+                preparationMessage = policy.isConfigured && policy.decisions.allSatisfy({ !$0.isIncluded })
+                    ? "All Reminders lists are excluded, so a durable local starter plan was prepared. You can change the list policy in Settings."
+                    : "Your first Today plan was prepared from Reminders."
             case .unavailable:
                 planningTasks = []
                 preparationMessage = "Reminders is unavailable, so a durable local starter plan was prepared. You can connect Reminders later."

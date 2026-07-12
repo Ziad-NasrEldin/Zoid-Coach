@@ -120,6 +120,7 @@ struct OnboardingRootView: View {
                     explanation: "Reminders tells Zoid Coach what you intended to do. Full access lets the app read tasks and update completion. If you decline, setup continues with manual local planning.",
                     grantTitle: "REQUEST REMINDERS ACCESS"
                 )
+                reminderListSelection
             case .screenwatch:
                 sourceStep(
                     step: .screenwatch,
@@ -164,6 +165,101 @@ struct OnboardingRootView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("onboarding.step.\(coordinator.progress.currentStep.rawValue)")
+    }
+
+    @ViewBuilder
+    private var reminderListSelection: some View {
+        if coordinator.progress.remindersAccess == .granted {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("CHOOSE LISTS")
+                    .font(Sumi.label())
+                    .tracking(1.2)
+                Text("Choose Include or Exclude for every current list. Zoid Coach saves each choice immediately and uses the list's stable Apple identifier even if its visible name changes.")
+                    .font(Sumi.body(13))
+                    .foregroundStyle(Sumi.muted)
+                switch coordinator.reminderListDiscovery {
+                case .idle, .loading:
+                    ProgressView("Loading Reminder lists...")
+                        .accessibilityIdentifier("onboarding.reminders.lists.loading")
+                case let .failed(message):
+                    Text(message)
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .accessibilityIdentifier("onboarding.reminders.lists.error")
+                    Button("RETRY LISTS") {
+                        Task { await coordinator.loadReminderLists() }
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .keyboardShortcut("r", modifiers: [.option])
+                    .accessibilityIdentifier("onboarding.reminders.lists.retry")
+                case .empty:
+                    Text("Apple Reminders returned no lists. Confirm local-only planning to continue.")
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.muted)
+                        .accessibilityIdentifier("onboarding.reminders.lists.empty")
+                    Button(
+                        coordinator.progress.emptyReminderListFallbackConfirmed
+                            ? "LOCAL-ONLY PLANNING CONFIRMED"
+                            : "CONFIRM LOCAL-ONLY PLANNING"
+                    ) {
+                        coordinator.confirmEmptyReminderListFallback()
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .disabled(coordinator.progress.emptyReminderListFallbackConfirmed)
+                    .keyboardShortcut("l", modifiers: [.option])
+                    .accessibilityIdentifier("onboarding.reminders.lists.empty-confirm")
+                case let .available(lists):
+                    VStack(spacing: 0) {
+                        ForEach(lists) { list in
+                            reminderListRow(list)
+                        }
+                    }
+                    .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("onboarding.reminders.lists")
+                }
+            }
+        }
+    }
+
+    private func reminderListRow(_ list: ReminderListChoice) -> some View {
+        let decision = coordinator.reminderListDecision(for: list.id)
+        return HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(list.name)
+                    .font(Sumi.body(14))
+                Text(list.id)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .textSelection(.enabled)
+            }
+            Spacer(minLength: 12)
+            Button(decision == true ? "INCLUDED" : "INCLUDE") {
+                coordinator.setReminderListDecision(true, listID: list.id)
+            }
+            .buttonStyle(SumiActionButtonStyle(
+                role: decision == true ? .primary : .quiet,
+                size: .standard
+            ))
+            .accessibilityLabel("Include \(list.name)")
+            .accessibilityValue(decision == true ? "Selected" : "Not selected")
+            .accessibilityIdentifier("onboarding.reminders.list.\(list.id).include")
+            Button(decision == false ? "EXCLUDED" : "EXCLUDE") {
+                coordinator.setReminderListDecision(false, listID: list.id)
+            }
+            .buttonStyle(SumiActionButtonStyle(
+                role: decision == false ? .primary : .quiet,
+                size: .standard
+            ))
+            .accessibilityLabel("Exclude \(list.name)")
+            .accessibilityValue(decision == false ? "Selected" : "Not selected")
+            .accessibilityIdentifier("onboarding.reminders.list.\(list.id).exclude")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("onboarding.reminders.list.\(list.id)")
     }
 
     private func sourceStep(

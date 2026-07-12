@@ -51,9 +51,138 @@ func deniedAndDeferredSourcesRemainExplicitAndDoNotBlockSetup() async throws {
     #expect(coordinator.progress.remindersAccess == .denied)
     #expect(coordinator.sourceHealth[.reminders]?.detail == "Reminders access is unavailable")
     try await coordinator.continueFromCurrentStep()
+    #expect(!coordinator.progress.completedEffects.map(\.step).contains(.reminders))
     coordinator.deferAccess(for: .screenwatch)
     #expect(coordinator.progress.screenwatchAccess == .deferred)
     #expect(coordinator.canContinue)
+}
+
+@MainActor
+@Test
+func reminderListDiscoveryFailureBlocksGrantedSetupUntilRetrySucceeds() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
+    let recorder = PolicyRecorder()
+    let base = testDependencies(policyRecorder: recorder)
+    var attempts = 0
+    let dependencies = OnboardingDependencies(
+        inspectReminders: { SelfHealth.remindersHealthy },
+        requestReminders: { .init(health: SelfHealth.remindersHealthy, decision: .granted) },
+        discoverReminderLists: {
+            attempts += 1
+            return attempts == 1
+                ? .unavailable("Injected discovery failure")
+                : .available([ReminderListChoice(id: "work", name: "Work")])
+        },
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        loadPolicy: base.loadPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: base.openSystemSettings
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    await coordinator.requestAccess(for: .reminders)
+
+    #expect(coordinator.reminderListDiscovery == .failed("Injected discovery failure"))
+    #expect(!coordinator.canContinue)
+
+    await coordinator.loadReminderLists()
+    coordinator.setReminderListDecision(true, listID: "work")
+
+    #expect(coordinator.reminderListDiscovery == .available([
+        ReminderListChoice(id: "work", name: "Work")
+    ]))
+    #expect(coordinator.canContinue)
+}
+
+@MainActor
+@Test
+func emptyReminderListDiscoveryRequiresExplicitLocalFallbackConfirmation() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
+    let base = testDependencies()
+    let dependencies = OnboardingDependencies(
+        inspectReminders: { SelfHealth.remindersHealthy },
+        requestReminders: { .init(health: SelfHealth.remindersHealthy, decision: .granted) },
+        discoverReminderLists: { .available([]) },
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        loadPolicy: base.loadPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: base.openSystemSettings
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    await coordinator.requestAccess(for: .reminders)
+    #expect(coordinator.reminderListDiscovery == .empty)
+    #expect(!coordinator.canContinue)
+
+    coordinator.confirmEmptyReminderListFallback()
+
+    #expect(coordinator.canContinue)
+    #expect(store.saved?.emptyReminderListFallbackConfirmed == true)
+}
+
+@MainActor
+@Test
+func grantedRemindersRequireDurableExplicitListChoicesBeforeAdvancing() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
+    let recorder = PolicyRecorder()
+    let base = testDependencies(policyRecorder: recorder)
+    let dependencies = OnboardingDependencies(
+        inspectReminders: { SelfHealth.remindersHealthy },
+        requestReminders: {
+            .init(health: SelfHealth.remindersHealthy, decision: .granted)
+        },
+        discoverReminderLists: {
+            .available([
+                ReminderListChoice(id: "personal-id", name: "Personal"),
+                ReminderListChoice(id: "work-id", name: "Work"),
+            ])
+        },
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: base.inspectNotifications,
+        requestNotifications: base.requestNotifications,
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        loadPolicy: base.loadPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: base.openSystemSettings
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    await coordinator.requestAccess(for: .reminders)
+
+    #expect(!coordinator.canContinue)
+    coordinator.setReminderListDecision(false, listID: "personal-id")
+    #expect(!coordinator.canContinue)
+    coordinator.setReminderListDecision(true, listID: "work-id")
+    #expect(coordinator.canContinue)
+
+    try await coordinator.continueFromCurrentStep()
+
+    #expect(coordinator.progress.currentStep == .screenwatch)
+    #expect(coordinator.progress.completedEffects.map(\.step).contains(.reminders))
+    #expect(recorder.policy.reminderLists.isConfigured)
+    #expect(recorder.policy.reminderLists.decision(for: "personal-id") == false)
+    #expect(recorder.policy.reminderLists.decision(for: "work-id") == true)
 }
 
 @MainActor
@@ -838,6 +967,8 @@ private extension OnboardingProgress {
             remindersAccess: remindersAccess,
             screenwatchAccess: screenwatchAccess,
             notificationAccess: notificationAccess,
+            reminderListDecisions: reminderListDecisions,
+            emptyReminderListFallbackConfirmed: emptyReminderListFallbackConfirmed,
             completedEffects: completedEffects,
             finishedAt: finishedAt
         )

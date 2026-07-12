@@ -346,6 +346,18 @@ public struct ReminderListPolicy: Codable, Equatable, Sendable {
         guard isConfigured else { return true }
         return decision(for: listID) ?? false
     }
+
+    public func includes(listID: String?) -> Bool {
+        guard let listID else { return !isConfigured }
+        return includes(listID: listID)
+    }
+
+    public func filteringExternalTasks<Task>(
+        _ tasks: [Task],
+        listID: (Task) -> String?
+    ) -> [Task] {
+        tasks.filter { includes(listID: listID($0)) }
+    }
 }
 
 public struct UserPolicy: Codable, Equatable, Sendable {

@@ -311,6 +311,54 @@ func staleSettingsWindowCannotOverwriteANewerPolicyVersion() async throws {
 
 @MainActor
 @Test
+func staleSettingsReminderListEditSurvivesConflictAndRetriesAgainstTheNewVersion() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-stale-reminder-settings-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.saveSystemMaintenancePolicy(.defaults(timeZoneIdentifier: "UTC"))
+    let apply: @Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt = { request in
+        let receipt = try store.saveMutation(request)
+        return AgentMutationReceipt(
+            accepted: true,
+            message: "saved",
+            policyVersion: receipt.resultingVersion,
+            policyMutationReceipt: receipt
+        )
+    }
+    let first = SettingsPolicyController(
+        databaseURL: databaseURL,
+        savePolicyThroughAgent: apply
+    )
+    let stale = SettingsPolicyController(
+        databaseURL: databaseURL,
+        savePolicyThroughAgent: apply
+    )
+    first.draft.capacityPercent = 80
+    stale.setReminderListDecision(true, listID: "  opaque-id  ")
+
+    await first.save()?.value
+    await stale.save()?.value
+
+    #expect(stale.activeVersion == 2)
+    #expect(stale.hasUnsavedChanges)
+    #expect(stale.draft.reminderListPolicy.decision(for: "  opaque-id  ") == true)
+    #expect(try store.current()?.policy.reminderLists == .legacyAllLists)
+
+    await stale.save()?.value
+
+    #expect(try store.current()?.version == 3)
+    #expect(try store.current()?.policy.reminderLists.isConfigured == true)
+    #expect(try store.current()?.policy.reminderLists.decision(for: "  opaque-id  ") == true)
+    #expect(!stale.hasUnsavedChanges)
+}
+
+@MainActor
+@Test
 func settingsDoNotAdvanceWithoutAnExactDurableMutationReceipt() async throws {
     let databaseURL = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-coach-settings-receipt-\(UUID().uuidString).sqlite")

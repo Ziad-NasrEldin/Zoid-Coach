@@ -156,9 +156,10 @@ final class RemindersService: RemindersServicing {
             return .unavailable("Reminders full access is required to discover lists.")
         }
         let lists: [ReminderListChoice] = store.calendars(for: .reminder).compactMap { calendar in
-            let id = calendar.calendarIdentifier.trimmingCharacters(in: .whitespacesAndNewlines)
+            let id = calendar.calendarIdentifier
             let name = calendar.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !id.isEmpty, !name.isEmpty else { return nil }
+            guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !name.isEmpty else { return nil }
             return ReminderListChoice(id: id, name: name)
         }
         return .available(lists.sorted {

@@ -294,3 +294,26 @@ func automationPauseChangePreservesConfiguredReminderLists() {
     #expect(paused.automationPause == .pausedIndefinitely)
     #expect(paused.reminderLists == configured.reminderLists)
 }
+
+@Test
+func reminderListFilteringPreservesOpaqueIDsAndExcludesUnknownListsAfterConfiguration() {
+    let opaqueID = "  opaque-list-id  "
+    let policy = ReminderListPolicy(
+        isConfigured: true,
+        decisions: [ReminderListDecision(listID: opaqueID, isIncluded: true)]
+    )
+    let tasks = [
+        (id: "included", listID: opaqueID),
+        (id: "trimmed-lookalike", listID: "opaque-list-id"),
+        (id: "new-list", listID: "new-list"),
+    ]
+
+    let filtered = policy.filteringExternalTasks(tasks, listID: { $0.listID })
+
+    #expect(filtered.map(\.id) == ["included"])
+    #expect(!policy.includes(listID: Optional<String>.none))
+    #expect(ReminderListPolicy.legacyAllLists.filteringExternalTasks(
+        tasks,
+        listID: { $0.listID }
+    ).map(\.id) == tasks.map(\.id))
+}

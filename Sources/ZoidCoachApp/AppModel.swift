@@ -574,6 +574,8 @@ final class AppModel: ObservableObject {
     private func refreshReminderTasks() async {
         switch await remindersService.fetchIncompleteTasks() {
         case let .available(tasks):
+            let reminderListPolicy = currentPolicy().reminderLists
+            let tasks = reminderListPolicy.filteringExternalTasks(tasks, listID: { $0.listID })
             reminderTasksAreAvailable = true
             reminderTasks = tasks
             _ = try? await todayDashboardXPCClient.apply(

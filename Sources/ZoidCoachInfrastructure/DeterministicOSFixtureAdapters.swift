@@ -805,7 +805,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         }
         guard state.reminders.allSatisfy({
                   !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                      && !$0.listIdentifier.isEmpty
+                      && !$0.listIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                       && [0, 1, 5, 9].contains($0.priority)
                       && $0.metadataMarker?.isEmpty != true
               }),
