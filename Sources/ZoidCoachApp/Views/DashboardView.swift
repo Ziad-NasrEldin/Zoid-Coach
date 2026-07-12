@@ -909,6 +909,17 @@ private struct TodayTaskRowView: View {
             }
             .fixedSize()
         }
+        if row.state == .active || row.state == .paused {
+            TaskEstimateProgressView(
+                progress: TaskEstimateProgress(
+                    elapsedMinutes: row.elapsedMinutes,
+                    estimateMinutes: row.estimateMinutes
+                ),
+                compact: true,
+                identifier: "today.task.\(row.taskID).estimate-progress"
+            )
+            .padding(.leading, 40)
+        }
         if let detail = completionSync.detail(localExecutionIsCompleted: row.state == .completed),
            completionSync.phase != .confirmed {
             HStack(spacing: 10) {
