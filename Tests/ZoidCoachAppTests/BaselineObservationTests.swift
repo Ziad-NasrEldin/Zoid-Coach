@@ -157,6 +157,33 @@ func gamingWithoutIncompletePlannedWorkIsObservedButNotCalledEligibleDrift() thr
 }
 
 @Test
+func gamingAfterThePlannedTaskWasCompletedIsNotEligibleDrift() throws {
+    let fixture = try BaselineFixture()
+    defer { fixture.remove() }
+    let base: Int64 = 1_783_000_000
+    try fixture.insertPlannedTask(localDay: "2026-07-01", taskID: "priority-done")
+    try fixture.insertTaskCompletion(
+        taskID: "priority-done",
+        occurredAt: Date(timeIntervalSince1970: TimeInterval(base - 60))
+    )
+    for minute in 0..<35 {
+        try fixture.insertObservation(
+            localDay: "2026-07-01",
+            epoch: base + Int64(minute * 60),
+            classification: minute < 12 ? .gaming : .work
+        )
+    }
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+    let today = try #require(ISO8601DateFormatter().date(from: "2026-07-02T12:00:00Z"))
+
+    let status = try fixture.store.reconcileCompletedDays(before: today, calendar: calendar)
+
+    #expect(status.report.totalGamingMinutes == 12)
+    #expect(status.report.eligibleDriftCount == 0)
+}
+
+@Test
 func migration37AddsNonDestructiveBaselineLedgerAfterCorrectionRules() throws {
     let fixture = try BaselineFixture()
     defer { fixture.remove() }
@@ -251,6 +278,25 @@ private final class BaselineFixture {
         defer { sqlite3_finalize(statement) }
         bind(localDay, statement, 1)
         bind(taskID, statement, 2)
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw BaselineObservationStoreError.openDatabase
+        }
+    }
+
+    func insertTaskCompletion(taskID: String, occurredAt: Date) throws {
+        var database: OpaquePointer?
+        guard sqlite3_open(databaseURL.path, &database) == SQLITE_OK, let database else {
+            throw BaselineObservationStoreError.openDatabase
+        }
+        defer { sqlite3_close(database) }
+        var statement: OpaquePointer?
+        let sql = "INSERT INTO task_history(task_id, state, occurred_at, source_kind) VALUES (?, 'completed', ?, 'local');"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw BaselineObservationStoreError.openDatabase
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        bind(ISO8601DateFormatter().string(from: occurredAt), statement, 2)
         guard sqlite3_step(statement) == SQLITE_DONE else {
             throw BaselineObservationStoreError.openDatabase
         }
