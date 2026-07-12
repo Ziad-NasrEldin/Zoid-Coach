@@ -41,7 +41,7 @@ public final class NativeCaptureConfigurationStore: @unchecked Sendable {
     public let fileURL: URL
     private let lock = NSLock()
 
-    public init(fileURL: URL = NativeCaptureConfigurationStore.defaultURL()) {
+    public init(fileURL: URL = NativeCaptureConfigurationStore.defaultURL(runtimeEnvironment: .current())) {
         self.fileURL = fileURL
     }
 
@@ -63,6 +63,10 @@ public final class NativeCaptureConfigurationStore: @unchecked Sendable {
     public static func defaultURL(fileManager: FileManager = .default) -> URL {
         let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return support.appendingPathComponent("Zoid Coach/native-capture-config.json", isDirectory: false)
+    }
+
+    public static func defaultURL(runtimeEnvironment: RuntimeEnvironment) -> URL {
+        runtimeEnvironment.nativeCaptureConfigurationURL
     }
 }
 

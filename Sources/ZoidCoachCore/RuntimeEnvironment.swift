@@ -1,6 +1,8 @@
 import Foundation
 
 public struct RuntimeEnvironment: Equatable, Sendable {
+    public static let productionUserDefaultsDomain = "com.ziadnasreldin.ZoidCoach"
+
     public enum Mode: Equatable, Sendable {
         case production
         case qa(runRoot: URL)
@@ -30,6 +32,41 @@ public struct RuntimeEnvironment: Equatable, Sendable {
     public let exportRoot: URL
     public let userDefaultsSuiteName: String?
     public let keychainServiceSuffix: String
+
+    public var nativeCaptureConfigurationURL: URL {
+        applicationSupportRoot
+            .appendingPathComponent("Zoid Coach/native-capture-config.json", isDirectory: false)
+    }
+
+    public var nativeCaptureDaysDirectory: URL {
+        applicationSupportRoot
+            .appendingPathComponent("Zoid Coach/native-capture/days", isDirectory: true)
+    }
+
+    public func makeUserDefaults() -> UserDefaults {
+        guard let userDefaultsSuiteName else { return .standard }
+        guard let defaults = UserDefaults(suiteName: userDefaultsSuiteName) else {
+            fatalError("Could not open isolated UserDefaults suite \(userDefaultsSuiteName)")
+        }
+        return defaults
+    }
+
+    public func keychainService(base: String) -> String {
+        base + keychainServiceSuffix
+    }
+
+    public func validatedWritableURL(_ url: URL, name: String) throws -> URL {
+        guard case let .qa(runRoot) = mode else { return url }
+        let canonical = Self.canonicalURL(url)
+        guard Self.contains(canonical, in: runRoot) else {
+            throw RuntimeEnvironmentError.pathOutsideQARunRoot(
+                name: name,
+                path: canonical.path,
+                runRoot: runRoot.path
+            )
+        }
+        return canonical
+    }
 
     public static func production(directories: SystemDirectories = .current()) -> Self {
         let applicationSupportRoot = directories.applicationSupport.standardizedFileURL
@@ -78,6 +115,7 @@ public struct RuntimeEnvironment: Equatable, Sendable {
                 throw RuntimeEnvironmentError.qaRunRootMustBeAbsolute(runRootValue)
             }
             let runRoot = canonicalURL(runRootValue, isDirectory: true)
+            try validateQARunRoot(runRoot, directories: directories)
             mode = .qa(runRoot: runRoot)
             let identifier = stableIdentifier(for: runRoot.path)
             let applicationSupportRoot = runRoot.appendingPathComponent("Application Support", isDirectory: true)
@@ -127,6 +165,12 @@ public struct RuntimeEnvironment: Equatable, Sendable {
 
     private func validateIsolation() throws {
         guard case let .qa(runRoot) = mode else { return }
+        if userDefaultsSuiteName == Self.productionUserDefaultsDomain {
+            throw RuntimeEnvironmentError.productionIdentityInQA(
+                name: "UserDefaults suite",
+                value: Self.productionUserDefaultsDomain
+            )
+        }
         for (name, url) in [
             ("database", databaseURL),
             ("Screenwatch", screenwatchDirectory),
@@ -140,15 +184,53 @@ public struct RuntimeEnvironment: Equatable, Sendable {
     }
 
     private static func contains(_ candidate: URL, in root: URL) -> Bool {
-        let rootPath = root.resolvingSymlinksInPath().standardizedFileURL.path
-        let candidatePath = candidate.resolvingSymlinksInPath().standardizedFileURL.path
+        let rootPath = canonicalURL(root).path
+        let candidatePath = canonicalURL(candidate).path
         return candidatePath == rootPath || candidatePath.hasPrefix(rootPath + "/")
     }
 
-    private static func canonicalURL(_ path: String, isDirectory: Bool) -> URL {
-        URL(fileURLWithPath: path, isDirectory: isDirectory)
+    private static func validateQARunRoot(
+        _ runRoot: URL,
+        directories: SystemDirectories
+    ) throws {
+        let productionLibrary = directories.home
+            .appendingPathComponent("Library", isDirectory: true)
             .resolvingSymlinksInPath()
             .standardizedFileURL
+        let productionApplicationSupport = directories.applicationSupport
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+        for protectedPath in [productionLibrary, productionApplicationSupport] {
+            if contains(runRoot, in: protectedPath) || contains(protectedPath, in: runRoot) {
+                throw RuntimeEnvironmentError.qaRunRootOverlapsProductionPath(
+                    runRoot: runRoot.path,
+                    productionPath: protectedPath.path
+                )
+            }
+        }
+    }
+
+    private static func canonicalURL(_ path: String, isDirectory: Bool) -> URL {
+        canonicalURL(URL(fileURLWithPath: path, isDirectory: isDirectory))
+    }
+
+    private static func canonicalURL(_ url: URL) -> URL {
+        let standardized = url.standardizedFileURL
+        var existingAncestor = standardized
+        var missingComponents: [String] = []
+        while !FileManager.default.fileExists(atPath: existingAncestor.path),
+              existingAncestor.path != "/" {
+            missingComponents.insert(existingAncestor.lastPathComponent, at: 0)
+            existingAncestor.deleteLastPathComponent()
+        }
+        var resolved = existingAncestor.resolvingSymlinksInPath().standardizedFileURL
+        for component in missingComponents {
+            resolved.appendPathComponent(component)
+        }
+        return URL(
+            fileURLWithPath: resolved.standardizedFileURL.path,
+            isDirectory: url.hasDirectoryPath
+        )
     }
 
     private static func optionalNonempty(_ value: String?) throws -> String? {
@@ -181,7 +263,9 @@ public struct RuntimeEnvironmentResolution: Equatable, Sendable {
 public enum RuntimeEnvironmentError: LocalizedError, Equatable {
     case missingValue(String)
     case qaRunRootMustBeAbsolute(String)
+    case qaRunRootOverlapsProductionPath(runRoot: String, productionPath: String)
     case pathOutsideQARunRoot(name: String, path: String, runRoot: String)
+    case productionIdentityInQA(name: String, value: String)
     case emptyIdentifier
 
     public var errorDescription: String? {
@@ -190,8 +274,12 @@ public enum RuntimeEnvironmentError: LocalizedError, Equatable {
             "Missing value for \(argument)"
         case let .qaRunRootMustBeAbsolute(path):
             "QA run root must be an absolute path: \(path)"
+        case let .qaRunRootOverlapsProductionPath(runRoot, productionPath):
+            "QA run root \(runRoot) overlaps production path \(productionPath)"
         case let .pathOutsideQARunRoot(name, path, runRoot):
             "QA \(name) path \(path) is outside run root \(runRoot)"
+        case let .productionIdentityInQA(name, value):
+            "QA \(name) cannot use production identity \(value)"
         case .emptyIdentifier:
             "Runtime identifiers cannot be empty"
         }

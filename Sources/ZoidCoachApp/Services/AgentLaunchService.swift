@@ -1,10 +1,16 @@
 import Foundation
 import ServiceManagement
+import ZoidCoachCore
 
 @MainActor
 final class AgentLaunchService {
     private let plistName = "com.ziadnasreldin.ZoidCoach.agent.plist"
     private let registrationFingerprintKey = "ZoidCoachAgentRegistrationFingerprint"
+    private let userDefaults: UserDefaults
+
+    init(runtimeEnvironment: RuntimeEnvironment = .current()) {
+        userDefaults = runtimeEnvironment.makeUserDefaults()
+    }
 
     func inspect() -> SourceHealth {
         guard isBundled else {
@@ -84,14 +90,14 @@ final class AgentLaunchService {
             let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
             let fingerprint = Self.registrationFingerprint(build: build, bundleURL: Bundle.main.bundleURL)
             if service.status == .enabled,
-               UserDefaults.standard.string(forKey: registrationFingerprintKey) == fingerprint {
+               userDefaults.string(forKey: registrationFingerprintKey) == fingerprint {
                 return inspect()
             }
             if service.status == .enabled {
                 try service.unregister()
             }
             try service.register()
-            UserDefaults.standard.set(fingerprint, forKey: registrationFingerprintKey)
+            userDefaults.set(fingerprint, forKey: registrationFingerprintKey)
         } catch {
             return SourceHealth(
                 id: .agent,
@@ -112,7 +118,7 @@ final class AgentLaunchService {
             if service.status != .notRegistered && service.status != .notFound {
                 try service.unregister()
             }
-            UserDefaults.standard.removeObject(forKey: registrationFingerprintKey)
+            userDefaults.removeObject(forKey: registrationFingerprintKey)
         } catch {
             return SourceHealth(
                 id: .agent,

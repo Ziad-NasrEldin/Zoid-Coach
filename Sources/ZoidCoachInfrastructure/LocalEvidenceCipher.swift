@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import Security
+import ZoidCoachCore
 
 public protocol EvidenceCiphering: Sendable {
     func encrypt(_ data: Data) throws -> Data
@@ -8,6 +9,8 @@ public protocol EvidenceCiphering: Sendable {
 }
 
 public struct LocalEvidenceCipher: EvidenceCiphering, Sendable {
+    public static let service = "com.ziadnasreldin.ZoidCoach.evidence"
+    public static let account = "ocr-encryption-key-v1"
     private let key: SymmetricKey
 
     public init(keyData: Data) throws {
@@ -15,9 +18,20 @@ public struct LocalEvidenceCipher: EvidenceCiphering, Sendable {
         key = SymmetricKey(data: keyData)
     }
 
-    public init(service: String = "com.ziadnasreldin.ZoidCoach.evidence", account: String = "ocr-encryption-key-v1") throws {
+    public init(runtimeEnvironment: RuntimeEnvironment = .current(), account: String = Self.account) throws {
+        try self.init(
+            service: Self.serviceName(runtimeEnvironment: runtimeEnvironment),
+            account: account
+        )
+    }
+
+    public init(service: String, account: String = Self.account) throws {
         let keyData = try Self.loadOrCreateKey(service: service, account: account)
         try self.init(keyData: keyData)
+    }
+
+    public static func serviceName(runtimeEnvironment: RuntimeEnvironment) -> String {
+        runtimeEnvironment.keychainService(base: service)
     }
 
     public func encrypt(_ data: Data) throws -> Data {

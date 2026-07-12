@@ -16,7 +16,7 @@ final class VoiceConversationModel: ObservableObject {
     @Published var isMuted = false
     @Published var hotKeyPreset: VoiceHotKeyPreset {
         didSet {
-            UserDefaults.standard.set(hotKeyPreset.rawValue, forKey: "ZoidVoiceHotKeyPreset")
+            userDefaults.set(hotKeyPreset.rawValue, forKey: "ZoidVoiceHotKeyPreset")
             if alwaysAvailableStarted { registerHotKey() }
         }
     }
@@ -31,7 +31,8 @@ final class VoiceConversationModel: ObservableObject {
     let wakeWord = LocalWakeWordDetector()
 
     private let xpc = TodayDashboardXPCClient()
-    private let keyStore = GeminiAPIKeyStore()
+    private let userDefaults: UserDefaults
+    private let keyStore: GeminiAPIKeyStore
     private let audio = VoiceAudioEngine()
     private let hotKey = GlobalVoiceHotKey()
     private let localFallback = LocalCommandFallback()
@@ -56,9 +57,11 @@ final class VoiceConversationModel: ObservableObject {
     private var audioStarted = false
     private var alwaysAvailableStarted = false
 
-    init() {
+    init(runtimeEnvironment: RuntimeEnvironment = .current()) {
+        userDefaults = runtimeEnvironment.makeUserDefaults()
+        keyStore = GeminiAPIKeyStore(runtimeEnvironment: runtimeEnvironment)
         hotKeyPreset = VoiceHotKeyPreset(
-            rawValue: UserDefaults.standard.string(forKey: "ZoidVoiceHotKeyPreset") ?? ""
+            rawValue: userDefaults.string(forKey: "ZoidVoiceHotKeyPreset") ?? ""
         ) ?? .controlOptionSpace
         hasAPIKey = (try? keyStore.loadAPIKey())?.isEmpty == false
     }
