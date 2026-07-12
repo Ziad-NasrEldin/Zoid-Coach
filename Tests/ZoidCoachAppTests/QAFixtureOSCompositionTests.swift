@@ -738,7 +738,7 @@ func notificationControlRejectsUnknownAndForeignNamespacedActionsBeforeMutation(
 func fixtureNotificationActionMatrixMatchesEveryLiveCategoryAction() {
     let identity = RuntimeIdentity.qa.notification
     let allowed: [PromptNotificationCategory: Set<PromptActionKind>] = [
-        .planReady: [.acceptPlan, .reviewPlan],
+        .planReady: [.acceptPlan, .reviewPlan, .snoozePlanning, .dismissPlanning, .workUnplanned],
         .meetingCandidate: [.addMeeting, .editMeeting, .ignore],
         .planChanged: [.reviewPlan, .undoPlanChange],
         .wakeIntervention: [],

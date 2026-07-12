@@ -28,6 +28,42 @@ func agentSnapshotCarriesRequiredDashboardFieldsAndCommandsRefreshIt() throws {
 }
 
 @Test
+func unplannedTaskStartIsVisiblePersistsAndNeverInventsAPlanViolation() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-unplanned-start-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let now = Date()
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "unplanned", title: "Write the outline", dueDate: now, priority: 9),
+        ReminderSourceSnapshot(id: "later", title: "Review notes", dueDate: nil, priority: 1)
+    ])
+    let agent = try TodayDashboardAgent(databaseURL: url)
+
+    let before = try agent.skipPlanning(now: now)
+    #expect(before.taskRows.isEmpty)
+    #expect(before.planningStatus == PlanningDayStatus(mode: .unplanned, driftInterventionsAllowed: false))
+    #expect(before.unplannedReminders?.map(\.reminderID).sorted() == ["later", "unplanned"])
+
+    let started = try agent.startUnplannedTask("unplanned", now: now.addingTimeInterval(1))
+    #expect(started.mainObjective == nil)
+    #expect(started.activeTask?.taskID == "unplanned")
+    #expect(started.taskRows.first(where: { $0.taskID == "unplanned" })?.state == .active)
+    #expect(started.planningStatus == PlanningDayStatus(mode: .unplanned, driftInterventionsAllowed: true))
+
+    let restarted = try TodayDashboardAgent(databaseURL: url)
+    let restored = try restarted.snapshot(now: now.addingTimeInterval(61))
+    #expect(restored.activeTask?.taskID == "unplanned")
+    #expect(restored.taskRows.first?.title == "Write the outline")
+    #expect(restored.planningStatus?.mode == .unplanned)
+    #expect(restored.mainObjective == nil)
+}
+
+@Test
 func gamingRewardLedgerAppliesOnlyOncePerDayAndPolicy() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-gaming-ledger-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: url) }

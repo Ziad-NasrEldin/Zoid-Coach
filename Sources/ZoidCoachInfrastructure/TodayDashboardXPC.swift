@@ -91,6 +91,8 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
     func fetchCaptureHealth(withReply reply: @escaping (Data?, String?) -> Void)
     func fetchTodaySnapshot(withReply reply: @escaping (Data?, String?) -> Void)
     func applyTaskCommand(_ command: String, taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
+    func startUnplannedTask(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
+    func skipPlanning(withReply reply: @escaping (Data?, String?) -> Void)
     func fetchPromptInbox(withReply reply: @escaping (Data?, String?) -> Void)
     func respondToPrompt(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void)
     func createOnboardingTestPrompt(_ flowID: String, withReply reply: @escaping (Data?, String?) -> Void)
@@ -224,6 +226,22 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
             return
         }
         do { reply(try encoder.encode(agent.apply(command, taskID: taskID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
+    func startUnplannedTask(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void) {
+        do { try writeCircuitBreaker.throwIfTripped() }
+        catch { reply(nil, error.localizedDescription); return }
+        guard let agent else { reply(nil, "The agent database is unavailable."); return }
+        do { reply(try encoder.encode(agent.startUnplannedTask(taskID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
+    func skipPlanning(withReply reply: @escaping (Data?, String?) -> Void) {
+        do { try writeCircuitBreaker.throwIfTripped() }
+        catch { reply(nil, error.localizedDescription); return }
+        guard let agent else { reply(nil, "The agent database is unavailable."); return }
+        do { reply(try encoder.encode(agent.skipPlanning()), nil) }
         catch { reply(nil, error.localizedDescription) }
     }
 
@@ -457,6 +475,14 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
 
     public func apply(_ command: TaskActivityCommand, taskID: String) async throws -> TodaySnapshot {
         try await call { proxy, reply in proxy.applyTaskCommand(command.rawValue, taskID: taskID, withReply: reply) }
+    }
+
+    public func startUnplannedTask(_ taskID: String) async throws -> TodaySnapshot {
+        try await call { proxy, reply in proxy.startUnplannedTask(taskID, withReply: reply) }
+    }
+
+    public func skipPlanning() async throws -> TodaySnapshot {
+        try await call { proxy, reply in proxy.skipPlanning(withReply: reply) }
     }
 
     public func fetchPromptInbox() async throws -> [PromptEpisode] {

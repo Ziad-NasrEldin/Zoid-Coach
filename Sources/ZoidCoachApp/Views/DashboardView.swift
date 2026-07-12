@@ -146,7 +146,7 @@ private struct TodayCommandView: View {
                     }
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
-                .disabled(model.isGeneratingSuggestedPlan || model.reminderTasks.isEmpty)
+                .disabled(model.isGeneratingSuggestedPlan || !model.hasPlanningCandidates)
                 .accessibilityLabel("Draft today's suggested plan")
 
                 Button {
@@ -184,6 +184,8 @@ private struct TodayCommandView: View {
             .padding(.horizontal, 28)
             .frame(height: 60)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+            PlanningInvitationBanner()
 
             if let snapshot = model.todaySnapshot {
                 TodayDashboardCommandOverview(snapshot: snapshot)
@@ -319,6 +321,107 @@ private struct TodayCommandView: View {
                 if leftIndex != rightIndex { return leftIndex < rightIndex }
                 return lhs.listName.localizedCaseInsensitiveCompare(rhs.listName) == .orderedAscending
             }
+    }
+}
+
+private struct PlanningInvitationBanner: View {
+    @EnvironmentObject private var model: AppModel
+
+    private var status: PlanningDayStatus {
+        model.todaySnapshot?.planningStatus
+            ?? PlanningDayStatus(mode: model.dailyPlan.isEmpty ? .invitation : .planning)
+    }
+
+    private var prompt: PromptEpisode? {
+        model.promptEpisodes.first { $0.type == "PLAN_READY" }
+    }
+
+    var body: some View {
+        if status.mode != .planning {
+            HStack(alignment: .top, spacing: 18) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(eyebrow)
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Text(title)
+                        .font(Sumi.display(22))
+                        .foregroundStyle(Sumi.ink)
+                    Text(detail)
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.muted)
+                }
+                Spacer()
+                HStack(spacing: 8) {
+                    Button("PLAN NOW") { model.generateSuggestedDailyPlan() }
+                        .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
+                        .disabled(model.isGeneratingSuggestedPlan || !model.hasPlanningCandidates)
+                        .accessibilityIdentifier("planning.invitation.plan-now")
+                    if status.mode == .invitation, let prompt,
+                       prompt.actions.contains(where: { $0.kind == .snoozePlanning }) {
+                        Button("SNOOZE 15 MIN") {
+                            model.respondToPrompt(prompt, action: .snoozePlanning)
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                        .accessibilityIdentifier("planning.invitation.snooze")
+                        Button("DISMISS FOR NOW") {
+                            model.respondToPrompt(prompt, action: .dismissPlanning)
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                        .accessibilityIdentifier("planning.invitation.dismiss")
+                    }
+                    if status.mode != .unplanned {
+                        Button("WORK UNPLANNED") { model.skipPlanning() }
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                            .accessibilityIdentifier("planning.invitation.work-unplanned")
+                    }
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(status.mode == .unplanned ? Sumi.softPaper : Sumi.sealWash)
+            .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("planning.invitation.banner")
+        }
+    }
+
+    private var eyebrow: String {
+        switch status.mode {
+        case .invitation: "DAY STATE / UNPLANNED"
+        case .snoozed: "PLANNING SNOOZED"
+        case .dismissed: "PLANNING DISMISSED"
+        case .unplanned: "LIMITED UNPLANNED MODE"
+        case .planning: "PLANNING"
+        }
+    }
+
+    private var title: String {
+        switch status.mode {
+        case .invitation: "Your day is still open."
+        case .snoozed: "Planning will return when the snooze ends."
+        case .dismissed: "No repeated planning prompts for now."
+        case .unplanned: "Work without an approved plan."
+        case .planning: "Planning is in progress."
+        }
+    }
+
+    private var detail: String {
+        switch status.mode {
+        case .invitation:
+            "Make a small plan, start one available task explicitly, or come back later. Drift coaching stays off until you choose."
+        case .snoozed, .dismissed:
+            if let resumesAt = status.resumesAt {
+                "The invitation returns at \(resumesAt.formatted(date: .omitted, time: .shortened)). You can plan or begin unplanned work sooner."
+            } else {
+                "You can plan or begin unplanned work whenever you are ready."
+            }
+        case .unplanned:
+            "Tasks and behavior totals remain available, but Zoid 666 will not claim that activity violated a plan that does not exist."
+        case .planning:
+            "Review the proposed commitments before accepting them."
+        }
     }
 }
 
@@ -1415,6 +1518,14 @@ private struct InboxReminderTaskRow: View {
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
             }
+
+            Button("START") {
+                model.startUnplannedTask(task)
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .disabled(model.isAnyTaskCommandPending)
+            .accessibilityLabel("Start \(task.title) without planning the day")
+            .accessibilityIdentifier("planning.unplanned.start.\(task.id)")
 
             Button("PLAN") {
                 model.addToDailyPlan(task)

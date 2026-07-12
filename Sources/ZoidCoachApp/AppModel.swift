@@ -383,12 +383,43 @@ final class AppModel: ObservableObject {
             do {
                 _ = try await todayDashboardXPCClient.respondToPrompt(command)
                 await refreshPromptInbox()
+                await refreshTodaySnapshot()
                 if action == .editMeeting {
                     reloadMeetingCandidates()
                     selectedSection = .today
                 }
             } catch {
                 meetingCandidateError = "The prompt could not be resolved through the background agent."
+            }
+        }
+    }
+
+    func startUnplannedTask(_ task: ReminderTask) {
+        guard pendingTaskCommandIDs.isEmpty else { return }
+        pendingTaskCommandIDs.insert(task.id)
+        taskCommandError = nil
+        Task {
+            defer { pendingTaskCommandIDs.remove(task.id) }
+            do {
+                todaySnapshot = try await todayDashboardXPCClient.startUnplannedTask(task.id)
+                lastActionMessage = "Unplanned work started. Zoid 666 will track this task without claiming that it violates a plan."
+                await refreshPromptInbox()
+            } catch {
+                taskCommandError = error.localizedDescription
+                todaySnapshot = try? todaySnapshotStore?.load()
+            }
+        }
+    }
+
+    func skipPlanning() {
+        guard pendingTaskCommandIDs.isEmpty else { return }
+        Task {
+            do {
+                todaySnapshot = try await todayDashboardXPCClient.skipPlanning()
+                lastActionMessage = "Planning is skipped for now. You can still start any available task or return to planning later."
+                await refreshPromptInbox()
+            } catch {
+                taskCommandError = "Unplanned mode could not be saved. The previous day state is still shown."
             }
         }
     }
@@ -464,7 +495,7 @@ final class AppModel: ObservableObject {
     func generateSuggestedDailyPlan() {
         guard !isLoadingDailyPlan,
               !isGeneratingSuggestedPlan,
-              !reminderTasks.isEmpty
+              hasPlanningCandidates
         else { return }
 
         isGeneratingSuggestedPlan = true
@@ -478,6 +509,10 @@ final class AppModel: ObservableObject {
             }
             isGeneratingSuggestedPlan = false
         }
+    }
+
+    var hasPlanningCandidates: Bool {
+        !reminderTasks.isEmpty || todaySnapshot?.unplannedReminders?.isEmpty == false
     }
 
     func scheduleDailyPlan() {
