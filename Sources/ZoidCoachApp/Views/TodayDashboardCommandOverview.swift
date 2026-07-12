@@ -287,6 +287,7 @@ struct TodayDashboardCommandOverview: View {
                 TodayPlanTaskRow(
                     row: row,
                     entry: planEntry(for: row),
+                    planCount: model.dailyPlan.count,
                     isMainObjective: isMainObjective(row),
                     isRecommended: row.taskID == recommendedRow?.taskID,
                     applyCommand: { applyPrimaryCommand(to: row) },
@@ -295,6 +296,20 @@ struct TodayDashboardCommandOverview: View {
                         if let entry = planEntry(for: row) {
                             model.setEstimate(minutes, for: entry)
                         }
+                    },
+                    moveUp: { planEntry(for: row).map { model.moveDailyPlanEntry($0, by: -1) } },
+                    moveDown: { planEntry(for: row).map { model.moveDailyPlanEntry($0, by: 1) } },
+                    toggleOptional: { planEntry(for: row).map(model.toggleOptional) },
+                    toggleDeferral: {
+                        guard let entry = planEntry(for: row) else { return }
+                        if entry.deferredUntil == nil {
+                            model.deferTaskUntilTomorrow(entry)
+                        } else {
+                            model.clearTaskDeferral(entry)
+                        }
+                    },
+                    markBlocked: { reason in
+                        model.markTaskBlocked(taskID: row.taskID, reason: reason)
                     },
                     remove: { planEntry(for: row).map(model.removeFromDailyPlan) }
                 )
@@ -890,12 +905,20 @@ private struct TodayPlanTaskRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let row: TodayTaskRow
     let entry: DailyPlanEntry?
+    let planCount: Int
     let isMainObjective: Bool
     let isRecommended: Bool
     let applyCommand: () -> Void
     let makeMain: () -> Void
     let setEstimate: (Int) -> Void
+    let moveUp: () -> Void
+    let moveDown: () -> Void
+    let toggleOptional: () -> Void
+    let toggleDeferral: () -> Void
+    let markBlocked: (String) -> Void
     let remove: () -> Void
+    @State private var isBlockReasonPresented = false
+    @State private var blockReason = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -927,12 +950,36 @@ private struct TodayPlanTaskRow: View {
 
             if let entry {
                 VStack(alignment: .leading, spacing: 8) {
+                    if let blockedReason = entry.blockedReason, !blockedReason.isEmpty {
+                        Text("BLOCKED - \(blockedReason)")
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.seal)
+                            .accessibilityIdentifier("today.plan.\(row.taskID).blocked-reason")
+                    } else if let deferredUntil = entry.deferredUntil, deferredUntil > Date() {
+                        Text("DEFERRED UNTIL \(deferredUntil.formatted(date: .abbreviated, time: .shortened)) - NOT INCLUDED IN CAPACITY OR CALENDAR")
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.seal)
+                            .accessibilityIdentifier("today.plan.\(row.taskID).deferred-state")
+                    } else if entry.isOptional {
+                        Text("OPTIONAL - NOT INCLUDED IN CAPACITY OR CALENDAR")
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.muted)
+                            .accessibilityIdentifier("today.plan.\(row.taskID).optional-state")
+                    }
                     TodayEstimateStrip(
                         selectedMinutes: entry.estimateMinutes,
                         taskTitle: row.title,
                         setEstimate: setEstimate
                     )
                     HStack(spacing: 14) {
+                        Button("MOVE UP", action: moveUp)
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                            .disabled(entry.rank <= 1)
+                            .accessibilityIdentifier("today.plan.\(row.taskID).move-up")
+                        Button("MOVE DOWN", action: moveDown)
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                            .disabled(entry.rank >= planCount)
+                            .accessibilityIdentifier("today.plan.\(row.taskID).move-down")
                         if !isMainObjective {
                             Button("MAKE MAIN", action: makeMain)
                                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
@@ -941,6 +988,21 @@ private struct TodayPlanTaskRow: View {
                         Button("REMOVE", action: remove)
                             .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
                             .accessibilityLabel("Remove \(row.title) from today's plan")
+                    }
+                    HStack(spacing: 14) {
+                        Button(entry.isOptional ? "MAKE COMMITTED" : "MARK OPTIONAL", action: toggleOptional)
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                            .disabled(entry.isMainObjective)
+                            .accessibilityIdentifier("today.plan.\(row.taskID).optional")
+                        Button(entry.deferredUntil == nil ? "DEFER TO TOMORROW" : "RETURN TO TODAY", action: toggleDeferral)
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                            .accessibilityIdentifier("today.plan.\(row.taskID).defer")
+                        Button("MARK BLOCKED") {
+                            blockReason = entry.blockedReason ?? ""
+                            isBlockReasonPresented = true
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                        .accessibilityIdentifier("today.plan.\(row.taskID).block")
                     }
                 }
                 .padding(.leading, 50)
@@ -951,6 +1013,12 @@ private struct TodayPlanTaskRow: View {
         .background(isRecommended ? Sumi.sealWash : Sumi.paper)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: entry)
+        .sheet(isPresented: $isBlockReasonPresented) {
+            TaskBlockReasonSheet(taskTitle: row.title, reason: $blockReason) {
+                markBlocked(blockReason)
+                isBlockReasonPresented = false
+            }
+        }
     }
 
     private var estimateSummary: String {
