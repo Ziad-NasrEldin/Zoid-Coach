@@ -30,6 +30,8 @@ public struct ScreenwatchMaintenanceReport: Equatable, Sendable {
     public let behaviorTextRowsRedacted: Int
     public let diagnosticsEligible: Int
     public let diagnosticsPurged: Int
+    public let policyRecordsEligible: Int
+    public let policyRecordsPurged: Int
     public let failedFileDeletions: Int
     public let health: ScreenwatchMaintenanceHealth
 
@@ -232,6 +234,10 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         let rawCutoff = calendar.date(byAdding: .day, value: -policy.privacy.rawScreenshotRetentionDays, to: now) ?? now
         let textCutoff = calendar.date(byAdding: .day, value: -policy.privacy.extractedTextRetentionDays, to: now) ?? now
         let diagnosticCutoff = calendar.date(byAdding: .day, value: -policy.privacy.diagnosticRetentionDays, to: now) ?? now
+        let behaviorCutoff = calendar.date(byAdding: .day, value: -policy.privacy.effectiveBehaviorRecordRetentionDays, to: now) ?? now
+        let sessionCutoff = calendar.date(byAdding: .day, value: -policy.privacy.effectiveTaskSessionRetentionDays, to: now) ?? now
+        let promptCutoff = calendar.date(byAdding: .day, value: -policy.privacy.effectivePromptRetentionDays, to: now) ?? now
+        let reviewCutoff = calendar.date(byAdding: .day, value: -policy.privacy.effectiveReviewRetentionDays, to: now) ?? now
         let rawEpoch = Int64(rawCutoff.timeIntervalSince1970)
         let textEpoch = Int64(textCutoff.timeIntervalSince1970)
 
@@ -251,17 +257,34 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             bind: { sqlite3_bind_int64($0, 1, textEpoch) }
         )
         let diagnostics = try diagnosticCount(olderThan: formatter.string(from: diagnosticCutoff))
+        let behaviorRecords = try scalar("SELECT COUNT(*) FROM behavior_records WHERE epoch < ?;", bind: {
+            sqlite3_bind_int64($0, 1, Int64(behaviorCutoff.timeIntervalSince1970))
+        })
+        let taskSessions = try scalar("SELECT COUNT(*) FROM task_activity_intervals WHERE ended_at IS NOT NULL AND ended_at < ?;", bind: {
+            bind(formatter.string(from: sessionCutoff), $0, 1)
+        })
+        let prompts = try scalar("SELECT COUNT(*) FROM prompt_episodes WHERE created_at_utc < ? AND state IN ('responded', 'timed_out', 'dismissed');", bind: {
+            bind(formatter.string(from: promptCutoff), $0, 1)
+        })
+        let reviews = try scalar("SELECT (SELECT COUNT(*) FROM learning_samples WHERE occurred_at_utc < ?) + (SELECT COUNT(*) FROM learning_aggregates WHERE updated_at_utc < ?) + (SELECT COUNT(*) FROM planner_trust_cycles WHERE observed_at_utc < ?);", bind: {
+            for index in 1...3 { bind(formatter.string(from: reviewCutoff), $0, Int32(index)) }
+        })
         return RetentionPlan(
             rawCutoffEpoch: rawEpoch,
             textCutoffEpoch: textEpoch,
             diagnosticCutoff: formatter.string(from: diagnosticCutoff),
+            behaviorCutoffEpoch: Int64(behaviorCutoff.timeIntervalSince1970),
+            sessionCutoff: formatter.string(from: sessionCutoff),
+            promptCutoff: formatter.string(from: promptCutoff),
+            reviewCutoff: formatter.string(from: reviewCutoff),
             // Screenwatch owns its archive. Zoid expires only its local references
             // and derived evidence unless a separate destructive-source policy is added.
             screenshotFiles: [],
             rawReferences: rawReferences,
             extractedFacts: facts,
             behaviorTextRows: textRows,
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            policyRecords: behaviorRecords + taskSessions + prompts + reviews
         )
     }
 
@@ -340,6 +363,20 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             diagnosticsPurged += try executeChanges("DELETE FROM source_checkpoints WHERE checked_at < ?;") { bind(plan.diagnosticCutoff, $0, 1) }
             diagnosticsPurged += try executeChanges("UPDATE model_runs SET redacted_diagnostic = NULL WHERE started_at_utc < ? AND redacted_diagnostic IS NOT NULL;") { bind(plan.diagnosticCutoff, $0, 1) }
             diagnosticsPurged += try executeChanges("UPDATE processing_checkpoints SET diagnostic = NULL WHERE diagnostic IS NOT NULL AND COALESCE(last_success_at_utc, missed_trigger_at_utc, '') < ?;") { bind(plan.diagnosticCutoff, $0, 1) }
+
+            var policyRecordsPurged = 0
+            policyRecordsPurged += try executeChanges("DELETE FROM behavior_records WHERE epoch < ?;") {
+                sqlite3_bind_int64($0, 1, plan.behaviorCutoffEpoch)
+            }
+            policyRecordsPurged += try executeChanges("DELETE FROM task_activity_intervals WHERE ended_at IS NOT NULL AND ended_at < ?;") {
+                bind(plan.sessionCutoff, $0, 1)
+            }
+            _ = try executeChanges("DELETE FROM prompt_response_effects WHERE prompt_id IN (SELECT id FROM prompt_episodes WHERE created_at_utc < ? AND state IN ('responded', 'timed_out', 'dismissed'));") { bind(plan.promptCutoff, $0, 1) }
+            _ = try executeChanges("DELETE FROM prompt_responses WHERE prompt_id IN (SELECT id FROM prompt_episodes WHERE created_at_utc < ? AND state IN ('responded', 'timed_out', 'dismissed'));") { bind(plan.promptCutoff, $0, 1) }
+            policyRecordsPurged += try executeChanges("DELETE FROM prompt_episodes WHERE created_at_utc < ? AND state IN ('responded', 'timed_out', 'dismissed');") { bind(plan.promptCutoff, $0, 1) }
+            policyRecordsPurged += try executeChanges("DELETE FROM learning_samples WHERE occurred_at_utc < ?;") { bind(plan.reviewCutoff, $0, 1) }
+            policyRecordsPurged += try executeChanges("DELETE FROM learning_aggregates WHERE updated_at_utc < ?;") { bind(plan.reviewCutoff, $0, 1) }
+            policyRecordsPurged += try executeChanges("DELETE FROM planner_trust_cycles WHERE observed_at_utc < ?;") { bind(plan.reviewCutoff, $0, 1) }
             guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else { throw databaseError(.write) }
             transactionOpen = false
 
@@ -349,6 +386,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
                 extractedFactsDeleted: factsDeleted,
                 behaviorTextRowsRedacted: textRedacted,
                 diagnosticsPurged: diagnosticsPurged,
+                policyRecordsPurged: policyRecordsPurged,
                 failedFileDeletions: 0
             )
         } catch {
@@ -357,7 +395,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
     }
 
     private func recordRun(_ report: ScreenwatchMaintenanceReport, policy: UserPolicy, now: Date) throws {
-        let evidence = "days=\(report.historicalDaysIngested),observations=\(report.observationsInserted),files=\(report.rawScreenshotFilesDeleted),facts=\(report.extractedFactsDeleted),diagnostics=\(report.diagnosticsPurged)"
+        let evidence = "days=\(report.historicalDaysIngested),observations=\(report.observationsInserted),files=\(report.rawScreenshotFilesDeleted),facts=\(report.extractedFactsDeleted),diagnostics=\(report.diagnosticsPurged),policy_records=\(report.policyRecordsPurged)"
         try execute("INSERT INTO source_checkpoints(source_id, state, detail, evidence, checked_at) VALUES (?, ?, ?, ?, ?);") { statement in
             bind(Self.healthSourceID, statement, 1)
             bind(report.health.rawValue, statement, 2)
@@ -379,6 +417,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
                 "raw_files_deleted": String(report.rawScreenshotFilesDeleted),
                 "extracted_facts_deleted": String(report.extractedFactsDeleted),
                 "diagnostics_purged": String(report.diagnosticsPurged),
+                "policy_records_purged": String(report.policyRecordsPurged),
                 "failed_operations": String(report.historicalDaysFailed + report.failedFileDeletions)
             ]
         )
@@ -415,6 +454,8 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             behaviorTextRowsRedacted: applied?.behaviorTextRowsRedacted ?? 0,
             diagnosticsEligible: retention.diagnostics,
             diagnosticsPurged: applied?.diagnosticsPurged ?? 0,
+            policyRecordsEligible: retention.policyRecords,
+            policyRecordsPurged: applied?.policyRecordsPurged ?? 0,
             failedFileDeletions: failedFiles,
             health: failed + failedFiles == 0 ? .healthy : .attention
         )
@@ -515,11 +556,16 @@ private struct RetentionPlan {
     let rawCutoffEpoch: Int64
     let textCutoffEpoch: Int64
     let diagnosticCutoff: String
+    let behaviorCutoffEpoch: Int64
+    let sessionCutoff: String
+    let promptCutoff: String
+    let reviewCutoff: String
     let screenshotFiles: Set<URL>
     let rawReferences: Int
     let extractedFacts: Int
     let behaviorTextRows: Int
     let diagnostics: Int
+    let policyRecords: Int
 }
 
 private struct AppliedRetention {
@@ -528,6 +574,7 @@ private struct AppliedRetention {
     let extractedFactsDeleted: Int
     let behaviorTextRowsRedacted: Int
     let diagnosticsPurged: Int
+    let policyRecordsPurged: Int
     let failedFileDeletions: Int
 }
 

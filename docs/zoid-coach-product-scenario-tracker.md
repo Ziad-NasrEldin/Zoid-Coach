@@ -670,21 +670,21 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 47. Privacy and data controls
 
-- [ ] Understand which data stays local. **Status: Partially implemented.** Settings repeatedly labels local-first behavior and explains remote-evidence modes, but there is no complete inventory of every stored data class.
+- [ ] Understand which data stays local. **Status: Touches remaining.** Settings now shows a content-safe inventory covering plans, behavior evidence, prompts, meetings, learning, voice, AI request metadata, settings, database path, size, and schema version; the packaged Settings surface still needs a visible installed-app pass.
 - [ ] Understand when a remote AI request could leave the Mac. **Status: Touches remaining.** Remote Evidence help text distinguishes local-only, redacted metadata, and explicitly private content; it still lacks a representative payload preview.
-- [ ] See what data an export will contain before creating it. **Status: Not implemented.** Export runs immediately; no preview or manifest confirmation is shown first.
-- [ ] Choose an explicit export destination. **Status: Not implemented.** Diagnostics are written automatically under the app's `Diagnostics` directory.
+- [ ] See what data an export will contain before creating it. **Status: Touches remaining.** Settings shows the exact counts-only redacted manifest and exclusions before export, backed by payload tests; the preview still needs installed-app visual verification.
+- [ ] Choose an explicit export destination. **Status: Touches remaining.** Settings uses a native JSON save panel and the service writes atomically only to the chosen JSON destination, with focused tests; the save-panel journey still needs installed-app verification.
 - [ ] Open the local data folder. **Status: Touches remaining.** The button calls `NSWorkspace.open` on the canonical storage directory, but the audit did not click it in the installed app or verify the resulting Finder selection.
-- [ ] Configure retention separately for raw records, sessions, prompts, reviews, and diagnostics. **Status: Partially implemented.** Screenshots, extracted text, and diagnostics have separate retention fields; raw behavior records, sessions, prompts, and reviews do not.
-- [ ] Delete one behavior session. **Status: Not implemented.** No session-level delete command exists.
-- [ ] Delete one day. **Status: Not implemented.** The date-range service is half-open and rejects equal start/end dates, while the UI labels the end as `THROUGH`; there is no safe one-day shortcut.
-- [ ] Delete a date range. **Status: Partially implemented.** A confirmation-backed range deletion exists and is unit tested, but its exclusive end conflicts with the UI's inclusive wording and the UI does not refresh totals afterward.
-- [ ] Delete all raw behavior metadata. **Status: Not implemented.** No targeted all-behavior delete command exists.
-- [ ] Delete AI request metadata. **Status: Not implemented.** No model-run deletion command exists.
-- [ ] Delete reviews and learned rules. **Status: Not implemented.** No targeted command exists, and reviews themselves are absent.
-- [ ] Delete all Zoid 666 data. **Status: Not implemented.** No delete-all command exists.
-- [ ] See related totals and conclusions disappear when their evidence is deleted. **Status: Partially implemented.** Range deletion removes behavior rows and plan entries, but `performDataCommand` does not refresh Today, and review conclusions do not exist.
-- [ ] Export redacted diagnostics without exposing raw titles, URLs, notes, screenshots, prompts, or credentials. **Status: Touches remaining.** `PrivacyDataService` exports only grouped state counts and explicitly omits those fields, with passing tests; there is no pre-export review and no live package inspection in this audit.
+- [ ] Configure retention separately for raw records, sessions, prompts, reviews, and diagnostics. **Status: Touches remaining.** Independent local retention now covers screenshots, extracted text, raw behavior, task sessions, prompts, reviews and learning, and diagnostics with migration-safe defaults and maintenance tests; the packaged Settings controls still need a visible save-and-reload pass.
+- [ ] Delete one behavior session. **Status: Touches remaining.** Settings derives bounded application sessions, confirms the exact application and inclusive time range, and routes exact deletion through the agent with focused tests; the destructive installed-app journey remains unexercised.
+- [ ] Delete one day. **Status: Touches remaining.** Settings provides a dedicated today-only confirmation and converts the local calendar day to a half-open service range that includes the full day across DST; installed-app deletion and refreshed totals remain to be witnessed.
+- [ ] Delete a date range. **Status: Touches remaining.** Inclusive local-day selection now deletes behavior evidence plus every canonical and projected day-keyed plan record, preserves adjacent days, never deletes source screenshots, and refreshes Today and inventory; the destructive installed-app journey remains unexercised.
+- [ ] Delete all raw behavior metadata. **Status: Touches remaining.** A confirmation-backed agent command deletes only local behavior, analysis, artifact-index, fact, and meeting-evidence rows while leaving source-owned files untouched; installed-app confirmation and result refresh remain to be witnessed.
+- [ ] Delete AI request metadata. **Status: Touches remaining.** A confirmation-backed agent command independently deletes model runs, Codex jobs, and transmission receipts without touching Keychain credentials; installed-app confirmation and result refresh remain to be witnessed.
+- [ ] Delete reviews and learned rules. **Status: Partially implemented.** A confirmation-backed agent command independently deletes learning samples, aggregates, and planner trust cycles, but the review product itself is not yet implemented and the installed deletion journey is unverified.
+- [ ] Delete all Zoid 666 data. **Status: Touches remaining.** A confirmation-backed agent command deletes all user tables while preserving schema migrations, source-owned files, and Keychain credentials, and an empty-store restart test passes; the destructive installed-app journey remains unexercised.
+- [ ] See related totals and conclusions disappear when their evidence is deleted. **Status: Touches remaining.** Successful data mutations now refresh the Today snapshot and stored-data inventory, and range deletion removes both canonical and projected plan conclusions; visible installed-app before-and-after proof is still required.
+- [ ] Export redacted diagnostics without exposing raw titles, URLs, notes, screenshots, prompts, or credentials. **Status: Touches remaining.** Export is counts-only, excludes content and paths, rejects non-JSON and symbolic-link targets, and has payload inspection tests plus a pre-export manifest; a live saved-file inspection from the packaged app remains.
 
 ## 48. Source health and diagnostics
 
@@ -697,7 +697,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] See whether the background helper is running. **Status: Partially implemented.** Source Health reports `SMAppService` registration status, not verified process liveness; this audit independently confirmed a running `ZoidCoachAgent` process.
 - [ ] Understand the impact of each unhealthy source. **Status: Touches remaining.** Source rows include detail/evidence and Today shows limited Screenwatch coverage, but several states do not explain all downstream feature impacts.
 - [ ] Open a direct repair action when one is available. **Status: Partially implemented.** Source rows offer Connect/Retry/Refresh and capture permissions open System Settings; a denied notification Retry only requests authorization again instead of opening the correct settings pane.
-- [ ] Export a safe diagnostic package after reviewing its contents. **Status: Partially implemented.** Safe redacted JSON export exists, but there is no content review before creation and it is a single file rather than a reviewed package.
+- [ ] Export a safe diagnostic package after reviewing its contents. **Status: Partially implemented.** Settings now previews the exact redacted JSON manifest and exclusions before a user chooses its destination, but it remains a single JSON artifact rather than a multi-file diagnostic package and lacks installed-app proof.
 
 ## 49. Screenwatch outage and recovery
 
@@ -895,7 +895,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Correct wrong classifications and see the product adapt. **Status: Not implemented.** No correction and learned-rule end-user flow exists.
 - [ ] Pause or override coaching without punishment. **Status: Partially implemented.** Automation can be paused, but intentional gaming override and coaching-specific pause durations are incomplete.
 - [ ] Continue using planning and task tracking when behavior sources fail. **Status: Partially implemented.** The architecture and canonical persistence separate planning from behavior sources, but a live source outage and complete manual-control flow were not verified.
-- [ ] Export or delete personal data without hidden dependencies. **Status: Partially implemented.** Privacy data services and settings controls exist, but complete export and deletion UI validation was not performed against an isolated copy.
+- [ ] Export or delete personal data without hidden dependencies. **Status: Touches remaining.** Export, inventory, retention, and every deletion route run locally through the database and agent without network services, source-file ownership, or Keychain deletion; the complete packaged UI journey still needs isolated destructive verification.
 - [ ] Understand the product under missing data, denied permissions, restarts, and integration failures. **Status: Partially implemented.** Health and safety UI exists, canonical persistence is healthy, and the latest verifier correctly exposed Screenwatch staleness, but several failure states still lack a complete explanation and repair journey.
 - [ ] Finish the week feeling that the next responsible action is easier to see and begin. **Status: Blocked from verification.** This outcome requires a stable week-long product trial after the missing review and coaching flows are implemented.
 

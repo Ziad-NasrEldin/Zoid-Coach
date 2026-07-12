@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "ffcb79afbab73adb123e22b8cfda955b4a7c438a1b9de1d40ca660a7ada172dd",
+  "tracker_sha256": "d06de5fa7057240fad6d906f0906075fc4d0f138b2420e783325363376031c3c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10578,8 +10578,8 @@
       "item_index": 1,
       "wording": "Understand which data stays local.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10590,7 +10590,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings repeatedly labels local-first behavior and explains remote-evidence modes, but there is no complete inventory of every stored data class.",
+      "audit_note": "Settings now shows a content-safe inventory covering plans, behavior evidence, prompts, meetings, learning, voice, AI request metadata, settings, database path, size, and schema version; the packaged Settings surface still needs a visible installed-app pass.",
       "tracker_line": 673
     },
     {
@@ -10622,8 +10622,8 @@
       "item_index": 3,
       "wording": "See what data an export will contain before creating it.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10634,7 +10634,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Export runs immediately; no preview or manifest confirmation is shown first.",
+      "audit_note": "Settings shows the exact counts-only redacted manifest and exclusions before export, backed by payload tests; the preview still needs installed-app visual verification.",
       "tracker_line": 675
     },
     {
@@ -10644,8 +10644,8 @@
       "item_index": 4,
       "wording": "Choose an explicit export destination.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10656,7 +10656,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Diagnostics are written automatically under the app's `Diagnostics` directory.",
+      "audit_note": "Settings uses a native JSON save panel and the service writes atomically only to the chosen JSON destination, with focused tests; the save-panel journey still needs installed-app verification.",
       "tracker_line": 676
     },
     {
@@ -10688,8 +10688,8 @@
       "item_index": 6,
       "wording": "Configure retention separately for raw records, sessions, prompts, reviews, and diagnostics.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10700,7 +10700,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Screenshots, extracted text, and diagnostics have separate retention fields; raw behavior records, sessions, prompts, and reviews do not.",
+      "audit_note": "Independent local retention now covers screenshots, extracted text, raw behavior, task sessions, prompts, reviews and learning, and diagnostics with migration-safe defaults and maintenance tests; the packaged Settings controls still need a visible save-and-reload pass.",
       "tracker_line": 678
     },
     {
@@ -10710,8 +10710,8 @@
       "item_index": 7,
       "wording": "Delete one behavior session.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10722,7 +10722,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No session-level delete command exists.",
+      "audit_note": "Settings derives bounded application sessions, confirms the exact application and inclusive time range, and routes exact deletion through the agent with focused tests; the destructive installed-app journey remains unexercised.",
       "tracker_line": 679
     },
     {
@@ -10732,8 +10732,8 @@
       "item_index": 8,
       "wording": "Delete one day.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10744,7 +10744,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The date-range service is half-open and rejects equal start/end dates, while the UI labels the end as `THROUGH`; there is no safe one-day shortcut.",
+      "audit_note": "Settings provides a dedicated today-only confirmation and converts the local calendar day to a half-open service range that includes the full day across DST; installed-app deletion and refreshed totals remain to be witnessed.",
       "tracker_line": 680
     },
     {
@@ -10754,8 +10754,8 @@
       "item_index": 9,
       "wording": "Delete a date range.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10766,7 +10766,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A confirmation-backed range deletion exists and is unit tested, but its exclusive end conflicts with the UI's inclusive wording and the UI does not refresh totals afterward.",
+      "audit_note": "Inclusive local-day selection now deletes behavior evidence plus every canonical and projected day-keyed plan record, preserves adjacent days, never deletes source screenshots, and refreshes Today and inventory; the destructive installed-app journey remains unexercised.",
       "tracker_line": 681
     },
     {
@@ -10776,8 +10776,8 @@
       "item_index": 10,
       "wording": "Delete all raw behavior metadata.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10788,7 +10788,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No targeted all-behavior delete command exists.",
+      "audit_note": "A confirmation-backed agent command deletes only local behavior, analysis, artifact-index, fact, and meeting-evidence rows while leaving source-owned files untouched; installed-app confirmation and result refresh remain to be witnessed.",
       "tracker_line": 682
     },
     {
@@ -10798,8 +10798,8 @@
       "item_index": 11,
       "wording": "Delete AI request metadata.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10810,7 +10810,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No model-run deletion command exists.",
+      "audit_note": "A confirmation-backed agent command independently deletes model runs, Codex jobs, and transmission receipts without touching Keychain credentials; installed-app confirmation and result refresh remain to be witnessed.",
       "tracker_line": 683
     },
     {
@@ -10819,50 +10819,6 @@
       "section_title": "Privacy and data controls",
       "item_index": 12,
       "wording": "Delete reviews and learned rules.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
-      "disposition": "required_now",
-      "required_proof_classes": [
-        "installed_app_e2e",
-        "integration",
-        "ui_automation"
-      ],
-      "affected_capability": "privacy_and_data_control",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No targeted command exists, and reviews themselves are absent.",
-      "tracker_line": 684
-    },
-    {
-      "id": "ZC-047-013",
-      "section_number": 47,
-      "section_title": "Privacy and data controls",
-      "item_index": 13,
-      "wording": "Delete all Zoid 666 data.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
-      "disposition": "required_now",
-      "required_proof_classes": [
-        "installed_app_e2e",
-        "integration",
-        "ui_automation"
-      ],
-      "affected_capability": "privacy_and_data_control",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No delete-all command exists.",
-      "tracker_line": 685
-    },
-    {
-      "id": "ZC-047-014",
-      "section_number": 47,
-      "section_title": "Privacy and data controls",
-      "item_index": 14,
-      "wording": "See related totals and conclusions disappear when their evidence is deleted.",
       "checkbox_state": "unchecked",
       "audit_status": "Partially implemented",
       "delivery_status": "partially_implemented",
@@ -10876,7 +10832,51 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Range deletion removes behavior rows and plan entries, but `performDataCommand` does not refresh Today, and review conclusions do not exist.",
+      "audit_note": "A confirmation-backed agent command independently deletes learning samples, aggregates, and planner trust cycles, but the review product itself is not yet implemented and the installed deletion journey is unverified.",
+      "tracker_line": 684
+    },
+    {
+      "id": "ZC-047-013",
+      "section_number": 47,
+      "section_title": "Privacy and data controls",
+      "item_index": 13,
+      "wording": "Delete all Zoid 666 data.",
+      "checkbox_state": "unchecked",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
+      "disposition": "required_now",
+      "required_proof_classes": [
+        "installed_app_e2e",
+        "integration",
+        "ui_automation"
+      ],
+      "affected_capability": "privacy_and_data_control",
+      "evidence_paths": [],
+      "last_verified_commit": null,
+      "last_verified_build": null,
+      "audit_note": "A confirmation-backed agent command deletes all user tables while preserving schema migrations, source-owned files, and Keychain credentials, and an empty-store restart test passes; the destructive installed-app journey remains unexercised.",
+      "tracker_line": 685
+    },
+    {
+      "id": "ZC-047-014",
+      "section_number": 47,
+      "section_title": "Privacy and data controls",
+      "item_index": 14,
+      "wording": "See related totals and conclusions disappear when their evidence is deleted.",
+      "checkbox_state": "unchecked",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
+      "disposition": "required_now",
+      "required_proof_classes": [
+        "installed_app_e2e",
+        "integration",
+        "ui_automation"
+      ],
+      "affected_capability": "privacy_and_data_control",
+      "evidence_paths": [],
+      "last_verified_commit": null,
+      "last_verified_build": null,
+      "audit_note": "Successful data mutations now refresh the Today snapshot and stored-data inventory, and range deletion removes both canonical and projected plan conclusions; visible installed-app before-and-after proof is still required.",
       "tracker_line": 686
     },
     {
@@ -10898,7 +10898,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`PrivacyDataService` exports only grouped state counts and explicitly omits those fields, with passing tests; there is no pre-export review and no live package inspection in this audit.",
+      "audit_note": "Export is counts-only, excludes content and paths, rejects non-JSON and symbolic-link targets, and has payload inspection tests plus a pre-export manifest; a live saved-file inspection from the packaged app remains.",
       "tracker_line": 687
     },
     {
@@ -11118,7 +11118,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Safe redacted JSON export exists, but there is no content review before creation and it is a single file rather than a reviewed package.",
+      "audit_note": "Settings now previews the exact redacted JSON manifest and exclusions before a user chooses its destination, but it remains a single JSON artifact rather than a multi-file diagnostic package and lacks installed-app proof.",
       "tracker_line": 700
     },
     {
@@ -14406,8 +14406,8 @@
       "item_index": 11,
       "wording": "Export or delete personal data without hidden dependencies.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14419,7 +14419,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Privacy data services and settings controls exist, but complete export and deletion UI validation was not performed against an isolated copy.",
+      "audit_note": "Export, inventory, retention, and every deletion route run locally through the database and agent without network services, source-file ownership, or Keychain deletion; the complete packaged UI journey still needs isolated destructive verification.",
       "tracker_line": 898
     },
     {

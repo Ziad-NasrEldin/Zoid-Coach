@@ -35,7 +35,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 17 | Complete app-classification management in Settings | ready | Unowned | User can search, classify, bulk-edit, reset, and verify runtime use of work, gaming, communication, and automatic categories |
 | 18 | Complete Settings policy mutation conflict UX | ready | Unowned | Concurrent edits never silently overwrite; the user sees the winning state and can retry safely without duplicates |
 | 19 | Complete background-agent lifecycle and Login Items repair | ready | Unowned | Install, enable, approval-required, update, crash recovery, disable, and uninstall are understandable and preserve data integrity |
-| 20 | Complete privacy, export, deletion, and local-data controls | active | Lane C - next_backlog_slice | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
+| 20 | Complete privacy, export, deletion, and local-data controls | verify | Lane C at `f4085ed` | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
 
 ## Pull Rules
 
@@ -57,6 +57,18 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Covers first install, repeat install, stale enabled state, replacement helper path changes, interrupted registration and replacement recovery, and uninstall/reinstall with deterministic tests.
 - Signed runtime proof passed twice in place, passed uninstall/reinstall, and preserved the running production helper.
 - Evidence is recorded in `.audit/runs/signed-qa-repeat-install/10cc1da/REPORT.md`.
+
+### Privacy, export, deletion, and retention controls - `73c77ec`
+
+- Added a visible local-data inventory with privacy-safe counts for every stored-data class.
+- Added reviewed redacted export with an explicit native macOS destination chooser.
+- Added exact-session, one-day, inclusive-range, targeted-category, and delete-all controls with scoped confirmations.
+- Added independent retention policies and background enforcement for behavior records, task sessions, prompts, reviews and learning, screenshots, extracted text, and diagnostics.
+- Preserved unresolved prompts, source-owned screenshots, Keychain credentials, and the migrated restart-safe schema.
+- Focused privacy, DST-boundary, exact-session, and retention tests pass.
+- Full-suite and release-build proof are recorded in `.audit/runs/privacy-data/73c77ec/REPORT.md`.
+- Independent integration fixed canonical-plan leakage from date-range deletion and recorded proof in `.audit/runs/privacy-data/f4085ed/REPORT.md`.
+- The Records chapter still requires a destructive signed-QA UI pass before the remaining tracker rows become fully implemented.
 
 ### Signed-QA persistent runtime - `343310a`
 
