@@ -88,6 +88,16 @@ func osFixturesPreserveOwnedBlocksAndRefuseExternalCalendarMutation() async thro
     ])
     #expect(try await adapters.ownedCommitment(ownershipToken: "owned-1")?.id == owned.id)
     #expect(try await adapters.commitment(identifier: external.id) == nil)
+    try adapters.syncExternalCalendarCommitments([
+        CalendarCommitment(id: "b", title: "B", start: fixture.now, end: fixture.now.addingTimeInterval(600), calendarIdentifier: "work"),
+        CalendarCommitment(id: "a", title: "A", start: fixture.now, end: fixture.now.addingTimeInterval(600), calendarIdentifier: "work")
+    ])
+    let ordered = try await adapters.commitments(
+        from: fixture.now.addingTimeInterval(-1),
+        through: fixture.now.addingTimeInterval(601),
+        calendarIdentifiers: ["work"]
+    )
+    #expect(ordered.map(\.id) == ["a", "b"])
 }
 
 @Test
@@ -110,6 +120,37 @@ func osFixturesDeliverAndRespondToNotificationsEndToEnd() async throws {
 
     let restarted = try fixture.adapters(seed: .init())
     #expect(restarted.snapshot().notifications.first?.status == .responded)
+}
+
+@Test
+func osFixtureNotificationOperationUsesOneClockInstant() throws {
+    let fixture = try makeOSFixture("one-notification-instant")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let sequence = TimestampSequence(start: fixture.now)
+    let notifications = ["one", "two"].map { identifier in
+        QAFixtureNotificationRecord(
+            id: identifier,
+            desired: .init(
+                category: "coach", title: identifier, body: identifier,
+                promptID: identifier
+            )
+        )
+    }
+    let adapters = try DeterministicOSFixtureAdapters(
+        workspace: fixture.workspace,
+        seed: .init(
+            permissions: [.notifications: .granted],
+            notifications: notifications
+        ),
+        clock: .init(now: { sequence.next() }),
+        stableID: { kind, index in "qa-\(kind.rawValue)-\(index)" }
+    )
+
+    let delivered = try adapters.deliverDueNotifications()
+
+    #expect(delivered.allSatisfy { $0.deliveredAt == fixture.now })
+    #expect(adapters.snapshot().audit.last?.timestamp == fixture.now)
+    #expect(sequence.callCount == 1)
 }
 
 @Test
@@ -142,10 +183,27 @@ func osFixturesRefuseSymlinkEscapeBeforeWriting() throws {
         withDestinationURL: outside
     )
 
-    #expect(throws: QAFixtureStateError.stateOutsideWorkspace(path: outside.path)) {
+    #expect(throws: QAFixtureStateError.unsafeFilesystemEntry("OS Fixtures")) {
         try fixture.adapters(seed: .init())
     }
     #expect(!FileManager.default.fileExists(atPath: outside.appendingPathComponent("state.json").path))
+}
+
+@Test
+func osFixturesRefuseReplacedWorkspaceRootSymlink() throws {
+    let fixture = try makeOSFixture("root-symlink")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let original = fixture.workspace.root
+    let preserved = original.deletingLastPathComponent().appendingPathComponent("preserved-root")
+    let outside = fixture.container.appendingPathComponent("outside-root", isDirectory: true)
+    try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+    try FileManager.default.moveItem(at: original, to: preserved)
+    try FileManager.default.createSymbolicLink(at: original, withDestinationURL: outside)
+
+    #expect(throws: QAFixtureStateError.unsafeFilesystemEntry("root-symlink")) {
+        try fixture.adapters(seed: .init())
+    }
+    #expect(!FileManager.default.fileExists(atPath: outside.appendingPathComponent("OS Fixtures").path))
 }
 
 @Test
@@ -161,10 +219,142 @@ func osFixturesRefuseStateFileSymlinkEscapeBeforeReading() throws {
         withDestinationURL: outside
     )
 
-    #expect(throws: QAFixtureStateError.stateOutsideWorkspace(path: outside.path)) {
+    #expect(throws: QAFixtureStateError.unsafeFilesystemEntry("state.json")) {
         try fixture.adapters(seed: .init())
     }
     #expect(try Data(contentsOf: outside) == Data("{}".utf8))
+}
+
+@Test
+func osFixtureDescriptorRemainsContainedAfterParentReplacement() async throws {
+    let fixture = try makeOSFixture("parent-replacement")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.reminders: .granted]))
+    let original = fixture.workspace.root.appendingPathComponent("OS Fixtures", isDirectory: true)
+    let pinned = fixture.workspace.root.appendingPathComponent("Pinned Fixtures", isDirectory: true)
+    let outside = fixture.container.appendingPathComponent("outside", isDirectory: true)
+    try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+    try FileManager.default.moveItem(at: original, to: pinned)
+    try FileManager.default.createSymbolicLink(at: original, withDestinationURL: outside)
+
+    _ = try await adapters.create(title: "Pinned", dueDate: nil, listIdentifier: nil, metadataMarker: nil)
+
+    #expect(FileManager.default.fileExists(atPath: pinned.appendingPathComponent("state.json").path))
+    #expect(!FileManager.default.fileExists(atPath: outside.appendingPathComponent("state.json").path))
+}
+
+@Test
+func osFixtureRecoveryResumesAfterQuarantineInterruption() throws {
+    let fixture = try makeOSFixture("recovery-resume")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let first = try fixture.adapters(seed: .init())
+    try Data("corrupt".utf8).write(to: first.stateFileURL, options: .atomic)
+
+    #expect(throws: FixtureInterruption.afterQuarantine) {
+        try fixture.adapters(
+            seed: .init(),
+            recovery: .reset(.init(permissions: [.calendar: .granted])),
+            storageCheckpoint: { checkpoint in
+                if case .corruptStateQuarantined = checkpoint {
+                    throw FixtureInterruption.afterQuarantine
+                }
+            }
+        )
+    }
+
+    let resumed = try fixture.adapters(seed: .init())
+    #expect(resumed.permission(.calendar) == .granted)
+    #expect(resumed.snapshot().audit.map(\.operation) == ["recover-corrupt-state"])
+    #expect(!FileManager.default.fileExists(
+        atPath: first.stateFileURL.deletingLastPathComponent().appendingPathComponent("recovery.json").path
+    ))
+}
+
+@Test
+func osFixtureWriteFailureDoesNotPublishPartialMutation() async throws {
+    let fixture = try makeOSFixture("write-failure")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    _ = try fixture.adapters(seed: .init(permissions: [.reminders: .granted]))
+    let failing = try fixture.adapters(
+        seed: .init(),
+        storageCheckpoint: { checkpoint in
+            if case .beforeStateCommit = checkpoint { throw FixtureInterruption.beforeCommit }
+        }
+    )
+
+    await #expect(throws: FixtureInterruption.beforeCommit) {
+        try await failing.create(title: "Not committed", dueDate: nil, listIdentifier: nil, metadataMarker: nil)
+    }
+
+    let restarted = try fixture.adapters(seed: .init())
+    #expect(try restarted.allReminders().isEmpty)
+    #expect(restarted.snapshot().audit.isEmpty)
+}
+
+@Test
+func osFixtureSerializesConcurrentMutationsWithUniquePersistentIDs() async throws {
+    let fixture = try makeOSFixture("concurrent")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.reminders: .granted]))
+
+    try await withThrowingTaskGroup(of: SourceTask.self) { group in
+        for index in 0 ..< 24 {
+            group.addTask {
+                try await adapters.create(
+                    title: "Task \(index)", dueDate: nil,
+                    listIdentifier: nil, metadataMarker: "task-\(index)"
+                )
+            }
+        }
+        var identifiers: Set<String> = []
+        for try await task in group { identifiers.insert(task.id) }
+        #expect(identifiers.count == 24)
+    }
+
+    let restarted = try fixture.adapters(seed: .init())
+    #expect(try restarted.allReminders().count == 24)
+    #expect(Set(restarted.snapshot().audit.map(\.id)).count == 24)
+}
+
+@Test
+func osFixtureDeleteOfAbsentOwnedBlockIsIdempotent() async throws {
+    let fixture = try makeOSFixture("delete-absent")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init(permissions: [.calendar: .granted]))
+
+    let deleted = try await adapters.apply(.deleteOwnedBlock(identifier: "absent", ownershipToken: "owned"))
+
+    #expect(deleted == nil)
+    #expect(adapters.snapshot().audit.last?.outcome == "succeeded")
+}
+
+@Test
+func osFixtureRejectsInvalidPersistedAuditAndCounterState() throws {
+    let fixture = try makeOSFixture("persisted-validation")
+    defer { try? FileManager.default.removeItem(at: fixture.container) }
+    let adapters = try fixture.adapters(seed: .init())
+    try adapters.setPermission(.granted, for: .calendar)
+    var object = try #require(
+        JSONSerialization.jsonObject(with: Data(contentsOf: adapters.stateFileURL)) as? [String: Any]
+    )
+    var audit = try #require(object["audit"] as? [[String: Any]])
+    audit[0]["id"] = ""
+    object["audit"] = audit
+    if var counters = object["counters"] as? [String: Any] {
+        counters["audit"] = -1
+        object["counters"] = counters
+    } else if var counters = object["counters"] as? [Any] {
+        if let index = counters.firstIndex(where: { ($0 as? String) == "audit" }), index + 1 < counters.count {
+            counters[index + 1] = -1
+        }
+        object["counters"] = counters
+    }
+    try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        .write(to: adapters.stateFileURL, options: .atomic)
+
+    #expect(throws: QAFixtureStateError.corruptState(path: adapters.stateFileURL.path)) {
+        try fixture.adapters(seed: .init())
+    }
 }
 
 @Test
@@ -191,16 +381,40 @@ private struct OSFixtureHarness {
 
     func adapters(
         seed: QAFixtureOSSeed,
-        recovery: QAFixtureCorruptionRecovery = .fail
+        recovery: QAFixtureCorruptionRecovery = .fail,
+        storageCheckpoint: @escaping @Sendable (QAFixtureStorageCheckpoint) throws -> Void = { _ in }
     ) throws -> DeterministicOSFixtureAdapters {
         try DeterministicOSFixtureAdapters(
             workspace: workspace,
             seed: seed,
             clock: .fixed(now),
             stableID: { kind, index in "qa-\(kind.rawValue)-\(index)" },
-            corruptionRecovery: recovery
+            corruptionRecovery: recovery,
+            storageCheckpoint: storageCheckpoint
         )
     }
+}
+
+private enum FixtureInterruption: Error {
+    case beforeCommit
+    case afterQuarantine
+}
+
+private final class TimestampSequence: @unchecked Sendable {
+    private let lock = NSLock()
+    private let start: Date
+    private var calls = 0
+
+    init(start: Date) { self.start = start }
+
+    func next() -> Date {
+        lock.withLock {
+            defer { calls += 1 }
+            return start.addingTimeInterval(TimeInterval(calls))
+        }
+    }
+
+    var callCount: Int { lock.withLock { calls } }
 }
 
 private func makeOSFixture(_ label: String) throws -> OSFixtureHarness {

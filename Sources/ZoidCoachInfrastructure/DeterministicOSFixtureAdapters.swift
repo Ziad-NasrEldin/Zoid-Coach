@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import ZoidCoachCore
 
@@ -7,11 +8,21 @@ public enum QAFixtureStateError: Error, Equatable, Sendable {
     case corruptState(path: String)
     case duplicateIdentifier(String)
     case emptyStableIdentifier
+    case invalidPersistedState(String)
+    case unsafeFilesystemEntry(String)
+    case filesystemOperation(String, Int32)
 }
 
 public enum QAFixtureCorruptionRecovery: Sendable {
     case fail
     case reset(QAFixtureOSSeed)
+}
+
+public enum QAFixtureStorageCheckpoint: Sendable {
+    case beforeStateCommit
+    case recoveryPrepared
+    case corruptStateQuarantined
+    case replacementStatePersisted
 }
 
 public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
@@ -37,10 +48,16 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         }
     }
 
-    private let workspace: QAFixtureWorkspace
+    private struct RecoveryTransaction: Codable {
+        enum Phase: String, Codable { case prepared, quarantined, replacementWritten }
+        var phase: Phase
+        let replacement: PersistedState
+    }
+
     private let clock: ZoidClock
     private let stableID: StableIDProvider
-    private let fileManager: FileManager
+    private let storage: DescriptorRelativeStateDirectory
+    private let storageCheckpoint: @Sendable (QAFixtureStorageCheckpoint) throws -> Void
     private let lock = NSLock()
     private var state: PersistedState
     public let stateFileURL: URL
@@ -52,59 +69,63 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         clock: ZoidClock,
         stableID: @escaping StableIDProvider,
         corruptionRecovery: QAFixtureCorruptionRecovery = .fail,
-        fileManager: FileManager = .default
+        fileManager _: FileManager = .default,
+        storageCheckpoint: @escaping @Sendable (QAFixtureStorageCheckpoint) throws -> Void = { _ in }
     ) throws {
         guard case let .qa(runRoot) = workspace.environment.mode,
               runRoot.standardizedFileURL == workspace.root.standardizedFileURL else {
             throw QAFixtureStateError.qaWorkspaceRequired
         }
-        self.workspace = workspace
         self.clock = clock
         self.stableID = stableID
-        self.fileManager = fileManager
-        var recoveredCorruptState = false
+        self.storageCheckpoint = storageCheckpoint
         let directory = workspace.root.appendingPathComponent("OS Fixtures", isDirectory: true)
         stateFileURL = directory.appendingPathComponent("state.json")
         corruptStateFileURL = directory.appendingPathComponent("state.corrupt.json")
-        try Self.validateContained(directory, in: workspace.root, fileManager: fileManager)
-        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        try Self.validateContained(stateFileURL, in: workspace.root, fileManager: fileManager)
-        try Self.validateContained(corruptStateFileURL, in: workspace.root, fileManager: fileManager)
+        storage = try DescriptorRelativeStateDirectory(workspaceRoot: workspace.root)
+        state = PersistedState(seed: seed)
 
-        if fileManager.fileExists(atPath: stateFileURL.path) {
+        if try storage.exists("recovery.json") {
+            let transaction = try Self.decode(
+                RecoveryTransaction.self,
+                data: storage.read("recovery.json"),
+                path: stateFileURL.path
+            )
+            state = try resumeRecovery(transaction)
+        } else if try storage.exists("state.json") {
             do {
-                state = try Self.decodeState(at: stateFileURL)
-                try Self.validateUniqueIdentifiers(state)
+                state = try Self.decode(
+                    PersistedState.self,
+                    data: storage.read("state.json"),
+                    path: stateFileURL.path
+                )
+                try Self.validatePersistedState(state)
             } catch {
                 switch corruptionRecovery {
                 case .fail:
                     throw QAFixtureStateError.corruptState(path: stateFileURL.path)
                 case let .reset(recoverySeed):
-                    if fileManager.fileExists(atPath: corruptStateFileURL.path) {
-                        try fileManager.removeItem(at: corruptStateFileURL)
-                    }
-                    try fileManager.moveItem(at: stateFileURL, to: corruptStateFileURL)
-                    state = PersistedState(seed: recoverySeed)
-                    try Self.validateUniqueIdentifiers(state)
-                    recoveredCorruptState = true
+                    var replacement = PersistedState(seed: recoverySeed)
+                    let timestamp = clock.now()
+                    try appendAudit(
+                        to: &replacement,
+                        subsystem: "fixture",
+                        operation: "recover-corrupt-state",
+                        targetID: nil,
+                        outcome: "succeeded",
+                        timestamp: timestamp
+                    )
+                    try Self.validatePersistedState(replacement)
+                    let transaction = RecoveryTransaction(phase: .prepared, replacement: replacement)
+                    try storage.writeAtomic(try Self.encode(transaction), name: "recovery.json")
+                    try storageCheckpoint(.recoveryPrepared)
+                    state = try resumeRecovery(transaction)
                 }
             }
         } else {
             state = PersistedState(seed: seed)
-            try Self.validateUniqueIdentifiers(state)
-            try Self.persist(state, to: stateFileURL)
-        }
-        if recoveredCorruptState {
-            var recovered = state
-            try appendAudit(
-                to: &recovered,
-                subsystem: "fixture",
-                operation: "recover-corrupt-state",
-                targetID: nil,
-                outcome: "succeeded"
-            )
-            try Self.persist(recovered, to: stateFileURL)
-            state = recovered
+            try Self.validatePersistedState(state)
+            try persist(state)
         }
     }
 
@@ -115,9 +136,9 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     public func reset(to seed: QAFixtureOSSeed) throws {
         try lock.withLock {
             var replacement = PersistedState(seed: seed)
-            try Self.validateUniqueIdentifiers(replacement)
-            try appendAudit(to: &replacement, subsystem: "fixture", operation: "reset", targetID: nil, outcome: "succeeded")
-            try save(replacement)
+            let timestamp = clock.now()
+            try appendAudit(to: &replacement, subsystem: "fixture", operation: "reset", targetID: nil, outcome: "succeeded", timestamp: timestamp)
+            try save(replacement, allowCounterReset: true)
         }
     }
 
@@ -141,7 +162,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     public func syncReminders(_ reminders: [SourceTask]) throws {
         try mutate(subsystem: "reminders", operation: "sync", targetID: nil, permission: .reminders) { state in
             state.reminders = reminders
-            try Self.validateUniqueIdentifiers(state)
+            try Self.validatePersistedState(state)
         }
     }
 
@@ -152,22 +173,23 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
             }
             state.calendarCommitments.removeAll { $0.ownershipToken == nil }
             state.calendarCommitments.append(contentsOf: commitments)
-            try Self.validateUniqueIdentifiers(state)
+            try Self.validatePersistedState(state)
         }
     }
 
     @discardableResult
     public func deliverDueNotifications() throws -> [QAFixtureNotificationRecord] {
         var delivered: [QAFixtureNotificationRecord] = []
-        try mutate(subsystem: "notifications", operation: "deliver-due", targetID: nil, permission: .notifications) { state in
+        let timestamp = clock.now()
+        try mutate(subsystem: "notifications", operation: "deliver-due", targetID: nil, permission: .notifications, timestamp: timestamp) { state in
             for index in state.notifications.indices where state.notifications[index].status == .scheduled {
                 let record = state.notifications[index]
-                guard record.desired.deliveryDate.map({ $0 <= clock.now() }) ?? true else { continue }
+                guard record.desired.deliveryDate.map({ $0 <= timestamp }) ?? true else { continue }
                 let updated = QAFixtureNotificationRecord(
                     id: record.id,
                     desired: record.desired,
                     status: .delivered,
-                    deliveredAt: clock.now()
+                    deliveredAt: timestamp
                 )
                 state.notifications[index] = updated
                 delivered.append(updated)
@@ -178,7 +200,8 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
 
     public func respondToNotification(identifier: String, actionIdentifier: String) throws -> QAFixtureNotificationRecord {
         var response: QAFixtureNotificationRecord?
-        try mutate(subsystem: "notifications", operation: "respond", targetID: identifier, permission: .notifications) { state in
+        let timestamp = clock.now()
+        try mutate(subsystem: "notifications", operation: "respond", targetID: identifier, permission: .notifications, timestamp: timestamp) { state in
             guard let index = state.notifications.firstIndex(where: { $0.id == identifier }) else {
                 throw ActionSourceError.missingEntity
             }
@@ -192,7 +215,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
                 status: .responded,
                 deliveredAt: record.deliveredAt,
                 actionIdentifier: actionIdentifier,
-                respondedAt: clock.now()
+                respondedAt: timestamp
             )
             state.notifications[index] = updated
             response = updated
@@ -229,7 +252,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
                 priority: 0,
                 dueDate: dueDate,
                 notes: nil,
-                metadataMarker: metadataMarker,
+                metadataMarker: metadataMarker?.isEmpty == false ? metadataMarker : nil,
                 isCompleted: false
             )
             state.reminders.append(task)
@@ -261,7 +284,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
                 guard value?.contains("\n") != true else {
                     throw ActionSourceError.invalidDesiredState
                 }
-                priority = old.priority; dueDate = old.dueDate; marker = value; completed = old.isCompleted
+                priority = old.priority; dueDate = old.dueDate; marker = value?.isEmpty == false ? value : nil; completed = old.isCompleted
             case .complete:
                 priority = old.priority; dueDate = old.dueDate; marker = old.metadataMarker; completed = true
             }
@@ -331,9 +354,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
                 state.calendarCommitments[index] = updated
                 result = updated
             case let .deleteOwnedBlock(identifier, token):
-                guard let index = state.calendarCommitments.firstIndex(where: { $0.id == identifier }) else {
-                    throw ActionSourceError.missingEntity
-                }
+                guard let index = state.calendarCommitments.firstIndex(where: { $0.id == identifier }) else { return }
                 guard state.calendarCommitments[index].ownershipToken == token,
                       state.calendarCommitments[index].ownershipToken != nil else {
                     throw ActionSourceError.ownershipViolation
@@ -365,7 +386,11 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
             return state.calendarCommitments.filter {
                 $0.start < end && $0.end > start &&
                     (calendarIdentifiers.isEmpty || calendarIdentifiers.contains($0.calendarIdentifier))
-            }.sorted { $0.start < $1.start }
+            }.sorted {
+                if $0.start != $1.start { return $0.start < $1.start }
+                if $0.end != $1.end { return $0.end < $1.end }
+                return $0.id < $1.id
+            }
         }
     }
 
@@ -396,33 +421,45 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         operation: String,
         targetID: String?,
         permission: QAFixturePermission? = nil,
+        timestamp: Date? = nil,
         _ body: (inout PersistedState) throws -> T
     ) throws -> T {
         try lock.withLock {
+            let operationTimestamp = timestamp ?? clock.now()
             var updated = state
             do {
                 if let permission { try requirePermission(permission, in: updated) }
                 let result = try body(&updated)
-                try appendAudit(to: &updated, subsystem: subsystem, operation: operation, targetID: targetID, outcome: "succeeded")
+                try appendAudit(to: &updated, subsystem: subsystem, operation: operation, targetID: targetID, outcome: "succeeded", timestamp: operationTimestamp)
                 try save(updated)
                 return result
             } catch {
                 var refused = state
-                try appendAudit(to: &refused, subsystem: subsystem, operation: operation, targetID: targetID, outcome: "refused:\(String(describing: error))")
+                try appendAudit(to: &refused, subsystem: subsystem, operation: operation, targetID: targetID, outcome: "refused:\(String(describing: error))", timestamp: operationTimestamp)
                 try save(refused)
                 throw error
             }
         }
     }
 
-    private func save(_ replacement: PersistedState) throws {
-        try Self.validateContained(stateFileURL, in: workspace.root, fileManager: fileManager)
-        try Self.persist(replacement, to: stateFileURL)
+    private func save(_ replacement: PersistedState, allowCounterReset: Bool = false) throws {
+        try Self.validatePersistedState(replacement)
+        if !allowCounterReset {
+            for kind in [QAFixtureEntityKind.reminder, .calendarCommitment, .notification, .audit] {
+                guard replacement.counters[kind, default: 0] >= state.counters[kind, default: 0] else {
+                    throw QAFixtureStateError.invalidPersistedState("counter regressed: \(kind.rawValue)")
+                }
+            }
+        }
+        try persist(replacement)
         state = replacement
     }
 
     private func nextID(_ kind: QAFixtureEntityKind, in state: inout PersistedState) throws -> String {
         let index = state.counters[kind, default: 0]
+        guard index < Int.max else {
+            throw QAFixtureStateError.invalidPersistedState("identifier counter exhausted")
+        }
         let value = stableID(kind, index)
         guard !value.isEmpty else { throw QAFixtureStateError.emptyStableIdentifier }
         let allIDs = state.reminders.map(\.id) + state.calendarCommitments.map(\.id) + state.notifications.map(\.id) + state.audit.map(\.id)
@@ -431,10 +468,10 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         return value
     }
 
-    private func appendAudit(to state: inout PersistedState, subsystem: String, operation: String, targetID: String?, outcome: String) throws {
+    private func appendAudit(to state: inout PersistedState, subsystem: String, operation: String, targetID: String?, outcome: String, timestamp: Date) throws {
         let id = try nextID(.audit, in: &state)
         state.audit.append(.init(
-            id: id, timestamp: clock.now(), subsystem: subsystem,
+            id: id, timestamp: timestamp, subsystem: subsystem,
             operation: operation, targetID: targetID, outcome: outcome
         ))
     }
@@ -459,39 +496,265 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         guard start < end else { throw ActionSourceError.invalidDesiredState }
     }
 
-    private static func validateUniqueIdentifiers(_ state: PersistedState) throws {
-        let ids = state.reminders.map(\.id) + state.calendarCommitments.map(\.id) + state.notifications.map(\.id)
-        guard ids.allSatisfy({ !$0.isEmpty }), Set(ids).count == ids.count else {
-            throw QAFixtureStateError.duplicateIdentifier(ids.first ?? "unknown")
+    private static func validatePersistedState(_ state: PersistedState) throws {
+        guard state.schemaVersion == 1 else {
+            throw QAFixtureStateError.invalidPersistedState("unsupported schema")
+        }
+        let ids = state.reminders.map(\.id)
+            + state.calendarCommitments.map(\.id)
+            + state.notifications.map(\.id)
+            + state.audit.map(\.id)
+        guard ids.allSatisfy({ !$0.isEmpty }) else {
+            throw QAFixtureStateError.invalidPersistedState("empty identifier")
+        }
+        guard Set(ids).count == ids.count else {
+            throw QAFixtureStateError.duplicateIdentifier(ids.first(where: { id in ids.filter { $0 == id }.count > 1 }) ?? "unknown")
+        }
+        guard state.reminders.allSatisfy({ !$0.listIdentifier.isEmpty && $0.metadataMarker?.isEmpty != true }),
+              state.calendarCommitments.allSatisfy({ !$0.calendarIdentifier.isEmpty }),
+              state.calendarCommitments.allSatisfy({ $0.ownershipToken?.isEmpty != true && $0.meetingFingerprint?.isEmpty != true }),
+              state.notifications.allSatisfy({ !$0.desired.promptID.isEmpty && $0.id == $0.desired.promptID }),
+              state.notifications.allSatisfy({ !$0.desired.category.isEmpty && $0.actionIdentifier?.isEmpty != true }),
+              state.audit.allSatisfy({ !$0.subsystem.isEmpty && !$0.operation.isEmpty && !$0.outcome.isEmpty && $0.targetID?.isEmpty != true }),
+              areUnique(state.reminders.compactMap(\.metadataMarker)),
+              areUnique(state.calendarCommitments.compactMap(\.ownershipToken)),
+              areUnique(state.calendarCommitments.compactMap(\.meetingFingerprint)) else {
+            throw QAFixtureStateError.invalidPersistedState("invalid persisted identifier")
+        }
+        guard state.counters.values.allSatisfy({ $0 >= 0 && $0 < Int.max }),
+              state.counters[.audit, default: 0] >= state.audit.count else {
+            throw QAFixtureStateError.invalidPersistedState("invalid identifier counter")
+        }
+        for notification in state.notifications {
+            switch notification.status {
+            case .scheduled:
+                guard notification.deliveredAt == nil,
+                      notification.actionIdentifier == nil,
+                      notification.respondedAt == nil else {
+                    throw QAFixtureStateError.invalidPersistedState("invalid scheduled notification")
+                }
+            case .delivered:
+                guard notification.deliveredAt != nil,
+                      notification.actionIdentifier == nil,
+                      notification.respondedAt == nil else {
+                    throw QAFixtureStateError.invalidPersistedState("invalid delivered notification")
+                }
+            case .responded:
+                guard notification.deliveredAt != nil,
+                      notification.actionIdentifier != nil,
+                      notification.respondedAt != nil else {
+                    throw QAFixtureStateError.invalidPersistedState("invalid notification response")
+                }
+            }
         }
     }
 
-    private static func decodeState(at url: URL) throws -> PersistedState {
-        let decoded = try JSONDecoder().decode(PersistedState.self, from: Data(contentsOf: url))
-        guard decoded.schemaVersion == 1 else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        return decoded
+    private static func areUnique(_ values: [String]) -> Bool {
+        Set(values).count == values.count
     }
 
-    private static func persist(_ state: PersistedState, to url: URL) throws {
+    private static func encode<T: Encodable>(_ value: T) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(state).write(to: url, options: .atomic)
+        return try encoder.encode(value)
     }
 
-    private static func validateContained(_ candidate: URL, in root: URL, fileManager: FileManager) throws {
-        let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL.path
-        var ancestor = candidate.standardizedFileURL
-        var suffix: [String] = []
-        while !fileManager.fileExists(atPath: ancestor.path) {
-            suffix.append(ancestor.lastPathComponent)
-            ancestor.deleteLastPathComponent()
+    private static func decode<T: Decodable>(_ type: T.Type, data: Data, path: String) throws -> T {
+        do { return try JSONDecoder().decode(type, from: data) }
+        catch { throw QAFixtureStateError.corruptState(path: path) }
+    }
+
+    private func persist(_ replacement: PersistedState) throws {
+        try storage.writeAtomic(try Self.encode(replacement), name: "state.json") {
+            try storageCheckpoint(.beforeStateCommit)
         }
-        var canonical = ancestor.resolvingSymlinksInPath().standardizedFileURL
-        for component in suffix.reversed() { canonical.appendPathComponent(component) }
-        guard canonical.path.hasPrefix(canonicalRoot + "/") else {
-            throw QAFixtureStateError.stateOutsideWorkspace(path: canonical.path)
+    }
+
+    private func resumeRecovery(_ initial: RecoveryTransaction) throws -> PersistedState {
+        var transaction = initial
+        try Self.validatePersistedState(transaction.replacement)
+        if transaction.phase == .prepared {
+            if try storage.exists("state.json") {
+                try storage.rename("state.json", to: "state.corrupt.json")
+            }
+            transaction.phase = .quarantined
+            try storage.writeAtomic(try Self.encode(transaction), name: "recovery.json")
+            try storageCheckpoint(.corruptStateQuarantined)
+        }
+        if transaction.phase == .quarantined {
+            try persist(transaction.replacement)
+            transaction.phase = .replacementWritten
+            try storage.writeAtomic(try Self.encode(transaction), name: "recovery.json")
+            try storageCheckpoint(.replacementStatePersisted)
+        }
+        try storage.removeIfPresent("recovery.json")
+        return transaction.replacement
+    }
+}
+
+private final class DescriptorRelativeStateDirectory: @unchecked Sendable {
+    private let descriptor: Int32
+
+    init(workspaceRoot: URL) throws {
+        let rootDescriptor = try Self.openAbsoluteDirectoryWithoutFollowing(workspaceRoot)
+        defer { Darwin.close(rootDescriptor) }
+        if mkdirat(rootDescriptor, "OS Fixtures", 0o700) != 0, errno != EEXIST {
+            throw QAFixtureStateError.filesystemOperation("create fixture state directory", errno)
+        }
+        descriptor = openat(rootDescriptor, "OS Fixtures", O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
+        guard descriptor >= 0 else {
+            throw QAFixtureStateError.unsafeFilesystemEntry("OS Fixtures")
+        }
+    }
+
+    deinit { Darwin.close(descriptor) }
+
+    private static func openAbsoluteDirectoryWithoutFollowing(_ url: URL) throws -> Int32 {
+        guard url.path.hasPrefix("/") else {
+            throw QAFixtureStateError.unsafeFilesystemEntry(url.path)
+        }
+        var current = Darwin.open("/", O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
+        guard current >= 0 else {
+            throw QAFixtureStateError.filesystemOperation("open filesystem root", errno)
+        }
+        do {
+            var components = url.standardizedFileURL.path
+                .split(separator: "/").map(String.init)
+            var followedSymlinks = 0
+            while !components.isEmpty {
+                let component = components.removeFirst()
+                if component == "." { continue }
+                if component == ".." {
+                    let parent = openat(current, "..", O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
+                    guard parent >= 0 else {
+                        throw QAFixtureStateError.unsafeFilesystemEntry(component)
+                    }
+                    Darwin.close(current)
+                    current = parent
+                    continue
+                }
+                let next = openat(current, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
+                if next >= 0 {
+                    Darwin.close(current)
+                    current = next
+                    continue
+                }
+                var status = stat()
+                guard fstatat(current, component, &status, AT_SYMLINK_NOFOLLOW) == 0,
+                      status.st_mode & S_IFMT == S_IFLNK,
+                      !components.isEmpty,
+                      followedSymlinks < 40 else {
+                    throw QAFixtureStateError.unsafeFilesystemEntry(component)
+                }
+                var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
+                let count = readlinkat(current, component, &buffer, buffer.count)
+                guard count > 0 else {
+                    throw QAFixtureStateError.filesystemOperation("read symlink \(component)", errno)
+                }
+                followedSymlinks += 1
+                let target = String(decoding: buffer.prefix(count).map(UInt8.init(bitPattern:)), as: UTF8.self)
+                let targetComponents = target.split(separator: "/").map(String.init)
+                components.insert(contentsOf: targetComponents, at: 0)
+                if target.hasPrefix("/") {
+                    Darwin.close(current)
+                    current = Darwin.open("/", O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
+                    guard current >= 0 else {
+                        throw QAFixtureStateError.filesystemOperation("reopen filesystem root", errno)
+                    }
+                }
+            }
+            return current
+        } catch {
+            Darwin.close(current)
+            throw error
+        }
+    }
+
+    func exists(_ name: String) throws -> Bool {
+        var status = stat()
+        if fstatat(descriptor, name, &status, AT_SYMLINK_NOFOLLOW) == 0 {
+            guard status.st_mode & S_IFMT == S_IFREG, status.st_nlink == 1 else {
+                throw QAFixtureStateError.unsafeFilesystemEntry(name)
+            }
+            return true
+        }
+        guard errno == ENOENT else {
+            throw QAFixtureStateError.filesystemOperation("inspect \(name)", errno)
+        }
+        return false
+    }
+
+    func read(_ name: String) throws -> Data {
+        let fileDescriptor = openat(descriptor, name, O_RDONLY | O_NOFOLLOW)
+        guard fileDescriptor >= 0 else {
+            if errno == ELOOP { throw QAFixtureStateError.unsafeFilesystemEntry(name) }
+            throw QAFixtureStateError.filesystemOperation("open \(name)", errno)
+        }
+        let handle = FileHandle(fileDescriptor: fileDescriptor, closeOnDealloc: true)
+        var status = stat()
+        guard fstat(fileDescriptor, &status) == 0,
+              status.st_mode & S_IFMT == S_IFREG,
+              status.st_nlink == 1 else {
+            throw QAFixtureStateError.unsafeFilesystemEntry(name)
+        }
+        return try handle.readToEnd() ?? Data()
+    }
+
+    func writeAtomic(_ data: Data, name: String, beforeCommit: () throws -> Void = {}) throws {
+        let temporaryName = ".\(name).tmp"
+        _ = unlinkat(descriptor, temporaryName, 0)
+        let fileDescriptor = openat(
+            descriptor,
+            temporaryName,
+            O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW,
+            mode_t(0o600)
+        )
+        guard fileDescriptor >= 0 else {
+            throw QAFixtureStateError.filesystemOperation("create temporary \(name)", errno)
+        }
+        var committed = false
+        defer {
+            Darwin.close(fileDescriptor)
+            if !committed { _ = unlinkat(descriptor, temporaryName, 0) }
+        }
+        try data.withUnsafeBytes { rawBuffer in
+            var remaining = rawBuffer.count
+            var cursor = rawBuffer.baseAddress!
+            while remaining > 0 {
+                let count = Darwin.write(fileDescriptor, cursor, remaining)
+                guard count > 0 else {
+                    throw QAFixtureStateError.filesystemOperation("write temporary \(name)", errno)
+                }
+                remaining -= count
+                cursor = cursor.advanced(by: count)
+            }
+        }
+        guard fsync(fileDescriptor) == 0 else {
+            throw QAFixtureStateError.filesystemOperation("sync temporary \(name)", errno)
+        }
+        try beforeCommit()
+        guard renameat(descriptor, temporaryName, descriptor, name) == 0 else {
+            throw QAFixtureStateError.filesystemOperation("commit \(name)", errno)
+        }
+        committed = true
+        guard fsync(descriptor) == 0 else {
+            throw QAFixtureStateError.filesystemOperation("sync state directory", errno)
+        }
+    }
+
+    func rename(_ source: String, to destination: String) throws {
+        guard try exists(source) else { return }
+        if try exists(destination) { try removeIfPresent(destination) }
+        guard renameat(descriptor, source, descriptor, destination) == 0,
+              fsync(descriptor) == 0 else {
+            throw QAFixtureStateError.filesystemOperation("quarantine \(source)", errno)
+        }
+    }
+
+    func removeIfPresent(_ name: String) throws {
+        guard try exists(name) else { return }
+        guard unlinkat(descriptor, name, 0) == 0, fsync(descriptor) == 0 else {
+            throw QAFixtureStateError.filesystemOperation("remove \(name)", errno)
         }
     }
 }
