@@ -53,12 +53,31 @@ final class RemindersConnectionController: ObservableObject {
             let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
                 runtimeEnvironment: runtimeEnvironment
             )
-            return QAFixtureRemindersService(adapter: adapter)
+            return QAFixtureRemindersService(
+                adapter: adapter,
+                shouldFailTaskFetch: {
+                    qaFetchFailureIsEnabled(runtimeEnvironment: runtimeEnvironment)
+                }
+            )
         } catch {
             return DisabledQARemindersService(
                 detail: "QA fixture startup failed: \(error.localizedDescription)"
             )
         }
+    }
+
+    private static func qaFetchFailureIsEnabled(
+        runtimeEnvironment: RuntimeEnvironment
+    ) -> Bool {
+        guard case let .qa(runRoot) = runtimeEnvironment.mode else { return false }
+        let marker = runRoot
+            .appendingPathComponent("QA Control", isDirectory: true)
+            .appendingPathComponent("reminders-fetch-failure", isDirectory: false)
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: marker.path),
+              attributes[.type] as? FileAttributeType == .typeRegular else {
+            return false
+        }
+        return true
     }
 
     var isBusy: Bool { state == .checking }

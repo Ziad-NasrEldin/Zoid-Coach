@@ -138,11 +138,11 @@ struct RemindersConnectionControllerTests {
 
         await controller.refresh()
 
-        guard case let .refreshFailed(detail) = controller.state else {
-            Issue.record("Expected a fail-closed QA fixture state, got \(controller.state)")
+        guard case let .permissionReady(detail) = controller.state else {
+            Issue.record("Expected isolated QA fixture permission state, got \(controller.state)")
             return
         }
-        #expect(detail.contains("QA fixture"))
+        #expect(detail.contains("Fixture permission"))
     }
 
     private func isolatedDefaults() throws -> UserDefaults {

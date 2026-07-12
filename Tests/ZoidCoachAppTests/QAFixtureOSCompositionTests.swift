@@ -168,6 +168,48 @@ func fixtureServicesExposeDeniedAndDeferredPermissionStates() async throws {
 
 @MainActor
 @Test
+func qaRemindersExplicitRequestGrantsDeferredPermissionAndFailureInjectionRecovers() async throws {
+    let fixture = try signedQARuntime("reminders-recovery")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    )
+    try adapter.reset(to: .init(
+        permissions: [.reminders: .notDetermined],
+        reminderLists: [QAFixtureReminderList(id: "work", name: "Work")],
+        reminders: [
+            SourceTask(
+                id: "task",
+                title: "Recoverable task",
+                listIdentifier: "work",
+                priority: 0,
+                dueDate: nil,
+                notes: nil,
+                isCompleted: false
+            )
+        ]
+    ))
+    var failFetch = true
+    let service = QAFixtureRemindersService(
+        adapter: adapter,
+        shouldFailTaskFetch: { failFetch }
+    )
+
+    #expect(await service.inspect().state == .notConnected)
+    #expect(await service.requestAccessAndInspect().state == .healthy)
+    #expect(await service.fetchIncompleteTasks().isUnavailable)
+
+    failFetch = false
+    guard case let .available(tasks) = await service.fetchIncompleteTasks() else {
+        Issue.record("Expected the QA Reminder retry to recover")
+        return
+    }
+    #expect(tasks.map(\.title) == ["Recoverable task"])
+}
+
+@MainActor
+@Test
 func qaReminderListDiscoveryUsesStableIdentifiersAndCurrentVisibleNames() async throws {
     let fixture = try signedQARuntime("reminder-list-discovery")
     defer { try? FileManager.default.removeItem(at: fixture.root) }

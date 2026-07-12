@@ -6,8 +6,19 @@ import ZoidCoachInfrastructure
 final class QAFixtureRemindersService: RemindersServicing {
     let isProductionAdapter = false
     private let adapter: DeterministicOSFixtureAdapters
+    private let shouldFailTaskFetch: () -> Bool
 
-    init(adapter: DeterministicOSFixtureAdapters) { self.adapter = adapter }
+    init(
+        adapter: DeterministicOSFixtureAdapters,
+        shouldFailTaskFetch: @escaping () -> Bool
+    ) {
+        self.adapter = adapter
+        self.shouldFailTaskFetch = shouldFailTaskFetch
+    }
+
+    convenience init(adapter: DeterministicOSFixtureAdapters) {
+        self.init(adapter: adapter, shouldFailTaskFetch: { false })
+    }
 
     func inspect() async -> SourceHealth {
         do {
@@ -21,7 +32,16 @@ final class QAFixtureRemindersService: RemindersServicing {
         }
     }
 
-    func requestAccessAndInspect() async -> SourceHealth { await inspect() }
+    func requestAccessAndInspect() async -> SourceHealth {
+        do {
+            if try adapter.permission(.reminders) == .notDetermined {
+                try adapter.setPermission(.granted, for: .reminders)
+            }
+        } catch {
+            return Self.unavailable(error.localizedDescription)
+        }
+        return await inspect()
+    }
 
     func discoverLists() async -> ReminderListLoad {
         do {
@@ -37,6 +57,7 @@ final class QAFixtureRemindersService: RemindersServicing {
     }
 
     func fetchIncompleteTasks() async -> ReminderTaskLoad {
+        guard !shouldFailTaskFetch() else { return .unavailable }
         do {
             guard try adapter.permission(.reminders) == .granted else {
                 return .unavailable
