@@ -38,20 +38,25 @@ public struct QAFixtureWorkspaceBuilder {
 
     public init(
         environment: RuntimeEnvironment,
-        productionDirectories: RuntimeEnvironment.SystemDirectories = .current(),
+        additionalProtectedRoots: [URL] = [],
         fileManager: FileManager = .default
     ) throws {
         guard case let .qa(runRoot) = environment.mode else {
             throw QAFixtureWorkspaceError.productionEnvironmentRefused
         }
-        let canonicalRunRoot = runRoot.resolvingSymlinksInPath().standardizedFileURL
-        let production = RuntimeEnvironment.production(directories: productionDirectories)
+        let canonicalRunRoot = Self.canonicalizingExistingAncestor(
+            of: runRoot,
+            fileManager: fileManager
+        )
+        let production = RuntimeEnvironment.production()
         let productionRoots = [
             production.applicationSupportRoot,
             production.databaseURL.deletingLastPathComponent(),
             production.screenwatchDirectory.deletingLastPathComponent()
-        ]
-        guard !productionRoots.contains(where: { Self.contains(canonicalRunRoot, in: $0) }) else {
+        ] + additionalProtectedRoots
+        guard !productionRoots.contains(where: {
+            Self.pathsOverlap(canonicalRunRoot, $0, fileManager: fileManager)
+        }) else {
             throw QAFixtureWorkspaceError.productionRootRefused(path: canonicalRunRoot.path)
         }
         qaRunRoot = canonicalRunRoot
@@ -91,7 +96,15 @@ public struct QAFixtureWorkspaceBuilder {
 
     public func cleanup(_ workspace: QAFixtureWorkspace) throws {
         try validate(workspace.root)
-        guard workspace.root.deletingLastPathComponent().standardizedFileURL == fixturesRoot else {
+        let workspaceParent = Self.canonicalizingExistingAncestor(
+            of: workspace.root.deletingLastPathComponent(),
+            fileManager: fileManager
+        )
+        let canonicalFixturesRoot = Self.canonicalizingExistingAncestor(
+            of: fixturesRoot,
+            fileManager: fileManager
+        )
+        guard workspaceParent == canonicalFixturesRoot else {
             throw QAFixtureWorkspaceError.workspaceOutsideQARunRoot(
                 path: workspace.root.path,
                 runRoot: qaRunRoot.path
@@ -104,10 +117,10 @@ public struct QAFixtureWorkspaceBuilder {
 
     private func validate(_ workspaceRoot: URL) throws {
         let rootPath = qaRunRoot.path
-        let candidatePath = workspaceRoot
-            .resolvingSymlinksInPath()
-            .standardizedFileURL
-            .path
+        let candidatePath = Self.canonicalizingExistingAncestor(
+            of: workspaceRoot,
+            fileManager: fileManager
+        ).path
         guard candidatePath.hasPrefix(rootPath + "/") else {
             throw QAFixtureWorkspaceError.workspaceOutsideQARunRoot(
                 path: candidatePath,
@@ -118,14 +131,52 @@ public struct QAFixtureWorkspaceBuilder {
 
     private static func isValidFixtureID(_ fixtureID: String) -> Bool {
         guard !fixtureID.isEmpty, fixtureID.count <= 128 else { return false }
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
-        return fixtureID.unicodeScalars.allSatisfy(allowed.contains)
+        return fixtureID.unicodeScalars.allSatisfy { scalar in
+            let value = scalar.value
+            return (97 ... 122).contains(value)
+                || (48 ... 57).contains(value)
+                || value == 45
+                || value == 95
+        }
+    }
+
+    private static func pathsOverlap(
+        _ first: URL,
+        _ second: URL,
+        fileManager: FileManager
+    ) -> Bool {
+        let first = canonicalizingExistingAncestor(of: first, fileManager: fileManager)
+        let second = canonicalizingExistingAncestor(of: second, fileManager: fileManager)
+        return contains(first, in: second) || contains(second, in: first)
     }
 
     private static func contains(_ candidate: URL, in root: URL) -> Bool {
-        let candidatePath = candidate.resolvingSymlinksInPath().standardizedFileURL.path
-        let rootPath = root.resolvingSymlinksInPath().standardizedFileURL.path
+        let candidatePath = candidate.path
+        let rootPath = root.path
         return candidatePath == rootPath || candidatePath.hasPrefix(rootPath + "/")
+    }
+
+    private static func canonicalizingExistingAncestor(
+        of url: URL,
+        fileManager: FileManager
+    ) -> URL {
+        var existingAncestor = url.standardizedFileURL
+        var missingComponents: [String] = []
+
+        while !fileManager.fileExists(atPath: existingAncestor.path) {
+            let parent = existingAncestor.deletingLastPathComponent()
+            guard parent.path != existingAncestor.path else { break }
+            missingComponents.append(existingAncestor.lastPathComponent)
+            existingAncestor = parent
+        }
+
+        var canonical = existingAncestor
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+        for component in missingComponents.reversed() {
+            canonical.appendPathComponent(component)
+        }
+        return canonical.standardizedFileURL
     }
 }
 

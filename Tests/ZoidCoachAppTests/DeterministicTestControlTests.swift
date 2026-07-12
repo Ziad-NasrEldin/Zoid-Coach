@@ -81,26 +81,56 @@ func fixtureBuilderRefusesProductionEnvironmentBeforeWriting() throws {
 }
 
 @Test
-func fixtureBuilderRefusesQARootInsideProductionProductStorage() throws {
+func fixtureBuilderRefusesAdditionalProtectedRoot() throws {
     let testRoot = temporaryTestRoot("production-root-guard")
     defer { try? FileManager.default.removeItem(at: testRoot) }
-    let directories = RuntimeEnvironment.SystemDirectories(
-        home: testRoot.appendingPathComponent("home", isDirectory: true),
-        applicationSupport: testRoot.appendingPathComponent("Application Support", isDirectory: true)
-    )
-    let environment = try qaEnvironment(runRoot: directories.applicationSupport)
+    let protectedRoot = testRoot.appendingPathComponent("protected", isDirectory: true)
+    let environment = try qaEnvironment(runRoot: protectedRoot)
 
     #expect(
         throws: QAFixtureWorkspaceError.productionRootRefused(
-            path: directories.applicationSupport.path
+            path: protectedRoot.path
         )
     ) {
         try QAFixtureWorkspaceBuilder(
             environment: environment,
-            productionDirectories: directories
+            additionalProtectedRoots: [protectedRoot]
         )
     }
     #expect(!FileManager.default.fileExists(atPath: testRoot.path))
+}
+
+@Test
+func fixtureBuilderRejectsQARootThatContainsProtectedStorage() throws {
+    let testRoot = temporaryTestRoot("reverse-overlap")
+    defer { try? FileManager.default.removeItem(at: testRoot) }
+    let protectedRoot = testRoot.appendingPathComponent("protected/product", isDirectory: true)
+    let environment = try qaEnvironment(runRoot: testRoot)
+
+    #expect(
+        throws: QAFixtureWorkspaceError.productionRootRefused(path: testRoot.path)
+    ) {
+        try QAFixtureWorkspaceBuilder(
+            environment: environment,
+            additionalProtectedRoots: [protectedRoot]
+        )
+    }
+}
+
+@Test
+func extraProtectedRootsCannotReplaceRealProductionRoots() throws {
+    let productionRoot = RuntimeEnvironment.production().applicationSupportRoot
+    let environment = try qaEnvironment(runRoot: productionRoot)
+    let unrelatedExtraRoot = temporaryTestRoot("unrelated-protected-root")
+
+    #expect(
+        throws: QAFixtureWorkspaceError.productionRootRefused(path: productionRoot.path)
+    ) {
+        try QAFixtureWorkspaceBuilder(
+            environment: environment,
+            additionalProtectedRoots: [unrelatedExtraRoot]
+        )
+    }
 }
 
 @Test
@@ -113,6 +143,12 @@ func fixtureBuilderRejectsPathTraversal() throws {
     #expect(throws: QAFixtureWorkspaceError.invalidFixtureID("../production")) {
         try builder.prepare(fixtureID: "../production")
     }
+    #expect(throws: QAFixtureWorkspaceError.invalidFixtureID("scénario")) {
+        try builder.prepare(fixtureID: "scénario")
+    }
+    #expect(throws: QAFixtureWorkspaceError.invalidFixtureID("Scenario-One")) {
+        try builder.prepare(fixtureID: "Scenario-One")
+    }
 }
 
 @Test
@@ -121,13 +157,12 @@ func fixtureBuilderRefusesPreexistingSymlinkEscape() throws {
     defer { try? FileManager.default.removeItem(at: container) }
     let qaRoot = container.appendingPathComponent("qa", isDirectory: true)
     let outsideRoot = container.appendingPathComponent("outside", isDirectory: true)
-    let fixturesRoot = qaRoot.appendingPathComponent("Fixtures", isDirectory: true)
-    try FileManager.default.createDirectory(at: fixturesRoot, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: qaRoot, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: outsideRoot, withIntermediateDirectories: true)
     let marker = outsideRoot.appendingPathComponent("preserve.txt")
     try Data("preserve".utf8).write(to: marker)
     try FileManager.default.createSymbolicLink(
-        at: fixturesRoot.appendingPathComponent("escaped"),
+        at: qaRoot.appendingPathComponent("Fixtures"),
         withDestinationURL: outsideRoot
     )
     let environment = try qaEnvironment(runRoot: qaRoot)
@@ -135,7 +170,7 @@ func fixtureBuilderRefusesPreexistingSymlinkEscape() throws {
 
     #expect(
         throws: QAFixtureWorkspaceError.workspaceOutsideQARunRoot(
-            path: outsideRoot.path,
+            path: outsideRoot.appendingPathComponent("escaped").path,
             runRoot: qaRoot.path
         )
     ) {
