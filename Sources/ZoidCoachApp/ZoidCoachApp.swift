@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftUI
 import ZoidCoachCore
 
@@ -11,6 +12,12 @@ struct ZoidCoachApplication: App {
     private let launchesForBackgroundScheduling: Bool
 
     init() {
+        if CommandLine.arguments.contains(PolicyMutationXPCProbe.argument) {
+            let exitCode = PolicyMutationXPCProbe.run()
+            fflush(stdout)
+            fflush(stderr)
+            Darwin.exit(exitCode)
+        }
         let isBackgroundLaunch = CommandLine.arguments.contains("--background-schedule")
         launchesForBackgroundScheduling = isBackgroundLaunch
         _model = StateObject(wrappedValue: AppModel())
