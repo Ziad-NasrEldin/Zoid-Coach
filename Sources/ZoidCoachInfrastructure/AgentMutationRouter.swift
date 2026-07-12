@@ -133,7 +133,17 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 policyVersion: versioned?.version ?? 1
             )
             let total = result.scheduledBlockCount + result.reminderMutationCount + result.obsoleteBlockDeletionCount
-            return .init(accepted: true, message: "Queued \(total) Calendar and Reminder updates.")
+            guard result.unscheduledTaskIDs.isEmpty else {
+                return .init(
+                    accepted: false,
+                    message: "The plan could not fit around current Calendar commitments. No Calendar or Reminder changes were queued."
+                )
+            }
+            return .init(
+                accepted: true,
+                commandIDs: result.commandIDs,
+                message: "Queued \(total) Calendar and Reminder updates."
+            )
 
         case let .resolveMeetingCandidate(candidateID, title, start, durationMinutes, destination):
             guard let candidate = try meetingArchive.meetingCandidate(id: candidateID),

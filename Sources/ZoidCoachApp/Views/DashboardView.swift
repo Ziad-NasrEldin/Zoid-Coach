@@ -52,7 +52,11 @@ struct DashboardView: View {
             }
             .environmentObject(modalCoordinator)
 
-            if let candidate = editingMeetingCandidate {
+            if model.calendarPlanApproval.isPresented {
+                SumiModalOverlay(dismiss: model.dismissCalendarPlanApproval) {
+                    CalendarPlanApprovalSheet()
+                }
+            } else if let candidate = editingMeetingCandidate {
                 SumiModalOverlay(dismiss: {
                     model.deferMeetingCandidateEdit(candidate)
                     editingMeetingCandidate = nil
@@ -150,7 +154,7 @@ private struct TodayCommandView: View {
                 .accessibilityLabel("Draft today's suggested plan")
 
                 Button {
-                    model.scheduleDailyPlan()
+                    model.requestCalendarPlanApproval()
                 } label: {
                     HStack(spacing: 7) {
                         if model.isSchedulingDailyPlan {
