@@ -82,6 +82,13 @@ func behaviorClassificationMigrationFreezesLegacyRecords() throws {
         ingested_at TEXT NOT NULL,
         PRIMARY KEY (source_day, epoch)
     );
+    CREATE TABLE gaming_reward_ledger (
+        day_key TEXT NOT NULL,
+        task_id TEXT NOT NULL,
+        policy_version INTEGER NOT NULL,
+        applied_at TEXT NOT NULL,
+        PRIMARY KEY(day_key, task_id, policy_version)
+    );
     INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, ingested_at)
     VALUES
         ('2026-07-10', 1, '09-00-00', 'Xcode', '', '', 0, '2026-07-10T09:00:00Z'),
@@ -113,6 +120,13 @@ func versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() throws {
         surface TEXT NOT NULL,
         responded_at_utc TEXT NOT NULL
     );
+    CREATE TABLE gaming_reward_ledger (
+        day_key TEXT NOT NULL,
+        task_id TEXT NOT NULL,
+        policy_version INTEGER NOT NULL,
+        applied_at TEXT NOT NULL,
+        PRIMARY KEY(day_key, task_id, policy_version)
+    );
     INSERT INTO prompt_responses(id, prompt_id, action_token, res, surface, responded_at_utc) VALUES
         ('response-1', 'prompt-1', 'token-1', 'accept_plan', char(97, 116, 111, 108, 108), '2026-07-10T00:00:00Z'),
         ('response-2', 'prompt-2', 'token-2', 'accept_plan', 'dashboard', '2026-07-10T00:01:00Z'),
@@ -130,13 +144,45 @@ func versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() throws {
         if let backupURL = result.backupURL { removeDatabaseFiles(at: backupURL) }
     }
 
-    #expect(result.appliedVersions == [23])
+    #expect(result.appliedVersions == [23, 24])
     #expect(result.backupURL != nil)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses;") == 2)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses WHERE surface = 'dashboard';") == 1)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses WHERE surface = 'notification';") == 1)
     let backupURL = try #require(result.backupURL)
     #expect(try scalarInt(backupURL, "SELECT COUNT(*) FROM prompt_responses;") == 3)
+}
+
+@Test
+func versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() throws {
+    let databaseURL = temporaryDatabaseURL("gaming-reward-minutes-migration")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    CREATE TABLE gaming_reward_ledger (
+        day_key TEXT NOT NULL,
+        task_id TEXT NOT NULL,
+        policy_version INTEGER NOT NULL,
+        applied_at TEXT NOT NULL,
+        PRIMARY KEY(day_key, task_id, policy_version)
+    );
+    CREATE UNIQUE INDEX gaming_reward_one_per_day_policy
+    ON gaming_reward_ledger(day_key, policy_version);
+    INSERT INTO gaming_reward_ledger(day_key, task_id, policy_version, applied_at)
+    VALUES ('2026-07-10', 'priority', 1, '2026-07-10T12:00:00Z');
+    """)
+    for version in 1...23 {
+        try execute(
+            databaseURL,
+            "INSERT INTO schema_migrations(version, applied_at) VALUES (\(version), '2026-01-01T00:00:00Z');"
+        )
+    }
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.appliedVersions == [24])
+    #expect(try columnExists(databaseURL, table: "gaming_reward_ledger", column: "reward_minutes"))
+    #expect(try scalarInt(databaseURL, "SELECT reward_minutes FROM gaming_reward_ledger;") == 15)
 }
 
 @Test

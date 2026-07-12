@@ -112,6 +112,14 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 policyVersion: saved.version
             )
 
+        case let .saveGamingPolicy(policy):
+            let saved = try policyStore.saveGamingPolicy(policy)
+            return .init(
+                accepted: true,
+                message: "Gaming policy version \(saved.version) saved by the agent.",
+                policyVersion: saved.version
+            )
+
         case let .schedulePlan(day):
             let versioned = try policyStore.current()
             let policy = versioned?.policy ?? UserPolicy.defaults()

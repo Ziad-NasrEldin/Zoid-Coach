@@ -165,18 +165,54 @@ func behaviorPolicyValidationRejectsBlankAndDuplicateApplications() {
 @Test
 func versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() throws {
     let versionOneJSON = try #require(String(data: JSONEncoder.zoidPolicy.encode(UserPolicy.defaults(timeZoneIdentifier: "UTC")), encoding: .utf8))
-        .replacingOccurrences(of: #""schemaVersion":3"#, with: #""schemaVersion":1"#)
+        .replacingOccurrences(of: #""schemaVersion":4"#, with: #""schemaVersion":1"#)
         .replacingOccurrences(of: #",\"behavior\":{\"gamingApplications\":[],\"workApplications\":[]}"#, with: "")
         .replacingOccurrences(of: #",\"capture\":{\"configuredDisplayIDs\":[],\"mode\":\"legacy\"}"#, with: "")
+        .replacingOccurrences(of: #",\"gaming\":{\"dailyBudgetMinutes\":60,\"priorityTaskRewardMinutes\":15,\"version\":1}"#, with: "")
 
     let decoded = try JSONDecoder.zoidPolicy.decode(UserPolicy.self, from: Data(versionOneJSON.utf8))
 
     #expect(decoded.schemaVersion == 1)
     #expect(decoded.behavior == BehaviorPolicy())
     #expect(decoded.capture == .legacy)
+    #expect(decoded.gaming == .balanced)
     #expect(decoded.upgradedToCurrentSchema().schemaVersion == UserPolicy.schemaVersion)
     #expect(decoded.upgradedToCurrentSchema().behavior == BehaviorPolicy())
     #expect(decoded.upgradedToCurrentSchema().capture == .legacy)
+    #expect(decoded.upgradedToCurrentSchema().gaming == .balanced)
+}
+
+@Test
+func gamingPolicyPresetsMatchTheOnboardingContractAndDefaultsToBalanced() {
+    #expect(GamingPolicy.flexible == GamingPolicy(
+        dailyBudgetMinutes: 90,
+        priorityTaskRewardMinutes: 0
+    ))
+    #expect(GamingPolicy.balanced == GamingPolicy(
+        dailyBudgetMinutes: 60,
+        priorityTaskRewardMinutes: 15
+    ))
+    #expect(GamingPolicy.firm == GamingPolicy(
+        dailyBudgetMinutes: 30,
+        priorityTaskRewardMinutes: 30
+    ))
+    #expect(UserPolicy.defaults(timeZoneIdentifier: "UTC").gaming == .balanced)
+}
+
+@Test
+func gamingPolicyValidationRejectsUnsupportedOrUnboundedValues() {
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    let invalid = defaults.replacingGamingPolicy(GamingPolicy(
+        version: 2,
+        dailyBudgetMinutes: 1_441,
+        priorityTaskRewardMinutes: 1_442
+    ))
+
+    #expect(invalid.validationViolations().map(\.code) == [
+        .unsupportedGamingPolicyVersion,
+        .invalidGamingBudget,
+        .invalidGamingReward,
+    ])
 }
 
 @Test

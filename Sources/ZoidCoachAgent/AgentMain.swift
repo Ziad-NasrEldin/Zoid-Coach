@@ -323,7 +323,9 @@ struct ZoidCoachAgentMain {
                         calendar: current.calendar,
                         privacy: current.privacy,
                         wake: current.wake,
-                        behavior: current.behavior
+                        behavior: current.behavior,
+                        capture: current.capture,
+                        gaming: current.gaming
                     )
                     return try policyStore.save(updated).policy
                 },

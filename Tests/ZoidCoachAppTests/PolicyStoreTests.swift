@@ -60,6 +60,66 @@ func policyStoreResolvesTheClassificationPolicyActiveAtAnObservationTime() throw
     #expect(second.policy.behavior.choice(for: "Steam") == .work)
 }
 
+@Test
+func gamingPolicyDefaultsAndSurvivesAStoreRestartWithoutResettingOtherPolicy() throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let original = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
+
+    do {
+        let store = try PolicyStore(databaseURL: databaseURL)
+        #expect(try store.currentGamingPolicy() == .balanced)
+        _ = try store.save(original)
+
+        let saved = try store.saveGamingPolicy(.firm)
+
+        #expect(saved.version == 2)
+        #expect(saved.policy.gaming == .firm)
+        #expect(saved.policy.schedule == original.schedule)
+        #expect(saved.policy.behavior == original.behavior)
+        #expect(saved.policy.capture == original.capture)
+    }
+
+    let reopened = try PolicyStore(databaseURL: databaseURL)
+    #expect(try reopened.currentGamingPolicy() == .firm)
+    #expect(try reopened.current()?.policy.schedule.timeZoneIdentifier == "Africa/Cairo")
+}
+
+@Test
+func gamingPolicyMutationRoundTripsThroughTheAgentCommandBoundary() async throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let outbox = try ActionOutboxStore(databaseURL: databaseURL)
+    let reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
+    let policyStore = try PolicyStore(databaseURL: databaseURL)
+    let router = AgentMutationRouter(
+        outbox: outbox,
+        stateStore: try AgentOwnedStateStore(databaseURL: databaseURL),
+        taskHistory: try TaskHistoryStore(databaseURL: databaseURL),
+        meetingArchive: try ScreenwatchArchive(databaseURL: databaseURL),
+        planScheduler: AgentPlanScheduler(
+            plans: try AutonomousPlanStore(databaseURL: databaseURL),
+            reminders: reminders,
+            outbox: outbox,
+            calendar: EmptyGamingPolicyCalendar()
+        ),
+        policyStore: policyStore,
+        reminderSnapshots: reminders,
+        privacyData: try PrivacyDataService(databaseURL: databaseURL)
+    )
+    let command = AgentMutationCommand.saveGamingPolicy(.flexible)
+    let encoded = try JSONEncoder().encode(command)
+
+    #expect(try JSONDecoder().decode(AgentMutationCommand.self, from: encoded) == command)
+    let first = try await router.apply(command)
+    let second = try await router.apply(command)
+
+    #expect(first.accepted)
+    #expect(first.policyVersion == 1)
+    #expect(second.policyVersion == 2)
+    #expect(try policyStore.currentGamingPolicy() == .flexible)
+}
+
 private func policy(mode: OperatingMode) -> UserPolicy {
     let defaults = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
     return UserPolicy(
@@ -93,6 +153,16 @@ private final class PolicyTestClock: @unchecked Sendable {
 
     init(_ now: Date) {
         self.now = now
+    }
+}
+
+private struct EmptyGamingPolicyCalendar: CalendarAvailabilitySource {
+    func commitments(
+        from start: Date,
+        through end: Date,
+        calendarIdentifiers: [String]
+    ) async throws -> [CalendarCommitment] {
+        []
     }
 }
 

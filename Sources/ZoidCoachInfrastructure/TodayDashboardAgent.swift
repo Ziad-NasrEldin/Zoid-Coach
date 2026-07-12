@@ -13,9 +13,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
     private let taskHistory: TaskHistoryStore
     private let userPolicyStore: PolicyStore
     private let checkpoints: ProcessingCheckpointStore
-    private let policy: GamingPolicy
 
-    public init(databaseURL: URL = ZoidCoachStorage.databaseURL(), policy: GamingPolicy = GamingPolicy()) throws {
+    public init(databaseURL: URL = ZoidCoachStorage.databaseURL()) throws {
         reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
         let policyStore = try PolicyStore(databaseURL: databaseURL)
         userPolicyStore = policyStore
@@ -32,7 +31,6 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         outbox = try ActionOutboxStore(databaseURL: databaseURL)
         taskHistory = try TaskHistoryStore(databaseURL: databaseURL)
         checkpoints = try ProcessingCheckpointStore(databaseURL: databaseURL)
-        self.policy = policy
     }
 
     public func snapshot(now: Date = Date()) throws -> TodaySnapshot {
@@ -55,8 +53,14 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             )
         }
         let behavior = BehaviorSessionizer().summarize(observations: try archive.behaviorObservations(for: now), now: now)
-        let rewardApplied = try snapshots.hasPriorityReward(policy: policy, day: now)
-        let gaming = GamingStatusCalculator().status(policy: policy, gamingMinutes: behavior.summary.gamingMinutes, rewardApplied: rewardApplied, coverage: behavior.coverage)
+        let gamingPolicy = try userPolicyStore.currentGamingPolicy()
+        let rewardMinutes = try snapshots.priorityRewardMinutes(policy: gamingPolicy, day: now)
+        let gaming = GamingStatusCalculator().status(
+            policy: gamingPolicy,
+            gamingMinutes: behavior.summary.gamingMinutes,
+            appliedRewardMinutes: rewardMinutes,
+            coverage: behavior.coverage
+        )
         let active = try execution.activeTask(now: now)
         let recommendation = active == nil ? NextTaskRecommender().recommend(tasks: rows, referenceDate: now, availableMinutes: 60, coverage: behavior.coverage) : NextTaskRecommendation(taskID: active?.taskID, sentence: "Continue the active task before starting another one.", reasons: [], coverageUncertainty: behavior.coverage.isLimited ? behavior.coverage.explanation : nil)
         let plannedIDs = Set(rows.map(\.taskID))
@@ -135,7 +139,14 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         if command == .complete,
            let current = try snapshots.load(for: now),
            current.taskRows.first(where: { $0.taskID == taskID })?.isMainObjective == true {
-            _ = try snapshots.applyPriorityRewardIfNeeded(taskID: taskID, policy: policy, day: now)
+            let gamingPolicy = try userPolicyStore.currentGamingPolicy()
+            if gamingPolicy.priorityTaskRewardMinutes > 0 {
+                _ = try snapshots.applyPriorityRewardIfNeeded(
+                    taskID: taskID,
+                    policy: gamingPolicy,
+                    day: now
+                )
+            }
         }
         if command == .complete,
            previousExecution?.state != .completed,

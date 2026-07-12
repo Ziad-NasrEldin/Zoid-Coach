@@ -152,7 +152,8 @@ struct SettingsPolicyDraft: Equatable {
                 quietWeekdays: wakeQuietWeekdays
             ),
             behavior: behaviorPolicy,
-            capture: CapturePolicy(mode: captureMode, configuredDisplayIDs: captureDisplayIDs)
+            capture: CapturePolicy(mode: captureMode, configuredDisplayIDs: captureDisplayIDs),
+            gaming: original.gaming
         )
     }
 

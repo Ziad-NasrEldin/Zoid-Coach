@@ -61,6 +61,7 @@ public enum AgentMutationCommand: Equatable, Codable, Sendable {
     case recordSourceCheck(sourceID: String, state: String, detail: String, evidence: String, checkedAt: Date)
     case synchronizeReminderSnapshots([AgentReminderSnapshot])
     case savePolicy(UserPolicy)
+    case saveGamingPolicy(GamingPolicy)
     case undoAction(commandID: String)
     case exportRedactedDiagnostics
     case deleteDataRange(start: Date, end: Date)

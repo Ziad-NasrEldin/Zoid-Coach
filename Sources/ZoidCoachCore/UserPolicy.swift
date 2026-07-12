@@ -312,7 +312,7 @@ public struct CapturePolicy: Codable, Equatable, Sendable {
 }
 
 public struct UserPolicy: Codable, Equatable, Sendable {
-    public static let schemaVersion = 3
+    public static let schemaVersion = 4
 
     public let schemaVersion: Int
     public let operatingMode: OperatingMode
@@ -323,6 +323,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
     public let wake: WakePolicyConfiguration
     public let behavior: BehaviorPolicy
     public let capture: CapturePolicy
+    public let gaming: GamingPolicy
 
     public init(
         schemaVersion: Int = UserPolicy.schemaVersion,
@@ -333,7 +334,8 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         privacy: PrivacyPolicy,
         wake: WakePolicyConfiguration,
         behavior: BehaviorPolicy = BehaviorPolicy(),
-        capture: CapturePolicy = .legacy
+        capture: CapturePolicy = .legacy,
+        gaming: GamingPolicy = .balanced
     ) {
         self.schemaVersion = schemaVersion
         self.operatingMode = operatingMode
@@ -344,6 +346,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         self.wake = wake
         self.behavior = behavior
         self.capture = capture
+        self.gaming = gaming
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -356,6 +359,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         case wake
         case behavior
         case capture
+        case gaming
     }
 
     public init(from decoder: Decoder) throws {
@@ -369,6 +373,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         wake = try container.decode(WakePolicyConfiguration.self, forKey: .wake)
         behavior = try container.decodeIfPresent(BehaviorPolicy.self, forKey: .behavior) ?? BehaviorPolicy()
         capture = try container.decodeIfPresent(CapturePolicy.self, forKey: .capture) ?? .legacy
+        gaming = try container.decodeIfPresent(GamingPolicy.self, forKey: .gaming) ?? .balanced
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -382,6 +387,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         try container.encode(wake, forKey: .wake)
         try container.encode(behavior, forKey: .behavior)
         try container.encode(capture, forKey: .capture)
+        try container.encode(gaming, forKey: .gaming)
     }
 
     public func upgradedToCurrentSchema() -> UserPolicy {
@@ -393,7 +399,22 @@ public struct UserPolicy: Codable, Equatable, Sendable {
             privacy: privacy,
             wake: wake,
             behavior: behavior,
-            capture: capture
+            capture: capture,
+            gaming: gaming
+        )
+    }
+
+    public func replacingGamingPolicy(_ gaming: GamingPolicy) -> UserPolicy {
+        UserPolicy(
+            operatingMode: operatingMode,
+            automationPause: automationPause,
+            schedule: schedule,
+            calendar: calendar,
+            privacy: privacy,
+            wake: wake,
+            behavior: behavior,
+            capture: capture,
+            gaming: gaming
         )
     }
 
@@ -437,7 +458,8 @@ public struct UserPolicy: Codable, Equatable, Sendable {
                     end: LocalTime(hour: 9, minute: 0)
                 ),
                 maximumDailyInterventions: 1
-            )
+            ),
+            gaming: .balanced
         )
     }
 
@@ -496,6 +518,18 @@ public struct UserPolicy: Codable, Equatable, Sendable {
             violations.append(.init(code: .remotePolicyWithoutRemoteProvider, field: "privacy.remoteEvidencePolicy"))
         }
         appendApplicationClassificationViolations(to: &violations)
+        if gaming.version != 1 {
+            violations.append(.init(code: .unsupportedGamingPolicyVersion, field: "gaming.version"))
+        }
+        if !(0...1_440).contains(gaming.dailyBudgetMinutes) {
+            violations.append(.init(code: .invalidGamingBudget, field: "gaming.dailyBudgetMinutes"))
+        }
+        if !(0...1_440).contains(gaming.priorityTaskRewardMinutes) {
+            violations.append(.init(
+                code: .invalidGamingReward,
+                field: "gaming.priorityTaskRewardMinutes"
+            ))
+        }
         appendTimeViolation(wake.window.start, field: "wake.window.start", to: &violations)
         appendTimeViolation(wake.window.end, field: "wake.window.end", to: &violations)
         if wake.window.start == wake.window.end {
@@ -582,6 +616,9 @@ public struct PolicyViolation: Codable, Equatable, Sendable {
         case emptyApplicationClassification
         case duplicateApplicationClassification
         case applicationClassificationConflict
+        case unsupportedGamingPolicyVersion
+        case invalidGamingBudget
+        case invalidGamingReward
         case invalidWakeBudget
     }
 
