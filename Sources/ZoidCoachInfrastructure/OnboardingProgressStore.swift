@@ -252,6 +252,12 @@ public final class OnboardingProgressStore: @unchecked Sendable {
                 throw OnboardingProgressStoreError.structuralRegression
             }
         }
+        if current.completedSteps.contains(.reminders),
+           (incoming.reminderListDecisions != current.reminderListDecisions
+               || incoming.emptyReminderListFallbackConfirmed
+               != current.emptyReminderListFallbackConfirmed) {
+            throw OnboardingProgressStoreError.structuralRegression
+        }
     }
 
     private func validateDurableEffects(
@@ -269,7 +275,12 @@ public final class OnboardingProgressStore: @unchecked Sendable {
         for (step, effect) in currentEffects where incomingEffects[step] != effect {
             throw OnboardingProgressStoreError.durableEffectRegression(step)
         }
-        for step in Self.effectRequiredSteps where newlyCompleted.contains(step) {
+        let requiresReminderEffect = newlyCompleted.contains(.reminders)
+            && incoming.remindersAccess == .granted
+        let requiredSteps = Self.effectRequiredSteps.union(
+            requiresReminderEffect ? [.reminders] : []
+        )
+        for step in requiredSteps where newlyCompleted.contains(step) {
             guard let effect = incomingEffects[step] else {
                 throw OnboardingProgressStoreError.missingDurableEffect(step)
             }

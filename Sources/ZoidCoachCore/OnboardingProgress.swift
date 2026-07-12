@@ -77,6 +77,8 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public private(set) var remindersAccess: OnboardingAccessDecision?
     public private(set) var screenwatchAccess: OnboardingAccessDecision?
     public private(set) var notificationAccess: OnboardingAccessDecision?
+    public private(set) var reminderListDecisions: [ReminderListDecision]
+    public private(set) var emptyReminderListFallbackConfirmed: Bool
     public private(set) var completedEffects: [OnboardingCompletedEffect]
     public private(set) var finishedAt: Date?
 
@@ -90,6 +92,8 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         remindersAccess: OnboardingAccessDecision? = nil,
         screenwatchAccess: OnboardingAccessDecision? = nil,
         notificationAccess: OnboardingAccessDecision? = nil,
+        reminderListDecisions: [ReminderListDecision] = [],
+        emptyReminderListFallbackConfirmed: Bool = false,
         completedEffects: [OnboardingCompletedEffect] = [],
         finishedAt: Date? = nil
     ) throws {
@@ -102,6 +106,8 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         self.remindersAccess = remindersAccess
         self.screenwatchAccess = screenwatchAccess
         self.notificationAccess = notificationAccess
+        self.reminderListDecisions = reminderListDecisions.sorted { $0.listID < $1.listID }
+        self.emptyReminderListFallbackConfirmed = emptyReminderListFallbackConfirmed
         self.completedEffects = completedEffects
         self.finishedAt = finishedAt
         try validate()
@@ -117,6 +123,8 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         case remindersAccess
         case screenwatchAccess
         case notificationAccess
+        case reminderListDecisions
+        case emptyReminderListFallbackConfirmed
         case completedEffects
         case finishedAt
     }
@@ -150,6 +158,14 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
             step: .notifications,
             completedSteps: completedSteps
         )
+        reminderListDecisions = try container.decodeIfPresent(
+            [ReminderListDecision].self,
+            forKey: .reminderListDecisions
+        )?.sorted { $0.listID < $1.listID } ?? []
+        emptyReminderListFallbackConfirmed = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .emptyReminderListFallbackConfirmed
+        ) ?? false
         completedEffects = try container.decodeIfPresent(
             [OnboardingCompletedEffect].self,
             forKey: .completedEffects
@@ -169,6 +185,12 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         try container.encodeIfPresent(remindersAccess, forKey: .remindersAccess)
         try container.encodeIfPresent(screenwatchAccess, forKey: .screenwatchAccess)
         try container.encodeIfPresent(notificationAccess, forKey: .notificationAccess)
+        if !reminderListDecisions.isEmpty {
+            try container.encode(reminderListDecisions, forKey: .reminderListDecisions)
+        }
+        if emptyReminderListFallbackConfirmed {
+            try container.encode(true, forKey: .emptyReminderListFallbackConfirmed)
+        }
         if !completedEffects.isEmpty {
             try container.encode(completedEffects, forKey: .completedEffects)
         }
@@ -191,6 +213,8 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
             remindersAccess: remindersAccess,
             screenwatchAccess: screenwatchAccess,
             notificationAccess: notificationAccess,
+            reminderListDecisions: reminderListDecisions,
+            emptyReminderListFallbackConfirmed: emptyReminderListFallbackConfirmed,
             completedEffects: completedEffects,
             finishedAt: finishedAt
         )
@@ -198,6 +222,19 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
 
     public mutating func chooseCoachingMode(_ mode: InitialCoachingMode) {
         coachingMode = mode
+    }
+
+    public mutating func setReminderListDecision(_ isIncluded: Bool, listID: String) {
+        reminderListDecisions.removeAll { $0.listID == listID }
+        reminderListDecisions.append(ReminderListDecision(
+            listID: listID,
+            isIncluded: isIncluded
+        ))
+        reminderListDecisions.sort { $0.listID < $1.listID }
+    }
+
+    public mutating func confirmEmptyReminderListFallback() {
+        emptyReminderListFallbackConfirmed = true
     }
 
     public mutating func recordAccessDecision(
@@ -290,6 +327,12 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         guard Set(completedSteps).count == completedSteps.count else {
             throw OnboardingProgressError.duplicateCompletedStep
         }
+        let reminderListIDs = reminderListDecisions.map(\.listID)
+        guard reminderListIDs.allSatisfy({
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }), Set(reminderListIDs).count == reminderListIDs.count else {
+            throw OnboardingProgressError.invalidReminderListDecisions
+        }
         guard completedSteps == completedSteps.sorted(by: Self.stepOrder) else {
             throw OnboardingProgressError.completedStepsOutOfOrder
         }
@@ -379,6 +422,7 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
     case conflictingCompletedEffect(OnboardingStep)
     case duplicateCompletedEffect
     case invalidFlowID
+    case invalidReminderListDecisions
     @available(*, deprecated, message: "Persistence errors are reported by OnboardingProgressStoreError")
     case unreadableProgress(String)
 
@@ -416,6 +460,8 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
             "Onboarding progress contains duplicate effect receipts"
         case .invalidFlowID:
             "Onboarding progress flow identity is missing"
+        case .invalidReminderListDecisions:
+            "Onboarding reminder-list choices are invalid"
         case let .unreadableProgress(message):
             "Onboarding progress could not be read: \(message)"
         }

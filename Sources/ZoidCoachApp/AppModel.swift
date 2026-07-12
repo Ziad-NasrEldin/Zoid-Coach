@@ -74,7 +74,9 @@ final class AppModel: ObservableObject {
     private let meetingEvidenceCipherFactory: () throws -> any EvidenceCiphering
     private let todaySnapshotStore: TodaySnapshotStore?
     private let policyStore: PolicyStore?
+    private let reminderListPolicyLoader: @Sendable () throws -> ReminderListPolicy
     private let todayDashboardXPCClient: TodayDashboardXPCClient
+    private let synchronizeReminderSnapshots: @Sendable ([AgentReminderSnapshot]) async throws -> Void
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
 
@@ -88,13 +90,21 @@ final class AppModel: ObservableObject {
         liveServiceFactory: AppOSServiceFactory = .live,
         meetingEvidenceCipherFactory: AppMeetingEvidenceCipherFactory = .live,
         agentLaunchService: AgentLaunchService? = nil,
-        eventStore: EventStore? = nil
+        eventStore: EventStore? = nil,
+        reminderListPolicyLoader: (@Sendable () throws -> ReminderListPolicy)? = nil,
+        synchronizeReminderSnapshots: (@Sendable ([AgentReminderSnapshot]) async throws -> Void)? = nil
     ) {
         let resolvedAgentLaunchService = agentLaunchService
             ?? AgentLaunchService(runtimeEnvironment: runtimeEnvironment)
-        todayDashboardXPCClient = TodayDashboardXPCClient(
+        let resolvedTodayDashboardXPCClient = TodayDashboardXPCClient(
             runtimeEnvironment: runtimeEnvironment
         )
+        todayDashboardXPCClient = resolvedTodayDashboardXPCClient
+        self.synchronizeReminderSnapshots = synchronizeReminderSnapshots ?? { snapshots in
+            _ = try await resolvedTodayDashboardXPCClient.apply(
+                .synchronizeReminderSnapshots(snapshots)
+            )
+        }
         if let screenwatchReader {
             self.screenwatchReader = screenwatchReader
         } else {
@@ -140,7 +150,18 @@ final class AppModel: ObservableObject {
         }
         meetingArchive = try? ScreenwatchArchive(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         todaySnapshotStore = try? TodaySnapshotStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
-        policyStore = try? PolicyStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
+        let resolvedPolicyStore = try? PolicyStore(
+            databaseURL: runtimeEnvironment.databaseURL,
+            readOnly: true
+        )
+        policyStore = resolvedPolicyStore
+        self.reminderListPolicyLoader = reminderListPolicyLoader ?? {
+            guard let resolvedPolicyStore else {
+                throw AppModelPolicyError.policyStoreUnavailable
+            }
+            return try resolvedPolicyStore.current()?.policy.reminderLists
+                ?? .legacyAllLists
+        }
         Task {
             updateSource(resolvedAgentLaunchService.enableAndInspect())
             await refreshAllSources()
@@ -574,10 +595,20 @@ final class AppModel: ObservableObject {
     private func refreshReminderTasks() async {
         switch await remindersService.fetchIncompleteTasks() {
         case let .available(tasks):
+            let reminderListPolicy: ReminderListPolicy
+            do {
+                reminderListPolicy = try reminderListPolicyLoader()
+            } catch {
+                reminderTasksAreAvailable = false
+                reminderTasks = []
+                reminderTaskError = "Reminder tasks are hidden because the saved list policy could not be verified. Repair local storage, then refresh."
+                isLoadingReminderTasks = false
+                return
+            }
+            let tasks = reminderListPolicy.filteringExternalTasks(tasks, listID: { $0.listID })
             reminderTasksAreAvailable = true
             reminderTasks = tasks
-            _ = try? await todayDashboardXPCClient.apply(
-                .synchronizeReminderSnapshots(tasks.map {
+            try? await synchronizeReminderSnapshots(tasks.map {
                     AgentReminderSnapshot(
                         id: $0.id,
                         title: $0.title,
@@ -589,7 +620,6 @@ final class AppModel: ObservableObject {
                         modificationDate: $0.modificationDate
                     )
                 })
-            )
             reconcileDailyPlan(with: tasks)
         case .unavailable:
             reminderTasksAreAvailable = false
@@ -747,6 +777,10 @@ final class AppModel: ObservableObject {
         }
         return "Zoid Coach automation is paused. Resume it in Settings before changing Reminders or Calendar."
     }
+}
+
+private enum AppModelPolicyError: Error {
+    case policyStoreUnavailable
 }
 
 private enum AppModelPersistenceError: Error {

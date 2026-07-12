@@ -78,25 +78,39 @@ public struct QAFixtureOperationAuditEntry: Equatable, Codable, Sendable {
 
 public struct QAFixtureOSSeed: Equatable, Codable, Sendable {
     public let permissions: [QAFixturePermission: QAFixturePermissionState]
+    public let reminderLists: [QAFixtureReminderList]
     public let reminders: [SourceTask]
     public let calendarCommitments: [CalendarCommitment]
     public let notifications: [QAFixtureNotificationRecord]
 
     public init(
         permissions: [QAFixturePermission: QAFixturePermissionState] = [:],
+        reminderLists: [QAFixtureReminderList] = [],
         reminders: [SourceTask] = [],
         calendarCommitments: [CalendarCommitment] = [],
         notifications: [QAFixtureNotificationRecord] = []
     ) {
         self.permissions = permissions
+        self.reminderLists = reminderLists
         self.reminders = reminders
         self.calendarCommitments = calendarCommitments
         self.notifications = notifications
     }
 }
 
+public struct QAFixtureReminderList: Identifiable, Equatable, Codable, Sendable {
+    public let id: String
+    public let name: String
+
+    public init(id: String, name: String) {
+        self.id = id
+        self.name = name
+    }
+}
+
 public struct QAFixtureOSSnapshot: Equatable, Codable, Sendable {
     public let permissions: [QAFixturePermission: QAFixturePermissionState]
+    public let reminderLists: [QAFixtureReminderList]
     public let reminders: [SourceTask]
     public let calendarCommitments: [CalendarCommitment]
     public let notifications: [QAFixtureNotificationRecord]
@@ -104,12 +118,14 @@ public struct QAFixtureOSSnapshot: Equatable, Codable, Sendable {
 
     public init(
         permissions: [QAFixturePermission: QAFixturePermissionState],
+        reminderLists: [QAFixtureReminderList] = [],
         reminders: [SourceTask],
         calendarCommitments: [CalendarCommitment],
         notifications: [QAFixtureNotificationRecord],
         audit: [QAFixtureOperationAuditEntry]
     ) {
         self.permissions = permissions
+        self.reminderLists = reminderLists
         self.reminders = reminders
         self.calendarCommitments = calendarCommitments
         self.notifications = notifications

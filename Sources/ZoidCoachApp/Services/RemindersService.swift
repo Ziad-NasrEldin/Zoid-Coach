@@ -22,12 +22,30 @@ enum ReminderTaskLoad: Sendable {
     case unavailable
 }
 
+struct ReminderListChoice: Identifiable, Equatable, Sendable {
+    let id: String
+    let name: String
+}
+
+enum ReminderListLoad: Equatable, Sendable {
+    case available([ReminderListChoice])
+    case permissionRequired(String)
+    case unavailable(String)
+}
+
 @MainActor
 protocol RemindersServicing: AnyObject {
     var isProductionAdapter: Bool { get }
     func inspect() async -> SourceHealth
     func requestAccessAndInspect() async -> SourceHealth
+    func discoverLists() async -> ReminderListLoad
     func fetchIncompleteTasks() async -> ReminderTaskLoad
+}
+
+extension RemindersServicing {
+    func discoverLists() async -> ReminderListLoad {
+        .unavailable("Reminder-list discovery is unavailable for this adapter.")
+    }
 }
 
 @MainActor
@@ -134,6 +152,23 @@ final class RemindersService: RemindersServicing {
             })
     }
 
+    func discoverLists() async -> ReminderListLoad {
+        guard hasFullAccess else {
+            return .permissionRequired("Reminders full access is required to discover lists.")
+        }
+        let lists: [ReminderListChoice] = store.calendars(for: .reminder).compactMap { calendar in
+            let id = calendar.calendarIdentifier
+            let name = calendar.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !name.isEmpty else { return nil }
+            return ReminderListChoice(id: id, name: name)
+        }
+        return .available(lists.sorted {
+            if $0.name == $1.name { return $0.id < $1.id }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        })
+    }
+
     func completeTask(id: String) async -> Bool {
         guard hasFullAccess,
               let reminder = store.calendarItem(withIdentifier: id) as? EKReminder
@@ -215,6 +250,9 @@ final class DisabledQARemindersService: RemindersServicing {
     }
     func inspect() async -> SourceHealth { health }
     func requestAccessAndInspect() async -> SourceHealth { health }
+    func discoverLists() async -> ReminderListLoad {
+        .unavailable(detail)
+    }
     func fetchIncompleteTasks() async -> ReminderTaskLoad { .unavailable }
 
     private var health: SourceHealth {

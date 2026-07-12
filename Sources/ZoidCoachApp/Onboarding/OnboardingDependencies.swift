@@ -45,6 +45,7 @@ enum OnboardingDependencyError: LocalizedError {
     case gamingPolicyPersistenceUnavailable
     case firstDailyPlanUnavailable
     case invalidPolicyMutationReceipt
+    case reminderListSelectionRequired
 
     var errorDescription: String? {
         switch self {
@@ -54,6 +55,8 @@ enum OnboardingDependencyError: LocalizedError {
             "A visible first daily plan has not been prepared. Setup was not marked complete."
         case .invalidPolicyMutationReceipt:
             "The agent did not return a durable policy receipt. Setup was not advanced."
+        case .reminderListSelectionRequired:
+            "Choose Include or Exclude for every discovered Reminder list before continuing."
         }
     }
 }
@@ -62,6 +65,9 @@ enum OnboardingDependencyError: LocalizedError {
 struct OnboardingDependencies {
     let inspectReminders: () async -> SourceHealth
     let requestReminders: () async -> OnboardingAccessRequestResult
+    var discoverReminderLists: () async -> ReminderListLoad = {
+        .unavailable("Reminder-list discovery is unavailable.")
+    }
     let inspectScreenwatch: () async -> SourceHealth
     let inspectScreenwatchSetup: () async -> ScreenwatchSetupStatus
     let selectScreenwatchDirectory: (URL) async throws -> ScreenwatchSetupStatus
@@ -129,6 +135,7 @@ struct OnboardingDependencies {
                 }
                 return .init(health: health, decision: decision)
             },
+            discoverReminderLists: { await reminders.discoverLists() },
             inspectScreenwatch: { await screenwatch.inspect() },
             inspectScreenwatchSetup: { await screenwatchSetup.inspect() },
             selectScreenwatchDirectory: { try await screenwatchSetup.selectAlternateDaysDirectory($0) },

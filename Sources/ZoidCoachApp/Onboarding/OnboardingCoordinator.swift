@@ -15,6 +15,15 @@ enum OnboardingRoute: Equatable {
     case today
 }
 
+enum OnboardingReminderListDiscovery: Equatable {
+    case idle
+    case loading
+    case available([ReminderListChoice])
+    case empty
+    case permissionRequired(String)
+    case failed(String)
+}
+
 @MainActor
 final class OnboardingCoordinator: ObservableObject {
     @Published private(set) var progress: OnboardingProgress
@@ -33,6 +42,7 @@ final class OnboardingCoordinator: ObservableObject {
     @Published private(set) var deliveryResult: OnboardingDeliveryResult?
     @Published private(set) var testTaskCompleted = false
     @Published private(set) var firstDailyPlanResult: OnboardingFirstDailyPlanResult?
+    @Published private(set) var reminderListDiscovery: OnboardingReminderListDiscovery = .idle
     @Published private(set) var isWorking = false
 
     private let store: any OnboardingProgressPersisting
@@ -45,6 +55,7 @@ final class OnboardingCoordinator: ObservableObject {
     private var sourceRequestGeneration = UUID()
     private var deliveryGeneration = UUID()
     private var planGeneration = UUID()
+    private var reminderListGeneration = UUID()
 
     init(
         store: any OnboardingProgressPersisting,
@@ -76,6 +87,12 @@ final class OnboardingCoordinator: ObservableObject {
                 quietStartHour = policyDraft.quietStart.hour
                 quietEndHour = policyDraft.quietEnd.hour
                 gamingPolicy = OnboardingGamingPolicy(policy: policy.gaming)
+                for decision in progress.reminderListDecisions {
+                    policyDraft.setReminderListDecision(
+                        decision.isIncluded,
+                        listID: decision.listID
+                    )
+                }
             } catch {
                 policyIsAvailable = false
                 errorMessage = "Existing settings could not be loaded. Setup choices will not be applied until local storage recovers. \(error.localizedDescription)"
@@ -143,6 +160,12 @@ final class OnboardingCoordinator: ObservableObject {
     }
 
     func deferAccess(for step: OnboardingStep) {
+        if step == .reminders,
+           progress.remindersAccess == .granted
+            || sourceHealth[.reminders]?.state == .healthy {
+            errorMessage = "Reminders is already connected. Choose each list, or explicitly choose local-only planning from the list controls."
+            return
+        }
         sourceRequestGeneration = UUID()
         recordAccess(.deferred, for: step)
     }
@@ -173,6 +196,9 @@ final class OnboardingCoordinator: ObservableObject {
         guard sourceRequestGeneration == generation else { return }
         sourceHealth[step] = result.health
         recordAccess(result.decision, for: step)
+        if step == .reminders, result.decision == .granted {
+            await loadReminderLists()
+        }
     }
 
     func inspectCurrentSource() async {
@@ -197,7 +223,66 @@ final class OnboardingCoordinator: ObservableObject {
         sourceHealth[step] = health
         if health.state == .healthy, accessDecision(for: step) != nil {
             recordAccess(.granted, for: step)
+            if step == .reminders {
+                await loadReminderLists()
+            }
         }
+    }
+
+    func loadReminderLists() async {
+        guard let dependencies,
+              progress.remindersAccess == .granted else { return }
+        let generation = UUID()
+        reminderListGeneration = generation
+        reminderListDiscovery = .loading
+        let result = await dependencies.discoverReminderLists()
+        guard reminderListGeneration == generation else { return }
+        switch result {
+        case let .available(lists):
+            reminderListDiscovery = lists.isEmpty ? .empty : .available(lists)
+            errorMessage = nil
+        case let .permissionRequired(message):
+            reminderListDiscovery = .permissionRequired(message)
+            errorMessage = "Reminder permission is required before lists can be loaded. \(message)"
+        case let .unavailable(message):
+            reminderListDiscovery = .failed(message)
+            errorMessage = "Reminder lists could not be loaded. \(message)"
+        }
+    }
+
+    func setReminderListDecision(_ isIncluded: Bool, listID: String) {
+        guard case let .available(lists) = reminderListDiscovery,
+              lists.contains(where: { $0.id == listID }),
+              !isWorking else { return }
+        do {
+            var replacement = progress
+            replacement.setReminderListDecision(isIncluded, listID: listID)
+            progress = try store.save(replacement)
+            policyDraft.setReminderListDecision(isIncluded, listID: listID)
+            errorMessage = nil
+        } catch {
+            if let latest = try? store.load() {
+                progress = latest
+            }
+            errorMessage = "The Reminder-list choice could not be saved. \(error.localizedDescription)"
+        }
+    }
+
+    func confirmEmptyReminderListFallback() {
+        guard reminderListDiscovery == .empty, !isWorking else { return }
+        do {
+            var replacement = progress
+            replacement.confirmEmptyReminderListFallback()
+            progress = try store.save(replacement)
+            errorMessage = nil
+        } catch {
+            errorMessage = "Local fallback could not be confirmed. \(error.localizedDescription)"
+        }
+    }
+
+    func reminderListDecision(for listID: String) -> Bool? {
+        progress.reminderListDecisions.first(where: { $0.listID == listID })?.isIncluded
+            ?? policyDraft.reminderListPolicy.decision(for: listID)
     }
 
     func selectScreenwatchDirectory(_ url: URL) async {
@@ -286,22 +371,36 @@ final class OnboardingCoordinator: ObservableObject {
     var canContinue: Bool {
         switch progress.currentStep {
         case .reminders:
-            progress.remindersAccess != nil
+            guard let access = progress.remindersAccess else { return false }
+            return access == .granted ? reminderListSelectionIsValid : true
         case .screenwatch:
-            progress.screenwatchAccess != nil
+            return progress.screenwatchAccess != nil
         case .notifications:
-            progress.notificationAccess != nil
+            return progress.notificationAccess != nil
         case .coachingMode:
-            progress.coachingMode != nil
+            return progress.coachingMode != nil
         case .deliveryTest:
-            testTaskCompleted
+            return testTaskCompleted
                 && (progress.notificationAccess != .granted
                     || [.delivered, .scheduled].contains(deliveryResult?.state))
         case .firstDailyPlan:
-            firstDailyPlanResult?.state == .prepared
+            return firstDailyPlanResult?.state == .prepared
                 && firstDailyPlanResult?.items.isEmpty == false
         default:
-            true
+            return true
+        }
+    }
+
+    private var reminderListSelectionIsValid: Bool {
+        switch reminderListDiscovery {
+        case let .available(lists):
+            return !lists.isEmpty && lists.allSatisfy {
+                reminderListDecision(for: $0.id) != nil
+            }
+        case .empty:
+            return progress.emptyReminderListFallbackConfirmed
+        case .idle, .loading, .permissionRequired, .failed:
+            return false
         }
     }
 
@@ -358,6 +457,13 @@ final class OnboardingCoordinator: ObservableObject {
         guard let dependencies else { return nil }
         let policy: UserPolicy
         switch base.currentStep {
+        case .reminders:
+            guard base.remindersAccess == .granted else { return nil }
+            guard reminderListSelectionIsValid else {
+                throw OnboardingDependencyError.reminderListSelectionRequired
+            }
+            policyDraft.confirmReminderListConfiguration()
+            policy = policyDraft.policy(preserving: originalPolicy)
         case .activityClassification:
             policy = policyDraft.policy(preserving: originalPolicy)
         case .schedule:

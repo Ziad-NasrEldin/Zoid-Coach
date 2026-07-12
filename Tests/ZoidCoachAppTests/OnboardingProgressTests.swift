@@ -115,6 +115,32 @@ func onboardingStoreResumesTheExactPersistedStepAcrossRestarts() throws {
 }
 
 @Test
+func onboardingStoreResumesReminderListDraftAcrossRestarts() throws {
+    let qaRoot = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-onboarding-list-draft-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: qaRoot) }
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", qaRoot.path],
+        processEnvironment: [:]
+    ).environment
+    let firstProcess = OnboardingProgressStore(runtimeEnvironment: runtime)
+    var progress = try firstProcess.load()
+    try progress.completeCurrentStep(at: Date())
+    try progress.completeCurrentStep(at: Date())
+    try progress.recordAccessDecision(.granted, for: .reminders)
+    progress.setReminderListDecision(true, listID: "work-id")
+    progress.setReminderListDecision(false, listID: "personal-id")
+    progress = try firstProcess.save(progress)
+
+    let resumed = try OnboardingProgressStore(runtimeEnvironment: runtime).load()
+
+    #expect(resumed.reminderListDecisions == [
+        ReminderListDecision(listID: "personal-id", isIncluded: false),
+        ReminderListDecision(listID: "work-id", isIncluded: true),
+    ])
+}
+
+@Test
 func onboardingStoreRejectsCorruptProgressWithoutOverwritingIt() throws {
     let qaRoot = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-onboarding-corrupt-\(UUID().uuidString)", isDirectory: true)

@@ -5,6 +5,18 @@ import Testing
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
+private enum InjectedReminderListPolicyError: Error {
+    case failed
+}
+
+private actor ReminderSnapshotSyncRecorder {
+    private(set) var callCount = 0
+
+    func record(_: [AgentReminderSnapshot]) {
+        callCount += 1
+    }
+}
+
 @MainActor
 @Test
 func signedQAFixtureFlowsFromSeedThroughAppAgentMutationAndAppRefresh() async throws {
@@ -29,6 +41,8 @@ func signedQAFixtureFlowsFromSeedThroughAppAgentMutationAndAppRefresh() async th
         ),
         runtime: fixture.environment
     )
+    _ = try PolicyStore(databaseURL: fixture.environment.databaseURL)
+        .saveSystemMaintenancePolicy(.defaults(timeZoneIdentifier: "UTC"))
     var productionConstructionCount = 0
     let liveFactory = AppOSServiceFactory(
         reminders: { productionConstructionCount += 1; return RemindersService() },
@@ -93,6 +107,243 @@ func fixtureServicesExposeDeniedAndDeferredPermissionStates() async throws {
     #expect(calendar.selectionAvailability == .needsPermission)
     #expect(await notifications.inspect().state == .attention)
     #expect(await reminders.fetchIncompleteTasks().isUnavailable)
+}
+
+@MainActor
+@Test
+func qaReminderListDiscoveryUsesStableIdentifiersAndCurrentVisibleNames() async throws {
+    let fixture = try signedQARuntime("reminder-list-discovery")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    )
+    try adapter.reset(to: .init(
+        permissions: [.reminders: .granted],
+        reminderLists: [
+            QAFixtureReminderList(id: "  list-work  ", name: "Work"),
+            QAFixtureReminderList(id: "list-empty", name: "Empty List"),
+        ],
+        reminders: [
+            SourceTask(id: "rename-task", title: "Task", listIdentifier: "  list-work  ", priority: 1, dueDate: nil, notes: nil, isCompleted: false)
+        ]
+    ))
+    let service = QAFixtureRemindersService(adapter: adapter)
+
+    #expect(await service.discoverLists() == .available([
+        ReminderListChoice(id: "list-empty", name: "Empty List"),
+        ReminderListChoice(id: "  list-work  ", name: "Work"),
+    ]))
+
+    try adapter.reset(to: .init(
+        permissions: [.reminders: .granted],
+        reminderLists: [
+            QAFixtureReminderList(id: "  list-work  ", name: "Renamed Work"),
+        ],
+        reminders: [
+            SourceTask(id: "rename-task", title: "Task", listIdentifier: "  list-work  ", priority: 1, dueDate: nil, notes: nil, isCompleted: false)
+        ]
+    ))
+
+    #expect(await service.discoverLists() == .available([
+        ReminderListChoice(id: "  list-work  ", name: "Renamed Work"),
+    ]))
+    guard case let .available(tasks) = await service.fetchIncompleteTasks() else {
+        Issue.record("Expected QA Reminder tasks")
+        return
+    }
+    #expect(tasks.map(\.listID) == ["  list-work  "])
+    #expect(tasks.map(\.listName) == ["Renamed Work"])
+}
+
+@Test
+func duplicateQAListIdentifiersReturnTypedValidationErrorWithoutCrashing() throws {
+    let fixture = try signedQARuntime("duplicate-reminder-lists")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    try writeControl(
+        .init(
+            requestID: "seed-duplicate-reminder-lists",
+            operation: .seed,
+            seed: .init(reminderLists: [
+                QAFixtureReminderList(id: "duplicate", name: "First"),
+                QAFixtureReminderList(id: "duplicate", name: "Second"),
+            ])
+        ),
+        runtime: fixture.environment
+    )
+
+    #expect(throws: QAFixtureStateError.invalidPersistedState("invalid reminder lists")) {
+        try QAFixtureOSComposition.makeAuthorizedAdapter(
+            runtimeEnvironment: fixture.environment,
+            clock: .fixed(fixture.now)
+        )
+    }
+}
+
+@MainActor
+@Test
+func appRefreshUsesExactReminderListPolicyAndExcludesUnknownLists() async throws {
+    let fixture = try signedQARuntime("app-reminder-list-policy")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let opaqueID = "  list-work  "
+    try writeControl(
+        .init(
+            requestID: "seed-app-reminder-list-policy",
+            operation: .seed,
+            seed: .init(
+                permissions: [.reminders: .granted],
+                reminderLists: [
+                    QAFixtureReminderList(id: opaqueID, name: "Renamed Work"),
+                    QAFixtureReminderList(id: "personal", name: "Personal"),
+                    QAFixtureReminderList(id: "new-list", name: "New List"),
+                ],
+                reminders: [
+                    SourceTask(id: "included", title: "Included", listIdentifier: opaqueID, priority: 1, dueDate: nil, notes: nil, isCompleted: false),
+                    SourceTask(id: "excluded", title: "Excluded", listIdentifier: "personal", priority: 1, dueDate: nil, notes: nil, isCompleted: false),
+                    SourceTask(id: "unknown", title: "Unknown", listIdentifier: "new-list", priority: 1, dueDate: nil, notes: nil, isCompleted: false),
+                ]
+            )
+        ),
+        runtime: fixture.environment
+    )
+    let policy = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+        .replacingReminderListPolicy(ReminderListPolicy(
+            isConfigured: true,
+            decisions: [
+                ReminderListDecision(listID: opaqueID, isIncluded: true),
+                ReminderListDecision(listID: "personal", isIncluded: false),
+            ]
+        ))
+    _ = try PolicyStore(databaseURL: fixture.environment.databaseURL)
+        .saveSystemMaintenancePolicy(policy)
+    let model = AppModel(
+        runtimeEnvironment: fixture.environment,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: fixture.environment,
+            service: NoopAgentRegistration()
+        )
+    )
+
+    await model.refreshQAFixtureState()
+
+    #expect(model.reminderTasks.map(\.id) == ["included"])
+    #expect(model.reminderTasks.first?.listID == opaqueID)
+}
+
+@MainActor
+@Test
+func appFailsClosedWhenReminderListPolicyCannotBeVerified() async throws {
+    let fixture = try signedQARuntime("app-list-policy-failure")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    try writeControl(
+        .init(
+            requestID: "seed-app-list-policy-failure",
+            operation: .seed,
+            seed: .init(
+                permissions: [.reminders: .granted],
+                reminders: [
+                    SourceTask(id: "must-not-leak", title: "Hidden", listIdentifier: "private", priority: 1, dueDate: nil, notes: nil, isCompleted: false)
+                ]
+            )
+        ),
+        runtime: fixture.environment
+    )
+    let reminderStore = try ReminderSnapshotStore(
+        databaseURL: fixture.environment.databaseURL
+    )
+    _ = try reminderStore.synchronize([
+        ReminderSourceSnapshot(
+            id: "durable-existing",
+            title: "Existing durable import",
+            dueDate: nil,
+            priority: 1,
+            listID: "private"
+        )
+    ])
+    let syncRecorder = ReminderSnapshotSyncRecorder()
+    let model = AppModel(
+        runtimeEnvironment: fixture.environment,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: fixture.environment,
+            service: NoopAgentRegistration()
+        ),
+        reminderListPolicyLoader: { throw InjectedReminderListPolicyError.failed },
+        synchronizeReminderSnapshots: { await syncRecorder.record($0) }
+    )
+
+    await model.refreshQAFixtureState()
+
+    #expect(model.reminderTasks.isEmpty)
+    #expect(!model.isLoadingReminderTasks)
+    #expect(model.reminderTaskError?.contains("could not be verified") == true)
+    #expect(await syncRecorder.callCount == 0)
+    #expect(try reminderStore.loadIncomplete().map(\.id) == ["durable-existing"])
+}
+
+@MainActor
+@Test
+func settingsSaveImmediatelyRemovesExcludedReminderFromCurrentAppSession() async throws {
+    let fixture = try signedQARuntime("settings-list-refresh")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    try writeControl(
+        .init(
+            requestID: "seed-settings-list-refresh",
+            operation: .seed,
+            seed: .init(
+                permissions: [.reminders: .granted],
+                reminderLists: [
+                    QAFixtureReminderList(id: "work", name: "Work"),
+                    QAFixtureReminderList(id: "personal", name: "Personal"),
+                ],
+                reminders: [
+                    SourceTask(id: "work-task", title: "Work", listIdentifier: "work", priority: 1, dueDate: nil, notes: nil, isCompleted: false),
+                    SourceTask(id: "personal-task", title: "Personal", listIdentifier: "personal", priority: 1, dueDate: nil, notes: nil, isCompleted: false),
+                ]
+            )
+        ),
+        runtime: fixture.environment
+    )
+    let store = try PolicyStore(databaseURL: fixture.environment.databaseURL)
+    _ = try store.saveSystemMaintenancePolicy(.defaults(timeZoneIdentifier: "UTC"))
+    let model = AppModel(
+        runtimeEnvironment: fixture.environment,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: fixture.environment,
+            service: NoopAgentRegistration()
+        )
+    )
+    await model.refreshQAFixtureState()
+    #expect(Set(model.reminderTasks.map(\.id)) == ["work-task", "personal-task"])
+    let controller = SettingsPolicyController(
+        databaseURL: fixture.environment.databaseURL,
+        runtimeEnvironment: fixture.environment,
+        savePolicyThroughAgent: { request in
+            let receipt = try store.saveMutation(request)
+            return AgentMutationReceipt(
+                accepted: true,
+                message: "saved",
+                policyVersion: receipt.resultingVersion,
+                policyMutationReceipt: receipt
+            )
+        },
+        discoverReminderLists: {
+            .available([
+                ReminderListChoice(id: "work", name: "Work"),
+                ReminderListChoice(id: "personal", name: "Personal"),
+            ])
+        },
+        onReminderListPolicySaved: {
+            model.refreshReminderTasks()
+        }
+    )
+    controller.setReminderListDecision(true, listID: "work")
+    controller.setReminderListDecision(false, listID: "personal")
+
+    await controller.save()?.value
+    while model.isLoadingReminderTasks { await Task.yield() }
+
+    #expect(model.reminderTasks.map(\.id) == ["work-task"])
+    #expect(!controller.hasUnsavedChanges)
 }
 
 @Test

@@ -4,6 +4,10 @@ import Testing
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
 
+private enum FirstPlanPolicyFailure: Error {
+    case failed
+}
+
 @MainActor
 @Test
 func onboardingFirstPlanPersistsRealReminderTasksAndReturnsExactlyWhatTodayCanRender() async throws {
@@ -26,6 +30,109 @@ func onboardingFirstPlanPersistsRealReminderTasksAndReturnsExactlyWhatTodayCanRe
     })
     #expect(result.items.filter(\.isMainObjective).count == 1)
     #expect(result.items.allSatisfy { !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+}
+
+@MainActor
+@Test
+func onboardingFirstPlanUsesTheExactConfiguredReminderListIDs() async throws {
+    let databaseURL = onboardingPlanDatabaseURL("list-policy")
+    defer { removeOnboardingPlanDatabase(databaseURL) }
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let opaqueID = "  work-id  "
+    let policy = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+        .replacingReminderListPolicy(ReminderListPolicy(
+            isConfigured: true,
+            decisions: [
+                ReminderListDecision(listID: opaqueID, isIncluded: true),
+                ReminderListDecision(listID: "personal", isIncluded: false),
+            ]
+        ))
+    _ = try PolicyStore(databaseURL: databaseURL).saveSystemMaintenancePolicy(policy)
+    let reminders = FirstPlanRemindersStub(load: .available([
+        ReminderTask(id: "included", title: "Included", listID: opaqueID, listName: "Renamed Work", dueDate: now, priority: 1, notes: nil, modificationDate: nil),
+        ReminderTask(id: "excluded", title: "Excluded", listID: "personal", listName: "Personal", dueDate: now, priority: 1, notes: nil, modificationDate: nil),
+        ReminderTask(id: "unknown", title: "Unknown", listID: "new-list", listName: "New List", dueDate: now, priority: 1, notes: nil, modificationDate: nil),
+    ]))
+    let service = try OnboardingFirstDailyPlanService(
+        databaseURL: databaseURL,
+        remindersService: reminders,
+        now: { now },
+        planningCapacityOverride: { _ in 240 }
+    )
+
+    let result = await service.prepare()
+    let stored = try ReminderSnapshotStore(databaseURL: databaseURL).loadIncomplete()
+
+    #expect(result.items.map(\.id) == ["included"])
+    #expect(stored.filter { $0.sourceKind == .reminders }.map(\.id) == ["included"])
+    #expect(stored.first?.listID == opaqueID)
+}
+
+@MainActor
+@Test
+func onboardingFirstPlanFailsClosedWhenListPolicyCannotBeVerified() async throws {
+    let databaseURL = onboardingPlanDatabaseURL("list-policy-read-failure")
+    defer { removeOnboardingPlanDatabase(databaseURL) }
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let service = try OnboardingFirstDailyPlanService(
+        databaseURL: databaseURL,
+        remindersService: FirstPlanRemindersStub(load: .available([
+            ReminderTask(id: "must-not-import", title: "Hidden", listID: "private", listName: "Private", dueDate: now, priority: 1, notes: nil, modificationDate: nil)
+        ])),
+        now: { now },
+        planningCapacityOverride: { _ in 240 },
+        reminderListPolicyOverride: { throw FirstPlanPolicyFailure.failed }
+    )
+
+    let result = await service.prepare()
+
+    #expect(result.state == .failed)
+    #expect(result.items.isEmpty)
+    #expect(try ReminderSnapshotStore(databaseURL: databaseURL).loadIncomplete().isEmpty)
+}
+
+@MainActor
+@Test
+func onboardingFirstPlanAllExcludedRemovesImportedRowsButPreservesLocalRows() async throws {
+    let databaseURL = onboardingPlanDatabaseURL("all-excluded")
+    defer { removeOnboardingPlanDatabase(databaseURL) }
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let policy = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+        .replacingReminderListPolicy(ReminderListPolicy(
+            isConfigured: true,
+            decisions: [ReminderListDecision(listID: "work", isIncluded: false)]
+        ))
+    _ = try PolicyStore(databaseURL: databaseURL).saveSystemMaintenancePolicy(policy)
+    let reminderStore = try ReminderSnapshotStore(databaseURL: databaseURL)
+    _ = try reminderStore.synchronize([
+        ReminderSourceSnapshot(id: "previous-import", title: "Old import", dueDate: nil, priority: 0, listID: "work")
+    ])
+    let retainedLocal = ReminderSourceSnapshot(
+        id: "local-existing",
+        title: "Existing local task",
+        dueDate: nil,
+        priority: 0,
+        sourceKind: .local
+    )
+    _ = try reminderStore.upsertLocal(retainedLocal, observedAt: now)
+    let service = try OnboardingFirstDailyPlanService(
+        databaseURL: databaseURL,
+        remindersService: FirstPlanRemindersStub(load: .available([
+            ReminderTask(id: "excluded", title: "Excluded", listID: "work", listName: "Work", dueDate: now, priority: 1, notes: nil, modificationDate: nil),
+            ReminderTask(id: "unknown", title: "Unknown", listID: "new-list", listName: "New", dueDate: now, priority: 1, notes: nil, modificationDate: nil),
+        ])),
+        now: { now },
+        planningCapacityOverride: { _ in 240 }
+    )
+
+    let result = await service.prepare()
+    let stored = try reminderStore.loadIncomplete()
+
+    #expect(result.state == .prepared)
+    #expect(result.message.contains("All Reminders lists are excluded"))
+    #expect(stored.contains { $0.id == "local-existing" && $0.sourceKind == .local })
+    #expect(!stored.contains { $0.sourceKind == .reminders })
+    #expect(result.items.allSatisfy { $0.id != "excluded" && $0.id != "unknown" })
 }
 
 @MainActor
