@@ -54,6 +54,18 @@ struct CalendarPlanApprovalStateTests {
         #expect(state.writeState == .failed(commandIDs: ["calendar"]))
     }
 
+    @Test("cancelled writes are never presented as Calendar confirmation")
+    func cancelledWrite() {
+        var state = CalendarPlanApprovalState()
+        state.queued(commandIDs: ["calendar", "reminder"])
+        state.reconcile(with: [
+            audit("calendar", .cancelled),
+            audit("reminder", .succeeded)
+        ])
+
+        #expect(state.writeState == .failed(commandIDs: ["calendar"]))
+    }
+
     @Test("duplicate command identifiers remain one tracked write")
     func duplicateReceipt() {
         var state = CalendarPlanApprovalState()
