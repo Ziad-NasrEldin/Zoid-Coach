@@ -193,7 +193,17 @@ public final class TaskExecutionStore: @unchecked Sendable {
     }
 
     private func continueSprintOpenEnded(taskID: String, at date: Date) throws {
-        guard let sprint = try openSprint(taskID: taskID) else { return }
+        guard let sprint = try openSprint(taskID: taskID) else {
+            throw TaskExecutionStoreError.sprintUnavailable
+        }
+        if sprint.state == .continuedOpenEnded {
+            return
+        }
+        guard sprint.state == .expired
+                || sprint.elapsedSeconds(at: date) >= TimeInterval(sprint.durationMinutes * 60)
+        else {
+            throw TaskExecutionStoreError.sprintStillActive
+        }
         try updateSprint(
             id: sprint.id,
             state: .continuedOpenEnded,
@@ -379,11 +389,13 @@ public final class TaskExecutionStore: @unchecked Sendable {
 }
 
 public enum TaskExecutionStoreError: LocalizedError {
-    case openDatabase, schema, read, write, invalidSprintDuration
+    case openDatabase, schema, read, write, invalidSprintDuration, sprintUnavailable, sprintStillActive
 
     public var errorDescription: String? {
         switch self {
         case .invalidSprintDuration: "Choose a sprint from 1 to 240 minutes."
+        case .sprintUnavailable: "Start a bounded sprint before continuing without a timer."
+        case .sprintStillActive: "The sprint is still running. Wait for the boundary before continuing without a timer."
         case .openDatabase, .schema, .read, .write: "Could not persist task execution state."
         }
     }

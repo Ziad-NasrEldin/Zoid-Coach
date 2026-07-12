@@ -179,6 +179,29 @@ func sleepingPastSprintEndNeverCompletesTaskAndCanContinueOpenEnded() throws {
 }
 
 @Test
+func openEndedContinuationRequiresAnExpiredSprintAndIsIdempotent() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-sprint-continuation-boundary-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let store = try TaskExecutionStore(databaseURL: url)
+
+    #expect(throws: TaskExecutionStoreError.self) {
+        try store.apply(.continueOpenEnded, taskID: "task", at: start)
+    }
+    #expect(try store.activeTask(now: start) == nil)
+
+    try store.apply(.startSprint10, taskID: "task", at: start)
+    #expect(throws: TaskExecutionStoreError.self) {
+        try store.apply(.continueOpenEnded, taskID: "task", at: start.addingTimeInterval(599))
+    }
+    #expect(try store.activeTask(now: start.addingTimeInterval(599))?.sprint?.state == .active)
+
+    try store.apply(.continueOpenEnded, taskID: "task", at: start.addingTimeInterval(600))
+    try store.apply(.continueOpenEnded, taskID: "task", at: start.addingTimeInterval(700))
+    #expect(try store.activeTask(now: start.addingTimeInterval(700))?.sprint?.state == .continuedOpenEnded)
+}
+
+@Test
 func switchingTasksPausesBoundedSprintAndPreservesItsTime() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-sprint-switch-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: url) }
