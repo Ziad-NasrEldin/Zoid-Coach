@@ -34,6 +34,30 @@ func screenwatchArchiveIngestsEachObservationOnlyOnceAcrossRepeatedRuns() throws
 }
 
 @Test
+func screenwatchArchiveAdvancesThroughLargeLogsInBoundedChunks() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("screenwatch-chunk-\(UUID().uuidString)", isDirectory: true)
+    let day = root.appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let filler = Data((String(repeating: "x", count: 4_095) + "\n").utf8)
+    var log = Data()
+    for _ in 0..<4_097 { log.append(filler) }
+    log.append(Data("{\"t\":\"09-00-00\",\"epoch\":1783663200,\"app\":\"Cursor\",\"window\":\"Project\",\"url\":\"\",\"img\":false}\n".utf8))
+    try log.write(to: day.appendingPathComponent("log.jsonl"))
+    let archive = try ScreenwatchArchive(databaseURL: root.appendingPathComponent("zoid-coach.sqlite"))
+    let date = Date(timeIntervalSince1970: 1_783_663_210)
+
+    let first = try archive.ingestToday(from: root, now: date)
+    let second = try archive.ingestToday(from: root, now: date)
+    let third = try archive.ingestToday(from: root, now: date)
+
+    #expect(first.insertedCount == 0)
+    #expect(second.insertedCount == 1)
+    #expect(third.totalRecordsRead == 0)
+}
+
+@Test
 func screenwatchCheckpointLeavesPartialLineForTheNextTailPass() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
     let day = root.appendingPathComponent("2026-07-10", isDirectory: true)

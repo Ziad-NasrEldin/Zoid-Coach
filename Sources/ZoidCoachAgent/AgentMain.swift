@@ -52,6 +52,23 @@ struct ZoidCoachAgentMain {
             let captureConfigurationStore = NativeCaptureConfigurationStore(
                 fileURL: runtimeResolution.environment.nativeCaptureConfigurationURL
             )
+            let legacyScreenwatchSource: Result<ScreenwatchDirectoryLease, Error> = Result {
+                try ScreenwatchSourceRepository(
+                    runtimeEnvironment: runtimeResolution.environment
+                ).resolveCanonicalSource()
+            }
+            try FileManager.default.createDirectory(
+                at: configuration.nativeCaptureDirectory,
+                withIntermediateDirectories: true
+            )
+            let nativeCaptureSource = try ScreenwatchDirectoryLease(
+                rootURL: configuration.nativeCaptureDirectory,
+                source: .nativeCapture
+            )
+            let activeScreenwatchSource: @Sendable () throws -> ScreenwatchDirectoryLease = {
+                let mode = try captureConfigurationStore.load().mode
+                return mode == .native ? nativeCaptureSource : try legacyScreenwatchSource.get()
+            }
             var persistedCaptureConfiguration = try captureConfigurationStore.load()
             if configuration.nativeCapture || !configuration.captureDisplayIDs.isEmpty {
                 persistedCaptureConfiguration = NativeCaptureConfiguration(
@@ -143,9 +160,9 @@ struct ZoidCoachAgentMain {
                 }
             )
             let checkpointStore = try ProcessingCheckpointStore(databaseURL: configuration.databaseURL)
-            let maintenanceService = try ScreenwatchMaintenanceService(
+            let maintenanceService = try? ScreenwatchMaintenanceService(
                 databaseURL: configuration.databaseURL,
-                screenwatchDirectory: configuration.activeCaptureDirectory(using: captureConfigurationStore)
+                screenwatchSource: activeScreenwatchSource()
             )
             let notificationCoordinator: PromptNotificationCoordinator
             if let qaFixtureAdapter {
@@ -492,10 +509,21 @@ struct ZoidCoachAgentMain {
                     try Self.replayPendingPromptEffects(store: promptStore, router: promptEffectRouter)
                     if !resourceConstrained,
                        lastMaintenanceAttempt.map({ Date().timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true {
-                        _ = try? maintenanceService.run(policy: policy, now: Date(), mode: .apply)
+                        _ = try? maintenanceService?.run(policy: policy, now: Date(), mode: .apply)
                         lastMaintenanceAttempt = Date()
                     }
-                    let result = try archive.ingestToday(from: configuration.activeCaptureDirectory(using: captureConfigurationStore), now: Date())
+                    let result: ScreenwatchIngestionResult
+                    do {
+                        result = try archive.ingestToday(from: try activeScreenwatchSource(), now: Date())
+                        try? checkpointStore.recordSuccess(sourceID: "screenwatch-canonical-source", at: Date())
+                    } catch {
+                        try? checkpointStore.recordFailure(
+                            sourceID: "screenwatch-canonical-source",
+                            at: Date(),
+                            diagnostic: String(describing: type(of: error))
+                        )
+                        result = ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0)
+                    }
                     let analysis = policy.privacy.screenshotAnalysisEnabled && !resourceConstrained
                         ? try await archive.analyzePendingWhatsAppScreenshots()
                         : MeetingAnalysisResult(screenshotsProcessed: 0, candidatesCreated: 0)
@@ -663,7 +691,18 @@ struct ZoidCoachAgentMain {
                     }
                 }
             } else {
-                let result = try archive.ingestToday(from: configuration.activeCaptureDirectory(using: captureConfigurationStore), now: Date())
+                let result: ScreenwatchIngestionResult
+                do {
+                    result = try archive.ingestToday(from: try activeScreenwatchSource(), now: Date())
+                    try? checkpointStore.recordSuccess(sourceID: "screenwatch-canonical-source", at: Date())
+                } catch {
+                    try? checkpointStore.recordFailure(
+                        sourceID: "screenwatch-canonical-source",
+                        at: Date(),
+                        diagnostic: String(describing: type(of: error))
+                    )
+                    result = ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0)
+                }
                 let analysis = try await archive.analyzePendingWhatsAppScreenshots()
                 try await Self.processMeetingPrompts(
                     archive: archive,

@@ -35,6 +35,44 @@ func historicalScreenwatchBackfillInvokesEachCompletedDayExactlyOnce() throws {
 }
 
 @Test
+func historicalScreenwatchCheckpointsAreScopedToOpenedSourceIdentity() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("screenwatch-history-source-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let firstSource = root.appendingPathComponent("first", isDirectory: true)
+    let secondSource = root.appendingPathComponent("second", isDirectory: true)
+    try makeScreenwatchDay("2026-07-07", in: firstSource)
+    try makeScreenwatchDay("2026-07-07", in: secondSource)
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let invocations = DayInvocationRecorder()
+    let first = try ScreenwatchMaintenanceService(
+        databaseURL: databaseURL,
+        screenwatchDirectory: firstSource,
+        ingestDay: { _, day in
+            invocations.record(day)
+            return .init(insertedCount: 1, totalRecordsRead: 1)
+        }
+    )
+    let second = try ScreenwatchMaintenanceService(
+        databaseURL: databaseURL,
+        screenwatchDirectory: secondSource,
+        ingestDay: { _, day in
+            invocations.record(day)
+            return .init(insertedCount: 1, totalRecordsRead: 1)
+        }
+    )
+    let now = try #require(utcDate("2026-07-10T12:00:00Z"))
+
+    let firstReport = try first.run(policy: .defaults(timeZoneIdentifier: "UTC"), now: now)
+    let secondReport = try second.run(policy: .defaults(timeZoneIdentifier: "UTC"), now: now)
+
+    #expect(firstReport.historicalDaysIngested == 1)
+    #expect(secondReport.historicalDaysIngested == 1)
+    #expect(secondReport.historicalDaysSkipped == 0)
+    #expect(invocations.count == 2)
+}
+
+@Test
 func screenwatchMaintenanceEnforcesIndependentRetentionAndAuditsTheRun() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
     defer { try? FileManager.default.removeItem(at: root) }
