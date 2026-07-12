@@ -4,6 +4,7 @@ import ZoidCoachInfrastructure
 actor ScreenwatchReader {
     private let source: Result<ScreenwatchDirectoryLease, Error>
     private var activeStreamID: String?
+    private var fileIdentity: String?
     private var offset: UInt64 = 0
     private var trailingData = Data()
     private var recordsSeen = 0
@@ -56,7 +57,21 @@ actor ScreenwatchReader {
         let day = dayKey(for: now)
         let components = [day, "log.jsonl"]
         let streamID = "\(lease.sourceFingerprint):\(day)"
-        guard lease.fileExists(components) else {
+        let exists: Bool
+        do {
+            exists = try lease.fileExists(components)
+        } catch {
+            return SourceHealth(
+                id: .screenwatch,
+                title: "Screenwatch",
+                eyebrow: "Behavior",
+                state: .attention,
+                detail: "Telemetry could not be read safely",
+                evidence: "The canonical source rejected an unsafe or inaccessible child path",
+                actionTitle: "Repair"
+            )
+        }
+        guard exists else {
             resetIfNeeded(for: streamID)
             return SourceHealth(
                 id: .screenwatch,
@@ -123,6 +138,7 @@ actor ScreenwatchReader {
         guard activeStreamID != streamID else { return }
         activeStreamID = streamID
         offset = 0
+        fileIdentity = nil
         trailingData = Data()
         recordsSeen = 0
         imageRecordsSeen = 0
@@ -134,38 +150,38 @@ actor ScreenwatchReader {
         components: [String],
         streamID: String
     ) throws {
-        try lease.withOpenedFile(components) { opened in
-            let identity = "\(streamID):\(opened.identity)"
+        let previousOffset = offset
+        let read = try lease.read(
+            at: components,
+            offset: offset,
+            expectedIdentity: fileIdentity,
+            maximumBytes: 16 * 1_024 * 1_024
+        )
+        let identity = "\(streamID):\(read.identity)"
+        if activeStreamID != identity || read.offset < previousOffset {
             resetIfNeeded(for: identity)
-            if opened.size < offset {
-                offset = 0
-                trailingData = Data()
-                recordsSeen = 0
-                imageRecordsSeen = 0
-                lastRecord = nil
-            }
-            try opened.handle.seek(toOffset: offset)
-            let newData = try opened.handle.readToEnd() ?? Data()
-            offset += UInt64(newData.count)
-            guard !newData.isEmpty else { return }
+        }
+        fileIdentity = read.identity
+        offset = read.offset + UInt64(read.data.count)
+        let newData = read.data
+        guard !newData.isEmpty else { return }
 
-            var combined = trailingData
-            combined.append(newData)
-            let endsWithNewline = combined.last == 0x0A
-            var lines = combined.split(separator: 0x0A, omittingEmptySubsequences: true)
-            if !endsWithNewline, let partial = lines.popLast() {
-                trailingData = Data(partial)
-            } else {
-                trailingData = Data()
-            }
+        var combined = trailingData
+        combined.append(newData)
+        let endsWithNewline = combined.last == 0x0A
+        var lines = combined.split(separator: 0x0A, omittingEmptySubsequences: true)
+        if !endsWithNewline, let partial = lines.popLast() {
+            trailingData = Data(partial)
+        } else {
+            trailingData = Data()
+        }
 
-            let decoder = JSONDecoder()
-            for line in lines {
-                guard let record = try? decoder.decode(ScreenwatchRecord.self, from: Data(line)) else { continue }
-                recordsSeen += 1
-                if record.img { imageRecordsSeen += 1 }
-                lastRecord = record
-            }
+        let decoder = JSONDecoder()
+        for line in lines {
+            guard let record = try? decoder.decode(ScreenwatchRecord.self, from: Data(line)) else { continue }
+            recordsSeen += 1
+            if record.img { imageRecordsSeen += 1 }
+            lastRecord = record
         }
     }
 }

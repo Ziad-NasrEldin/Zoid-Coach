@@ -90,16 +90,17 @@ public struct ScreenwatchBookmarkAccess: Sendable {
     )
 }
 
-public struct ScreenwatchDirectoryEntry: Equatable, Sendable {
+package struct ScreenwatchDirectoryEntry: Equatable, Sendable {
     public let name: String
     public let isDirectory: Bool
     public let isRegularFile: Bool
 }
 
-public struct ScreenwatchOpenedFile: @unchecked Sendable {
-    public let handle: FileHandle
-    public let size: UInt64
-    public let identity: String
+package struct ScreenwatchFileRead: Sendable {
+    package let data: Data
+    package let size: UInt64
+    package let identity: String
+    package let offset: UInt64
 }
 
 public final class ScreenwatchDirectoryLease: @unchecked Sendable {
@@ -111,7 +112,7 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
     private let stopAccess: (@Sendable () -> Void)?
     private let lock = NSLock()
 
-    public init(
+    package convenience init(
         rootURL: URL,
         source: ScreenwatchSourceKind,
         stopAccess: (@Sendable () -> Void)? = nil
@@ -119,19 +120,22 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
         guard rootURL.isFileURL, rootURL.path.hasPrefix("/") else {
             throw ScreenwatchSourceResolutionError.unsafePath
         }
-        var linkInformation = stat()
-        guard lstat(rootURL.path, &linkInformation) == 0 else {
-            throw ScreenwatchSourceResolutionError.missingDirectory
-        }
-        guard linkInformation.st_mode & S_IFMT != S_IFLNK else {
-            throw ScreenwatchSourceResolutionError.unsafePath
-        }
-        let descriptor = Darwin.open(rootURL.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
-        guard descriptor >= 0 else {
-            if errno == ENOENT { throw ScreenwatchSourceResolutionError.missingDirectory }
-            if errno == ELOOP { throw ScreenwatchSourceResolutionError.unsafePath }
-            throw ScreenwatchSourceResolutionError.notDirectory
-        }
+        let normalizedRootURL = Self.normalizedTemporaryAlias(rootURL)
+        let descriptor = try Self.openAbsoluteDirectory(normalizedRootURL, createMissing: false)
+        try self.init(
+            rootURL: normalizedRootURL,
+            source: source,
+            openedDescriptor: descriptor,
+            stopAccess: stopAccess
+        )
+    }
+
+    private init(
+        rootURL: URL,
+        source: ScreenwatchSourceKind,
+        openedDescriptor descriptor: Int32,
+        stopAccess: (@Sendable () -> Void)?
+    ) throws {
         var information = stat()
         guard fstat(descriptor, &information) == 0,
               information.st_mode & S_IFMT == S_IFDIR else {
@@ -139,13 +143,56 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
             throw ScreenwatchSourceResolutionError.notDirectory
         }
         self.rootDescriptor = descriptor
-        self.rootURL = rootURL.standardizedFileURL
+        self.rootURL = Self.normalizedTemporaryAlias(rootURL)
         self.source = source
         self.stopAccess = stopAccess
-        let fingerprintInput = "\(source.rawValue):\(self.rootURL.resolvingSymlinksInPath().path)"
+        let fingerprintInput = "\(source.rawValue):\(information.st_dev):\(information.st_ino)"
         self.sourceFingerprint = SHA256.hash(data: Data(fingerprintInput.utf8))
             .map { String(format: "%02x", $0) }
             .joined()
+    }
+
+    package static func descendant(
+        rootURL: URL,
+        candidateURL: URL,
+        source: ScreenwatchSourceKind,
+        stopAccess: (@Sendable () -> Void)? = nil
+    ) throws -> ScreenwatchDirectoryLease {
+        let normalizedRootURL = normalizedTemporaryAlias(rootURL)
+        let normalizedCandidateURL = normalizedTemporaryAlias(candidateURL)
+        let rootComponents = (normalizedRootURL.path as NSString).pathComponents
+        let candidateComponents = (normalizedCandidateURL.path as NSString).pathComponents
+        guard candidateComponents.count >= rootComponents.count,
+              Array(candidateComponents.prefix(rootComponents.count)) == rootComponents else {
+            throw ScreenwatchSourceResolutionError.outsideQARunRoot
+        }
+        let rootDescriptor = try openAbsoluteDirectory(normalizedRootURL, createMissing: false)
+        var descriptor = rootDescriptor
+        for component in candidateComponents.dropFirst(rootComponents.count) {
+            let child = Darwin.openat(
+                descriptor,
+                component,
+                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+            )
+            Darwin.close(descriptor)
+            guard child >= 0 else {
+                if errno == ENOENT { throw ScreenwatchSourceResolutionError.missingDirectory }
+                if errno == ELOOP || errno == ENOTDIR {
+                    throw ScreenwatchSourceResolutionError.unsafePath
+                }
+                if errno == EACCES || errno == EPERM {
+                    throw ScreenwatchSourceResolutionError.securityScopeUnavailable
+                }
+                throw ScreenwatchSourceResolutionError.ioFailure
+            }
+            descriptor = child
+        }
+        return try ScreenwatchDirectoryLease(
+            rootURL: normalizedCandidateURL,
+            source: source,
+            openedDescriptor: descriptor,
+            stopAccess: stopAccess
+        )
     }
 
     deinit {
@@ -153,7 +200,7 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
         stopAccess?()
     }
 
-    public func entries(in components: [String] = []) throws -> [ScreenwatchDirectoryEntry] {
+    package func entries(in components: [String] = []) throws -> [ScreenwatchDirectoryEntry] {
         try lock.withLock {
             let directory = try openDirectory(components)
             defer { Darwin.close(directory) }
@@ -182,55 +229,60 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
         }
     }
 
-    public func fileExists(_ components: [String]) -> Bool {
-        (try? withOpenedFile(components) { _ in true }) ?? false
+    package func fileExists(_ components: [String]) throws -> Bool {
+        try lock.withLock {
+            let descriptor: Int32
+            do {
+                descriptor = try openFile(components)
+            } catch ScreenwatchSourceResolutionError.missingDirectory {
+                return false
+            }
+            Darwin.close(descriptor)
+            return true
+        }
     }
 
-    public func withOpenedFile<T>(
-        _ components: [String],
-        _ body: (ScreenwatchOpenedFile) throws -> T
-    ) throws -> T {
-        try lock.withLock {
-            guard let fileName = components.last else {
-                throw ScreenwatchSourceResolutionError.invalidRelativePath
-            }
-            let parent = try openDirectory(Array(components.dropLast()))
-            defer { Darwin.close(parent) }
-            guard isValidComponent(fileName) else {
-                throw ScreenwatchSourceResolutionError.invalidRelativePath
-            }
-            let descriptor = Darwin.openat(parent, fileName, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
-            guard descriptor >= 0 else {
-                if errno == ENOENT { throw ScreenwatchSourceResolutionError.missingDirectory }
-                if errno == ELOOP { throw ScreenwatchSourceResolutionError.unsafePath }
-                throw ScreenwatchSourceResolutionError.ioFailure
-            }
+    package func read(
+        at components: [String],
+        offset: UInt64 = 0,
+        expectedIdentity: String? = nil,
+        maximumBytes: Int
+    ) throws -> ScreenwatchFileRead {
+        guard maximumBytes >= 0, maximumBytes < Int.max else {
+            throw ScreenwatchSourceResolutionError.ioFailure
+        }
+        return try lock.withLock {
+            let descriptor = try openFile(components)
             var information = stat()
             guard fstat(descriptor, &information) == 0,
                   information.st_mode & S_IFMT == S_IFREG else {
                 Darwin.close(descriptor)
                 throw ScreenwatchSourceResolutionError.notRegularFile
             }
+            let identity = "\(information.st_dev):\(information.st_ino)"
+            let selectedOffset = expectedIdentity == nil || expectedIdentity == identity
+                ? min(offset, UInt64(max(0, information.st_size)))
+                : 0
             let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
-            let opened = ScreenwatchOpenedFile(
-                handle: handle,
-                size: UInt64(max(0, information.st_size)),
-                identity: "\(information.st_dev):\(information.st_ino)"
-            )
-            return try body(opened)
-        }
-    }
-
-    public func data(at components: [String], maximumBytes: Int = 8 * 1_024 * 1_024) throws -> Data {
-        try withOpenedFile(components) { opened in
-            guard opened.size <= UInt64(maximumBytes) else {
+            try handle.seek(toOffset: selectedOffset)
+            let data = try handle.read(upToCount: maximumBytes + 1) ?? Data()
+            guard data.count <= maximumBytes else {
                 throw ScreenwatchSourceResolutionError.ioFailure
             }
-            return try opened.handle.readToEnd() ?? Data()
+            return ScreenwatchFileRead(
+                data: data,
+                size: UInt64(max(0, information.st_size)),
+                identity: identity,
+                offset: selectedOffset
+            )
         }
     }
 
-    public func removeFile(_ components: [String]) throws {
+    package func data(at components: [String], maximumBytes: Int = 8 * 1_024 * 1_024) throws -> Data {
+        try read(at: components, maximumBytes: maximumBytes).data
+    }
+
+    package func removeFile(_ components: [String]) throws {
         try lock.withLock {
             guard let fileName = components.last, isValidComponent(fileName) else {
                 throw ScreenwatchSourceResolutionError.invalidRelativePath
@@ -246,6 +298,26 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
                 throw ScreenwatchSourceResolutionError.ioFailure
             }
         }
+    }
+
+    private func openFile(_ components: [String]) throws -> Int32 {
+        guard let fileName = components.last, isValidComponent(fileName) else {
+            throw ScreenwatchSourceResolutionError.invalidRelativePath
+        }
+        let parent = try openDirectory(Array(components.dropLast()))
+        defer { Darwin.close(parent) }
+        let descriptor = Darwin.openat(parent, fileName, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        guard descriptor >= 0 else {
+            if errno == ENOENT { throw ScreenwatchSourceResolutionError.missingDirectory }
+            if errno == ELOOP || errno == ENOTDIR {
+                throw ScreenwatchSourceResolutionError.unsafePath
+            }
+            if errno == EACCES || errno == EPERM {
+                throw ScreenwatchSourceResolutionError.securityScopeUnavailable
+            }
+            throw ScreenwatchSourceResolutionError.ioFailure
+        }
+        return descriptor
     }
 
     private func openDirectory(_ components: [String]) throws -> Int32 {
@@ -272,6 +344,65 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
         return descriptor
     }
 
+    package static func openAbsoluteDirectory(
+        _ url: URL,
+        createMissing: Bool,
+        mode: mode_t = S_IRWXU
+    ) throws -> Int32 {
+        let url = normalizedTemporaryAlias(url)
+        guard url.isFileURL, url.path.hasPrefix("/") else {
+            throw ScreenwatchSourceResolutionError.unsafePath
+        }
+        var descriptor = Darwin.open("/", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        guard descriptor >= 0 else { throw ScreenwatchSourceResolutionError.ioFailure }
+        for component in (url.path as NSString).pathComponents where component != "/" {
+            guard !component.isEmpty, component != ".", component != "..", !component.contains("/") else {
+                Darwin.close(descriptor)
+                throw ScreenwatchSourceResolutionError.unsafePath
+            }
+            var child = Darwin.openat(
+                descriptor,
+                component,
+                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+            )
+            if child < 0, errno == ENOENT, createMissing {
+                guard mkdirat(descriptor, component, mode) == 0 || errno == EEXIST else {
+                    Darwin.close(descriptor)
+                    throw ScreenwatchSourceResolutionError.ioFailure
+                }
+                child = Darwin.openat(
+                    descriptor,
+                    component,
+                    O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+                )
+            }
+            Darwin.close(descriptor)
+            guard child >= 0 else {
+                if errno == ENOENT { throw ScreenwatchSourceResolutionError.missingDirectory }
+                if errno == ELOOP || errno == ENOTDIR {
+                    throw ScreenwatchSourceResolutionError.unsafePath
+                }
+                if errno == EACCES || errno == EPERM {
+                    throw ScreenwatchSourceResolutionError.securityScopeUnavailable
+                }
+                throw ScreenwatchSourceResolutionError.ioFailure
+            }
+            descriptor = child
+        }
+        return descriptor
+    }
+
+    package static func normalizedTemporaryAlias(_ url: URL) -> URL {
+        let path = (url.path as NSString).standardizingPath
+        if path == "/var" || path.hasPrefix("/var/") {
+            return URL(fileURLWithPath: "/private" + path, isDirectory: true)
+        }
+        if path == "/tmp" || path.hasPrefix("/tmp/") {
+            return URL(fileURLWithPath: "/private" + path, isDirectory: true)
+        }
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
+
     private func isValidComponent(_ component: String) -> Bool {
         !component.isEmpty
             && component != "."
@@ -283,8 +414,10 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
 
 public final class ScreenwatchSourceRepository: @unchecked Sendable {
     public static let legacyBookmarkDefaultsKey = "screenwatch.setup.alternate-days-bookmark.v1"
+    private static let storeDirectoryName = "Zoid Coach"
+    private static let storeFileName = "screenwatch-source-v1.bookmark"
 
-    public let bookmarkFileURL: URL
+    package let bookmarkFileURL: URL
 
     private let runtimeEnvironment: RuntimeEnvironment
     private let bookmarkAccess: ScreenwatchBookmarkAccess
@@ -293,15 +426,13 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
 
     public init(
         runtimeEnvironment: RuntimeEnvironment,
-        bookmarkFileURL: URL? = nil,
         bookmarkAccess: ScreenwatchBookmarkAccess = .foundation,
         legacyDefaults: [UserDefaults]? = nil
     ) {
         self.runtimeEnvironment = runtimeEnvironment
-        self.bookmarkFileURL = bookmarkFileURL
-            ?? runtimeEnvironment.applicationSupportRoot
-                .appendingPathComponent("Zoid Coach", isDirectory: true)
-                .appendingPathComponent("screenwatch-source-v1.bookmark", isDirectory: false)
+        self.bookmarkFileURL = runtimeEnvironment.applicationSupportRoot
+            .appendingPathComponent(Self.storeDirectoryName, isDirectory: true)
+            .appendingPathComponent(Self.storeFileName, isDirectory: false)
         self.bookmarkAccess = bookmarkAccess
         if let legacyDefaults {
             self.legacyDefaults = legacyDefaults
@@ -317,7 +448,7 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
 
     public var hasAlternateSelection: Bool {
         lock.withLock {
-            if FileManager.default.fileExists(atPath: bookmarkFileURL.path) { return true }
+            if (try? bookmarkExists()) == true { return true }
             return legacyDefaults.contains {
                 $0.data(forKey: Self.legacyBookmarkDefaultsKey) != nil
             }
@@ -326,7 +457,7 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
 
     public func saveAlternate(_ url: URL) throws {
         try validateRuntimeBoundary(url)
-        _ = try ScreenwatchDirectoryLease(rootURL: url, source: .alternateBookmark)
+        _ = try makeLease(rootURL: url, source: .alternateBookmark)
         let data: Data
         do {
             data = try bookmarkAccess.create(url)
@@ -338,10 +469,15 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
 
     public func clearAlternate() throws {
         try lock.withLock {
-            if unlink(bookmarkFileURL.path) != 0, errno != ENOENT {
-                throw ScreenwatchSourceResolutionError.ioFailure
+            if let directory = try? storeDirectoryDescriptor(createMissing: false) {
+                defer { Darwin.close(directory) }
+                if unlinkat(directory, Self.storeFileName, 0) != 0, errno != ENOENT {
+                    throw ScreenwatchSourceResolutionError.ioFailure
+                }
+                guard fsync(directory) == 0 else {
+                    throw ScreenwatchSourceResolutionError.ioFailure
+                }
             }
-            try syncParentDirectory()
             for defaults in legacyDefaults {
                 defaults.removeObject(forKey: Self.legacyBookmarkDefaultsKey)
             }
@@ -352,7 +488,7 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
         let bookmark = try lock.withLock { try loadOrMigrateBookmark() }
         guard let bookmark else {
             try validateRuntimeBoundary(runtimeEnvironment.screenwatchDirectory)
-            return try ScreenwatchDirectoryLease(
+            return try makeLease(
                 rootURL: runtimeEnvironment.screenwatchDirectory,
                 source: .defaultLocation
             )
@@ -371,7 +507,7 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
             throw ScreenwatchSourceResolutionError.securityScopeUnavailable
         }
         do {
-            return try ScreenwatchDirectoryLease(
+            return try makeLease(
                 rootURL: resolution.url,
                 source: .alternateBookmark,
                 stopAccess: { [bookmarkAccess] in bookmarkAccess.stopAccess(resolution.url) }
@@ -387,11 +523,36 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
             throw ScreenwatchSourceResolutionError.unsafePath
         }
         guard case let .qa(runRoot) = runtimeEnvironment.mode else { return }
-        let candidate = url.resolvingSymlinksInPath().standardizedFileURL.path
-        let root = runRoot.resolvingSymlinksInPath().standardizedFileURL.path
-        guard candidate == root || candidate.hasPrefix(root + "/") else {
+        let candidate = (
+            ScreenwatchDirectoryLease.normalizedTemporaryAlias(url).path as NSString
+        ).pathComponents
+        let root = (
+            ScreenwatchDirectoryLease.normalizedTemporaryAlias(runRoot).path as NSString
+        ).pathComponents
+        guard candidate.count >= root.count,
+              Array(candidate.prefix(root.count)) == root else {
             throw ScreenwatchSourceResolutionError.outsideQARunRoot
         }
+    }
+
+    private func makeLease(
+        rootURL: URL,
+        source: ScreenwatchSourceKind,
+        stopAccess: (@Sendable () -> Void)? = nil
+    ) throws -> ScreenwatchDirectoryLease {
+        if case let .qa(runRoot) = runtimeEnvironment.mode {
+            return try .descendant(
+                rootURL: runRoot,
+                candidateURL: rootURL,
+                source: source,
+                stopAccess: stopAccess
+            )
+        }
+        return try ScreenwatchDirectoryLease(
+            rootURL: rootURL,
+            source: source,
+            stopAccess: stopAccess
+        )
     }
 
     private func loadOrMigrateBookmark() throws -> Data? {
@@ -406,15 +567,27 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
     }
 
     private func readBookmarkFile() throws -> Data? {
-        let descriptor = Darwin.open(bookmarkFileURL.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        let directory: Int32
+        do {
+            directory = try storeDirectoryDescriptor(createMissing: false)
+        } catch ScreenwatchSourceResolutionError.missingDirectory {
+            return nil
+        }
+        defer { Darwin.close(directory) }
+        let descriptor = Darwin.openat(
+            directory,
+            Self.storeFileName,
+            O_RDONLY | O_NOFOLLOW | O_CLOEXEC
+        )
         guard descriptor >= 0 else {
             if errno == ENOENT { return nil }
-            if errno == ELOOP { throw ScreenwatchSourceResolutionError.bookmarkStoreCorrupt }
             throw ScreenwatchSourceResolutionError.bookmarkStoreCorrupt
         }
         var information = stat()
         guard fstat(descriptor, &information) == 0,
               information.st_mode & S_IFMT == S_IFREG,
+              information.st_uid == geteuid(),
+              information.st_mode & 0o777 == 0o600,
               information.st_size > 0,
               information.st_size <= 1_048_576 else {
             Darwin.close(descriptor)
@@ -422,7 +595,11 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
         }
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         do {
-            return try handle.readToEnd()
+            let data = try handle.read(upToCount: 1_048_577) ?? Data()
+            guard !data.isEmpty, data.count <= 1_048_576 else {
+                throw ScreenwatchSourceResolutionError.bookmarkStoreCorrupt
+            }
+            return data
         } catch {
             throw ScreenwatchSourceResolutionError.bookmarkStoreCorrupt
         }
@@ -432,23 +609,29 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
         guard !data.isEmpty, data.count <= 1_048_576 else {
             throw ScreenwatchSourceResolutionError.bookmarkStoreCorrupt
         }
-        let parent = bookmarkFileURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(
-            at: parent,
-            withIntermediateDirectories: true,
-            attributes: [.posixPermissions: 0o700]
-        )
-        let temporary = parent.appendingPathComponent(".screenwatch-bookmark-\(UUID().uuidString).tmp")
-        let descriptor = Darwin.open(
-            temporary.path,
+        let directory = try storeDirectoryDescriptor(createMissing: true)
+        defer { Darwin.close(directory) }
+        let temporary = ".screenwatch-bookmark-\(UUID().uuidString).tmp"
+        let descriptor = Darwin.openat(
+            directory,
+            temporary,
             O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
-            S_IRUSR | S_IWUSR
+            0o600
         )
         guard descriptor >= 0 else { throw ScreenwatchSourceResolutionError.ioFailure }
         var shouldRemove = true
         defer {
             Darwin.close(descriptor)
-            if shouldRemove { unlink(temporary.path) }
+            if shouldRemove { _ = unlinkat(directory, temporary, 0) }
+        }
+        guard fchmod(descriptor, 0o600) == 0 else {
+            throw ScreenwatchSourceResolutionError.ioFailure
+        }
+        var information = stat()
+        guard fstat(descriptor, &information) == 0,
+              information.st_uid == geteuid(),
+              information.st_mode & 0o777 == 0o600 else {
+            throw ScreenwatchSourceResolutionError.ioFailure
         }
         let writeSucceeded = data.withUnsafeBytes { buffer -> Bool in
             guard let base = buffer.baseAddress else { return false }
@@ -463,27 +646,61 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
             }
             return true
         }
-        guard writeSucceeded, fsync(descriptor) == 0,
-              rename(temporary.path, bookmarkFileURL.path) == 0 else {
+        guard writeSucceeded,
+              fsync(descriptor) == 0,
+              renameat(directory, temporary, directory, Self.storeFileName) == 0,
+              fsync(directory) == 0 else {
             throw ScreenwatchSourceResolutionError.ioFailure
         }
         shouldRemove = false
-        _ = chmod(bookmarkFileURL.path, S_IRUSR | S_IWUSR)
-        try syncParentDirectory()
     }
 
-    private func syncParentDirectory() throws {
-        let descriptor = Darwin.open(
-            bookmarkFileURL.deletingLastPathComponent().path,
-            O_RDONLY | O_DIRECTORY | O_CLOEXEC
+    private func bookmarkExists() throws -> Bool {
+        let directory: Int32
+        do {
+            directory = try storeDirectoryDescriptor(createMissing: false)
+        } catch ScreenwatchSourceResolutionError.missingDirectory {
+            return false
+        }
+        defer { Darwin.close(directory) }
+        var information = stat()
+        if fstatat(directory, Self.storeFileName, &information, AT_SYMLINK_NOFOLLOW) == 0 {
+            return information.st_mode & S_IFMT == S_IFREG
+        }
+        if errno == ENOENT { return false }
+        throw ScreenwatchSourceResolutionError.bookmarkStoreCorrupt
+    }
+
+    private func storeDirectoryDescriptor(createMissing: Bool) throws -> Int32 {
+        let support = try ScreenwatchDirectoryLease.openAbsoluteDirectory(
+            runtimeEnvironment.applicationSupportRoot,
+            createMissing: createMissing,
+            mode: 0o700
         )
-        guard descriptor >= 0 else {
-            if errno == ENOENT { return }
+        var directory = Darwin.openat(
+            support,
+            Self.storeDirectoryName,
+            O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+        )
+        if directory < 0, errno == ENOENT, createMissing {
+            guard mkdirat(support, Self.storeDirectoryName, 0o700) == 0 || errno == EEXIST else {
+                Darwin.close(support)
+                throw ScreenwatchSourceResolutionError.ioFailure
+            }
+            directory = Darwin.openat(
+                support,
+                Self.storeDirectoryName,
+                O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+            )
+        }
+        Darwin.close(support)
+        guard directory >= 0 else {
+            if errno == ENOENT { throw ScreenwatchSourceResolutionError.missingDirectory }
+            if errno == ELOOP || errno == ENOTDIR {
+                throw ScreenwatchSourceResolutionError.bookmarkStoreCorrupt
+            }
             throw ScreenwatchSourceResolutionError.ioFailure
         }
-        defer { Darwin.close(descriptor) }
-        guard fsync(descriptor) == 0 else {
-            throw ScreenwatchSourceResolutionError.ioFailure
-        }
+        return directory
     }
 }

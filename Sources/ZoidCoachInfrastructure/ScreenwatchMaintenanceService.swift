@@ -165,11 +165,11 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
     private func discoverHistoricalDays(before now: Date, timeZone: TimeZone) throws -> [HistoricalDay] {
         let todayKey = Self.dayKey(now, timeZone: timeZone)
         let children = try screenwatchSource.entries()
-        return children.compactMap { entry -> HistoricalDay? in
+        return try children.compactMap { entry -> HistoricalDay? in
             let key = entry.name
             guard key < todayKey,
                   entry.isDirectory,
-                  screenwatchSource.fileExists([key, "log.jsonl"]),
+                  try screenwatchSource.fileExists([key, "log.jsonl"]),
                   let date = Self.dayDate(key, timeZone: timeZone)
             else { return nil }
             return HistoricalDay(key: key, date: date)

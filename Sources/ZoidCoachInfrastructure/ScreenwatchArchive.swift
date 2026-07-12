@@ -108,7 +108,7 @@ public final class ScreenwatchArchive: @unchecked Sendable {
 
     deinit { sqlite3_close(database) }
 
-    public func ingestToday(from baseDirectory: URL, now: Date = Date()) throws -> ScreenwatchIngestionResult {
+    package func ingestToday(from baseDirectory: URL, now: Date = Date()) throws -> ScreenwatchIngestionResult {
         let source = try ScreenwatchDirectoryLease(rootURL: baseDirectory, source: .defaultLocation)
         return try ingestToday(from: source, now: now)
     }
@@ -119,22 +119,20 @@ public final class ScreenwatchArchive: @unchecked Sendable {
     ) throws -> ScreenwatchIngestionResult {
         let dayKey = Self.dayKey(for: now)
         let logComponents = [dayKey, "log.jsonl"]
-        guard source.fileExists(logComponents) else {
+        guard try source.fileExists(logComponents) else {
             return ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0)
         }
         let sourceID = "screenwatch:\(source.sourceFingerprint):\(dayKey)"
         let checkpoint = try processingCheckpoint(sourceID: sourceID)
-        let read = try source.withOpenedFile(logComponents) { opened -> (Data, UInt64, String) in
-            let offset = checkpoint?.fileIdentity == opened.identity
-                && (checkpoint?.byteOffset ?? 0) <= opened.size
-                ? checkpoint?.byteOffset ?? 0
-                : 0
-            try opened.handle.seek(toOffset: offset)
-            return (try opened.handle.readToEnd() ?? Data(), offset, opened.identity)
-        }
-        let appendedData = read.0
-        let offset = read.1
-        let fileIdentity = read.2
+        let read = try source.read(
+            at: logComponents,
+            offset: checkpoint?.byteOffset ?? 0,
+            expectedIdentity: checkpoint?.fileIdentity,
+            maximumBytes: 16 * 1_024 * 1_024
+        )
+        let appendedData = read.data
+        let offset = read.offset
+        let fileIdentity = read.identity
         guard !appendedData.isEmpty,
               let finalNewline = appendedData.lastIndex(of: 0x0A)
         else { return ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0) }
@@ -594,7 +592,7 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         for extensionName in ["webp", "jpg", "jpeg"] {
             let name = "\(observation.timeLabel).\(extensionName)"
             let components = [dayKey, name]
-            if source.fileExists(components) {
+            if try source.fileExists(components) {
                 return (
                     try source.data(at: components, maximumBytes: 64 * 1_024 * 1_024),
                     source.rootURL

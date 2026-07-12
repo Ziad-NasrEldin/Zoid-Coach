@@ -355,7 +355,6 @@ private struct ScreenwatchSetupFixture {
     ) -> ScreenwatchSetupService {
         let repository = ScreenwatchSourceRepository(
             runtimeEnvironment: runtime,
-            bookmarkFileURL: bookmarkFileURL,
             bookmarkAccess: bookmarkAccess,
             legacyDefaults: [defaults]
         )

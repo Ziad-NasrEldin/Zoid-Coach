@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Testing
 @testable import ZoidCoachApp
@@ -20,6 +21,28 @@ func canonicalScreenwatchBookmarkMigratesOnceWithPrivateAtomicStorage() throws {
     #expect(FileManager.default.fileExists(atPath: fixture.bookmarkFileURL.path))
     let attributes = try FileManager.default.attributesOfItem(atPath: fixture.bookmarkFileURL.path)
     #expect((attributes[.posixPermissions] as? NSNumber)?.intValue == 0o600)
+    #expect((attributes[.ownerAccountID] as? NSNumber)?.uint32Value == geteuid())
+}
+
+@Test
+func canonicalScreenwatchLegacyMigrationKeepsLegacyValueWhenStoreParentIsUnsafe() throws {
+    let fixture = try CanonicalScreenwatchFixture(name: "legacy-crash-order")
+    defer { fixture.remove() }
+    let alternate = try fixture.makeDaysDirectory(named: "Alternate")
+    fixture.defaults.set(Data(alternate.path.utf8), forKey: ScreenwatchSourceRepository.legacyBookmarkDefaultsKey)
+    let storeParent = fixture.bookmarkFileURL.deletingLastPathComponent()
+    let outside = fixture.root.appendingPathComponent("Outside Store", isDirectory: true)
+    try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(
+        at: storeParent.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    try FileManager.default.createSymbolicLink(at: storeParent, withDestinationURL: outside)
+
+    #expect(throws: (any Error).self) {
+        _ = try fixture.repository().resolveCanonicalSource()
+    }
+    #expect(fixture.defaults.data(forKey: ScreenwatchSourceRepository.legacyBookmarkDefaultsKey) != nil)
 }
 
 @Test
@@ -52,7 +75,6 @@ func canonicalScreenwatchStaleOrInvalidBookmarkNeverFallsBackToDefault() throws 
         _ = try stale.resolveCanonicalSource()
     }
 
-    try Data("not-a-bookmark".utf8).write(to: fixture.bookmarkFileURL, options: .atomic)
     let invalid = fixture.repository(rejectResolution: true)
     #expect(throws: ScreenwatchSourceResolutionError.invalidBookmark) {
         _ = try invalid.resolveCanonicalSource()
@@ -129,8 +151,78 @@ func canonicalScreenwatchDescriptorRejectsLogSwappedToSymlink() throws {
     try FileManager.default.createSymbolicLink(at: log, withDestinationURL: outside)
 
     #expect(throws: (any Error).self) {
-        _ = try lease.data(at: ["2026-07-12", "log.jsonl"])
+        _ = try lease.fileExists(["2026-07-12", "log.jsonl"])
     }
+}
+
+@Test
+func canonicalScreenwatchRejectsIntermediateSourceSymlink() throws {
+    let fixture = try CanonicalScreenwatchFixture(name: "intermediate-symlink")
+    defer { fixture.remove() }
+    let realParent = fixture.root.appendingPathComponent("Real Parent", isDirectory: true)
+    let days = realParent.appendingPathComponent("days", isDirectory: true)
+    try FileManager.default.createDirectory(at: days, withIntermediateDirectories: true)
+    let linkedParent = fixture.root.appendingPathComponent("Linked Parent", isDirectory: true)
+    try FileManager.default.createSymbolicLink(at: linkedParent, withDestinationURL: realParent)
+
+    #expect(throws: ScreenwatchSourceResolutionError.unsafePath) {
+        _ = try ScreenwatchDirectoryLease(
+            rootURL: linkedParent.appendingPathComponent("days", isDirectory: true),
+            source: .defaultLocation
+        )
+    }
+}
+
+@Test
+func canonicalScreenwatchFingerprintTracksOpenedDirectoryIdentityNotPath() throws {
+    let fixture = try CanonicalScreenwatchFixture(name: "fingerprint")
+    defer { fixture.remove() }
+    let directory = try fixture.makeDaysDirectory(named: "Source")
+    var first: ScreenwatchDirectoryLease? = try .init(rootURL: directory, source: .defaultLocation)
+    var restarted: ScreenwatchDirectoryLease? = try .init(rootURL: directory, source: .defaultLocation)
+    let original = first!.sourceFingerprint
+
+    #expect(restarted!.sourceFingerprint == original)
+    first = nil
+    restarted = nil
+    try FileManager.default.removeItem(at: directory)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let replaced = try ScreenwatchDirectoryLease(rootURL: directory, source: .defaultLocation)
+
+    #expect(replaced.sourceFingerprint != original)
+}
+
+@Test
+func canonicalScreenwatchReadsAreBoundedEvenWhenFileExceedsAdvertisedLimit() throws {
+    let fixture = try CanonicalScreenwatchFixture(name: "growth-cap")
+    defer { fixture.remove() }
+    let directory = try fixture.makeDaysDirectory(named: "Source")
+    let day = directory.appendingPathComponent("2026-07-12", isDirectory: true)
+    try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+    try Data(repeating: 0x41, count: 1_025).write(to: day.appendingPathComponent("log.jsonl"))
+    let lease = try ScreenwatchDirectoryLease(rootURL: directory, source: .defaultLocation)
+
+    #expect(throws: ScreenwatchSourceResolutionError.ioFailure) {
+        _ = try lease.data(at: ["2026-07-12", "log.jsonl"], maximumBytes: 1_024)
+    }
+}
+
+@Test
+func canonicalScreenwatchBookmarkFinalSymlinkIsRejectedWithoutReadingTarget() throws {
+    let fixture = try CanonicalScreenwatchFixture(name: "bookmark-final-symlink")
+    defer { fixture.remove() }
+    let target = fixture.root.appendingPathComponent("target.bookmark")
+    try Data("outside".utf8).write(to: target)
+    try FileManager.default.createDirectory(
+        at: fixture.bookmarkFileURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    try FileManager.default.createSymbolicLink(at: fixture.bookmarkFileURL, withDestinationURL: target)
+
+    #expect(throws: ScreenwatchSourceResolutionError.bookmarkStoreCorrupt) {
+        _ = try fixture.repository().resolveCanonicalSource()
+    }
+    #expect(try Data(contentsOf: target) == Data("outside".utf8))
 }
 
 @Test @MainActor
@@ -204,7 +296,6 @@ private struct CanonicalScreenwatchFixture {
     ) -> ScreenwatchSourceRepository {
         ScreenwatchSourceRepository(
             runtimeEnvironment: runtime,
-            bookmarkFileURL: bookmarkFileURL,
             bookmarkAccess: .init(
                 create: { Data($0.path.utf8) },
                 resolve: { data in
