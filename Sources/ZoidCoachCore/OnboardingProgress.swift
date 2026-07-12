@@ -50,6 +50,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     }
 
     public private(set) var version: Int
+    public private(set) var persistenceRevision: UInt64
     public private(set) var currentStep: OnboardingStep
     public private(set) var completedSteps: [OnboardingStep]
     public private(set) var coachingMode: InitialCoachingMode?
@@ -60,6 +61,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
 
     public init(
         version: Int = Self.schemaVersion,
+        persistenceRevision: UInt64 = 0,
         currentStep: OnboardingStep = .welcome,
         completedSteps: [OnboardingStep] = [],
         coachingMode: InitialCoachingMode? = nil,
@@ -69,6 +71,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         finishedAt: Date? = nil
     ) throws {
         self.version = version
+        self.persistenceRevision = persistenceRevision
         self.currentStep = currentStep
         self.completedSteps = completedSteps
         self.coachingMode = coachingMode
@@ -81,6 +84,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case version
+        case persistenceRevision
         case currentStep
         case completedSteps
         case coachingMode
@@ -93,6 +97,10 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decode(Int.self, forKey: .version)
+        persistenceRevision = try container.decodeIfPresent(
+            UInt64.self,
+            forKey: .persistenceRevision
+        ) ?? 0
         currentStep = try container.decode(OnboardingStep.self, forKey: .currentStep)
         completedSteps = try container.decode([OnboardingStep].self, forKey: .completedSteps)
         coachingMode = try container.decodeIfPresent(InitialCoachingMode.self, forKey: .coachingMode)
@@ -121,6 +129,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(version, forKey: .version)
+        try container.encode(persistenceRevision, forKey: .persistenceRevision)
         try container.encode(currentStep, forKey: .currentStep)
         try container.encode(completedSteps, forKey: .completedSteps)
         try container.encodeIfPresent(coachingMode, forKey: .coachingMode)
@@ -132,6 +141,21 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
 
     public var isFinished: Bool {
         finishedAt != nil && completedSteps == Self.stepSequence
+    }
+
+    @_spi(OnboardingPersistence)
+    public func withPersistenceRevision(_ revision: UInt64) throws -> Self {
+        try Self(
+            version: version,
+            persistenceRevision: revision,
+            currentStep: currentStep,
+            completedSteps: completedSteps,
+            coachingMode: coachingMode,
+            remindersAccess: remindersAccess,
+            screenwatchAccess: screenwatchAccess,
+            notificationAccess: notificationAccess,
+            finishedAt: finishedAt
+        )
     }
 
     public mutating func chooseCoachingMode(_ mode: InitialCoachingMode) {

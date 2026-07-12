@@ -82,7 +82,7 @@ func onboardingStoreResumesTheExactPersistedStepAcrossRestarts() throws {
     try progress.completeCurrentStep(at: Date())
     try progress.completeCurrentStep(at: Date())
     try progress.recordAccessDecision(.denied, for: .reminders)
-    try firstProcess.save(progress)
+    progress = try firstProcess.save(progress)
 
     let restartedProcess = OnboardingProgressStore(runtimeEnvironment: runtime)
     let resumed = try restartedProcess.load()

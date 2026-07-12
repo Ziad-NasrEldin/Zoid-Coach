@@ -1,5 +1,5 @@
 import Foundation
-import ZoidCoachCore
+@_spi(OnboardingPersistence) import ZoidCoachCore
 
 public enum OnboardingCorruptionRecovery: Equatable, Sendable {
     case fail
@@ -7,6 +7,9 @@ public enum OnboardingCorruptionRecovery: Equatable, Sendable {
 }
 
 public enum OnboardingPersistenceCheckpoint: Equatable, Sendable {
+    case beforeLoadLockAttempt
+    case beforeSaveLockAttempt
+    case beforeResetLockAttempt
     case beforeStateCommit
     case recoveryPrepared
     case corruptStateQuarantined
@@ -17,6 +20,8 @@ public enum OnboardingProgressStoreError: LocalizedError, Equatable, Sendable {
     case corruptProgress(path: String)
     case unsafeFilesystemEntry(String)
     case filesystemOperation(String, Int32)
+    case staleRevision(expected: UInt64, actual: UInt64)
+    case revisionExhausted
 
     public var errorDescription: String? {
         switch self {
@@ -26,6 +31,10 @@ public enum OnboardingProgressStoreError: LocalizedError, Equatable, Sendable {
             "Onboarding persistence refused an unsafe filesystem entry: \(name)"
         case let .filesystemOperation(operation, code):
             "Onboarding persistence could not \(operation), errno \(code)"
+        case let .staleRevision(expected, actual):
+            "Onboarding progress revision is stale: expected \(expected), received \(actual)"
+        case .revisionExhausted:
+            "Onboarding progress revision cannot advance beyond UInt64.max"
         }
     }
 }
@@ -77,28 +86,42 @@ public final class OnboardingProgressStore: @unchecked Sendable {
 
     public func load() throws -> OnboardingProgress {
         try withStorage { storage in
-            try storage.withLock(exclusive: true) {
+            try storageCheckpoint(.beforeLoadLockAttempt)
+            return try storage.withLock(exclusive: true) {
                 try loadLocked(storage: storage).progress
             }
         }
     }
 
-    public func save(_ progress: OnboardingProgress) throws {
+    @discardableResult
+    public func save(_ progress: OnboardingProgress) throws -> OnboardingProgress {
         try progress.validate()
-        try withStorage { storage in
-            try storage.withLock(exclusive: true) {
+        return try withStorage { storage in
+            try storageCheckpoint(.beforeSaveLockAttempt)
+            return try storage.withLock(exclusive: true) {
                 let stored = try loadLocked(storage: storage)
-                let replacement = stored.isPersisted
-                    ? try mergeMonotonic(current: stored.progress, incoming: progress)
-                    : progress
-                guard !stored.isPersisted || replacement != stored.progress else { return }
+                let expectedRevision = stored.isPersisted
+                    ? stored.progress.persistenceRevision
+                    : 0
+                guard progress.persistenceRevision == expectedRevision else {
+                    throw OnboardingProgressStoreError.staleRevision(
+                        expected: expectedRevision,
+                        actual: progress.persistenceRevision
+                    )
+                }
+                guard expectedRevision < UInt64.max else {
+                    throw OnboardingProgressStoreError.revisionExhausted
+                }
+                let replacement = try progress.withPersistenceRevision(expectedRevision + 1)
                 try persist(replacement, storage: storage)
+                return replacement
             }
         }
     }
 
     public func reset() throws {
         try withStorage { storage in
+            try storageCheckpoint(.beforeResetLockAttempt)
             try storage.withLock(exclusive: true) {
                 if try storage.exists(Self.recoveryName) {
                     let transaction = try decode(
@@ -152,50 +175,6 @@ public final class OnboardingProgressStore: @unchecked Sendable {
         } catch {
             return (try recoverCorruptProgress(storage: storage), true)
         }
-    }
-
-    private func mergeMonotonic(
-        current: OnboardingProgress,
-        incoming: OnboardingProgress
-    ) throws -> OnboardingProgress {
-        if current.isFinished || incoming.completedSteps.count < current.completedSteps.count {
-            return current
-        }
-        return try OnboardingProgress(
-            currentStep: incoming.currentStep,
-            completedSteps: incoming.completedSteps,
-            coachingMode: current.completedSteps.contains(.coachingMode)
-                ? current.coachingMode
-                : incoming.coachingMode ?? current.coachingMode,
-            remindersAccess: mergedAccessDecision(
-                for: .reminders,
-                current: current.remindersAccess,
-                incoming: incoming.remindersAccess,
-                completedSteps: current.completedSteps
-            ),
-            screenwatchAccess: mergedAccessDecision(
-                for: .screenwatch,
-                current: current.screenwatchAccess,
-                incoming: incoming.screenwatchAccess,
-                completedSteps: current.completedSteps
-            ),
-            notificationAccess: mergedAccessDecision(
-                for: .notifications,
-                current: current.notificationAccess,
-                incoming: incoming.notificationAccess,
-                completedSteps: current.completedSteps
-            ),
-            finishedAt: incoming.finishedAt ?? current.finishedAt
-        )
-    }
-
-    private func mergedAccessDecision(
-        for step: OnboardingStep,
-        current: OnboardingAccessDecision?,
-        incoming: OnboardingAccessDecision?,
-        completedSteps: [OnboardingStep]
-    ) -> OnboardingAccessDecision? {
-        completedSteps.contains(step) ? current : incoming ?? current
     }
 
     private func recoverCorruptProgress(

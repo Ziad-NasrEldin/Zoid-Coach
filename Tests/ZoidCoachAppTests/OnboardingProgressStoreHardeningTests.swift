@@ -1,21 +1,150 @@
+import Darwin
 import Foundation
 import Testing
 import ZoidCoachCore
-import ZoidCoachInfrastructure
+@testable import ZoidCoachInfrastructure
 
 @Test
-func onboardingPersistenceIsPublishedForExplicitInfrastructureImports() throws {
+func downstreamPackagesCompileDocumentedImportsAndRejectTheRemovedCoreOnlyPath() throws {
     let repositoryRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
         .deletingLastPathComponent()
         .deletingLastPathComponent()
-    let manifest = try String(
-        contentsOf: repositoryRoot.appendingPathComponent("Package.swift"),
-        encoding: .utf8
+    let container = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-onboarding-consumers-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: container) }
+    let successfulPackage = container.appendingPathComponent("SuccessfulConsumers", isDirectory: true)
+    try writeDownstreamPackage(
+        at: successfulPackage,
+        repositoryRoot: repositoryRoot,
+        targets: [
+            (
+                name: "CoreProductConsumer",
+                product: "ZoidCoachCore",
+                source: """
+                import ZoidCoachCore
+                import ZoidCoachInfrastructure
+                let store: OnboardingProgressStore? = nil
+                print(store as Any)
+                """
+            ),
+            (
+                name: "InfrastructureProductConsumer",
+                product: "ZoidCoachInfrastructure",
+                source: """
+                import ZoidCoachCore
+                import ZoidCoachInfrastructure
+                let store: OnboardingProgressStore? = nil
+                print(store as Any)
+                """
+            ),
+        ]
+    )
+    let successfulBuild = try runDownstreamBuild(at: successfulPackage)
+    #expect(successfulBuild.status == 0, Comment(rawValue: successfulBuild.errorOutput))
+
+    let coreOnlyPackage = container.appendingPathComponent("CoreOnlyConsumer", isDirectory: true)
+    try writeDownstreamPackage(
+        at: coreOnlyPackage,
+        repositoryRoot: repositoryRoot,
+        targets: [(
+            name: "CoreOnlyConsumer",
+            product: "ZoidCoachCore",
+            source: """
+            import ZoidCoachCore
+            let store: OnboardingProgressStore? = nil
+            print(store as Any)
+            """
+        )]
+    )
+    let rejectedBuild = try runDownstreamBuild(at: coreOnlyPackage)
+    #expect(rejectedBuild.status != 0)
+    #expect(rejectedBuild.errorOutput.contains("cannot find type 'OnboardingProgressStore' in scope"))
+}
+
+@Test
+func descriptorDirectoryCreationSyncsEachParentImmediatelyAfterMkdir() throws {
+    let container = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-descriptor-sync-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: container) }
+    try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+    let root = container.appendingPathComponent("Application Support", isDirectory: true)
+    let recorder = DescriptorCheckpointRecorder()
+
+    _ = try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
+        rootURL: root,
+        directoryName: "Zoid Coach",
+        createRootIfMissing: true,
+        checkpoint: recorder.record,
+        unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
+        filesystemError: OnboardingProgressStoreError.filesystemOperation
     )
 
-    #expect(manifest.contains(".library(name: \"ZoidCoachInfrastructure\""))
-    _ = OnboardingProgressStore.self
+    #expect(recorder.values == [
+        .createdRootComponent("Application Support"),
+        .syncedRootComponentParent("Application Support"),
+        .createdStateDirectory("Zoid Coach"),
+        .syncedStateDirectoryParent("Zoid Coach"),
+    ])
+}
+
+@Test
+func descriptorDirectoryCreationFailsBeforeUseWhenParentSyncFails() throws {
+    let container = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-descriptor-sync-failure-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: container) }
+    try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+    let root = container.appendingPathComponent("Application Support", isDirectory: true)
+    let recorder = DescriptorCheckpointRecorder()
+    let operations = DescriptorRelativeStateDirectoryOperations(
+        createDirectory: DescriptorRelativeStateDirectoryOperations.live.createDirectory,
+        syncDirectory: { _ in EIO }
+    )
+
+    #expect(throws: OnboardingProgressStoreError.filesystemOperation(
+        "sync root component Application Support",
+        EIO
+    )) {
+        try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
+            rootURL: root,
+            directoryName: "Zoid Coach",
+            createRootIfMissing: true,
+            operations: operations,
+            checkpoint: recorder.record,
+            unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
+            filesystemError: OnboardingProgressStoreError.filesystemOperation
+        )
+    }
+    #expect(recorder.values == [.createdRootComponent("Application Support")])
+    #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("Zoid Coach").path))
+}
+
+@Test
+func descriptorDirectoryCreationSurfacesInjectedMkdirFailureWithoutCheckpoint() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-descriptor-mkdir-failure-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let recorder = DescriptorCheckpointRecorder()
+    let operations = DescriptorRelativeStateDirectoryOperations(
+        createDirectory: { _, _, _ in EACCES },
+        syncDirectory: DescriptorRelativeStateDirectoryOperations.live.syncDirectory
+    )
+
+    #expect(throws: OnboardingProgressStoreError.filesystemOperation(
+        "create state directory",
+        EACCES
+    )) {
+        try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
+            rootURL: root,
+            directoryName: "Zoid Coach",
+            operations: operations,
+            checkpoint: recorder.record,
+            unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
+            filesystemError: OnboardingProgressStoreError.filesystemOperation
+        )
+    }
+    #expect(recorder.values.isEmpty)
 }
 
 @Test
@@ -96,7 +225,59 @@ func onboardingMigratesLegacyVersionOneAccessDecisionsAtEveryProgressPoint() thr
             progress.notificationAccess,
         ] == testCase.expectedAccess)
         #expect(progress.finishedAt == testCase.finishedAt)
+        #expect(progress.persistenceRevision == 0)
     }
+}
+
+@Test
+func onboardingLatestRevisionCanCorrectAMigratedCompletedAccessDecision() throws {
+    let fixture = try OnboardingStoreFixture(name: "migrated-correction")
+    defer { fixture.remove() }
+    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    try FileManager.default.createDirectory(
+        at: store.fileURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let legacy: [String: Any] = [
+        "version": 1,
+        "currentStep": OnboardingStep.firstDailyPlan.rawValue,
+        "completedSteps": OnboardingProgress.stepSequence.map(\.rawValue),
+        "coachingMode": InitialCoachingMode.rulesOnly.rawValue,
+        "finishedAt": 100.0,
+    ]
+    try JSONSerialization.data(withJSONObject: legacy).write(to: store.fileURL)
+    var migrated = try store.load()
+    let stale = migrated
+    #expect(migrated.remindersAccess == .deferred)
+    #expect(migrated.persistenceRevision == 0)
+
+    try migrated.recordAccessDecision(.granted, for: .reminders)
+    migrated = try store.save(migrated)
+
+    #expect(migrated.remindersAccess == .granted)
+    #expect(migrated.persistenceRevision == 1)
+    #expect(try store.load() == migrated)
+    #expect(throws: OnboardingProgressStoreError.staleRevision(expected: 1, actual: 0)) {
+        try store.save(stale)
+    }
+}
+
+@Test
+func onboardingRevisionExhaustionFailsWithoutTrappingOrOverwriting() throws {
+    let fixture = try OnboardingStoreFixture(name: "revision-exhaustion")
+    defer { fixture.remove() }
+    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    try FileManager.default.createDirectory(
+        at: store.fileURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let exhausted = try OnboardingProgress(persistenceRevision: .max)
+    try JSONEncoder().encode(exhausted).write(to: store.fileURL)
+
+    #expect(throws: OnboardingProgressStoreError.revisionExhausted) {
+        try store.save(exhausted)
+    }
+    #expect(try store.load() == exhausted)
 }
 
 @Test
@@ -111,9 +292,11 @@ func onboardingDelayedStaleSavesCannotRegressProgressDecisionsOrCompletion() thr
     var twoStepsWithDecision = oneStep
     try twoStepsWithDecision.completeCurrentStep(at: now)
     try twoStepsWithDecision.recordAccessDecision(.denied, for: .reminders)
-    try forwardStore.save(twoStepsWithDecision)
+    twoStepsWithDecision = try forwardStore.save(twoStepsWithDecision)
 
-    try staleStore.save(oneStep)
+    #expect(throws: OnboardingProgressStoreError.staleRevision(expected: 1, actual: 0)) {
+        try staleStore.save(oneStep)
+    }
 
     #expect(try forwardStore.load() == twoStepsWithDecision)
 
@@ -128,12 +311,25 @@ func onboardingDelayedStaleSavesCannotRegressProgressDecisionsOrCompletion() thr
             completed.chooseCoachingMode(.rulesOnly)
         }
     }
-    try forwardStore.save(completed)
+    completed = try forwardStore.save(completed)
     #expect(completed.isFinished)
 
-    try staleStore.save(twoStepsWithDecision)
+    #expect(throws: OnboardingProgressStoreError.staleRevision(expected: 2, actual: 1)) {
+        try staleStore.save(twoStepsWithDecision)
+    }
 
     #expect(try forwardStore.load() == completed)
+
+    var corrected = try forwardStore.load()
+    try corrected.recordAccessDecision(.granted, for: .reminders)
+    corrected = try forwardStore.save(corrected)
+    #expect(corrected.remindersAccess == .granted)
+    #expect(corrected.persistenceRevision == 3)
+    #expect(try forwardStore.load() == corrected)
+
+    #expect(throws: OnboardingProgressStoreError.staleRevision(expected: 3, actual: 2)) {
+        try staleStore.save(completed)
+    }
 
     try forwardStore.reset()
 
@@ -155,7 +351,7 @@ func onboardingPersistsEveryAccessDecisionAcrossAStoreRestart() throws {
     try progress.completeCurrentStep(at: now)
     try progress.recordAccessDecision(.deferred, for: .notifications)
     try progress.completeCurrentStep(at: now)
-    try firstStore.save(progress)
+    progress = try firstStore.save(progress)
 
     let restarted = try OnboardingProgressStore(runtimeEnvironment: fixture.runtime).load()
 
@@ -172,7 +368,7 @@ func onboardingFailedAtomicWritePreservesTheLastCommittedProgress() throws {
     let baselineStore = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
     var baseline = try OnboardingProgress()
     try baseline.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
-    try baselineStore.save(baseline)
+    baseline = try baselineStore.save(baseline)
     var replacement = baseline
     try replacement.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
     let failingStore = OnboardingProgressStore(
@@ -384,18 +580,36 @@ func onboardingConcurrentStoreInstancesAlwaysLeaveAValidWholeState() async throw
     var privacyComplete = welcomeComplete
     try privacyComplete.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
 
-    try await withThrowingTaskGroup(of: Void.self) { group in
+    let outcomes = await withTaskGroup(of: Bool.self, returning: [Bool].self) { group in
         for index in 0 ..< 40 {
             let store = index.isMultiple(of: 2) ? first : second
             let progress = index.isMultiple(of: 3) ? welcomeComplete : privacyComplete
-            group.addTask { try store.save(progress) }
+            group.addTask {
+                do {
+                    _ = try store.save(progress)
+                    return true
+                } catch OnboardingProgressStoreError.staleRevision {
+                    return false
+                } catch {
+                    Issue.record("Unexpected concurrent save error: \(error)")
+                    return false
+                }
+            }
         }
-        try await group.waitForAll()
+        var values: [Bool] = []
+        for await value in group { values.append(value) }
+        return values
     }
+    #expect(outcomes.filter { $0 }.count == 1)
 
-    let result = try first.load()
+    var result = try first.load()
+    if result.currentStep == .localPrivacy {
+        try result.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
+        result = try first.save(result)
+    }
     try result.validate()
-    #expect(result == privacyComplete)
+    #expect(result.currentStep == .reminders)
+    #expect(result.completedSteps == [.welcome, .localPrivacy])
 }
 
 @Test
@@ -405,7 +619,7 @@ func onboardingResetWaitsForAnInFlightSaveAndWinsWhenRequestedAfterIt() async th
     let baselineStore = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
     var baseline = try OnboardingProgress()
     try baseline.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
-    try baselineStore.save(baseline)
+    baseline = try baselineStore.save(baseline)
     var replacement = baseline
     try replacement.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_001))
     let gate = OnboardingCommitGate()
@@ -413,7 +627,11 @@ func onboardingResetWaitsForAnInFlightSaveAndWinsWhenRequestedAfterIt() async th
         runtimeEnvironment: fixture.runtime,
         storageCheckpoint: gate.checkpoint
     )
-    let resetStore = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    let resetAttempt = OnboardingLockAttemptGate(expected: .beforeResetLockAttempt)
+    let resetStore = OnboardingProgressStore(
+        runtimeEnvironment: fixture.runtime,
+        storageCheckpoint: resetAttempt.checkpoint
+    )
 
     let saveTask = Task.detached { try savingStore.save(replacement) }
     #expect(gate.waitUntilSaveReachedCommit())
@@ -422,10 +640,10 @@ func onboardingResetWaitsForAnInFlightSaveAndWinsWhenRequestedAfterIt() async th
         try resetStore.reset()
         resetCompleted.markCompleted()
     }
-    try await Task.sleep(for: .milliseconds(100))
+    #expect(resetAttempt.waitUntilAttempted())
     #expect(!resetCompleted.isCompleted)
     gate.allowCommit()
-    try await saveTask.value
+    _ = try await saveTask.value
     try await resetTask.value
 
     #expect(try baselineStore.load() == (try OnboardingProgress()))
@@ -436,7 +654,7 @@ func onboardingStoreWaitsForAChildProcessAdvisoryLock() async throws {
     let fixture = try OnboardingStoreFixture(name: "child-lock")
     defer { fixture.remove() }
     let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
-    try store.save(try OnboardingProgress())
+    let persisted = try store.save(try OnboardingProgress())
     let directory = store.fileURL.deletingLastPathComponent()
     let ready = fixture.root.appendingPathComponent("child-lock-ready")
     let release = fixture.root.appendingPathComponent("child-lock-release")
@@ -456,17 +674,22 @@ func onboardingStoreWaitsForAChildProcessAdvisoryLock() async throws {
     }
     #expect(FileManager.default.fileExists(atPath: ready.path))
     let completion = OnboardingCompletionFlag()
+    let saveAttempt = OnboardingLockAttemptGate(expected: .beforeSaveLockAttempt)
+    let blockedStore = OnboardingProgressStore(
+        runtimeEnvironment: fixture.runtime,
+        storageCheckpoint: saveAttempt.checkpoint
+    )
     let saveTask = Task.detached {
-        var progress = try OnboardingProgress()
+        var progress = persisted
         try progress.completeCurrentStep(at: Date(timeIntervalSince1970: 1_800_000_000))
-        try store.save(progress)
+        _ = try blockedStore.save(progress)
         completion.markCompleted()
     }
-    try await Task.sleep(for: .milliseconds(100))
+    #expect(saveAttempt.waitUntilAttempted())
     #expect(!completion.isCompleted)
     try Data("release".utf8).write(to: release)
     child.waitUntilExit()
-    try await saveTask.value
+    _ = try await saveTask.value
     #expect(completion.isCompleted)
     #expect(try store.load().currentStep == .localPrivacy)
 }
@@ -505,6 +728,67 @@ private enum OnboardingStoreInterruption: Error, Equatable {
     case injected
 }
 
+private func writeDownstreamPackage(
+    at packageRoot: URL,
+    repositoryRoot: URL,
+    targets: [(name: String, product: String, source: String)]
+) throws {
+    let targetDeclarations = targets.map { target in
+        """
+        .executableTarget(
+            name: "\(target.name)",
+            dependencies: [.product(name: "\(target.product)", package: "ZoidCoach")]
+        )
+        """
+    }.joined(separator: ",\n")
+    let manifest = """
+    // swift-tools-version: 6.0
+    import PackageDescription
+
+    let package = Package(
+        name: "OnboardingPersistenceConsumer",
+        platforms: [.macOS(.v14)],
+        dependencies: [.package(name: "ZoidCoach", path: "\(repositoryRoot.path)")],
+        targets: [
+    \(targetDeclarations)
+        ]
+    )
+    """
+    try FileManager.default.createDirectory(at: packageRoot, withIntermediateDirectories: true)
+    try manifest.write(
+        to: packageRoot.appendingPathComponent("Package.swift"),
+        atomically: true,
+        encoding: .utf8
+    )
+    for target in targets {
+        let sourceDirectory = packageRoot
+            .appendingPathComponent("Sources", isDirectory: true)
+            .appendingPathComponent(target.name, isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+        try target.source.write(
+            to: sourceDirectory.appendingPathComponent("main.swift"),
+            atomically: true,
+            encoding: .utf8
+        )
+    }
+}
+
+private func runDownstreamBuild(at packageRoot: URL) throws -> (
+    status: Int32,
+    errorOutput: String
+) {
+    let process = Process()
+    let errorPipe = Pipe()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = ["swift", "build", "--package-path", packageRoot.path]
+    process.standardOutput = errorPipe
+    process.standardError = errorPipe
+    try process.run()
+    let errorData = try errorPipe.fileHandleForReading.readToEnd() ?? Data()
+    process.waitUntilExit()
+    return (process.terminationStatus, String(decoding: errorData, as: UTF8.self))
+}
+
 private struct OnboardingStoreFixture {
     let root: URL
     let runtime: RuntimeEnvironment
@@ -539,6 +823,36 @@ private final class OnboardingCommitGate: @unchecked Sendable {
 
     func allowCommit() {
         allowCommitSemaphore.signal()
+    }
+}
+
+private final class OnboardingLockAttemptGate: @unchecked Sendable {
+    private let expected: OnboardingPersistenceCheckpoint
+    private let attempted = DispatchSemaphore(value: 0)
+
+    init(expected: OnboardingPersistenceCheckpoint) {
+        self.expected = expected
+    }
+
+    func checkpoint(_ checkpoint: OnboardingPersistenceCheckpoint) {
+        if checkpoint == expected { attempted.signal() }
+    }
+
+    func waitUntilAttempted() -> Bool {
+        attempted.wait(timeout: .now() + 5) == .success
+    }
+}
+
+private final class DescriptorCheckpointRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [DescriptorRelativeStateDirectoryCheckpoint] = []
+
+    func record(_ checkpoint: DescriptorRelativeStateDirectoryCheckpoint) {
+        lock.withLock { recorded.append(checkpoint) }
+    }
+
+    var values: [DescriptorRelativeStateDirectoryCheckpoint] {
+        lock.withLock { recorded }
     }
 }
 

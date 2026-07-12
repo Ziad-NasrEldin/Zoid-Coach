@@ -21,6 +21,14 @@ No runtime data migration is required.
 
 The persisted path remains `Zoid Coach/onboarding-progress.json`, and the document schema remains version 1.
 
+Schema version 1 documents that predate persistence revisions decode with revision zero.
+
+Each successful save performs a compare-and-swap against the persisted revision and returns the progress value with its advanced revision.
+
+Clients performing another save should retain that returned value or reload first.
+
+A stale snapshot fails with `OnboardingProgressStoreError.staleRevision` rather than silently discarding an intentional permission correction or regressing newer progress.
+
 A deprecated Core facade was rejected because Core cannot depend on Infrastructure without creating a dependency cycle.
 
 Duplicating persistence in Core was also rejected because it would create two implementations and bypass the shared descriptor-relative locking, atomic-write, symlink-safety, and corruption-recovery guarantees.

@@ -1,6 +1,27 @@
 import Darwin
 import Foundation
 
+enum DescriptorRelativeStateDirectoryCheckpoint: Equatable, Sendable {
+    case createdRootComponent(String)
+    case syncedRootComponentParent(String)
+    case createdStateDirectory(String)
+    case syncedStateDirectoryParent(String)
+}
+
+struct DescriptorRelativeStateDirectoryOperations: Sendable {
+    let createDirectory: @Sendable (Int32, String, mode_t) -> Int32
+    let syncDirectory: @Sendable (Int32) -> Int32
+
+    static let live = Self(
+        createDirectory: { descriptor, name, mode in
+            mkdirat(descriptor, name, mode) == 0 ? 0 : errno
+        },
+        syncDirectory: { descriptor in
+            fsync(descriptor) == 0 ? 0 : errno
+        }
+    )
+}
+
 final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchecked Sendable {
     typealias UnsafeEntryError = @Sendable (String) -> Failure
     typealias FilesystemError = @Sendable (String, Int32) -> Failure
@@ -8,28 +29,49 @@ final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchec
     private let descriptor: Int32
     private let unsafeEntryError: UnsafeEntryError
     private let filesystemError: FilesystemError
+    private let operations: DescriptorRelativeStateDirectoryOperations
 
     init(
         rootURL: URL,
         directoryName: String,
         createRootIfMissing: Bool = false,
+        operations: DescriptorRelativeStateDirectoryOperations = .live,
+        checkpoint: @escaping @Sendable (
+            DescriptorRelativeStateDirectoryCheckpoint
+        ) -> Void = { _ in },
         unsafeEntryError: @escaping UnsafeEntryError,
         filesystemError: @escaping FilesystemError
     ) throws {
         self.unsafeEntryError = unsafeEntryError
         self.filesystemError = filesystemError
+        self.operations = operations
         guard Self.isSafeName(directoryName) else {
             throw unsafeEntryError(directoryName)
         }
         let rootDescriptor = try Self.openAbsoluteDirectoryWithoutFollowing(
             rootURL,
             createIfMissing: createRootIfMissing,
+            operations: operations,
+            checkpoint: checkpoint,
             unsafeEntryError: unsafeEntryError,
             filesystemError: filesystemError
         )
         defer { Darwin.close(rootDescriptor) }
-        if mkdirat(rootDescriptor, directoryName, 0o700) != 0, errno != EEXIST {
-            throw filesystemError("create state directory", errno)
+        let createStateDirectoryError = operations.createDirectory(
+            rootDescriptor,
+            directoryName,
+            0o700
+        )
+        if createStateDirectoryError != 0, createStateDirectoryError != EEXIST {
+            throw filesystemError("create state directory", createStateDirectoryError)
+        }
+        if createStateDirectoryError == 0 {
+            checkpoint(.createdStateDirectory(directoryName))
+            let syncError = operations.syncDirectory(rootDescriptor)
+            guard syncError == 0 else {
+                throw filesystemError("sync state directory parent", syncError)
+            }
+            checkpoint(.syncedStateDirectoryParent(directoryName))
         }
         descriptor = openat(
             rootDescriptor,
@@ -135,8 +177,9 @@ final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchec
             throw filesystemError("commit \(name)", errno)
         }
         committed = true
-        guard fsync(descriptor) == 0 else {
-            throw filesystemError("sync state directory", errno)
+        let syncError = operations.syncDirectory(descriptor)
+        guard syncError == 0 else {
+            throw filesystemError("sync state directory", syncError)
         }
     }
 
@@ -145,18 +188,24 @@ final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchec
         try validateName(destination)
         guard try exists(source) else { return }
         if try exists(destination) { try removeIfPresent(destination) }
-        guard renameat(descriptor, source, descriptor, destination) == 0,
-              fsync(descriptor) == 0 else {
+        guard renameat(descriptor, source, descriptor, destination) == 0 else {
             throw filesystemError("rename \(source)", errno)
+        }
+        let syncError = operations.syncDirectory(descriptor)
+        guard syncError == 0 else {
+            throw filesystemError("sync renamed \(source)", syncError)
         }
     }
 
     func removeIfPresent(_ name: String) throws {
         try validateName(name)
         guard try exists(name) else { return }
-        guard unlinkat(descriptor, name, 0) == 0,
-              fsync(descriptor) == 0 else {
+        guard unlinkat(descriptor, name, 0) == 0 else {
             throw filesystemError("remove \(name)", errno)
+        }
+        let syncError = operations.syncDirectory(descriptor)
+        guard syncError == 0 else {
+            throw filesystemError("sync removed \(name)", syncError)
         }
     }
 
@@ -171,6 +220,10 @@ final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchec
     private static func openAbsoluteDirectoryWithoutFollowing(
         _ url: URL,
         createIfMissing: Bool,
+        operations: DescriptorRelativeStateDirectoryOperations,
+        checkpoint: @escaping @Sendable (
+            DescriptorRelativeStateDirectoryCheckpoint
+        ) -> Void,
         unsafeEntryError: UnsafeEntryError,
         filesystemError: FilesystemError
     ) throws -> Int32 {
@@ -187,9 +240,21 @@ final class DescriptorRelativeStateDirectory<Failure: Error & Sendable>: @unchec
                     O_RDONLY | O_DIRECTORY | O_NOFOLLOW
                 )
                 if next < 0, errno == ENOENT, createIfMissing {
-                    if mkdirat(descriptorChain.last!, component, 0o700) != 0,
-                       errno != EEXIST {
-                        throw filesystemError("create root component \(component)", errno)
+                    let createError = operations.createDirectory(
+                        descriptorChain.last!,
+                        component,
+                        0o700
+                    )
+                    if createError != 0, createError != EEXIST {
+                        throw filesystemError("create root component \(component)", createError)
+                    }
+                    if createError == 0 {
+                        checkpoint(.createdRootComponent(component))
+                        let syncError = operations.syncDirectory(descriptorChain.last!)
+                        guard syncError == 0 else {
+                            throw filesystemError("sync root component \(component)", syncError)
+                        }
+                        checkpoint(.syncedRootComponentParent(component))
                     }
                     next = openat(
                         descriptorChain.last!, component,
