@@ -84,7 +84,9 @@ public final class AgentPlanScheduler: @unchecked Sendable {
         let free = workIntervals.flatMap { interval in freeIntervals(in: interval, commitments: fixed) }
         let tasks = plan.compactMap { entry -> SchedulableTask? in
             guard let task = reminderByID[entry.reminderID],
-                  !protectedTaskIDs.contains(entry.reminderID)
+                  !protectedTaskIDs.contains(entry.reminderID),
+                  entry.isOptional != true,
+                  !(entry.deferredUntil.map { $0 > schedulingTime } ?? false)
             else { return nil }
             return SchedulableTask(id: entry.reminderID, title: task.title, durationMinutes: entry.estimateMinutes)
         }

@@ -556,7 +556,10 @@ final class AppModel: ObservableObject {
                 isMainObjective: entry.isMainObjective,
                 estimateMinutes: entry.estimateMinutes,
                 selectionReason: entry.selectionReason,
-                selectionScore: entry.selectionScore
+                selectionScore: entry.selectionScore,
+                isOptional: entry.isOptional,
+                blockedReason: entry.blockedReason,
+                deferredUntil: entry.deferredUntil
             )
         }
         if !dailyPlan.contains(where: \.isMainObjective), !dailyPlan.isEmpty {
@@ -575,7 +578,10 @@ final class AppModel: ObservableObject {
                 isMainObjective: $0.reminderID == entry.reminderID,
                 estimateMinutes: $0.estimateMinutes,
                 selectionReason: $0.selectionReason,
-                selectionScore: $0.selectionScore
+                selectionScore: $0.selectionScore,
+                isOptional: $0.isOptional,
+                blockedReason: $0.blockedReason,
+                deferredUntil: $0.deferredUntil
             )
         }
         persistDailyPlan()
@@ -591,10 +597,127 @@ final class AppModel: ObservableObject {
                 isMainObjective: $0.isMainObjective,
                 estimateMinutes: $0.reminderID == entry.reminderID ? minutes : $0.estimateMinutes,
                 selectionReason: $0.selectionReason,
-                selectionScore: $0.selectionScore
+                selectionScore: $0.selectionScore,
+                isOptional: $0.isOptional,
+                blockedReason: $0.blockedReason,
+                deferredUntil: $0.deferredUntil
             )
         }
         persistDailyPlan()
+    }
+
+    func moveDailyPlanEntry(_ entry: DailyPlanEntry, by offset: Int) {
+        guard !isLoadingDailyPlan, offset != 0 else { return }
+        var ordered = dailyPlan.sorted { $0.rank < $1.rank }
+        guard let sourceIndex = ordered.firstIndex(where: { $0.reminderID == entry.reminderID }) else { return }
+        let destinationIndex = sourceIndex + offset
+        guard ordered.indices.contains(destinationIndex) else { return }
+        ordered.swapAt(sourceIndex, destinationIndex)
+        dailyPlan = ordered.enumerated().map { index, item in
+            revisedPlanEntry(item, rank: index + 1)
+        }
+        persistDailyPlan()
+    }
+
+    func toggleOptional(_ entry: DailyPlanEntry) {
+        guard !isLoadingDailyPlan else { return }
+        let willBecomeOptional = !entry.isOptional
+        guard !(willBecomeOptional && entry.isMainObjective) else {
+            persistenceMessage = "Choose another main objective before marking this task optional."
+            return
+        }
+        dailyPlan = dailyPlan.map {
+            $0.reminderID == entry.reminderID
+                ? revisedPlanEntry($0, isOptional: willBecomeOptional)
+                : $0
+        }
+        persistDailyPlan()
+    }
+
+    func deferTask(_ entry: DailyPlanEntry, until date: Date) {
+        guard !isLoadingDailyPlan, date > Date() else {
+            persistenceMessage = "Choose a future time for this deferred task."
+            return
+        }
+        dailyPlan = dailyPlan.map {
+            $0.reminderID == entry.reminderID
+                ? revisedPlanEntry($0, isMainObjective: false, deferredUntil: date)
+                : $0
+        }
+        if !dailyPlan.contains(where: { $0.isMainObjective }),
+           let replacement = dailyPlan
+            .sorted(by: { $0.rank < $1.rank })
+            .first(where: { !$0.isOptional && !($0.deferredUntil.map { $0 > Date() } ?? false) }) {
+            dailyPlan = dailyPlan.map {
+                $0.reminderID == replacement.reminderID
+                    ? revisedPlanEntry($0, isMainObjective: true)
+                    : $0
+            }
+        }
+        persistDailyPlan()
+    }
+
+    func deferTaskUntilTomorrow(_ entry: DailyPlanEntry) {
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: Date()))
+            ?? Date().addingTimeInterval(24 * 60 * 60)
+        deferTask(entry, until: tomorrow)
+    }
+
+    func clearTaskDeferral(_ entry: DailyPlanEntry) {
+        guard !isLoadingDailyPlan else { return }
+        dailyPlan = dailyPlan.map {
+            $0.reminderID == entry.reminderID
+                ? revisedPlanEntry($0, deferredUntil: .some(nil))
+                : $0
+        }
+        persistDailyPlan()
+    }
+
+    func markTaskBlocked(_ entry: DailyPlanEntry, reason: String) {
+        let normalizedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (3...240).contains(normalizedReason.count) else {
+            taskCommandError = "Explain the blocker in 3 to 240 characters."
+            return
+        }
+        guard pendingTaskCommandIDs.isEmpty else { return }
+        pendingTaskCommandIDs.insert(entry.reminderID)
+        taskCommandError = nil
+        Task {
+            defer { pendingTaskCommandIDs.remove(entry.reminderID) }
+            do {
+                todaySnapshot = try await todayDashboardXPCClient.blockTask(
+                    taskID: entry.reminderID,
+                    reason: normalizedReason
+                )
+                await reloadDailyPlan()
+                lastActionMessage = "Task marked blocked with its reason saved locally."
+            } catch {
+                taskCommandError = "The blocker was not saved. The last confirmed task and plan state are still shown."
+                await reloadDailyPlan()
+                todaySnapshot = try? todaySnapshotStore?.load()
+            }
+        }
+    }
+
+    private func revisedPlanEntry(
+        _ entry: DailyPlanEntry,
+        rank: Int? = nil,
+        isMainObjective: Bool? = nil,
+        isOptional: Bool? = nil,
+        blockedReason: String?? = nil,
+        deferredUntil: Date?? = nil
+    ) -> DailyPlanEntry {
+        DailyPlanEntry(
+            reminderID: entry.reminderID,
+            rank: rank ?? entry.rank,
+            isMainObjective: isMainObjective ?? entry.isMainObjective,
+            estimateMinutes: entry.estimateMinutes,
+            selectionReason: entry.selectionReason,
+            selectionScore: entry.selectionScore,
+            isOptional: isOptional ?? entry.isOptional,
+            blockedReason: blockedReason ?? entry.blockedReason,
+            deferredUntil: deferredUntil ?? entry.deferredUntil
+        )
     }
 
     func generateSuggestedDailyPlan() {
@@ -906,7 +1029,10 @@ final class AppModel: ObservableObject {
                 isMainObjective: entry.isMainObjective,
                 estimateMinutes: entry.estimateMinutes,
                 selectionReason: entry.selectionReason,
-                selectionScore: entry.selectionScore
+                selectionScore: entry.selectionScore,
+                isOptional: entry.isOptional,
+                blockedReason: entry.blockedReason,
+                deferredUntil: entry.deferredUntil
             )
         }
         if !dailyPlan.contains(where: \.isMainObjective), !dailyPlan.isEmpty {
@@ -916,7 +1042,10 @@ final class AppModel: ObservableObject {
                 isMainObjective: true,
                 estimateMinutes: dailyPlan[0].estimateMinutes,
                 selectionReason: dailyPlan[0].selectionReason,
-                selectionScore: dailyPlan[0].selectionScore
+                selectionScore: dailyPlan[0].selectionScore,
+                isOptional: dailyPlan[0].isOptional,
+                blockedReason: dailyPlan[0].blockedReason,
+                deferredUntil: dailyPlan[0].deferredUntil
             )
         }
         persistDailyPlan()
@@ -930,7 +1059,10 @@ final class AppModel: ObservableObject {
                 isMainObjective: $0.isMainObjective,
                 estimateMinutes: $0.estimateMinutes,
                 selectionReason: $0.selectionReason,
-                selectionScore: $0.selectionScore
+                selectionScore: $0.selectionScore,
+                isOptional: $0.isOptional,
+                blockedReason: $0.blockedReason,
+                deferredUntil: $0.deferredUntil
             )
         }
         Task {

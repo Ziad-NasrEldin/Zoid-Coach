@@ -36,7 +36,18 @@ public final class TaskExecutionStore: @unchecked Sendable {
 
     deinit { sqlite3_close(database) }
 
-    public func apply(_ command: TaskActivityCommand, taskID: String, at date: Date = Date()) throws {
+    public func apply(
+        _ command: TaskActivityCommand,
+        taskID: String,
+        blockedReason: String? = nil,
+        at date: Date = Date()
+    ) throws {
+        let normalizedBlockedReason = blockedReason?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if command == .block,
+           let normalizedBlockedReason,
+           !(3...240).contains(normalizedBlockedReason.count) {
+            throw TaskExecutionStoreError.invalidBlockedReason
+        }
         try transaction {
             let current = try state(for: taskID)
             switch command {
@@ -74,11 +85,13 @@ public final class TaskExecutionStore: @unchecked Sendable {
                 try closeOpenInterval(taskID: taskID, at: date)
                 try recordPause(taskID: taskID, reason: .blocked, at: date)
                 try upsertState(taskID: taskID, state: .blocked, at: date)
+                try updatePlanBlockedReason(normalizedBlockedReason, taskID: taskID, at: date)
                 try finishSprint(taskID: taskID, at: date)
             case .reschedule:
                 try closeOpenInterval(taskID: taskID, at: date)
                 try closeOpenPause(taskID: taskID, at: date)
                 try upsertState(taskID: taskID, state: .rescheduled, at: date)
+                try updatePlanBlockedReason(nil, taskID: taskID, at: date)
                 try finishSprint(taskID: taskID, at: date)
             }
         }
@@ -280,6 +293,24 @@ public final class TaskExecutionStore: @unchecked Sendable {
         }
     }
 
+    private func updatePlanBlockedReason(_ reason: String?, taskID: String, at date: Date) throws {
+        var statement: OpaquePointer?
+        let sql = "UPDATE daily_plan_entries SET blocked_reason = ?, updated_at = ? WHERE reminder_id = ? AND day_key = (SELECT MAX(day_key) FROM daily_plan_entries WHERE reminder_id = ?);"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw TaskExecutionStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        if let reason {
+            bind(reason, statement, 1)
+        } else {
+            sqlite3_bind_null(statement, 1)
+        }
+        bind(formatter.string(from: date), statement, 2)
+        bind(taskID, statement, 3)
+        bind(taskID, statement, 4)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
+    }
+
     private func state(for taskID: String) throws -> TaskExecutionState? {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, "SELECT state FROM task_execution_states WHERE task_id = ?;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.read }
@@ -389,11 +420,12 @@ public final class TaskExecutionStore: @unchecked Sendable {
 }
 
 public enum TaskExecutionStoreError: LocalizedError {
-    case openDatabase, schema, read, write, invalidSprintDuration, sprintUnavailable, sprintStillActive
+    case openDatabase, schema, read, write, invalidSprintDuration, invalidBlockedReason, sprintUnavailable, sprintStillActive
 
     public var errorDescription: String? {
         switch self {
         case .invalidSprintDuration: "Choose a sprint from 1 to 240 minutes."
+        case .invalidBlockedReason: "Explain the blocker in 3 to 240 characters."
         case .sprintUnavailable: "Start a bounded sprint before continuing without a timer."
         case .sprintStillActive: "The sprint is still running. Wait for the boundary before continuing without a timer."
         case .openDatabase, .schema, .read, .write: "Could not persist task execution state."

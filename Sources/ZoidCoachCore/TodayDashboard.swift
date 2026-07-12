@@ -130,8 +130,26 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let sprint: SprintSnapshot?
     public let isMainObjective: Bool
     public let isLocked: Bool
+    public let isOptional: Bool?
+    public let blockedReason: String?
+    public let deferredUntil: Date?
 
-    public init(taskID: String, title: String, estimateMinutes: Int, dueDate: Date?, urgency: TaskUrgency, state: TaskExecutionState, elapsedMinutes: Int = 0, latestPauseReason: TaskPauseReason? = nil, sprint: SprintSnapshot? = nil, isMainObjective: Bool = false, isLocked: Bool = false) {
+    public init(
+        taskID: String,
+        title: String,
+        estimateMinutes: Int,
+        dueDate: Date?,
+        urgency: TaskUrgency,
+        state: TaskExecutionState,
+        elapsedMinutes: Int = 0,
+        latestPauseReason: TaskPauseReason? = nil,
+        sprint: SprintSnapshot? = nil,
+        isMainObjective: Bool = false,
+        isLocked: Bool = false,
+        isOptional: Bool = false,
+        blockedReason: String? = nil,
+        deferredUntil: Date? = nil
+    ) {
         self.taskID = taskID
         self.title = title
         self.estimateMinutes = max(1, estimateMinutes)
@@ -143,6 +161,9 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         self.sprint = sprint
         self.isMainObjective = isMainObjective
         self.isLocked = isLocked
+        self.isOptional = isOptional
+        self.blockedReason = blockedReason
+        self.deferredUntil = deferredUntil
     }
 
     public var id: String { taskID }
