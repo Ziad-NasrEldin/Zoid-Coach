@@ -103,22 +103,24 @@ actor ScreenwatchSetupService {
     private let bookmarkAccess: ScreenwatchBookmarkAccess
     private let bookmarkStore: ScreenwatchBookmarkStore
     private let calendar: Calendar
+    private let staleThreshold: TimeInterval
 
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
         fileManager: FileManager = .default,
-        userDefaults: UserDefaults? = nil,
         bookmarkAccess: ScreenwatchBookmarkAccess = .foundation,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        staleThreshold: TimeInterval = 30
     ) {
         self.runtimeEnvironment = runtimeEnvironment
         self.fileManager = fileManager
         self.bookmarkAccess = bookmarkAccess
         bookmarkStore = ScreenwatchBookmarkStore(
-            defaults: userDefaults ?? runtimeEnvironment.makeUserDefaults(),
+            defaults: runtimeEnvironment.makeUserDefaults(),
             key: Self.bookmarkDefaultsKey
         )
         self.calendar = calendar
+        self.staleThreshold = max(0, staleThreshold)
     }
 
     init(
@@ -126,13 +128,15 @@ actor ScreenwatchSetupService {
         fileManager: FileManager = .default,
         bookmarkStore: ScreenwatchBookmarkStore,
         bookmarkAccess: ScreenwatchBookmarkAccess = .foundation,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        staleThreshold: TimeInterval = 30
     ) {
         self.runtimeEnvironment = runtimeEnvironment
         self.fileManager = fileManager
         self.bookmarkAccess = bookmarkAccess
         self.bookmarkStore = bookmarkStore
         self.calendar = calendar
+        self.staleThreshold = max(0, staleThreshold)
     }
 
     func inspect(now: Date = Date()) -> ScreenwatchSetupStatus {
@@ -212,6 +216,11 @@ actor ScreenwatchSetupService {
                 : Self.unsafeDefaultStatus
         }
         let logURL = dailyLogURL(daysDirectory: daysDirectory, date: now)
+        guard isSafeDirectory(logURL) else {
+            return source == .alternateFolder
+                ? Self.unsafeAlternateStatus
+                : Self.unsafeDefaultStatus
+        }
         var isDirectory: ObjCBool = false
         guard fileManager.fileExists(atPath: logURL.path, isDirectory: &isDirectory),
               !isDirectory.boolValue else {
@@ -240,7 +249,7 @@ actor ScreenwatchSetupService {
                 )
             }
             let age = max(0, now.timeIntervalSince1970 - TimeInterval(latestEpoch))
-            if age > 90 {
+            if age > staleThreshold {
                 return ScreenwatchSetupStatus(
                     source: source,
                     health: .stale,

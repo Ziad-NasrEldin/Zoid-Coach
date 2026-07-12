@@ -37,6 +37,27 @@ func screenwatchSetupReportsAMissingDefaultAsExplicitDegradedMode() async throws
 }
 
 @Test
+func screenwatchSetupDefaultsToThirtySecondsAndAllowsAConfiguredStaleThreshold() async throws {
+    let fixture = try ScreenwatchSetupFixture(name: "stale-threshold")
+    defer { fixture.remove() }
+    try fixture.writeValidRecord(
+        in: fixture.runtime.screenwatchDirectory,
+        secret: "Stale private window",
+        epoch: Int(fixture.now.timeIntervalSince1970) - 31
+    )
+    let defaultService = fixture.makeService()
+    let relaxedService = fixture.makeService(staleThreshold: 60)
+
+    let defaultStatus = await defaultService.inspect(now: fixture.now)
+    let relaxedStatus = await relaxedService.inspect(now: fixture.now)
+
+    #expect(defaultStatus.health == .stale)
+    #expect(defaultStatus.continuation == .degraded)
+    #expect(defaultStatus.repair == .recheck)
+    #expect(relaxedStatus.health == .healthy)
+}
+
+@Test
 func screenwatchSetupRejectsMalformedSchemaWithPrivacySafeDiagnostics() async throws {
     let fixture = try ScreenwatchSetupFixture(name: "default-malformed")
     defer { fixture.remove() }
@@ -146,7 +167,11 @@ func screenwatchSetupKeepsQABookmarksInsideEachRunAndOutOfProductionDefaults() a
     let alternate = first.root.appendingPathComponent("Chosen Days", isDirectory: true)
     try first.writeValidRecord(in: alternate, secret: "QA private record")
     let codec = TestScreenwatchBookmarkCodec()
-    let firstService = first.makeService(bookmarkAccess: codec.access)
+    let firstService = ScreenwatchSetupService(
+        runtimeEnvironment: first.runtime,
+        bookmarkAccess: codec.access,
+        calendar: first.calendar
+    )
     _ = try await firstService.selectAlternateDaysDirectory(alternate, now: first.now)
 
     let secondStatus = await second.makeService(bookmarkAccess: codec.access).inspect(now: second.now)
@@ -180,6 +205,52 @@ func screenwatchSetupRejectsASymlinkedAlternateFolder() async throws {
         try await service.selectAlternateDaysDirectory(link, now: fixture.now)
     }
     #expect(fixture.defaults.data(forKey: ScreenwatchSetupService.bookmarkDefaultsKey) == nil)
+}
+
+@Test
+func screenwatchSetupRejectsASymlinkedDayDirectoryBelowAnAlternateFolder() async throws {
+    let fixture = try ScreenwatchSetupFixture(name: "nested-day-symlink")
+    defer { fixture.remove() }
+    let alternate = fixture.root.appendingPathComponent("Chosen Days", isDirectory: true)
+    let target = fixture.root.appendingPathComponent("Real Days", isDirectory: true)
+    try fixture.writeValidRecord(in: target, secret: "Private target")
+    try FileManager.default.createDirectory(at: alternate, withIntermediateDirectories: true)
+    let dayLink = alternate.appendingPathComponent("2027-01-15", isDirectory: true)
+    try FileManager.default.createSymbolicLink(
+        at: dayLink,
+        withDestinationURL: target.appendingPathComponent("2027-01-15", isDirectory: true)
+    )
+    let service = fixture.makeService(bookmarkAccess: TestScreenwatchBookmarkCodec().access)
+
+    let status = try await service.selectAlternateDaysDirectory(alternate, now: fixture.now)
+
+    #expect(status.health == .unsafePath)
+    #expect(status.continuation == .unavailable)
+    #expect(status.repair == .reauthorizeFolder)
+}
+
+@Test
+func screenwatchSetupRejectsASymlinkedLogBelowAnAlternateFolder() async throws {
+    let fixture = try ScreenwatchSetupFixture(name: "nested-log-symlink")
+    defer { fixture.remove() }
+    let alternate = fixture.root.appendingPathComponent("Chosen Days", isDirectory: true)
+    let target = fixture.root.appendingPathComponent("Real Log", isDirectory: true)
+    try fixture.writeValidRecord(in: target, secret: "Private target")
+    let alternateDay = alternate.appendingPathComponent("2027-01-15", isDirectory: true)
+    try FileManager.default.createDirectory(at: alternateDay, withIntermediateDirectories: true)
+    try FileManager.default.createSymbolicLink(
+        at: alternateDay.appendingPathComponent("log.jsonl"),
+        withDestinationURL: target
+            .appendingPathComponent("2027-01-15", isDirectory: true)
+            .appendingPathComponent("log.jsonl")
+    )
+    let service = fixture.makeService(bookmarkAccess: TestScreenwatchBookmarkCodec().access)
+
+    let status = try await service.selectAlternateDaysDirectory(alternate, now: fixture.now)
+
+    #expect(status.health == .unsafePath)
+    #expect(status.continuation == .unavailable)
+    #expect(status.repair == .reauthorizeFolder)
 }
 
 private final class TestScreenwatchBookmarkCodec: @unchecked Sendable {
@@ -277,7 +348,8 @@ private struct ScreenwatchSetupFixture {
     }
 
     func makeService(
-        bookmarkAccess: ScreenwatchBookmarkAccess = TestScreenwatchBookmarkCodec().access
+        bookmarkAccess: ScreenwatchBookmarkAccess = TestScreenwatchBookmarkCodec().access,
+        staleThreshold: TimeInterval = 30
     ) -> ScreenwatchSetupService {
         ScreenwatchSetupService(
             runtimeEnvironment: runtime,
@@ -286,14 +358,19 @@ private struct ScreenwatchSetupFixture {
                 key: ScreenwatchSetupService.bookmarkDefaultsKey
             ),
             bookmarkAccess: bookmarkAccess,
-            calendar: calendar
+            calendar: calendar,
+            staleThreshold: staleThreshold
         )
     }
 
-    func writeValidRecord(in daysDirectory: URL, secret: String) throws {
+    func writeValidRecord(
+        in daysDirectory: URL,
+        secret: String,
+        epoch: Int? = nil
+    ) throws {
         let record: [String: Any] = [
             "t": "2027-01-15T08:00:00Z",
-            "epoch": Int(now.timeIntervalSince1970),
+            "epoch": epoch ?? Int(now.timeIntervalSince1970),
             "app": "PrivateApp",
             "window": secret,
             "url": "https://private.example/secret",
