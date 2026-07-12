@@ -741,7 +741,8 @@ func fixtureNotificationActionMatrixMatchesEveryLiveCategoryAction() {
         .planReady: [.acceptPlan, .reviewPlan],
         .meetingCandidate: [.addMeeting, .editMeeting, .ignore],
         .planChanged: [.reviewPlan, .undoPlanChange],
-        .wakeIntervention: []
+        .wakeIntervention: [],
+        .onboardingTest: [.continueIntentionally, .ignore]
     ]
     for category in PromptNotificationCategory.allCases {
         for action in PromptActionKind.allCases {
