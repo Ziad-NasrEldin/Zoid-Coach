@@ -96,6 +96,14 @@ if [[ "$PACKAGE_MODE" == "qa" ]]; then
         || fail "QA agent could not resolve its embedded runtime with a stripped environment"
     [[ "$stripped_runtime" == "package=qa mode=qa identity=$AGENT_SIGNING_IDENTIFIER root=$qa_run_root" ]] \
         || fail "QA agent resolved the wrong embedded runtime: $stripped_runtime"
+    if env -i HOME="$HOME" PATH="/usr/bin:/bin" ZOID_COACH_PACKAGE_MODE=production \
+        "$AGENT_EXECUTABLE" --print-runtime-identity >/dev/null 2>&1; then
+        fail "QA agent accepted a conflicting production runtime mode"
+    fi
+    if env -i HOME="$HOME" PATH="/usr/bin:/bin" ZOID_COACH_QA_RUN_ROOT="$qa_run_root-other" \
+        "$AGENT_EXECUTABLE" --print-runtime-identity >/dev/null 2>&1; then
+        fail "QA agent accepted a conflicting QA runtime root"
+    fi
 else
     if plutil -extract ZoidCoachQARunRoot raw -o - "$PLIST" >/dev/null 2>&1; then
         fail "production package contains a QA run root"
@@ -110,6 +118,11 @@ else
         || fail "production agent could not resolve its embedded runtime with a stripped environment"
     [[ "$stripped_runtime" == "package=production mode=production identity=$AGENT_SIGNING_IDENTIFIER root=-" ]] \
         || fail "production agent resolved the wrong embedded runtime: $stripped_runtime"
+    if env -i HOME="$HOME" PATH="/usr/bin:/bin" ZOID_COACH_PACKAGE_MODE=qa \
+        ZOID_COACH_QA_RUN_ROOT="/tmp/zoid-forbidden-package-qa" \
+        "$AGENT_EXECUTABLE" --print-runtime-identity >/dev/null 2>&1; then
+        fail "production agent accepted a QA runtime injection"
+    fi
 fi
 
 echo "PASS: packaged app, LaunchAgent, Mach service, and signing identities are coherent"
