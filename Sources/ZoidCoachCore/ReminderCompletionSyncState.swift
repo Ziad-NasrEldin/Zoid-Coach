@@ -52,13 +52,29 @@ public struct ReminderCompletionSyncState: Equatable, Sendable {
     public var canRetry: Bool { phase == .failed && commandID != nil }
 
     public var userFacingDetail: String? {
-        switch phase {
+        return switch phase {
         case .notRequested: nil
         case .pending: "Completion is waiting for Apple Reminders. The task and its history stay here until sync finishes."
         case .retrying: "Apple Reminders sync is being tried now."
         case .failed: "Apple Reminders did not confirm completion. Your local task and history are safe. Repair Reminders access, then retry."
         case .unavailable: "Apple Reminders completion was not issued in the current operating mode. Your local task and history are safe."
         case .confirmed: "Completion confirmed by Apple Reminders."
+        }
+    }
+
+    public func detail(localExecutionIsCompleted: Bool) -> String? {
+        if localExecutionIsCompleted, phase == .notRequested {
+            return "Local completion is saved, but Apple Reminders confirmation is unavailable. Refresh source status before treating it as synchronized."
+        }
+        return userFacingDetail
+    }
+
+    public func statusLabel(localExecutionIsCompleted: Bool) -> String? {
+        guard localExecutionIsCompleted else { return nil }
+        return switch phase {
+        case .notRequested: "Completion sync unknown"
+        case .pending, .retrying, .failed, .unavailable: "Completion pending Reminders"
+        case .confirmed: "Completed"
         }
     }
 }

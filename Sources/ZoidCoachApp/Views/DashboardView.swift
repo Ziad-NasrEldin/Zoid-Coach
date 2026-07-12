@@ -829,7 +829,7 @@ private struct TodayTaskRowView: View {
             }
             .fixedSize()
         }
-        if let detail = completionSync.userFacingDetail,
+        if let detail = completionSync.detail(localExecutionIsCompleted: row.state == .completed),
            completionSync.phase != .confirmed {
             HStack(spacing: 10) {
                 Image(systemName: completionSync.phase == .failed || completionSync.phase == .unavailable ? "exclamationmark.arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath")
@@ -890,9 +890,8 @@ private struct TodayTaskRowView: View {
     }
 
     private var taskDetail: String {
-        let stateLabel = completionSync.isAwaitingConfirmation || completionSync.phase == .failed || completionSync.phase == .unavailable
-            ? "Completion pending Reminders"
-            : row.state.rawValue.capitalized
+        let stateLabel = completionSync.statusLabel(localExecutionIsCompleted: row.state == .completed)
+            ?? row.state.rawValue.capitalized
         var parts = ["\(row.estimateMinutes)m", relativeDeadline(row.dueDate), "\(row.urgency.rawValue.capitalized) urgency", stateLabel]
         if row.elapsedMinutes > 0 { parts.append("\(row.elapsedMinutes)m tracked") }
         if let reason = row.latestPauseReason {

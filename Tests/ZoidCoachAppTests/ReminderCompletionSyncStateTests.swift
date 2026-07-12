@@ -57,6 +57,17 @@ func cancelledCompletionNeverAppearsConfirmedOrRetryable() {
     #expect(state.userFacingDetail?.contains("not issued") == true)
 }
 
+@Test
+func completedExecutionWithoutAuditNeverClaimsSourceSuccess() {
+    let state = ReminderCompletionSyncState(taskID: "task-1", audit: [])
+
+    #expect(state.phase == .notRequested)
+    #expect(state.statusLabel(localExecutionIsCompleted: true) == "Completion sync unknown")
+    #expect(state.detail(localExecutionIsCompleted: true)?.contains("confirmation is unavailable") == true)
+    #expect(state.statusLabel(localExecutionIsCompleted: false) == nil)
+    #expect(state.detail(localExecutionIsCompleted: false) == nil)
+}
+
 private func audit(
     id: String,
     type: String,
