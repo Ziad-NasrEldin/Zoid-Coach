@@ -1,0 +1,158 @@
+import SwiftUI
+
+struct RemindersConnectionView: View {
+    @StateObject private var controller: RemindersConnectionController
+    let useLocalOnlyPlanning: () -> Void
+
+    init(
+        controller: @autoclosure @escaping () -> RemindersConnectionController = RemindersConnectionController(),
+        useLocalOnlyPlanning: @escaping () -> Void
+    ) {
+        _controller = StateObject(wrappedValue: controller())
+        self.useLocalOnlyPlanning = useLocalOnlyPlanning
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                statusMark
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(statusTitle)
+                        .font(Sumi.label(10))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.ink)
+                    Text(statusDetail)
+                        .font(Sumi.body(12))
+                        .foregroundStyle(statusNeedsAttention ? Sumi.sealDeep : Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 12)
+
+                if let lastSuccessfulSync = controller.lastSuccessfulSync {
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text("LAST SUCCESS")
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.muted)
+                        Text(lastSuccessfulSync.formatted(date: .abbreviated, time: .shortened))
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.ink)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(
+                        "Last successful Reminders sync "
+                            + lastSuccessfulSync.formatted(date: .long, time: .shortened)
+                    )
+                    .accessibilityIdentifier("settings.reminders.connection.last-success")
+                }
+            }
+
+            HStack(spacing: 10) {
+                primaryAction
+
+                if controller.needsPermissionRepair {
+                    Button("OPEN SYSTEM SETTINGS") {
+                        _ = controller.openPermissionSettings()
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .accessibilityIdentifier("settings.reminders.connection.repair")
+                }
+
+                if statusNeedsAttention {
+                    Button("USE LOCAL-ONLY PLANNING", action: useLocalOnlyPlanning)
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                        .accessibilityIdentifier("settings.reminders.connection.local-only")
+                }
+            }
+        }
+        .task {
+            if case .idle = controller.state {
+                await controller.refresh()
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.reminders.connection")
+    }
+
+    @ViewBuilder
+    private var primaryAction: some View {
+        switch controller.state {
+        case .idle, .connected, .refreshFailed:
+            Button("REFRESH REMINDERS") {
+                Task { await controller.refresh() }
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .accessibilityIdentifier("settings.reminders.connection.refresh")
+        case .permissionReady:
+            Button("REQUEST ACCESS") {
+                Task { await controller.connect() }
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
+            .accessibilityIdentifier("settings.reminders.connection.connect")
+        case .permissionRequired:
+            Button("RECHECK ACCESS") {
+                Task { await controller.refresh() }
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
+            .accessibilityIdentifier("settings.reminders.connection.recheck")
+        case .checking:
+            ProgressView("Checking Apple Reminders")
+                .accessibilityIdentifier("settings.reminders.connection.checking")
+        }
+    }
+
+    private var statusTitle: String {
+        switch controller.state {
+        case .idle: "NOT CHECKED"
+        case .checking: "CHECKING"
+        case .connected: "CONNECTED"
+        case .permissionReady: "READY TO CONNECT"
+        case .permissionRequired: "ACCESS NEEDED"
+        case .refreshFailed: "REFRESH FAILED"
+        }
+    }
+
+    private var statusDetail: String {
+        switch controller.state {
+        case .idle:
+            return "Check access and task freshness without changing any Reminder."
+        case .checking:
+            return "Reading current permission and incomplete task metadata."
+        case let .connected(taskCount):
+            let noun = taskCount == 1 ? "task" : "tasks"
+            return "Apple Reminders returned " + taskCount.formatted() + " incomplete " + noun + "."
+        case let .permissionReady(detail), let .permissionRequired(detail), let .refreshFailed(detail):
+            return detail
+        }
+    }
+
+    private var statusNeedsAttention: Bool {
+        switch controller.state {
+        case .permissionReady, .permissionRequired, .refreshFailed: true
+        case .idle, .checking, .connected: false
+        }
+    }
+
+    private var statusMark: some View {
+        Image(systemName: statusSymbol)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(statusNeedsAttention ? Sumi.paper : Sumi.ink)
+            .frame(width: 24, height: 24)
+            .background(statusNeedsAttention ? Sumi.seal : Sumi.paper)
+            .overlay { Rectangle().stroke(statusNeedsAttention ? Sumi.seal : Sumi.rule, lineWidth: 1) }
+            .accessibilityHidden(true)
+    }
+
+    private var statusSymbol: String {
+        switch controller.state {
+        case .connected: "checkmark"
+        case .permissionReady: "link"
+        case .permissionRequired, .refreshFailed: "exclamationmark"
+        case .idle: "minus"
+        case .checking: "ellipsis"
+        }
+    }
+}

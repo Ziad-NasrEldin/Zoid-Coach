@@ -1,0 +1,98 @@
+import AppKit
+import Foundation
+import ZoidCoachCore
+
+@MainActor
+final class RemindersConnectionController: ObservableObject {
+    enum State: Equatable {
+        case idle
+        case checking
+        case connected(taskCount: Int)
+        case permissionReady(detail: String)
+        case permissionRequired(detail: String)
+        case refreshFailed(detail: String)
+    }
+
+    @Published private(set) var state: State = .idle
+    @Published private(set) var lastSuccessfulSync: Date?
+
+    private let service: any RemindersServicing
+    private let defaults: UserDefaults
+    private let now: () -> Date
+    private let openSystemSettings: () -> Bool
+    private let lastSuccessfulSyncKey = "reminders.last-successful-sync"
+
+    init(
+        service: (any RemindersServicing)? = nil,
+        runtimeEnvironment: RuntimeEnvironment = .current(),
+        defaults: UserDefaults? = nil,
+        now: @escaping () -> Date = Date.init,
+        openSystemSettings: (() -> Bool)? = nil
+    ) {
+        self.service = service ?? RemindersService()
+        self.defaults = defaults ?? runtimeEnvironment.makeUserDefaults()
+        self.now = now
+        self.openSystemSettings = openSystemSettings ?? {
+            guard let url = URL(
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders"
+            ) else { return false }
+            return NSWorkspace.shared.open(url)
+        }
+        lastSuccessfulSync = self.defaults.object(forKey: lastSuccessfulSyncKey) as? Date
+    }
+
+    var isBusy: Bool { state == .checking }
+
+    var needsPermissionRepair: Bool {
+        if case .permissionRequired = state { return true }
+        return false
+    }
+
+    func refresh() async {
+        guard !isBusy else { return }
+        state = .checking
+        await reconcile(health: await service.inspect())
+    }
+
+    func connect() async {
+        guard !isBusy else { return }
+        state = .checking
+        await reconcile(health: await service.requestAccessAndInspect())
+    }
+
+    @discardableResult
+    func openPermissionSettings() -> Bool {
+        openSystemSettings()
+    }
+
+    private func reconcile(health: SourceHealth) async {
+        guard health.state == .healthy else {
+            switch health.state {
+            case .notConnected:
+                state = .permissionReady(detail: health.detail)
+            case .attention:
+                state = .permissionRequired(detail: health.detail)
+            case .checking, .unavailable:
+                state = .refreshFailed(detail: health.detail)
+            case .healthy:
+                break
+            }
+            return
+        }
+
+        switch await service.fetchIncompleteTasks() {
+        case let .available(tasks):
+            let completedAt = now()
+            lastSuccessfulSync = completedAt
+            defaults.set(completedAt, forKey: lastSuccessfulSyncKey)
+            state = .connected(taskCount: tasks.count)
+        case .unavailable:
+            let recoveryDetail = lastSuccessfulSync == nil
+                ? "Apple Reminders did not return task data. No confirmed task refresh is available yet. Retry when the source is available."
+                : "Apple Reminders did not return task data. Your last successful sync remains available while you retry."
+            state = .refreshFailed(
+                detail: recoveryDetail
+            )
+        }
+    }
+}

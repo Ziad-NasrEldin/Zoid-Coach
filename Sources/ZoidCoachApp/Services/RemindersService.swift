@@ -122,10 +122,10 @@ final class RemindersService: RemindersServicing {
             ending: nil,
             calendars: nil
         )
-        let tasks: [ReminderTask] = await withCheckedContinuation { continuation in
+        let tasks: [ReminderTask]? = await withCheckedContinuation { continuation in
             store.fetchReminders(matching: predicate) { reminders in
                 DispatchQueue.main.async {
-                    continuation.resume(returning: (reminders ?? []).map {
+                    continuation.resume(returning: reminders?.map {
                         ReminderTask(
                         id: $0.calendarItemIdentifier,
                         title: $0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled reminder" : $0.title,
@@ -141,6 +141,7 @@ final class RemindersService: RemindersServicing {
             }
         }
 
+        guard let tasks else { return .unavailable }
         return .available(tasks
             .sorted { lhs, rhs in
                 switch (lhs.dueDate, rhs.dueDate) {
