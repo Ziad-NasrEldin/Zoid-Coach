@@ -5,6 +5,40 @@ import ZoidCoachInfrastructure
 
 enum PolicyMutationXPCProbe {
     static let argument = "--qa-policy-mutation-xpc-probe"
+    static let registerAgentArgument = "--qa-register-agent"
+
+    static func registerAgent() -> Int32 {
+        let runtime = RuntimeEnvironment.current()
+        guard case .qa = runtime.mode, runtime.packageMode == .qa else {
+            fputs("FAIL: QA agent registration requires a packaged QA runtime\n", stderr)
+            return 2
+        }
+
+        let service = SMAppService.agent(plistName: runtime.identity.launchAgentPlistName)
+        do {
+            if service.status == .enabled {
+                print("PASS: QA LaunchAgent is already registered")
+                return 0
+            }
+            if service.status != .notRegistered && service.status != .notFound {
+                try service.unregister()
+            }
+            try service.register()
+            guard service.status != .requiresApproval else {
+                fputs("FAIL: QA LaunchAgent registration requires user approval\n", stderr)
+                return 3
+            }
+            guard service.status == .enabled else {
+                fputs("FAIL: QA LaunchAgent did not become enabled\n", stderr)
+                return 4
+            }
+            print("PASS: QA LaunchAgent registered and left enabled")
+            return 0
+        } catch {
+            fputs("FAIL: QA LaunchAgent registration failed: \(error.localizedDescription)\n", stderr)
+            return 5
+        }
+    }
 
     static func run() -> Int32 {
         let runtime = RuntimeEnvironment.current()
