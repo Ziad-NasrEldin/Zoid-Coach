@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "authoritativeCodeTip": "498bca9bfde5",
+  "acceptanceHarness": "Scripts/notification-delivery-acceptance.py",
+  "mappings": [
+    {
+      "scenarioID": "ZC-044-011",
+      "wording": "See notification authorization and delivery state.",
+      "runRoots": ["delivery-replacement-restart", "scheduling-failure", "denied-repair"],
+      "requiredVisibleEvidence": ["Ready", "Access Needed", "Delivered in QA", "Delivery Failed", "Today Fallback"],
+      "requiredMachineEvidence": ["delivered_by_fixture", "scheduling_failed", "authorization_unavailable"],
+      "maximumStatusAfterHarness": "Touches remaining",
+      "remainingProof": "A real macOS accepted-by-system row still requires the serialized signed runtime."
+    },
+    {
+      "scenarioID": "ZC-044-013",
+      "wording": "See notification authorization status.",
+      "runRoots": ["delivery-replacement-restart", "denied-repair"],
+      "requiredVisibleEvidence": ["Ready", "Access Needed", "Refresh Status"],
+      "requiredMachineEvidence": ["fixture permission granted", "fixture permission denied"],
+      "maximumStatusAfterHarness": "Fully implemented",
+      "remainingProof": "None after the signed denial, grant, refresh, and restart sequence passes."
+    },
+    {
+      "scenarioID": "ZC-048-004",
+      "wording": "See notification authorization and the last delivery result.",
+      "runRoots": ["delivery-replacement-restart", "scheduling-failure", "denied-repair"],
+      "requiredVisibleEvidence": ["authorization state", "newest truthful delivery row", "timestamp"],
+      "requiredMachineEvidence": ["privacy-safe ordered ledger rows"],
+      "maximumStatusAfterHarness": "Fully implemented",
+      "remainingProof": "None after visible history and restart preservation pass."
+    },
+    {
+      "scenarioID": "ZC-050-002",
+      "wording": "See a permission repair path when notification access is revoked.",
+      "runRoots": ["denied-repair"],
+      "requiredVisibleEvidence": ["Open Notification Settings", "Refresh Status", "Access Needed to Ready"],
+      "requiredMachineEvidence": ["authorization_unavailable followed by delivered_by_fixture"],
+      "maximumStatusAfterHarness": "Fully implemented",
+      "remainingProof": "None after the signed repair link and refreshed state are visibly exercised."
+    },
+    {
+      "scenarioID": "ZC-050-007",
+      "wording": "Avoid receiving stacked duplicate notifications for one coaching decision.",
+      "runRoots": ["delivery-replacement-restart"],
+      "requiredVisibleEvidence": ["replacement explanation on newest history row"],
+      "requiredMachineEvidence": ["two ledger attempts", "one fixture notification", "replacedPriorRequest true"],
+      "maximumStatusAfterHarness": "Touches remaining",
+      "remainingProof": "Behavior-coaching notifications are not implemented, so only supported prompt types are qualified."
+    },
+    {
+      "scenarioID": "ZC-054-008",
+      "wording": "See only one unresolved notification for the same prompt.",
+      "runRoots": ["delivery-replacement-restart"],
+      "requiredVisibleEvidence": ["replacement explanation on newest history row"],
+      "requiredMachineEvidence": ["one fixture notification after two schedules", "replacedPriorRequest true"],
+      "maximumStatusAfterHarness": "Fully implemented",
+      "remainingProof": "None after the fixture snapshot and signed history agree."
+    },
+    {
+      "scenarioID": "ZC-054-009",
+      "wording": "See updated notification content replace obsolete content.",
+      "runRoots": ["delivery-replacement-restart"],
+      "requiredVisibleEvidence": ["replacement explanation"],
+      "requiredMachineEvidence": ["same request identifier with changed desired content and one fixture notification"],
+      "maximumStatusAfterHarness": "Touches remaining",
+      "remainingProof": "The current signed UI can repeat a schedule but cannot deliberately change the same prompt content; a dedicated changed-content acceptance action is still required."
+    }
+  ]
+}
