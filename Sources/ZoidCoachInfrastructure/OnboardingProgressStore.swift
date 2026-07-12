@@ -31,6 +31,7 @@ public enum OnboardingProgressStoreError: LocalizedError, Equatable, Sendable {
 }
 
 /// Durable onboarding persistence exported by the `ZoidCoachInfrastructure` library product.
+/// The module is also bundled in the existing `ZoidCoachCore` product for dependency compatibility.
 ///
 /// The `fileManager` initializer argument remains source-compatible with the former Core store.
 /// Persistence intentionally uses descriptor-relative system calls instead of `FileManager`.
