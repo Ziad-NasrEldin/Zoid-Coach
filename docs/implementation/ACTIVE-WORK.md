@@ -9,7 +9,7 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | Field | Value |
 | --- | --- |
 | Integration branch | `codex/full-system` |
-| Current integration baseline | `515016a` after deterministic fixture integration and independent review |
+| Current integration baseline | `6b4624b` after isolated runtime, strict proof registry, and build-provenance integration |
 | Program | `docs/ZOID-COACH-666-IMPLEMENTATION-PROGRAM.md` |
 | Acceptance tracker | `docs/zoid-coach-product-scenario-tracker.md` |
 | Phase | Phase 0: acceptance foundation |
@@ -18,21 +18,22 @@ Builders and verifiers must read it before editing, but must not modify it unles
 
 | Lane | Branch | Worktree | Scope | Status |
 | --- | --- | --- | --- | --- |
-| Runtime consumers | `codex/zc-runtime-consumers` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/runtime-consumers` | Correct review findings, enforce fail-closed QA launchd/XPC behavior, and finish consumer isolation | Corrective commit in progress after `c65460b8` was rejected |
-| Registry hardening | `codex/zc-registry-hardening` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/registry-hardening` | Reject malformed, incoherent, nonexistent, or escaping verification evidence | In progress from `515016a` |
-| Fixture verifier | `codex/zc-foundation-reverify` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/foundation-reverify` | Independently reproduce the integrated deterministic fixture safety contract | In progress from `515016a` |
+| Runtime consumers | `codex/zc-runtime-consumers` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/runtime-consumers` | Isolated paths, preferences, Keychain, launchd/XPC fail-closed behavior, OS adapters, voice, and evidence cipher | Integrated through `4a2bd85`; 209 branch tests passed |
+| Registry hardening | `codex/zc-registry-hardening` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/registry-hardening` | Strict scenario, manifest, commit, clean-build, assertion, artifact, and checksum coherence | Integrated from `1223680` |
+| Fixture verifier | `codex/zc-foundation-reverify` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/foundation-reverify` | Independent deterministic fixture reproduction and immutable evidence | Integrated from `3031040` with no findings |
+| Build provenance | Root integrator | Main worktree | Git-derived signed package identity, expected-commit check, clean-proof mode, and visible Settings identity | Integrated through `34623ee`; both review axes clean |
 
 ## Exclusive file locks
 
 | Path | Owner | Intended change | Baseline | Expires |
 | --- | --- | --- | --- | --- |
-| `Sources/ZoidCoachApp/AppModel.swift` | Runtime consumers | Propagate QA runtime identity into launch-service composition only | `515016a` | Current corrective wave |
-| `Sources/ZoidCoachAgent/AgentMain.swift` | Runtime consumers | Native-capture path derivation only; temporary narrow grant from root | `0091652` | Current Phase 0 wave |
-| `Sources/ZoidCoachApp/Voice/VoiceConversationModel.swift` | Runtime consumers | Runtime-scoped preferences, keychain, and fail-closed QA XPC composition only | `515016a` | Current corrective wave |
+| `Sources/ZoidCoachApp/AppModel.swift` | Root integrator | Runtime composition integrated; future composition remains serialized | `4a2bd85` | Permanent unless temporarily granted |
+| `Sources/ZoidCoachAgent/AgentMain.swift` | Root integrator | QA OS-adapter refusal integrated; future composition remains serialized | `46f635f` | Permanent unless temporarily granted |
+| `Sources/ZoidCoachApp/Voice/VoiceConversationModel.swift` | Root integrator | QA external-boundary refusal integrated | `46f635f` | Permanent unless temporarily granted |
 | `Sources/ZoidCoachCore/ZoidCoachStorage.swift` | Root integrator | Runtime storage helper integrated | `e9aecdb` | Permanent unless temporarily granted |
-| Runtime preference, keychain, export, and capture consumers outside root-owned hotspots | Runtime consumers | Complete isolated runtime consumer wiring and focused tests | `0091652` | Current Phase 0 wave |
-| `Scripts/scenario_registry.py`, registry schema, and registry tests | Registry hardening | Enforce strict proof coherence without changing scenario status | `515016a` | Current Phase 0 wave |
-| `.audit/runs/deterministic-fixture/515016a/` | Fixture verifier | Independent commands, evidence, and findings only | `515016a` | Current Phase 0 wave |
+| Runtime preference, keychain, export, capture, OS-adapter, and evidence-cipher consumers | Root integrator | Integrated and independently reviewed | `4a2bd85` | Permanent unless temporarily granted |
+| `Scripts/scenario_registry.py`, registry schema, and registry tests | Root integrator | Strict proof coherence integrated | `1223680` | Permanent unless temporarily granted |
+| `.audit/runs/deterministic-fixture/515016a/` | Root integrator | Immutable independent evidence | `3031040` | Permanent |
 | `docs/zoid-coach-product-scenario-tracker.md` | Root integrator | Authoritative status and later stable-ID composition | `a068d27` | Permanent |
 | `Package.swift` | Root integrator | Integration and future UI-test composition | `a068d27` | Permanent unless temporarily granted |
 | Migration registration and schema versions | Root integrator | Serialized append-only migrations | `a068d27` | Permanent unless temporarily granted |
@@ -42,7 +43,7 @@ Builders and verifiers must read it before editing, but must not modify it unles
 | Runtime | Owner | Permission |
 | --- | --- | --- |
 | Production installed app and user data | Root integrator | Read-only verification unless the user explicitly authorizes a controlled mutation |
-| Packaged Build 8 inspection | Baseline verifier | Read-only UI, accessibility, database, and service inspection |
+| Signed clean QA package | Root integrator | Package and structural verification only until remaining QA identities are isolated |
 | Real Reminders and Calendar | None | No destructive or test mutations |
 | TCC and System Settings | None | No permission changes during this wave |
 
