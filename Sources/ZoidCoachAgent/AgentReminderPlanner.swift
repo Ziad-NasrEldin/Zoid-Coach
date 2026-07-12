@@ -220,13 +220,13 @@ final class AgentReminderPlanner: @unchecked Sendable {
         }
         let result = try reminderSnapshotStore.synchronize(snapshots)
         for snapshot in snapshots where snapshot.isCompleted && previouslyIncomplete.contains(snapshot.id) {
-                try taskHistoryStore.record(
-                    taskID: snapshot.id,
-                    state: .completed,
-                    title: snapshot.title,
-                    sourceKind: snapshot.sourceKind,
-                    at: snapshot.modificationDate ?? Date()
-                )
+            try taskHistoryStore.record(
+                taskID: snapshot.id,
+                state: .completed,
+                title: snapshot.title,
+                sourceKind: snapshot.sourceKind,
+                at: snapshot.modificationDate ?? Date()
+            )
         }
         return result
     }
