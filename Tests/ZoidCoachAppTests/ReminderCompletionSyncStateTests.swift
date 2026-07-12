@@ -68,6 +68,28 @@ func completedExecutionWithoutAuditNeverClaimsSourceSuccess() {
     #expect(state.detail(localExecutionIsCompleted: false) == nil)
 }
 
+@Test
+func exactCommandStateDoesNotDependOnGeneralAuditWindow() {
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let command = ActionCommand(
+        id: "exact-command",
+        idempotencyKey: "key",
+        type: .completeReminder,
+        entityID: "task-1",
+        desiredState: .completeReminder,
+        state: .retryableFailure,
+        attemptCount: 3,
+        createdAt: now,
+        updatedAt: now
+    )
+    let state = ReminderCompletionSyncState(taskID: "task-1", command: command)
+
+    #expect(state.commandID == "exact-command")
+    #expect(state.phase == .failed)
+    #expect(state.attemptCount == 3)
+    #expect(state.canRetry)
+}
+
 private func audit(
     id: String,
     type: String,

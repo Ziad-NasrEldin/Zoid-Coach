@@ -197,6 +197,56 @@ func completingReminderTaskLeavesTodayImmediatelyWhileSourceWriteIsPending() thr
 }
 
 @Test
+func failedReminderCompletionCanBeRetriedExactlyOnceWithoutLosingHistory() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-retry-reminder-completion-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let taskID = "reminder:retry-completion"
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([ReminderSourceSnapshot(
+        id: taskID,
+        title: "Send the final brief",
+        dueDate: day,
+        priority: 9,
+        sourceKind: .reminders
+    )])
+    try AutonomousPlanStore(databaseURL: url).replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: taskID, title: "Send the final brief", rank: 1, estimateMinutes: 25, reason: "Due", score: 100)],
+            mainObjectiveTaskID: taskID,
+            plannedFocusMinutes: 25,
+            availableFocusMinutes: 60
+        ),
+        for: day
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url)
+
+    _ = try agent.apply(.start, taskID: taskID, now: day)
+    _ = try agent.apply(.complete, taskID: taskID, now: day.addingTimeInterval(120))
+    #expect(try agent.reminderCompletionSyncState(taskID: taskID).phase == .pending)
+
+    let outbox = try ActionOutboxStore(databaseURL: url)
+    let claimed = try #require(try outbox.claimNextReady())
+    try outbox.markFailed(claimed, retryable: false, redactedError: "Reminders access denied")
+    #expect(try agent.reminderCompletionSyncState(taskID: taskID).phase == .failed)
+
+    let retried = try agent.retryReminderCompletion(taskID: taskID)
+    #expect(retried.phase == .pending)
+    let secondAttempt = try #require(try outbox.claimNextReady())
+    #expect(secondAttempt.id == claimed.id)
+    #expect(secondAttempt.attemptCount == 2)
+    #expect(try TaskHistoryStore(databaseURL: url).completedEntries(for: day).map(\.taskID) == [taskID])
+    #expect(throws: TodayDashboardAgentError.self) {
+        try agent.retryReminderCompletion(taskID: taskID)
+    }
+}
+
+@Test
 func agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-task-lifecycle-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: url) }

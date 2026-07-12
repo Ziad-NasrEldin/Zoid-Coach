@@ -60,6 +60,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var promptEpisodes: [PromptEpisode] = []
     @Published private(set) var actionAudit: [ActionAuditEntry] = []
     @Published private(set) var actionAuditError: String?
+    @Published private(set) var reminderCompletionSyncStates: [String: ReminderCompletionSyncState] = [:]
     @Published private(set) var lastActionMessage: String?
     @Published private(set) var persistenceMessage: String?
     @Published private(set) var runtimeSafety: AgentRuntimeSafetySnapshot = .writable
@@ -83,6 +84,7 @@ final class AppModel: ObservableObject {
     private let todayDashboardXPCClient: TodayDashboardXPCClient
     private let synchronizeReminderSnapshots: @Sendable ([AgentReminderSnapshot]) async throws -> Void
     private let retryReminderCompletion: @Sendable (String) async throws -> Void
+    private let fetchReminderCompletionSync: @Sendable (String) async throws -> ReminderCompletionSyncState
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
 
@@ -99,7 +101,8 @@ final class AppModel: ObservableObject {
         eventStore: EventStore? = nil,
         reminderListPolicyLoader: (@Sendable () throws -> ReminderListPolicy)? = nil,
         synchronizeReminderSnapshots: (@Sendable ([AgentReminderSnapshot]) async throws -> Void)? = nil,
-        retryReminderCompletion: (@Sendable (String) async throws -> Void)? = nil
+        retryReminderCompletion: (@Sendable (String) async throws -> Void)? = nil,
+        fetchReminderCompletionSync: (@Sendable (String) async throws -> ReminderCompletionSyncState)? = nil
     ) {
         let resolvedAgentLaunchService = agentLaunchService
             ?? AgentLaunchService(runtimeEnvironment: runtimeEnvironment)
@@ -112,8 +115,11 @@ final class AppModel: ObservableObject {
                 .synchronizeReminderSnapshots(snapshots)
             )
         }
-        self.retryReminderCompletion = retryReminderCompletion ?? { _ in
-            throw ReminderCompletionRetryError.agentTransportUnavailable
+        self.retryReminderCompletion = retryReminderCompletion ?? { taskID in
+            _ = try await resolvedTodayDashboardXPCClient.retryReminderCompletion(taskID: taskID)
+        }
+        self.fetchReminderCompletionSync = fetchReminderCompletionSync ?? { taskID in
+            try await resolvedTodayDashboardXPCClient.fetchReminderCompletionSync(taskID: taskID)
         }
         if let screenwatchReader {
             self.screenwatchReader = screenwatchReader
@@ -342,7 +348,18 @@ final class AppModel: ObservableObject {
     }
 
     func reminderCompletionSyncState(for taskID: String) -> ReminderCompletionSyncState {
-        ReminderCompletionSyncState(taskID: taskID, audit: actionAudit)
+        reminderCompletionSyncStates[taskID]
+            ?? ReminderCompletionSyncState(taskID: taskID, audit: actionAudit)
+    }
+
+    var visibleReminderCompletionSyncStates: [ReminderCompletionSyncState] {
+        reminderCompletionSyncStates.values
+            .filter { $0.phase != .notRequested && $0.phase != .confirmed }
+            .sorted { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
+    }
+
+    func reminderCompletionTitle(taskID: String) -> String {
+        reminderTasks.first(where: { $0.id == taskID })?.title ?? "Reminder task"
     }
 
     func retryReminderCompletionSync(taskID: String) {
@@ -370,6 +387,18 @@ final class AppModel: ObservableObject {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             await refreshActionAudit()
+        }
+    }
+
+    private func refreshReminderCompletionSyncStates() async {
+        let auditTaskIDs = actionAudit
+            .filter { $0.actionType == ActionCommandType.completeReminder.rawValue }
+            .map(\.entityID)
+        let taskIDs = Set(reminderTasks.map(\.id) + auditTaskIDs)
+        for taskID in taskIDs {
+            if let state = try? await fetchReminderCompletionSync(taskID) {
+                reminderCompletionSyncStates[taskID] = state
+            }
         }
     }
 
@@ -403,6 +432,7 @@ final class AppModel: ObservableObject {
         } catch {
             actionAuditError = "The automatic action ledger is unavailable. Check Agent source health and retry."
         }
+        await refreshReminderCompletionSyncStates()
     }
 
     func refreshRuntimeSafety() async {
@@ -1014,10 +1044,6 @@ final class AppModel: ObservableObject {
         }
         return "Zoid 666 automation is paused. Resume it in Settings before changing Reminders or Calendar."
     }
-}
-
-enum ReminderCompletionRetryError: Error {
-    case agentTransportUnavailable
 }
 
 private enum AppModelPolicyError: Error {

@@ -91,6 +91,8 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
     func fetchCaptureHealth(withReply reply: @escaping (Data?, String?) -> Void)
     func fetchTodaySnapshot(withReply reply: @escaping (Data?, String?) -> Void)
     func applyTaskCommand(_ command: String, taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
+    func fetchReminderCompletionSync(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
+    func retryReminderCompletion(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func startSprint(_ taskID: String, durationMinutes: Int, withReply reply: @escaping (Data?, String?) -> Void)
     func startUnplannedTask(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func skipPlanning(withReply reply: @escaping (Data?, String?) -> Void)
@@ -227,6 +229,20 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
             return
         }
         do { reply(try encoder.encode(agent.apply(command, taskID: taskID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
+    func fetchReminderCompletionSync(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let agent else { reply(nil, "The agent database is unavailable."); return }
+        do { reply(try encoder.encode(agent.reminderCompletionSyncState(taskID: taskID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
+    func retryReminderCompletion(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void) {
+        do { try writeCircuitBreaker.throwIfTripped() }
+        catch { reply(nil, error.localizedDescription); return }
+        guard let agent else { reply(nil, "The agent database is unavailable."); return }
+        do { reply(try encoder.encode(agent.retryReminderCompletion(taskID: taskID)), nil) }
         catch { reply(nil, error.localizedDescription) }
     }
 
@@ -484,6 +500,18 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
 
     public func apply(_ command: TaskActivityCommand, taskID: String) async throws -> TodaySnapshot {
         try await call { proxy, reply in proxy.applyTaskCommand(command.rawValue, taskID: taskID, withReply: reply) }
+    }
+
+    public func fetchReminderCompletionSync(taskID: String) async throws -> ReminderCompletionSyncState {
+        try await callData { proxy, reply in
+            proxy.fetchReminderCompletionSync(taskID, withReply: reply)
+        }
+    }
+
+    public func retryReminderCompletion(taskID: String) async throws -> ReminderCompletionSyncState {
+        try await callData { proxy, reply in
+            proxy.retryReminderCompletion(taskID, withReply: reply)
+        }
     }
 
     public func startSprint(taskID: String, durationMinutes: Int) async throws -> TodaySnapshot {

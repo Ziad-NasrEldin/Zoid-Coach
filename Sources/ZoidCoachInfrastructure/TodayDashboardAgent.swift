@@ -266,6 +266,22 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         return try snapshot(now: now)
     }
 
+    public func reminderCompletionSyncState(taskID: String) throws -> ReminderCompletionSyncState {
+        ReminderCompletionSyncState(
+            taskID: taskID,
+            command: try outbox.latestCommand(type: .completeReminder, entityID: taskID)
+        )
+    }
+
+    public func retryReminderCompletion(taskID: String) throws -> ReminderCompletionSyncState {
+        let state = try reminderCompletionSyncState(taskID: taskID)
+        guard state.canRetry, let commandID = state.commandID else {
+            throw TodayDashboardAgentError.completionNotRetryable
+        }
+        try outbox.retryFailed(commandID: commandID)
+        return try reminderCompletionSyncState(taskID: taskID)
+    }
+
     public func cachedSnapshot(for day: Date = Date()) throws -> TodaySnapshot? {
         try snapshots.load(for: day)
     }
@@ -315,11 +331,14 @@ public final class TodayDashboardAgent: @unchecked Sendable {
 
 public enum TodayDashboardAgentError: LocalizedError, Equatable {
     case unavailableTask
+    case completionNotRetryable
 
     public var errorDescription: String? {
         switch self {
         case .unavailableTask:
             "That Reminder is no longer available. Refresh tasks and choose another one."
+        case .completionNotRetryable:
+            "This completion is not waiting for a manual retry. Refresh its sync status before trying again."
         }
     }
 }

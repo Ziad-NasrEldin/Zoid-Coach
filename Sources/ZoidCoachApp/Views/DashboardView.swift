@@ -256,6 +256,7 @@ private struct TodayCommandView: View {
 
             PromptInboxLedger()
             MeetingCandidateLedger(editingCandidate: $editingCandidate)
+            ReminderCompletionSyncLedger()
             AutomaticActionLedger()
             MacPermissionHealthLedger()
 
@@ -355,6 +356,61 @@ private struct TodayCommandView: View {
                 if leftIndex != rightIndex { return leftIndex < rightIndex }
                 return lhs.listName.localizedCaseInsensitiveCompare(rhs.listName) == .orderedAscending
             }
+    }
+}
+
+private struct ReminderCompletionSyncLedger: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        if !model.visibleReminderCompletionSyncStates.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("REMINDERS COMPLETION SYNC")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                    Spacer()
+                    Text("LOCAL HISTORY PRESERVED")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.muted)
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 10)
+                .background(Sumi.mist)
+                .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+                ForEach(model.visibleReminderCompletionSyncStates, id: \.taskID) { state in
+                    HStack(spacing: 12) {
+                        Image(systemName: state.phase == .failed || state.phase == .unavailable
+                            ? "exclamationmark.arrow.triangle.2.circlepath"
+                            : "clock.arrow.circlepath")
+                            .foregroundStyle(state.phase == .failed || state.phase == .unavailable ? Sumi.seal : Sumi.muted)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(model.reminderCompletionTitle(taskID: state.taskID))
+                                .font(Sumi.body(13))
+                                .foregroundStyle(Sumi.ink)
+                            Text(state.detail(localExecutionIsCompleted: true) ?? "Apple Reminders confirmation is still pending.")
+                                .font(Sumi.body(11))
+                                .foregroundStyle(Sumi.muted)
+                        }
+                        Spacer()
+                        if state.canRetry {
+                            Button("RETRY SYNC") {
+                                model.retryReminderCompletionSync(taskID: state.taskID)
+                            }
+                            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
+                            .accessibilityIdentifier("today.completion-sync.\(state.taskID).retry")
+                        }
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 11)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("today.completion-sync.\(state.taskID)")
+                }
+            }
+        }
     }
 }
 

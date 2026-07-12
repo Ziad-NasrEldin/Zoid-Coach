@@ -1,6 +1,6 @@
 import Foundation
 
-public enum ReminderCompletionSyncPhase: String, Equatable, Sendable {
+public enum ReminderCompletionSyncPhase: String, Codable, Equatable, Sendable {
     case notRequested
     case pending
     case retrying
@@ -9,7 +9,7 @@ public enum ReminderCompletionSyncPhase: String, Equatable, Sendable {
     case confirmed
 }
 
-public struct ReminderCompletionSyncState: Equatable, Sendable {
+public struct ReminderCompletionSyncState: Codable, Equatable, Sendable {
     public let taskID: String
     public let commandID: String?
     public let phase: ReminderCompletionSyncPhase
@@ -42,6 +42,21 @@ public struct ReminderCompletionSyncState: Equatable, Sendable {
         case "cancelled": phase = .unavailable
         case "succeeded": phase = .confirmed
         default: phase = .notRequested
+        }
+    }
+
+    public init(taskID: String, command: ActionCommand?) {
+        self.taskID = taskID
+        commandID = command?.id
+        attemptCount = command?.attemptCount ?? 0
+        updatedAt = command?.updatedAt
+        switch command?.state {
+        case .pending: phase = .pending
+        case .executing: phase = .retrying
+        case .retryableFailure, .terminalFailure: phase = .failed
+        case .cancelled: phase = .unavailable
+        case .succeeded: phase = .confirmed
+        case nil: phase = .notRequested
         }
     }
 
