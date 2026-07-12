@@ -305,7 +305,7 @@ public final class BaselineObservationStore: @unchecked Sendable {
         var seconds: [BehaviorClassification: Int] = [:]
         var eligibleDriftCount = 0
         var currentDriftSeconds = 0
-        var currentDriftLastEpoch: Int64?
+        var currentDriftWasEligible = false
         var previousEpoch: Int64?
         for (index, observation) in observations.enumerated() {
             let nextEpoch = index + 1 < observations.count ? observations[index + 1].epoch : observation.epoch + 60
@@ -315,29 +315,27 @@ public final class BaselineObservationStore: @unchecked Sendable {
             let continuesEpisode = previousEpoch.map { observation.epoch - $0 <= 180 } ?? true
             if isDrift {
                 if !continuesEpisode {
-                    if currentDriftSeconds >= 600,
-                       let currentDriftLastEpoch,
-                       hasIncompletePlannedWork(at: currentDriftLastEpoch, completions: plannedCompletions) {
+                    if currentDriftWasEligible {
                         eligibleDriftCount += 1
                     }
                     currentDriftSeconds = 0
+                    currentDriftWasEligible = false
                 }
                 currentDriftSeconds += duration
-                currentDriftLastEpoch = observation.epoch
-            } else {
                 if currentDriftSeconds >= 600,
-                   let currentDriftLastEpoch,
-                   hasIncompletePlannedWork(at: currentDriftLastEpoch, completions: plannedCompletions) {
+                   hasIncompletePlannedWork(at: observation.epoch, completions: plannedCompletions) {
+                    currentDriftWasEligible = true
+                }
+            } else {
+                if currentDriftWasEligible {
                     eligibleDriftCount += 1
                 }
                 currentDriftSeconds = 0
-                currentDriftLastEpoch = nil
+                currentDriftWasEligible = false
             }
             previousEpoch = observation.epoch
         }
-        if currentDriftSeconds >= 600,
-           let currentDriftLastEpoch,
-           hasIncompletePlannedWork(at: currentDriftLastEpoch, completions: plannedCompletions) {
+        if currentDriftWasEligible {
             eligibleDriftCount += 1
         }
         let minutes: (BehaviorClassification) -> Int = { classification in
