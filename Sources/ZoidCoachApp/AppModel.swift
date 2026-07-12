@@ -308,6 +308,7 @@ final class AppModel: ObservableObject {
                 lastActionMessage = taskCommandConfirmation(command)
                 if command == .complete {
                     await refreshActionAudit()
+                    await monitorReminderCompletionSync(taskID: taskID)
                 }
             } catch {
                 taskCommandError = "The task change could not be saved. The last confirmed state is still shown. Try again after checking Agent source health."
@@ -355,9 +356,20 @@ final class AppModel: ObservableObject {
                 try await retryReminderCompletion(taskID)
                 lastActionMessage = "Completion retry queued for Apple Reminders."
                 await refreshActionAudit()
+                await monitorReminderCompletionSync(taskID: taskID)
             } catch {
                 taskCommandError = "The completion retry could not be queued. Your local task and history are unchanged. Check Reminders access and try again."
             }
+        }
+    }
+
+    private func monitorReminderCompletionSync(taskID: String) async {
+        for _ in 0..<20 {
+            let phase = reminderCompletionSyncState(for: taskID).phase
+            guard phase == .pending || phase == .retrying else { return }
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            await refreshActionAudit()
         }
     }
 
