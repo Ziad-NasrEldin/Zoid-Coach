@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "a8112630c5cba1a56574c47fd49d91898746ffac3ea98d10d05194e130f23373",
+  "tracker_sha256": "0ad9ef18eaa9561459a506a79fdfc725fa2a32fd148974840f5406eae3851681",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1367,8 +1367,8 @@
       "evidence_paths": [
         ".audit/runs/completed-task-history/3578132/REPORT.md"
       ],
-      "last_verified_commit": "35781320e8d7b18adc5ba224112daba1c0f03776",
-      "last_verified_build": "zoid-coach-35781320e8d7b18adc5ba224112daba1c0f03776-clean",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The installed signed QA journey completed a real local task through the authenticated helper, showed no copy in Today immediately or after helper and app restarts, and focused proof also enforces immediate exclusion for Reminder-backed tasks while their source write is still pending (`TodayDashboardAgent.swift`; `TodayDashboardAgentTests.swift`; `.audit/runs/completed-task-history/3578132/REPORT.md`).",
       "tracker_line": 132
     },
@@ -1390,8 +1390,8 @@
       "evidence_paths": [
         ".audit/runs/completed-task-history/3578132/REPORT.md"
       ],
-      "last_verified_commit": "35781320e8d7b18adc5ba224112daba1c0f03776",
-      "last_verified_build": "zoid-coach-35781320e8d7b18adc5ba224112daba1c0f03776-clean",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The installed signed QA Reviews screen showed the completed task's readable title, completion time, and local source after Today removed it, then showed the identical row after the app was killed and relaunched (`DailyReviewView.swift`; `TaskHistoryStore.swift`; `.audit/runs/completed-task-history/3578132/REPORT.md`).",
       "tracker_line": 133
     },
@@ -4214,8 +4214,8 @@
       "evidence_paths": [
         ".audit/runs/completed-task-history/3578132/REPORT.md"
       ],
-      "last_verified_commit": "35781320e8d7b18adc5ba224112daba1c0f03776",
-      "last_verified_build": "zoid-coach-35781320e8d7b18adc5ba224112daba1c0f03776-clean",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Reviews now renders the last factual pause reason beside a completed task, while focused restart, deduplication, and day-boundary tests prove that the preserved reason belongs to the completed history record rather than an active Today row (`TaskHistoryStore.swift`; `DailyReviewView.swift`; `TaskHistoryStoreTests.swift`; `.audit/runs/completed-task-history/3578132/REPORT.md`).",
       "tracker_line": 299
     },
@@ -4348,8 +4348,8 @@
       "evidence_paths": [
         ".audit/runs/completed-task-history/3578132/REPORT.md"
       ],
-      "last_verified_commit": "35781320e8d7b18adc5ba224112daba1c0f03776",
-      "last_verified_build": "zoid-coach-35781320e8d7b18adc5ba224112daba1c0f03776-clean",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The signed QA XPC journey completed a real task, the installed Today surface visibly showed zero active or available copies, and Reviews visibly retained the readable completed row across app relaunch (`TodayDashboardAgent.swift`; `DailyReviewView.swift`; `.audit/runs/completed-task-history/3578132/REPORT.md`).",
       "tracker_line": 308
     },
@@ -4381,9 +4381,9 @@
       "section_title": "Completing and rescheduling tasks",
       "item_index": 5,
       "wording": "See a clear pending-sync warning if Apple Reminders rejects completion.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4391,10 +4391,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminder-completion-sync/84da415/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "An automatic-action ledger can show outbox state and the direct reminder path sets a generic error, but task completion returns before Apple Reminders confirmation and the active task UI does not show task-specific pending sync.",
+      "audit_note": "The signed QA package revoked deterministic Reminders access, induced the real agent-side source-write failure, and visibly retained the completed task in a task-specific sync ledger with an honest failed state, local-history safety message, and retry action (`ReminderCompletionSyncState.swift`; `DashboardView.swift`; `.audit/runs/reminder-completion-sync/84da415/REPORT.md`).",
       "tracker_line": 310
     },
     {
@@ -4403,9 +4405,9 @@
       "section_title": "Completing and rescheduling tasks",
       "item_index": 6,
       "wording": "Retry a failed completion sync.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4413,10 +4415,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminder-completion-sync/84da415/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No task-level retry control exists; only background outbox retry behavior is available.",
+      "audit_note": "After access returned, the signed QA package retried the exact durable command through XPC, prevented duplicate activation, confirmed Apple Reminders completion on attempt two, and preserved that same command identity after restart (`ActionOutboxStore.swift`; `TodayDashboardAgent.swift`; `.audit/runs/reminder-completion-sync/84da415/REPORT.md`).",
       "tracker_line": 311
     },
     {
@@ -4425,9 +4429,9 @@
       "section_title": "Completing and rescheduling tasks",
       "item_index": 7,
       "wording": "Avoid seeing a false success before Apple Reminders confirms completion.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4435,10 +4439,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminder-completion-sync/84da415/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`TodayDashboardAgent.apply(.complete)` immediately marks local execution completed and returns a refreshed snapshot before the queued external action is confirmed.",
+      "audit_note": "Today now distinguishes pending, retrying, failed, unavailable, unknown, and confirmed source states, and the signed denial journey proved that only a source-confirmed succeeded command is presented as synchronized (`ReminderCompletionSyncState.swift`; `DashboardView.swift`; `.audit/runs/reminder-completion-sync/84da415/REPORT.md`).",
       "tracker_line": 312
     },
     {
@@ -4491,9 +4497,9 @@
       "section_title": "Completing and rescheduling tasks",
       "item_index": 10,
       "wording": "Keep the task and its local history when a source write fails.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4501,10 +4507,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminder-completion-sync/84da415/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Local execution and task history are written before the outbox completes, but there is no end-user recovery UI and a live source-write failure was not induced.",
+      "audit_note": "The signed denial, failure, repair, retry, confirmation, and restart journey retained the readable task title and exactly one local completion-history entry while the task stayed absent from active Today work (`TaskHistoryStore.swift`; `TodayDashboardAgent.swift`; `.audit/runs/reminder-completion-sync/84da415/REPORT.md`).",
       "tracker_line": 315
     },
     {
@@ -11665,9 +11673,9 @@
       "section_title": "Reminders failure and recovery",
       "item_index": 5,
       "wording": "See completion remain pending when Apple Reminders rejects it.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11675,10 +11683,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminder-completion-sync/84da415/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The action outbox models retryable failures, but the installed Today UI has no specific, clearly labeled pending Reminder-completion state.",
+      "audit_note": "The installed signed-QA journey revoked deterministic Reminders access before completion and proved that Today removed the task from active work without claiming source success, then exposed the terminal source-write failure and its single retry (`DashboardView.swift`; `.audit/runs/reminder-completion-sync/84da415/REPORT.md`).",
       "tracker_line": 730
     },
     {
@@ -11687,9 +11697,9 @@
       "section_title": "Reminders failure and recovery",
       "item_index": 6,
       "wording": "Retry the pending completion after access returns.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11697,10 +11707,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminder-completion-sync/84da415/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Retryable outbox execution is tested, but no complete user-visible permission-loss, retry, and confirmed-success journey was proven.",
+      "audit_note": "Restoring Reminders access and choosing the task-specific retry requeued the same durable command, preserved attempt-one evidence, confirmed the source task on attempt two, and survived app and agent restart (`ActionOutboxStore.swift`; `TodayDashboardAgent.swift`; `.audit/runs/reminder-completion-sync/84da415/REPORT.md`).",
       "tracker_line": 731
     },
     {
@@ -11709,9 +11721,9 @@
       "section_title": "Reminders failure and recovery",
       "item_index": 7,
       "wording": "Avoid losing the local task when a Reminder write fails.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11719,10 +11731,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminder-completion-sync/84da415/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Local task and action records are designed to survive source failure, but a real rejected write followed by restart and retry was not performed.",
+      "audit_note": "The signed failure-and-recovery proof retained the local completion record, readable title, and exactly one history entry through failure, retry, confirmed source completion, and restart (`TaskHistoryStore.swift`; `.audit/runs/reminder-completion-sync/84da415/REPORT.md`).",
       "tracker_line": 732
     },
     {
@@ -11731,9 +11745,9 @@
       "section_title": "Reminders failure and recovery",
       "item_index": 8,
       "wording": "Avoid seeing a task reported as synchronized before confirmation.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11741,10 +11755,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminder-completion-sync/84da415/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The executor waits for EventKit results, but the installed UI does not clearly distinguish local completion, pending source completion, and confirmed synchronization.",
+      "audit_note": "The installed ledger reports pending, retrying, failed, unavailable, or unknown until the exact durable command succeeds, and the signed journey proved the confirmed label appeared only after the source task was completed (`ReminderCompletionSyncState.swift`; `.audit/runs/reminder-completion-sync/84da415/REPORT.md`).",
       "tracker_line": 733
     },
     {
