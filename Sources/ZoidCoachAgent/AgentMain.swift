@@ -143,6 +143,7 @@ struct ZoidCoachAgentMain {
             let taskHistoryStore = try TaskHistoryStore(databaseURL: configuration.databaseURL)
             let learningStore = try LearningAggregateStore(databaseURL: configuration.databaseURL)
             let trustGateStore = try PlannerTrustGateStore(databaseURL: configuration.databaseURL)
+            let baselineObservationStore = try BaselineObservationStore(databaseURL: configuration.databaseURL)
             let promptStore = try PromptInboxStore(databaseURL: configuration.databaseURL)
             let planningInvitations = PlanningInvitationService(store: promptStore)
             let actionOutbox = try ActionOutboxStore(databaseURL: configuration.databaseURL)
@@ -517,6 +518,7 @@ struct ZoidCoachAgentMain {
                 var lastMaintenanceAttempt: Date?
                 var lastDaytimeSourceCheck: Date?
                 var lastCalendarSignature: String?
+                var lastBaselineReconciliationDay: String?
                 while !Task.isCancelled {
                     do {
                     let versionedPolicy = try policyStore.current() ?? initialVersionedPolicy
@@ -563,6 +565,21 @@ struct ZoidCoachAgentMain {
                     print("Zoid 666 agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
                     _ = try? todayDashboardAgent.snapshot(now: Date())
                     let now = Date()
+                    let baselineDay = Self.localDayKey(
+                        now,
+                        timeZoneIdentifier: policy.schedule.timeZoneIdentifier
+                    )
+                    if lastBaselineReconciliationDay != baselineDay {
+                        var baselineCalendar = Calendar(identifier: .gregorian)
+                        baselineCalendar.timeZone = TimeZone(
+                            identifier: policy.schedule.timeZoneIdentifier
+                        ) ?? .current
+                        _ = try? baselineObservationStore.reconcileCompletedDays(
+                            before: now,
+                            calendar: baselineCalendar
+                        )
+                        lastBaselineReconciliationDay = baselineDay
+                    }
                     _ = try promptStore.expireDue()
                     if policy.automationPause.isPaused {
                         await progressMonitor.markProgress()
@@ -737,6 +754,14 @@ struct ZoidCoachAgentMain {
                 )
                 print("Zoid 666 agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
                 _ = try? todayDashboardAgent.snapshot(now: Date())
+                var baselineCalendar = Calendar(identifier: .gregorian)
+                baselineCalendar.timeZone = TimeZone(
+                    identifier: initialPolicy.schedule.timeZoneIdentifier
+                ) ?? .current
+                _ = try? baselineObservationStore.reconcileCompletedDays(
+                    before: Date(),
+                    calendar: baselineCalendar
+                )
             }
         } catch let error as AgentOSAdapterBoundaryError {
             fputs("Zoid 666 agent refused QA OS access: \(error.localizedDescription)\n", stderr)
