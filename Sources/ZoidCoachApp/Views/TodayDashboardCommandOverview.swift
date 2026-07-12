@@ -15,6 +15,8 @@ struct TodayDashboardCommandOverview: View {
     @State private var usageDismissTask: Task<Void, Never>?
     @State private var pendingSwitchTask: TodayTaskRow?
     @State private var customSprintTask: TodayTaskRow?
+    @State private var blockReasonTask: TodayTaskRow?
+    @State private var blockReason = ""
     @FocusState private var isUsageFocused: Bool
 
     var body: some View {
@@ -85,6 +87,12 @@ struct TodayDashboardCommandOverview: View {
                     model.startSprint(taskID: row.taskID, durationMinutes: durationMinutes)
                 }
             )
+        }
+        .sheet(item: $blockReasonTask) { row in
+            TaskBlockReasonSheet(taskTitle: row.title, reason: $blockReason) {
+                blockReasonTask = nil
+                model.markTaskBlocked(taskID: row.taskID, reason: blockReason)
+            }
         }
     }
 
@@ -433,7 +441,10 @@ struct TodayDashboardCommandOverview: View {
             Button("Done for now") { model.applyTaskCommand(.pauseDoneForNow, taskID: row.taskID) }
             Button("End the workday") { model.applyTaskCommand(.pauseForEndOfDay, taskID: row.taskID) }
             Divider()
-            Button("Task is blocked") { model.applyTaskCommand(.block, taskID: row.taskID) }
+            Button("Task is blocked") {
+                blockReason = row.blockedReason ?? ""
+                blockReasonTask = row
+            }
         } label: {
             SumiSelectorLabel("PAUSE", systemImage: "pause.fill", size: .standard)
         }

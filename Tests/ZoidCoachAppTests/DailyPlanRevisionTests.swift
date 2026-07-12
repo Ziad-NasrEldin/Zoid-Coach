@@ -96,8 +96,47 @@ func invalidBlockedReasonLeavesBothPlanAndExecutionUnchanged() throws {
     #expect(throws: TaskExecutionStoreError.invalidBlockedReason) {
         try store.apply(.block, taskID: "task", blockedReason: "x", at: now)
     }
+    #expect(throws: TaskExecutionStoreError.invalidBlockedReason) {
+        try store.apply(.block, taskID: "task", at: now)
+    }
     #expect(try store.snapshot(for: ["task"], now: now)["task"]?.state == .ready)
     #expect(try AutonomousPlanStore(databaseURL: url).loadDailyPlan(for: now).first?.blockedReason == nil)
+}
+
+@Test
+func invalidDailyPlanRevisionIsRejectedWithoutReplacingDurablePlan() throws {
+    let url = revisionDatabaseURL("invalid-plan")
+    defer { removeRevisionDatabase(url) }
+    let now = Date(timeIntervalSince1970: 1_800_300_000)
+    let store = try AgentOwnedStateStore(databaseURL: url)
+    try store.replaceDailyPlan([
+        AgentPlanItem(
+            reminderID: "safe-task",
+            rank: 1,
+            isMainObjective: true,
+            estimateMinutes: 30,
+            selectionReason: nil,
+            selectionScore: nil
+        )
+    ], day: now, now: now)
+
+    #expect(throws: AgentOwnedStateStoreError.self) {
+        try store.replaceDailyPlan([
+            AgentPlanItem(
+                reminderID: "optional-main",
+                rank: 1,
+                isMainObjective: true,
+                estimateMinutes: 30,
+                selectionReason: nil,
+                selectionScore: nil,
+                isOptional: true
+            )
+        ], day: now, now: now)
+    }
+
+    let persisted = try AutonomousPlanStore(databaseURL: url).loadDailyPlan(for: now)
+    #expect(persisted.map(\.reminderID) == ["safe-task"])
+    #expect(persisted.first?.isMainObjective == true)
 }
 
 private func revisionDatabaseURL(_ suffix: String) -> URL {

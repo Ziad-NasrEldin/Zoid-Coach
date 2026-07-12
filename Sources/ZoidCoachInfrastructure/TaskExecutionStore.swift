@@ -43,10 +43,10 @@ public final class TaskExecutionStore: @unchecked Sendable {
         at date: Date = Date()
     ) throws {
         let normalizedBlockedReason = blockedReason?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if command == .block,
-           let normalizedBlockedReason,
-           !(3...240).contains(normalizedBlockedReason.count) {
-            throw TaskExecutionStoreError.invalidBlockedReason
+        if command == .block {
+            guard let normalizedBlockedReason,
+                  (3...240).contains(normalizedBlockedReason.count)
+            else { throw TaskExecutionStoreError.invalidBlockedReason }
         }
         try transaction {
             let current = try state(for: taskID)

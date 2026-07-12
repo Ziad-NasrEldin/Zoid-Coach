@@ -83,6 +83,8 @@ final class AppModel: ObservableObject {
     private let reminderListPolicyLoader: @Sendable () throws -> ReminderListPolicy
     private let todayDashboardXPCClient: TodayDashboardXPCClient
     private let synchronizeReminderSnapshots: @Sendable ([AgentReminderSnapshot]) async throws -> Void
+    private var dailyPlanPersistenceTask: Task<Void, Never>?
+    private var dailyPlanPersistenceRevision = 0
     private let retryReminderCompletion: @Sendable (String) async throws -> Void
     private let fetchReminderCompletionSync: @Sendable (String) async throws -> ReminderCompletionSyncState
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
@@ -674,19 +676,23 @@ final class AppModel: ObservableObject {
     }
 
     func markTaskBlocked(_ entry: DailyPlanEntry, reason: String) {
+        markTaskBlocked(taskID: entry.reminderID, reason: reason)
+    }
+
+    func markTaskBlocked(taskID: String, reason: String) {
         let normalizedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (3...240).contains(normalizedReason.count) else {
             taskCommandError = "Explain the blocker in 3 to 240 characters."
             return
         }
         guard pendingTaskCommandIDs.isEmpty else { return }
-        pendingTaskCommandIDs.insert(entry.reminderID)
+        pendingTaskCommandIDs.insert(taskID)
         taskCommandError = nil
         Task {
-            defer { pendingTaskCommandIDs.remove(entry.reminderID) }
+            defer { pendingTaskCommandIDs.remove(taskID) }
             do {
                 todaySnapshot = try await todayDashboardXPCClient.blockTask(
-                    taskID: entry.reminderID,
+                    taskID: taskID,
                     reason: normalizedReason
                 )
                 await reloadDailyPlan()
@@ -1065,12 +1071,20 @@ final class AppModel: ObservableObject {
                 deferredUntil: $0.deferredUntil
             )
         }
-        Task {
+        dailyPlanPersistenceRevision += 1
+        let revision = dailyPlanPersistenceRevision
+        let previousPersistence = dailyPlanPersistenceTask
+        dailyPlanPersistenceTask = Task { [weak self] in
+            await previousPersistence?.value
+            guard let self else { return }
             do {
                 let receipt = try await todayDashboardXPCClient.apply(.replaceDailyPlan(items: items, day: Date()))
                 guard receipt.accepted else { throw AppModelPersistenceError.rejected }
-                persistenceMessage = nil
+                if revision == dailyPlanPersistenceRevision {
+                    persistenceMessage = nil
+                }
             } catch {
+                guard revision == dailyPlanPersistenceRevision else { return }
                 persistenceMessage = "The plan change was not saved. The last durable plan has been restored."
                 await reloadDailyPlan()
             }

@@ -227,6 +227,45 @@ func agentSchedulerDoesNotPartiallyWriteWhenEveryReviewedTaskCannotFit() async t
     #expect(try outbox.recentCommands(limit: 20).isEmpty)
 }
 
+@Test
+func agentSchedulerExcludesOptionalAndDeferredTasksFromCalendarBlocks() async throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-plan-scheduler-revised-\(UUID().uuidString).sqlite")
+    defer { removePlanSchedulerDatabase(url) }
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    let day = calendar.date(from: DateComponents(year: 2026, month: 7, day: 6))!
+    let now = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: day)!
+    try AgentOwnedStateStore(databaseURL: url).replaceDailyPlan([
+        AgentPlanItem(reminderID: "committed", rank: 1, isMainObjective: true, estimateMinutes: 30, selectionReason: nil, selectionScore: nil),
+        AgentPlanItem(reminderID: "optional", rank: 2, isMainObjective: false, estimateMinutes: 30, selectionReason: nil, selectionScore: nil, isOptional: true),
+        AgentPlanItem(reminderID: "deferred", rank: 3, isMainObjective: false, estimateMinutes: 30, selectionReason: nil, selectionScore: nil, deferredUntil: now.addingTimeInterval(24 * 60 * 60))
+    ], day: day, now: now)
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "committed", title: "Committed", dueDate: nil, priority: 0),
+        ReminderSourceSnapshot(id: "optional", title: "Optional", dueDate: nil, priority: 0),
+        ReminderSourceSnapshot(id: "deferred", title: "Deferred", dueDate: nil, priority: 0)
+    ])
+    let outbox = try ActionOutboxStore(databaseURL: url)
+    let scheduler = AgentPlanScheduler(
+        plans: try AutonomousPlanStore(databaseURL: url),
+        reminders: reminders,
+        outbox: outbox,
+        calendar: SchedulerCalendar(commitments: []),
+        now: { now }
+    )
+
+    let result = try await scheduler.enqueueSchedule(
+        for: day,
+        policy: UserPolicy.defaults(timeZoneIdentifier: "UTC"),
+        policyVersion: 1
+    )
+    let calendarCommands = try outbox.recentCommands(limit: 30).filter { $0.type == .reconcileCalendarBlock }
+
+    #expect(result.scheduledBlockCount == 1)
+    #expect(calendarCommands.map(\.entityID) == ["committed"])
+}
+
 private struct SchedulerCalendar: CalendarAvailabilitySource {
     let commitments: [CalendarCommitment]
     func commitments(from start: Date, through end: Date, calendarIdentifiers: [String]) async throws -> [CalendarCommitment] { commitments }

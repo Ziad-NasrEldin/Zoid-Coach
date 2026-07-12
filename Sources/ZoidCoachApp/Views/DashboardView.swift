@@ -1402,7 +1402,7 @@ private struct PlanningCapacityPanel: View {
     }
 }
 
-private struct TaskBlockReasonSheet: View {
+struct TaskBlockReasonSheet: View {
     @Environment(\.dismiss) private var dismiss
     let taskTitle: String
     @Binding var reason: String

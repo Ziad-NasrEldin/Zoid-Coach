@@ -20,6 +20,7 @@ public final class AgentOwnedStateStore: @unchecked Sendable {
     deinit { sqlite3_close(database) }
 
     public func replaceDailyPlan(_ items: [AgentPlanItem], day: Date, now: Date = Date()) throws {
+        try validateDailyPlan(items, now: now)
         try transaction {
             let dayKey = Self.dayKey(day)
             try execute("DELETE FROM daily_plan_entries WHERE day_key = ?;", values: [.text(dayKey)])
@@ -39,6 +40,27 @@ public final class AgentOwnedStateStore: @unchecked Sendable {
                 )
             }
         }
+    }
+
+    private func validateDailyPlan(_ items: [AgentPlanItem], now: Date) throws {
+        guard items.count <= 5 else { throw AgentOwnedStateStoreError.invalidDailyPlan }
+        guard !items.isEmpty else { return }
+
+        let reminderIDs = items.map { $0.reminderID.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let ranks = items.map(\.rank)
+        guard reminderIDs.allSatisfy({ !$0.isEmpty }),
+              Set(reminderIDs).count == items.count,
+              Set(ranks) == Set(1...items.count),
+              items.filter(\.isMainObjective).count == 1,
+              items.allSatisfy({ $0.estimateMinutes.map { $0 > 0 } ?? true }),
+              items.allSatisfy({ item in
+                  guard let reason = item.blockedReason else { return true }
+                  return (3...240).contains(reason.trimmingCharacters(in: .whitespacesAndNewlines).count)
+              }),
+              let mainObjective = items.first(where: \.isMainObjective),
+              mainObjective.isOptional != true,
+              !(mainObjective.deferredUntil.map { $0 > now } ?? false)
+        else { throw AgentOwnedStateStoreError.invalidDailyPlan }
     }
 
     public func appendLocalTaskToDailyPlan(
@@ -142,11 +164,13 @@ public final class AgentOwnedStateStore: @unchecked Sendable {
 
 public enum AgentOwnedStateStoreError: LocalizedError {
     case openDatabase
+    case invalidDailyPlan
     case write(String)
 
     public var errorDescription: String? {
         switch self {
         case .openDatabase: return "The agent could not open its state database."
+        case .invalidDailyPlan: return "The daily plan is invalid and was not saved."
         case let .write(message): return "The agent could not persist state: \(message)"
         }
     }
