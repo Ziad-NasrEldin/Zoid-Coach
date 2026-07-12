@@ -41,14 +41,28 @@ final class BaselineObservationController: ObservableObject {
     }
 
     func refresh() {
+        guard !isLoading else { return }
+        guard let store else {
+            errorMessage = (unavailableError ?? BaselineObservationStoreError.openDatabase).localizedDescription
+            return
+        }
         isLoading = true
-        defer { isLoading = false }
-        do {
-            guard let store else { throw unavailableError ?? BaselineObservationStoreError.openDatabase }
-            status = try store.reconcileCompletedDays(before: now(), calendar: calendar)
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
+        let refreshDate = now()
+        let refreshCalendar = calendar
+        Task { [weak self] in
+            do {
+                let refreshed = try await Task.detached(priority: .utility) {
+                    try store.reconcileCompletedDays(
+                        before: refreshDate,
+                        calendar: refreshCalendar
+                    )
+                }.value
+                self?.status = refreshed
+                self?.errorMessage = nil
+            } catch {
+                self?.errorMessage = error.localizedDescription
+            }
+            self?.isLoading = false
         }
     }
 }
