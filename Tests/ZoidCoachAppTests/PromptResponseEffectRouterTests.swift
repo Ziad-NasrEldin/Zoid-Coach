@@ -133,3 +133,46 @@ func acceptingAPlanDurablyQueuesItsApprovalScheduleRequest() throws {
     #expect(request.dayKey == "2026-07-11")
     #expect(try promptStore.pendingEffects().isEmpty)
 }
+
+@Test
+func gamingPromptReturnActionStartsTheNamedTaskExactlyOnce() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-gaming-return-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let observedAt = Date(timeIntervalSince1970: 1_784_000_000)
+    let promptStore = try PromptInboxStore(databaseURL: databaseURL, now: { observedAt })
+    let episode = try promptStore.enqueue(PromptDraft(
+        decisionKey: "gaming-drift:2026-07-13:1783990000",
+        type: PromptNotificationCategory.gamingDrift.rawValue,
+        title: "Ready for an easy return?",
+        summary: "Gaming was observed while the proposal remains unfinished.",
+        actions: [PromptAction(kind: .returnToActiveTask, title: "Return to proposal")],
+        payload: ["taskID": "priority-1"]
+    )).episode
+    let token = PromptResponseToken.make(promptID: episode.id, action: .returnToActiveTask)
+    let first = try promptStore.respond(
+        promptID: episode.id,
+        action: .returnToActiveTask,
+        actionToken: token,
+        surface: .notification
+    )
+    let replay = try promptStore.respond(
+        promptID: episode.id,
+        action: .returnToActiveTask,
+        actionToken: token,
+        surface: .dashboard
+    )
+    let execution = try TaskExecutionStore(databaseURL: databaseURL)
+    let router = PromptResponseEffectRouter(
+        outbox: try ActionOutboxStore(databaseURL: databaseURL),
+        meetingArchive: try ScreenwatchArchive(databaseURL: databaseURL),
+        promptStore: promptStore,
+        taskExecution: execution
+    )
+
+    #expect(try router.apply(first) == .coachingTaskStarted(taskID: "priority-1"))
+    #expect(try router.apply(replay) == .none)
+    #expect(try execution.snapshot(for: ["priority-1"], now: observedAt)["priority-1"]?.state == .active)
+}

@@ -4,6 +4,20 @@ import Testing
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
 
+@Test
+func settingsRoundTripsConfiguredCoachingLevelWithoutChangingGamingAllowance() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var draft = SettingsPolicyDraft(policy: original)
+    draft.coachingLevel = .accountability
+
+    let saved = draft.policy(preserving: original)
+
+    #expect(saved.gaming.coachingLevel == .accountability)
+    #expect(saved.gaming.dailyBudgetMinutes == original.gaming.dailyBudgetMinutes)
+    #expect(saved.gaming.priorityTaskRewardMinutes == original.gaming.priorityTaskRewardMinutes)
+    #expect(SettingsPolicyDraft(policy: saved).coachingLevel == .accountability)
+}
+
 @MainActor
 private final class SettingsRefreshRecorder {
     private(set) var count = 0
