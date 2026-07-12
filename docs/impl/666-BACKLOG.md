@@ -35,7 +35,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 17 | Complete app-classification management in Settings | ready | Unowned | User can search, classify, bulk-edit, reset, and verify runtime use of work, gaming, communication, and automatic categories |
 | 18 | Complete Settings policy mutation conflict UX | ready | Unowned | Concurrent edits never silently overwrite; the user sees the winning state and can retry safely without duplicates |
 | 19 | Complete background-agent lifecycle and Login Items repair | ready | Unowned | Install, enable, approval-required, update, crash recovery, disable, and uninstall are understandable and preserve data integrity |
-| 20 | Complete privacy, export, deletion, and local-data controls | active | Lane C - next_backlog_slice | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
+| 20 | Complete privacy, export, deletion, and local-data controls | verify | Lane C at `73c77ec` | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
 
 ## Pull Rules
 
@@ -48,6 +48,17 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Privacy, export, deletion, and retention controls - `73c77ec`
+
+- Added a visible local-data inventory with privacy-safe counts for every stored-data class.
+- Added reviewed redacted export with an explicit native macOS destination chooser.
+- Added exact-session, one-day, inclusive-range, targeted-category, and delete-all controls with scoped confirmations.
+- Added independent retention policies and background enforcement for behavior records, task sessions, prompts, reviews and learning, screenshots, extracted text, and diagnostics.
+- Preserved unresolved prompts, source-owned screenshots, Keychain credentials, and the migrated restart-safe schema.
+- Focused privacy, DST-boundary, exact-session, and retention tests pass.
+- Full-suite and release-build proof are recorded in `.audit/runs/privacy-data/73c77ec/REPORT.md`.
+- A parallel verifier should exercise the Records chapter in a signed QA artifact before the root upgrades the affected tracker rows.
 
 ### Signed-QA persistent runtime - `343310a`
 
