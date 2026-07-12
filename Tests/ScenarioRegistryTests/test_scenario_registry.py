@@ -329,6 +329,29 @@ class ScenarioRegistryTests(unittest.TestCase):
                 ),
                 [],
             )
+            invalid_assertion_payload = json.loads(evidence.read_text(encoding="utf-8"))
+            invalid_assertion_payload["assertions"] = [None]
+            evidence.write_text(
+                json.dumps(invalid_assertion_payload, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            invalid_assertion_errors = module.validate_verification_identity(
+                commit,
+                identity,
+                [evidence_path],
+                repository_root,
+                scenario_id="ZC-001-001",
+                required_proof_classes=["unit_rule"],
+            )
+            self.assertTrue(
+                any("scenario-bound evidence manifest" in error for error in invalid_assertion_errors),
+                invalid_assertion_errors,
+            )
+            invalid_assertion_payload["assertions"] = ["Fixture behavior passed"]
+            evidence.write_text(
+                json.dumps(invalid_assertion_payload, indent=2) + "\n",
+                encoding="utf-8",
+            )
             dirty_errors = module.validate_verification_identity(
                 commit,
                 f"zoid-coach-{commit}-dirty",

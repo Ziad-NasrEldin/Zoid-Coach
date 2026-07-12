@@ -321,6 +321,7 @@ def valid_manifest_for_scenario(
         or not manifest.get("completed_at")
         or not isinstance(assertions, list)
         or not assertions
+        or any(not valid_manifest_assertion(value) for value in assertions)
         or not isinstance(artifacts, list)
         or not artifacts
     ):
@@ -345,6 +346,17 @@ def valid_manifest_for_scenario(
         if artifact.get("sha256") != digest:
             return False
     return True
+
+
+def valid_manifest_assertion(value):
+    if isinstance(value, str):
+        return bool(value.strip())
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("name"), str)
+        and bool(value["name"].strip())
+        and value.get("result") == "passed"
+    )
 
 
 def validate_verification_identity(

@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 import tempfile
 import unittest
 import subprocess
@@ -116,6 +117,51 @@ class ScenarioEvidenceTests(unittest.TestCase):
             errors = MODULE.validate_manifest(manifest, REGISTRY)
 
             self.assertTrue(any("relative path" in error for error in errors), errors)
+
+    def test_validation_rejects_parent_symlink_artifact_escape(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = self.create(root)
+            outside = root / "outside"
+            outside.mkdir()
+            artifact = outside / "proof.txt"
+            artifact.write_text("outside\n")
+            (manifest.parent / "linked").symlink_to(outside, target_is_directory=True)
+            payload = json.loads(manifest.read_text())
+            payload["artifacts"] = [
+                {
+                    "path": "linked/proof.txt",
+                    "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+                }
+            ]
+            manifest.write_text(json.dumps(payload, indent=2) + "\n")
+
+            errors = MODULE.validate_manifest(manifest, REGISTRY)
+            self.assertTrue(any("escapes the evidence run" in error for error in errors), errors)
+
+    def test_passed_manifest_rejects_null_or_failed_assertions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = self.create(Path(directory))
+            payload = json.loads(manifest.read_text())
+            payload["assertions"] = [None, {"name": "visible state", "result": "failed"}]
+            manifest.write_text(json.dumps(payload, indent=2) + "\n")
+
+            errors = MODULE.validate_manifest(manifest, REGISTRY)
+            self.assertTrue(any("assertions must contain" in error for error in errors), errors)
+
+    def test_git_identity_ignores_ambient_repository_redirection(self):
+        original = {key: os.environ.get(key) for key in ("GIT_DIR", "GIT_WORK_TREE")}
+        try:
+            os.environ["GIT_DIR"] = "/tmp/foreign.git"
+            os.environ["GIT_WORK_TREE"] = "/tmp/foreign-worktree"
+            self.assertEqual(MODULE.repository_commit(), self.commit)
+            self.assertTrue(MODULE.commit_exists(self.commit))
+        finally:
+            for key, value in original.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
 
 
 if __name__ == "__main__":

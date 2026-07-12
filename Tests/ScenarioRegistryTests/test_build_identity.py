@@ -1,3 +1,4 @@
+import os
 import plistlib
 import subprocess
 import tempfile
@@ -74,6 +75,25 @@ class BuildIdentityTests(unittest.TestCase):
 
         (self.repository / "untracked.txt").unlink()
         self.assertEqual(self.identity(), f"zoid-coach-{self.commit}-clean")
+
+    def test_detector_ignores_ambient_git_repository_redirection(self):
+        foreign = Path(self.directory.name) / "foreign"
+        foreign.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=foreign, check=True)
+        result = subprocess.run(
+            [str(STAMP), "--print", str(self.repository)],
+            cwd=ROOT,
+            env={
+                **os.environ,
+                "GIT_DIR": str(foreign / ".git"),
+                "GIT_WORK_TREE": str(foreign),
+            },
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.stdout.strip(), f"zoid-coach-{self.commit}-clean")
 
     def test_verifier_requires_expected_commit_and_clean_proof(self):
         destination = Path(self.directory.name) / "Stamped.plist"

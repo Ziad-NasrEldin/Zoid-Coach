@@ -14,14 +14,15 @@ if [[ "$MODE" == "stamp" ]]; then
     shift
 fi
 REPOSITORY="${1:-$ROOT}"
-COMMIT="$(git -C "$REPOSITORY" rev-parse HEAD)"
+GIT=(env -i "PATH=$PATH" "HOME=$HOME" "TMPDIR=${TMPDIR:-/tmp}" git -C "$REPOSITORY")
+COMMIT="$("${GIT[@]}" rev-parse HEAD)"
 
 if [[ ! "$COMMIT" =~ '^[0-9a-f]{40}$' ]]; then
     echo "Invalid build commit: $COMMIT" >&2
     exit 1
 fi
 
-if [[ -z "$(git -C "$REPOSITORY" status --porcelain --untracked-files=normal)" ]]; then
+if [[ -z "$("${GIT[@]}" status --porcelain --untracked-files=normal)" ]]; then
     STATE="clean"
 else
     STATE="dirty"

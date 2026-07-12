@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -40,6 +41,7 @@ def repository_commit() -> str:
         check=True,
         capture_output=True,
         text=True,
+        env=sanitized_git_environment(),
     )
     return result.stdout.strip()
 
@@ -49,8 +51,13 @@ def commit_exists(commit: str) -> bool:
         ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
         cwd=ROOT,
         capture_output=True,
+        env=sanitized_git_environment(),
     )
     return result.returncode == 0
+
+
+def sanitized_git_environment() -> dict[str, str]:
+    return {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
 
 
 def expected_build_identity(commit: str) -> str:
@@ -200,11 +207,17 @@ def validate_manifest(
         except EvidenceError as error:
             errors.append(str(error))
             continue
-        artifact_path = manifest_path.parent / relative
+        unresolved_artifact_path = manifest_path.parent / relative
+        try:
+            artifact_path = unresolved_artifact_path.resolve()
+            artifact_path.relative_to(manifest_path.parent.resolve())
+        except ValueError:
+            errors.append(f"artifact {index} escapes the evidence run: {relative}")
+            continue
         if not artifact_path.is_file():
             errors.append(f"artifact {index} does not exist: {relative}")
             continue
-        if artifact_path.is_symlink():
+        if unresolved_artifact_path.is_symlink():
             errors.append(f"artifact {index} must not be a symlink: {relative}")
         expected_digest = artifact.get("sha256")
         if expected_digest != sha256(artifact_path):
@@ -213,6 +226,9 @@ def validate_manifest(
     for field in ("assertions", "commands"):
         if not isinstance(payload.get(field), list):
             errors.append(f"{field} must be an array")
+    assertions = payload.get("assertions")
+    if isinstance(assertions, list) and any(not valid_assertion(item) for item in assertions):
+        errors.append("assertions must contain non-empty strings or passed named results")
     if payload.get("status") == "passed":
         if not payload.get("completed_at"):
             errors.append("passed evidence must record completed_at")
@@ -221,6 +237,17 @@ def validate_manifest(
         if not payload.get("artifacts"):
             errors.append("passed evidence must contain at least one checksummed artifact")
     return errors
+
+
+def valid_assertion(value: Any) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("name"), str)
+        and bool(value["name"].strip())
+        and value.get("result") == "passed"
+    )
 
 
 def parse_args() -> argparse.Namespace:
