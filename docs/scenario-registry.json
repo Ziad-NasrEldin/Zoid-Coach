@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "f51bd3cbc4f32d043a0026b71be4c92de95f313db1ba1a08fc57cea2fc270ee3",
+  "tracker_sha256": "4bc8b66de40edb74301e7ed7500c722b1173239ce6c95108e33ea1b1f671133d",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1655,19 +1655,21 @@
       "section_title": "Building the daily plan",
       "item_index": 11,
       "wording": "Reorder priority tasks.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Users can reorder Reminder-list groups, not the priority entries within the daily plan; plan rank is not directly editable.",
+      "evidence_paths": [
+        ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
+      ],
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
+      "audit_note": "The installed signed Today surface moved the second task to rank 1 through the agent, immediately updated both move-control boundaries, stored the exact new rank order, and restored it after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 149
     },
     {
@@ -1697,19 +1699,21 @@
       "section_title": "Building the daily plan",
       "item_index": 13,
       "wording": "Mark a task optional.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Daily-plan entries have no optional flag or user control.",
+      "evidence_paths": [
+        ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
+      ],
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
+      "audit_note": "The installed signed Today surface marked a task optional, displayed that it was excluded from capacity and Calendar, reduced committed capacity immediately, persisted through the agent, and restored the exact state after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 151
     },
     {
@@ -1718,19 +1722,21 @@
       "section_title": "Building the daily plan",
       "item_index": 14,
       "wording": "Mark a task blocked and explain why.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Active plan task rows can be marked blocked, but there is no reason-entry field or explanation persistence (`DashboardView.swift:660-670`; `TaskExecutionStore.swift:53-55`).",
+      "evidence_paths": [
+        ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
+      ],
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
+      "audit_note": "The installed signed Today flow required a 3-to-240-character reason, atomically stored the reason with the blocked execution state, displayed the complete reason, and restored both after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 152
     },
     {
@@ -1739,19 +1745,21 @@
       "section_title": "Building the daily plan",
       "item_index": 15,
       "wording": "Reduce the day's scope.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Users can exclude plan entries before acceptance and changes persist, but no capacity or consequence feedback is shown.",
+      "evidence_paths": [
+        ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
+      ],
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
+      "audit_note": "The installed signed Today journey made one task optional and deferred another to tomorrow, visibly reduced committed capacity from 90 to 30 minutes, excluded both from Calendar scheduling, and restored the reduced scope after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 153
     },
     {
@@ -1814,7 +1822,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Daily plan persistence and migration tests pass and AppModel reloads it at launch, but the installed approve-restart-compare sequence was not performed (`AppModel.swift:55-71,515-522`; `EventStore.swift:133-155`).",
+      "audit_note": "The installed signed app now restores a revised plan's exact order, optional flag, deferral, blocker reason, blocked state, and capacity after relaunch; the remaining proof is the separate Calendar approval receipt followed by the same restart comparison (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`; `.audit/runs/calendar-plan-approval/candidate/REPORT.md`).",
       "tracker_line": 156
     },
     {
@@ -2996,18 +3004,20 @@
       "item_index": 7,
       "wording": "Identify blocked, deferred, paused, active, and completed tasks visually.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Rows render state text for blocked, paused, active, completed, and rescheduled, but there is no distinct deferred state and limited visual encoding beyond text/buttons.",
+      "evidence_paths": [
+        ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
+      ],
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
+      "audit_note": "Default Today now visibly and accessibly labels exact blocker reasons, future deferrals, optional exclusions, paused reasons, active work, and completed states; the signed revision journey directly proved blocked and deferred labels across relaunch, while one installed all-state sequence remains (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 229
     },
     {
@@ -5554,7 +5564,9 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "evidence_paths": [
+        ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
+      ],
       "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
       "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "The installed signed QA review changed a specific Steam session from Unknown to Work, recalculated the visible category immediately, persisted the correction across relaunch, and retained source observations unchanged (`DailyReviewStore.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
@@ -5646,7 +5658,9 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "evidence_paths": [
+        ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
+      ],
       "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
       "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "The installed signed QA review changed its visible activity summary from Unknown to Work immediately after correction while keeping the two-minute factual duration intact, and focused tests cover recalculation after whole and midpoint corrections (`DailyReviewStore.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
@@ -5715,7 +5729,9 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "evidence_paths": [
+        ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
+      ],
       "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
       "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "The installed signed QA review offered an explicit future-rule toggle, previewed the Steam-to-Work scope, committed the correction and rule atomically, and restored the active rule after app relaunch (`DailyReviewStore.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
@@ -5761,7 +5777,9 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "evidence_paths": [
+        ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
+      ],
       "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
       "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "Before committing, the installed signed QA app visibly stated that new Steam observations would become Work while historical observations stayed unchanged, and replacement previews name the prior and proposed classifications (`DailyReviewView.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
@@ -5807,7 +5825,9 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "evidence_paths": [
+        ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
+      ],
       "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
       "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "After the signed review created a Steam-to-Work rule, the isolated signed agent ingested a later Steam Screenwatch observation as Work even though the normal policy would leave it Unknown; the original historical session remained a separate durable correction (`ScreenwatchArchive.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
@@ -9233,7 +9253,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "evidence_paths": [
+        ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
+      ],
       "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
       "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "The installed signed QA Reviews surface corrected a concrete Steam session from Unknown to Work, updated the visible category, and preserved the correction after relaunch (`DailyReviewView.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
@@ -14467,7 +14489,9 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"],
+      "evidence_paths": [
+        ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
+      ],
       "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
       "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "In the isolated signed QA app, a user corrected Steam from Unknown to Work, explicitly enabled and previewed future adaptation, saw the active rule survive relaunch, and the signed agent classified a later Screenwatch Steam observation as Work without rewriting the historical observation (`DailyReviewStore.swift`; `ScreenwatchArchive.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",

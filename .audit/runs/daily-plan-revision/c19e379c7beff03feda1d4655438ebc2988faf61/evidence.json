@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "run_id": "daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61",
+  "verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+  "build_identity": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
+  "fixture": "signed-daily-plan-revision",
+  "qa_root": "/private/tmp/zoid-666-daily-plan-498bca9",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "5714b62aecd0e603833a5c0a08f8c11f611e78154cd28465aa8c8335ad502240",
+  "scenario_ids": [
+    "ZC-008-011",
+    "ZC-008-013",
+    "ZC-008-014",
+    "ZC-008-015",
+    "ZC-014-007"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-12T22:42:15.869843+00:00",
+  "completed_at": "2026-07-12T22:43:30+00:00",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "00e037e06e0d6ca85a65b69c23eb473e165c092c85438894d1ac2000ebc39769"
+    },
+    {
+      "path": "relaunch.jpeg",
+      "sha256": "184d36d1e7e27af5d62506ddfaaed7b1fbcdb8f0765bad9dbb9da1d85d735109"
+    }
+  ],
+  "assertions": [
+    "Default Today exposed accessible reorder, optional, defer, and blocker controls.",
+    "Each revision persisted through the signed helper and updated visible capacity truthfully.",
+    "Relaunch restored the exact durable order, optional flag, deferral, blocker reason, and execution state."
+  ],
+  "commands": [
+    "swift test --filter DailyPlanRevisionTests",
+    "swift test --filter AgentPlanSchedulerTests",
+    "Scripts/install-signed-qa-runtime.sh"
+  ]
+}
