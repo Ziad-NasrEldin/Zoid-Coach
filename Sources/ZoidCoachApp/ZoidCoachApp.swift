@@ -9,6 +9,7 @@ struct ZoidCoachApplication: App {
     @StateObject private var model: AppModel
     @StateObject private var voiceModel: VoiceConversationModel
     @StateObject private var onboarding: OnboardingCoordinator
+    @StateObject private var agentLifecycle: AgentLifecycleController
     private let launchesForBackgroundScheduling: Bool
 
     init() {
@@ -35,6 +36,7 @@ struct ZoidCoachApplication: App {
         _model = StateObject(wrappedValue: AppModel())
         _voiceModel = StateObject(wrappedValue: VoiceConversationModel())
         _onboarding = StateObject(wrappedValue: OnboardingCoordinator())
+        _agentLifecycle = StateObject(wrappedValue: AgentLifecycleController())
     }
 
     var body: some Scene {
@@ -114,7 +116,13 @@ struct ZoidCoachApplication: App {
         .defaultSize(width: 1180, height: 760)
         .commands {
             CommandGroup(replacing: .newItem) { }
+            AgentLifecycleCommands()
         }
+
+        Window("Background Agent", id: "agent-lifecycle") {
+            AgentLifecycleView(controller: agentLifecycle)
+        }
+        .defaultSize(width: 760, height: 660)
 
         MenuBarExtra("Zoid Voice", systemImage: voiceMenuSymbol) {
             VoiceMenuView(model: voiceModel)
