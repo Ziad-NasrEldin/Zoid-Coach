@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "b197b6a043142d4c07e7af433e7a990a759537792f3fdb522182dfac98cadaa6",
+  "tracker_sha256": "4596a90acdc0f7e49a878cfdb759b9c5ef7f3c7feb9584401704d16c2ef07fd0",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7022,8 +7022,8 @@
       "item_index": 2,
       "wording": "See that eligible drift is being observed during the baseline.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7034,7 +7034,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Drift eligibility is not calculated or shown.",
+      "audit_note": "Today now shows an accessible first-week ledger with the count of qualifying gaming or distracting episodes observed while planned work was unfinished at the ten-minute threshold. The threshold result freezes truthfully even if the task completes later, correction-aware aggregates and restart-safe daily reconciliation pass focused tests, and installed signed-QA visibility remains before full qualification (`BaselineObservationStore.swift`; `BaselineObservationView.swift`; `.audit/runs/baseline-observation/candidate/REPORT.md`).",
       "tracker_line": 462
     },
     {
@@ -7044,8 +7044,8 @@
       "item_index": 3,
       "wording": "Understand why accountability prompts are not active yet.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7056,7 +7056,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no baseline explanation UI.",
+      "audit_note": "The new Today baseline surface explicitly explains that Zoid 666 observes seven adequately covered completed days before behavior coaching gets louder, that the current day never counts, and that planning and manual task controls remain available. The product still lacks the behavior-prompt producer whose real suppression must be proven end to end (`BaselineObservationView.swift`; `.audit/runs/baseline-observation/candidate/REPORT.md`).",
       "tracker_line": 463
     },
     {
@@ -7110,8 +7110,8 @@
       "item_index": 6,
       "wording": "Use baseline results to review work capacity, gaming patterns, and alert sensitivity.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7122,7 +7122,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no baseline report or alert-sensitivity review.",
+      "audit_note": "After seven qualifying days, Today presents a frozen local report with average correction-aware work minutes, gaming days and minutes, eligible drift, unknown coverage, and conservative alert-sensitivity guidance without grading effort or inferring intent. Focused restart and correction tests pass; installed signed-QA report visibility remains (`BaselineObservation.swift`; `BaselineObservationStore.swift`; `BaselineObservationView.swift`; `.audit/runs/baseline-observation/candidate/REPORT.md`).",
       "tracker_line": 466
     },
     {
@@ -14446,7 +14446,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Trust gates exist, but the original seven-day behavior-observation flow is not visible or verified.",
+      "audit_note": "A durable seven-complete-day observation gate, missing/limited-day handling, accessible Today progress, correction-aware report, frozen completion, and restart-safe agent checkpoint now exist. This remains partial because no production behavior-prompt generator or configured coaching-level model consumes the gate yet, so actual prompt suppression and post-baseline progression are unproven (`BaselineObservationStore.swift`; `BaselineObservationView.swift`; `.audit/runs/baseline-observation/candidate/REPORT.md`).",
       "tracker_line": 893
     },
     {
