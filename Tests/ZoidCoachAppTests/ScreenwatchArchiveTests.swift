@@ -155,7 +155,7 @@ func reviewCorrectionRuleClassifiesOnlyFutureScreenwatchObservationsAndRemovalRe
     _ = try archive.ingestToday(from: root, now: date)
 
     let observations = try archive.behaviorObservations(for: date)
-    #expect(observations.map(\.classification) == [.work, .unknown])
+    #expect(observations.map(\.classification) == [.work, .gaming])
 }
 
 private func archivePolicy(work: [String], gaming: [String]) -> UserPolicy {
