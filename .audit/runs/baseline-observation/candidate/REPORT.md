@@ -8,6 +8,7 @@ It records seven finished local days with adequate behavior coverage before beha
 ## End-user behavior
 
 - A dedicated first-week surface explains why coaching is quiet and keeps planning and manual task controls available.
+- The surface is directly discoverable in Today below the day-state invitation and before the active command overview.
 - Progress counts only completed days with at least 30 observed minutes.
 - Limited and missing days remain visible and cannot advance the gate.
 - The current unfinished day never counts.
