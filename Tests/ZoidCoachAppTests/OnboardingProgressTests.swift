@@ -59,6 +59,12 @@ func onboardingOnlyFinishesAfterTheFirstDailyPlan() throws {
 
     #expect(progress.isFinished)
     #expect(progress.finishedAt == finishedAt)
+    #expect(throws: OnboardingProgressError.alreadyFinished) {
+        try progress.navigate(to: .welcome)
+    }
+    #expect(throws: OnboardingProgressError.alreadyFinished) {
+        try progress.completeCurrentStep(at: finishedAt)
+    }
 }
 
 @Test
@@ -143,4 +149,31 @@ func onboardingPersistsPermissionDenialAndDegradedContinuationDecisions() throws
     #expect(progress.screenwatchAccess == .unavailable)
     #expect(progress.notificationAccess == .deferred)
     #expect(progress.currentStep == .applicationInventory)
+}
+
+@Test
+func onboardingProgressRejectsContradictoryTerminalState() {
+    var completed = OnboardingStep.allCases
+    completed.removeLast()
+    #expect(throws: OnboardingProgressError.stepsIncomplete) {
+        try OnboardingProgress(
+            currentStep: .firstDailyPlan,
+            completedSteps: completed,
+            coachingMode: .rulesOnly,
+            remindersAccess: .granted,
+            screenwatchAccess: .granted,
+            notificationAccess: .granted,
+            finishedAt: Date()
+        )
+    }
+    #expect(throws: OnboardingProgressError.stepsIncomplete) {
+        try OnboardingProgress(
+            currentStep: .firstDailyPlan,
+            completedSteps: OnboardingStep.allCases,
+            coachingMode: .rulesOnly,
+            remindersAccess: .granted,
+            screenwatchAccess: .granted,
+            notificationAccess: .granted
+        )
+    }
 }

@@ -85,6 +85,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     }
 
     public mutating func completeCurrentStep(at date: Date) throws {
+        guard !isFinished else { throw OnboardingProgressError.alreadyFinished }
         if currentStep == .coachingMode, coachingMode == nil {
             throw OnboardingProgressError.coachingModeRequired
         }
@@ -110,6 +111,7 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     }
 
     public mutating func navigate(to step: OnboardingStep) throws {
+        guard !isFinished else { throw OnboardingProgressError.alreadyFinished }
         guard let requested = OnboardingStep.allCases.firstIndex(of: step) else {
             throw OnboardingProgressError.invalidCurrentStep
         }
@@ -148,8 +150,12 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         where completedSteps.contains(step) && accessDecision(for: step) == nil {
             throw OnboardingProgressError.accessDecisionRequired(step)
         }
-        if finishedAt != nil, Set(completedSteps) != Set(OnboardingStep.allCases) {
+        let allStepsCompleted = Set(completedSteps) == Set(OnboardingStep.allCases)
+        if (finishedAt != nil) != allStepsCompleted {
             throw OnboardingProgressError.stepsIncomplete
+        }
+        if finishedAt != nil, currentStep != .firstDailyPlan {
+            throw OnboardingProgressError.invalidCurrentStep
         }
     }
 
@@ -232,6 +238,7 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
     case accessDecisionRequired(OnboardingStep)
     case accessDecisionNotSupported(OnboardingStep)
     case stepsIncomplete
+    case alreadyFinished
     case unreadableProgress(String)
 
     public var errorDescription: String? {
@@ -256,6 +263,8 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
             "Onboarding step does not accept an access decision: \(step.rawValue)"
         case .stepsIncomplete:
             "Onboarding cannot finish before every required step is complete"
+        case .alreadyFinished:
+            "Onboarding is already complete"
         case let .unreadableProgress(message):
             "Onboarding progress could not be read: \(message)"
         }
