@@ -149,6 +149,25 @@ func settingsDraftPersistsGlobalAppChoicesAndReturnsAppsToAutomatic() {
 }
 
 @Test
+func settingsDraftBulkEditsCommunicationRulesAndCanResetEveryExplicitRule() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var draft = SettingsPolicyDraft(policy: original)
+
+    draft.setClassifications(.communication, for: ["Slack", "Discord", " slack "])
+    draft.setClassifications(.work, for: ["Xcode", "Cursor"])
+    draft.setClassifications(.gaming, for: ["Steam"])
+
+    #expect(draft.settingsClassification(for: "Discord") == .communication)
+    #expect(draft.behaviorPolicy.communicationApplications == ["discord", "slack"])
+    #expect(draft.policy(preserving: original).behavior.classificationOverride(for: "Slack") == .work)
+
+    draft.resetApplicationRules()
+
+    #expect(draft.behaviorPolicy == BehaviorPolicy())
+    #expect(draft.settingsClassification(for: "Steam") == .automatic)
+}
+
+@Test
 func settingsDraftCannotPersistAnUnavailableAIProvider() {
     let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     var draft = SettingsPolicyDraft(policy: original)

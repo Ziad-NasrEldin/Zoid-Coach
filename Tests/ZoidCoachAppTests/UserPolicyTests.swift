@@ -108,12 +108,16 @@ func codexCLIAllowsAnExplicitRemoteEvidencePolicy() {
 func behaviorPolicyNormalizesExactOverridesAndRejectsConflicts() {
     let policy = BehaviorPolicy(
         workApplications: ["  Xcode  ", "FIGMA"],
-        gamingApplications: ["Steam", "xcode"]
+        gamingApplications: ["Steam", "xcode"],
+        communicationApplications: [" Slack "]
     )
 
     #expect(policy.workApplications == ["figma", "xcode"])
     #expect(policy.gamingApplications == ["steam", "xcode"])
+    #expect(policy.communicationApplications == ["slack"])
     #expect(policy.classificationOverride(for: " xCoDe ") == .work)
+    #expect(policy.classificationOverride(for: "SLACK") == .work)
+    #expect(policy.ruleCategory(for: "slack") == .communication)
 
     let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     let invalid = UserPolicy(
@@ -138,6 +142,24 @@ func behaviorPolicyNormalizesPersistedApplicationNamesWhileDecoding() throws {
 
     #expect(decoded.workApplications == ["xcode"])
     #expect(decoded.gamingApplications == ["steam"])
+    #expect(decoded.communicationApplications.isEmpty)
+}
+
+@Test
+func communicationRulesRoundTripAndRemainDistinctWhileCountingAsWork() throws {
+    let policy = BehaviorPolicy(
+        workApplications: ["Xcode"],
+        gamingApplications: ["Steam"],
+        communicationApplications: ["Slack", "Discord"]
+    )
+
+    let encoded = try JSONEncoder().encode(policy)
+    let decoded = try JSONDecoder().decode(BehaviorPolicy.self, from: encoded)
+
+    #expect(decoded == policy)
+    #expect(decoded.ruleCategory(for: "Discord") == .communication)
+    #expect(decoded.classificationOverride(for: "Discord") == .work)
+    #expect(decoded.ruleCategory(for: "Safari") == .automatic)
 }
 
 @Test
