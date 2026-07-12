@@ -504,8 +504,56 @@ public final class ScreenwatchArchive: @unchecked Sendable {
     private func classification(for observation: ScreenwatchObservation) throws -> (value: BehaviorClassification, policyVersion: Int) {
         let observedAt = Date(timeIntervalSince1970: TimeInterval(observation.epoch))
         let versionedPolicy = try policyStore.effective(at: observedAt)
+        if let correctedClassification = try correctionRuleClassification(
+            for: observation.appName,
+            observedAt: observedAt
+        ) {
+            return (correctedClassification, versionedPolicy?.version ?? 0)
+        }
         let classifier = BehaviorClassifier(policy: versionedPolicy?.policy.behavior ?? BehaviorPolicy())
         return (classifier.classify(application: observation.appName), versionedPolicy?.version ?? 0)
+    }
+
+    private func correctionRuleClassification(
+        for application: String?,
+        observedAt: Date
+    ) throws -> BehaviorClassification? {
+        guard let application else { return nil }
+        let normalized = BehaviorPolicy.normalize(application)
+        guard !normalized.isEmpty else { return nil }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            """
+            SELECT state, classification
+            FROM app_classification_correction_rules
+            WHERE normalized_app = ? AND effective_from_epoch <= ?
+            ORDER BY effective_from_epoch DESC, id DESC
+            LIMIT 1;
+            """,
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else {
+            throw ScreenwatchArchiveError.prepareRead
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(normalized, to: statement, at: 1)
+        sqlite3_bind_int64(statement, 2, Int64(observedAt.timeIntervalSince1970))
+        let result = sqlite3_step(statement)
+        if result == SQLITE_DONE { return nil }
+        guard result == SQLITE_ROW,
+              let state = sqlite3_column_text(statement, 0)
+        else {
+            throw ScreenwatchArchiveError.prepareRead
+        }
+        if String(cString: state) == "removed" { return nil }
+        guard let raw = sqlite3_column_text(statement, 1),
+              let classification = BehaviorClassification(rawValue: String(cString: raw))
+        else {
+            throw ScreenwatchArchiveError.prepareRead
+        }
+        return classification
     }
 
     private func indexScreenshot(data: Data, path: URL, observation: ScreenwatchObservation, dayKey: String, now: Date) throws {
