@@ -27,18 +27,15 @@ struct ZoidCoachAgentMain {
                 print(Self.runtimeIdentityDescription(runtimeResolution.environment))
                 return
             }
-            let qaFixtureAdapter: DeterministicOSFixtureAdapters? = if case .qa = runtimeResolution.environment.mode {
-                try QAFixtureOSComposition.makeAuthorizedAdapter(
+            let qaFixtureComposition: AuthorizedQAFixtureOSComposition? = if case .qa = runtimeResolution.environment.mode {
+                try QAFixtureOSComposition.makeAuthorizedComposition(
                     runtimeEnvironment: runtimeResolution.environment
                 )
             } else {
                 nil
             }
-            let fixtureAuthorization = try qaFixtureAdapter.map { _ in
-                try AgentOSAdapterBoundary.authorizeFixture(
-                    runtimeEnvironment: runtimeResolution.environment
-                )
-            }
+            let qaFixtureAdapter = qaFixtureComposition?.adapter
+            let fixtureAuthorization = qaFixtureComposition?.authorization
             let configuration = try AgentConfiguration(
                 runtimeEnvironment: runtimeResolution.environment,
                 arguments: runtimeResolution.remainingArguments

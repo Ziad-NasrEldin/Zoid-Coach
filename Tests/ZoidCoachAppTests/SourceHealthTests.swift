@@ -88,15 +88,15 @@ func appModelPropagatesQARuntimeToBackgroundAgentControl() async throws {
     )
     #expect(
         model.sources.first(where: { $0.id == .reminders })?.detail
-            .hasPrefix("QA fixture startup failed:") == true
+            == "QA fixture startup failed: QA OS fixtures require a signed QA app or agent with the embedded QA run root."
     )
     #expect(
         model.sources.first(where: { $0.id == .calendar })?.detail
-            .hasPrefix("QA fixture startup failed:") == true
+            == "QA fixture startup failed: QA OS fixtures require a signed QA app or agent with the embedded QA run root."
     )
     #expect(
         model.sources.first(where: { $0.id == .notifications })?.detail
-            .hasPrefix("QA fixture startup failed:") == true
+            == "QA fixture startup failed: QA OS fixtures require a signed QA app or agent with the embedded QA run root."
     )
     #expect(remindersConstructionCount == 0)
     #expect(calendarConstructionCount == 0)

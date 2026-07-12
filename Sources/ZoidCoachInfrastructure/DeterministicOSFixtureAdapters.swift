@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 import ZoidCoachCore
 
-public enum QAFixtureStateError: Error, Equatable, Sendable {
+public enum QAFixtureStateError: LocalizedError, Equatable, Sendable {
     case qaWorkspaceRequired
     case stateOutsideWorkspace(path: String)
     case corruptState(path: String)
@@ -11,6 +11,30 @@ public enum QAFixtureStateError: Error, Equatable, Sendable {
     case invalidPersistedState(String)
     case unsafeFilesystemEntry(String)
     case filesystemOperation(String, Int32)
+    case controlRequestConflict(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .qaWorkspaceRequired:
+            "The deterministic OS fixture requires a validated QA workspace."
+        case let .stateOutsideWorkspace(path):
+            "The fixture state path is outside the validated QA workspace: \(path)"
+        case let .corruptState(path):
+            "The fixture state is corrupt or unreadable at: \(path)"
+        case let .duplicateIdentifier(identifier):
+            "The fixture contains a duplicate identifier: \(identifier)"
+        case .emptyStableIdentifier:
+            "The fixture stable identifier provider returned an empty identifier."
+        case let .invalidPersistedState(reason):
+            "The persisted fixture state is invalid: \(reason)"
+        case let .unsafeFilesystemEntry(entry):
+            "The fixture refused an unsafe filesystem entry: \(entry)"
+        case let .filesystemOperation(operation, code):
+            "The fixture filesystem operation '\(operation)' failed with POSIX code \(code)."
+        case let .controlRequestConflict(requestID):
+            "The fixture control requestID '\(requestID)' was reused with different content."
+        }
+    }
 }
 
 public enum QAFixtureCorruptionRecovery: Sendable {
@@ -37,6 +61,11 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         let provenance: Provenance
     }
 
+    private struct ControlReceipt: Codable {
+        let request: QAFixtureOSControlRequest
+        let snapshot: QAFixtureOSSnapshot
+    }
+
     private struct PersistedState: Codable {
         var schemaVersion = 1
         var permissions: [QAFixturePermission: QAFixturePermissionState]
@@ -46,6 +75,12 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         var audit: [QAFixtureOperationAuditEntry]
         var counters: [QAFixtureEntityKind: Int]
         var generatedIdentifiers: [GeneratedIdentifier]
+        var controlReceipts: [ControlReceipt]
+
+        private enum CodingKeys: String, CodingKey {
+            case schemaVersion, permissions, reminders, calendarCommitments, notifications
+            case audit, counters, generatedIdentifiers, controlReceipts
+        }
 
         init(seed: QAFixtureOSSeed) {
             permissions = seed.permissions
@@ -55,6 +90,35 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
             audit = []
             counters = [:]
             generatedIdentifiers = []
+            controlReceipts = []
+        }
+
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            schemaVersion = try values.decode(Int.self, forKey: .schemaVersion)
+            permissions = try values.decode(
+                [QAFixturePermission: QAFixturePermissionState].self,
+                forKey: .permissions
+            )
+            reminders = try values.decode([SourceTask].self, forKey: .reminders)
+            calendarCommitments = try values.decode(
+                [CalendarCommitment].self,
+                forKey: .calendarCommitments
+            )
+            notifications = try values.decode(
+                [QAFixtureNotificationRecord].self,
+                forKey: .notifications
+            )
+            audit = try values.decode([QAFixtureOperationAuditEntry].self, forKey: .audit)
+            counters = try values.decode([QAFixtureEntityKind: Int].self, forKey: .counters)
+            generatedIdentifiers = try values.decode(
+                [GeneratedIdentifier].self,
+                forKey: .generatedIdentifiers
+            )
+            controlReceipts = try values.decodeIfPresent(
+                [ControlReceipt].self,
+                forKey: .controlReceipts
+            ) ?? []
         }
     }
 
@@ -153,6 +217,121 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
                 let timestamp = clock.now()
                 try appendAudit(to: &replacement, subsystem: "fixture", operation: "reset", targetID: nil, outcome: "succeeded", timestamp: timestamp)
                 try save(replacement, allowCounterReset: true)
+            }
+        }
+    }
+
+    func applyControl(
+        _ request: QAFixtureOSControlRequest,
+        notificationIdentity: RuntimeNotificationIdentity
+    ) throws -> QAFixtureOSSnapshot {
+        try lock.withLock {
+            try storage.withLock(exclusive: true) {
+                state = try loadPersistedState()
+                if let receipt = state.controlReceipts.first(where: {
+                    $0.request.requestID == request.requestID
+                }) {
+                    guard receipt.request == request else {
+                        throw QAFixtureStateError.controlRequestConflict(request.requestID)
+                    }
+                    return receipt.snapshot
+                }
+
+                let timestamp = clock.now()
+                var replacement = state
+                var allowsCounterReset = false
+                switch request.operation {
+                case .seed:
+                    guard let seed = request.seed else {
+                        throw QAFixtureOSCompositionError.malformedControl
+                    }
+                    replacement = PersistedState(seed: seed)
+                    replacement.controlReceipts = state.controlReceipts
+                    allowsCounterReset = true
+                    try appendAudit(
+                        to: &replacement,
+                        subsystem: "fixture",
+                        operation: "seed",
+                        targetID: request.requestID,
+                        outcome: "succeeded",
+                        timestamp: timestamp
+                    )
+                case .reset:
+                    replacement = PersistedState(seed: request.seed ?? .init())
+                    replacement.controlReceipts = state.controlReceipts
+                    allowsCounterReset = true
+                    try appendAudit(
+                        to: &replacement,
+                        subsystem: "fixture",
+                        operation: "reset",
+                        targetID: request.requestID,
+                        outcome: "succeeded",
+                        timestamp: timestamp
+                    )
+                case .snapshot:
+                    try appendAudit(
+                        to: &replacement,
+                        subsystem: "fixture-control",
+                        operation: "snapshot",
+                        targetID: request.requestID,
+                        outcome: "succeeded",
+                        timestamp: timestamp
+                    )
+                case .notificationAction:
+                    try requirePermission(.notifications, in: replacement)
+                    for index in replacement.notifications.indices
+                        where replacement.notifications[index].status == .scheduled {
+                        let record = replacement.notifications[index]
+                        guard record.desired.deliveryDate.map({ $0 <= timestamp }) ?? true else {
+                            continue
+                        }
+                        replacement.notifications[index] = QAFixtureNotificationRecord(
+                            id: record.id,
+                            desired: record.desired,
+                            status: .delivered,
+                            deliveredAt: timestamp
+                        )
+                    }
+                    guard let notificationID = request.notificationID,
+                          let actionIdentifier = request.actionIdentifier,
+                          let index = replacement.notifications.firstIndex(where: {
+                            $0.id == notificationID
+                          }) else {
+                        throw ActionSourceError.missingEntity
+                    }
+                    let record = replacement.notifications[index]
+                    guard PromptNotificationCoordinator.fixtureActionKind(
+                        identifier: actionIdentifier,
+                        category: record.desired.category,
+                        notificationIdentity: notificationIdentity
+                    ) != nil else {
+                        throw QAFixtureOSCompositionError.invalidNotificationAction(actionIdentifier)
+                    }
+                    guard record.status == .delivered else {
+                        throw ActionSourceError.invalidDesiredState
+                    }
+                    replacement.notifications[index] = QAFixtureNotificationRecord(
+                        id: record.id,
+                        desired: record.desired,
+                        status: .responded,
+                        deliveredAt: record.deliveredAt,
+                        actionIdentifier: actionIdentifier,
+                        respondedAt: timestamp
+                    )
+                    try appendAudit(
+                        to: &replacement,
+                        subsystem: "notifications",
+                        operation: "respond",
+                        targetID: notificationID,
+                        outcome: "succeeded",
+                        timestamp: timestamp
+                    )
+                }
+
+                let result = snapshot(of: replacement)
+                replacement.controlReceipts.append(.init(request: request, snapshot: result))
+                try save(replacement, allowCounterReset: allowsCounterReset)
+                return result
             }
         }
     }
@@ -569,6 +748,12 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     private func validatePersistedState(_ state: PersistedState) throws {
         guard state.schemaVersion == 1 else {
             throw QAFixtureStateError.invalidPersistedState("unsupported schema")
+        }
+        let controlRequestIDs = state.controlReceipts.map(\.request.requestID)
+        guard controlRequestIDs.allSatisfy({
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }), Self.areUnique(controlRequestIDs) else {
+            throw QAFixtureStateError.invalidPersistedState("invalid control receipt ledger")
         }
         let ids = state.reminders.map(\.id)
             + state.calendarCommitments.map(\.id)

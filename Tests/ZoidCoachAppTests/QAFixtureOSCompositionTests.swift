@@ -15,6 +15,7 @@ func signedQAFixtureFlowsFromSeedThroughAppAgentMutationAndAppRefresh() async th
     )
     try writeControl(
         .init(
+            requestID: "seed-app-agent-flow",
             operation: .seed,
             seed: .init(
                 permissions: [
@@ -122,10 +123,11 @@ func fixtureNotificationDeliveryAndActionRoutesToPromptInbox() async throws {
     )
     #expect(try await coordinator.schedule(episode))
     _ = try QAFixtureOSComposition.apply(.init(
+        requestID: "notification-action",
         operation: .notificationAction,
         notificationID: episode.id,
         actionIdentifier: PromptActionKind.acceptPlan.rawValue
-    ), to: adapter)
+    ), runtimeEnvironment: fixture.environment, to: adapter)
     try await coordinator.processFixtureActions()
 
     #expect(try promptStore.episode(promptID: episode.id)?.state == .responded)
@@ -181,7 +183,10 @@ func controlRequestResumesAfterAProcessingFailure() throws {
     #expect(FileManager.default.fileExists(atPath: processingURL.path))
     #expect(!FileManager.default.fileExists(atPath: requestURL.path))
 
-    try JSONEncoder().encode(QAFixtureOSControlRequest(operation: .snapshot))
+    try JSONEncoder().encode(QAFixtureOSControlRequest(
+        requestID: "recovered-snapshot",
+        operation: .snapshot
+    ))
         .write(to: processingURL, options: .atomic)
     _ = try QAFixtureOSComposition.makeAuthorizedAdapter(
         runtimeEnvironment: fixture.environment,
@@ -191,6 +196,268 @@ func controlRequestResumesAfterAProcessingFailure() throws {
     #expect(!FileManager.default.fileExists(atPath: processingURL.path))
     #expect(FileManager.default.fileExists(atPath: fixture.root
         .appendingPathComponent(QAFixtureOSComposition.snapshotRelativePath).path))
+}
+
+@Test
+func controlRequestDoesNotReplayAfterCrashFollowingMutationCommit() throws {
+    let fixture = try signedQARuntime("control-after-mutation")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    try writeControl(.init(
+        requestID: "seed-after-mutation",
+        operation: .seed,
+        seed: .init(
+            permissions: [.reminders: .granted],
+            reminders: [.init(
+                id: "seed-once",
+                title: "Seed once",
+                listIdentifier: "inbox",
+                priority: 1,
+                dueDate: nil,
+                notes: nil,
+                isCompleted: false
+            )]
+        )
+    ), runtime: fixture.environment)
+
+    #expect(throws: InjectedControlInterruption.self) {
+        try QAFixtureOSComposition.makeAuthorizedComposition(
+            runtimeEnvironment: fixture.environment,
+            clock: .fixed(fixture.now)
+        ) { checkpoint in
+            if checkpoint == .mutationCommitted {
+                throw InjectedControlInterruption.stopped
+            }
+        }
+    }
+    let committed = try rawAdapter(for: fixture)
+    let committedSnapshot = try committed.snapshot()
+    #expect(committedSnapshot.reminders.map(\.id) == ["seed-once"])
+
+    let recovered = try QAFixtureOSComposition.makeAuthorizedComposition(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    ).adapter.snapshot()
+    #expect(recovered == committedSnapshot)
+}
+
+@Test
+func controlRequestDoesNotReplayAfterCrashFollowingSnapshotPersistence() async throws {
+    let fixture = try signedQARuntime("control-after-snapshot")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    )
+    try adapter.reset(to: .init(permissions: [.notifications: .granted]))
+    let notificationID = try await adapter.schedule(.init(
+        category: PromptNotificationCategory.planReady.rawValue,
+        title: "Plan",
+        body: "Ready",
+        promptID: "prompt-after-snapshot",
+        deliveryDate: fixture.now
+    ))
+    try writeControl(.init(
+        requestID: "action-after-snapshot",
+        operation: .notificationAction,
+        notificationID: notificationID,
+        actionIdentifier: PromptActionKind.acceptPlan.rawValue
+    ), runtime: fixture.environment)
+
+    #expect(throws: InjectedControlInterruption.self) {
+        try QAFixtureOSComposition.makeAuthorizedComposition(
+            runtimeEnvironment: fixture.environment,
+            clock: .fixed(fixture.now)
+        ) { checkpoint in
+            if checkpoint == .snapshotPersisted {
+                throw InjectedControlInterruption.stopped
+            }
+        }
+    }
+    let committed = try rawAdapter(for: fixture).snapshot()
+    #expect(committed.notifications.first?.status == .responded)
+    let recovered = try QAFixtureOSComposition.makeAuthorizedComposition(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    ).adapter.snapshot()
+    #expect(recovered == committed)
+}
+
+@Test
+func everyControlOperationIsIdempotentByRequestID() async throws {
+    let fixture = try signedQARuntime("control-idempotency")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let adapter = try rawAdapter(for: fixture)
+    #expect(throws: QAFixtureOSCompositionError.invalidRequestIdentifier) {
+        try QAFixtureOSComposition.apply(
+            .init(requestID: " ", operation: .snapshot),
+            runtimeEnvironment: fixture.environment,
+            to: adapter
+        )
+    }
+    let seed = QAFixtureOSControlRequest(
+        requestID: "seed-idempotent",
+        operation: .seed,
+        seed: .init(permissions: [.notifications: .granted])
+    )
+    let firstSeed = try QAFixtureOSComposition.apply(
+        seed,
+        runtimeEnvironment: fixture.environment,
+        to: adapter
+    )
+    #expect(try QAFixtureOSComposition.apply(
+        seed,
+        runtimeEnvironment: fixture.environment,
+        to: adapter
+    ) == firstSeed)
+
+    let reset = QAFixtureOSControlRequest(
+        requestID: "reset-idempotent",
+        operation: .reset,
+        seed: .init(permissions: [.notifications: .granted])
+    )
+    let firstReset = try QAFixtureOSComposition.apply(
+        reset,
+        runtimeEnvironment: fixture.environment,
+        to: adapter
+    )
+    #expect(try QAFixtureOSComposition.apply(
+        reset,
+        runtimeEnvironment: fixture.environment,
+        to: adapter
+    ) == firstReset)
+    #expect(try QAFixtureOSComposition.apply(
+        seed,
+        runtimeEnvironment: fixture.environment,
+        to: adapter
+    ) == firstSeed)
+    #expect(try adapter.snapshot() == firstReset)
+
+    let notificationID = try await adapter.schedule(.init(
+        category: PromptNotificationCategory.planReady.rawValue,
+        title: "Plan",
+        body: "Ready",
+        promptID: "idempotent-prompt",
+        deliveryDate: fixture.now
+    ))
+    let action = QAFixtureOSControlRequest(
+        requestID: "action-idempotent",
+        operation: .notificationAction,
+        notificationID: notificationID,
+        actionIdentifier: PromptActionKind.acceptPlan.rawValue
+    )
+    let firstAction = try QAFixtureOSComposition.apply(
+        action,
+        runtimeEnvironment: fixture.environment,
+        to: adapter
+    )
+    #expect(try QAFixtureOSComposition.apply(
+        action,
+        runtimeEnvironment: fixture.environment,
+        to: adapter
+    ) == firstAction)
+
+    let snapshot = QAFixtureOSControlRequest(
+        requestID: "snapshot-idempotent",
+        operation: .snapshot
+    )
+    let firstSnapshot = try QAFixtureOSComposition.apply(
+        snapshot,
+        runtimeEnvironment: fixture.environment,
+        to: adapter
+    )
+    #expect(try QAFixtureOSComposition.apply(
+        snapshot,
+        runtimeEnvironment: fixture.environment,
+        to: adapter
+    ) == firstSnapshot)
+    #expect(throws: QAFixtureStateError.controlRequestConflict("snapshot-idempotent")) {
+        try QAFixtureOSComposition.apply(
+            .init(requestID: "snapshot-idempotent", operation: .reset),
+            runtimeEnvironment: fixture.environment,
+            to: adapter
+        )
+    }
+}
+
+@Test
+func notificationControlRejectsUnknownAndForeignNamespacedActionsBeforeMutation() async throws {
+    let fixture = try signedQARuntime("invalid-actions")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let adapter = try rawAdapter(for: fixture)
+    try adapter.reset(to: .init(permissions: [.notifications: .granted]))
+    let notificationID = try await adapter.schedule(.init(
+        category: PromptNotificationCategory.planReady.rawValue,
+        title: "Plan",
+        body: "Ready",
+        promptID: "invalid-action-prompt",
+        deliveryDate: fixture.now
+    ))
+    let before = try adapter.snapshot()
+    for (requestID, action) in [
+        ("unknown-action", "destroy_everything"),
+        ("foreign-action", "com.ziadnasreldin.ZoidCoach.prompt.action.ACCEPT_PLAN"),
+        ("category-mismatch", PromptActionKind.addMeeting.rawValue)
+    ] {
+        #expect(throws: QAFixtureOSCompositionError.invalidNotificationAction(action)) {
+            try QAFixtureOSComposition.apply(
+                .init(
+                    requestID: requestID,
+                    operation: .notificationAction,
+                    notificationID: notificationID,
+                    actionIdentifier: action
+                ),
+                runtimeEnvironment: fixture.environment,
+                to: adapter
+            )
+        }
+        #expect(try adapter.snapshot() == before)
+    }
+}
+
+@Test
+func concurrentAppAgentMutationsAndControlIngestionLoseNoState() async throws {
+    let fixture = try signedQARuntime("concurrent-control")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let appAdapter = try rawAdapter(for: fixture)
+    let agentAdapter = try rawAdapter(for: fixture)
+    try appAdapter.reset(to: .init(permissions: [.reminders: .granted]))
+    try writeControl(.init(
+        requestID: "concurrent-snapshot",
+        operation: .snapshot
+    ), runtime: fixture.environment)
+    let gate = AsyncStartGate(participants: 3)
+
+    async let appTask: SourceTask = {
+        await gate.arriveAndWait()
+        return try await appAdapter.create(
+            title: "App task",
+            dueDate: nil,
+            listIdentifier: "inbox",
+            metadataMarker: "app-task"
+        )
+    }()
+    async let agentTask: SourceTask = {
+        await gate.arriveAndWait()
+        return try await agentAdapter.create(
+            title: "Agent task",
+            dueDate: nil,
+            listIdentifier: "inbox",
+            metadataMarker: "agent-task"
+        )
+    }()
+    async let control: AuthorizedQAFixtureOSComposition = {
+        await gate.arriveAndWait()
+        return try QAFixtureOSComposition.makeAuthorizedComposition(
+            runtimeEnvironment: fixture.environment,
+            clock: .fixed(fixture.now)
+        )
+    }()
+    _ = try await (appTask, agentTask, control)
+
+    let final = try rawAdapter(for: fixture).snapshot()
+    #expect(Set(final.reminders.map(\.title)) == ["App task", "Agent task"])
+    #expect(!FileManager.default.fileExists(atPath: fixture.root
+        .appendingPathComponent(QAFixtureOSComposition.controlRelativePath).path))
 }
 
 @Test
@@ -242,12 +509,13 @@ func appSurfacesSignedQAFixtureStartupFailure() async throws {
     }
 
     #expect(model.qaOSFixtureAdapter == nil)
+    let expectedDetail = "QA fixture startup failed: The fixture refused an unsafe filesystem entry: OS Fixtures"
     #expect(model.sources.first(where: { $0.id == .reminders })?.detail
-        .hasPrefix("QA fixture startup failed:") == true)
+        == expectedDetail)
     #expect(model.sources.first(where: { $0.id == .calendar })?.detail
-        .hasPrefix("QA fixture startup failed:") == true)
+        == expectedDetail)
     #expect(model.sources.first(where: { $0.id == .notifications })?.detail
-        .hasPrefix("QA fixture startup failed:") == true)
+        == expectedDetail)
 }
 
 @Test
@@ -272,6 +540,18 @@ func unbundledOrMismatchedQAIdentityCannotEnableFixtures() throws {
 }
 
 @Test
+func fixtureErrorsExposeActionableLocalizedDescriptions() {
+    #expect(QAFixtureOSCompositionError.signedQAPackageRequired.localizedDescription
+        == "QA OS fixtures require a signed QA app or agent with the embedded QA run root.")
+    #expect(QAFixtureOSCompositionError.invalidRequestIdentifier.localizedDescription
+        == "The QA OS fixture control request requires a non-empty requestID for exactly-once recovery.")
+    #expect(QAFixtureStateError.unsafeFilesystemEntry("OS Fixtures").localizedDescription
+        == "The fixture refused an unsafe filesystem entry: OS Fixtures")
+    #expect(QAFixtureStateError.controlRequestConflict("request-1").localizedDescription
+        == "The fixture control requestID 'request-1' was reused with different content.")
+}
+
+@Test
 func signedQABoundaryAllowsOnlyFixtureBackedOperations() throws {
     let fixture = try signedQARuntime("signed-boundary")
     defer { try? FileManager.default.removeItem(at: fixture.root) }
@@ -280,17 +560,33 @@ func signedQABoundaryAllowsOnlyFixtureBackedOperations() throws {
         clock: .fixed(fixture.now)
     )
 
+    let composition = try QAFixtureOSComposition.makeAuthorizedComposition(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    )
     try AgentOSAdapterBoundary.validate(
         runtimeEnvironment: fixture.environment,
         operations: Set(AgentOSAdapterOperation.allCases),
-        fixtureAuthorization: try AgentOSAdapterBoundary.authorizeFixture(
-            runtimeEnvironment: fixture.environment
-        )
+        fixtureAuthorization: composition.authorization
     )
     #expect(throws: AgentOSAdapterBoundaryError.self) {
         try AgentOSAdapterBoundary.validate(
             runtimeEnvironment: fixture.environment,
             operations: [.synchronizeCalendar]
+        )
+    }
+    let detachedAuthorization: AgentOSFixtureAuthorization = {
+        let shortLived = try! QAFixtureOSComposition.makeAuthorizedComposition(
+            runtimeEnvironment: fixture.environment,
+            clock: .fixed(fixture.now)
+        )
+        return shortLived.authorization
+    }()
+    #expect(throws: AgentOSAdapterBoundaryError.self) {
+        try AgentOSAdapterBoundary.validate(
+            runtimeEnvironment: fixture.environment,
+            operations: [.synchronizeReminders],
+            fixtureAuthorization: detachedAuthorization
         )
     }
 }
@@ -320,10 +616,45 @@ func signedQACompositionCreatesOnlyItsMissingFinalRunRoot() throws {
     ))
 }
 
+private enum InjectedControlInterruption: Error {
+    case stopped
+}
+
+private actor AsyncStartGate {
+    private let participants: Int
+    private var arrived = 0
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(participants: Int) {
+        self.participants = participants
+    }
+
+    func arriveAndWait() async {
+        arrived += 1
+        if arrived == participants {
+            let pending = waiters
+            waiters.removeAll()
+            for waiter in pending { waiter.resume() }
+            return
+        }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+}
+
 private struct SignedQAFixture {
     let root: URL
     let environment: RuntimeEnvironment
     let now: Date
+}
+
+private func rawAdapter(for fixture: SignedQAFixture) throws -> DeterministicOSFixtureAdapters {
+    try DeterministicOSFixtureAdapters(
+        workspace: QAFixtureWorkspace(runtimeEnvironment: fixture.environment),
+        clock: .fixed(fixture.now),
+        stableID: { kind, index in "qa-\(kind.rawValue)-\(index)" }
+    )
 }
 
 private func signedQARuntime(_ label: String) throws -> SignedQAFixture {

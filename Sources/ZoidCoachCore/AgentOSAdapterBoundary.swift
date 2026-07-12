@@ -8,8 +8,12 @@ public enum AgentOSAdapterOperation: String, CaseIterable, Equatable, Sendable {
     case deliverNotifications
 }
 
-public struct AgentOSFixtureAuthorization: Equatable, Sendable {
-    fileprivate let runRoot: URL
+public struct AgentOSFixtureAuthorization: @unchecked Sendable {
+    package let authorizes: @Sendable (RuntimeEnvironment) -> Bool
+
+    package init(authorizes: @escaping @Sendable (RuntimeEnvironment) -> Bool) {
+        self.authorizes = authorizes
+    }
 }
 
 public enum AgentOSAdapterBoundary {
@@ -28,8 +32,7 @@ public enum AgentOSAdapterBoundary {
         fixtureAuthorization: AgentOSFixtureAuthorization? = nil
     ) throws {
         guard case .qa = runtimeEnvironment.mode, !operations.isEmpty else { return }
-        if case let .qa(runRoot) = runtimeEnvironment.mode,
-           fixtureAuthorization?.runRoot == runRoot {
+        if fixtureAuthorization?.authorizes(runtimeEnvironment) == true {
             return
         }
         throw AgentOSAdapterBoundaryError.isolatedAdaptersRequired(
@@ -37,18 +40,6 @@ public enum AgentOSAdapterBoundary {
         )
     }
 
-    public static func authorizeFixture(
-        runtimeEnvironment: RuntimeEnvironment
-    ) throws -> AgentOSFixtureAuthorization {
-        guard case let .qa(runRoot) = runtimeEnvironment.mode,
-              runtimeEnvironment.packageMode == .qa,
-              runtimeEnvironment.identity == .qa else {
-            throw AgentOSAdapterBoundaryError.isolatedAdaptersRequired(
-                operations: AgentOSAdapterOperation.allCases.map(\.rawValue).sorted()
-            )
-        }
-        return AgentOSFixtureAuthorization(runRoot: runRoot)
-    }
 }
 
 public enum AgentOSAdapterBoundaryError: LocalizedError, Equatable {

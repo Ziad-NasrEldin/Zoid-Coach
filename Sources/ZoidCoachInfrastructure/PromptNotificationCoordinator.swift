@@ -98,11 +98,11 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         for notification in try fixtureAdapter.snapshot().notifications
             where notification.status == .responded {
             guard let identifier = notification.actionIdentifier,
-                  let action = PromptActionKind(rawValue: identifier)
-                    ?? Self.actionKind(
-                        identifier: identifier,
-                        notificationIdentity: notificationIdentity
-                    ) else { continue }
+                  let action = Self.fixtureActionKind(
+                    identifier: identifier,
+                    category: notification.desired.category,
+                    notificationIdentity: notificationIdentity
+                  ) else { continue }
             let result = try promptStore.respond(
                 promptID: notification.desired.promptID,
                 action: action,
@@ -167,6 +167,35 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         return PromptActionKind(
             rawValue: String(identifier.dropFirst(notificationIdentity.promptActionPrefix.count)).lowercased()
         )
+    }
+
+    public static func fixtureActionKind(
+        identifier: String,
+        notificationIdentity: RuntimeNotificationIdentity
+    ) -> PromptActionKind? {
+        PromptActionKind(rawValue: identifier.lowercased())
+            ?? actionKind(
+                identifier: identifier,
+                notificationIdentity: notificationIdentity
+            )
+    }
+
+    public static func fixtureActionKind(
+        identifier: String,
+        category: String,
+        notificationIdentity: RuntimeNotificationIdentity
+    ) -> PromptActionKind? {
+        guard let action = fixtureActionKind(
+            identifier: identifier,
+            notificationIdentity: notificationIdentity
+        ), let category = PromptNotificationCategory(rawValue: category) else { return nil }
+        let allowed: Set<PromptActionKind> = switch category {
+        case .planReady: [.acceptPlan, .reviewPlan]
+        case .meetingCandidate: [.addMeeting, .editMeeting, .ignore]
+        case .planChanged: [.reviewPlan, .undoPlanChange]
+        case .wakeIntervention: []
+        }
+        return allowed.contains(action) ? action : nil
     }
 
     private static func categories(
