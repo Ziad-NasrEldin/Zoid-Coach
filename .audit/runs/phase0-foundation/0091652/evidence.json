@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "run": {
+    "kind": "independent-phase0-foundation-verification",
+    "baseline_commit": "0091652ff15ca9e7f31e6428e4220f71d06348c9",
+    "branch": "codex/zc-phase0-verifier",
+    "worktree": "/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/phase0-verifier",
+    "started_clean": true,
+    "completed_at_utc": "2026-07-12T01:36:58Z",
+    "macos": "26.5.2 (25F84)",
+    "architecture": "arm64",
+    "production_state_mutated": false
+  },
+  "verdict": {
+    "foundation_safe_for_full_qa_execution": false,
+    "safe_for_source_development_and_unit_tests": true,
+    "builders_may_continue_conditionally": true,
+    "condition": "Do not launch the app or agent in QA mode against real services until all critical containment findings are fixed and independently reverified."
+  },
+  "reproducibility": {
+    "swift_tests": {
+      "result": "pass",
+      "tests": 193,
+      "suites": 4
+    },
+    "runtime_environment_tests": {
+      "result": "pass",
+      "tests": 5
+    },
+    "scenario_registry_tests": {
+      "result": "pass",
+      "tests": 7
+    },
+    "release_build": {
+      "result": "pass",
+      "command": "swift build -c release --quiet",
+      "exit_code": 0
+    },
+    "package_verifier": "pass",
+    "background_service_verifier": "pass"
+  },
+  "registry": {
+    "tracker_sha256": "2732d57baef4a31a86507b858cd9660a3f3dfcef167fb4d87fa65c4c4326710a",
+    "registry_tracker_sha256": "2732d57baef4a31a86507b858cd9660a3f3dfcef167fb4d87fa65c4c4326710a",
+    "scenario_count": 666,
+    "unique_id_count": 666,
+    "section_count": 65,
+    "checked": 6,
+    "unchecked": 660,
+    "dispositions": {
+      "required_now": 658,
+      "negative_invariant": 6,
+      "superseded_candidate": 1,
+      "deferred_guardrail": 1
+    },
+    "delivery_statuses": {
+      "fully_implemented": 6,
+      "touches_remaining": 120,
+      "frontend_only_left": 27,
+      "partially_implemented": 156,
+      "barely_started": 49,
+      "not_implemented": 275,
+      "blocked_from_verification": 33
+    },
+    "checked_scenarios_with_empty_evidence_paths": 6,
+    "unchecked_scenarios_with_verification_metadata": 15,
+    "custom_validator_rejected_tracker_drift": true,
+    "custom_validator_enforces_json_schema": false
+  },
+  "adversarial_probes": [
+    {
+      "name": "parent_symlink_path_escape",
+      "result": "escape_confirmed",
+      "method": "Create run/link as a symlink to a temporary outside directory, resolve --database run/link/escaped.sqlite, write through the accepted URL, and confirm outside/escaped.sqlite exists.",
+      "production_data_touched": false
+    },
+    {
+      "name": "sibling_prefix_escape",
+      "result": "rejected"
+    },
+    {
+      "name": "filesystem_root_escape_container",
+      "result": "rejected"
+    },
+    {
+      "name": "production_library_as_qa_root",
+      "result": "accepted"
+    },
+    {
+      "name": "production_user_defaults_suite_in_qa",
+      "result": "accepted"
+    },
+    {
+      "name": "invalid_registry_schema_version",
+      "result": "accepted_by_custom_validator"
+    },
+    {
+      "name": "invalid_registry_schema_uri",
+      "result": "accepted_by_custom_validator"
+    },
+    {
+      "name": "invalid_registry_tracker_path",
+      "result": "accepted_by_custom_validator"
+    },
+    {
+      "name": "unexpected_registry_top_level_property",
+      "result": "accepted_by_custom_validator"
+    },
+    {
+      "name": "nonexistent_verified_commit",
+      "result": "accepted_by_custom_validator",
+      "value": "deadbee"
+    },
+    {
+      "name": "arbitrary_verified_build",
+      "result": "accepted_by_custom_validator",
+      "value": "anything"
+    },
+    {
+      "name": "out_of_range_evidence_line",
+      "result": "accepted_by_custom_validator",
+      "value": "Sources/ZoidCoachApp/ZoidCoachApp.swift:999999"
+    }
+  ],
+  "findings": [
+    {
+      "id": "P0-001",
+      "severity": "critical",
+      "title": "QA path containment is bypassable through an existing parent-directory symlink",
+      "evidence": [
+        "Sources/ZoidCoachCore/RuntimeEnvironment.swift:127-151",
+        ".audit/runs/phase0-foundation/0091652/adversarial-results.txt"
+      ],
+      "impact": "A supposedly isolated database, Screenwatch, Application Support, or export path can write outside the QA root, including into production state if an attacker or broken harness prepares the symlink.",
+      "recommendation": "Reject symlink components with file-descriptor based containment or resolve and validate an existing parent directory immediately before opening each output."
+    },
+    {
+      "id": "P0-002",
+      "severity": "critical",
+      "title": "QA mode does not prevent selection of production roots or production identity domains",
+      "evidence": [
+        "Sources/ZoidCoachCore/RuntimeEnvironment.swift:54-151",
+        ".audit/runs/phase0-foundation/0091652/adversarial-results.txt"
+      ],
+      "impact": "A QA root can be the user's real Library directory, and QA accepts the production UserDefaults suite name. The guard proves relative containment only, not separation from protected production locations or identities.",
+      "recommendation": "Require QA roots beneath an approved dedicated base, reject overlap with home, Library, Application Support, Screenwatch, installed app, and production database paths, and forbid production or cross-run suite and Keychain identifiers."
+    },
+    {
+      "id": "P0-003",
+      "severity": "critical",
+      "title": "Sensitive app consumers bypass RuntimeEnvironment and remain connected to production state",
+      "evidence": [
+        "Sources/ZoidCoachApp/AppModel.swift:43-63",
+        "Sources/ZoidCoachApp/Views/SettingsView.swift:19-140",
+        "Sources/ZoidCoachApp/Voice/VoiceConversationModel.swift:19-61",
+        "Sources/ZoidCoachApp/Services/AgentLaunchService.swift:76-116",
+        "Sources/ZoidCoachInfrastructure/TodayDashboardXPC.swift:347"
+      ],
+      "impact": "A QA app still uses the production Mach service, settings database defaults, App inventory database default, capture configuration, Keychain service, standard UserDefaults, notifications, microphone and global hotkey, and ServiceManagement registration path.",
+      "recommendation": "Create one dependency container from RuntimeEnvironment and inject it into AppModel, Settings, voice, XPC, ServiceManagement, capture, inventory, notification, and external-source consumers. QA mode must fail closed when a production consumer is requested."
+    },
+    {
+      "id": "P0-004",
+      "severity": "critical",
+      "title": "The QA agent still uses production macOS integrations and production capture configuration",
+      "evidence": [
+        "Sources/ZoidCoachAgent/AgentMain.swift:18-31",
+        "Sources/ZoidCoachAgent/AgentMain.swift:119-180",
+        "Sources/ZoidCoachAgent/AgentMain.swift:1033-1079"
+      ],
+      "impact": "QA startup can read real Reminders, use real Calendar and notification adapters, accept permission-request flags, start the parent app, and use production native-capture configuration and directories. Seeded QA outbox work could mutate real EventKit.",
+      "recommendation": "Require fixture adapters in QA mode, prohibit permission and ServiceManagement operations, derive native capture configuration and directories from the QA root, and use a unique QA Mach service."
+    },
+    {
+      "id": "P1-001",
+      "severity": "high",
+      "title": "Scenario validation does not enforce the committed JSON Schema or evidence referential integrity",
+      "evidence": [
+        "Scripts/scenario_registry.py:249-333",
+        "docs/scenario-registry.schema.json",
+        ".audit/runs/phase0-foundation/0091652/registry-adversarial-results.txt"
+      ],
+      "impact": "The validation command accepts a wrong schema version, wrong schema URI, wrong tracker path, unexpected top-level properties, nonexistent verified commits, arbitrary build IDs, and impossible evidence line numbers.",
+      "recommendation": "Validate the entire payload against the committed schema, resolve verified commits in Git, validate build identity format and provenance, and verify evidence files and referenced line bounds."
+    },
+    {
+      "id": "P1-002",
+      "severity": "high",
+      "title": "All six checked scenarios require proof classes but have no evidence paths",
+      "evidence": [
+        "docs/scenario-registry.json",
+        ".audit/runs/baseline/a068d27/evidence.json"
+      ],
+      "impact": "The registry can report fully implemented checked scenarios while its machine-readable proof linkage is empty, so it cannot independently support a release gate.",
+      "recommendation": "Require at least one immutable evidence manifest for checked scenarios and verify that every required proof class is satisfied by typed evidence records."
+    },
+    {
+      "id": "P2-001",
+      "severity": "medium",
+      "title": "Fifteen downgraded scenarios retain old verification commit and build metadata",
+      "evidence": [
+        "Scripts/scenario_registry.py:177-193",
+        "docs/scenario-registry.json"
+      ],
+      "impact": "Historical verification metadata survives a checkbox and status downgrade, which can be mistaken for current completion proof unless consumers understand the status field takes precedence.",
+      "recommendation": "Separate historical verification from current accepted proof, or clear current-verification fields whenever checkbox, status, disposition, or required proof changes."
+    }
+  ]
+}
