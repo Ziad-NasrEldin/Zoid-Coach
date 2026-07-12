@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 24
+    public static let currentVersion = 25
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -757,6 +757,16 @@ private extension AutonomousDatabaseMigrator {
         Migration(version: 24, isDestructive: false, operations: [.sql("""
         ALTER TABLE gaming_reward_ledger
         ADD COLUMN reward_minutes INTEGER NOT NULL DEFAULT 15;
+        """)]),
+        Migration(version: 25, isDestructive: false, operations: [.sql("""
+        CREATE TABLE policy_mutation_receipts (
+            request_id TEXT PRIMARY KEY,
+            payload_digest TEXT NOT NULL,
+            expected_version INTEGER NOT NULL,
+            resulting_version INTEGER NOT NULL,
+            origin_json TEXT NOT NULL,
+            created_at_utc TEXT NOT NULL
+        );
         """)])
     ]
 }

@@ -28,6 +28,69 @@ func policyStoreVersionsChangesAndRollsBackTheActivePolicy() throws {
 }
 
 @Test
+func policyMutationUsesExpectedVersionAndReplaysTheWinningRequest() throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let firstStore = try PolicyStore(databaseURL: databaseURL)
+    let secondStore = try PolicyStore(databaseURL: databaseURL)
+    let initial = try firstStore.save(policy(mode: .observe))
+    let request = PolicyMutationRequest(
+        requestID: "settings-save-001",
+        expectedVersion: initial.version,
+        policy: policy(mode: .assist),
+        origin: .settings
+    )
+
+    let first = try firstStore.saveMutation(request)
+    let replay = try secondStore.saveMutation(request)
+
+    #expect(first.requestID == replay.requestID)
+    #expect(first.payloadDigest == replay.payloadDigest)
+    #expect(first.resultingVersion == replay.resultingVersion)
+    #expect(!first.replayed)
+    #expect(replay.replayed)
+    #expect(first.resultingVersion == 2)
+    #expect(try firstStore.history().map(\.version) == [2, 1])
+
+    let stale = PolicyMutationRequest(
+        requestID: "settings-save-002",
+        expectedVersion: initial.version,
+        policy: policy(mode: .autonomous),
+        origin: .settings
+    )
+    #expect(throws: PolicyStoreError.staleVersion(expected: 1, actual: 2)) {
+        try secondStore.saveMutation(stale)
+    }
+    #expect(try firstStore.current()?.policy.operatingMode == .assist)
+}
+
+@Test
+func policyMutationRejectsAReusedRequestIDWithDifferentPayload() throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    let initial = try store.save(policy(mode: .observe))
+    let first = PolicyMutationRequest(
+        requestID: "onboarding-policy:schedule:8:1",
+        expectedVersion: initial.version,
+        policy: policy(mode: .assist),
+        origin: .onboarding(step: .schedule, progressRevision: 8)
+    )
+    _ = try store.saveMutation(first)
+    let conflicting = PolicyMutationRequest(
+        requestID: first.requestID,
+        expectedVersion: initial.version,
+        policy: policy(mode: .autonomous),
+        origin: first.origin
+    )
+
+    #expect(throws: PolicyStoreError.idempotencyConflict(first.requestID)) {
+        try store.saveMutation(conflicting)
+    }
+    #expect(try store.history().map(\.version) == [2, 1])
+}
+
+@Test
 func operatingModeMigratesLegacyPolicyValuesAndPersistsTheFourRolloutModes() throws {
     let decoder = JSONDecoder()
     let encoder = JSONEncoder()

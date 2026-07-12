@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import SQLite3
 import ZoidCoachCore
@@ -61,6 +62,51 @@ public final class PolicyStore: @unchecked Sendable {
         }
     }
 
+    public func saveMutation(_ request: PolicyMutationRequest) throws -> PolicyMutationReceipt {
+        let policy = request.policy.upgradedToCurrentSchema()
+        let violations = policy.validationViolations()
+        guard violations.isEmpty else { throw PolicyStoreError.invalidPolicy(violations) }
+        let payloadDigest = try Self.payloadDigest(policy)
+
+        lock.lock()
+        defer { lock.unlock() }
+        return try inTransaction {
+            if let existing = try mutationReceiptLocked(requestID: request.requestID) {
+                guard existing.payloadDigest == payloadDigest,
+                      existing.expectedVersion == request.expectedVersion,
+                      existing.origin == request.origin else {
+                    throw PolicyStoreError.idempotencyConflict(request.requestID)
+                }
+                return PolicyMutationReceipt(
+                    requestID: existing.requestID,
+                    payloadDigest: existing.payloadDigest,
+                    expectedVersion: existing.expectedVersion,
+                    resultingVersion: existing.resultingVersion,
+                    origin: existing.origin,
+                    replayed: true
+                )
+            }
+            let actualVersion = try currentLocked()?.version ?? 0
+            guard actualVersion == request.expectedVersion else {
+                throw PolicyStoreError.staleVersion(
+                    expected: request.expectedVersion,
+                    actual: actualVersion
+                )
+            }
+            let saved = try saveLocked(policy, createdAt: now())
+            let receipt = PolicyMutationReceipt(
+                requestID: request.requestID,
+                payloadDigest: payloadDigest,
+                expectedVersion: request.expectedVersion,
+                resultingVersion: saved.version,
+                origin: request.origin,
+                replayed: false
+            )
+            try insertMutationReceiptLocked(receipt)
+            return receipt
+        }
+    }
+
     public func current() throws -> VersionedUserPolicy? {
         lock.lock()
         defer { lock.unlock() }
@@ -97,6 +143,62 @@ public final class PolicyStore: @unchecked Sendable {
         return try readOne(
             sql,
             bindings: [.text(Self.policyType), .text(Self.settingsKey)]
+        )
+    }
+
+    private func mutationReceiptLocked(requestID: String) throws -> PolicyMutationReceipt? {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT payload_digest, expected_version, resulting_version, origin_json FROM policy_mutation_receipts WHERE request_id = ? LIMIT 1;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else {
+            throw databaseError(.read)
+        }
+        defer { sqlite3_finalize(statement) }
+        try bind([.text(requestID)], to: statement)
+        switch sqlite3_step(statement) {
+        case SQLITE_DONE:
+            return nil
+        case SQLITE_ROW:
+            guard let digestPointer = sqlite3_column_text(statement, 0),
+                  let originPointer = sqlite3_column_text(statement, 3) else {
+                throw PolicyStoreError.corruptMutationReceipt(requestID)
+            }
+            let originData = Data(String(cString: originPointer).utf8)
+            guard let origin = try? JSONDecoder().decode(PolicyMutationOrigin.self, from: originData) else {
+                throw PolicyStoreError.corruptMutationReceipt(requestID)
+            }
+            return PolicyMutationReceipt(
+                requestID: requestID,
+                payloadDigest: String(cString: digestPointer),
+                expectedVersion: Int(sqlite3_column_int64(statement, 1)),
+                resultingVersion: Int(sqlite3_column_int64(statement, 2)),
+                origin: origin,
+                replayed: false
+            )
+        default:
+            throw databaseError(.read)
+        }
+    }
+
+    private func insertMutationReceiptLocked(_ receipt: PolicyMutationReceipt) throws {
+        let originData = try JSONEncoder().encode(receipt.origin)
+        guard let originJSON = String(data: originData, encoding: .utf8) else {
+            throw PolicyStoreError.encode("Policy mutation origin was not UTF-8.")
+        }
+        try execute(
+            "INSERT INTO policy_mutation_receipts(request_id, payload_digest, expected_version, resulting_version, origin_json, created_at_utc) VALUES (?, ?, ?, ?, ?, ?);",
+            bindings: [
+                .text(receipt.requestID),
+                .text(receipt.payloadDigest),
+                .integer(receipt.expectedVersion),
+                .integer(receipt.resultingVersion),
+                .text(originJSON),
+                .text(Self.timestamp(now()))
+            ]
         )
     }
 
@@ -290,6 +392,11 @@ public final class PolicyStore: @unchecked Sendable {
         }
     }
 
+    private static func payloadDigest(_ policy: UserPolicy) throws -> String {
+        let data = try JSONEncoder.zoidPolicy.encode(policy)
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
     private func inTransaction<T>(_ body: () throws -> T) throws -> T {
         guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
             throw databaseError(.write)
@@ -373,6 +480,9 @@ public enum PolicyStoreError: Error, Equatable, Sendable {
     case corruptPolicy
     case encode(String)
     case decode(String)
+    case staleVersion(expected: Int, actual: Int)
+    case idempotencyConflict(String)
+    case corruptMutationReceipt(String)
 }
 
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
