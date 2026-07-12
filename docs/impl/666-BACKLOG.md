@@ -37,6 +37,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 19 | Complete background-agent lifecycle and Login Items repair | ready | Unowned | Install, enable, approval-required, update, crash recovery, disable, and uninstall are understandable and preserve data integrity |
 | 20 | Complete privacy, export, deletion, and local-data controls | verify | Lane C at `f4085ed` | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
 | 21 | Complete daily behavior review and correction | verify | Lane D at `7b96623` | User can review grouped activity sessions, correct or split classifications, attach work to a task, reject unsupported explanations, confirm the review, and see durable corrected totals after restart |
+| 22 | Complete morning-planning invitation and limited-unplanned controls | verify | Morning-planning lane at `27ad4f3` | Manual planning, snooze and return, temporary dismissal, explicit unplanned mode, direct unplanned task start, drift gating, restart recovery, full suites, release, and signed candidate UI inspection are recorded in `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`; isolated installed-helper mutation proof remains |
 
 ## Pull Rules
 
@@ -49,6 +50,18 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Morning-planning invitation and limited-unplanned controls - `27ad4f3`
+
+- Added a low-pressure Today invitation with Plan Now, Work Unplanned, snooze, and temporary-dismiss recovery.
+- Added durable response-derived planning state without a new migration or overlap with the active review and classification lanes.
+- Added hidden deferred prompts, one-time due delivery, plan-created cancellation, restart-safe unplanned mode, and an explicit drift-intervention gate.
+- Added direct Start Without Planning controls that preserve an empty plan while making the selected Reminder the durable active task.
+- Focused planning and notification tests passed.
+- All 473 Swift tests, the release build, 41 Python evidence tests, and signed-QA packaging passed.
+- The signed app visibly exposed the complete banner, copy, task inventory, and controls with stable accessibility identifiers.
+- The final installed-helper mutation click-through remains assigned to a fresh verifier because another concurrent lane owned the single QA Mach-service registration.
+- Evidence is recorded in `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`.
 
 ### Settings policy mutation conflict UX - `87f326f`
 
