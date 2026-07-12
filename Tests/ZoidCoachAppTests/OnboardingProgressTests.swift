@@ -13,6 +13,9 @@ func onboardingProgressAdvancesInOrderAndRequiresAnExplicitCoachingMode() throws
 
     for step in OnboardingStep.allCases.dropFirst().dropLast(3) {
         #expect(progress.currentStep == step)
+        if [.reminders, .screenwatch, .notifications].contains(step) {
+            try progress.recordAccessDecision(.deferred, for: step)
+        }
         try progress.completeCurrentStep(at: now)
     }
     #expect(progress.currentStep == .coachingMode)
@@ -45,6 +48,9 @@ func onboardingOnlyFinishesAfterTheFirstDailyPlan() throws {
 
     for step in OnboardingStep.allCases {
         #expect(progress.currentStep == step)
+        if [.reminders, .screenwatch, .notifications].contains(step) {
+            try progress.recordAccessDecision(.denied, for: step)
+        }
         if step == .coachingMode {
             progress.chooseCoachingMode(.rulesOnly)
         }
@@ -68,6 +74,7 @@ func onboardingStoreResumesTheExactPersistedStepAcrossRestarts() throws {
     var progress = try firstProcess.load()
     try progress.completeCurrentStep(at: Date())
     try progress.completeCurrentStep(at: Date())
+    try progress.recordAccessDecision(.denied, for: .reminders)
     try firstProcess.save(progress)
 
     let restartedProcess = OnboardingProgressStore(runtimeEnvironment: runtime)
@@ -75,6 +82,7 @@ func onboardingStoreResumesTheExactPersistedStepAcrossRestarts() throws {
 
     #expect(resumed == progress)
     #expect(resumed.currentStep == .reminders)
+    #expect(resumed.remindersAccess == .denied)
     #expect(restartedProcess.fileURL.path.hasPrefix(qaRoot.path + "/"))
 }
 
@@ -112,4 +120,27 @@ func onboardingProgressRejectsSkippedOrUnreachablePersistedState() {
     #expect(throws: OnboardingProgressError.invalidCurrentStep) {
         try OnboardingProgress(currentStep: .screenwatch, completedSteps: [.welcome])
     }
+}
+
+@Test
+func onboardingPersistsPermissionDenialAndDegradedContinuationDecisions() throws {
+    var progress = try OnboardingProgress()
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    try progress.completeCurrentStep(at: now)
+    try progress.completeCurrentStep(at: now)
+
+    #expect(throws: OnboardingProgressError.accessDecisionRequired(.reminders)) {
+        try progress.completeCurrentStep(at: now)
+    }
+    try progress.recordAccessDecision(.denied, for: .reminders)
+    try progress.completeCurrentStep(at: now)
+    try progress.recordAccessDecision(.unavailable, for: .screenwatch)
+    try progress.completeCurrentStep(at: now)
+    try progress.recordAccessDecision(.deferred, for: .notifications)
+    try progress.completeCurrentStep(at: now)
+
+    #expect(progress.remindersAccess == .denied)
+    #expect(progress.screenwatchAccess == .unavailable)
+    #expect(progress.notificationAccess == .deferred)
+    #expect(progress.currentStep == .applicationInventory)
 }

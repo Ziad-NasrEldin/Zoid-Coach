@@ -20,6 +20,13 @@ public enum InitialCoachingMode: String, Codable, Sendable {
     case optionalAI
 }
 
+public enum OnboardingAccessDecision: String, Codable, Sendable {
+    case granted
+    case denied
+    case unavailable
+    case deferred
+}
+
 public struct OnboardingProgress: Codable, Equatable, Sendable {
     public static let schemaVersion = 1
 
@@ -27,6 +34,9 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
     public private(set) var currentStep: OnboardingStep
     public private(set) var completedSteps: [OnboardingStep]
     public private(set) var coachingMode: InitialCoachingMode?
+    public private(set) var remindersAccess: OnboardingAccessDecision?
+    public private(set) var screenwatchAccess: OnboardingAccessDecision?
+    public private(set) var notificationAccess: OnboardingAccessDecision?
     public private(set) var finishedAt: Date?
 
     public init(
@@ -34,12 +44,18 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         currentStep: OnboardingStep = .welcome,
         completedSteps: [OnboardingStep] = [],
         coachingMode: InitialCoachingMode? = nil,
+        remindersAccess: OnboardingAccessDecision? = nil,
+        screenwatchAccess: OnboardingAccessDecision? = nil,
+        notificationAccess: OnboardingAccessDecision? = nil,
         finishedAt: Date? = nil
     ) throws {
         self.version = version
         self.currentStep = currentStep
         self.completedSteps = completedSteps
         self.coachingMode = coachingMode
+        self.remindersAccess = remindersAccess
+        self.screenwatchAccess = screenwatchAccess
+        self.notificationAccess = notificationAccess
         self.finishedAt = finishedAt
         try validate()
     }
@@ -52,9 +68,29 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         coachingMode = mode
     }
 
+    public mutating func recordAccessDecision(
+        _ decision: OnboardingAccessDecision,
+        for step: OnboardingStep
+    ) throws {
+        switch step {
+        case .reminders:
+            remindersAccess = decision
+        case .screenwatch:
+            screenwatchAccess = decision
+        case .notifications:
+            notificationAccess = decision
+        default:
+            throw OnboardingProgressError.accessDecisionNotSupported(step)
+        }
+    }
+
     public mutating func completeCurrentStep(at date: Date) throws {
         if currentStep == .coachingMode, coachingMode == nil {
             throw OnboardingProgressError.coachingModeRequired
+        }
+        if [.reminders, .screenwatch, .notifications].contains(currentStep),
+           accessDecision(for: currentStep) == nil {
+            throw OnboardingProgressError.accessDecisionRequired(currentStep)
         }
         if !completedSteps.contains(currentStep) {
             completedSteps.append(currentStep)
@@ -108,6 +144,10 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         if completedSteps.contains(.coachingMode), coachingMode == nil {
             throw OnboardingProgressError.coachingModeRequired
         }
+        for step in [OnboardingStep.reminders, .screenwatch, .notifications]
+        where completedSteps.contains(step) && accessDecision(for: step) == nil {
+            throw OnboardingProgressError.accessDecisionRequired(step)
+        }
         if finishedAt != nil, Set(completedSteps) != Set(OnboardingStep.allCases) {
             throw OnboardingProgressError.stepsIncomplete
         }
@@ -117,6 +157,19 @@ public struct OnboardingProgress: Codable, Equatable, Sendable {
         guard let left = OnboardingStep.allCases.firstIndex(of: lhs),
               let right = OnboardingStep.allCases.firstIndex(of: rhs) else { return false }
         return left < right
+    }
+
+    private func accessDecision(for step: OnboardingStep) -> OnboardingAccessDecision? {
+        switch step {
+        case .reminders:
+            remindersAccess
+        case .screenwatch:
+            screenwatchAccess
+        case .notifications:
+            notificationAccess
+        default:
+            nil
+        }
     }
 }
 
@@ -176,6 +229,8 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
     case invalidCurrentStep
     case stepNotReachable(OnboardingStep)
     case coachingModeRequired
+    case accessDecisionRequired(OnboardingStep)
+    case accessDecisionNotSupported(OnboardingStep)
     case stepsIncomplete
     case unreadableProgress(String)
 
@@ -195,6 +250,10 @@ public enum OnboardingProgressError: LocalizedError, Equatable {
             "Onboarding step is not reachable yet: \(step.rawValue)"
         case .coachingModeRequired:
             "Choose rules-only coaching or optional AI before continuing"
+        case let .accessDecisionRequired(step):
+            "Record the access outcome before completing onboarding step: \(step.rawValue)"
+        case let .accessDecisionNotSupported(step):
+            "Onboarding step does not accept an access decision: \(step.rawValue)"
         case .stepsIncomplete:
             "Onboarding cannot finish before every required step is complete"
         case let .unreadableProgress(message):
