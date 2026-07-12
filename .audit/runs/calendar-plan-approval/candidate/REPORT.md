@@ -67,3 +67,15 @@ The creation callback now reloads the durable daily plan before refreshing Today
 Focused `CalendarPlanApprovalStateTests` and `AgentPlanSchedulerTests` both pass after these fixes.
 
 The root-owned signed-QA acceptance journey remains intentionally unclaimed until the package lease is available.
+
+## Final signed-QA result
+
+The final code tip `894ed4f` passed the affected Calendar approval, scheduler, manual-local-task, and migration 32 gates, followed by a successful release build and signed QA installation.
+
+The installed app visibly created a 30-minute local task and immediately changed capacity from `0 MIN PLANNED` to `30 MIN PLANNED / 378 MIN AVAILABLE` without a restart.
+
+The enabled accept control opened a dedicated review sheet showing the exact task, main-objective marker, 30-minute estimate, 378 available minutes, zero Calendar-busy minutes, and 348 unallocated minutes before any write.
+
+Confirming while Calendar availability was unavailable produced an atomic refusal with `NOTHING WAS WRITTEN`, stated that no Calendar or Reminder changes were queued, preserved the reviewed task, and exposed `OPEN SOURCE HEALTH`.
+
+The successful pending-to-applied Calendar mutation was not exercised in this environment, so the tracker remains conservative rather than claiming full end-to-end completion.

@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "0e04c3f08f54e94e74c88ab9d8768e3ba53e024138f2605e3fec1c29b9c347c4",
+  "tracker_sha256": "0ff0861b4b24ccfa606d6f8ca7d1807fe467338bc50ea8584d3cd8c0bbc697d9",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1781,7 +1781,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`ACCEPT BLOCKS` sends a schedule-plan mutation and the PLAN_READY notification has Accept, with tests proving durable queueing, but an actual Calendar end-to-end acceptance was not exercised (`AppModel.swift:305-330`; `PromptResponseEffectRouter.swift:43-50`).",
+      "audit_note": "The installed signed-QA app now requires a dedicated review sheet before writing, shows the exact task, main objective, estimate, capacity, fixed commitments, and fallback state, and visibly refuses atomically with `NOTHING WAS WRITTEN` plus Source Health repair when Calendar placement is unavailable; exact pending-to-applied Calendar confirmation remains outstanding (`CalendarPlanApprovalSheet.swift`; `CalendarPlanApprovalState.swift`; `AgentPlanScheduler.swift`; `.audit/runs/calendar-plan-approval/candidate/REPORT.md`).",
       "tracker_line": 155
     },
     {
@@ -13092,8 +13092,8 @@
       "item_index": 5,
       "wording": "Approve the plan.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13104,7 +13104,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`ACCEPT BLOCKS` approves Calendar reservations, but there is no dedicated approved-day-state confirmation matching the scenario.",
+      "audit_note": "The signed app now exposes a dedicated review-before-write state and a truthful atomic-refusal state with no queued commands, while focused tests cover exact command reconciliation through pending, applied, failed, duplicate, and cancelled outcomes; a successful installed Calendar write and approved-day restart remains to be proven (`CalendarPlanApprovalSheet.swift`; `CalendarPlanApprovalState.swift`; `.audit/runs/calendar-plan-approval/candidate/REPORT.md`).",
       "tracker_line": 817
     },
     {
