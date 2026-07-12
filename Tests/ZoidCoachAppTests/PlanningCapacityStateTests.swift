@@ -18,6 +18,28 @@ func capacityStateExplainsMissingEstimatesBeforeClaimingAPlanIsRealistic() {
 }
 
 @Test
+func capacityExcludesOptionalAndFutureDeferredTasksWithoutHidingCommittedWork() {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let entries = [
+        DailyPlanEntry(reminderID: "committed", rank: 1, isMainObjective: true, estimateMinutes: 45),
+        DailyPlanEntry(reminderID: "optional", rank: 2, isMainObjective: false, estimateMinutes: 90, isOptional: true),
+        DailyPlanEntry(
+            reminderID: "deferred",
+            rank: 3,
+            isMainObjective: false,
+            estimateMinutes: nil,
+            deferredUntil: now.addingTimeInterval(24 * 60 * 60)
+        )
+    ]
+
+    let state = PlanningCapacityState(entries: entries, availableMinutes: 60, referenceDate: now)
+
+    #expect(state.plannedMinutes == 45)
+    #expect(state.readiness == .realistic)
+    #expect(state.canApprove)
+}
+
+@Test
 func capacityStateReportsExactOverageAndSuggestsLowestRankedTask() {
     let state = PlanningCapacityState(
         entries: [
