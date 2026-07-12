@@ -182,6 +182,27 @@ func onboardingStoreRejectsIntermediateAndFinalDirectorySymlinks() throws {
 }
 
 @Test
+func onboardingStoreRejectsTheFinalStateFileSymlink() throws {
+    let fixture = try OnboardingStoreFixture(name: "state-file-symlink")
+    defer { fixture.remove() }
+    let store = OnboardingProgressStore(runtimeEnvironment: fixture.runtime)
+    let outside = fixture.root.appendingPathComponent("outside-progress.json")
+    let outsideBytes = Data("outside".utf8)
+    try FileManager.default.createDirectory(at: fixture.root, withIntermediateDirectories: true)
+    try outsideBytes.write(to: outside)
+    try FileManager.default.createDirectory(
+        at: store.fileURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    try FileManager.default.createSymbolicLink(at: store.fileURL, withDestinationURL: outside)
+
+    #expect(throws: OnboardingProgressStoreError.unsafeFilesystemEntry("onboarding-progress.json")) {
+        try store.load()
+    }
+    #expect(try Data(contentsOf: outside) == outsideBytes)
+}
+
+@Test
 func onboardingConcurrentStoreInstancesAlwaysLeaveAValidWholeState() async throws {
     let fixture = try OnboardingStoreFixture(name: "concurrent-instances")
     defer { fixture.remove() }
