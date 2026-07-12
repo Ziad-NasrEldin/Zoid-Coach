@@ -107,6 +107,5 @@ struct LocalTaskCreationView: View {
         .frame(width: 500)
         .background(Sumi.paper)
         .overlay { Rectangle().stroke(Sumi.ink, lineWidth: 1) }
-        .accessibilityIdentifier("local-task-sheet")
     }
 }
