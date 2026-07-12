@@ -124,6 +124,7 @@ struct TodayDashboardCommandOverview: View {
                             elapsedMinutes: row.elapsedMinutes,
                             estimateMinutes: row.estimateMinutes
                         ),
+                        isRunning: row.state == .active,
                         identifier: "today.focus.estimate-progress"
                     )
                     .padding(.top, 14)

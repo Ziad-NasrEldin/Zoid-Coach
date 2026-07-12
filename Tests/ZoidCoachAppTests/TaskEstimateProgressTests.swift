@@ -50,6 +50,16 @@ func estimateProgressDefensivelyNormalizesInvalidPersistedValues() {
 }
 
 @Test
+func estimateProgressCanAdvanceFromItsCanonicalSnapshotWhileActive() {
+    let progress = TaskEstimateProgress(elapsedMinutes: 59, estimateMinutes: 60)
+        .addingElapsedMinutes(2)
+
+    #expect(progress.elapsedMinutes == 61)
+    #expect(progress.phase == .overEstimate)
+    #expect(progress.statusLabel == "1 min over estimate")
+}
+
+@Test
 func trackedElapsedTimeRestoresAfterStoreReopenAndProducesTheSameProgress() throws {
     let url = FileManager.default.temporaryDirectory
         .appendingPathComponent("task-estimate-progress-\(UUID().uuidString).sqlite")
