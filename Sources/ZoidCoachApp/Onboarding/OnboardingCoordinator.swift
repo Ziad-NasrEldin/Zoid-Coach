@@ -40,6 +40,8 @@ final class OnboardingCoordinator: ObservableObject {
     @Published var quietEndHour = 7
     @Published var gamingPolicy = OnboardingGamingPolicy.balanced
     @Published private(set) var deliveryResult: OnboardingDeliveryResult?
+    @Published private(set) var testPrompt: PromptEpisode?
+    @Published private(set) var testPromptMessage: String?
     @Published private(set) var testTaskCompleted = false
     @Published private(set) var firstDailyPlanResult: OnboardingFirstDailyPlanResult?
     @Published private(set) var reminderListDiscovery: OnboardingReminderListDiscovery = .idle
@@ -68,6 +70,7 @@ final class OnboardingCoordinator: ObservableObject {
         do {
             let progress = try store.load()
             self.progress = progress
+            testTaskCompleted = progress.deliveryTestTaskCompleted
             route = progress.isFinished ? .today : .onboarding
             errorMessage = nil
         } catch {
@@ -148,6 +151,11 @@ final class OnboardingCoordinator: ObservableObject {
     func exitToToday() {
         guard !isWorking else { return }
         route = .today
+    }
+
+    func resumeSetup() {
+        guard !progress.isFinished, !isWorking else { return }
+        route = .onboarding
     }
 
     func selectCoachingMode(_ mode: InitialCoachingMode) {
@@ -335,7 +343,19 @@ final class OnboardingCoordinator: ObservableObject {
         let generation = UUID()
         deliveryGeneration = generation
         isWorking = true
-        let result = await dependencies.testDelivery()
+        let result: OnboardingDeliveryResult
+        do {
+            let promptResult = try await dependencies.createTestPrompt(progress.flowID)
+            testPrompt = promptResult.episode
+            testPromptMessage = promptResult.message
+            result = .init(
+                state: promptResult.delivery == .notification ? .scheduled : .todayFallback,
+                message: promptResult.message
+            )
+        } catch {
+            result = await dependencies.testDelivery()
+            testPromptMessage = "The canonical prompt could not be created. \(error.localizedDescription)"
+        }
         guard deliveryGeneration == generation else {
             isWorking = false
             return
@@ -346,7 +366,47 @@ final class OnboardingCoordinator: ObservableObject {
 
     func completeTestTask() {
         guard !isWorking else { return }
-        testTaskCompleted = true
+        do {
+            var replacement = progress
+            replacement.completeDeliveryTestTask()
+            progress = try store.save(replacement)
+            testTaskCompleted = true
+            errorMessage = nil
+        } catch {
+            errorMessage = "The test-task result could not be saved. \(error.localizedDescription)"
+        }
+    }
+
+    func restoreTestPrompt() async {
+        guard let dependencies, !isWorking else { return }
+        do {
+            testPrompt = try await dependencies.loadTestPrompt(progress.flowID)
+        } catch {
+            errorMessage = "The saved setup prompt could not be loaded. \(error.localizedDescription)"
+        }
+    }
+
+    func respondToTestPrompt(_ action: PromptActionKind) async {
+        guard let dependencies,
+              let prompt = testPrompt,
+              prompt.state.isUnresolved,
+              !isWorking else { return }
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            testPrompt = try await dependencies.respondToTestPrompt(PromptResponseCommand(
+                promptID: prompt.id,
+                action: action,
+                actionToken: PromptResponseToken.make(promptID: prompt.id, action: action),
+                surface: .loopback
+            ))
+            testPromptMessage = action == .continueIntentionally
+                ? "Prompt resolved. Continue setup when ready."
+                : "Prompt resolved. Today remains the fallback for future choices."
+            errorMessage = nil
+        } catch {
+            errorMessage = "The setup prompt could not be resolved. \(error.localizedDescription)"
+        }
     }
 
     func prepareFirstDailyPlan() async {
@@ -381,8 +441,7 @@ final class OnboardingCoordinator: ObservableObject {
             return progress.coachingMode != nil
         case .deliveryTest:
             return testTaskCompleted
-                && (progress.notificationAccess != .granted
-                    || [.delivered, .scheduled].contains(deliveryResult?.state))
+                && testPrompt?.state == .responded
         case .firstDailyPlan:
             return firstDailyPlanResult?.state == .prepared
                 && firstDailyPlanResult?.items.isEmpty == false
