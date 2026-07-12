@@ -44,7 +44,10 @@ public struct ScreenwatchMaintenanceReport: Equatable, Sendable {
     }
 }
 
-public typealias HistoricalScreenwatchDayIngestor = @Sendable (URL, Date) throws -> ScreenwatchIngestionResult
+package typealias HistoricalScreenwatchDayIngestor = @Sendable (
+    ScreenwatchDirectoryLease,
+    Date
+) throws -> ScreenwatchIngestionResult
 
 public final class ScreenwatchMaintenanceService: @unchecked Sendable {
     private static let healthSourceID = "screenwatch-maintenance"
@@ -56,8 +59,11 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
     private let ingestDay: @Sendable (Date) throws -> ScreenwatchIngestionResult
     private let database: OpaquePointer
     private let formatter = ISO8601DateFormatter()
+    private var historySourcePrefix: String {
+        Self.historySourcePrefix + screenwatchSource.sourceFingerprint + ":"
+    }
 
-    public convenience init(
+    package convenience init(
         databaseURL: URL = ZoidCoachStorage.databaseURL(),
         screenwatchDirectory: URL,
         fileManager: FileManager = .default,
@@ -75,7 +81,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         )
     }
 
-    public init(
+    package init(
         databaseURL: URL = ZoidCoachStorage.databaseURL(),
         screenwatchSource: ScreenwatchDirectoryLease,
         fileManager: FileManager = .default,
@@ -93,7 +99,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         sqlite3_busy_timeout(database, 5_000)
         if let ingestDay {
             self.ingestDay = { day in
-                try ingestDay(screenwatchSource.rootURL, day)
+                try ingestDay(screenwatchSource, day)
             }
         } else {
             let archive = try ScreenwatchArchive(databaseURL: databaseURL)
@@ -181,10 +187,10 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw databaseError(.prepare) }
         defer { sqlite3_finalize(statement) }
-        bind(Self.historySourcePrefix + "%", statement, 1)
+        bind(historySourcePrefix + "%", statement, 1)
         var keys = Set<String>()
         while sqlite3_step(statement) == SQLITE_ROW, let source = text(statement, 0) {
-            keys.insert(String(source.dropFirst(Self.historySourcePrefix.count)))
+            keys.insert(String(source.dropFirst(historySourcePrefix.count)))
         }
         return keys
     }
@@ -200,7 +206,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             diagnostic = NULL;
         """
         try execute(sql) { statement in
-            bind(Self.historySourcePrefix + dayKey, statement, 1)
+            bind(historySourcePrefix + dayKey, statement, 1)
             bind(formatter.string(from: now), statement, 2)
         }
     }
@@ -215,7 +221,7 @@ public final class ScreenwatchMaintenanceService: @unchecked Sendable {
             diagnostic = excluded.diagnostic;
         """
         try execute(sql) { statement in
-            bind(Self.historySourcePrefix + dayKey, statement, 1)
+            bind(historySourcePrefix + dayKey, statement, 1)
             bind(formatter.string(from: now), statement, 2)
             bind(Self.redactedDiagnostic(error), statement, 3)
         }

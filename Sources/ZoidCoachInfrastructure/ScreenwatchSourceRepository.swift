@@ -101,6 +101,7 @@ package struct ScreenwatchFileRead: Sendable {
     package let size: UInt64
     package let identity: String
     package let offset: UInt64
+    package let isTruncated: Bool
 }
 
 public final class ScreenwatchDirectoryLease: @unchecked Sendable {
@@ -265,21 +266,25 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
                 : 0
             let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
             try handle.seek(toOffset: selectedOffset)
-            let data = try handle.read(upToCount: maximumBytes + 1) ?? Data()
-            guard data.count <= maximumBytes else {
-                throw ScreenwatchSourceResolutionError.ioFailure
-            }
+            let buffered = try handle.read(upToCount: maximumBytes + 1) ?? Data()
+            let isTruncated = buffered.count > maximumBytes
+            let data = isTruncated ? Data(buffered.prefix(maximumBytes)) : buffered
             return ScreenwatchFileRead(
                 data: data,
                 size: UInt64(max(0, information.st_size)),
                 identity: identity,
-                offset: selectedOffset
+                offset: selectedOffset,
+                isTruncated: isTruncated
             )
         }
     }
 
     package func data(at components: [String], maximumBytes: Int = 8 * 1_024 * 1_024) throws -> Data {
-        try read(at: components, maximumBytes: maximumBytes).data
+        let result = try read(at: components, maximumBytes: maximumBytes)
+        guard !result.isTruncated else {
+            throw ScreenwatchSourceResolutionError.ioFailure
+        }
+        return result.data
     }
 
     package func withReadOnlyDescriptorURL<T: Sendable>(

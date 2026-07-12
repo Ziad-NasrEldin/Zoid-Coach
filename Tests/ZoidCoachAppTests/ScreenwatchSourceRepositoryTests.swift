@@ -216,6 +216,21 @@ func canonicalScreenwatchReadsAreBoundedEvenWhenFileExceedsAdvertisedLimit() thr
     try Data(repeating: 0x41, count: 1_025).write(to: day.appendingPathComponent("log.jsonl"))
     let lease = try ScreenwatchDirectoryLease(rootURL: directory, source: .defaultLocation)
 
+    let firstChunk = try lease.read(
+        at: ["2026-07-12", "log.jsonl"],
+        maximumBytes: 1_024
+    )
+    let secondChunk = try lease.read(
+        at: ["2026-07-12", "log.jsonl"],
+        offset: firstChunk.offset + UInt64(firstChunk.data.count),
+        expectedIdentity: firstChunk.identity,
+        maximumBytes: 1_024
+    )
+
+    #expect(firstChunk.data.count == 1_024)
+    #expect(firstChunk.isTruncated)
+    #expect(secondChunk.data.count == 1)
+    #expect(!secondChunk.isTruncated)
     #expect(throws: ScreenwatchSourceResolutionError.ioFailure) {
         _ = try lease.data(at: ["2026-07-12", "log.jsonl"], maximumBytes: 1_024)
     }
