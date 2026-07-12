@@ -2,13 +2,16 @@ import SwiftUI
 
 struct RemindersConnectionView: View {
     @StateObject private var controller: RemindersConnectionController
+    let isLocalOnlyPlanningSelected: Bool
     let useLocalOnlyPlanning: () -> Void
 
     init(
         controller: @autoclosure @escaping () -> RemindersConnectionController = RemindersConnectionController(),
+        isLocalOnlyPlanningSelected: Bool = false,
         useLocalOnlyPlanning: @escaping () -> Void
     ) {
         _controller = StateObject(wrappedValue: controller())
+        self.isLocalOnlyPlanningSelected = isLocalOnlyPlanningSelected
         self.useLocalOnlyPlanning = useLocalOnlyPlanning
     }
 
@@ -61,8 +64,15 @@ struct RemindersConnectionView: View {
                 }
 
                 if statusNeedsAttention {
-                    Button("USE LOCAL-ONLY PLANNING", action: useLocalOnlyPlanning)
+                    Button(
+                        isLocalOnlyPlanningSelected
+                            ? "LOCAL-ONLY PLANNING SELECTED"
+                            : "USE LOCAL-ONLY PLANNING",
+                        action: useLocalOnlyPlanning
+                    )
                         .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                        .disabled(isLocalOnlyPlanningSelected)
+                        .accessibilityValue(isLocalOnlyPlanningSelected ? "Selected" : "Not selected")
                         .accessibilityIdentifier("settings.reminders.connection.local-only")
                 }
             }

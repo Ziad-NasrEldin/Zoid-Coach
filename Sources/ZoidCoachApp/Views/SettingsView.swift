@@ -269,7 +269,10 @@ struct SettingsView: View {
             title: "APPLE REMINDERS CONNECTION",
             detail: "See current permission, the last confirmed task refresh, and a direct recovery path. Refresh only reads task metadata and never changes a Reminder."
         ) {
-            RemindersConnectionView {
+            RemindersConnectionView(
+                isLocalOnlyPlanningSelected: controller.draft.reminderListPolicy.isConfigured
+                    && controller.draft.reminderListPolicy.decisions.allSatisfy { !$0.isIncluded }
+            ) {
                 controller.configureReminderListsLocalOnly()
                 _ = controller.save()
             }
