@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RemindersConnectionView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var controller: RemindersConnectionController
     let isLocalOnlyPlanningSelected: Bool
     let useLocalOnlyPlanning: () -> Void
@@ -76,11 +77,23 @@ struct RemindersConnectionView: View {
                         .accessibilityIdentifier("settings.reminders.connection.local-only")
                 }
             }
+
+            if let repairDetail = controller.repairDetail {
+                Text(repairDetail)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(controller.needsPermissionRepair ? Sumi.sealDeep : Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.reminders.connection.repair-detail")
+            }
         }
         .task {
             if case .idle = controller.state {
                 await controller.refresh()
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await controller.applicationDidBecomeActive() }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings.reminders.connection")

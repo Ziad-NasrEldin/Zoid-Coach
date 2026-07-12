@@ -16,6 +16,7 @@ final class RemindersConnectionController: ObservableObject {
 
     @Published private(set) var state: State = .idle
     @Published private(set) var lastSuccessfulSync: Date?
+    @Published private(set) var repairDetail: String?
 
     private let service: any RemindersServicing
     private let defaults: UserDefaults
@@ -89,19 +90,35 @@ final class RemindersConnectionController: ObservableObject {
 
     func refresh() async {
         guard !isBusy else { return }
+        repairDetail = nil
         state = .checking
         await reconcile(health: await service.inspect())
     }
 
     func connect() async {
         guard !isBusy else { return }
+        repairDetail = nil
         state = .checking
         await reconcile(health: await service.requestAccessAndInspect())
     }
 
+    func applicationDidBecomeActive() async {
+        guard !isBusy else { return }
+        switch state {
+        case .permissionReady, .permissionRequired, .refreshFailed, .connected:
+            await refresh()
+        case .idle, .checking:
+            break
+        }
+    }
+
     @discardableResult
     func openPermissionSettings() -> Bool {
-        openSystemSettings()
+        let opened = openSystemSettings()
+        repairDetail = opened
+            ? "System Settings opened. Return to Zoid 666 and access will be checked automatically."
+            : "System Settings could not be opened. Open Privacy & Security, choose Reminders, then allow full access for Zoid 666."
+        return opened
     }
 
     private func reconcile(health: SourceHealth) async {

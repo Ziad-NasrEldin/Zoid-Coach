@@ -3,6 +3,7 @@ import SwiftUI
 import ZoidCoachCore
 
 struct OnboardingRootView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var coordinator: OnboardingCoordinator
 
     var body: some View {
@@ -39,6 +40,10 @@ struct OnboardingRootView: View {
             if coordinator.progress.currentStep == .deliveryTest {
                 await coordinator.restoreTestPrompt()
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await coordinator.applicationDidBecomeActive() }
         }
     }
 
