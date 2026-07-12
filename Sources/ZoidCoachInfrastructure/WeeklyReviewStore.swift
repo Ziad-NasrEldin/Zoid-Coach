@@ -190,7 +190,7 @@ public final class WeeklyReviewStore: @unchecked Sendable {
         guard evidenceIsSufficient else { return [] }
         var patterns: [WeeklyReviewPattern] = []
 
-        if let estimate = try aggregate(database, type: "estimate") {
+        if let estimate = try aggregate(database, type: "estimate", window: window) {
             let direction = estimate.medianValue > 1.1
                 ? "Recent focused work usually took longer than its estimate."
                 : estimate.medianValue < 0.9
@@ -208,7 +208,7 @@ public final class WeeklyReviewStore: @unchecked Sendable {
             ))
         }
 
-        if let workWindow = try aggregate(database, type: "preferred_work_window") {
+        if let workWindow = try aggregate(database, type: "preferred_work_window", window: window) {
             patterns.append(pattern(
                 .bestWorkWindow,
                 title: "Best work window",
@@ -238,10 +238,10 @@ public final class WeeklyReviewStore: @unchecked Sendable {
             ))
         }
 
-        let gamingCounts = try dailyClassificationMinutes(window: window, classification: .gaming)
+        let gamingCounts = try dailyClassificationSummaries(window: window, classification: .gaming)
         let gamingBudget = (try? PolicyStore(databaseURL: databaseURL, readOnly: true).currentGamingPolicy().dailyBudgetMinutes) ?? 60
         if !gamingCounts.isEmpty {
-            let overBudgetDays = gamingCounts.filter { $0.count > gamingBudget }.count
+            let overBudgetDays = gamingCounts.filter { $0.minutes > gamingBudget }.count
             patterns.append(pattern(
                 .gamingBudget,
                 title: "Gaming timing and budget",
@@ -250,7 +250,9 @@ public final class WeeklyReviewStore: @unchecked Sendable {
                     : "Observed gaming exceeded the \(gamingBudget)-minute daily budget on \(overBudgetDays) covered day\(overBudgetDays == 1 ? "" : "s").",
                 sampleCount: gamingCounts.count,
                 range: range,
-                examples: gamingCounts.prefix(3).map { "\($0.label): about \($0.count) minutes" },
+                examples: gamingCounts.prefix(3).map {
+                    "\($0.day): about \($0.minutes) minutes, first observed \(timeString($0.firstStart))"
+                },
                 confidence: min(85, 40 + gamingCounts.count * 8),
                 alternative: "Observation gaps and classification corrections can change gaming totals."
             ))
@@ -271,21 +273,28 @@ public final class WeeklyReviewStore: @unchecked Sendable {
             patterns.append(pattern(
                 .promptRecovery,
                 title: "Recovery after prompts",
-                conclusion: "Recovery cannot yet be separated from ordinary behavior changes for this week.",
+                conclusion: "\(prompt.recovered) of \(prompt.responded) answered prompts were followed by corrected observed work within 30 minutes.",
                 sampleCount: prompt.responded,
                 range: range,
-                examples: ["\(prompt.responded) answered prompt\(prompt.responded == 1 ? "" : "s") available for comparison"],
-                confidence: 25,
-                alternative: "A later improvement may come from task completion, a break, or missing observation rather than the prompt."
+                examples: prompt.recoveryExamples.isEmpty
+                    ? ["No corrected work interval was observed within 30 minutes of an answered prompt."]
+                    : prompt.recoveryExamples,
+                confidence: min(80, 30 + prompt.responded * 8),
+                alternative: "A later work interval may follow task completion, a break, or ordinary context change rather than the prompt."
             ))
         }
 
         let blocked = try groupedRows(
             database,
             sql: """
-            SELECT task_id, COUNT(*) FROM task_history
-            WHERE occurred_at >= ? AND occurred_at < ? AND state = 'blocked'
-            GROUP BY task_id HAVING COUNT(*) >= 2 ORDER BY COUNT(*) DESC, task_id ASC LIMIT 3;
+            SELECT COALESCE(NULLIF(TRIM(s.title), ''), 'Unnamed task'), COUNT(*)
+            FROM task_history h
+            LEFT JOIN source_tasks s ON s.source_id = h.task_id
+            WHERE h.occurred_at >= ? AND h.occurred_at < ? AND h.state = 'blocked'
+            GROUP BY h.task_id, s.title
+            HAVING COUNT(*) >= 2
+            ORDER BY COUNT(*) DESC, COALESCE(NULLIF(TRIM(s.title), ''), 'Unnamed task') ASC
+            LIMIT 3;
             """,
             bindings: [.text(Self.timestamp(window.startDate)), .text(Self.timestamp(window.endExclusive))]
         )
@@ -296,7 +305,7 @@ public final class WeeklyReviewStore: @unchecked Sendable {
                 conclusion: "A task was marked blocked \(repeated.count) times during the review window.",
                 sampleCount: blocked.reduce(0) { $0 + $1.count },
                 range: range,
-                examples: blocked.map { "Task \($0.label): \($0.count) blocked events" },
+                examples: blocked.map { "\($0.label): \($0.count) blocked events" },
                 confidence: 90,
                 alternative: "Repeated status changes may describe one long external dependency rather than an unclear task."
             ))
@@ -357,11 +366,16 @@ public final class WeeklyReviewStore: @unchecked Sendable {
         )
     }
 
-    private func aggregate(_ database: OpaquePointer, type: String) throws -> AggregateRow? {
+    private func aggregate(
+        _ database: OpaquePointer,
+        type: String,
+        window: ReviewWindow
+    ) throws -> AggregateRow? {
         var statement: OpaquePointer?
         let sql = """
         SELECT aggregate_key, sample_count, median_value, confidence
-        FROM learning_aggregates WHERE aggregate_type = ?
+        FROM learning_aggregates
+        WHERE aggregate_type = ? AND updated_at_utc >= ? AND updated_at_utc < ?
         ORDER BY confidence DESC, sample_count DESC, aggregate_key ASC LIMIT 1;
         """
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
@@ -369,6 +383,8 @@ public final class WeeklyReviewStore: @unchecked Sendable {
         }
         defer { sqlite3_finalize(statement) }
         bind(.text(type), to: statement, at: 1)
+        bind(.text(Self.timestamp(window.startDate)), to: statement, at: 2)
+        bind(.text(Self.timestamp(window.endExclusive)), to: statement, at: 3)
         guard sqlite3_step(statement) == SQLITE_ROW, let key = text(statement, 0) else { return nil }
         return AggregateRow(
             key: key,
@@ -378,40 +394,48 @@ public final class WeeklyReviewStore: @unchecked Sendable {
         )
     }
 
-    private func promptSummary(_ database: OpaquePointer, window: ReviewWindow) throws -> (responded: Int, applied: Int) {
+    private func promptSummary(_ database: OpaquePointer, window: ReviewWindow) throws -> PromptSummary {
         var statement: OpaquePointer?
         let sql = """
-        SELECT COUNT(*), SUM(CASE WHEN e.state = 'applied' THEN 1 ELSE 0 END)
+        SELECT r.responded_at_utc, COALESCE(e.state, 'pending')
         FROM prompt_responses r
-        LEFT JOIN prompt_res_effects e ON e.res_id = r.id
-        WHERE r.responded_at_utc >= ? AND r.responded_at_utc < ?;
+        LEFT JOIN prompt_response_effects e ON e.response_id = r.id
+        WHERE r.responded_at_utc >= ? AND r.responded_at_utc < ?
+        ORDER BY r.responded_at_utc ASC, r.id ASC;
         """
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
-            // Stores created before the long-form compatibility view use the canonical short table.
-            return try legacyPromptSummary(database, window: window)
+            throw databaseError(database, operation: "read prompt effectiveness")
         }
         defer { sqlite3_finalize(statement) }
         bind(.text(Self.timestamp(window.startDate)), to: statement, at: 1)
         bind(.text(Self.timestamp(window.endExclusive)), to: statement, at: 2)
-        guard sqlite3_step(statement) == SQLITE_ROW else { return (0, 0) }
-        return (Int(sqlite3_column_int(statement, 0)), Int(sqlite3_column_int(statement, 1)))
+        var responded = 0
+        var applied = 0
+        var recovered = 0
+        var recoveryExamples: [String] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let respondedRaw = text(statement, 0), let respondedAt = Self.date(respondedRaw) else { continue }
+            responded += 1
+            if text(statement, 1) == "applied" { applied += 1 }
+            if try hasCorrectedWorkSoonAfter(respondedAt) {
+                recovered += 1
+                recoveryExamples.append("\(dayString(respondedAt)): corrected work observed within 30 minutes")
+            }
+        }
+        return PromptSummary(
+            responded: responded,
+            applied: applied,
+            recovered: recovered,
+            recoveryExamples: Array(recoveryExamples.prefix(3))
+        )
     }
 
-    private func legacyPromptSummary(_ database: OpaquePointer, window: ReviewWindow) throws -> (responded: Int, applied: Int) {
-        var statement: OpaquePointer?
-        let sql = """
-        SELECT COUNT(*), SUM(CASE WHEN e.state = 'applied' THEN 1 ELSE 0 END)
-        FROM prompt_responses r LEFT JOIN prompt_res_effects e ON e.res_id = r.id
-        WHERE r.responded_at_utc >= ? AND r.responded_at_utc < ?;
-        """
-        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
-            return (0, 0)
+    private func hasCorrectedWorkSoonAfter(_ responseDate: Date) throws -> Bool {
+        let snapshot = try DailyReviewStore(databaseURL: databaseURL).load(sourceDay: dayString(responseDate))
+        let deadline = responseDate.addingTimeInterval(30 * 60)
+        return snapshot.sessions.contains {
+            $0.classification == .work && $0.start >= responseDate && $0.start <= deadline
         }
-        defer { sqlite3_finalize(statement) }
-        bind(.text(Self.timestamp(window.startDate)), to: statement, at: 1)
-        bind(.text(Self.timestamp(window.endExclusive)), to: statement, at: 2)
-        guard sqlite3_step(statement) == SQLITE_ROW else { return (0, 0) }
-        return (Int(sqlite3_column_int(statement, 0)), Int(sqlite3_column_int(statement, 1)))
     }
 
     private func groupedRows(
@@ -432,20 +456,23 @@ public final class WeeklyReviewStore: @unchecked Sendable {
         return rows
     }
 
-    private func dailyClassificationMinutes(
+    private func dailyClassificationSummaries(
         window: ReviewWindow,
         classification: BehaviorClassification
-    ) throws -> [(label: String, count: Int)] {
+    ) throws -> [DailyClassificationSummary] {
         let reviewStore = try DailyReviewStore(databaseURL: databaseURL)
-        var result: [(String, Int)] = []
+        var result: [DailyClassificationSummary] = []
         for offset in 0..<7 {
             guard let date = calendar.date(byAdding: .day, value: offset, to: window.startDate) else { continue }
             let day = dayString(date)
             let snapshot = try reviewStore.load(sourceDay: day)
-            guard let total = snapshot.totals.first(where: { $0.classification == classification }), total.minutes > 0 else {
-                continue
-            }
-            result.append((day, total.minutes))
+            let sessions = snapshot.sessions.filter { $0.classification == classification }
+            guard let firstStart = sessions.map(\.start).min() else { continue }
+            result.append(DailyClassificationSummary(
+                day: day,
+                minutes: sessions.reduce(0) { $0 + $1.durationMinutes },
+                firstStart: firstStart
+            ))
         }
         return result
     }
@@ -621,6 +648,15 @@ public final class WeeklyReviewStore: @unchecked Sendable {
         return formatter.string(from: date)
     }
 
+    private func timeString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
     private func date(for day: String) -> Date {
         let formatter = DateFormatter()
         formatter.calendar = calendar
@@ -717,6 +753,19 @@ private struct AggregateRow {
     let sampleCount: Int
     let medianValue: Double
     let confidence: Int
+}
+
+private struct PromptSummary {
+    let responded: Int
+    let applied: Int
+    let recovered: Int
+    let recoveryExamples: [String]
+}
+
+private struct DailyClassificationSummary {
+    let day: String
+    let minutes: Int
+    let firstStart: Date
 }
 
 private enum Binding {
