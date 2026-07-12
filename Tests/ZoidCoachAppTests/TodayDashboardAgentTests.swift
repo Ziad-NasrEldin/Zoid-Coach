@@ -104,6 +104,54 @@ func completingActiveTaskEndsItsIntervalAndRefreshesRecommendation() throws {
 }
 
 @Test
+func completingLocalTaskStaysLocalRecordsHistoryAndSurvivesRestart() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-complete-local-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let taskID = "local:user:completion"
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    _ = try reminders.createLocal(ReminderSourceSnapshot(
+        id: taskID,
+        title: "Finish the local draft",
+        dueDate: nil,
+        priority: 0,
+        listID: "local:user",
+        listName: "Local Tasks",
+        modificationDate: day,
+        sourceKind: .local
+    ))
+    try AutonomousPlanStore(databaseURL: url).replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: taskID, title: "Finish the local draft", rank: 1, estimateMinutes: 25, reason: "Local", score: 100)],
+            mainObjectiveTaskID: taskID,
+            plannedFocusMinutes: 25,
+            availableFocusMinutes: 60
+        ),
+        for: day
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url)
+
+    _ = try agent.apply(.start, taskID: taskID, now: day)
+    let completed = try agent.apply(.complete, taskID: taskID, now: day.addingTimeInterval(300))
+
+    #expect(completed.activeTask == nil)
+    #expect(completed.taskRows.contains { $0.taskID == taskID } == false)
+    #expect(try reminders.loadIncomplete().contains { $0.id == taskID } == false)
+    #expect(try TaskHistoryStore(databaseURL: url).summary(for: day).completedCount == 1)
+    #expect(try ActionOutboxStore(databaseURL: url).recentCommands().contains { $0.entityID == taskID } == false)
+
+    let restarted = try TodayDashboardAgent(databaseURL: url)
+    let restored = try restarted.snapshot(now: day.addingTimeInterval(600))
+    #expect(restored.taskRows.contains { $0.taskID == taskID } == false)
+    #expect(restored.unplannedReminders?.contains { $0.reminderID == taskID } == false)
+}
+
+@Test
 func agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-task-lifecycle-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: url) }

@@ -157,15 +157,20 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         let previousExecution = try execution.snapshot(for: [taskID], now: now)[taskID]
         let activeBefore = try execution.activeTask(now: now)
         let reminderBefore = try reminders.loadIncomplete().first(where: { $0.id == taskID })
+        let sourceKind = try reminders.sourceKind(forID: taskID)
         try execution.apply(command, taskID: taskID, at: now)
         switch command {
         case .complete:
-            _ = try outbox.enqueue(
-                type: .completeReminder,
-                entityID: taskID,
-                desiredState: .completeReminder,
-                planVersion: 1
-            )
+            if sourceKind == .local {
+                try reminders.completeLocal(id: taskID, completedAt: now)
+            } else {
+                _ = try outbox.enqueue(
+                    type: .completeReminder,
+                    entityID: taskID,
+                    desiredState: .completeReminder,
+                    planVersion: 1
+                )
+            }
             try taskHistory.record(taskID: taskID, state: .completed, at: now)
         case .reschedule:
             try taskHistory.record(taskID: taskID, state: .postponed, at: now)
