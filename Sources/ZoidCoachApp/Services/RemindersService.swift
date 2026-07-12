@@ -79,9 +79,9 @@ final class RemindersService: RemindersServicing {
                 title: "Apple Reminders",
                 eyebrow: "Intent",
                 state: .attention,
-                detail: "Reminders access is unavailable",
-                evidence: "Enable full access in System Settings",
-                actionTitle: "Retry"
+                detail: "Reminders access is off. Apple tasks cannot enter Today or sync completion. Local tasks and setup remain available.",
+                evidence: "Open Privacy & Security, choose Reminders, then allow full access for Zoid 666.",
+                actionTitle: "Open Settings"
             )
         @unknown default:
             return SourceHealth(

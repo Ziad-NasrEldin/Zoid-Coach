@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import ZoidCoachApp
 @testable import ZoidCoachCore
+@testable import ZoidCoachInfrastructure
 
 @MainActor
 struct RemindersConnectionControllerTests {
@@ -118,6 +119,45 @@ struct RemindersConnectionControllerTests {
         #expect(openCount == 0)
         #expect(controller.openPermissionSettings())
         #expect(openCount == 1)
+        #expect(controller.repairDetail == "System Settings opened. Return to Zoid 666 and access will be checked automatically.")
+    }
+
+    @Test func returningFromSystemSettingsRechecksWithoutRepeatingThePermissionPrompt() async throws {
+        let service = StubRemindersService(
+            health: Self.health(.attention, detail: "Access is off"),
+            taskLoads: []
+        )
+        let controller = RemindersConnectionController(
+            service: service,
+            defaults: try isolatedDefaults()
+        )
+        await controller.refresh()
+        #expect(controller.state == .permissionRequired(detail: "Access is off"))
+
+        service.health = Self.health(.healthy, detail: "Connected")
+        service.taskLoads = [.available([Self.task(id: "repaired")])]
+        await controller.applicationDidBecomeActive()
+
+        #expect(controller.state == .connected(taskCount: 1))
+        #expect(service.inspectCount == 2)
+        #expect(service.requestCount == 0)
+    }
+
+    @Test func failedSystemSettingsOpenLeavesManualRecoveryInstructions() async throws {
+        let service = StubRemindersService(
+            health: Self.health(.attention, detail: "Access is off"),
+            taskLoads: []
+        )
+        let controller = RemindersConnectionController(
+            service: service,
+            defaults: try isolatedDefaults(),
+            openSystemSettings: { false }
+        )
+        await controller.refresh()
+
+        #expect(!controller.openPermissionSettings())
+        #expect(controller.repairDetail == "System Settings could not be opened. Open Privacy & Security, choose Reminders, then allow full access for Zoid 666.")
+        #expect(controller.needsPermissionRepair)
     }
 
     @Test func qaCompositionNeverFallsBackToProductionReminders() async throws {
@@ -143,6 +183,66 @@ struct RemindersConnectionControllerTests {
             return
         }
         #expect(detail.contains("Fixture permission"))
+    }
+
+    @Test func qaDeniedRepairAndRestartJourneyUsesOneExplicitRequestPath() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RemindersRepairJourney-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let runtime = try RuntimeEnvironment.resolve(
+            arguments: [],
+            processEnvironment: [:],
+            packagedRuntime: .init(
+                mode: .qa,
+                qaRunRoot: root,
+                appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+            ),
+            executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+        ).environment
+        let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+            runtimeEnvironment: runtime
+        )
+        try adapter.setPermission(.denied, for: .reminders)
+        let defaults = runtime.makeUserDefaults()
+        var settingsOpenCount = 0
+        let denied = RemindersConnectionController(
+            runtimeEnvironment: runtime,
+            defaults: defaults,
+            openSystemSettings: {
+                settingsOpenCount += 1
+                return true
+            }
+        )
+
+        await denied.refresh()
+        guard case .permissionRequired = denied.state else {
+            Issue.record("Expected denied repair state, got \(denied.state)")
+            return
+        }
+        #expect(denied.openPermissionSettings())
+        #expect(settingsOpenCount == 1)
+
+        try adapter.setPermission(.granted, for: .reminders)
+        try adapter.syncReminders([SourceTask(
+            id: "repaired-task",
+            title: "Plan locally",
+            listIdentifier: "work",
+            priority: 5,
+            dueDate: nil,
+            notes: nil,
+            isCompleted: false
+        )])
+        await denied.applicationDidBecomeActive()
+        #expect(denied.state == .connected(taskCount: 1))
+
+        let restarted = RemindersConnectionController(
+            runtimeEnvironment: runtime,
+            defaults: defaults
+        )
+        await restarted.refresh()
+        #expect(restarted.state == .connected(taskCount: 1))
+        #expect(restarted.lastSuccessfulSync != nil)
+        #expect(try adapter.snapshot().permissions[.reminders] == .granted)
     }
 
     private func isolatedDefaults() throws -> UserDefaults {
