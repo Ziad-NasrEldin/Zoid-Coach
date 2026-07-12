@@ -68,6 +68,7 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
     private struct PersistedState: Codable {
         var schemaVersion = 1
         var permissions: [QAFixturePermission: QAFixturePermissionState]
+        var reminderLists: [QAFixtureReminderList]
         var reminders: [SourceTask]
         var calendarCommitments: [CalendarCommitment]
         var notifications: [QAFixtureNotificationRecord]
@@ -77,12 +78,13 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         var controlReceipts: [ControlReceipt]
 
         private enum CodingKeys: String, CodingKey {
-            case schemaVersion, permissions, reminders, calendarCommitments, notifications
+            case schemaVersion, permissions, reminderLists, reminders, calendarCommitments, notifications
             case audit, counters, generatedIdentifiers, controlReceipts
         }
 
         init(seed: QAFixtureOSSeed) {
             permissions = seed.permissions
+            reminderLists = seed.reminderLists
             reminders = seed.reminders
             calendarCommitments = seed.calendarCommitments
             notifications = seed.notifications
@@ -99,6 +101,10 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
                 [QAFixturePermission: QAFixturePermissionState].self,
                 forKey: .permissions
             )
+            reminderLists = try values.decodeIfPresent(
+                [QAFixtureReminderList].self,
+                forKey: .reminderLists
+            ) ?? []
             reminders = try values.decode([SourceTask].self, forKey: .reminders)
             calendarCommitments = try values.decode(
                 [CalendarCommitment].self,
@@ -740,10 +746,27 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
 
     private func snapshot(of state: PersistedState) -> QAFixtureOSSnapshot {
         .init(
-            permissions: state.permissions, reminders: state.reminders,
+            permissions: state.permissions,
+            reminderLists: Self.canonicalReminderLists(state),
+            reminders: state.reminders,
             calendarCommitments: state.calendarCommitments,
             notifications: state.notifications, audit: state.audit
         )
+    }
+
+    private static func canonicalReminderLists(
+        _ state: PersistedState
+    ) -> [QAFixtureReminderList] {
+        var byID = Dictionary(
+            uniqueKeysWithValues: state.reminderLists.map { ($0.id, $0) }
+        )
+        for listID in Set(state.reminders.map(\.listIdentifier)) where byID[listID] == nil {
+            byID[listID] = QAFixtureReminderList(id: listID, name: listID)
+        }
+        return byID.values.sorted {
+            if $0.name == $1.name { return $0.id < $1.id }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
     }
 
     private static func validateRange(start: Date, end: Date) throws {
@@ -769,6 +792,16 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         }
         guard Set(ids).count == ids.count else {
             throw QAFixtureStateError.duplicateIdentifier(ids.first(where: { id in ids.filter { $0 == id }.count > 1 }) ?? "unknown")
+        }
+        let reminderListIDs = state.reminderLists.map(\.id)
+        guard reminderListIDs.allSatisfy({
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }),
+        state.reminderLists.allSatisfy({
+            !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }),
+        Self.areUnique(reminderListIDs) else {
+            throw QAFixtureStateError.invalidPersistedState("invalid reminder lists")
         }
         guard state.reminders.allSatisfy({
                   !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

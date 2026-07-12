@@ -95,6 +95,41 @@ func fixtureServicesExposeDeniedAndDeferredPermissionStates() async throws {
     #expect(await reminders.fetchIncompleteTasks().isUnavailable)
 }
 
+@MainActor
+@Test
+func qaReminderListDiscoveryUsesStableIdentifiersAndCurrentVisibleNames() async throws {
+    let fixture = try signedQARuntime("reminder-list-discovery")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    )
+    try adapter.reset(to: .init(
+        permissions: [.reminders: .granted],
+        reminderLists: [
+            QAFixtureReminderList(id: "list-work", name: "Work"),
+            QAFixtureReminderList(id: "list-empty", name: "Empty List"),
+        ]
+    ))
+    let service = QAFixtureRemindersService(adapter: adapter)
+
+    #expect(await service.discoverLists() == .available([
+        ReminderListChoice(id: "list-empty", name: "Empty List"),
+        ReminderListChoice(id: "list-work", name: "Work"),
+    ]))
+
+    try adapter.reset(to: .init(
+        permissions: [.reminders: .granted],
+        reminderLists: [
+            QAFixtureReminderList(id: "list-work", name: "Renamed Work"),
+        ]
+    ))
+
+    #expect(await service.discoverLists() == .available([
+        ReminderListChoice(id: "list-work", name: "Renamed Work"),
+    ]))
+}
+
 @Test
 func fixtureNotificationDeliveryAndActionRoutesToPromptInbox() async throws {
     let fixture = try signedQARuntime("notification-action")

@@ -23,6 +23,19 @@ final class QAFixtureRemindersService: RemindersServicing {
 
     func requestAccessAndInspect() async -> SourceHealth { await inspect() }
 
+    func discoverLists() async -> ReminderListLoad {
+        do {
+            guard try adapter.permission(.reminders) == .granted else {
+                return .unavailable("QA Reminders permission is not granted.")
+            }
+            return .available(try adapter.snapshot().reminderLists.map {
+                ReminderListChoice(id: $0.id, name: $0.name)
+            })
+        } catch {
+            return .unavailable(error.localizedDescription)
+        }
+    }
+
     func fetchIncompleteTasks() async -> ReminderTaskLoad {
         do {
             return .available(try adapter.allReminders(includeCompleted: false).map {
