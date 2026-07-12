@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "4bc8b66de40edb74301e7ed7500c722b1173239ce6c95108e33ea1b1f671133d",
+  "tracker_sha256": "b197b6a043142d4c07e7af433e7a990a759537792f3fdb522182dfac98cadaa6",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10054,8 +10054,8 @@
       "item_index": 11,
       "wording": "See notification authorization and delivery state.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10065,7 +10065,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Authorization is shown; last delivery result is not stored or displayed.",
+      "audit_note": "Migration 36 now retains privacy-safe authorization fallback, macOS acceptance, deterministic QA delivery, scheduling failure, timestamp, attempt, and replacement outcomes for 30 days, and Settings Signals visibly exposes the new authorization/history card with refresh and privacy copy. The first signed run proved the card renders, but it also exposed and then fixed a QA composition bug before populated history could be visibly rechecked (`NotificationDeliveryLedger.swift`; `NotificationDeliveryHealthView.swift`; `.audit/runs/notification-delivery-health/verifier/REPORT.md`).",
       "tracker_line": 634
     },
     {
@@ -10107,7 +10107,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`NotificationService.inspect` maps macOS authorization into Source Health; runtime accessibility confirmed the Source health surface, though denial repair is incomplete.",
+      "audit_note": "Production maps macOS authorization into Source Health, while signed QA now resolves the isolated fixture service instead of consulting the production notification center. The signed onboarding step visibly showed fixture Healthy, and focused tests prove denied and unavailable states, but the rebuilt Settings card was not rerun after the isolation fix (`NotificationService.swift`; `NotificationDeliveryHealthView.swift`; `.audit/runs/notification-delivery-health/verifier/REPORT.md`).",
       "tracker_line": 636
     },
     {
@@ -11088,8 +11088,8 @@
       "item_index": 4,
       "wording": "See notification authorization and the last delivery result.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11100,7 +11100,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Authorization is mapped to Source Health; delivery attempts/results are not persisted or displayed.",
+      "audit_note": "The local delivery ledger and Settings Signals card now present the newest truthful result as Today fallback, accepted by macOS, delivered in QA, or delivery failed, without copying notification content. Focused restart, retention, redaction, and ordering tests pass, and the signed card visibly rendered its empty state; a populated signed restart remained blocked before the delivery-test step (`NotificationDeliveryLedger.swift`; `NotificationDeliveryHealthView.swift`; `.audit/runs/notification-delivery-health/verifier/REPORT.md`).",
       "tracker_line": 694
     },
     {
@@ -11468,8 +11468,8 @@
       "item_index": 2,
       "wording": "See a permission repair path when notification access is revoked.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11480,7 +11480,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Source Health explains enabling notifications and offers Retry, but does not directly open Notification settings after denial.",
+      "audit_note": "Production Settings now opens the notification pane and instructs the user to return and refresh, while signed QA deliberately offers a fixture-only repair instruction and never opens production System Settings. Denied-to-granted control and repair tests pass, but the rebuilt signed repair transition was not rerun after the isolation fix (`NotificationDeliveryHealthView.swift`; `notification-delivery-acceptance.py`; `.audit/runs/notification-delivery-health/verifier/REPORT.md`).",
       "tracker_line": 717
     },
     {
@@ -11594,7 +11594,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Unresolved `decisionKey` deduplication and deterministic notification identifiers prevent duplicate scheduling for supported prompt types, but behavior-coaching decisions are not implemented and live Notification Center stacking was not inspected.",
+      "audit_note": "Stable request identifiers replace the existing request, the ledger explicitly marks the later attempt as a replacement, and deterministic integration proves two schedules leave one fixture notification. Behavior-coaching episodes and a real Notification Center stacking inspection remain unavailable (`PromptNotificationCoordinator.swift`; `QAFixtureOSCompositionTests.swift`; `.audit/runs/notification-delivery-health/acceptance-mapping.json`).",
       "tracker_line": 722
     },
     {
@@ -12354,7 +12354,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Stable notification identifiers and prompt-store coordination prevent stacking in tests, but live duplicate delivery was not induced.",
+      "audit_note": "Deterministic integration now schedules the same prompt twice, retains one fixture notification, records two attempts, and marks the newest as replacing its predecessor. The signed journey was blocked before it could induce the visible duplicate sequence (`PromptNotificationCoordinator.swift`; `NotificationDeliveryLedgerTests.swift`; `.audit/runs/notification-delivery-health/verifier/REPORT.md`).",
       "tracker_line": 768
     },
     {
@@ -12376,7 +12376,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The notification coordinator replaces requests by prompt identity, but a live update sequence was not verified.",
+      "audit_note": "A focused end-to-end fixture test reschedules the same prompt identity with a new title and summary, proves only one notification remains with the updated content, and records the replacement attempt. The product has no safe signed control for changing an unresolved prompt's content on demand, so visible qualification remains outstanding (`QAFixtureOSCompositionTests.swift`; `.audit/runs/notification-delivery-health/acceptance-mapping.json`).",
       "tracker_line": 769
     },
     {

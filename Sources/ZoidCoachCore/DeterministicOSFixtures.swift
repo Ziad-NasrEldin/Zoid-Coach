@@ -82,19 +82,22 @@ public struct QAFixtureOSSeed: Equatable, Codable, Sendable {
     public let reminders: [SourceTask]
     public let calendarCommitments: [CalendarCommitment]
     public let notifications: [QAFixtureNotificationRecord]
+    public let notificationSchedulingFailure: String?
 
     public init(
         permissions: [QAFixturePermission: QAFixturePermissionState] = [:],
         reminderLists: [QAFixtureReminderList] = [],
         reminders: [SourceTask] = [],
         calendarCommitments: [CalendarCommitment] = [],
-        notifications: [QAFixtureNotificationRecord] = []
+        notifications: [QAFixtureNotificationRecord] = [],
+        notificationSchedulingFailure: String? = nil
     ) {
         self.permissions = permissions
         self.reminderLists = reminderLists
         self.reminders = reminders
         self.calendarCommitments = calendarCommitments
         self.notifications = notifications
+        self.notificationSchedulingFailure = notificationSchedulingFailure
     }
 }
 
