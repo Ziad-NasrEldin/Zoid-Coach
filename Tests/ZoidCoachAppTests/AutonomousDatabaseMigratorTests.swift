@@ -440,3 +440,51 @@ func migration35AddsDurableDailyPlanRevisionFieldsWithoutChangingExistingRows() 
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "blocked_reason"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "deferred_until_utc"))
 }
+
+@Test
+func migration35ToleratesLegacyFixtureWithoutDailyPlanTable() throws {
+    let databaseURL = temporaryDatabaseURL("migration-35-no-plan-table")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    """)
+    for version in 1...34 {
+        try execute(
+            databaseURL,
+            "INSERT INTO schema_migrations(version, applied_at) VALUES (\(version), '2026-01-01T00:00:00Z');"
+        )
+    }
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.appliedVersions == [35])
+    #expect(result.currentVersion == 35)
+    #expect(try tableExists(databaseURL, "daily_plan_entries") == false)
+}
+
+@Test
+func migration35CompletesPartiallyUpgradedDailyPlanTable() throws {
+    let databaseURL = temporaryDatabaseURL("migration-35-partial-plan-table")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    CREATE TABLE daily_plan_entries (
+        day_key TEXT NOT NULL,
+        reminder_id TEXT NOT NULL,
+        is_optional INTEGER NOT NULL DEFAULT 0
+    );
+    """)
+    for version in 1...34 {
+        try execute(
+            databaseURL,
+            "INSERT INTO schema_migrations(version, applied_at) VALUES (\(version), '2026-01-01T00:00:00Z');"
+        )
+    }
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.appliedVersions == [35])
+    #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "is_optional"))
+    #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "blocked_reason"))
+    #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "deferred_until_utc"))
+}

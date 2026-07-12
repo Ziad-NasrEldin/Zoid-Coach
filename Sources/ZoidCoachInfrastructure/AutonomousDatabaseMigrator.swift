@@ -104,6 +104,14 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
             guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
                 throw AutonomousDatabaseMigrationError.statement(errorMessage(database))
             }
+        case let .addColumnIfTableExists(table, column, declaration):
+            guard try tableExists(table, database: database),
+                  try columnExists(column, in: table, database: database) == false
+            else { return }
+            let sql = "ALTER TABLE \(table) ADD COLUMN \(column) \(declaration);"
+            guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
+                throw AutonomousDatabaseMigrationError.statement(errorMessage(database))
+            }
         case let .sqlIfTableExists(table, sql):
             guard try tableExists(table, database: database) else { return }
             guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
@@ -212,6 +220,7 @@ private extension AutonomousDatabaseMigrator {
     enum MigrationOperation {
         case sql(String)
         case addColumn(table: String, column: String, declaration: String)
+        case addColumnIfTableExists(table: String, column: String, declaration: String)
         case sqlIfTableExists(table: String, sql: String)
     }
 
@@ -946,13 +955,21 @@ private extension AutonomousDatabaseMigrator {
             """)
         ]),
         Migration(version: 35, isDestructive: false, operations: [
-            .addColumn(
+            .addColumnIfTableExists(
                 table: "daily_plan_entries",
                 column: "is_optional",
                 declaration: "INTEGER NOT NULL DEFAULT 0 CHECK(is_optional IN (0, 1))"
             ),
-            .addColumn(table: "daily_plan_entries", column: "blocked_reason", declaration: "TEXT"),
-            .addColumn(table: "daily_plan_entries", column: "deferred_until_utc", declaration: "TEXT")
+            .addColumnIfTableExists(
+                table: "daily_plan_entries",
+                column: "blocked_reason",
+                declaration: "TEXT"
+            ),
+            .addColumnIfTableExists(
+                table: "daily_plan_entries",
+                column: "deferred_until_utc",
+                declaration: "TEXT"
+            )
         ])
     ]
 }
