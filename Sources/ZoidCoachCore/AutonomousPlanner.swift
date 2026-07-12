@@ -87,6 +87,15 @@ public struct PlannedTask: Equatable, Sendable, Identifiable {
     public let reason: String
     public let score: Int
 
+    public init(taskID: String, title: String, rank: Int, estimateMinutes: Int, reason: String, score: Int) {
+        self.taskID = taskID
+        self.title = title
+        self.rank = rank
+        self.estimateMinutes = estimateMinutes
+        self.reason = reason
+        self.score = score
+    }
+
     public var id: String { taskID }
 }
 

@@ -121,8 +121,14 @@ public enum AgentMutationCommand: Equatable, Codable, Sendable {
     case savePolicyMutation(PolicyMutationRequest)
     case undoAction(commandID: String)
     case exportRedactedDiagnostics
+    case exportRedactedDiagnosticsTo(path: String)
     case deleteDataRange(start: Date, end: Date)
+    case deleteBehaviorSession(application: String, startedAt: Date, endedAt: Date)
     case deleteExtractedConversationText
+    case deleteRawBehaviorMetadata
+    case deleteAIRequestMetadata
+    case deleteReviewsAndLearnedRules
+    case deleteAllUserData
     case draftPlan(day: Date, overwriteExisting: Bool)
     case schedulePlan(day: Date)
     case resolveMeetingCandidate(

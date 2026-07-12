@@ -146,6 +146,39 @@ func screenwatchMaintenanceDryRunNeverMutatesFilesDatabaseOrCheckpoints() throws
     #expect(try maintenanceScalar(databaseURL, "SELECT COUNT(*) FROM domain_events;") == 0)
 }
 
+@Test
+func screenwatchMaintenanceAppliesIndependentBehaviorSessionPromptAndReviewRetention() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("policy-retention-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let service = try ScreenwatchMaintenanceService(
+        databaseURL: databaseURL,
+        screenwatchDirectory: root,
+        ingestDay: { _, _ in .init(insertedCount: 0, totalRecordsRead: 0) }
+    )
+    try maintenanceExec(databaseURL, """
+    INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at)
+    VALUES ('2024-01-01', 1704067200, '00-00-00', 'Old App', '', '', 0, NULL, '2024-01-01T00:00:00Z');
+    INSERT INTO task_activity_intervals(task_id, started_at, ended_at)
+    VALUES ('old-task', '2024-01-01T00:00:00Z', '2024-01-01T01:00:00Z');
+    INSERT INTO prompt_episodes(id, decision_key, prompt_type, state, title, summary, action_token, payload_json, created_at_utc)
+    VALUES ('old-prompt', 'old-decision', 'ONBOARDING_DELIVERY_TEST', 'dismissed', 'Old', 'Old', 'old-token', '{}', '2024-01-01T00:00:00Z');
+    INSERT INTO learning_samples(id, sample_type, context_key, actual_value, timezone_identifier, evidence_id, occurred_at_utc)
+    VALUES ('old-learning', 'estimate', 'task', 10, 'UTC', 'old-evidence', '2024-01-01T00:00:00Z');
+    """)
+    let now = try #require(utcDate("2026-07-10T12:00:00Z"))
+
+    let report = try service.run(policy: .defaults(timeZoneIdentifier: "UTC"), now: now)
+
+    #expect(report.policyRecordsEligible == 4)
+    #expect(report.policyRecordsPurged == 4)
+    #expect(try maintenanceScalar(databaseURL, "SELECT COUNT(*) FROM behavior_records;") == 0)
+    #expect(try maintenanceScalar(databaseURL, "SELECT COUNT(*) FROM task_activity_intervals;") == 0)
+    #expect(try maintenanceScalar(databaseURL, "SELECT COUNT(*) FROM prompt_episodes;") == 0)
+    #expect(try maintenanceScalar(databaseURL, "SELECT COUNT(*) FROM learning_samples;") == 0)
+}
+
 private final class DayInvocationRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var days: [Date] = []

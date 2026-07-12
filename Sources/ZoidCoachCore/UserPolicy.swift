@@ -188,6 +188,10 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
     public let rawScreenshotRetentionDays: Int
     public let extractedTextRetentionDays: Int
     public let diagnosticRetentionDays: Int
+    public let behaviorRecordRetentionDays: Int?
+    public let taskSessionRetentionDays: Int?
+    public let promptRetentionDays: Int?
+    public let reviewRetentionDays: Int?
     public let codexCLIModel: CodexCLIModel?
     public let codexCLICustomModelID: String?
     public let codexCLIReasoningEffort: CodexCLIReasoningEffort?
@@ -201,6 +205,10 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
         return effectiveCodexCLIModel.rawValue
     }
     public var effectiveCodexCLIReasoningEffort: CodexCLIReasoningEffort { codexCLIReasoningEffort ?? .low }
+    public var effectiveBehaviorRecordRetentionDays: Int { behaviorRecordRetentionDays ?? 90 }
+    public var effectiveTaskSessionRetentionDays: Int { taskSessionRetentionDays ?? 365 }
+    public var effectivePromptRetentionDays: Int { promptRetentionDays ?? 90 }
+    public var effectiveReviewRetentionDays: Int { reviewRetentionDays ?? 365 }
 
     public init(
         screenshotAnalysisEnabled: Bool,
@@ -209,6 +217,10 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
         rawScreenshotRetentionDays: Int,
         extractedTextRetentionDays: Int,
         diagnosticRetentionDays: Int,
+        behaviorRecordRetentionDays: Int? = 90,
+        taskSessionRetentionDays: Int? = 365,
+        promptRetentionDays: Int? = 90,
+        reviewRetentionDays: Int? = 365,
         codexCLIModel: CodexCLIModel? = .gpt56Terra,
         codexCLICustomModelID: String? = nil,
         codexCLIReasoningEffort: CodexCLIReasoningEffort? = .low
@@ -219,6 +231,10 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
         self.rawScreenshotRetentionDays = rawScreenshotRetentionDays
         self.extractedTextRetentionDays = extractedTextRetentionDays
         self.diagnosticRetentionDays = diagnosticRetentionDays
+        self.behaviorRecordRetentionDays = behaviorRecordRetentionDays
+        self.taskSessionRetentionDays = taskSessionRetentionDays
+        self.promptRetentionDays = promptRetentionDays
+        self.reviewRetentionDays = reviewRetentionDays
         self.codexCLIModel = codexCLIModel
         self.codexCLICustomModelID = codexCLICustomModelID
         self.codexCLIReasoningEffort = codexCLIReasoningEffort
@@ -623,6 +639,10 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         appendRetentionViolation(privacy.rawScreenshotRetentionDays, field: "privacy.rawScreenshotRetentionDays", to: &violations)
         appendRetentionViolation(privacy.extractedTextRetentionDays, field: "privacy.extractedTextRetentionDays", to: &violations)
         appendRetentionViolation(privacy.diagnosticRetentionDays, field: "privacy.diagnosticRetentionDays", to: &violations)
+        appendRetentionViolation(privacy.effectiveBehaviorRecordRetentionDays, field: "privacy.behaviorRecordRetentionDays", to: &violations)
+        appendRetentionViolation(privacy.effectiveTaskSessionRetentionDays, field: "privacy.taskSessionRetentionDays", to: &violations)
+        appendRetentionViolation(privacy.effectivePromptRetentionDays, field: "privacy.promptRetentionDays", to: &violations)
+        appendRetentionViolation(privacy.effectiveReviewRetentionDays, field: "privacy.reviewRetentionDays", to: &violations)
         if !privacy.aiProvider.usesRemoteProcessing, privacy.remoteEvidencePolicy != .localOnly {
             violations.append(.init(code: .remotePolicyWithoutRemoteProvider, field: "privacy.remoteEvidencePolicy"))
         }

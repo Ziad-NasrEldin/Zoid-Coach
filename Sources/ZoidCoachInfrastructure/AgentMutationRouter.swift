@@ -224,13 +224,43 @@ public final class AgentMutationRouter: @unchecked Sendable {
             let url = try privacyData.exportRedactedDiagnostics()
             return .init(accepted: true, message: "Redacted diagnostics exported.", artifactPath: url.path)
 
+        case let .exportRedactedDiagnosticsTo(path):
+            let url = try privacyData.exportRedactedDiagnostics(destinationURL: URL(fileURLWithPath: path))
+            return .init(accepted: true, message: "Redacted diagnostics exported to the destination you chose.", artifactPath: url.path)
+
         case let .deleteDataRange(start, end):
             let count = try privacyData.deleteDateRange(start: start, end: end)
             return .init(accepted: true, message: "Deleted \(count) local evidence records in the selected range.")
 
+        case let .deleteBehaviorSession(application, startedAt, endedAt):
+            let session = PrivacyBehaviorSession(
+                application: application,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                recordCount: 1
+            )
+            let count = try privacyData.deleteBehaviorSession(session)
+            return .init(accepted: true, message: "Deleted \(count) records from the selected \(application) behavior session.")
+
         case .deleteExtractedConversationText:
             let count = try privacyData.deleteExtractedConversationText()
             return .init(accepted: true, message: "Deleted \(count) extracted conversation records.")
+
+        case .deleteRawBehaviorMetadata:
+            let count = try privacyData.deleteRawBehaviorMetadata()
+            return .init(accepted: true, message: "Deleted \(count) raw behavior records. Screenwatch source files were not changed.")
+
+        case .deleteAIRequestMetadata:
+            let count = try privacyData.deleteAIRequestMetadata()
+            return .init(accepted: true, message: "Deleted \(count) local AI request metadata records. Keychain credentials were not changed.")
+
+        case .deleteReviewsAndLearnedRules:
+            let count = try privacyData.deleteReviewsAndLearnedRules()
+            return .init(accepted: true, message: "Deleted \(count) learned estimate and planner-trust records.")
+
+        case .deleteAllUserData:
+            let count = try privacyData.deleteAllUserData()
+            return .init(accepted: true, message: "Deleted \(count) local Zoid 666 records. Database schema files remain so the app can restart safely.")
 
         case let .draftPlan(day, overwriteExisting):
             guard let draftPlan else { throw AgentMutationRouterError.unavailable }
