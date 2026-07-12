@@ -202,6 +202,10 @@ struct DailyReviewView: View {
             } else if let snapshot = controller.snapshot {
                 snapshotContent(snapshot)
             }
+
+            Divider()
+                .padding(.vertical, 8)
+            WeeklyReviewView()
         }
         .padding(34)
         .frame(maxWidth: 980, alignment: .leading)

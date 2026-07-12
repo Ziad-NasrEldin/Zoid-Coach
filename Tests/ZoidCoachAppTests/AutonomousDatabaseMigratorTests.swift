@@ -151,7 +151,7 @@ func versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() throws {
         if let backupURL = result.backupURL { removeDatabaseFiles(at: backupURL) }
     }
 
-    #expect(result.appliedVersions == [23, 24, 25, 26, 27, 28, 29, 30])
+    #expect(result.appliedVersions == [23, 24, 25, 26, 27, 28, 29, 30, 31])
     #expect(result.backupURL != nil)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses;") == 2)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses WHERE surface = 'dashboard';") == 1)
@@ -187,7 +187,7 @@ func versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [24, 25, 26, 27, 28, 29, 30])
+    #expect(result.appliedVersions == [24, 25, 26, 27, 28, 29, 30, 31])
     #expect(try columnExists(databaseURL, table: "gaming_reward_ledger", column: "reward_minutes"))
     #expect(try scalarInt(databaseURL, "SELECT reward_minutes FROM gaming_reward_ledger;") == 15)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
@@ -212,7 +212,7 @@ func versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() throws {
     let first = try migrator.migrate()
     let second = try migrator.migrate()
 
-    #expect(first.appliedVersions == [25, 26, 27, 28, 29, 30])
+    #expect(first.appliedVersions == [25, 26, 27, 28, 29, 30, 31])
     #expect(second.appliedVersions.isEmpty)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM schema_migrations WHERE version = 25;") == 1)
@@ -241,7 +241,7 @@ func versionTwentySevenRebrandsPersistedPromptSummaries() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [27, 28, 29, 30])
+    #expect(result.appliedVersions == [27, 28, 29, 30, 31])
     #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'old';")
         == "Meeting details are available in Zoid 666.")
     #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'neutral';")
@@ -274,12 +274,41 @@ func dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEviden
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 27)
-    #expect(result.currentVersion == 30)
-    #expect(result.appliedVersions == [28, 29, 30])
+    #expect(result.currentVersion == 31)
+    #expect(result.appliedVersions == [28, 29, 30, 31])
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM behavior_records;") == 1)
     #expect(try tableExists(databaseURL, "daily_reviews"))
     #expect(try tableExists(databaseURL, "daily_review_corrections"))
     #expect(try tableExists(databaseURL, "offline_work_entries"))
+}
+
+@Test
+func weeklyReviewMigrationAddsOneExperimentPerReviewWeekWithoutChangingReviewHistory() throws {
+    let databaseURL = temporaryDatabaseURL("weekly-review-migration")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    _ = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+    try execute(databaseURL, "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES ('2026-07-05', 'accepted', '2026-07-05T18:00:00Z', '2026-07-05T18:00:00Z');")
+
+    #expect(try tableExists(databaseURL, "weekly_review_experiments"))
+    try execute(databaseURL, """
+    INSERT INTO weekly_review_experiments(
+        id, review_week_start, title, instruction, measurement, state, tracking_week_start, updated_at_utc
+    ) VALUES (
+        'weekly-1', '2026-06-29', 'Protect focus', 'Start with the main task.',
+        'Compare aligned work.', 'proposed', NULL, '2026-07-06T00:00:00Z'
+    );
+    """)
+    #expect(throws: (any Error).self) {
+        try execute(databaseURL, """
+        INSERT INTO weekly_review_experiments(
+            id, review_week_start, title, instruction, measurement, state, tracking_week_start, updated_at_utc
+        ) VALUES (
+            'weekly-duplicate', '2026-06-29', 'Duplicate', 'Do it.',
+            'Measure it.', 'proposed', NULL, '2026-07-06T00:00:00Z'
+        );
+        """)
+    }
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM daily_reviews WHERE source_day = '2026-07-05';") == 1)
 }
 
 @Test
