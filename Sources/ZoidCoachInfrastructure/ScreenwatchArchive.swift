@@ -206,8 +206,9 @@ public final class ScreenwatchArchive: @unchecked Sendable {
                 guard let canonicalSource = canonicalSourceLock.withLock({ self.canonicalSource }) else {
                     throw ScreenwatchSourceResolutionError.securityScopeUnavailable
                 }
+                let components = try screenshotComponents(screenshot, source: canonicalSource)
                 let result = try await canonicalSource.withReadOnlyDescriptorURL(
-                    at: [screenshot.sourceDay, screenshot.path.lastPathComponent]
+                    at: components
                 ) { descriptorURL in
                     try await recognizer.recognize(in: descriptorURL)
                 }
@@ -658,8 +659,9 @@ public final class ScreenwatchArchive: @unchecked Sendable {
             guard let canonicalSource = canonicalSourceLock.withLock({ self.canonicalSource }) else {
                 throw ScreenwatchSourceResolutionError.securityScopeUnavailable
             }
+            let components = try screenshotComponents(screenshot, source: canonicalSource)
             let data = try canonicalSource.data(
-                at: [screenshot.sourceDay, screenshot.path.lastPathComponent],
+                at: components,
                 maximumBytes: 64 * 1_024 * 1_024
             )
             contentHash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
@@ -683,6 +685,23 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         sqlite3_bind_int64(statement, 2, Int64(screenshot.epoch))
         bind(contentHash, to: statement, at: 3)
         return sqlite3_step(statement) == SQLITE_ROW
+    }
+
+    private func screenshotComponents(
+        _ screenshot: PendingScreenshot,
+        source: ScreenwatchDirectoryLease
+    ) throws -> [String] {
+        let fileName = screenshot.path.lastPathComponent
+        let expected = ScreenwatchDirectoryLease.normalizedTemporaryAlias(
+            source.rootURL
+                .appendingPathComponent(screenshot.sourceDay, isDirectory: true)
+                .appendingPathComponent(fileName, isDirectory: false)
+        ).path
+        let stored = ScreenwatchDirectoryLease.normalizedTemporaryAlias(screenshot.path).path
+        guard stored == expected else {
+            throw ScreenwatchSourceResolutionError.unsafePath
+        }
+        return [screenshot.sourceDay, fileName]
     }
 
     private func recordAnalysis(for screenshot: PendingScreenshot, outcome: String) throws {
