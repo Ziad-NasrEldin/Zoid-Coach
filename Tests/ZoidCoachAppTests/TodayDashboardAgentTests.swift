@@ -99,7 +99,7 @@ func completingActiveTaskEndsItsIntervalAndRefreshesRecommendation() throws {
     let result = try agent.apply(.complete, taskID: "first", now: day.addingTimeInterval(180))
 
     #expect(result.activeTask == nil)
-    #expect(result.taskRows.first(where: { $0.taskID == "first" })?.elapsedMinutes == 3)
+    #expect(result.taskRows.contains { $0.taskID == "first" } == false)
     #expect(result.recommendation.taskID == "second")
 }
 
@@ -234,8 +234,10 @@ func agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() throws {
     _ = try restarted.apply(.pauseDoneForNow, taskID: "second", now: day.addingTimeInterval(900))
     let completedPaused = try restarted.apply(.complete, taskID: "second", now: day.addingTimeInterval(960))
     #expect(completedPaused.activeTask == nil)
-    #expect(completedPaused.taskRows.first(where: { $0.taskID == "second" })?.state == .completed)
-    #expect(completedPaused.taskRows.first(where: { $0.taskID == "second" })?.latestPauseReason == .doneForNow)
+    #expect(completedPaused.taskRows.contains { $0.taskID == "second" } == false)
+    let completedHistory = try TaskHistoryStore(databaseURL: url)
+        .completedEntries(for: day.addingTimeInterval(960))
+    #expect(completedHistory.first(where: { $0.taskID == "second" })?.lastPauseReason == .doneForNow)
 }
 
 @Test
