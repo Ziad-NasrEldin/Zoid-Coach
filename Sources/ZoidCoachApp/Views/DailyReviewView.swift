@@ -268,6 +268,7 @@ struct DailyReviewView: View {
     @ViewBuilder
     private func snapshotContent(_ snapshot: DailyReviewSnapshot) -> some View {
         reviewCoverage(snapshot)
+        DailySourceCoverageView(selectedDay: controller.selectedDay)
         if snapshot.sessions.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 Text("NO COVERED ACTIVITY")
