@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "4596a90acdc0f7e49a878cfdb759b9c5ef7f3c7feb9584401704d16c2ef07fd0",
+  "tracker_sha256": "acfcd5881239da35607df86f41ad16969fd9b372d6262412cf8025c63e307d36",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4872,8 +4872,8 @@
       "item_index": 1,
       "wording": "See a neutral menu bar state when healthy with no active task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4884,7 +4884,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed app's menu bar extra is `Zoid Voice` and reflects voice state only, not coach or task state.",
+      "audit_note": "The menu extra now derives a neutral `circle.dotted` icon and accessible `Zoid 666 is ready` state from the canonical Today snapshot, focused tests pass, and the signed QA product installed successfully, but the macOS status item itself could not be addressed by the available accessibility harness for a visible final assertion (`MenuBarCoachState.swift`; `MenuBarCoachTests.swift`; `.audit/runs/menu-bar-task-controls/verifier/REPORT.md`).",
       "tracker_line": 340
     },
     {
@@ -4894,8 +4894,8 @@
       "item_index": 2,
       "wording": "See an active state while a task or sprint is running.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4906,7 +4906,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The menu icon does not inspect active task execution, and sprint sessions do not exist.",
+      "audit_note": "The menu icon and compact status now distinguish active work, tracked minutes, and a running sprint's remaining minutes from the canonical snapshot, with focused and full-suite proof, while visible status-item inspection remains (`MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `.audit/runs/menu-bar-task-controls/verifier/REPORT.md`).",
       "tracker_line": 341
     },
     {
@@ -4916,8 +4916,8 @@
       "item_index": 3,
       "wording": "See a warning state when attention or source repair is needed.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4928,7 +4928,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Source health is available in the main window only.",
+      "audit_note": "The first unhealthy source now produces the attention icon, truthful source detail, and a direct Source Health route without exposing private activity, but the status item was not visibly opened in signed QA (`MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `.audit/runs/menu-bar-task-controls/verifier/REPORT.md`).",
       "tracker_line": 342
     },
     {
@@ -4960,8 +4960,8 @@
       "item_index": 5,
       "wording": "Open Today.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4972,7 +4972,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`VoiceMenuView` has no command to show or navigate the main Today window.",
+      "audit_note": "The menu command selects Today, reopens the identified main SwiftUI window even after closure, and activates it, with the reopen defect fixed during verification, but the status-item click could not be captured visibly (`ZoidCoachApp.swift`; `MenuBarCoachView.swift`; `.audit/runs/menu-bar-task-controls/verifier/REPORT.md`).",
       "tracker_line": 344
     },
     {
@@ -4982,8 +4982,8 @@
       "item_index": 6,
       "wording": "Start the recommended task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4994,7 +4994,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The menu bar extra does not expose Today recommendations.",
+      "audit_note": "The popover selects the canonical explicit recommendation before a non-optional ready fallback and sends Start through the authenticated Today XPC client while preserving confirmed state on failure; signed QA visibly held a real recommended local task and the package/helper passed, but the final menu click remains unverified (`MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `MenuBarCoachTests.swift`; `.audit/runs/menu-bar-task-controls/verifier/REPORT.md`).",
       "tracker_line": 345
     },
     {
@@ -5004,8 +5004,8 @@
       "item_index": 7,
       "wording": "Pause or resume the active task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5016,7 +5016,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No task controls exist in `VoiceMenuView`.",
+      "audit_note": "Pause and Resume now use the canonical authenticated task commands, install the returned persisted snapshot, refresh Today, and surface truthful failure copy without optimistic state, with focused/full proof but no visible status-item click sequence (`MenuBarCoachView.swift`; `MenuBarCoachTests.swift`; `.audit/runs/menu-bar-task-controls/verifier/REPORT.md`).",
       "tracker_line": 346
     },
     {
@@ -5104,7 +5104,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The signed-QA menu-bar popover now exposes Agent Health and opens a live, repairable Background Agent window; Command-Shift-L and the application menu provide the same route, but the menu bar still does not open the complete multi-source health surface (`.audit/runs/agent-lifecycle/candidate/REPORT.md`).",
+      "audit_note": "The menu popover now selects the complete multi-source Source Health section, reopens the identified main window when needed, and keeps the earlier Background Agent route available, but the final signed status-item click remains (`MenuBarCoachView.swift`; `.audit/runs/agent-lifecycle/candidate/REPORT.md`; `.audit/runs/menu-bar-task-controls/verifier/REPORT.md`).",
       "tracker_line": 350
     },
     {
@@ -5114,8 +5114,8 @@
       "item_index": 12,
       "wording": "Open settings.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5126,7 +5126,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No menu-bar settings command exists.",
+      "audit_note": "The menu popover now selects Settings, reopens the identified main window when needed, and activates the application, with compilation and full-suite proof but no visible status-item click assertion (`ZoidCoachApp.swift`; `MenuBarCoachView.swift`; `.audit/runs/menu-bar-task-controls/verifier/REPORT.md`).",
       "tracker_line": 351
     },
     {
