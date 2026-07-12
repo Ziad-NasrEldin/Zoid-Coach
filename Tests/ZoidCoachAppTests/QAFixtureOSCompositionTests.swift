@@ -1036,9 +1036,21 @@ func downstreamCodeCannotForgeFixtureAuthorization() throws {
         .deletingLastPathComponent()
         .deletingLastPathComponent()
         .deletingLastPathComponent()
-    let modules = repositoryRoot.appendingPathComponent(
-        ".build/arm64-apple-macosx/debug/Modules"
-    )
+    let buildRoot = repositoryRoot.appendingPathComponent(".build", isDirectory: true)
+    let moduleCandidates = (FileManager.default.enumerator(
+        at: buildRoot,
+        includingPropertiesForKeys: [.contentModificationDateKey],
+        options: [.skipsHiddenFiles]
+    )?.allObjects as? [URL] ?? []).filter {
+        $0.lastPathComponent == "ZoidCoachInfrastructure.swiftmodule"
+            && $0.deletingLastPathComponent().lastPathComponent == "Modules"
+    }
+    let moduleFile = try #require(moduleCandidates.max {
+        let lhs = try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+        let rhs = try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+        return (lhs ?? .distantPast) < (rhs ?? .distantPast)
+    })
+    let modules = moduleFile.deletingLastPathComponent()
     let process = Process()
     let errorPipe = Pipe()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
