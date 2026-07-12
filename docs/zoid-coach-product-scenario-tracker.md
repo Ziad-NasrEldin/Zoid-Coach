@@ -12,13 +12,13 @@ Audited on 2026-07-12 against branch `codex/remove-atoll-integration` at `f519b2
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 21
+- **Fully implemented:** 6
 - **Touches remaining:** 120
 - **Frontend only left:** 27
 - **Partially implemented:** 156
 - **Barely started:** 49
 - **Not implemented:** 275
-- **Blocked from verification:** 18
+- **Blocked from verification:** 33
 - **Total:** 666
 
 ### Status meanings
@@ -66,13 +66,13 @@ This recovery removes the storage blocker but does not prove unperformed restart
 - [ ] Continue setup after denying Reminders access. **Status: Not implemented.** There is no setup flow and no explicit continue-without-Reminders action.
 - [ ] Open System Settings directly when ready to grant previously denied access. **Status: Not implemented.** The Reminders repair button retries the permission request; no Reminders privacy deep link is wired, unlike native-capture repair links (`AppModel.swift:106-115`; `SettingsView.swift:826-842`).
 - [ ] Return from System Settings and see the updated permission state. **Status: Partially implemented.** Foreground activation does not refresh source health, though a manual Retry or global source check updates it (`ZoidCoachApp.swift:34-42`; `AppModel.swift:85-130`).
-- [x] Avoid seeing the same permission dialog repeatedly after declining it. **Status: Fully implemented.** EventKit reports denied status and macOS will not re-present the system prompt; the app shows an attention state instead (`RemindersService.swift:33-69,72-88`).
+- [ ] Avoid seeing the same permission dialog repeatedly after declining it. **Status: Blocked from verification.** EventKit and macOS authorization handling support the behavior, but the independent `a068d27` verifier could not run the packaged deny-and-retry UI flow without mutating real permission state (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] Use manual local planning while Reminders access is unavailable. **Status: Not implemented.** Manual plan items can only be added from fetched `ReminderTask` records, and unavailable access clears that inventory (`AppModel.swift:491-513,200-218`).
 
 ## 3. Screenwatch setup during onboarding
 
 - [ ] Let Zoid Coach find Screenwatch automatically at the expected location. **Status: Touches remaining.** The reader automatically checks `~/screenwatch/days/YYYY-MM-DD/log.jsonl`, and tests cover healthy and missing streams, but no onboarding confirmation was exercised (`ScreenwatchReader.swift:13-23,83-92`).
-- [x] See whether the detected Screenwatch source is healthy. **Status: Fully implemented.** Source health reports missing, invalid, stale, or current telemetry with age and parsed-record evidence (`ScreenwatchReader.swift:22-80`; `DashboardView.swift:510-529`).
+- [ ] See whether the detected Screenwatch source is healthy. **Status: Blocked from verification.** Source health code and the live backend verifier support the behavior, but the independent `a068d27` verifier had no current packaged UI or accessibility proof (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] Select another Screenwatch folder when the default location is unavailable. **Status: Not implemented.** `ScreenwatchReader` is constructed with a fixed default base directory and no folder picker or persisted bookmark is exposed (`ScreenwatchReader.swift:13-20`).
 - [ ] Understand why a selected folder is invalid without seeing sensitive captured content. **Status: Not implemented.** There is no folder selection flow; fixed-source errors avoid content leakage but cannot validate a user-selected folder.
 - [ ] Continue setup without Screenwatch and understand that behavior coaching will be unavailable. **Status: Partially implemented.** The app remains usable when the stream is missing and shows `Unavailable`, but no setup choice or explicit consequence summary exists (`ScreenwatchReader.swift:25-35`).
@@ -107,7 +107,7 @@ This recovery removes the storage blocker but does not prove unperformed restart
 
 - [ ] Receive a low-pressure planning invitation at the configured planning time. **Status: Partially implemented.** The agent schedules a PLAN_READY notification at morning confirmation time, but the wording was not assessed as low-pressure and no live delivery was verified (`AgentMain.swift:776-813`; `PromptNotificationCoordinator.swift:93-102`).
 - [ ] Receive the invitation when first using the Mac if the configured time passed while inactive. **Status: Partially implemented.** Missed nightly planning after wake is unit-tested and immediate notification delivery is possible when the target time is past, but the complete wake-to-invitation flow was not exercised live.
-- [x] Open planning manually before the configured time. **Status: Fully implemented.** The installed app opens directly to Today and exposes `DRAFT TODAY`, independently of scheduled notification time (`DashboardView.swift:57-81`; runtime screenshot).
+- [ ] Open planning manually before the configured time. **Status: Blocked from verification.** The Today source exposes `DRAFT TODAY`, but the independent `a068d27` verifier did not activate the control in a current isolated packaged-app run (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] Snooze planning without causing coaching escalation. **Status: Not implemented.** PLAN_READY notification actions are only Accept and Review, and the prompt action model has no planning snooze (`PromptNotificationCoordinator.swift:93-102`).
 - [ ] Receive the planning invitation again when the snooze ends. **Status: Not implemented.** No snooze duration, rescheduling action, or follow-up scheduler exists.
 - [ ] Dismiss planning temporarily without being trapped in repeated prompts. **Status: Partially implemented.** macOS can dismiss a notification and prompt episodes expire or dismiss internally, but there is no explicit temporary-dismiss action or tested suppression contract for planning.
@@ -125,10 +125,10 @@ This recovery removes the storage blocker but does not prove unperformed restart
 - [ ] Avoid seeing future tasks that were not selected for today. **Status: Not implemented.** The full inventory intentionally contains all incomplete reminders, including future-dated tasks, because fetch predicates have no date boundary (`RemindersService.swift:93-97`).
 - [ ] Avoid seeing tasks from excluded Reminder lists. **Status: Not implemented.** No list exclusion policy or filter exists.
 - [ ] Avoid seeing duplicate copies of the same Reminder. **Status: Touches remaining.** EventKit identifiers and plan reconciliation prevent one ID from being added twice, but no UI/E2E duplicate-source fixture was verified (`AppModel.swift:202-205`).
-- [x] Hide completed tasks from the active task list. **Status: Fully implemented.** EventKit fetches only incomplete reminders and plan reconciliation removes IDs absent from that set (`RemindersService.swift:93-97`; `AppModel.swift:517-541`).
+- [ ] Hide completed tasks from the active task list. **Status: Blocked from verification.** EventKit filtering and plan reconciliation support the behavior, but the independent `a068d27` verifier could not seed a completed Reminder fixture and assert the packaged UI without touching real data (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] Still find completed tasks in today's history. **Status: Frontend only left.** Task completion history is persisted and tested, but the Reviews navigation currently renders the generic foundation/source-health page rather than a day history (`TodayDashboardAgent.swift:120-127`; `DashboardView.swift:21-29`).
 - [ ] See recurring Reminder occurrences as separate tasks when appropriate. **Status: Blocked from verification.** EventKit supplies current Reminder entities, but there is no recurrence-specific UI logic or E2E recurring-reminder test demonstrating separate occurrences.
-- [x] Understand when Reminders could not be refreshed. **Status: Fully implemented.** Failed or unavailable fetches show a clear access-unavailable message in Today and source health (`AppModel.swift:507-512`; `DashboardView.swift:223-239`).
+- [ ] Understand when Reminders could not be refreshed. **Status: Blocked from verification.** Failure copy exists in Today and source health, but the independent `a068d27` verifier did not have an isolated failure fixture or current packaged UI proof (`.audit/runs/baseline/a068d27/REPORT.md`).
 
 ## 8. Building the daily plan
 
@@ -203,12 +203,12 @@ This recovery removes the storage blocker but does not prove unperformed restart
 
 - [ ] See the current date and day state at a glance. **Status: Partially implemented.** A populated snapshot shows the full date, while the empty installed state omits it and neither surface names a formal day state (`TodayDashboardCommandOverview.swift:23-43`; runtime screenshot).
 - [ ] See whether coaching is active or paused. **Status: Partially implemented.** Settings header clearly shows automation Running or Paused, but Today does not show coaching state and `AppModel.coachingState` is not rendered there (`SettingsView.swift:223-236`).
-- [x] See whether connected data sources are healthy. **Status: Fully implemented.** Today includes source freshness rows with written states and repair buttons, and Source health provides the full ledger (`DashboardView.swift:510-529,1537-1606`).
-- [x] See the main objective as the strongest task-level element. **Status: Fully implemented.** Both empty proposal and populated Today designs give the main objective the largest task typography and prominent background (`DashboardView.swift:918-932`; `TodayDashboardCommandOverview.swift:57-105`).
-- [x] See the active task or recommended next task prominently. **Status: Fully implemented.** The focus commitment and `DO THIS NEXT` cards select active, main, or recommended rows and expose the primary command (`TodayDashboardCommandOverview.swift:57-105,250-283`).
+- [ ] See whether connected data sources are healthy. **Status: Blocked from verification.** Today and Source health contain the ledger and repair controls, but the independent `a068d27` verifier had no current main-window accessibility proof (`.audit/runs/baseline/a068d27/REPORT.md`).
+- [ ] See the main objective as the strongest task-level element. **Status: Blocked from verification.** Source styling makes the main objective visually prominent, but the independent `a068d27` verifier could not capture and assess the current packaged UI (`.audit/runs/baseline/a068d27/REPORT.md`).
+- [ ] See the active task or recommended next task prominently. **Status: Blocked from verification.** The focus and `DO THIS NEXT` cards exist in source, but the independent `a068d27` verifier had no isolated current UI state or visual proof (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] See the top three before remaining tasks. **Status: Touches remaining.** Planned rows precede the full unplanned inventory, but the product does not enforce exactly three and can hold up to five (`DashboardView.swift:864-979,215-274`; `AppModel.swift:202-204`).
 - [ ] See work, gaming, distraction, idle, and unknown totals. **Status: Touches remaining.** Core snapshot tracks all five and the usage popover separates categories, but the primary card emphasizes work and older installed UI combines gaming/distraction (`TodayDashboard.swift:128-192`; `TodayDashboardCommandOverview.swift:106-191`).
-- [x] See gaming budget status. **Status: Fully implemented.** Today shows unlocked remaining minutes and the next unlock reason, with calculation tests passing (`TodayDashboardCommandOverview.swift:172-191`; `TodayDashboardAgent.swift:57-60`).
+- [ ] See gaming budget status. **Status: Blocked from verification.** Budget calculation tests pass and the Today surface exists, but the independent `a068d27` verifier could not capture the current packaged UI or seed controlled budget states (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] See recent coach decisions. **Status: Touches remaining.** Prompt inbox and automatic-action ledger show recent decisions/actions, but there is no concise chronological coach-decision history and the installed screen was dominated by stale meeting detections.
 - [ ] End the workday from the dashboard. **Status: Not implemented.** `endWorkday` exists only as an unused prompt action kind; no fixed dashboard control or effect is implemented (`PromptInbox.swift:47-64`; `PromptResponseEffectRouter.swift:43-108`).
 - [ ] Understand the dashboard even when some data is missing. **Status: Touches remaining.** Empty plan, missing source, limited coverage, and loading states have written explanations, though the installed dashboard stayed on `LOADING PLAN` and did not expose why it had not resolved.
@@ -225,13 +225,13 @@ This recovery removes the storage blocker but does not prove unperformed restart
 - [ ] Identify blocked, deferred, paused, active, and completed tasks visually. **Status: Partially implemented.** Rows render state text for blocked, paused, active, completed, and rescheduled, but there is no distinct deferred state and limited visual encoding beyond text/buttons.
 - [ ] Read long task titles without losing access to controls. **Status: Touches remaining.** Task titles wrap to two lines with layout priority and controls remain separate, but longer-than-two-line truncation was not visually tested (`TodayDashboardCommandOverview.swift:681-701`).
 - [ ] See task information clearly with larger text enabled. **Status: Blocked from verification.** SwiftUI semantic fonts and adaptive layouts are present, but no larger-text accessibility runtime pass or screenshot was completed.
-- [x] Find remaining non-priority tasks without letting them dominate the plan. **Status: Fully implemented.** The full inventory is placed below the plan, grouped by Reminder list, after the decision and action surfaces (`DashboardView.swift:215-274`).
+- [ ] Find remaining non-priority tasks without letting them dominate the plan. **Status: Blocked from verification.** The inventory is positioned below priority surfaces in source, but the independent `a068d27` verifier had no current packaged UI hierarchy proof (`.audit/runs/baseline/a068d27/REPORT.md`).
 
 ## 15. Receiving a next-task recommendation
 
-- [x] See one recommended next task rather than a list of competing recommendations. **Status: Fully implemented.** `TodaySnapshot` contains one recommendation and Today renders one `DO THIS NEXT` card (`TodayDashboard.swift:308-319`; `TodayDashboardCommandOverview.swift:250-283`).
-- [x] See one concise reason for the recommendation. **Status: Fully implemented.** The next card shows one sentence plus a short `Why this` explanation (`TodayDashboardCommandOverview.swift:260-278,344-347`).
-- [x] Receive recommendations that prefer today's selected tasks. **Status: Fully implemented.** The recommender is given only daily-plan rows, and tests confirm stable recommendations that skip blocked tasks (`TodayDashboardAgent.swift:38-61`; `TodayDashboardAgentTests`).
+- [ ] See one recommended next task rather than a list of competing recommendations. **Status: Blocked from verification.** `TodaySnapshot` and the Today source model one card, but the independent `a068d27` verifier did not run the current packaged recommendation journey (`.audit/runs/baseline/a068d27/REPORT.md`).
+- [ ] See one concise reason for the recommendation. **Status: Blocked from verification.** The recommendation explanation exists in source, but the independent `a068d27` verifier had no current packaged visual or accessibility proof of its clarity (`.audit/runs/baseline/a068d27/REPORT.md`).
+- [ ] Receive recommendations that prefer today's selected tasks. **Status: Blocked from verification.** Recommender tests cover selected daily rows, but the independent `a068d27` verifier could not prove the complete packaged UI and persisted recommendation effect (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] Receive a bounded sprint recommendation when an important task is too large for the available time. **Status: Partially implemented.** The recommender has a short-fit reason and receives available minutes, but the rendered recommendation does not create or start a bounded sprint (`TodayDashboard.swift:208-229`; `TodayDashboardAgent.swift:61`).
 - [ ] Start the recommendation immediately. **Status: Touches remaining.** A ready recommended row has a direct Begin/Start control routed to `.start`, but the installed-app action and persisted result were not exercised end to end (`TodayDashboardCommandOverview.swift:279-282,368-374`).
 - [ ] Choose `Not now`. **Status: Not implemented.** The recommendation card has no Not now feedback action.
@@ -806,8 +806,8 @@ This recovery removes the storage blocker but does not prove unperformed restart
 
 ## 58. Complete planning-to-completion journey
 
-- [x] Open Zoid Coach at the start of the day. **Status: Fully implemented.** Installed Build 8 opens to a usable Today dashboard with live agent state.
-- [x] Review eligible Reminders. **Status: Fully implemented.** The installed Today dashboard shows real incomplete Reminders and a full unplanned inventory.
+- [ ] Open Zoid Coach at the start of the day. **Status: Blocked from verification.** Build 8, signing, agent, database, and service checks pass, but the independent `a068d27` verifier did not launch the main app because it would refresh real EventKit and XPC state (`.audit/runs/baseline/a068d27/REPORT.md`).
+- [ ] Review eligible Reminders. **Status: Blocked from verification.** Source and live database evidence show Reminder ingestion, but the independent `a068d27` verifier could not run the current packaged UI against isolated Reminder fixtures (`.audit/runs/baseline/a068d27/REPORT.md`).
 - [ ] Choose a realistic top three and main objective. **Status: Partially implemented.** Users can add, remove, rank, and mark a main objective, but the live plan had five blocks and no strict top-three approval flow.
 - [ ] Estimate every priority task. **Status: Touches remaining.** Visible 15, 30, 45, 60, and 90 minute controls work for planned tasks, but custom and unknown estimates are absent.
 - [ ] Approve the plan. **Status: Partially implemented.** `ACCEPT BLOCKS` approves Calendar reservations, but there is no dedicated approved-day-state confirmation matching the scenario.

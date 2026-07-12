@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "9d59cb1bb3dbd908602da580fe4603917eeb558938cdd79bf3cd620991f8e376",
+  "tracker_sha256": "2732d57baef4a31a86507b858cd9660a3f3dfcef167fb4d87fa65c4c4326710a",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -378,9 +378,9 @@
       "section_title": "Reminders permission during onboarding",
       "item_index": 7,
       "wording": "Avoid seeing the same permission dialog repeatedly after declining it.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -389,11 +389,12 @@
       ],
       "affected_capability": "onboarding_and_source_setup",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Services/RemindersService.swift:33-69"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "EventKit reports denied status and macOS will not re-present the system prompt; the app shows an attention state instead (`RemindersService.swift:33-69,72-88`).",
+      "audit_note": "EventKit and macOS authorization handling support the behavior, but the independent `a068d27` verifier could not run the packaged deny-and-retry UI flow without mutating real permission state (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 69
     },
     {
@@ -450,9 +451,9 @@
       "section_title": "Screenwatch setup during onboarding",
       "item_index": 2,
       "wording": "See whether the detected Screenwatch source is healthy.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -461,12 +462,13 @@
       ],
       "affected_capability": "onboarding_and_source_setup",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Services/ScreenwatchReader.swift:22-80",
         "Sources/ZoidCoachApp/Views/DashboardView.swift:510-529"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "Source health reports missing, invalid, stale, or current telemetry with age and parsed-record evidence (`ScreenwatchReader.swift:22-80`; `DashboardView.swift:510-529`).",
+      "audit_note": "Source health code and the live backend verifier support the behavior, but the independent `a068d27` verifier had no current packaged UI or accessibility proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 75
     },
     {
@@ -1054,9 +1056,9 @@
       "section_title": "Starting the day",
       "item_index": 3,
       "wording": "Open planning manually before the configured time.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1064,11 +1066,12 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Views/DashboardView.swift:57-81"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "The installed app opens directly to Today and exposes `DRAFT TODAY`, independently of scheduled notification time (`DashboardView.swift:57-81`; runtime screenshot).",
+      "audit_note": "The Today source exposes `DRAFT TODAY`, but the independent `a068d27` verifier did not activate the control in a current isolated packaged-app run (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 110
     },
     {
@@ -1389,9 +1392,9 @@
       "section_title": "Seeing today's available tasks",
       "item_index": 9,
       "wording": "Hide completed tasks from the active task list.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1399,12 +1402,13 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/AppModel.swift:517-541",
         "Sources/ZoidCoachApp/Services/RemindersService.swift:93-97"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "EventKit fetches only incomplete reminders and plan reconciliation removes IDs absent from that set (`RemindersService.swift:93-97`; `AppModel.swift:517-541`).",
+      "audit_note": "EventKit filtering and plan reconciliation support the behavior, but the independent `a068d27` verifier could not seed a completed Reminder fixture and assert the packaged UI without touching real data (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 128
     },
     {
@@ -1458,9 +1462,9 @@
       "section_title": "Seeing today's available tasks",
       "item_index": 12,
       "wording": "Understand when Reminders could not be refreshed.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1468,12 +1472,13 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/AppModel.swift:507-512",
         "Sources/ZoidCoachApp/Views/DashboardView.swift:223-239"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "Failed or unavailable fetches show a clear access-unavailable message in Today and source health (`AppModel.swift:507-512`; `DashboardView.swift:223-239`).",
+      "audit_note": "Failure copy exists in Today and source health, but the independent `a068d27` verifier did not have an isolated failure fixture or current packaged UI proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 131
     },
     {
@@ -2744,9 +2749,9 @@
       "section_title": "Understanding the Today dashboard",
       "item_index": 3,
       "wording": "See whether connected data sources are healthy.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2754,11 +2759,12 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Views/DashboardView.swift:510-529"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "Today includes source freshness rows with written states and repair buttons, and Source health provides the full ledger (`DashboardView.swift:510-529,1537-1606`).",
+      "audit_note": "Today and Source health contain the ledger and repair controls, but the independent `a068d27` verifier had no current main-window accessibility proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 206
     },
     {
@@ -2767,9 +2773,9 @@
       "section_title": "Understanding the Today dashboard",
       "item_index": 4,
       "wording": "See the main objective as the strongest task-level element.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2777,12 +2783,13 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Views/DashboardView.swift:918-932",
         "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:57-105"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "Both empty proposal and populated Today designs give the main objective the largest task typography and prominent background (`DashboardView.swift:918-932`; `TodayDashboardCommandOverview.swift:57-105`).",
+      "audit_note": "Source styling makes the main objective visually prominent, but the independent `a068d27` verifier could not capture and assess the current packaged UI (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 207
     },
     {
@@ -2791,9 +2798,9 @@
       "section_title": "Understanding the Today dashboard",
       "item_index": 5,
       "wording": "See the active task or recommended next task prominently.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2801,11 +2808,12 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:57-105"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "The focus commitment and `DO THIS NEXT` cards select active, main, or recommended rows and expose the primary command (`TodayDashboardCommandOverview.swift:57-105,250-283`).",
+      "audit_note": "The focus and `DO THIS NEXT` cards exist in source, but the independent `a068d27` verifier had no isolated current UI state or visual proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 208
     },
     {
@@ -2862,9 +2870,9 @@
       "section_title": "Understanding the Today dashboard",
       "item_index": 8,
       "wording": "See gaming budget status.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2872,12 +2880,13 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:172-191",
         "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:57-60"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "Today shows unlocked remaining minutes and the next unlock reason, with calculation tests passing (`TodayDashboardCommandOverview.swift:172-191`; `TodayDashboardAgent.swift:57-60`).",
+      "audit_note": "Budget calculation tests pass and the Today surface exists, but the independent `a068d27` verifier could not capture the current packaged UI or seed controlled budget states (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 211
     },
     {
@@ -3182,9 +3191,9 @@
       "section_title": "Main objective and task list",
       "item_index": 10,
       "wording": "Find remaining non-priority tasks without letting them dominate the plan.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3192,11 +3201,12 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Views/DashboardView.swift:215-274"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "The full inventory is placed below the plan, grouped by Reminder list, after the decision and action surfaces (`DashboardView.swift:215-274`).",
+      "audit_note": "The inventory is positioned below priority surfaces in source, but the independent `a068d27` verifier had no current packaged UI hierarchy proof (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 228
     },
     {
@@ -3205,9 +3215,9 @@
       "section_title": "Receiving a next-task recommendation",
       "item_index": 1,
       "wording": "See one recommended next task rather than a list of competing recommendations.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3216,12 +3226,13 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:250-283",
         "Sources/ZoidCoachCore/TodayDashboard.swift:308-319"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "`TodaySnapshot` contains one recommendation and Today renders one `DO THIS NEXT` card (`TodayDashboard.swift:308-319`; `TodayDashboardCommandOverview.swift:250-283`).",
+      "audit_note": "`TodaySnapshot` and the Today source model one card, but the independent `a068d27` verifier did not run the current packaged recommendation journey (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 232
     },
     {
@@ -3230,9 +3241,9 @@
       "section_title": "Receiving a next-task recommendation",
       "item_index": 2,
       "wording": "See one concise reason for the recommendation.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3241,11 +3252,12 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift:260-278"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "The next card shows one sentence plus a short `Why this` explanation (`TodayDashboardCommandOverview.swift:260-278,344-347`).",
+      "audit_note": "The recommendation explanation exists in source, but the independent `a068d27` verifier had no current packaged visual or accessibility proof of its clarity (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 233
     },
     {
@@ -3254,9 +3266,9 @@
       "section_title": "Receiving a next-task recommendation",
       "item_index": 3,
       "wording": "Receive recommendations that prefer today's selected tasks.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3265,11 +3277,12 @@
       ],
       "affected_capability": "daily_planning",
       "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md",
         "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift:38-61"
       ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "The recommender is given only daily-plan rows, and tests confirm stable recommendations that skip blocked tasks (`TodayDashboardAgent.swift:38-61`; `TodayDashboardAgentTests`).",
+      "audit_note": "Recommender tests cover selected daily rows, but the independent `a068d27` verifier could not prove the complete packaged UI and persisted recommendation effect (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 234
     },
     {
@@ -13121,9 +13134,9 @@
       "section_title": "Complete planning-to-completion journey",
       "item_index": 1,
       "wording": "Open Zoid Coach at the start of the day.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13131,10 +13144,12 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md"
+      ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "Installed Build 8 opens to a usable Today dashboard with live agent state.",
+      "audit_note": "Build 8, signing, agent, database, and service checks pass, but the independent `a068d27` verifier did not launch the main app because it would refresh real EventKit and XPC state (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 809
     },
     {
@@ -13143,9 +13158,9 @@
       "section_title": "Complete planning-to-completion journey",
       "item_index": 2,
       "wording": "Review eligible Reminders.",
-      "checkbox_state": "checked",
-      "audit_status": "Fully implemented",
-      "delivery_status": "fully_implemented",
+      "checkbox_state": "unchecked",
+      "audit_status": "Blocked from verification",
+      "delivery_status": "blocked_from_verification",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13153,10 +13168,12 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/baseline/a068d27/REPORT.md"
+      ],
       "last_verified_commit": "f519b2bd28ce",
       "last_verified_build": "0.1.0 (8)",
-      "audit_note": "The installed Today dashboard shows real incomplete Reminders and a full unplanned inventory.",
+      "audit_note": "Source and live database evidence show Reminder ingestion, but the independent `a068d27` verifier could not run the current packaged UI against isolated Reminder fixtures (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 810
     },
     {

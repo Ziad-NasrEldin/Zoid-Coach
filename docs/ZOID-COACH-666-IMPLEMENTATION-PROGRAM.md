@@ -2,7 +2,7 @@
 
 ## Document purpose
 
-This program defines how to move the current Zoid Coach app from 21 fully implemented end-user scenarios to a complete, independently verified product across the full 666-scenario tracker.
+This program defines how to move the current Zoid Coach app from 6 independently retained negative invariants and 15 positive scenarios awaiting isolated UI re-verification to a complete, independently verified product across the full 666-scenario tracker.
 
 The authoritative acceptance source is `docs/zoid-coach-product-scenario-tracker.md`.
 
@@ -16,20 +16,20 @@ Implementation therefore proceeds through dependency-ordered vertical slices, wi
 
 | Status | Count |
 | --- | ---: |
-| Fully implemented | 21 |
+| Fully implemented | 6 |
 | Touches remaining | 120 |
 | Frontend only left | 27 |
 | Partially implemented | 156 |
 | Barely started | 49 |
 | Not implemented | 275 |
-| Blocked from verification | 18 |
+| Blocked from verification | 33 |
 | Total | 666 |
 
 The current source baseline is branch `codex/remove-atoll-integration` at `f519b2bd28ce`.
 
 The current installed app is version 0.1.0 Build 8.
 
-The repository currently passes 188 Swift tests and the release build.
+The integrated Phase 0 baseline currently passes 193 Swift tests and the release build.
 
 The product already has meaningful domain, persistence, agent, Screenwatch, Reminders, planning, task, gaming-budget, notification, privacy, and settings primitives.
 
@@ -118,7 +118,7 @@ Weekly insights cannot be accepted until daily facts are stable.
 - Assign stable IDs and dispositions to all 666 scenarios.
 - Create a machine-readable scenario manifest.
 - Build a completely isolated QA runtime.
-- Automate the 21 current regression scenarios.
+- Automate the 15 downgraded positive baseline scenarios and preserve the 6 retained negative invariants.
 - Refactor integration hotspots enough to permit safe parallel development.
 
 ### Scenario manifest
@@ -236,7 +236,7 @@ The root integrator retains the small composition layer.
 - Every scenario has a stable ID and disposition.
 - The QA app and QA agent cannot touch production data or identities.
 - Existing tests and release builds pass.
-- The current 21 completed scenarios have repeatable evidence.
+- The 15 positive baseline scenarios have repeatable isolated UI evidence and the 6 negative invariants remain green.
 - An independent verifier can rebuild, install, seed, run, restart, and capture evidence from one command.
 
 No large feature wave starts before this gate passes.
@@ -696,15 +696,15 @@ If a merge breaks another slice, revert the merge commit and return it to the au
 
 Do not stack emergency semantic fixes directly on the integration branch.
 
-## Permanent regression gates
+## Baseline recovery and permanent regression gates
 
-The 21 scenarios currently checked must remain green after every wave.
+The independent baseline verifier retained 6 negative product invariants and downgraded 15 positive UI scenarios until an isolated QA runtime can reproduce them.
 
-The positive UI scenarios should become automated QA regression tests.
+The 15 positive scenarios are Phase 0 recovery targets and should become automated QA regression tests.
 
-The six negative product invariants should become absence and release-review tests.
+The 6 negative product invariants remain checked and should become absence and release-review tests.
 
-The permanent regression set includes:
+The complete baseline recovery set includes:
 
 - No repeated Reminders permission dialog after denial
 - Visible Screenwatch health
@@ -754,7 +754,7 @@ Begin with these four tasks:
 1. Root integrator freezes and commits the baseline, adds stable scenario IDs and dispositions, and creates `codex/full-system`.
 2. Builder A implements isolated QA runtime identities, paths, service names, and deterministic external-source adapters.
 3. Builder B implements the scenario runner, accessibility identifiers, UI-test target, and evidence manifest format.
-4. Independent verifier reproduces the 21 currently checked scenarios against the isolated QA runtime and downgrades any claim that cannot be repeated.
+4. Independent verifier reproduces the 15 downgraded positive scenarios against the isolated QA runtime while keeping the 6 negative invariants green.
 
 Only after this proof substrate is green should Phase 1 feature work begin.
 
