@@ -52,7 +52,7 @@ struct ZoidCoachApplication: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("Zoid 666", id: "main") {
             Group {
                 if onboarding.route == .onboarding {
                     OnboardingRootView(coordinator: onboarding)
