@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "9eac4569213840b7f2d151f96beed6d3fa4a41a49539ede64c125aed2c5fce49",
+  "tracker_sha256": "674097444766675d5da69dcc739ba9f13297345c368dce8ca76cb2f1efa725c3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9395,9 +9395,9 @@
       "section_title": "Weekly review",
       "item_index": 1,
       "wording": "Receive a weekly review after at least three days with acceptable coverage.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9406,10 +9406,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No weekly-review scheduler, model, or UI exists.",
+      "audit_note": "The signed QA Reviews surface visibly changed from a 0/7 limited state to a factual 7/7 prior-week review after seven confirmed days with at least 30 observed minutes, while focused tests enforce the three-day gate (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 605
     },
     {
@@ -9418,9 +9418,9 @@
       "section_title": "Weekly review",
       "item_index": 2,
       "wording": "Receive a data-quality summary instead of strong conclusions when evidence is insufficient.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9429,10 +9429,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Limited coverage is shown for Today only; no weekly summary exists.",
+      "audit_note": "The clean signed QA app visibly showed `DATA QUALITY SUMMARY 0/7 DAYS`, the exact missing-day guidance, no patterns, and no experiment before sufficient evidence was seeded (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 606
     },
     {
@@ -9441,9 +9441,9 @@
       "section_title": "Weekly review",
       "item_index": 3,
       "wording": "See completed outcomes and planned-versus-completed work.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9452,10 +9452,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Historical data exists, but there is no weekly outcome aggregation.",
+      "audit_note": "The signed review visibly reported 14 planned items, 525 estimated minutes, 5 completed items, and a 36 percent outcome rate explicitly labelled as not being a productivity score (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 607
     },
     {
@@ -9464,9 +9464,9 @@
       "section_title": "Weekly review",
       "item_index": 4,
       "wording": "See estimate accuracy patterns.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9475,10 +9475,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`LearningAggregateStore` persists estimate accuracy samples with confidence, but exposes no weekly user view.",
+      "audit_note": "The signed review derived estimate accuracy only from eligible prior-week learning samples and visibly expanded three dated estimated-versus-corrected examples (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 608
     },
     {
@@ -9487,9 +9487,9 @@
       "section_title": "Weekly review",
       "item_index": 5,
       "wording": "See the best work windows.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9498,10 +9498,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Work-window learning aggregates exist, but no weekly review presentation exists.",
+      "audit_note": "The signed review visibly reported the median corrected aligned start time and duration from five eligible prior-week work-window samples, with dated evidence available on demand (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 609
     },
     {
@@ -9510,9 +9510,9 @@
       "section_title": "Weekly review",
       "item_index": 6,
       "wording": "See frequent drift triggers.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9521,10 +9521,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No weekly drift-trigger aggregation exists.",
+      "audit_note": "The signed review visibly identified the strongest corrected distracting or gaming application pattern with sample count, confidence, date range, and expandable evidence (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 610
     },
     {
@@ -9533,9 +9533,9 @@
       "section_title": "Weekly review",
       "item_index": 7,
       "wording": "See gaming timing and budget adherence.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9544,10 +9544,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Daily gaming totals exist, but no weekly timing/adherence view exists.",
+      "audit_note": "The signed review visibly reported six corrected gaming-day samples against the configured 60-minute budget, and each expandable example includes corrected minutes and first observed local time (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 611
     },
     {
@@ -9556,9 +9556,9 @@
       "section_title": "Weekly review",
       "item_index": 8,
       "wording": "See recovery success after coaching prompts.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9567,10 +9567,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Behavior coaching and recovery outcomes are absent.",
+      "audit_note": "The signed review visibly reported that 1 of 1 answered prompts was followed by correction-aware observed work within 30 minutes and preserved a non-causal alternative explanation (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 612
     },
     {
@@ -9579,9 +9579,9 @@
       "section_title": "Weekly review",
       "item_index": 9,
       "wording": "See which prompts were useful or ineffective.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9590,10 +9590,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No prompt-effectiveness analysis exists.",
+      "audit_note": "The canonical response-effect relation now drives the signed prompt follow-through pattern, which visibly reported 1 of 1 applied actions without mistaking correlation for behavioral proof (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 613
     },
     {
@@ -9602,9 +9602,9 @@
       "section_title": "Weekly review",
       "item_index": 10,
       "wording": "See repeated blocked or vague tasks.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9613,10 +9613,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Blocked task state exists, but no weekly repetition/vagueness analysis exists.",
+      "audit_note": "The signed review visibly reported a repeatedly blocked task from two prior-week events and expandable evidence uses the local task title rather than an opaque identifier (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 614
     },
     {
@@ -9625,9 +9625,9 @@
       "section_title": "Weekly review",
       "item_index": 11,
       "wording": "See sample size, date range, examples, confidence, and alternative explanations for every pattern.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9636,10 +9636,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Learning stores track samples/confidence internally, but no complete explanatory weekly pattern object or UI exists.",
+      "audit_note": "Every signed pattern visibly exposed sample count, stable prior-week date range, confidence, an evidence control, privacy-safe dated examples, and an alternative explanation; the estimate pattern was expanded in the installed app (`WeeklyReview.swift`; `WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 615
     },
     {
@@ -9648,9 +9648,9 @@
       "section_title": "Weekly review",
       "item_index": 12,
       "wording": "Receive no more than one primary behavioral experiment for the next week.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9659,10 +9659,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No behavioral-experiment model exists.",
+      "audit_note": "Migration 31 enforces one experiment per review week and repeated loads preserve the same proposal; the signed review visibly showed exactly one primary experiment (`AutonomousDatabaseMigrator.swift`; `WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 616
     },
     {
@@ -9671,9 +9671,9 @@
       "section_title": "Weekly review",
       "item_index": 13,
       "wording": "Accept the experiment.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9682,10 +9682,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No experiment action exists.",
+      "audit_note": "The installed signed app accepted the edited proposal, visibly changed it to `ACCEPTED`, displayed 2/7 next-week tracking, and preserved that state after relaunch (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 617
     },
     {
@@ -9694,9 +9694,9 @@
       "section_title": "Weekly review",
       "item_index": 14,
       "wording": "Edit the experiment.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9705,10 +9705,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No experiment editor exists.",
+      "audit_note": "The installed signed app changed the proposal title to `Make the first blocked step concrete`, saved it, showed success feedback, and preserved the edited text through acceptance and relaunch (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 618
     },
     {
@@ -9717,9 +9717,9 @@
       "section_title": "Weekly review",
       "item_index": 15,
       "wording": "Reject the experiment.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9728,10 +9728,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No experiment action exists.",
+      "audit_note": "The installed signed app changed the accepted experiment to `REJECTED`, removed active tracking, disabled the repeated reject action, and preserved rejection after another relaunch (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 619
     },
     {
@@ -9740,9 +9740,9 @@
       "section_title": "Weekly review",
       "item_index": 16,
       "wording": "Track an accepted experiment during the following week.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9751,10 +9751,10 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No experiment persistence/tracking exists.",
+      "audit_note": "The installed signed app visibly showed `TRACKING 2/7 DAYS · START 2026-07-11` after acceptance and again after relaunch, proving durable next-week progress from the stable prior-week review (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 620
     },
     {
@@ -14151,9 +14151,9 @@
       "section_title": "Complete correction-and-learning journey",
       "item_index": 8,
       "wording": "Complete enough well-covered days for a weekly review.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14161,10 +14161,10 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Daily evidence and learning aggregates exist, but weekly review generation is absent.",
+      "audit_note": "The signed QA journey visibly progressed from 0/7 limited evidence to a 7/7 review for 2026-07-04 through 2026-07-10, and the store tests enforce at least three confirmed days with 30 observed minutes (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 882
     },
     {
@@ -14173,9 +14173,9 @@
       "section_title": "Complete correction-and-learning journey",
       "item_index": 9,
       "wording": "Inspect the evidence behind a weekly pattern.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14183,10 +14183,10 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No weekly pattern surface exists.",
+      "audit_note": "The installed signed app expanded estimate evidence into three dated estimated-versus-corrected examples and an alternative explanation, then collapsed it through the same accessible control (`WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 883
     },
     {
@@ -14195,9 +14195,9 @@
       "section_title": "Complete correction-and-learning journey",
       "item_index": 10,
       "wording": "Accept, edit, or reject one proposed experiment.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14205,10 +14205,10 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [],
+      "evidence_paths": [".audit/runs/weekly-review/verifier/REPORT.md"],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No weekly experiment workflow exists.",
+      "audit_note": "The installed signed app edited, accepted, relaunched with tracking, rejected, and relaunched with the rejected state preserved for the same single weekly experiment (`WeeklyReviewStore.swift`; `WeeklyReviewView.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 884
     },
     {
