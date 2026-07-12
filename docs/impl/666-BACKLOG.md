@@ -52,6 +52,18 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Planning capacity warning and direct reduction - `codex/capacity-warning-flow`
+
+- Implements `ZC-009-001` through `ZC-009-008` as one complete Today planning flow.
+- Shows planned minutes, Calendar-adjusted available minutes, exact overage, and honest Calendar-unavailable fallback copy.
+- Suggests the lowest-ranked task by name and lets the user remove it directly from the warning.
+- Recalculates immediately after estimate, add, remove, and direct-reduction changes.
+- Prevents Calendar acceptance until all estimates exist and the revised plan fits capacity.
+- Merges overlapping external Calendar commitments, clips them to configured work intervals, ignores Zoid-owned blocks, and respects visible-calendar policy.
+- Five focused capacity tests and affected source-health and QA Calendar composition tests pass.
+- Evidence is recorded in `.audit/runs/planning-capacity/capacity-warning/REPORT.md`.
+- A fresh verifier must complete the signed-QA overload, reduction, recalculation, realistic approval, and restart-safe click-through before tracker integration.
+
 ### Away-from-Mac work recording and correction - `55fcca3`
 
 - Added a dedicated Reviews flow for intentional away-from-Mac work with start time, bounded duration, optional task attachment, and optional note.

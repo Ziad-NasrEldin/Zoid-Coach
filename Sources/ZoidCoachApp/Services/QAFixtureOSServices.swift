@@ -120,6 +120,25 @@ final class QAFixtureCalendarService: CalendarServicing {
         }
     }
 
+    func commitments(from start: Date, through end: Date) throws -> [CalendarCommitment] {
+        guard try adapter.permission(.calendar) == .granted else {
+            throw CalendarServiceError.accessUnavailable
+        }
+        return try adapter.snapshot().calendarCommitments
+            .filter { $0.end > start && $0.start < end }
+            .map {
+                CalendarCommitment(
+                    id: $0.id,
+                    title: $0.title,
+                    start: $0.start,
+                    end: $0.end,
+                    calendarIdentifier: $0.calendarIdentifier,
+                    isZoidOwned: $0.ownershipToken != nil
+                )
+            }
+            .sorted { $0.start < $1.start }
+    }
+
     func inspect() async -> SourceHealth {
         do {
             switch try adapter.permission(.calendar) {
