@@ -8,6 +8,9 @@ public enum PromptResponseEffect: Equatable, Sendable {
     case meetingEditRequested(candidateID: String)
     case planUndoQueued(dayKey: String)
     case planScheduleQueued(dayKey: String)
+    case planningSnoozed(until: Date, promptID: String)
+    case planningDismissed(until: Date, promptID: String)
+    case unplannedDaySelected
 }
 
 public final class PromptResponseEffectRouter: @unchecked Sendable {
@@ -16,6 +19,7 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
     private let planUndoRequests: PlanUndoRequestStore?
     private let planScheduleRequests: PlanScheduleRequestStore?
     private let promptStore: PromptInboxStore?
+    private let planningInvitations: PlanningInvitationService?
     private let schedulingCalendarIdentifier: @Sendable () throws -> String?
 
     public init(
@@ -24,6 +28,7 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
         planUndoRequests: PlanUndoRequestStore? = nil,
         planScheduleRequests: PlanScheduleRequestStore? = nil,
         promptStore: PromptInboxStore? = nil,
+        planningInvitations: PlanningInvitationService? = nil,
         schedulingCalendarIdentifier: @escaping @Sendable () throws -> String? = { nil }
     ) {
         self.outbox = outbox
@@ -31,6 +36,7 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
         self.planUndoRequests = planUndoRequests
         self.planScheduleRequests = planScheduleRequests
         self.promptStore = promptStore
+        self.planningInvitations = planningInvitations
         self.schedulingCalendarIdentifier = schedulingCalendarIdentifier
     }
 
@@ -41,6 +47,18 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
     }
 
     private func applyEffect(_ result: PromptResponseResult) throws -> PromptResponseEffect {
+        if let planningInvitations {
+            switch try planningInvitations.apply(result) {
+            case .none:
+                break
+            case let .snoozed(until, promptID):
+                return .planningSnoozed(until: until, promptID: promptID)
+            case let .dismissed(until, promptID):
+                return .planningDismissed(until: until, promptID: promptID)
+            case .unplanned:
+                return .unplannedDaySelected
+            }
+        }
         if result.episode.type == "PLAN_READY",
            result.response.action == .acceptPlan,
            let dayKey = result.episode.payload["localDay"],

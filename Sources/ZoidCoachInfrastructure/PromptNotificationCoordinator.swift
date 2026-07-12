@@ -191,7 +191,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             notificationIdentity: notificationIdentity
         ), let category = PromptNotificationCategory(rawValue: category) else { return nil }
         let allowed: Set<PromptActionKind> = switch category {
-        case .planReady: [.acceptPlan, .reviewPlan]
+        case .planReady: [.acceptPlan, .reviewPlan, .snoozePlanning, .dismissPlanning, .workUnplanned]
         case .meetingCandidate: [.addMeeting, .editMeeting, .ignore]
         case .planChanged: [.reviewPlan, .undoPlanChange]
         case .wakeIntervention: []
@@ -208,7 +208,9 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                 identifier: notificationIdentity.promptCategoryIdentifier(PromptNotificationCategory.planReady.rawValue),
                 actions: [
                     action(.acceptPlan, title: "Accept", notificationIdentity: notificationIdentity),
-                    action(.reviewPlan, title: "Review", foreground: true, notificationIdentity: notificationIdentity)
+                    action(.reviewPlan, title: "Plan now", foreground: true, notificationIdentity: notificationIdentity),
+                    action(.snoozePlanning, title: "Snooze 15 min", notificationIdentity: notificationIdentity),
+                    action(.dismissPlanning, title: "Dismiss for now", notificationIdentity: notificationIdentity)
                 ],
                 intentIdentifiers: []
             ),
