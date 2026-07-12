@@ -162,8 +162,10 @@ private struct TodayCommandView: View {
                     }
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
-                .disabled(model.isSchedulingDailyPlan || model.dailyPlan.isEmpty)
+                .disabled(model.isSchedulingDailyPlan || !model.planningCapacityState.canApprove)
                 .accessibilityLabel("Accept proposed work blocks and reserve them in Apple Calendar")
+                .accessibilityHint(model.planningCapacityState.canApprove ? "The plan fits today's focus capacity." : "Resolve the plan capacity warning first.")
+                .accessibilityIdentifier("planning-capacity-accept")
 
                 Button {
                     model.refreshReminderTasks()
@@ -207,6 +209,8 @@ private struct TodayCommandView: View {
                 .padding(.vertical, 18)
                 DailyPlanLedger()
             }
+
+            PlanningCapacityPanel()
 
             if let calendarError = model.calendarScheduleError {
                 Text(calendarError)
@@ -1135,6 +1139,106 @@ private struct DailyPlanLedger: View {
             return "The overnight run was delayed while the Mac slept. The background agent recovered it after wake; review the evidence before accepting."
         }
         return "Nothing is written to Calendar until you accept. Adjust duration or main objective here, or exclude any proposal."
+    }
+}
+
+private struct PlanningCapacityPanel: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        let state = model.planningCapacityState
+
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("FOCUS CAPACITY")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(statusColor)
+                Spacer()
+                Text("\(state.plannedMinutes) MIN PLANNED / \(state.availableMinutes) MIN AVAILABLE")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.ink)
+                    .contentTransition(.numericText())
+            }
+
+            Text(explanation)
+                .font(Sumi.body(13))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !model.planningCapacityUsesCalendar {
+                Text("CALENDAR UNAVAILABLE / USING CONFIGURED WORK-WINDOW CAPACITY")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.sealDeep)
+                    .accessibilityLabel("Calendar availability could not be read. Capacity uses the configured work window only.")
+            }
+
+            if case .overloaded = state.readiness,
+               state.suggestedReminderID != nil {
+                HStack(alignment: .center, spacing: 12) {
+                    Text("SUGGESTED: REMOVE \(suggestedTaskTitle)")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.sealDeep)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Button("REMOVE SUGGESTED TASK") {
+                        model.reduceOverCapacityPlan()
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                    .accessibilityLabel("Reduce plan by removing \(suggestedTaskTitle)")
+                    .accessibilityHint("Removes the lowest-ranked proposed task and recalculates capacity immediately.")
+                    .accessibilityIdentifier("planning-capacity-reduce")
+                }
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(backgroundColor)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("planning-capacity-panel")
+    }
+
+    private var explanation: String {
+        switch model.planningCapacityState.readiness {
+        case .empty:
+            return "Add a task to compare planned work with today's configured focus capacity."
+        case let .missingEstimates(count):
+            return "Estimate \(count) remaining task\(count == 1 ? "" : "s") so Zoid 666 can tell whether this plan is realistic."
+        case let .overloaded(overByMinutes):
+            return "This plan is \(overByMinutes) minutes over capacity. Remove the suggested lowest-priority task below, shorten an estimate, or exclude another task before accepting."
+        case .realistic:
+            return "This revised plan fits today's available focus capacity and is ready to accept."
+        }
+    }
+
+    private var suggestedTaskTitle: String {
+        guard let reminderID = model.planningCapacityState.suggestedReminderID else {
+            return "suggested task"
+        }
+        return model.reminderTasks.first(where: { $0.id == reminderID })?.title
+            ?? "lowest-priority task"
+    }
+
+    private var statusColor: Color {
+        switch model.planningCapacityState.readiness {
+        case .overloaded: Sumi.sealDeep
+        case .realistic: Sumi.ink
+        case .empty, .missingEstimates: Sumi.seal
+        }
+    }
+
+    private var backgroundColor: Color {
+        switch model.planningCapacityState.readiness {
+        case .overloaded: Sumi.sealWash
+        case .realistic: Sumi.softPaper
+        case .empty, .missingEstimates: Sumi.mist
+        }
     }
 }
 

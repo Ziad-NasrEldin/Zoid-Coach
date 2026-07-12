@@ -7,6 +7,7 @@ struct CalendarCommitment: Equatable, Sendable, Identifiable {
     let title: String
     let start: Date
     let end: Date
+    let calendarIdentifier: String
     let isZoidOwned: Bool
 }
 
@@ -39,8 +40,15 @@ protocol CalendarServicing: AnyObject {
     var isProductionAdapter: Bool { get }
     var selectionAvailability: CalendarSelectionAvailability { get }
     func availableCalendars() throws -> [CalendarChoice]
+    func commitments(from start: Date, through end: Date) throws -> [CalendarCommitment]
     func inspect() async -> SourceHealth
     func requestAccessAndInspect() async -> SourceHealth
+}
+
+extension CalendarServicing {
+    func commitments(from start: Date, through end: Date) throws -> [CalendarCommitment] {
+        throw CalendarServiceError.accessUnavailable
+    }
 }
 
 @MainActor
@@ -154,6 +162,7 @@ final class CalendarService: CalendarServicing {
                     title: $0.title,
                     start: $0.startDate,
                     end: $0.endDate,
+                    calendarIdentifier: $0.calendar.calendarIdentifier,
                     isZoidOwned: $0.calendar.calendarIdentifier == zoidCalendarID && ($0.notes ?? "").contains(ownershipPrefix)
                 )
             }
@@ -271,6 +280,9 @@ final class DisabledQACalendarService: CalendarServicing {
     }
     var selectionAvailability: CalendarSelectionAvailability { .unavailable }
     func availableCalendars() throws -> [CalendarChoice] { [] }
+    func commitments(from start: Date, through end: Date) throws -> [CalendarCommitment] {
+        throw CalendarServiceError.accessUnavailable
+    }
     func inspect() async -> SourceHealth { health }
     func requestAccessAndInspect() async -> SourceHealth { health }
 
