@@ -1,6 +1,6 @@
-import Darwin
 import Foundation
 import ZoidCoachCore
+import ZoidCoachInfrastructure
 
 enum ScreenwatchSetupSource: String, Equatable, Sendable {
     case defaultLocation
@@ -49,125 +49,50 @@ enum ScreenwatchSetupServiceError: LocalizedError, Equatable, Sendable {
 
     var errorDescription: String? {
         switch self {
-        case .unsafePath:
-            "The selected Screenwatch folder is not safe to use."
-        case .selectedFolderOutsideQARunRoot:
-            "QA Screenwatch folders must remain inside the isolated QA run root."
-        case .selectedItemIsNotDirectory:
-            "Select the Screenwatch days folder rather than an individual file."
-        case .bookmarkCreationFailed:
-            "Zoid Coach could not remember access to the selected Screenwatch folder."
+        case .unsafePath: "The selected Screenwatch folder is not safe to use."
+        case .selectedFolderOutsideQARunRoot: "QA Screenwatch folders must remain inside the isolated QA run root."
+        case .selectedItemIsNotDirectory: "Select the Screenwatch days folder rather than an individual file."
+        case .bookmarkCreationFailed: "Zoid Coach could not remember access to the selected Screenwatch folder."
         }
     }
 }
 
-struct ScreenwatchBookmarkResolution: Sendable {
-    let url: URL
-    let isStale: Bool
-}
-
-struct ScreenwatchBookmarkAccess: Sendable {
-    let create: @Sendable (URL) throws -> Data
-    let resolve: @Sendable (Data) throws -> ScreenwatchBookmarkResolution
-    let startAccess: @Sendable (URL) -> Bool
-    let stopAccess: @Sendable (URL) -> Void
-
-    static let foundation = Self(
-        create: { url in
-            try url.bookmarkData(
-                options: [.withSecurityScope],
-                includingResourceValuesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
-                relativeTo: nil
-            )
-        },
-        resolve: { data in
-            var isStale = false
-            let url = try URL(
-                resolvingBookmarkData: data,
-                options: [.withSecurityScope, .withoutUI],
-                relativeTo: nil,
-                bookmarkDataIsStale: &isStale
-            )
-            return ScreenwatchBookmarkResolution(url: url, isStale: isStale)
-        },
-        startAccess: { $0.startAccessingSecurityScopedResource() },
-        stopAccess: { $0.stopAccessingSecurityScopedResource() }
-    )
-}
-
 actor ScreenwatchSetupService {
-    static let bookmarkDefaultsKey = "screenwatch.setup.alternate-days-bookmark.v1"
+    static let bookmarkDefaultsKey = ScreenwatchSourceRepository.legacyBookmarkDefaultsKey
 
-    private let runtimeEnvironment: RuntimeEnvironment
-    private let fileManager: FileManager
-    private let bookmarkAccess: ScreenwatchBookmarkAccess
-    private let bookmarkStore: ScreenwatchBookmarkStore
+    private let repository: ScreenwatchSourceRepository
     private let calendar: Calendar
     private let staleThreshold: TimeInterval
 
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
-        fileManager: FileManager = .default,
-        bookmarkAccess: ScreenwatchBookmarkAccess = .foundation,
         calendar: Calendar = .current,
         staleThreshold: TimeInterval = 30
     ) {
-        self.runtimeEnvironment = runtimeEnvironment
-        self.fileManager = fileManager
-        self.bookmarkAccess = bookmarkAccess
-        bookmarkStore = ScreenwatchBookmarkStore(
-            defaults: runtimeEnvironment.makeUserDefaults(),
-            key: Self.bookmarkDefaultsKey
-        )
+        repository = ScreenwatchSourceRepository(runtimeEnvironment: runtimeEnvironment)
         self.calendar = calendar
         self.staleThreshold = max(0, staleThreshold)
     }
 
     init(
-        runtimeEnvironment: RuntimeEnvironment,
-        fileManager: FileManager = .default,
-        bookmarkStore: ScreenwatchBookmarkStore,
-        bookmarkAccess: ScreenwatchBookmarkAccess = .foundation,
+        repository: ScreenwatchSourceRepository,
         calendar: Calendar = .current,
         staleThreshold: TimeInterval = 30
     ) {
-        self.runtimeEnvironment = runtimeEnvironment
-        self.fileManager = fileManager
-        self.bookmarkAccess = bookmarkAccess
-        self.bookmarkStore = bookmarkStore
+        self.repository = repository
         self.calendar = calendar
         self.staleThreshold = max(0, staleThreshold)
     }
 
     func inspect(now: Date = Date()) -> ScreenwatchSetupStatus {
-        guard let bookmark = bookmarkStore.load() else {
-            return inspectDirectory(
-                runtimeEnvironment.screenwatchDirectory,
-                source: .defaultLocation,
-                now: now
-            )
-        }
-        let resolution: ScreenwatchBookmarkResolution
         do {
-            resolution = try bookmarkAccess.resolve(bookmark)
+            let lease = try repository.resolveCanonicalSource()
+            return inspectDirectory(lease, now: now)
+        } catch let error as ScreenwatchSourceResolutionError {
+            return status(for: error, hasAlternateSelection: repository.hasAlternateSelection)
         } catch {
             return Self.bookmarkUnavailableStatus
         }
-        guard isSafeDirectory(resolution.url), isAllowedByRuntime(resolution.url) else {
-            return Self.unsafeAlternateStatus
-        }
-        let didStartAccess = bookmarkAccess.startAccess(resolution.url)
-        defer {
-            if didStartAccess { bookmarkAccess.stopAccess(resolution.url) }
-        }
-        if resolution.isStale {
-            do {
-                bookmarkStore.save(try bookmarkAccess.create(resolution.url))
-            } catch {
-                return Self.bookmarkUnavailableStatus
-            }
-        }
-        return inspectDirectory(resolution.url, source: .alternateFolder, now: now)
     }
 
     func recheck(now: Date = Date()) -> ScreenwatchSetupStatus {
@@ -178,18 +103,15 @@ actor ScreenwatchSetupService {
         _ url: URL,
         now: Date = Date()
     ) throws -> ScreenwatchSetupStatus {
-        guard isSafeDirectory(url) else {
-            throw ScreenwatchSetupServiceError.unsafePath
-        }
-        guard isAllowedByRuntime(url) else {
-            throw ScreenwatchSetupServiceError.selectedFolderOutsideQARunRoot
-        }
-        let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
-        guard values?.isDirectory == true else {
-            throw ScreenwatchSetupServiceError.selectedItemIsNotDirectory
-        }
         do {
-            bookmarkStore.save(try bookmarkAccess.create(url))
+            try repository.saveAlternate(url)
+        } catch ScreenwatchSourceResolutionError.outsideQARunRoot {
+            throw ScreenwatchSetupServiceError.selectedFolderOutsideQARunRoot
+        } catch ScreenwatchSourceResolutionError.notDirectory,
+                ScreenwatchSourceResolutionError.missingDirectory {
+            throw ScreenwatchSetupServiceError.selectedItemIsNotDirectory
+        } catch ScreenwatchSourceResolutionError.unsafePath {
+            throw ScreenwatchSetupServiceError.unsafePath
         } catch {
             throw ScreenwatchSetupServiceError.bookmarkCreationFailed
         }
@@ -197,46 +119,72 @@ actor ScreenwatchSetupService {
     }
 
     func useDefaultLocation(now: Date = Date()) -> ScreenwatchSetupStatus {
-        bookmarkStore.remove()
-        return inspectDirectory(
-            runtimeEnvironment.screenwatchDirectory,
-            source: .defaultLocation,
-            now: now
-        )
+        do {
+            try repository.clearAlternate()
+            return inspect(now: now)
+        } catch {
+            return ScreenwatchSetupStatus(
+                source: .defaultLocation,
+                health: .accessUnavailable,
+                continuation: .unavailable,
+                repair: .chooseFolder,
+                summary: "The Screenwatch source choice could not be updated safely.",
+                evidence: "No captured content or file location was displayed.",
+                validRecordCount: 0
+            )
+        }
     }
 
     private func inspectDirectory(
-        _ daysDirectory: URL,
-        source: ScreenwatchSetupSource,
+        _ lease: ScreenwatchDirectoryLease,
         now: Date
     ) -> ScreenwatchSetupStatus {
-        guard isSafeDirectory(daysDirectory), isAllowedByRuntime(daysDirectory) else {
-            return source == .alternateFolder
-                ? Self.unsafeAlternateStatus
-                : Self.unsafeDefaultStatus
-        }
-        let logURL = dailyLogURL(daysDirectory: daysDirectory, date: now)
-        guard isSafeDirectory(logURL) else {
-            return source == .alternateFolder
-                ? Self.unsafeAlternateStatus
-                : Self.unsafeDefaultStatus
-        }
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: logURL.path, isDirectory: &isDirectory),
-              !isDirectory.boolValue else {
+        let source: ScreenwatchSetupSource = lease.source == .alternateBookmark
+            ? .alternateFolder
+            : .defaultLocation
+        let components = [dayKey(for: now), "log.jsonl"]
+        let data: Data
+        do {
+            data = try lease.data(at: components)
+        } catch ScreenwatchSourceResolutionError.missingDirectory {
             return ScreenwatchSetupStatus(
                 source: source,
                 health: .missing,
                 continuation: .degraded,
-                repair: source == .defaultLocation ? .chooseFolder : .recheck,
-                summary: "Today’s Screenwatch telemetry stream was not found.",
-                evidence: "Planning remains available without behavior coaching.",
+                repair: .recheck,
+                summary: "No Screenwatch telemetry was found for today yet.",
+                evidence: "The selected local source is available, but today's log is missing.",
+                validRecordCount: 0
+            )
+        } catch ScreenwatchSourceResolutionError.unsafePath,
+                ScreenwatchSourceResolutionError.notDirectory,
+                ScreenwatchSourceResolutionError.notRegularFile {
+            return source == .alternateFolder
+                ? Self.unsafeAlternateStatus
+                : ScreenwatchSetupStatus(
+                    source: .defaultLocation,
+                    health: .unsafePath,
+                    continuation: .unavailable,
+                    repair: .chooseFolder,
+                    summary: "The default Screenwatch folder cannot be used safely.",
+                    evidence: "Choose a direct, non-symbolic Screenwatch days folder.",
+                    validRecordCount: 0
+                )
+        } catch {
+            return ScreenwatchSetupStatus(
+                source: source,
+                health: .accessUnavailable,
+                continuation: .unavailable,
+                repair: source == .defaultLocation ? .chooseFolder : .reauthorizeFolder,
+                summary: "Screenwatch telemetry could not be read safely.",
+                evidence: "Access failed without displaying captured content or file locations.",
                 validRecordCount: 0
             )
         }
         do {
-            let validation = try validateJSONL(at: logURL)
-            guard validation.invalidRecordCount == 0, validation.validRecordCount > 0,
+            let validation = try validateJSONL(data)
+            guard validation.invalidRecordCount == 0,
+                  validation.validRecordCount > 0,
                   let latestEpoch = validation.latestEpoch else {
                 return ScreenwatchSetupStatus(
                     source: source,
@@ -282,88 +230,75 @@ actor ScreenwatchSetupService {
         }
     }
 
-    private func validateJSONL(at url: URL) throws -> ScreenwatchSchemaValidation {
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        var trailing = Data()
+    private func status(
+        for error: ScreenwatchSourceResolutionError,
+        hasAlternateSelection: Bool
+    ) -> ScreenwatchSetupStatus {
+        switch error {
+        case .staleBookmark, .invalidBookmark, .bookmarkStoreCorrupt:
+            Self.bookmarkUnavailableStatus
+        case .outsideQARunRoot, .unsafePath, .invalidRelativePath:
+            Self.unsafeAlternateStatus
+        case .missingDirectory:
+            ScreenwatchSetupStatus(
+                source: hasAlternateSelection ? .alternateFolder : .defaultLocation,
+                health: .missing,
+                continuation: hasAlternateSelection ? .unavailable : .degraded,
+                repair: hasAlternateSelection ? .reauthorizeFolder : .chooseFolder,
+                summary: hasAlternateSelection
+                    ? "The selected Screenwatch folder is no longer available."
+                    : "No Screenwatch telemetry was found for today yet.",
+                evidence: hasAlternateSelection
+                    ? "Choose the days folder again or return to the default location."
+                    : "Choose the days folder or continue in degraded mode.",
+                validRecordCount: 0
+            )
+        case .securityScopeUnavailable, .notDirectory, .notRegularFile, .ioFailure:
+            ScreenwatchSetupStatus(
+                source: .alternateFolder,
+                health: .accessUnavailable,
+                continuation: .unavailable,
+                repair: .reauthorizeFolder,
+                summary: "The selected Screenwatch folder could not be accessed safely.",
+                evidence: "Choose the folder again or return to the default location.",
+                validRecordCount: 0
+            )
+        }
+    }
+
+    private func validateJSONL(_ data: Data) throws -> ScreenwatchSchemaValidation {
         var validCount = 0
         var invalidCount = 0
         var latestEpoch: Int?
         let decoder = JSONDecoder()
-        while let chunk = try handle.read(upToCount: 64 * 1_024), !chunk.isEmpty {
-            trailing.append(chunk)
-            let endsInNewline = trailing.last == 0x0A
-            var lines = trailing.split(separator: 0x0A, omittingEmptySubsequences: true)
-            if !endsInNewline, let partial = lines.popLast() {
-                trailing = Data(partial)
+        for line in data.split(separator: 0x0A, omittingEmptySubsequences: true) {
+            if let record = try? decoder.decode(PrivacySafeScreenwatchRecord.self, from: Data(line)),
+               record.epoch > 0,
+               !record.app.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               !record.window.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                validCount += 1
+                latestEpoch = max(latestEpoch ?? record.epoch, record.epoch)
             } else {
-                trailing.removeAll(keepingCapacity: true)
-            }
-            for line in lines {
-                if let record = try? decoder.decode(
-                    PrivacySafeScreenwatchRecord.self,
-                    from: Data(line)
-                ) {
-                    validCount += 1
-                    latestEpoch = max(latestEpoch ?? record.epoch, record.epoch)
-                } else {
-                    invalidCount += 1
-                }
+                invalidCount += 1
             }
         }
-        return ScreenwatchSchemaValidation(
+        return .init(
             validRecordCount: validCount,
             invalidRecordCount: invalidCount,
             latestEpoch: latestEpoch
         )
     }
 
-    private func dailyLogURL(daysDirectory: URL, date: Date) -> URL {
+    private func dayKey(for date: Date) -> String {
         var calendar = calendar
         calendar.locale = Locale(identifier: "en_US_POSIX")
         let components = calendar.dateComponents([.year, .month, .day], from: date)
-        let day = String(
+        return String(
             format: "%04d-%02d-%02d",
             components.year ?? 0,
             components.month ?? 0,
             components.day ?? 0
         )
-        return daysDirectory
-            .appendingPathComponent(day, isDirectory: true)
-            .appendingPathComponent("log.jsonl", isDirectory: false)
-    }
-
-    private func isAllowedByRuntime(_ url: URL) -> Bool {
-        guard case let .qa(runRoot) = runtimeEnvironment.mode else { return true }
-        let candidate = canonicalPath(url)
-        let root = canonicalPath(runRoot)
-        return candidate == root || candidate.hasPrefix(root + "/")
-    }
-
-    private func isSafeDirectory(_ url: URL) -> Bool {
-        guard url.isFileURL, url.path.hasPrefix("/") else { return false }
-        let normalizedPath = macOSTemporaryDirectoryAliasResolvedPath(url)
-        var current = URL(fileURLWithPath: "/", isDirectory: true)
-        for component in normalizedPath.split(separator: "/").map(String.init) {
-            current.appendPathComponent(component, isDirectory: true)
-            guard fileManager.fileExists(atPath: current.path) else { continue }
-            guard let values = try? current.resourceValues(
-                forKeys: [.isSymbolicLinkKey]
-            ), values.isSymbolicLink != true else {
-                return false
-            }
-        }
-        return true
-    }
-
-    private func canonicalPath(_ url: URL) -> String {
-        macOSTemporaryDirectoryAliasResolvedPath(url.resolvingSymlinksInPath())
-    }
-
-    private func macOSTemporaryDirectoryAliasResolvedPath(_ url: URL) -> String {
-        let path = url.standardizedFileURL.path
-        guard path == "/var" || path.hasPrefix("/var/") else { return path }
-        return "/private" + path
     }
 
     private static let bookmarkUnavailableStatus = ScreenwatchSetupStatus(
@@ -371,8 +306,8 @@ actor ScreenwatchSetupService {
         health: .bookmarkUnavailable,
         continuation: .unavailable,
         repair: .reauthorizeFolder,
-        summary: "The saved Screenwatch folder permission is no longer available.",
-        evidence: "Choose the folder again to restore behavior coaching.",
+        summary: "The saved Screenwatch folder authorization is no longer usable.",
+        evidence: "Choose the folder again or return to the default location.",
         validRecordCount: 0
     )
 
@@ -381,43 +316,10 @@ actor ScreenwatchSetupService {
         health: .unsafePath,
         continuation: .unavailable,
         repair: .reauthorizeFolder,
-        summary: "The saved Screenwatch folder cannot be used safely.",
+        summary: "The selected Screenwatch folder cannot be used safely.",
         evidence: "Choose a direct, non-symbolic folder inside the allowed runtime.",
         validRecordCount: 0
     )
-
-    private static let unsafeDefaultStatus = ScreenwatchSetupStatus(
-        source: .defaultLocation,
-        health: .unsafePath,
-        continuation: .unavailable,
-        repair: .chooseFolder,
-        summary: "The default Screenwatch folder cannot be used safely.",
-        evidence: "Choose a direct, non-symbolic Screenwatch days folder.",
-        validRecordCount: 0
-    )
-}
-
-final class ScreenwatchBookmarkStore: @unchecked Sendable {
-    private let defaults: UserDefaults
-    private let key: String
-    private let lock = NSLock()
-
-    init(defaults: UserDefaults, key: String) {
-        self.defaults = defaults
-        self.key = key
-    }
-
-    func load() -> Data? {
-        lock.withLock { defaults.data(forKey: key) }
-    }
-
-    func save(_ data: Data) {
-        lock.withLock { defaults.set(data, forKey: key) }
-    }
-
-    func remove() {
-        lock.withLock { defaults.removeObject(forKey: key) }
-    }
 }
 
 private struct ScreenwatchSchemaValidation {
@@ -428,23 +330,8 @@ private struct ScreenwatchSchemaValidation {
 
 private struct PrivacySafeScreenwatchRecord: Decodable {
     let epoch: Int
-
-    private enum CodingKeys: String, CodingKey {
-        case timestamp = "t"
-        case epoch
-        case application = "app"
-        case windowTitle = "window"
-        case pageURL = "url"
-        case hasImage = "img"
-    }
-
-    init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        _ = try values.decode(String.self, forKey: .timestamp)
-        epoch = try values.decode(Int.self, forKey: .epoch)
-        _ = try values.decode(String.self, forKey: .application)
-        _ = try values.decode(String.self, forKey: .windowTitle)
-        _ = try values.decode(String.self, forKey: .pageURL)
-        _ = try values.decode(Bool.self, forKey: .hasImage)
-    }
+    let app: String
+    let window: String
+    let url: String
+    let img: Bool
 }

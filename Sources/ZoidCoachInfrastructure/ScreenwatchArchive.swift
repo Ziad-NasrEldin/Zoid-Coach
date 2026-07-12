@@ -109,23 +109,33 @@ public final class ScreenwatchArchive: @unchecked Sendable {
     deinit { sqlite3_close(database) }
 
     public func ingestToday(from baseDirectory: URL, now: Date = Date()) throws -> ScreenwatchIngestionResult {
-        let dayKey = Self.dayKey(for: now)
-        let dayDirectory = baseDirectory.appendingPathComponent(dayKey, isDirectory: true)
-        let logURL = dayDirectory.appendingPathComponent("log.jsonl", isDirectory: false)
-        guard FileManager.default.fileExists(atPath: logURL.path) else { return ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0) }
+        let source = try ScreenwatchDirectoryLease(rootURL: baseDirectory, source: .defaultLocation)
+        return try ingestToday(from: source, now: now)
+    }
 
-        let attributes = try FileManager.default.attributesOfItem(atPath: logURL.path)
-        let fileSize = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
-        let fileIdentity = String(describing: attributes[.systemFileNumber] ?? logURL.path)
-        let sourceID = "screenwatch:\(logURL.path)"
+    public func ingestToday(
+        from source: ScreenwatchDirectoryLease,
+        now: Date = Date()
+    ) throws -> ScreenwatchIngestionResult {
+        let dayKey = Self.dayKey(for: now)
+        let logComponents = [dayKey, "log.jsonl"]
+        guard source.fileExists(logComponents) else {
+            return ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0)
+        }
+        let sourceID = "screenwatch:\(source.sourceFingerprint):\(dayKey)"
         let checkpoint = try processingCheckpoint(sourceID: sourceID)
-        let offset = checkpoint?.fileIdentity == fileIdentity && (checkpoint?.byteOffset ?? 0) <= fileSize
-            ? checkpoint?.byteOffset ?? 0
-            : 0
-        let handle = try FileHandle(forReadingFrom: logURL)
-        defer { try? handle.close() }
-        try handle.seek(toOffset: offset)
-        guard let appendedData = try handle.readToEnd(), !appendedData.isEmpty,
+        let read = try source.withOpenedFile(logComponents) { opened -> (Data, UInt64, String) in
+            let offset = checkpoint?.fileIdentity == opened.identity
+                && (checkpoint?.byteOffset ?? 0) <= opened.size
+                ? checkpoint?.byteOffset ?? 0
+                : 0
+            try opened.handle.seek(toOffset: offset)
+            return (try opened.handle.readToEnd() ?? Data(), offset, opened.identity)
+        }
+        let appendedData = read.0
+        let offset = read.1
+        let fileIdentity = read.2
+        guard !appendedData.isEmpty,
               let finalNewline = appendedData.lastIndex(of: 0x0A)
         else { return ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0) }
         let completeData = appendedData.prefix(through: finalNewline)
@@ -140,16 +150,23 @@ public final class ScreenwatchArchive: @unchecked Sendable {
             totalRecordsRead += 1
             lastEpoch = observation.epoch
             let classification = try classification(for: observation)
+            let screenshot = try screenshotData(for: observation, dayKey: dayKey, source: source)
             if try insert(
                 observation,
                 dayKey: dayKey,
-                dayDirectory: dayDirectory,
+                screenshotPath: screenshot?.path,
                 classification: classification.value,
                 policyVersion: classification.policyVersion
             ) {
                 insertedCount += 1
-                if let screenshotPath = screenshotPath(for: observation, in: dayDirectory) {
-                    try indexScreenshot(path: screenshotPath, observation: observation, dayKey: dayKey, now: now)
+                if let screenshot {
+                    try indexScreenshot(
+                        data: screenshot.data,
+                        path: screenshot.path,
+                        observation: observation,
+                        dayKey: dayKey,
+                        now: now
+                    )
                 }
             }
         }
@@ -444,7 +461,7 @@ public final class ScreenwatchArchive: @unchecked Sendable {
     private func insert(
         _ observation: ScreenwatchObservation,
         dayKey: String,
-        dayDirectory: URL,
+        screenshotPath: URL?,
         classification: BehaviorClassification,
         policyVersion: Int
     ) throws -> Bool {
@@ -462,7 +479,7 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         bind(observation.windowTitle, to: statement, at: 5)
         bind(observation.url, to: statement, at: 6)
         sqlite3_bind_int(statement, 7, observation.hasScreenshot ? 1 : 0)
-        if let screenshotPath = screenshotPath(for: observation, in: dayDirectory) {
+        if let screenshotPath {
             bind(screenshotPath.path, to: statement, at: 8)
         } else {
             sqlite3_bind_null(statement, 8)
@@ -482,8 +499,7 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         return (classifier.classify(application: observation.appName), versionedPolicy?.version ?? 0)
     }
 
-    private func indexScreenshot(path: URL, observation: ScreenwatchObservation, dayKey: String, now: Date) throws {
-        let data = try Data(contentsOf: path, options: [.mappedIfSafe])
+    private func indexScreenshot(data: Data, path: URL, observation: ScreenwatchObservation, dayKey: String, now: Date) throws {
         let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         let fingerprint = perceptualFingerprint(data) ?? "sha256:\(String(digest.prefix(16)))"
         let retentionUntil = Calendar(identifier: .gregorian).date(byAdding: .day, value: 30, to: now) ?? now.addingTimeInterval(30 * 86_400)
@@ -569,11 +585,23 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         guard sqlite3_step(statement) == SQLITE_DONE else { throw ScreenwatchArchiveError.insert }
     }
 
-    private func screenshotPath(for observation: ScreenwatchObservation, in dayDirectory: URL) -> URL? {
+    private func screenshotData(
+        for observation: ScreenwatchObservation,
+        dayKey: String,
+        source: ScreenwatchDirectoryLease
+    ) throws -> (data: Data, path: URL)? {
         guard observation.hasScreenshot else { return nil }
         for extensionName in ["webp", "jpg", "jpeg"] {
-            let candidate = dayDirectory.appendingPathComponent("\(observation.timeLabel).\(extensionName)")
-            if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+            let name = "\(observation.timeLabel).\(extensionName)"
+            let components = [dayKey, name]
+            if source.fileExists(components) {
+                return (
+                    try source.data(at: components, maximumBytes: 64 * 1_024 * 1_024),
+                    source.rootURL
+                        .appendingPathComponent(dayKey, isDirectory: true)
+                        .appendingPathComponent(name, isDirectory: false)
+                )
+            }
         }
         return nil
     }
