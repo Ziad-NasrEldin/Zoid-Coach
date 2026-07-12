@@ -1,0 +1,15 @@
+Test Suite 'Selected tests' started at 2026-07-12 23:11:09.100.
+Test Suite 'ZoidCoachPackageTests.xctest' started at 2026-07-12 23:11:09.100.
+Test Suite 'ZoidCoachPackageTests.xctest' passed at 2026-07-12 23:11:09.100.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-07-12 23:11:09.100.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test agentSchedulerConstrainsBlocksByFixedCalendarAndEnqueuesReminderMutations() started.
+... (4 more lines)
+[0/1] Planning build
+Building for debugging...
+[0/6] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.14s)

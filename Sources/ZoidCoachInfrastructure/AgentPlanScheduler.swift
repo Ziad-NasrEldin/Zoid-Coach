@@ -6,12 +6,14 @@ public struct AgentPlanSchedulingResult: Equatable, Sendable {
     public let unscheduledTaskIDs: [String]
     public let reminderMutationCount: Int
     public let obsoleteBlockDeletionCount: Int
+    public let commandIDs: [String]
 
-    public init(scheduledBlockCount: Int, unscheduledTaskIDs: [String], reminderMutationCount: Int, obsoleteBlockDeletionCount: Int) {
+    public init(scheduledBlockCount: Int, unscheduledTaskIDs: [String], reminderMutationCount: Int, obsoleteBlockDeletionCount: Int, commandIDs: [String] = []) {
         self.scheduledBlockCount = scheduledBlockCount
         self.unscheduledTaskIDs = unscheduledTaskIDs
         self.reminderMutationCount = reminderMutationCount
         self.obsoleteBlockDeletionCount = obsoleteBlockDeletionCount
+        self.commandIDs = commandIDs
     }
 }
 
@@ -94,8 +96,17 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             transitionMinutes: 10,
             preferredInterval: preferredInterval
         )
+        guard schedule.unscheduledTaskIDs.isEmpty else {
+            return AgentPlanSchedulingResult(
+                scheduledBlockCount: 0,
+                unscheduledTaskIDs: schedule.unscheduledTaskIDs,
+                reminderMutationCount: 0,
+                obsoleteBlockDeletionCount: 0
+            )
+        }
         let desiredTokens = Set(schedule.blocks.map { ownershipToken(dayKey: dayKey, taskID: $0.taskID) }).union(protectedTokens)
         var deletions = 0
+        var commandIDs: [String] = []
         for existing in commitments where existing.ownershipToken != nil && existing.start > schedulingTime {
             guard let token = existing.ownershipToken, !desiredTokens.contains(token) else { continue }
             let result = try outbox.enqueue(
@@ -107,6 +118,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
                 origin: origin
             )
             if result.wasInserted { deletions += 1 }
+            commandIDs.append(result.command.id)
         }
 
         var blockCount = 0
@@ -128,6 +140,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
                 origin: origin
             )
             if result.wasInserted { blockCount += 1 }
+            commandIDs.append(result.command.id)
         }
 
         var reminderMutations = 0
@@ -144,6 +157,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
                 origin: origin
             )
             if priorityResult.wasInserted { reminderMutations += 1 }
+            commandIDs.append(priorityResult.command.id)
             if task.dueDate == nil {
                 let dueResult = try outbox.enqueue(
                     type: .setReminderDueDate,
@@ -154,13 +168,15 @@ public final class AgentPlanScheduler: @unchecked Sendable {
                     origin: origin
                 )
                 if dueResult.wasInserted { reminderMutations += 1 }
+                commandIDs.append(dueResult.command.id)
             }
         }
         return AgentPlanSchedulingResult(
             scheduledBlockCount: blockCount,
             unscheduledTaskIDs: schedule.unscheduledTaskIDs,
             reminderMutationCount: reminderMutations,
-            obsoleteBlockDeletionCount: deletions
+            obsoleteBlockDeletionCount: deletions,
+            commandIDs: Array(Set(commandIDs)).sorted()
         )
     }
 
