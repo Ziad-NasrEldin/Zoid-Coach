@@ -1,4 +1,5 @@
 import subprocess
+import shlex
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,7 +12,11 @@ LIBRARY = ROOT / "Scripts/lib/signed-qa-runtime-lifecycle.sh"
 class SignedQARuntimeLifecycleTests(unittest.TestCase):
     def run_zsh(self, script: str, cwd: Path) -> None:
         subprocess.run(
-            ["zsh", "-c", f"set -euo pipefail; source {LIBRARY!s}; {script}"],
+            [
+                "zsh",
+                "-c",
+                f"set -euo pipefail; source {shlex.quote(str(LIBRARY))}; {script}",
+            ],
             cwd=cwd,
             check=True,
             text=True,
