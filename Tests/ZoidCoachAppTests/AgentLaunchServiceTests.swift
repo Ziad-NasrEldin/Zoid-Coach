@@ -59,7 +59,7 @@ struct AgentLaunchServiceTests {
         let service = AgentLaunchService(
             runtimeEnvironment: runtimeEnvironment,
             registrationFactory: factory,
-            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid Coach QA.app"),
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid 666 QA.app"),
             buildVersion: "qa-1"
         )
 
@@ -78,10 +78,10 @@ struct AgentLaunchServiceTests {
     @Test
     func developmentPackageCannotTakeOwnershipFromTheInstalledApp() {
         #expect(AgentLaunchService.isDevelopmentBundle(
-            URL(fileURLWithPath: "/repo/.build/app/Zoid Coach.app")
+            URL(fileURLWithPath: "/repo/.build/app/Zoid 666.app")
         ))
         #expect(!AgentLaunchService.isDevelopmentBundle(
-            URL(fileURLWithPath: "/Users/example/Applications/Zoid Coach.app")
+            URL(fileURLWithPath: "/Users/example/Applications/Zoid 666.app")
         ))
     }
 
@@ -89,11 +89,11 @@ struct AgentLaunchServiceTests {
     func registrationFingerprintChangesWhenTheInstalledAppMoves() {
         let buildCopy = AgentLaunchService.registrationFingerprint(
             build: "8",
-            bundleURL: URL(fileURLWithPath: "/tmp/build/Zoid Coach.app")
+            bundleURL: URL(fileURLWithPath: "/tmp/build/Zoid 666.app")
         )
         let installedCopy = AgentLaunchService.registrationFingerprint(
             build: "8",
-            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid Coach.app")
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid 666.app")
         )
 
         #expect(buildCopy != installedCopy)
@@ -103,11 +103,11 @@ struct AgentLaunchServiceTests {
     func registrationFingerprintIsStableForTheSameBuildAndPath() {
         let first = AgentLaunchService.registrationFingerprint(
             build: "8",
-            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/../Applications/Zoid Coach.app")
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/../Applications/Zoid 666.app")
         )
         let second = AgentLaunchService.registrationFingerprint(
             build: "8",
-            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid Coach.app")
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid 666.app")
         )
 
         #expect(first == second)

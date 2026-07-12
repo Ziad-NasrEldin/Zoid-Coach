@@ -6,7 +6,7 @@ product
 
 ## Users
 
-Zoid Coach initially serves Ziad, a macOS power user working across software development, design, media, client communication, research, and administration.
+Zoid 666 initially serves Ziad, a macOS power user working across software development, design, media, client communication, research, and administration.
 
 The primary workflow is daily planning and execution on a personal Mac.
 
@@ -16,7 +16,7 @@ Future users may be independent knowledge workers who want private behavioral co
 
 ## Product Purpose
 
-Zoid Coach is a standalone local-first macOS productivity coach.
+Zoid 666 is a standalone local-first macOS productivity coach.
 
 It connects intended work from Apple Reminders with actual computer behavior from Screenwatch.
 
@@ -42,7 +42,7 @@ Every recommendation should make the next responsible action easier to understan
 
 ## Anti-references
 
-Zoid Coach must not look or behave like a generic SaaS analytics dashboard.
+Zoid 666 must not look or behave like a generic SaaS analytics dashboard.
 
 It must not use blue architecture, decorative gradients, glassmorphism, warm gold, neon accents, inflated focus scores, or novelty AI styling.
 

@@ -11,7 +11,7 @@ enum MeetingCandidateCardContext {
         let place = candidate.location ?? candidate.callLink ?? "No location"
         let evidence = candidate.sourceEvidence.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? "Conversation evidence unavailable"
-            : "Encrypted conversation evidence is available in Zoid Coach"
+            : "Encrypted conversation evidence is available in Zoid 666"
         return "\(participants) · \(place) · \(candidate.timezoneIdentifier)\nSource: WhatsApp\n\(evidence)"
     }
 }
@@ -543,7 +543,7 @@ private struct TodayAgentLedger: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("ZOID COACH - TODAY")
+                Text("ZOID 666 - TODAY")
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)

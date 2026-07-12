@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="${0:A:h:h}"
 PACKAGE_MODE="${ZOID_COACH_PACKAGE_MODE:-production}"
-APP_ROOT="${1:-${ZOID_COACH_APP_PATH:-$ROOT/.build/app/Zoid Coach.app}}"
+APP_ROOT="${1:-${ZOID_COACH_APP_PATH:-$ROOT/.build/app/Zoid 666.app}}"
 if [[ $# -gt 0 ]]; then
     shift
 fi
@@ -25,6 +25,7 @@ PLIST="$CONTENTS/Info.plist"
 APP_BUNDLE_IDENTIFIER="$(identity_value appBundleIdentifier)"
 APP_SIGNING_IDENTIFIER="$(identity_value appSigningIdentifier)"
 APP_EXECUTABLE_NAME="$(identity_value appExecutableName)"
+APP_DISPLAY_NAME="$(identity_value appDisplayName)"
 AGENT_SIGNING_IDENTIFIER="$(identity_value agentSigningIdentifier)"
 AGENT_EXECUTABLE_NAME="$(identity_value agentExecutableName)"
 LAUNCH_AGENT_LABEL="$(identity_value launchAgentLabel)"
@@ -46,6 +47,10 @@ plutil -lint "$PLIST" "$AGENT_PLIST" >/dev/null
 
 [[ "$(plutil -extract CFBundleIdentifier raw -o - "$PLIST")" == "$APP_BUNDLE_IDENTIFIER" ]] \
     || fail "unexpected app bundle identifier"
+[[ "$(plutil -extract CFBundleDisplayName raw -o - "$PLIST")" == "$APP_DISPLAY_NAME" ]] \
+    || fail "unexpected app display name"
+[[ "$(plutil -extract CFBundleName raw -o - "$PLIST")" == "$APP_DISPLAY_NAME" ]] \
+    || fail "unexpected app bundle name"
 [[ "$(plutil -extract ZoidCoachPackageMode raw -o - "$PLIST")" == "$PACKAGE_MODE" ]] \
     || fail "package runtime mode stamp does not match verification mode"
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :LSEnvironment:ZOID_COACH_PACKAGE_MODE' "$PLIST")" == "$PACKAGE_MODE" ]] \

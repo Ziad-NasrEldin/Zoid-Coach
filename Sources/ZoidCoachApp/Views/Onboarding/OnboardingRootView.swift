@@ -102,14 +102,14 @@ struct OnboardingRootView: View {
                 OnboardingEditorialStep(
                     eyebrow: "WELCOME",
                     title: "A quieter way to begin the work that matters.",
-                    bodyText: "Zoid Coach connects your intended work in Reminders with what actually happens on this Mac. It helps you choose a realistic next action, notice drift, and recover without shame.",
+                    bodyText: "Zoid 666 connects your intended work in Reminders with what actually happens on this Mac. It helps you choose a realistic next action, notice drift, and recover without shame.",
                     note: "Today keeps your plan, source status, and unanswered coaching choices in one place. Nothing is blocked or punished by default."
                 )
             case .localPrivacy:
                 OnboardingEditorialStep(
                     eyebrow: "LOCAL TRUTH",
                     title: "Your behavioral record stays on this Mac by default.",
-                    bodyText: "Reminders, Screenwatch summaries, plans, and coaching history are stored locally. Zoid Coach does not require an account, employer dashboard, or remote AI service.",
+                    bodyText: "Reminders, Screenwatch summaries, plans, and coaching history are stored locally. Zoid 666 does not require an account, employer dashboard, or remote AI service.",
                     note: "AI is optional. Rules-only coaching remains fully usable, and any later remote processing requires an explicit choice."
                 )
             case .reminders:
@@ -117,7 +117,7 @@ struct OnboardingRootView: View {
                     step: .reminders,
                     eyebrow: "INTENT SOURCE",
                     title: "Connect Apple Reminders",
-                    explanation: "Reminders tells Zoid Coach what you intended to do. Full access lets the app read tasks and update completion. If you decline, setup continues with manual local planning.",
+                    explanation: "Reminders tells Zoid 666 what you intended to do. Full access lets the app read tasks and update completion. If you decline, setup continues with manual local planning.",
                     grantTitle: "REQUEST REMINDERS ACCESS"
                 )
                 reminderListSelection
@@ -126,7 +126,7 @@ struct OnboardingRootView: View {
                     step: .screenwatch,
                     eyebrow: "BEHAVIOR SOURCE",
                     title: "Find Screenwatch",
-                    explanation: "Screenwatch contributes time and application evidence. Zoid Coach checks the expected daily JSONL stream without showing captured titles, URLs, or screenshots here.",
+                    explanation: "Screenwatch contributes time and application evidence. Zoid 666 checks the expected daily JSONL stream without showing captured titles, URLs, or screenshots here.",
                     grantTitle: "CHECK EXPECTED FOLDER"
                 )
             case .notifications:
@@ -174,7 +174,7 @@ struct OnboardingRootView: View {
                 Text("CHOOSE LISTS")
                     .font(Sumi.label())
                     .tracking(1.2)
-                Text("Choose Include or Exclude for every current list. Zoid Coach saves each choice immediately and uses the list's stable Apple identifier even if its visible name changes.")
+                Text("Choose Include or Exclude for every current list. Zoid 666 saves each choice immediately and uses the list's stable Apple identifier even if its visible name changes.")
                     .font(Sumi.body(13))
                     .foregroundStyle(Sumi.muted)
                 switch coordinator.reminderListDiscovery {
@@ -284,7 +284,7 @@ struct OnboardingRootView: View {
                 eyebrow: eyebrow,
                 title: title,
                 bodyText: explanation,
-                note: "Zoid Coach asks once. A denied or deferred choice is respected and can be repaired later in System Settings."
+                note: "Zoid 666 asks once. A denied or deferred choice is respected and can be repaired later in System Settings."
             )
             if let health = coordinator.sourceHealth[step] {
                 OnboardingSourceStatus(health: health, step: step)
@@ -447,7 +447,7 @@ struct OnboardingRootView: View {
             OnboardingEditorialStep(
                 eyebrow: "ACTIVITY CLASSIFICATION",
                 title: "Name work and gaming apps. Leave uncertainty automatic.",
-                bodyText: "Classification helps Zoid Coach distinguish focused work from gaming without guessing. Automatic is the safe default and can be changed later.",
+                bodyText: "Classification helps Zoid 666 distinguish focused work from gaming without guessing. Automatic is the safe default and can be changed later.",
                 note: "Only the app name is saved. Titles, URLs, screenshots, and captured content are not shown here."
             )
             if coordinator.inventory.isEmpty {
@@ -680,7 +680,7 @@ struct OnboardingRootView: View {
             OnboardingEditorialStep(
                 eyebrow: "FIRST DAILY PLAN",
                 title: "Prepare a real plan before setup finishes.",
-                bodyText: "Zoid Coach must create and return visible plan items before it marks onboarding complete. If planning is unavailable, setup remains here without inventing success.",
+                bodyText: "Zoid 666 must create and return visible plan items before it marks onboarding complete. If planning is unavailable, setup remains here without inventing success.",
                 note: firstPlanSummary
             )
             if let result = coordinator.firstDailyPlanResult {

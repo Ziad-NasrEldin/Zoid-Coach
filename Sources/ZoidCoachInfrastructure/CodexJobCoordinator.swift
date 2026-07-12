@@ -252,7 +252,7 @@ private final class CodexProcessContext: @unchecked Sendable {
         process.standardOutput = outputHandle
         process.standardError = errorHandle
         prompt = Data("""
-        Complete this scoped Zoid Coach job inside the supplied workspace:
+            Complete this scoped Zoid 666 job inside the supplied workspace:
 
         \(job.objective)
 
@@ -370,7 +370,7 @@ public enum CodexJobCoordinatorError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidRequest: "Choose an existing workspace and provide a non-empty Codex objective."
-        case .executableUnavailable: "Codex CLI is not installed or configured for Zoid Coach."
+        case .executableUnavailable: "Codex CLI is not installed or configured for Zoid 666."
         case .notCancellable: "This Codex job is not queued or running."
         case .timedOut: "The Codex job exceeded its allowed runtime."
         case let .executionFailed(message): "The Codex job failed: \(message)"

@@ -14,7 +14,7 @@ final class LocalWakeWordDetector: ObservableObject {
     private var onWake: (() -> Void)?
     private var shouldRun = false
     private var tapInstalled = false
-    private let wakePhrases = ["hey zoid", "hey zoyd", "hey zoid coach"]
+    private let wakePhrases = ["hey zoid", "hey zoyd", "hey zoid 666", "hey zoid coach"]
 
     func start(onWake: @escaping () -> Void) async {
         self.onWake = onWake

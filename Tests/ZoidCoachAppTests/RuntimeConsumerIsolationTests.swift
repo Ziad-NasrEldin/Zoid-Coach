@@ -21,11 +21,11 @@ func productionRuntimeConsumersKeepExistingPathsAndIdentities() throws {
     #expect(LocalEvidenceCipher.serviceName(runtimeEnvironment: runtimeEnvironment) == LocalEvidenceCipher.service)
     #expect(
         runtimeEnvironment.nativeCaptureConfigurationURL.path
-            == "/Users/tester/Library/Application Support/Zoid Coach/native-capture-config.json"
+            == "/Users/tester/Library/Application Support/Zoid 666/native-capture-config.json"
     )
     #expect(
         runtimeEnvironment.nativeCaptureDaysDirectory.path
-            == "/Users/tester/Library/Application Support/Zoid Coach/native-capture/days"
+            == "/Users/tester/Library/Application Support/Zoid 666/native-capture/days"
     )
     #expect(
         NativeCaptureConfigurationStore.defaultURL(runtimeEnvironment: runtimeEnvironment)

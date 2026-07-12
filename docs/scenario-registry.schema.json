@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "scenario-registry.schema.json",
-  "title": "Zoid Coach end-user scenario registry",
+  "title": "Zoid 666 end-user scenario registry",
   "type": "object",
   "additionalProperties": false,
   "required": [

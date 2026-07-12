@@ -19,7 +19,7 @@ The existing `ZoidCoachCore` package product also bundles the Infrastructure tar
 
 No runtime data migration is required.
 
-The persisted path remains `Zoid Coach/onboarding-progress.json`, and the document schema remains version 1.
+The persisted path remains `Zoid 666/onboarding-progress.json`, and the document schema remains version 1.
 
 Schema version 1 documents that predate persistence revisions decode with revision zero.
 

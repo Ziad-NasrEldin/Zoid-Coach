@@ -3,9 +3,10 @@
 set -euo pipefail
 
 ROOT="${0:A:h:h}"
-SOURCE_APP="$ROOT/.build/app/Zoid Coach.app"
+SOURCE_APP="$ROOT/.build/app/Zoid 666.app"
 INSTALL_ROOT="${ZOID_COACH_INSTALL_ROOT:-$HOME/Applications}"
-INSTALLED_APP="$INSTALL_ROOT/Zoid Coach.app"
+INSTALLED_APP="$INSTALL_ROOT/Zoid 666.app"
+LEGACY_INSTALLED_APP="$INSTALL_ROOT/Zoid Coach.app"
 
 "$ROOT/Scripts/package-app.sh"
 "$ROOT/Scripts/ensure-screenwatch.sh"
@@ -21,6 +22,7 @@ ditto "$SOURCE_APP" "$INSTALLED_APP"
 codesign --verify --deep --strict --verbose=2 "$INSTALLED_APP"
 defaults delete com.ziadnasreldin.ZoidCoach ZoidCoachAgentRegistrationFingerprint 2>/dev/null || true
 open "$INSTALLED_APP"
+rm -rf "$LEGACY_INSTALLED_APP"
 
 expected_build="$(plutil -extract CFBundleVersion raw -o - "$INSTALLED_APP/Contents/Info.plist")"
 restarted_agent=false
@@ -47,5 +49,5 @@ for _ in {1..30}; do
     sleep 1
 done
 
-echo "Zoid Coach was copied, but its login agent did not move to the installed app" >&2
+echo "Zoid 666 was copied, but its login agent did not move to the installed app" >&2
 exit 1

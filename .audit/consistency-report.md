@@ -1,4 +1,4 @@
-# Zoid Coach final tracker consistency report
+# Zoid 666 final tracker consistency report
 
 Checked on 2026-07-12 against `docs/zoid-coach-product-scenario-tracker.md` and the current installed runtime.
 
@@ -52,5 +52,5 @@ The recomputed counts exactly match the Audit result at the top of the tracker.
 
 ## Final conclusion
 
-The tracker is ready to serve as the authoritative end-user usability and implementation-status checklist for the current audited Zoid Coach build.
+The tracker is ready to serve as the authoritative end-user usability and implementation-status checklist for the current audited Zoid 666 build.
 Unchecked scenarios correctly remain work or verification targets rather than being represented as completed from backend code or unit tests alone.

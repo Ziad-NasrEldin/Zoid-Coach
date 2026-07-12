@@ -314,7 +314,7 @@ private struct CanonicalScreenwatchFixture {
         defaults = try #require(UserDefaults(suiteName: runtime.userDefaultsSuiteName!))
         defaults.removePersistentDomain(forName: runtime.userDefaultsSuiteName!)
         bookmarkFileURL = runtime.applicationSupportRoot
-            .appendingPathComponent("Zoid Coach", isDirectory: true)
+            .appendingPathComponent("Zoid 666", isDirectory: true)
             .appendingPathComponent("screenwatch-source-v1.bookmark", isDirectory: false)
     }
 

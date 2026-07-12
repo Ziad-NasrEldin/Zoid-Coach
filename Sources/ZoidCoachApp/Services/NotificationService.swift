@@ -69,7 +69,7 @@ final class NotificationService: NotificationServicing {
                 eyebrow: "Escalation",
                 state: .attention,
                 detail: "Notifications are unavailable",
-                evidence: "Enable Zoid Coach notifications in System Settings",
+                evidence: "Enable Zoid 666 notifications in System Settings",
                 actionTitle: "Retry"
             )
         @unknown default:
@@ -117,7 +117,7 @@ final class NotificationService: NotificationServicing {
         triggerComponents.minute = 0
 
         let content = UNMutableNotificationContent()
-        content.title = "Zoid Coach"
+        content.title = "Zoid 666"
         content.body = "Wake for your main objective. \(reason)"
         content.sound = .default
         content.categoryIdentifier = notificationIdentity.wakeCategoryIdentifier

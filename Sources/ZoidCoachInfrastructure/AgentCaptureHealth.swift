@@ -81,7 +81,10 @@ public final class NativeCaptureConfigurationStore: @unchecked Sendable {
 
     public static func defaultURL(fileManager: FileManager = .default) -> URL {
         let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return support.appendingPathComponent("Zoid Coach/native-capture-config.json", isDirectory: false)
+        return ZoidCoachStorage.productSupportURL(
+            applicationSupportRoot: support,
+            fileManager: fileManager
+        ).appendingPathComponent("native-capture-config.json", isDirectory: false)
     }
 
     public static func defaultURL(runtimeEnvironment: RuntimeEnvironment) -> URL {
@@ -160,8 +163,8 @@ public enum NativeCapturePolicy {
     }
 
     public static func appOwnedDaysDirectory(applicationSupportDirectory: URL) -> URL {
-        applicationSupportDirectory
-            .appendingPathComponent("Zoid Coach/native-capture/days", isDirectory: true)
+        ZoidCoachStorage.productSupportURL(applicationSupportRoot: applicationSupportDirectory)
+            .appendingPathComponent("native-capture/days", isDirectory: true)
     }
 
     public static func pathsDoNotCollide(native: URL, legacy: URL) -> Bool {

@@ -7,11 +7,11 @@
         <key>appBundleIdentifier</key>
         <string>com.ziadnasreldin.ZoidCoach</string>
         <key>appDisplayName</key>
-        <string>Zoid Coach</string>
+        <string>Zoid 666</string>
         <key>appExecutableName</key>
         <string>ZoidCoach</string>
         <key>appPath</key>
-        <string>.build/app/Zoid Coach.app</string>
+        <string>.build/app/Zoid 666.app</string>
         <key>appSigningIdentifier</key>
         <string>com.ziadnasreldin.ZoidCoach</string>
         <key>agentExecutableName</key>
@@ -46,11 +46,11 @@
         <key>appBundleIdentifier</key>
         <string>qa.ziadnasreldin.ZoidCoach</string>
         <key>appDisplayName</key>
-        <string>Zoid Coach QA</string>
+        <string>Zoid 666 QA</string>
         <key>appExecutableName</key>
         <string>ZoidCoachQA</string>
         <key>appPath</key>
-        <string>.build/app-qa/Zoid Coach QA.app</string>
+        <string>.build/app-qa/Zoid 666 QA.app</string>
         <key>appSigningIdentifier</key>
         <string>qa.ziadnasreldin.ZoidCoach</string>
         <key>agentExecutableName</key>

@@ -429,7 +429,6 @@ public final class ScreenwatchDirectoryLease: @unchecked Sendable {
 
 public final class ScreenwatchSourceRepository: @unchecked Sendable {
     public static let legacyBookmarkDefaultsKey = "screenwatch.setup.alternate-days-bookmark.v1"
-    private static let storeDirectoryName = "Zoid Coach"
     private static let storeFileName = "screenwatch-source-v1.bookmark"
 
     package let bookmarkFileURL: URL
@@ -445,8 +444,7 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
         legacyDefaults: [UserDefaults]? = nil
     ) {
         self.runtimeEnvironment = runtimeEnvironment
-        self.bookmarkFileURL = runtimeEnvironment.applicationSupportRoot
-            .appendingPathComponent(Self.storeDirectoryName, isDirectory: true)
+        self.bookmarkFileURL = runtimeEnvironment.databaseURL.deletingLastPathComponent()
             .appendingPathComponent(Self.storeFileName, isDirectory: false)
         self.bookmarkAccess = bookmarkAccess
         if let legacyDefaults {
@@ -702,17 +700,18 @@ public final class ScreenwatchSourceRepository: @unchecked Sendable {
         )
         var directory = Darwin.openat(
             support,
-            Self.storeDirectoryName,
+            bookmarkFileURL.deletingLastPathComponent().lastPathComponent,
             O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
         )
         if directory < 0, errno == ENOENT, createMissing {
-            guard mkdirat(support, Self.storeDirectoryName, 0o700) == 0 || errno == EEXIST else {
+            let directoryName = bookmarkFileURL.deletingLastPathComponent().lastPathComponent
+            guard mkdirat(support, directoryName, 0o700) == 0 || errno == EEXIST else {
                 Darwin.close(support)
                 throw ScreenwatchSourceResolutionError.ioFailure
             }
             directory = Darwin.openat(
                 support,
-                Self.storeDirectoryName,
+                directoryName,
                 O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
             )
         }

@@ -1,9 +1,9 @@
-# Zoid Coach end-user scenario audit: sections 35-50
+# Zoid 666 end-user scenario audit: sections 35-50
 
-Audited on 2026-07-12 against the current `main` checkout, the installed build 8 app at `/Users/ziadnasreldin/Applications/Zoid Coach.app`, the running background agent, and the complete Swift test suite.
+Audited on 2026-07-12 against the current `main` checkout, the installed build 8 app at `/Users/ziadnasreldin/Applications/Zoid 666.app`, the running background agent, and the complete Swift test suite.
 `swift test` passed 188 tests, but those tests are predominantly model, store, and service tests rather than complete UI journeys.
 The installed app was opened and its accessibility tree was inspected.
-The installed app's current database path contains a zero-byte database while the already-running agent still has the former database open from `.Trash/Zoid Coach`; therefore no scenario is labeled fully implemented solely from code or unit-test evidence.
+The installed app's current database path contains a zero-byte database while the already-running agent still has the former database open from `.Trash/Zoid 666`; therefore no scenario is labeled fully implemented solely from code or unit-test evidence.
 
 ## Status summary
 
@@ -182,7 +182,7 @@ The installed app's current database path contains a zero-byte database while th
 - [ ] Set a daily or monthly request budget. - **Frontend only left.** `ModelRunStore` enforces a supplied daily request budget and voice has a separate Gemini cap, but general AI policy/settings do not expose a daily or monthly budget.
 - [ ] Clear the AI cache. - **Not implemented.** Model runs can be queried as cache entries, but there is no clear-cache command or UI.
 - [ ] Disable AI instantly without disabling planning, tracking, coaching rules, or reviews. - **Partially implemented.** Selecting Disabled preserves deterministic planning/tracking, but behavior coaching and reviews are not available to preserve, and saving depends on the agent/database path.
-- [ ] Continue using Zoid Coach while offline. - **Touches remaining.** Core planning, tracking, settings, and task commands are local and rules-first; no installed-app network-off acceptance test was run.
+- [ ] Continue using Zoid 666 while offline. - **Touches remaining.** Core planning, tracking, settings, and task commands are local and rules-first; no installed-app network-off acceptance test was run.
 - [ ] See ambiguous activity remain unknown when AI fails. - **Partially implemented.** Unknown classification and structured-provider failure states exist, but no end-user AI-failure journey proves ambiguous sessions remain visibly unknown.
 - [ ] Receive a deterministic factual review when AI is unavailable. - **Not implemented.** No daily review generator exists.
 - [ ] Avoid having AI directly complete, delete, reschedule, block, or override a corrected task. - **Partially implemented.** Structured generation is separated from explicit mutation/outbox commands and trust gates, but corrected-task locks and a complete adversarial E2E test are absent.
@@ -201,7 +201,7 @@ The installed app's current database path contains a zero-byte database while th
 - [ ] Delete all raw behavior metadata. - **Not implemented.** No targeted all-behavior delete command exists.
 - [ ] Delete AI request metadata. - **Not implemented.** No model-run deletion command exists.
 - [ ] Delete reviews and learned rules. - **Not implemented.** No targeted command exists, and reviews themselves are absent.
-- [ ] Delete all Zoid Coach data. - **Not implemented.** No delete-all command exists.
+- [ ] Delete all Zoid 666 data. - **Not implemented.** No delete-all command exists.
 - [ ] See related totals and conclusions disappear when their evidence is deleted. - **Partially implemented.** Range deletion removes behavior rows and plan entries, but `performDataCommand` does not refresh Today, and review conclusions do not exist.
 - [ ] Export redacted diagnostics without exposing raw titles, URLs, notes, screenshots, prompts, or credentials. - **Touches remaining.** `PrivacyDataService` exports only grouped state counts and explicitly omits those fields, with passing tests; there is no pre-export review and no live package inspection in this audit.
 
@@ -232,7 +232,7 @@ The installed app's current database path contains a zero-byte database while th
 
 ## 50. Notification failure
 
-- [ ] Continue using Zoid Coach when notification permission is unavailable. - **Touches remaining.** Notification scheduling returns false without blocking Today, planning, or task controls; installed-app denied-permission E2E was not run.
+- [ ] Continue using Zoid 666 when notification permission is unavailable. - **Touches remaining.** Notification scheduling returns false without blocking Today, planning, or task controls; installed-app denied-permission E2E was not run.
 - [ ] See a permission repair path when notification access is revoked. - **Partially implemented.** Source Health explains enabling notifications and offers Retry, but does not directly open Notification settings after denial.
 - [ ] Receive prompts through the Today dashboard when notification delivery fails. - **Touches remaining.** Prompt episodes persist in the shared inbox independently of notification scheduling, with store tests; no live failed-delivery prompt was created.
 - [ ] Continue seeing active-task state in the dashboard and menu bar. - **Partially implemented.** The dashboard state is independent of notifications, but the menu bar has only Zoid Voice and no active-task state.
@@ -246,4 +246,4 @@ The installed app's current database path contains a zero-byte database while th
 - Installed app: version `0.1.0`, build `8`, bundle ID `com.ziadnasreldin.ZoidCoach`.
 - Runtime: main app and `ZoidCoachAgent` were both running.
 - UI inspection: Today, Source health, Reviews, and Settings navigation entries exist; Reviews currently shares the generic source-health/foundation content because `DashboardView` only special-cases Today and Settings.
-- Runtime storage blocker: the current Application Support database is zero bytes, while `lsof` shows the running agent holding `/Users/ziadnasreldin/.Trash/Zoid Coach/zoid-coach.sqlite` and its WAL/SHM files open.
+- Runtime storage blocker: the current Application Support database is zero bytes, while `lsof` shows the running agent holding `/Users/ziadnasreldin/.Trash/Zoid 666/zoid-coach.sqlite` and its WAL/SHM files open.

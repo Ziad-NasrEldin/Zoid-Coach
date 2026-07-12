@@ -60,7 +60,8 @@ class PackageModeTests(unittest.TestCase):
         agent = plistlib.loads(self.agent.read_bytes())
         self.assertEqual(info["CFBundleIdentifier"], "qa.ziadnasreldin.ZoidCoach")
         self.assertEqual(info["CFBundleExecutable"], "ZoidCoachQA")
-        self.assertEqual(info["CFBundleDisplayName"], "Zoid Coach QA")
+        self.assertEqual(info["CFBundleDisplayName"], "Zoid 666 QA")
+        self.assertEqual(info["CFBundleName"], "Zoid 666 QA")
         self.assertEqual(info["ZoidCoachPackageMode"], "qa")
         self.assertEqual(info["ZoidCoachQARunRoot"], expected_run_root)
         self.assertEqual(

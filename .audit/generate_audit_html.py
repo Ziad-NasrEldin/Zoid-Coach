@@ -52,7 +52,7 @@ document = f"""<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Zoid Coach Scenario Audit</title>
+  <title>Zoid 666 Scenario Audit</title>
   <style>
     :root {{ --paper:#f7f4ed; --soft:#eee9de; --ink:#171411; --muted:#6f6960; --rule:#cfc7ba; --seal:#9d2f25; --wash:#f1ddd7; --ok:#315d48; }}
     * {{ box-sizing:border-box; }}
@@ -94,7 +94,7 @@ document = f"""<!doctype html>
 </head>
 <body>
   <header>
-    <div class="eyebrow">Zoid Coach / End-user usability audit / 12 July 2026</div>
+    <div class="eyebrow">Zoid 666 / End-user usability audit / 12 July 2026</div>
     <h1>{counts['Fully implemented']} of {len(rows)} scenarios are fully usable end to end.</h1>
     <p class="lede">This tracker was refreshed against branch <code>codex/full-system</code> at implementation commit <code>3269ee8ec1c4</code>, 432 passing Swift tests, the successful release build, the isolated signed-QA app, deterministic operating-system fixtures, exact 666-row registry validation, and visible macOS accessibility click-through. Code presence alone never qualifies as complete.</p>
   </header>

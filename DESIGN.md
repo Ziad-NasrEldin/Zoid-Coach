@@ -1,5 +1,5 @@
 ---
-name: Zoid Coach Sumi-Ink Command System
+name: Zoid 666 Sumi-Ink Command System
 description: A quiet white-paper command room for daily behavioral coaching on macOS.
 colors:
   sumi-ink: "#0D0A0A"
@@ -86,13 +86,13 @@ components:
     padding: "4px 7px"
 ---
 
-# Design System: Zoid Coach Sumi-Ink Command System
+# Design System: Zoid 666 Sumi-Ink Command System
 
 ## Overview
 
 **Creative North Star: "The Private Command Ledger"**
 
-Zoid Coach uses the canonical Sumi-Ink visual language to make behavioral state feel authored, calm, and operationally truthful.
+Zoid 666 uses the canonical Sumi-Ink visual language to make behavioral state feel authored, calm, and operationally truthful.
 
 White paper surfaces carry the workspace.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create and validate immutable evidence manifests for Zoid Coach scenarios."""
+"""Create and validate immutable evidence manifests for Zoid 666 scenarios."""
 
 from __future__ import annotations
 

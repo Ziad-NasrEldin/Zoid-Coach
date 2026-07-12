@@ -52,7 +52,7 @@ enum ScreenwatchSetupServiceError: LocalizedError, Equatable, Sendable {
         case .unsafePath: "The selected Screenwatch folder is not safe to use."
         case .selectedFolderOutsideQARunRoot: "QA Screenwatch folders must remain inside the isolated QA run root."
         case .selectedItemIsNotDirectory: "Select the Screenwatch days folder rather than an individual file."
-        case .bookmarkCreationFailed: "Zoid Coach could not remember access to the selected Screenwatch folder."
+        case .bookmarkCreationFailed: "Zoid 666 could not remember access to the selected Screenwatch folder."
         }
     }
 }

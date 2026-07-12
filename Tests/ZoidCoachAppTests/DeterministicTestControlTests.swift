@@ -32,7 +32,7 @@ func fixtureWorkspacePreparationIsRepeatableAndRemovesStaleState() throws {
     #expect(first.launchArguments == ["--qa-run-root", first.root.path])
     #expect(
         first.databaseURL.path == first.root
-            .appendingPathComponent("Application Support/Zoid Coach/zoid-coach.sqlite")
+            .appendingPathComponent("Application Support/Zoid 666/zoid-coach.sqlite")
             .path
     )
     #expect(!FileManager.default.fileExists(atPath: staleFile.path))

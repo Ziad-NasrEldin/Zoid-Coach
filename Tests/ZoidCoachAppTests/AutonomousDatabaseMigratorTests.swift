@@ -151,7 +151,7 @@ func versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() throws {
         if let backupURL = result.backupURL { removeDatabaseFiles(at: backupURL) }
     }
 
-    #expect(result.appliedVersions == [23, 24, 25, 26])
+    #expect(result.appliedVersions == [23, 24, 25, 26, 27])
     #expect(result.backupURL != nil)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses;") == 2)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses WHERE surface = 'dashboard';") == 1)
@@ -187,7 +187,7 @@ func versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [24, 25, 26])
+    #expect(result.appliedVersions == [24, 25, 26, 27])
     #expect(try columnExists(databaseURL, table: "gaming_reward_ledger", column: "reward_minutes"))
     #expect(try scalarInt(databaseURL, "SELECT reward_minutes FROM gaming_reward_ledger;") == 15)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
@@ -212,10 +212,40 @@ func versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() throws {
     let first = try migrator.migrate()
     let second = try migrator.migrate()
 
-    #expect(first.appliedVersions == [25, 26])
+    #expect(first.appliedVersions == [25, 26, 27])
     #expect(second.appliedVersions.isEmpty)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM schema_migrations WHERE version = 25;") == 1)
+}
+
+@Test
+func versionTwentySevenRebrandsPersistedPromptSummaries() throws {
+    let databaseURL = temporaryDatabaseURL("brand-summary-migration")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    CREATE TABLE prompt_episodes (
+        id TEXT PRIMARY KEY,
+        summary TEXT NOT NULL
+    );
+    INSERT INTO prompt_episodes(id, summary)
+    VALUES ('old', 'Meeting details are available in Zoid Coach.'),
+           ('neutral', 'No product name here.');
+    """)
+    for version in 1...26 {
+        try execute(
+            databaseURL,
+            "INSERT INTO schema_migrations(version, applied_at) VALUES (\(version), '2026-01-01T00:00:00Z');"
+        )
+    }
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.appliedVersions == [27])
+    #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'old';")
+        == "Meeting details are available in Zoid 666.")
+    #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'neutral';")
+        == "No product name here.")
 }
 
 @Test

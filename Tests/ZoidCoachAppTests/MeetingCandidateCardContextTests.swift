@@ -32,5 +32,5 @@ func meetingCandidateCardDoesNotRenderRawConversationEvidence() {
     #expect(!context.contains(rawOCR))
     #expect(!context.contains("Unread 2"))
     #expect(context.contains("Source: WhatsApp"))
-    #expect(context.contains("Encrypted conversation evidence is available in Zoid Coach"))
+    #expect(context.contains("Encrypted conversation evidence is available in Zoid 666"))
 }

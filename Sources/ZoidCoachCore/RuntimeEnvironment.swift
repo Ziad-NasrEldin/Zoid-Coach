@@ -62,7 +62,7 @@ public struct RuntimeIdentity: Equatable, Sendable {
         appBundleIdentifier: "com.ziadnasreldin.ZoidCoach",
         appSigningIdentifier: "com.ziadnasreldin.ZoidCoach",
         appExecutableName: "ZoidCoach",
-        appDisplayName: "Zoid Coach",
+        appDisplayName: "Zoid 666",
         agentBundleIdentifier: "com.ziadnasreldin.ZoidCoach.agent",
         agentSigningIdentifier: "com.ziadnasreldin.ZoidCoach.agent",
         agentExecutableName: "ZoidCoachAgent",
@@ -84,7 +84,7 @@ public struct RuntimeIdentity: Equatable, Sendable {
         appBundleIdentifier: "qa.ziadnasreldin.ZoidCoach",
         appSigningIdentifier: "qa.ziadnasreldin.ZoidCoach",
         appExecutableName: "ZoidCoachQA",
-        appDisplayName: "Zoid Coach QA",
+        appDisplayName: "Zoid 666 QA",
         agentBundleIdentifier: "qa.ziadnasreldin.ZoidCoach.agent",
         agentSigningIdentifier: "qa.ziadnasreldin.ZoidCoach.agent",
         agentExecutableName: "ZoidCoachAgentQA",
@@ -215,13 +215,13 @@ public struct RuntimeEnvironment: Equatable, Sendable {
     public let packageMode: RuntimePackageMode?
 
     public var nativeCaptureConfigurationURL: URL {
-        applicationSupportRoot
-            .appendingPathComponent("Zoid Coach/native-capture-config.json", isDirectory: false)
+        databaseURL.deletingLastPathComponent()
+            .appendingPathComponent("native-capture-config.json", isDirectory: false)
     }
 
     public var nativeCaptureDaysDirectory: URL {
-        applicationSupportRoot
-            .appendingPathComponent("Zoid Coach/native-capture/days", isDirectory: true)
+        databaseURL.deletingLastPathComponent()
+            .appendingPathComponent("native-capture/days", isDirectory: true)
     }
 
     public func makeUserDefaults() -> UserDefaults {
@@ -251,10 +251,12 @@ public struct RuntimeEnvironment: Equatable, Sendable {
 
     public static func production(directories: SystemDirectories = .current()) -> Self {
         let applicationSupportRoot = directories.applicationSupport.standardizedFileURL
-        let productSupport = applicationSupportRoot.appendingPathComponent("Zoid Coach", isDirectory: true)
+        let productSupport = ZoidCoachStorage.productSupportURL(
+            applicationSupportRoot: applicationSupportRoot
+        )
         return Self(
             mode: .production,
-            databaseURL: ZoidCoachStorage.databaseURL(applicationSupportRoot: applicationSupportRoot),
+            databaseURL: productSupport.appendingPathComponent("zoid-coach.sqlite", isDirectory: false),
             screenwatchDirectory: directories.home
                 .appendingPathComponent("screenwatch/days", isDirectory: true)
                 .standardizedFileURL,
@@ -387,7 +389,7 @@ public struct RuntimeEnvironment: Equatable, Sendable {
                 packagedRuntime: packagedRuntime
             ).environment
         } catch {
-            fatalError("Zoid Coach runtime environment is invalid: \(error.localizedDescription)")
+            fatalError("Zoid 666 runtime environment is invalid: \(error.localizedDescription)")
         }
     }
 

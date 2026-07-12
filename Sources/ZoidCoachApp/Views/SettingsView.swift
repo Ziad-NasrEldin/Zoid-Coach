@@ -337,7 +337,7 @@ struct SettingsView: View {
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
-                Text("Shape how Zoid Coach works")
+                Text("Shape how Zoid 666 works")
                     .font(Sumi.display(30))
                     .tracking(-0.7)
                     .foregroundStyle(Sumi.ink)
@@ -772,7 +772,7 @@ struct SettingsView: View {
                         set: { controller.draft.schedulingCalendarIdentifierValue = $0 }
                     )
                 )
-                Text("Zoid Coach checks selected calendars for conflicts. Focus blocks remain in the Zoid Coach calendar.")
+                Text("Zoid 666 checks selected calendars for conflicts. Focus blocks remain in the Zoid 666 calendar.")
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
             }
@@ -1094,7 +1094,7 @@ struct SettingsView: View {
         SettingsCard(title: "LOCAL DATA", detail: "Retention cleanup, redacted diagnostics, and selective deletion are executed by the background agent.") {
             Button("OPEN LOCAL DATA FOLDER") { controller.openDataFolder() }
                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
-                .accessibilityLabel("Open Zoid Coach local data folder")
+                .accessibilityLabel("Open Zoid 666 local data folder")
             Button("EXPORT REDACTED DIAGNOSTICS") {
                 Task { await performDataCommand(.exportRedactedDiagnostics) }
             }
@@ -1172,7 +1172,7 @@ struct SettingsView: View {
             modalCoordinator.present(
                 eyebrow: "HIGH-TRUST CAPABILITY",
                 title: "Enable wake interventions?",
-                message: "Zoid Coach may notify you during the configured wake window, up to the written daily limit. You can disable this capability here at any time.",
+                message: "Zoid 666 may notify you during the configured wake window, up to the written daily limit. You can disable this capability here at any time.",
                 confirmTitle: "I UNDERSTAND, ENABLE",
                 confirmRole: .accent,
                 confirm: {
@@ -1265,13 +1265,13 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     var summary: String {
         switch self {
         case .command:
-            "Set the operating boundary and the hours Zoid Coach plans around. These controls define when the system may act."
+            "Set the operating boundary and the hours Zoid 666 plans around. These controls define when the system may act."
         case .signals:
-            "Teach Zoid Coach which activity counts as work or gaming, then choose the calendars that represent real commitments."
+            "Teach Zoid 666 which activity counts as work or gaming, then choose the calendars that represent real commitments."
         case .intelligence:
             "Choose what may be analyzed, what can leave this Mac, and whether high-trust wake interventions are allowed."
         case .records:
-            "Inspect agent actions, export diagnostics, and control the local evidence Zoid Coach retains."
+            "Inspect agent actions, export diagnostics, and control the local evidence Zoid 666 retains."
         }
     }
 }

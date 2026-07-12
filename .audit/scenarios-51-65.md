@@ -4,7 +4,7 @@ Audit date: 2026-07-12.
 
 Runtime evidence used: installed Build 8, live accessibility inspection, `swift test`, release build, launchd inspection, background-service verification, current source, and current local storage.
 
-Critical runtime caveat: the running agent has its former database open through deleted file descriptors under `~/.Trash/Zoid Coach`, while the documented database path contains a zero-byte file.
+Critical runtime caveat: the running agent has its former database open through deleted file descriptors under `~/.Trash/Zoid 666`, while the documented database path contains a zero-byte file.
 The current UI can display the agent's in-memory/open-file state, but restart-safe persistence is not proven and the background verification fails on the missing schema.
 
 ## 51. Reminders failure and recovery
@@ -35,7 +35,7 @@ The current UI can display the agent's in-memory/open-file state, but restart-sa
 - [ ] Wake after a long sleep and be asked whether the task is still active. **Status: Not implemented.** No installed UI prompt or task-session confirmation flow for `still active?` was found.
 - [ ] Avoid accumulating aligned time while no telemetry exists. **Status: Partially implemented.** Coverage and freshness logic suppress unsafe conclusions, but no live sleep-to-wake active-task accounting journey was proven.
 - [ ] Sleep during a sprint and see an understandable reconciled result on wake. **Status: Not implemented.** The installed product has active commitments but no visible sprint pause/reconciliation explanation after wake.
-- [ ] Restart Zoid Coach with an active task and recover it without duplicated time. **Status: Blocked from verification.** Task sessions are durable in design, but restarting now could discard the unlinked live database.
+- [ ] Restart Zoid 666 with an active task and recover it without duplicated time. **Status: Blocked from verification.** Task sessions are durable in design, but restarting now could discard the unlinked live database.
 - [ ] Restart with an unresolved prompt and see its current valid state. **Status: Blocked from verification.** Prompt persistence is implemented in stores, but current storage makes safe restart proof impossible.
 - [ ] Restart with an unfinished review and resume it. **Status: Not implemented.** The Reviews sidebar does not route to a functional review workflow and no unfinished-review UI exists.
 - [ ] Change time zones and retain accurate historical event times. **Status: Partially implemented.** UTC events and policy time zones are stored and tested, but no complete installed-app time-zone-change journey was verified.
@@ -96,7 +96,7 @@ The current UI can display the agent's in-memory/open-file state, but restart-sa
 
 ## 58. Complete planning-to-completion journey
 
-- [ ] Open Zoid Coach at the start of the day. **Status: Fully implemented.** Installed Build 8 opens to a usable Today dashboard with live agent state.
+- [ ] Open Zoid 666 at the start of the day. **Status: Fully implemented.** Installed Build 8 opens to a usable Today dashboard with live agent state.
 - [ ] Review eligible Reminders. **Status: Fully implemented.** The installed Today dashboard shows real incomplete Reminders and a full unplanned inventory.
 - [ ] Choose a realistic top three and main objective. **Status: Partially implemented.** Users can add, remove, rank, and mark a main objective, but the live plan had five blocks and no strict top-three approval flow.
 - [ ] Estimate every priority task. **Status: Touches remaining.** Visible 15, 30, 45, 60, and 90 minute controls work for planned tasks, but custom and unknown estimates are absent.
@@ -139,7 +139,7 @@ The current UI can display the agent's in-memory/open-file state, but restart-sa
 - [ ] See the session classified as research when evidence is sufficient. **Status: Not implemented.** Current Today behavior exposes app percentages rather than a user-visible research-session classification.
 - [ ] See the session remain unknown or request confirmation when evidence is insufficient. **Status: Not implemented.** No unknown-session confirmation UI is present.
 - [ ] Avoid receiving a strong drift prompt without sufficient evidence. **Status: Partially implemented.** Confidence policies exist, but the user-facing drift system is incomplete and cannot be validated end to end.
-- [ ] Correct the session if Zoid Coach is wrong. **Status: Not implemented.** No behavior-session correction interface exists.
+- [ ] Correct the session if Zoid 666 is wrong. **Status: Not implemented.** No behavior-session correction interface exists.
 - [ ] Save an appropriately scoped rule if the same context will recur. **Status: Not implemented.** Settings expose application categories, not a correction-to-rule scope preview and save flow.
 - [ ] See future matching activity handled according to the correction. **Status: Not implemented.** The prerequisite correction and learned-rule flow is absent.
 

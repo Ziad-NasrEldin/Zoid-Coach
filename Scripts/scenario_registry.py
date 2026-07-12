@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate and validate the Zoid Coach end-user scenario registry."""
+"""Generate and validate the Zoid 666 end-user scenario registry."""
 
 import argparse
 import hashlib

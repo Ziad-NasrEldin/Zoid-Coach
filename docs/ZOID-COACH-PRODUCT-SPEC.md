@@ -1,10 +1,10 @@
-# Zoid Coach Product Specification
+# Zoid 666 Product Specification
 
 ## Document control
 
 | Field | Value |
 | --- | --- |
-| Product | Zoid Coach |
+| Product | Zoid 666 |
 | Document type | Product requirements and reference architecture specification |
 | Status | Draft with initial founder decisions incorporated |
 | Version | 0.3.0 |
@@ -24,7 +24,7 @@
 
 ### Purpose of this document
 
-This document defines the product, behavior, user experience, data model, coaching policy, architecture, integration contracts, privacy model, failure handling, testing strategy, and release plan for Zoid Coach.
+This document defines the product, behavior, user experience, data model, coaching policy, architecture, integration contracts, privacy model, failure handling, testing strategy, and release plan for Zoid 666.
 
 It is written to be implementable by a product and engineering team without requiring the original concept conversation.
 
@@ -43,7 +43,7 @@ It identifies inputs that should be provided by Ziad before particular milestone
 | Intervention actions | Use the shared prompt inbox from the Today dashboard and macOS notifications |
 | Release 1 AI | Rules only |
 | Initial coaching intensity | Observe for one week, then enable level 2 coaching |
-| Screenwatch ownership | Consolidate the Screenwatch source into the Zoid Coach repository |
+| Screenwatch ownership | Consolidate the Screenwatch source into the Zoid 666 repository |
 | Reminders list structure | To be determined during implementation setup |
 | Work schedule | Not fixed, so the product must support flexible planning and user-configurable work windows |
 | Coaching language | Product team may define the appropriate language within the voice and safety rules in this specification |
@@ -52,13 +52,13 @@ All foundational product-shape decisions requested in the first review are now r
 
 ## 1. Executive summary
 
-Zoid Coach is a local-first macOS productivity coach that compares intended work with observed computer behavior and delivers the smallest useful intervention at the right time.
+Zoid 666 is a local-first macOS productivity coach that compares intended work with observed computer behavior and delivers the smallest useful intervention at the right time.
 
 Apple Reminders represents intention.
 
 Screenwatch represents observed behavior.
 
-Zoid Coach combines those inputs into task state, behavior sessions, recommendations, interventions, and reviews.
+Zoid 666 combines those inputs into task state, behavior sessions, recommendations, interventions, and reviews.
 
 The Today dashboard provides persistent status and interactive prompts, while macOS notifications provide timely interventions.
 
@@ -110,7 +110,7 @@ Ziad needs a system that knows today's commitments, understands enough of the cu
 
 ### 2.2 Product hypothesis
 
-If Zoid Coach combines explicit daily intent with low-latency behavioral telemetry, then it can identify meaningful divergence early enough to help Ziad recover.
+If Zoid 666 combines explicit daily intent with low-latency behavioral telemetry, then it can identify meaningful divergence early enough to help Ziad recover.
 
 If its interventions are brief, specific, respectful, and graded, then the coach can increase completed priority work without becoming annoying or adversarial.
 
@@ -118,7 +118,7 @@ If estimates, actions, overrides, and outcomes are recorded over time, then the 
 
 ### 2.3 Core value proposition
 
-Zoid Coach answers four questions continuously:
+Zoid 666 answers four questions continuously:
 
 1. What matters today?
 2. What is Ziad doing now?
@@ -127,7 +127,7 @@ Zoid Coach answers four questions continuously:
 
 ### 2.4 Product promise
 
-Zoid Coach should make the next responsible action easier to see and easier to begin.
+Zoid 666 should make the next responsible action easier to see and easier to begin.
 
 It should increase awareness without creating shame.
 
@@ -361,7 +361,7 @@ It includes no autonomous coaching beyond developer-visible test notifications.
 Required capabilities:
 
 - Read Apple Reminders with EventKit.
-- Consolidate the current Screenwatch capture source into the Zoid Coach repository under a clearly owned integration boundary.
+- Consolidate the current Screenwatch capture source into the Zoid 666 repository under a clearly owned integration boundary.
 - Read the Screenwatch JSONL stream incrementally.
 - Persist local task metadata and normalized behavior sessions.
 - Display data-source health.
@@ -451,13 +451,13 @@ Installed Apps -----> App Inventory ----------+          v
 
 Apple Reminders is the source of truth for task identity, title, list, notes, due date, priority, and completion.
 
-Zoid Coach is the source of truth for estimates, active-task history, daily selection, coaching settings, behavior sessions, intervention history, gaming policy, and reviews.
+Zoid 666 is the source of truth for estimates, active-task history, daily selection, coaching settings, behavior sessions, intervention history, gaming policy, and reviews.
 
 Screenwatch is the source of truth for raw local behavior observations.
 
 The Today dashboard and notifications present state owned by the shared prompt inbox.
 
-The local Zoid Coach database is the source of truth for all derived state.
+The local Zoid 666 database is the source of truth for all derived state.
 
 ## 11. Product surfaces
 
@@ -547,7 +547,7 @@ Unplanned -> Planning -> Planned -> Active -> Reviewing -> Closed
 
 ### 12.2 Start of day
 
-The day begins at the configured planning time or when Zoid Coach first becomes active during the configured work window.
+The day begins at the configured planning time or when Zoid 666 first becomes active during the configured work window.
 
 If the day is unplanned, the system presents a low-pressure planning invitation.
 
@@ -559,7 +559,7 @@ After planning, the system recommends the first task.
 
 The user may start the recommendation, choose another task, or delay the plan.
 
-When a task starts, Zoid Coach begins active-task tracking and waits through a configurable grace period before evaluating alignment.
+When a task starts, Zoid 666 begins active-task tracking and waits through a configurable grace period before evaluating alignment.
 
 ### 12.4 Midday adaptation
 
@@ -686,13 +686,13 @@ The adapter stores source snapshots separately from local coaching metadata.
 
 Apple Reminders always wins for source-owned fields.
 
-Zoid Coach always wins for local-only metadata.
+Zoid 666 always wins for local-only metadata.
 
-If a Reminder is deleted while active, Zoid Coach pauses the task and asks whether to preserve it as a local historical task.
+If a Reminder is deleted while active, Zoid 666 pauses the task and asks whether to preserve it as a local historical task.
 
-If a Reminder becomes complete outside Zoid Coach, the active task ends with reason `completed_externally`.
+If a Reminder becomes complete outside Zoid 666, the active task ends with reason `completed_externally`.
 
-If Zoid Coach marks a Reminder complete and EventKit rejects the save, the task remains locally pending and a retry banner appears.
+If Zoid 666 marks a Reminder complete and EventKit rejects the save, the task remains locally pending and a retry banner appears.
 
 ### 14.6 Recurring reminders
 
@@ -829,7 +829,7 @@ Move one 90m task to tomorrow or mark it optional.
 
 ### 16.6 Skip behavior
 
-If planning is skipped, Zoid Coach enters a limited `unplanned` coaching mode.
+If planning is skipped, Zoid 666 enters a limited `unplanned` coaching mode.
 
 It may show overdue tasks and behavior totals, but it must not claim that behavior violates a plan that does not exist.
 
@@ -1016,7 +1016,7 @@ A screenshot may be inspected only when:
 - The screenshot exists within the allowed retention period.
 - The relevant privacy setting permits screenshot analysis.
 
-Screenshot pixels must not be copied into the Zoid Coach database.
+Screenshot pixels must not be copied into the Zoid 666 database.
 
 Only the source path, analysis timestamp, model identifier, redaction policy, and resulting structured evidence may be stored.
 
@@ -1804,7 +1804,7 @@ The last five prompt episodes are visible with their response and resulting acti
 - Screenshot-analysis setting.
 - Export data.
 - Delete date range.
-- Delete all Zoid Coach data.
+- Delete all Zoid 666 data.
 - Open local data folder.
 - Diagnostics export with redaction.
 
@@ -1812,7 +1812,7 @@ The last five prompt episodes are visible with their response and resulting acti
 
 ### 33.1 Architecture decision
 
-**RECOMMENDED:** Build Zoid Coach as a native Swift and SwiftUI macOS application with a bundled background agent and a local SQLite database.
+**RECOMMENDED:** Build Zoid 666 as a native Swift and SwiftUI macOS application with a bundled background agent and a local SQLite database.
 
 Reasons:
 
@@ -1824,7 +1824,7 @@ Reasons:
 
 ### 33.1.1 Screenwatch source consolidation
 
-**DECIDED:** The Screenwatch source becomes part of the Zoid Coach repository instead of remaining an independently located personal script.
+**DECIDED:** The Screenwatch source becomes part of the Zoid 666 repository instead of remaining an independently located personal script.
 
 The first consolidation step imports the current capture loop, setup metadata, and fixtures under an explicit `Integrations/ScreenwatchLegacy` boundary while preserving the existing `~/screenwatch/days/YYYY-MM-DD/log.jsonl` runtime contract.
 
@@ -2344,7 +2344,7 @@ The user can delete:
 - All raw metadata.
 - All AI request metadata.
 - All reviews and learned rules.
-- All Zoid Coach data.
+- All Zoid 666 data.
 
 Deletion must also remove derived records that no longer have valid evidence.
 
@@ -2462,7 +2462,7 @@ Dates, durations, calendars, week starts, and number formats must respect locale
 
 ### 43.1 Design-system status
 
-**DECIDED:** Zoid Coach uses the Sumi-Ink Command System as its canonical visual direction.
+**DECIDED:** Zoid 666 uses the Sumi-Ink Command System as its canonical visual direction.
 
 The current dark violet and cyan HTML concept is historical exploration only and must not guide new product UI.
 
@@ -2901,21 +2901,21 @@ These inputs improve the specification but do not block source-adapter implement
 
 ### 52.1 Product identity
 
-**DECIDED:** Zoid Coach is a standalone macOS application.
+**DECIDED:** Zoid 666 is a standalone macOS application.
 
 It may reuse the canonical Sumi-Ink system and integrate with related Zoid components, but it owns its application lifecycle, permissions, local database, background agent, settings, release process, and user-facing identity.
 
 ### 52.2 Visual system
 
-**DECIDED:** Zoid Coach inherits the Sumi-Ink Command System.
+**DECIDED:** Zoid 666 inherits the Sumi-Ink Command System.
 
 ### 52.3 Intervention ownership
 
-**DECIDED:** Zoid Coach owns its Today dashboard and macOS notification actions directly.
+**DECIDED:** Zoid 666 owns its Today dashboard and macOS notification actions directly.
 
 ### 52.4 Screenwatch source ownership
 
-**DECIDED:** Move the Screenwatch source into the Zoid Coach repository.
+**DECIDED:** Move the Screenwatch source into the Zoid 666 repository.
 
 The current local capture loop is the migration baseline until another source is provided.
 
@@ -2967,7 +2967,7 @@ Useful optional sources include:
 - Any notification-delivery constraints that should affect rollout.
 - A sanitized export or screenshot of your Apple Reminders list structure.
 - A future example of desired work hours and gaming rules when those preferences stabilize.
-- Any prior notes about Zoid Coach behavior that are not in this repository.
+- Any prior notes about Zoid 666 behavior that are not in this repository.
 
 ## 53. Confirmed source inventory
 
@@ -3094,7 +3094,7 @@ The unfinished client task is due first.
 
 ## 56. Definition of done
 
-Zoid Coach Release 1 is done when it works with real local Reminders, real Screenwatch telemetry, and the Today dashboard and authorized notifications for at least seven consecutive days without data loss or misleading intervention behavior.
+Zoid 666 Release 1 is done when it works with real local Reminders, real Screenwatch telemetry, and the Today dashboard and authorized notifications for at least seven consecutive days without data loss or misleading intervention behavior.
 
 The product must demonstrate the full loop from planning through observation, one gaming-drift intervention, user response, task-state change, and review.
 

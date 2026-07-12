@@ -150,6 +150,7 @@ public final class EventKitCalendarSource: CalendarSource, CalendarAvailabilityS
     private let store: EKEventStore
     private let now: @Sendable () -> Date
     private let calendarTitle: String
+    private let legacyCalendarTitle = "Zoid Coach"
     private let lock = NSLock()
     private let ownershipPrefix = "zoid-coach:block:"
     private let planItemPrefix = "zoid-coach:plan-item:"
@@ -157,7 +158,7 @@ public final class EventKitCalendarSource: CalendarSource, CalendarAvailabilityS
 
     public init(
         store: EKEventStore = EKEventStore(),
-        calendarTitle: String = "Zoid Coach",
+        calendarTitle: String = "Zoid 666",
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.store = store
@@ -362,11 +363,24 @@ public final class EventKitCalendarSource: CalendarSource, CalendarAvailabilityS
     }
 
     private func existingZoidCalendar() -> EKCalendar? {
-        store.calendars(for: .event).first(where: { $0.title == calendarTitle })
+        store.calendars(for: .event).first(where: {
+            $0.title == calendarTitle
+                || (calendarTitle == "Zoid 666" && $0.title == legacyCalendarTitle)
+        })
     }
 
     private func requiredZoidCalendar() throws -> EKCalendar {
         if let existing = store.calendars(for: .event).first(where: { $0.title == calendarTitle }) { return existing }
+        if calendarTitle == "Zoid 666",
+           let legacy = store.calendars(for: .event).first(where: { $0.title == legacyCalendarTitle }) {
+            legacy.title = calendarTitle
+            do {
+                try store.saveCalendar(legacy, commit: true)
+                return legacy
+            } catch {
+                throw mapEventKitError(error)
+            }
+        }
         guard let source = store.defaultCalendarForNewEvents?.source ?? store.sources.first else {
             throw ActionSourceError.temporarilyUnavailable
         }

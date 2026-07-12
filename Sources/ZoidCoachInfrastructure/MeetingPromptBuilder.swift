@@ -45,7 +45,7 @@ public enum MeetingPromptBuilder {
         let callLink = candidate.callLink ?? "No call link"
         let evidence = candidate.sourceEvidence.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? "Conversation evidence unavailable"
-            : "Encrypted conversation evidence is available in Zoid Coach"
+            : "Encrypted conversation evidence is available in Zoid 666"
         var details = [
             "Who: \(participants)",
             "When: \(candidate.start.formatted(date: .abbreviated, time: .shortened)) for \(candidate.durationMinutes) minutes (\(candidate.timezoneIdentifier))",

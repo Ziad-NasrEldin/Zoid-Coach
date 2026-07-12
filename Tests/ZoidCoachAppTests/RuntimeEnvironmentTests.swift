@@ -12,10 +12,10 @@ func productionRuntimeEnvironmentPreservesExistingDefaults() {
     let environment = RuntimeEnvironment.production(directories: directories)
 
     #expect(environment.mode == .production)
-    #expect(environment.databaseURL.path == "/Users/tester/Library/Application Support/Zoid Coach/zoid-coach.sqlite")
+    #expect(environment.databaseURL.path == "/Users/tester/Library/Application Support/Zoid 666/zoid-coach.sqlite")
     #expect(environment.screenwatchDirectory.path == "/Users/tester/screenwatch/days")
     #expect(environment.applicationSupportRoot.path == "/Users/tester/Library/Application Support")
-    #expect(environment.exportRoot.path == "/Users/tester/Library/Application Support/Zoid Coach/Diagnostics")
+    #expect(environment.exportRoot.path == "/Users/tester/Library/Application Support/Zoid 666/Diagnostics")
     #expect(environment.userDefaultsSuiteName == nil)
     #expect(environment.keychainServiceSuffix.isEmpty)
     #expect(environment.identity == .production)
@@ -28,6 +28,27 @@ func productionRuntimeEnvironmentPreservesExistingDefaults() {
 }
 
 @Test
+func productionRuntimeMigratesLegacyProductDirectoryWithoutLosingData() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-storage-migration-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let support = root.appendingPathComponent("Application Support", isDirectory: true)
+    let legacy = support.appendingPathComponent("Zoid Coach", isDirectory: true)
+    try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+    let legacyDatabase = legacy.appendingPathComponent("zoid-coach.sqlite")
+    try Data("existing-user-data".utf8).write(to: legacyDatabase)
+
+    let environment = RuntimeEnvironment.production(directories: .init(
+        home: root,
+        applicationSupport: support
+    ))
+
+    #expect(environment.databaseURL.path == support.appendingPathComponent("Zoid 666/zoid-coach.sqlite").path)
+    #expect(try Data(contentsOf: environment.databaseURL) == Data("existing-user-data".utf8))
+    #expect(!FileManager.default.fileExists(atPath: legacy.path))
+}
+
+@Test
 func qaRuntimeEnvironmentDerivesEveryWritableLocationFromRunRoot() throws {
     let resolution = try RuntimeEnvironment.resolve(
         arguments: ["--qa-run-root", "/tmp/zoid-qa/run-42", "--once"],
@@ -35,7 +56,7 @@ func qaRuntimeEnvironmentDerivesEveryWritableLocationFromRunRoot() throws {
     )
 
     #expect(resolution.environment.mode == .qa(runRoot: URL(fileURLWithPath: "/private/tmp/zoid-qa/run-42", isDirectory: true)))
-    #expect(resolution.environment.databaseURL.path == "/private/tmp/zoid-qa/run-42/Application Support/Zoid Coach/zoid-coach.sqlite")
+    #expect(resolution.environment.databaseURL.path == "/private/tmp/zoid-qa/run-42/Application Support/Zoid 666/zoid-coach.sqlite")
     #expect(resolution.environment.screenwatchDirectory.path == "/private/tmp/zoid-qa/run-42/Screenwatch/days")
     #expect(resolution.environment.applicationSupportRoot.path == "/private/tmp/zoid-qa/run-42/Application Support")
     #expect(resolution.environment.exportRoot.path == "/private/tmp/zoid-qa/run-42/Exports")
@@ -378,7 +399,7 @@ private func packagedRuntimeFixture(mode: RuntimePackageMode) throws -> Packaged
     let container = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-packaged-runtime-\(UUID().uuidString)", isDirectory: true)
         .resolvingSymlinksInPath()
-    let appURL = container.appendingPathComponent("Zoid Coach QA.app", isDirectory: true)
+    let appURL = container.appendingPathComponent("Zoid 666 QA.app", isDirectory: true)
     let contents = appURL.appendingPathComponent("Contents", isDirectory: true)
     let executableURL = contents.appendingPathComponent("MacOS/ZoidCoachAgentQA")
     let qaRunRoot = container.appendingPathComponent("qa-runtime", isDirectory: true)

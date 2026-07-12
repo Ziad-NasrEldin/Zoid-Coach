@@ -1,6 +1,6 @@
-# Zoid Coach
+# Zoid 666
 
-Zoid Coach is a local-first macOS productivity coach built on Screenwatch, Apple Reminders, Apple Calendar, notifications, and an action-first Today dashboard.
+Zoid 666 is a local-first macOS productivity coach built on Screenwatch, Apple Reminders, Apple Calendar, notifications, and an action-first Today dashboard.
 Its background agent prepares and maintains a daily plan, compares intended work with observed behavior, and exposes an action-first Today dashboard even when the main app has been closed.
 
 ## Current capabilities
@@ -16,7 +16,7 @@ Its background agent prepares and maintains a daily plan, compares intended work
 - Privacy retention, deletion, redacted export, policy rollback, permission health, and low-power or thermal throttling.
 - An always-available menu-bar voice host with a local wake phrase, global shortcut, Gemini Live conversation, typed tools, approval gates, local fallback, and a hard monthly cost cap.
 
-Zoid Coach reads Screenwatch's source archive but never deletes Screenwatch-owned files.
+Zoid 666 reads Screenwatch's source archive but never deletes Screenwatch-owned files.
 
 ## Requirements
 
@@ -42,7 +42,7 @@ Package, sign, install, and open the native app with:
 ./Scripts/install-app.sh
 ```
 
-The default install destination is `~/Applications/Zoid Coach.app`.
+The default install destination is `~/Applications/Zoid 666.app`.
 Set `ZOID_COACH_INSTALL_ROOT` to choose another destination and `SIGNING_IDENTITY` to override the development identity used by the package script.
 
 ## Background startup
@@ -57,8 +57,8 @@ After installation or a restart, verify the complete background chain with:
 ./Scripts/verify-background-services.sh
 ```
 
-The verification checks that Screenwatch and Zoid Coach are loaded and running, that today's Screenwatch log is fresh, and that Zoid Coach ingestion is keeping up.
-If macOS reports that the Zoid Coach agent requires approval, enable it under System Settings > General > Login Items and run the verification again.
+The verification checks that Screenwatch and Zoid 666 are loaded and running, that today's Screenwatch log is fresh, and that Zoid 666 ingestion is keeping up.
+If macOS reports that the Zoid 666 agent requires approval, enable it under System Settings > General > Login Items and run the verification again.
 
 ## Zoid Voice
 
@@ -93,7 +93,7 @@ These gates are safety prerequisites, not substitutes for selecting the desired 
 
 ## Storage and privacy
 
-Zoid Coach stores its durable state at `~/Library/Application Support/Zoid Coach/zoid-coach.sqlite`.
+Zoid 666 stores its durable state at `~/Library/Application Support/Zoid 666/zoid-coach.sqlite`.
 Screenwatch normally writes observations under `~/screenwatch/days/YYYY-MM-DD/`.
 The app stores normalized evidence and derived coaching state in its own database and treats the Screenwatch archive as read-only source material.
 

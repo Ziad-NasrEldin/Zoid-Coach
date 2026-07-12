@@ -376,7 +376,7 @@ public enum AutonomousPlanStoreError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .openDatabase: "Could not open the local Zoid Coach database"
+        case .openDatabase: "Could not open the local Zoid 666 database"
         case .schema: "Could not prepare the autonomous planning database"
         case .prepare: "Could not prepare a planning database operation"
         case .transaction: "Could not begin a planning database transaction"

@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Product | Zoid Coach |
+| Product | Zoid 666 |
 | Document type | Full implementation plan |
 | Status | Ready for implementation |
 | Date | 2026-07-10 |
@@ -15,7 +15,7 @@
 
 ## 1. Outcome
 
-Zoid Coach will become an autonomous, local-first executive function system that prepares a daily plan overnight, maintains that plan throughout the day, and learns from actual behavior.
+Zoid 666 will become an autonomous, local-first executive function system that prepares a daily plan overnight, maintains that plan throughout the day, and learns from actual behavior.
 
 It will use Apple Reminders, Apple Calendar, Screenwatch metadata and screenshots, prior plans, outcomes, overrides, and visible WhatsApp conversations as evidence.
 
@@ -92,13 +92,13 @@ Guaranteed system wake scheduling is deferred to the high-trust escalation phase
 
 ### 3.3 Automation ownership boundary
 
-Create a dedicated Apple Calendar named `Zoid Coach`.
+Create a dedicated Apple Calendar named `Zoid 666`.
 
 The scheduler may freely create, move, resize, or delete only events that both live in that calendar and carry a Zoid block identifier.
 
 Existing events in other calendars are fixed constraints unless Ziad edits them manually.
 
-Zoid Coach ranks existing Reminders internally and may update supported EventKit fields such as priority, due date, and notes.
+Zoid 666 ranks existing Reminders internally and may update supported EventKit fields such as priority, due date, and notes.
 
 It must not rely on Apple Reminders exposing an arbitrary visual ordering API.
 
@@ -140,7 +140,7 @@ Visible WhatsApp text --/                                       |               
                                                            SQLite event log   action outbox
                                                                   |               |
                                                                   v               v
-Zoid Coach app <------ authenticated XPC ------> ZoidCoachAgent -> EventKit / Notifications
+Zoid 666 app <------ authenticated XPC ------> ZoidCoachAgent -> EventKit / Notifications
 ```
 
 ### 4.1 Package targets
@@ -328,7 +328,7 @@ Update `App/Info.plist` with full Calendar access usage descriptions.
 The service must:
 
 - Request and inspect full Calendar access.
-- Create or locate the dedicated `Zoid Coach` calendar.
+- Create or locate the dedicated `Zoid 666` calendar.
 - Read fixed commitments from configured calendars.
 - Calculate free intervals in the configured planning horizon.
 - Create, update, and delete Zoid-owned blocks.
@@ -958,7 +958,7 @@ The app must always expose a one-step pause that stops new external actions with
 
 The autonomous-coach initiative is complete when:
 
-- Zoid Coach prepares tomorrow's evidence-backed plan without the main app being open.
+- Zoid 666 prepares tomorrow's evidence-backed plan without the main app being open.
 - The plan contains a realistic three-to-five-item commitment set or a justified smaller set.
 - Fixed Calendar commitments and planning capacity constrain every schedule.
 - The agent can create and safely maintain Zoid-owned Calendar blocks and supported Reminder fields.

@@ -58,7 +58,7 @@ final class ProactiveVoiceCoordinator {
             $0.urgency == .high && ($0.dueDate ?? .distantFuture) < now && !announcedOverdueTasks.contains($0.taskID)
         }) {
             announcedOverdueTasks.insert(overdue.taskID)
-            await deliver("\(overdue.title) is overdue. Your next responsible action is ready in Zoid Coach.")
+            await deliver("\(overdue.title) is overdue. Your next responsible action is ready in Zoid 666.")
         }
         if !priorActiveJobIDs.isEmpty, !priorActiveJobIDs.subtracting(activeJobIDs).isEmpty {
             await deliver("A Codex job finished or stopped. Open Zoid Voice for the verified result.")
@@ -81,7 +81,7 @@ final class ProactiveVoiceCoordinator {
             return
         }
         let content = UNMutableNotificationContent()
-        content.title = "Zoid Coach"
+        content.title = "Zoid 666"
         content.body = text
         content.sound = nil
         let request = UNNotificationRequest(

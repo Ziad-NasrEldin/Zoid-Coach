@@ -32,7 +32,7 @@ class ScenarioRegistryTests(unittest.TestCase):
         self.assertEqual(payload["scenarios"][0]["id"], "ZC-001-001")
         self.assertEqual(
             payload["scenarios"][0]["wording"],
-            "Open Zoid Coach for the first time and immediately understand that it helps connect planned work with actual computer activity.",
+            "Open Zoid 666 for the first time and immediately understand that it helps connect planned work with actual computer activity.",
         )
         self.assertEqual(payload["scenarios"][0]["disposition"], "required_now")
 

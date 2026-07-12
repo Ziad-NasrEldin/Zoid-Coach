@@ -82,19 +82,19 @@ struct ZoidCoachAgentMain {
             }
             if configuration.printRemindersStatus {
                 if let qaFixtureAdapter {
-                    print("Zoid Coach agent: QA Reminders status \(try qaFixtureAdapter.permission(.reminders).rawValue)")
+                    print("Zoid 666 agent: QA Reminders status \(try qaFixtureAdapter.permission(.reminders).rawValue)")
                 } else {
-                    print("Zoid Coach agent: Apple Reminders status \(AgentPermissionRequester.remindersStatus())")
+                    print("Zoid 666 agent: Apple Reminders status \(AgentPermissionRequester.remindersStatus())")
                 }
                 return
             }
             if configuration.requestRemindersAccess {
                 if let qaFixtureAdapter {
                     let granted = try qaFixtureAdapter.permission(.reminders) == .granted
-                    print(granted ? "Zoid Coach agent: QA Reminders access granted" : "Zoid Coach agent: QA Reminders access was not granted")
+                    print(granted ? "Zoid 666 agent: QA Reminders access granted" : "Zoid 666 agent: QA Reminders access was not granted")
                 } else {
                     let granted = try await AgentPermissionRequester.requestRemindersAccess()
-                    print(granted ? "Zoid Coach agent: Apple Reminders access granted" : "Zoid Coach agent: Apple Reminders access was not granted")
+                    print(granted ? "Zoid 666 agent: Apple Reminders access granted" : "Zoid 666 agent: Apple Reminders access was not granted")
                 }
                 return
             }
@@ -461,7 +461,7 @@ struct ZoidCoachAgentMain {
                         timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier,
                         missedTriggerAt: previousHeartbeat
                     )
-                    print("Zoid Coach agent: recovered delayed overnight plan after wake")
+                    print("Zoid 666 agent: recovered delayed overnight plan after wake")
                 }
             }
             if configuration.draftPlan {
@@ -498,11 +498,11 @@ struct ZoidCoachAgentMain {
                             notifications: notificationCoordinator
                         )
                     }
-                    print("Zoid Coach agent: drafted \(itemCount) daily commitments")
+                    print("Zoid 666 agent: drafted \(itemCount) daily commitments")
                 case .retainedExisting:
-                    print("Zoid Coach agent: retained the existing daily plan")
+                    print("Zoid 666 agent: retained the existing daily plan")
                 case .remindersAccessUnavailable:
-                    print("Zoid Coach agent: Apple Reminders full access is unavailable")
+                    print("Zoid 666 agent: Apple Reminders full access is unavailable")
                 }
             }
             if configuration.watch {
@@ -549,7 +549,7 @@ struct ZoidCoachAgentMain {
                             calendar: calendarSource
                         )
                     }
-                    print("Zoid Coach agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
+                    print("Zoid 666 agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
                     _ = try? todayDashboardAgent.snapshot(now: Date())
                     let now = Date()
                     _ = try promptStore.expireDue()
@@ -684,11 +684,11 @@ struct ZoidCoachAgentMain {
                                     notifications: notificationCoordinator
                                 )
                             }
-                            print("Zoid Coach agent: overnight draft prepared with \(itemCount) commitments")
+                            print("Zoid 666 agent: overnight draft prepared with \(itemCount) commitments")
                         case .retainedExisting:
-                            print("Zoid Coach agent: overnight draft already exists")
+                            print("Zoid 666 agent: overnight draft already exists")
                         case .remindersAccessUnavailable:
-                            print("Zoid Coach agent: overnight draft is waiting for Apple Reminders access")
+                            print("Zoid 666 agent: overnight draft is waiting for Apple Reminders access")
                         }
                         lastAutomaticDraftAttempt = now
                     }
@@ -724,17 +724,17 @@ struct ZoidCoachAgentMain {
                     policy: initialPolicy,
                     calendar: calendarSource
                 )
-                print("Zoid Coach agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
+                print("Zoid 666 agent: \(result.insertedCount) observations ingested, \(analysis.candidatesCreated) meeting candidates created")
                 _ = try? todayDashboardAgent.snapshot(now: Date())
             }
         } catch let error as AgentOSAdapterBoundaryError {
-            fputs("Zoid Coach agent refused QA OS access: \(error.localizedDescription)\n", stderr)
+            fputs("Zoid 666 agent refused QA OS access: \(error.localizedDescription)\n", stderr)
             Darwin.exit(EXIT_FAILURE)
         } catch {
             databaseWriteCircuitBreaker.trip(reason: error.localizedDescription)
-            fputs("Zoid Coach agent entered read-only mode: \(error.localizedDescription)\n", stderr)
+            fputs("Zoid 666 agent entered read-only mode: \(error.localizedDescription)\n", stderr)
             guard let activeRuntimeEnvironment else {
-                fputs("Zoid Coach agent cannot start XPC without a validated runtime identity\n", stderr)
+                fputs("Zoid 666 agent cannot start XPC without a validated runtime identity\n", stderr)
                 Darwin.exit(EXIT_FAILURE)
             }
             let degradedService = TodayDashboardXPCService(
@@ -776,7 +776,7 @@ struct ZoidCoachAgentMain {
             decisionKey: "plan-ready:\(dayKey)",
             type: "PLAN_READY",
             title: "Tomorrow's plan is ready",
-            summary: "Zoid Coach selected \(itemCount) evidence-backed commitment\(itemCount == 1 ? "" : "s").",
+            summary: "Zoid 666 selected \(itemCount) evidence-backed commitment\(itemCount == 1 ? "" : "s").",
             actions: [
                 PromptAction(kind: .acceptPlan, title: "Accept", role: .primary),
                 PromptAction(kind: .reviewPlan, title: "Review")
@@ -1002,15 +1002,15 @@ struct ZoidCoachAgentMain {
                     policyVersion: policyVersion,
                     origin: .automaticPlan
                 )
-                print("Zoid Coach agent: recorded \(result.scheduledBlockCount) Calendar and \(result.reminderMutationCount) Reminder would-do actions")
+                print("Zoid 666 agent: recorded \(result.scheduledBlockCount) Calendar and \(result.reminderMutationCount) Reminder would-do actions")
                 return
             }
             if !trust.allowsAutomaticWrites {
-                print("Zoid Coach agent: shadow cycle \(trust.observedCycleCount)/\(trust.requiredCycleCount) recorded without external writes")
+                print("Zoid 666 agent: shadow cycle \(trust.observedCycleCount)/\(trust.requiredCycleCount) recorded without external writes")
                 return
             }
             guard policy.operatingMode == .fullyAutomatic else {
-                print("Zoid Coach agent: plan retained without external writes in \(policy.operatingMode.rawValue) mode")
+                print("Zoid 666 agent: plan retained without external writes in \(policy.operatingMode.rawValue) mode")
                 return
             }
             let result = try await scheduler.enqueueSchedule(
@@ -1025,7 +1025,7 @@ struct ZoidCoachAgentMain {
                 scheduledLocalDay: localDayKey(day, timeZoneIdentifier: policy.schedule.timeZoneIdentifier),
                 timeZoneIdentifier: policy.schedule.timeZoneIdentifier
             )
-            print("Zoid Coach agent: enqueued \(result.scheduledBlockCount) Calendar blocks and \(result.reminderMutationCount) Reminder updates")
+            print("Zoid 666 agent: enqueued \(result.scheduledBlockCount) Calendar blocks and \(result.reminderMutationCount) Reminder updates")
             try enqueueWakeNotificationIfEligible(
                 day: day,
                 policy: policy,
@@ -1040,7 +1040,7 @@ struct ZoidCoachAgentMain {
                 at: Date(),
                 diagnostic: String(describing: type(of: error))
             )
-            print("Zoid Coach agent: plan actions are waiting for Calendar or Reminders permission")
+            print("Zoid 666 agent: plan actions are waiting for Calendar or Reminders permission")
         }
     }
 
@@ -1051,7 +1051,7 @@ struct ZoidCoachAgentMain {
                 try? await Task.sleep(for: .seconds(30))
                 guard !Task.isCancelled else { return }
                 if await progressMonitor.requiresRestart(policy: policy) {
-                    fputs("Zoid Coach agent watchdog: no successful progress for 180 seconds; restarting through launchd\n", stderr)
+                    fputs("Zoid 666 agent watchdog: no successful progress for 180 seconds; restarting through launchd\n", stderr)
                     Foundation.exit(EXIT_FAILURE)
                 }
             }

@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 26
+    public static let currentVersion = 27
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -104,6 +104,11 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
             guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
                 throw AutonomousDatabaseMigrationError.statement(errorMessage(database))
             }
+        case let .sqlIfTableExists(table, sql):
+            guard try tableExists(table, database: database) else { return }
+            guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
+                throw AutonomousDatabaseMigrationError.statement(errorMessage(database))
+            }
         }
     }
 
@@ -128,6 +133,22 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
             if String(cString: name) == column { return true }
         }
         return false
+    }
+
+    private func tableExists(_ table: String, database: OpaquePointer) throws -> Bool {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else {
+            throw AutonomousDatabaseMigrationError.inspectTable(table)
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(table, statement, 1)
+        return sqlite3_step(statement) == SQLITE_ROW
     }
 
     public func createRecoveryBackup() throws -> URL {
@@ -191,6 +212,7 @@ private extension AutonomousDatabaseMigrator {
     enum MigrationOperation {
         case sql(String)
         case addColumn(table: String, column: String, declaration: String)
+        case sqlIfTableExists(table: String, sql: String)
     }
 
     static let migrations: [Migration] = [
@@ -604,7 +626,7 @@ private extension AutonomousDatabaseMigrator {
         Migration(version: 19, isDestructive: false, operations: [.sql("""
         UPDATE meeting_candidates SET source_evidence = '' WHERE COALESCE(source_evidence, '') <> '';
         UPDATE prompt_episodes
-        SET summary = 'Meeting details are available in Zoid Coach.',
+        SET summary = 'Meeting details are available in Zoid 666.',
             payload_json = json_remove(payload_json, '$.sourceEvidence')
         WHERE prompt_type = 'MEETING_CANDIDATE';
         """)]),
@@ -805,7 +827,12 @@ private extension AutonomousDatabaseMigrator {
                 SELECT RAISE(ABORT, 'invalid source_kind');
             END;
             """)
-        ])
+        ]),
+        Migration(version: 27, isDestructive: false, operations: [.sqlIfTableExists(table: "prompt_episodes", sql: """
+        UPDATE prompt_episodes
+        SET summary = replace(summary, 'Zoid Coach', 'Zoid 666')
+        WHERE instr(summary, 'Zoid Coach') > 0;
+        """)])
     ]
 }
 
@@ -821,7 +848,7 @@ public enum AutonomousDatabaseMigrationError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .openDatabase: "Could not open the Zoid Coach database for migration."
+        case .openDatabase: "Could not open the Zoid 666 database for migration."
         case let .prepareSchema(message): "Could not prepare migration metadata: \(message)"
         case .readVersion: "Could not read the current database version."
         case let .begin(version, message): "Could not begin migration \(version): \(message)"

@@ -1,8 +1,8 @@
-# Zoid Coach Full-System Implementation Program
+# Zoid 666 Full-System Implementation Program
 
 ## Document purpose
 
-This program defines how to move the current Zoid Coach app from 6 independently retained negative invariants and 15 positive scenarios awaiting isolated UI re-verification to a complete, independently verified product across the full 666-scenario tracker.
+This program defines how to move the current Zoid 666 app from 6 independently retained negative invariants and 15 positive scenarios awaiting isolated UI re-verification to a complete, independently verified product across the full 666-scenario tracker.
 
 The authoritative acceptance source is `docs/zoid-coach-product-scenario-tracker.md`.
 

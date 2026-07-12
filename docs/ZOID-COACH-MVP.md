@@ -1,13 +1,13 @@
-# Zoid Coach MVP
+# Zoid 666 MVP
 
 **Date:** 2026-07-09
 
-**Product name:** Zoid Coach
+**Product name:** Zoid 666
 **Goal:** Turn Screenwatch from a passive behavior log into an interactive AI work coach that helps Ziad choose, start, finish, and review work every day.
 
 ## 1. Core thesis
 
-Zoid Coach should close the loop between intention and behavior:
+Zoid 666 should close the loop between intention and behavior:
 
 ```text
 Intent → Estimate → Observe → Nudge → Adjust → Review
@@ -70,7 +70,7 @@ Read:
 - notes;
 - priority, if available.
 
-Zoid Coach stores extra local metadata beside each reminder.
+Zoid 666 stores extra local metadata beside each reminder.
 
 Example task metadata:
 
@@ -103,7 +103,7 @@ Screenwatch provides behavior telemetry:
 
 ### Full local app list
 
-Zoid Coach should inspect the Mac’s installed apps and classify them into buckets:
+Zoid 666 should inspect the Mac’s installed apps and classify them into buckets:
 
 - Work;
 - Communication;
@@ -127,7 +127,7 @@ The dashboard should be local-first and simple.
 #### Header
 
 ```text
-Zoid Coach — Today
+Zoid 666 — Today
 Thursday, July 9
 ```
 
@@ -198,7 +198,7 @@ Next unlock: finish one priority task
 
 ## 5. Estimate collection
 
-Zoid Coach should ask for a user estimate whenever a new Reminder task has no estimate.
+Zoid 666 should ask for a user estimate whenever a new Reminder task has no estimate.
 
 Prompt:
 
@@ -229,7 +229,7 @@ I recommend blocking 75m.
 
 ## 6. Behavior classification
 
-Zoid Coach should classify what Ziad is doing using both rules and AI.
+Zoid 666 should classify what Ziad is doing using both rules and AI.
 
 ### Categories
 
@@ -291,7 +291,7 @@ The AI classifier should use:
 
 ## 7. Interruption levels
 
-Interventions should be graded. Zoid Coach should not jump immediately to blocking.
+Interventions should be graded. Zoid 666 should not jump immediately to blocking.
 
 ### Level 0 — Observe
 
@@ -363,7 +363,7 @@ Default: off.
 
 ## 8. Morning planning flow
 
-Every morning, Zoid Coach should ask:
+Every morning, Zoid 666 should ask:
 
 ```text
 Good morning Ziad. What are the 3 things that would make today successful?
@@ -409,7 +409,7 @@ Estimated: 45m
 Started: 10:30 AM
 ```
 
-Zoid Coach watches whether behavior matches the active task.
+Zoid 666 watches whether behavior matches the active task.
 
 Example mismatch:
 
@@ -539,7 +539,7 @@ Buttons:
 
 ## 12. End-of-day review
 
-Every night, Zoid Coach should generate a short review.
+Every night, Zoid 666 should generate a short review.
 
 Example:
 
@@ -569,7 +569,7 @@ What is tomorrow’s main task?
 
 ## 13. Weekly AI coach review
 
-Once a week, Zoid Coach should analyze patterns.
+Once a week, Zoid 666 should analyze patterns.
 
 Example:
 
@@ -675,7 +675,7 @@ Success criteria:
 
 Start with this exact build:
 
-**Zoid Coach Daily Command Center**
+**Zoid 666 Daily Command Center**
 
 It should:
 

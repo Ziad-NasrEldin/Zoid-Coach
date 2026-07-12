@@ -20,7 +20,7 @@ func onboardingStoreAcceptsTheTrustedMacOSTemporaryDirectoryAlias() throws {
     let saved = try store.save(OnboardingProgress())
 
     #expect(try store.load() == saved)
-    #expect(store.fileURL.path.hasSuffix("Zoid Coach/onboarding-progress.json"))
+    #expect(store.fileURL.path.hasSuffix("Zoid 666/onboarding-progress.json"))
 }
 
 @Test
@@ -92,7 +92,7 @@ func descriptorDirectoryCreationSyncsEachParentImmediatelyAfterMkdir() throws {
 
     _ = try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
         rootURL: root,
-        directoryName: "Zoid Coach",
+        directoryName: "Zoid 666",
         createRootIfMissing: true,
         checkpoint: recorder.record,
         unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
@@ -102,8 +102,8 @@ func descriptorDirectoryCreationSyncsEachParentImmediatelyAfterMkdir() throws {
     #expect(recorder.values == [
         .createdRootComponent("Application Support"),
         .syncedRootComponentParent("Application Support"),
-        .createdStateDirectory("Zoid Coach"),
-        .syncedStateDirectoryParent("Zoid Coach"),
+        .createdStateDirectory("Zoid 666"),
+        .syncedStateDirectoryParent("Zoid 666"),
     ])
 }
 
@@ -126,7 +126,7 @@ func descriptorDirectoryCreationFailsBeforeUseWhenParentSyncFails() throws {
     )) {
         try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
             rootURL: root,
-            directoryName: "Zoid Coach",
+            directoryName: "Zoid 666",
             createRootIfMissing: true,
             operations: operations,
             checkpoint: recorder.record,
@@ -135,7 +135,7 @@ func descriptorDirectoryCreationFailsBeforeUseWhenParentSyncFails() throws {
         )
     }
     #expect(recorder.values == [.createdRootComponent("Application Support")])
-    #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("Zoid Coach").path))
+    #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("Zoid 666").path))
 }
 
 @Test
@@ -156,7 +156,7 @@ func descriptorDirectoryCreationSurfacesInjectedMkdirFailureWithoutCheckpoint() 
     )) {
         try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
             rootURL: root,
-            directoryName: "Zoid Coach",
+            directoryName: "Zoid 666",
             operations: operations,
             checkpoint: recorder.record,
             unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
@@ -185,7 +185,7 @@ func descriptorRootCreationRetriesWithParentSyncAfterFailOnceFsync() throws {
     )) {
         try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
             rootURL: root,
-            directoryName: "Zoid Coach",
+            directoryName: "Zoid 666",
             createRootIfMissing: true,
             operations: operations,
             unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
@@ -197,7 +197,7 @@ func descriptorRootCreationRetriesWithParentSyncAfterFailOnceFsync() throws {
     let retryRecorder = DescriptorCheckpointRecorder()
     let storage = try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
         rootURL: root,
-        directoryName: "Zoid Coach",
+        directoryName: "Zoid 666",
         createRootIfMissing: true,
         operations: operations,
         checkpoint: retryRecorder.record,
@@ -209,8 +209,8 @@ func descriptorRootCreationRetriesWithParentSyncAfterFailOnceFsync() throws {
     #expect(retryRecorder.values == [
         .createdRootComponent("Application Support"),
         .syncedRootComponentParent("Application Support"),
-        .createdStateDirectory("Zoid Coach"),
-        .syncedStateDirectoryParent("Zoid Coach"),
+        .createdStateDirectory("Zoid 666"),
+        .syncedStateDirectoryParent("Zoid 666"),
     ])
     #expect(try storage.read("state.json") == Data("durable".utf8))
 }
@@ -233,20 +233,20 @@ func descriptorStateDirectoryRetriesWithParentSyncAfterFailOnceFsync() throws {
     )) {
         try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
             rootURL: root,
-            directoryName: "Zoid Coach",
+            directoryName: "Zoid 666",
             operations: operations,
             unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
             filesystemError: OnboardingProgressStoreError.filesystemOperation
         )
     }
     #expect(!FileManager.default.fileExists(
-        atPath: root.appendingPathComponent("Zoid Coach").path
+        atPath: root.appendingPathComponent("Zoid 666").path
     ))
 
     let retryRecorder = DescriptorCheckpointRecorder()
     let storage = try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
         rootURL: root,
-        directoryName: "Zoid Coach",
+        directoryName: "Zoid 666",
         operations: operations,
         checkpoint: retryRecorder.record,
         unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
@@ -255,8 +255,8 @@ func descriptorStateDirectoryRetriesWithParentSyncAfterFailOnceFsync() throws {
     try storage.writeAtomic(Data("durable".utf8), name: "state.json")
 
     #expect(retryRecorder.values == [
-        .createdStateDirectory("Zoid Coach"),
-        .syncedStateDirectoryParent("Zoid Coach"),
+        .createdStateDirectory("Zoid 666"),
+        .syncedStateDirectoryParent("Zoid 666"),
     ])
     #expect(try storage.read("state.json") == Data("durable".utf8))
 }
@@ -706,11 +706,11 @@ func onboardingStoreRejectsIntermediateAndFinalDirectorySymlinks() throws {
         withIntermediateDirectories: true
     )
     try FileManager.default.createSymbolicLink(
-        at: final.runtime.applicationSupportRoot.appendingPathComponent("Zoid Coach"),
+        at: final.runtime.applicationSupportRoot.appendingPathComponent("Zoid 666"),
         withDestinationURL: outsideFinal
     )
     let finalStore = OnboardingProgressStore(runtimeEnvironment: final.runtime)
-    #expect(throws: OnboardingProgressStoreError.unsafeFilesystemEntry("Zoid Coach")) {
+    #expect(throws: OnboardingProgressStoreError.unsafeFilesystemEntry("Zoid 666")) {
         try finalStore.save(try OnboardingProgress())
     }
 }
@@ -884,8 +884,8 @@ func onboardingProductionAndQAStoresUseTheirIsolatedRuntimePaths() throws {
     let qaStore = OnboardingProgressStore(runtimeEnvironment: qa)
     _ = OnboardingProgressStore(runtimeEnvironment: qa, fileManager: .default)
 
-    #expect(productionStore.fileURL.path == productionSupport.path + "/Zoid Coach/onboarding-progress.json")
-    #expect(qaStore.fileURL.path == qaRoot.path + "/Application Support/Zoid Coach/onboarding-progress.json")
+    #expect(productionStore.fileURL.path == productionSupport.path + "/Zoid 666/onboarding-progress.json")
+    #expect(qaStore.fileURL.path == qaRoot.path + "/Application Support/Zoid 666/onboarding-progress.json")
     #expect(productionStore.fileURL != qaStore.fileURL)
     try qaStore.save(try OnboardingProgress())
     #expect(!FileManager.default.fileExists(atPath: productionStore.fileURL.path))

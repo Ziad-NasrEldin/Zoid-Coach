@@ -320,7 +320,7 @@ private struct ScreenwatchSetupFixture {
     let calendar: Calendar
     var bookmarkFileURL: URL {
         runtime.applicationSupportRoot
-            .appendingPathComponent("Zoid Coach", isDirectory: true)
+            .appendingPathComponent("Zoid 666", isDirectory: true)
             .appendingPathComponent("screenwatch-source-v1.bookmark", isDirectory: false)
     }
 

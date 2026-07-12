@@ -40,7 +40,7 @@ func meetingPromptIncludesDecisionEvidenceAndCalendarContext() throws {
     #expect(draft.summary.contains("Maadi office"))
     #expect(draft.summary.contains("https://meet.example/roadmap"))
     #expect(draft.summary.contains("Africa/Cairo"))
-    #expect(draft.summary.contains("Encrypted conversation evidence is available in Zoid Coach"))
+    #expect(draft.summary.contains("Encrypted conversation evidence is available in Zoid 666"))
     #expect(draft.payload["sourceEvidence"] == nil)
     #expect(draft.summary.contains("Work"))
     #expect(draft.summary.contains("Product review"))

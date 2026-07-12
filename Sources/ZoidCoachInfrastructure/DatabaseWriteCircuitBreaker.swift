@@ -62,7 +62,7 @@ public enum DatabaseWriteCircuitBreakerError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case let .readOnly(reason):
-            return "Zoid Coach is read-only because a database write failed. External actions are blocked. \(reason)"
+            return "Zoid 666 is read-only because a database write failed. External actions are blocked. \(reason)"
         }
     }
 }

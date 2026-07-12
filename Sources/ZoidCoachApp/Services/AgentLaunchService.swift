@@ -93,11 +93,11 @@ final class AgentLaunchService {
         guard isBundled else {
             return SourceHealth(
                 id: .agent,
-                title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
                 eyebrow: "Autonomy",
                 state: .unavailable,
                 detail: "The background agent is available in the packaged app",
-                evidence: "Build the signed Zoid Coach.app to enable overnight planning",
+                evidence: "Build the signed Zoid 666.app to enable overnight planning",
                 actionTitle: "Package"
             )
         }
@@ -107,7 +107,7 @@ final class AgentLaunchService {
         case .enabled:
             return SourceHealth(
                 id: .agent,
-                title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
                 eyebrow: "Autonomy",
                 state: .healthy,
                 detail: "Background planning agent is enabled",
@@ -117,17 +117,17 @@ final class AgentLaunchService {
         case .requiresApproval:
             return SourceHealth(
                 id: .agent,
-                title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
                 eyebrow: "Autonomy",
                 state: .attention,
                 detail: "Background agent needs approval in Login Items",
-                evidence: "Enable Zoid Coach in System Settings, then retry",
+                evidence: "Enable Zoid 666 in System Settings, then retry",
                 actionTitle: "Retry"
             )
         case .notRegistered:
             return SourceHealth(
                 id: .agent,
-                title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
                 eyebrow: "Autonomy",
                 state: .notConnected,
                 detail: "Background planning is not enabled",
@@ -137,17 +137,17 @@ final class AgentLaunchService {
         case .notFound:
             return SourceHealth(
                 id: .agent,
-                title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
                 eyebrow: "Autonomy",
                 state: .unavailable,
                 detail: "The bundled agent could not be found",
-                evidence: "Repackage Zoid Coach before enabling autonomy",
+                evidence: "Repackage Zoid 666 before enabling autonomy",
                 actionTitle: "Package"
             )
         case .unknown:
             return SourceHealth(
                 id: .agent,
-                title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
                 eyebrow: "Autonomy",
                 state: .attention,
                 detail: "Background-agent status is not recognized",
@@ -183,7 +183,7 @@ final class AgentLaunchService {
         } catch {
             return SourceHealth(
                 id: .agent,
-                title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
                 eyebrow: "Autonomy",
                 state: .attention,
                 detail: "Background planning could not be enabled",
@@ -206,7 +206,7 @@ final class AgentLaunchService {
         } catch {
             return SourceHealth(
                 id: .agent,
-                title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
                 eyebrow: "Autonomy",
                 state: .attention,
                 detail: "Background planning could not be disabled",
@@ -220,7 +220,7 @@ final class AgentLaunchService {
     private var isolatedQAHealth: SourceHealth {
         SourceHealth(
             id: .agent,
-            title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
             eyebrow: "Autonomy",
             state: .unavailable,
             detail: "QA background agent is disabled",
@@ -232,11 +232,11 @@ final class AgentLaunchService {
     private var unavailableProductionServiceHealth: SourceHealth {
         SourceHealth(
             id: .agent,
-            title: "Zoid Coach Agent",
+                title: "Zoid 666 Agent",
             eyebrow: "Autonomy",
             state: .unavailable,
             detail: "The background agent service is unavailable",
-            evidence: "Repackage Zoid Coach before enabling autonomy",
+            evidence: "Repackage Zoid 666 before enabling autonomy",
             actionTitle: "Package"
         )
     }

@@ -27,7 +27,7 @@ struct OnboardingDeliveryTestService {
                 }
                 _ = try await fixtureAdapter.schedule(.init(
                     category: PromptNotificationCategory.planReady.rawValue,
-                    title: "Zoid Coach is ready",
+            title: "Zoid 666 is ready",
                     body: "This is the delivery check. No action is required.",
                     promptID: "onboarding-delivery-test",
                     deliveryDate: Date()
@@ -58,7 +58,7 @@ struct OnboardingDeliveryTestService {
             )
         }
         let content = UNMutableNotificationContent()
-        content.title = "Zoid Coach is ready"
+        content.title = "Zoid 666 is ready"
         content.body = "This is the delivery check. No action is required."
         content.sound = .default
         let identifier = runtimeEnvironment.identity.notification.promptRequestPrefix

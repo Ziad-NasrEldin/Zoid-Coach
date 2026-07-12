@@ -34,7 +34,7 @@ struct AppClassificationLedger: View {
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
                 Spacer()
-                Text("AUTO USES ZOID COACH RULES")
+                Text("AUTO USES ZOID 666 RULES")
                     .font(Sumi.label(8))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)

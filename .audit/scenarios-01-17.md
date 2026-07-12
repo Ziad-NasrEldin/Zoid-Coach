@@ -1,19 +1,19 @@
-# Zoid Coach end-user scenario audit - sections 1-17
+# Zoid 666 end-user scenario audit - sections 1-17
 
 Audit date: 2026-07-12.
 
 This is a strict usability audit, so backend code or a passing unit test does not by itself qualify as fully implemented.
-The installed build at `/Users/ziadnasreldin/Applications/Zoid Coach.app` launched successfully and showed the Today dashboard, plan ledger, prompt inbox, meeting detections, and navigation, but no first-run onboarding appeared.
+The installed build at `/Users/ziadnasreldin/Applications/Zoid 666.app` launched successfully and showed the Today dashboard, plan ledger, prompt inbox, meeting detections, and navigation, but no first-run onboarding appeared.
 The current repository also passed all 188 Swift tests, which is used below as supporting evidence rather than end-to-end proof.
 A read-only check of the live database found zero current `daily_plan_entries`, `task_execution_states`, `task_activity_intervals`, `today_snapshots`, `prompt_episodes`, and `source_checkpoints`, so populated planning and task-session claims could not be promoted to fully implemented from the current user environment.
 
 ## 1. First launch
 
-- [ ] Open Zoid Coach for the first time and immediately understand that it helps connect planned work with actual computer activity. - **Partially implemented**: The installed app opens directly to a Today screen labelled around reminders and local sources, but there is no first-launch explanation or guided context (`ZoidCoachApp.swift:18-46`).
+- [ ] Open Zoid 666 for the first time and immediately understand that it helps connect planned work with actual computer activity. - **Partially implemented**: The installed app opens directly to a Today screen labelled around reminders and local sources, but there is no first-launch explanation or guided context (`ZoidCoachApp.swift:18-46`).
 - [ ] Understand that Apple Reminders represents intended work. - **Touches remaining**: Source health labels Reminders as `Intent` and Today says it is grounded in reminders, but the relationship is not explained during first launch (`AppModel.swift:594-604`; runtime screenshot).
 - [ ] Understand that Screenwatch represents observed computer activity. - **Partially implemented**: Source health labels Screenwatch as `Behavior`, but there is no first-launch explanation connecting captured activity to coaching (`AppModel.swift:634-644`).
 - [ ] Understand that the Today dashboard provides persistent status and prompts. - **Touches remaining**: The dashboard visibly contains source status and a shared prompt inbox, but first launch never explains persistence or how prompts return (`DashboardView.swift:312-353`).
-- [ ] Understand that Zoid Coach is a coach rather than a replacement task manager. - **Partially implemented**: The app calls itself a coach and shows Reminders inventory, but it never explicitly explains that Reminders remains the task system of record.
+- [ ] Understand that Zoid 666 is a coach rather than a replacement task manager. - **Partially implemented**: The app calls itself a coach and shows Reminders inventory, but it never explicitly explains that Reminders remains the task system of record.
 - [ ] Understand that the app does not punish, shame, or block the user by default. - **Not implemented**: No onboarding or settings copy states this user promise, and the installed first-launch surface does not communicate it.
 - [ ] Understand that important data stays on the Mac by default. - **Touches remaining**: Persistent `LOCAL ONLY` and `LOCAL-FIRST` labels are visible, with remote evidence controls, but the default privacy boundary is not introduced on first launch (`SettingsView.swift:281-294,572-648`).
 - [ ] Continue onboarding without being forced to configure optional AI features. - **Not implemented**: There is no onboarding flow or continuation action; the app simply opens the main dashboard, while AI remains optional only in Settings.
@@ -33,7 +33,7 @@ A read-only check of the live database found zero current `daily_plan_entries`, 
 
 ## 3. Screenwatch setup during onboarding
 
-- [ ] Let Zoid Coach find Screenwatch automatically at the expected location. - **Touches remaining**: The reader automatically checks `~/screenwatch/days/YYYY-MM-DD/log.jsonl`, and tests cover healthy and missing streams, but no onboarding confirmation was exercised (`ScreenwatchReader.swift:13-23,83-92`).
+- [ ] Let Zoid 666 find Screenwatch automatically at the expected location. - **Touches remaining**: The reader automatically checks `~/screenwatch/days/YYYY-MM-DD/log.jsonl`, and tests cover healthy and missing streams, but no onboarding confirmation was exercised (`ScreenwatchReader.swift:13-23,83-92`).
 - [ ] See whether the detected Screenwatch source is healthy. - **Fully implemented**: Source health reports missing, invalid, stale, or current telemetry with age and parsed-record evidence (`ScreenwatchReader.swift:22-80`; `DashboardView.swift:510-529`).
 - [ ] Select another Screenwatch folder when the default location is unavailable. - **Not implemented**: `ScreenwatchReader` is constructed with a fixed default base directory and no folder picker or persisted bookmark is exposed (`ScreenwatchReader.swift:13-20`).
 - [ ] Understand why a selected folder is invalid without seeing sensitive captured content. - **Not implemented**: There is no folder selection flow; fixed-source errors avoid content leakage but cannot validate a user-selected folder.
@@ -53,7 +53,7 @@ A read-only check of the live database found zero current `daily_plan_entries`, 
 
 ## 5. Initial preferences
 
-- [ ] Choose which Reminder lists Zoid Coach should use. - **Not implemented**: The app fetches every incomplete Reminder from all calendars and only lets users reorder list presentation (`RemindersService.swift:90-126`; `DashboardView.swift:298-308`).
+- [ ] Choose which Reminder lists Zoid 666 should use. - **Not implemented**: The app fetches every incomplete Reminder from all calendars and only lets users reorder list presentation (`RemindersService.swift:90-126`; `DashboardView.swift:298-308`).
 - [ ] Exclude personal or irrelevant Reminder lists. - **Not implemented**: No included or excluded Reminder-list policy exists in Settings or fetch filtering.
 - [ ] Preview detected applications before assigning categories. - **Touches remaining**: Settings inventory merges installed and observed apps and presents classification controls, with passing inventory tests, but the first-use flow is not guided or live-verified (`SettingsView.swift:486-492`; `AppClassificationLedger.swift`).
 - [ ] Mark known work applications. - **Touches remaining**: The app-classification ledger persists exact work overrides and tests pass, but the installed interaction was not exercised end to end (`SettingsPolicyDraft.swift:66-78`).
@@ -127,7 +127,7 @@ A read-only check of the live database found zero current `daily_plan_entries`, 
 ## 10. Skipping planning
 
 - [ ] Skip planning explicitly. - **Not implemented**: No Skip planning command exists in Today, notifications, prompt actions, or policy state.
-- [ ] Understand that Zoid Coach is now in limited unplanned mode. - **Not implemented**: There is no unplanned-day mode or explanatory state.
+- [ ] Understand that Zoid 666 is now in limited unplanned mode. - **Not implemented**: There is no unplanned-day mode or explanatory state.
 - [ ] See overdue and available tasks during an unplanned day. - **Partially implemented**: The full Reminder inventory remains visible with an empty plan, but it is not recognized or labelled as unplanned mode.
 - [ ] Start any available task during an unplanned day. - **Not implemented**: Inbox reminders can be added or completed, but not directly started without becoming a plan item and snapshot row.
 - [ ] See behavior totals without being told that behavior violated a nonexistent plan. - **Touches remaining**: Behavior totals can render with an empty plan and current UI does not show a violation label, but no explicit unplanned-mode E2E test covers drift suppression.
@@ -216,7 +216,7 @@ A read-only check of the live database found zero current `daily_plan_entries`, 
 - [ ] See the previous task pause automatically when starting another task. - **Touches remaining**: The transactional store pauses the prior task and a passing test proves the state transition, but no populated UI E2E sequence was exercised (`TaskExecutionStore.swift:39-45`; `TaskExecutionStoreTests`).
 - [ ] Avoid seeing two active tasks after clicking twice or using two surfaces. - **Touches remaining**: One database open interval and idempotent state updates prevent simultaneous active tasks, but multi-surface rapid-click behavior was not runtime-tested (`TaskExecutionStore.swift:35-46,142-148`).
 - [ ] See active-task status appear in the dashboard and menu bar. - **Partially implemented**: Dashboard rows show Active and switch commands, while the menu bar remains voice-only (`DashboardView.swift:644-659`; `ZoidCoachApp.swift:51-55`).
-- [ ] Restart Zoid Coach and continue the same active session without duplicated time. - **Touches remaining**: Open intervals and elapsed time persist in SQLite, and pause/restart timing tests pass, but an installed app start-restart-clock sequence was not performed (`TaskExecutionStore.swift:63-75,142-160`; `TaskExecutionStoreTests`).
+- [ ] Restart Zoid 666 and continue the same active session without duplicated time. - **Touches remaining**: Open intervals and elapsed time persist in SQLite, and pause/restart timing tests pass, but an installed app start-restart-clock sequence was not performed (`TaskExecutionStore.swift:63-75,142-160`; `TaskExecutionStoreTests`).
 
 ## 17. Choosing a work commitment
 

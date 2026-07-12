@@ -921,7 +921,7 @@ public enum ScreenwatchArchiveError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .openDatabase: "Could not open the local Zoid Coach database"
+        case .openDatabase: "Could not open the local Zoid 666 database"
         case .createSchema: "Could not initialize behavior-record storage"
         case .prepareInsert: "Could not prepare behavior-record storage"
         case .prepareRead: "Could not read pending screenshot analysis"

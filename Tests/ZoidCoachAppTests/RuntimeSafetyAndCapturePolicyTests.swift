@@ -54,7 +54,7 @@ struct RuntimeSafetyAndCapturePolicyTests {
         let native = NativeCapturePolicy.appOwnedDaysDirectory(applicationSupportDirectory: applicationSupport)
         let legacy = URL(fileURLWithPath: "/Users/test/screenwatch/days", isDirectory: true)
 
-        #expect(native.path == "/Users/test/Library/Application Support/Zoid Coach/native-capture/days")
+        #expect(native.path == "/Users/test/Library/Application Support/Zoid 666/native-capture/days")
         #expect(NativeCapturePolicy.pathsDoNotCollide(native: native, legacy: legacy))
         #expect(!NativeCapturePolicy.pathsDoNotCollide(native: legacy, legacy: legacy))
     }

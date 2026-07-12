@@ -1,4 +1,4 @@
-# Zoid Coach End-User Scenario Audit: Sections 18-34
+# Zoid 666 End-User Scenario Audit: Sections 18-34
 
 Audit date: 2026-07-12.
 
@@ -7,14 +7,14 @@ An item is checked only when the complete flow is available through the UI, its 
 
 Evidence used:
 
-- Installed app `/Users/ziadnasreldin/Applications/Zoid Coach.app`, version `0.1.0`, build `8`.
+- Installed app `/Users/ziadnasreldin/Applications/Zoid 666.app`, version `0.1.0`, build `8`.
 - Live Computer Use accessibility inspection of the Today dashboard.
 - Current source and tests under `Sources/` and `Tests/`.
 - `swift test` in the current checkout.
 - Process and persistence inspection for the running app and background agent.
 
 Critical runtime caveat:
-The running `ZoidCoachAgent` process still has its live SQLite files open under `$HOME/.Trash/Zoid Coach/`, while the canonical `$HOME/Library/Application Support/Zoid Coach/zoid-coach.sqlite` is currently a zero-byte file.
+The running `ZoidCoachAgent` process still has its live SQLite files open under `$HOME/.Trash/Zoid 666/`, while the canonical `$HOME/Library/Application Support/Zoid 666/zoid-coach.sqlite` is currently a zero-byte file.
 The installed app can display state through that already-running agent, but persistence and restart behavior are not trustworthy until the agent and canonical database are repaired and reverified.
 
 Status meanings:
@@ -69,13 +69,13 @@ Status meanings:
 
 ## 21. Changes made in Apple Reminders
 
-- [ ] See an externally completed Reminder update in Zoid Coach. - **Status: Partially implemented.** The agent periodically refreshes Reminder snapshots and Today rows are derived from incomplete snapshots, so the task should disappear after refresh. No live external-change E2E test or completed-history presentation was found.
+- [ ] See an externally completed Reminder update in Zoid 666. - **Status: Partially implemented.** The agent periodically refreshes Reminder snapshots and Today rows are derived from incomplete snapshots, so the task should disappear after refresh. No live external-change E2E test or completed-history presentation was found.
 - [ ] See an active externally completed task end with an understandable reason. - **Status: Not implemented.** A missing Reminder drops out of the snapshot; there is no explicit external-completion reason or session closure explanation.
 - [ ] See title, notes, list, due date, or priority changes made in Reminders appear after sync. - **Status: Partially implemented.** Reminder snapshots carry these source fields and refresh periodically, but Today rows expose only title, due date, and priority-derived urgency. Notes are not displayed, and no live sync test was performed.
 - [ ] Keep local estimates and coaching history when source-owned fields change. - **Status: Partially implemented.** Estimates live in the local plan by Reminder ID and task history is local, which should survive source field changes. The orphaned runtime database blocks credible restart proof.
 - [ ] See an active task pause when its Reminder is deleted externally. - **Status: Not implemented.** Deleted snapshots cause the row to be omitted; no deletion reconciliation pauses the open execution interval.
 - [ ] Choose whether to keep a deleted Reminder as a local historical task. - **Status: Not implemented.** No deleted-task decision UI or historical preservation choice exists.
-- [ ] Avoid having Zoid Coach automatically rewrite Reminder titles, notes, lists, or priorities. - **Status: Touches remaining.** The action system only creates/completes/reschedules supported entities and no automatic metadata rewrite path was found. This was verified statically, not through a complete external-change E2E test.
+- [ ] Avoid having Zoid 666 automatically rewrite Reminder titles, notes, lists, or priorities. - **Status: Touches remaining.** The action system only creates/completes/reschedules supported entities and no automatic metadata rewrite path was found. This was verified statically, not through a complete external-change E2E test.
 - [ ] Complete one recurring occurrence without modifying future occurrences. - **Status: Blocked from verification.** Completion targets an EventKit Reminder identifier, but no recurring-occurrence test or safe live proof establishes future-instance behavior.
 
 ## 22. Work away from the Mac
@@ -125,7 +125,7 @@ Status meanings:
 - [ ] Avoid a strong drift warning based only on uncertain activity. - **Status: Barely started.** Unknown classification exists, but drift warning generation does not.
 - [ ] Be asked for confirmation when ambiguity materially affects coaching. - **Status: Not implemented.** No ambiguity-confirmation prompt generator exists.
 - [ ] See a technical tutorial related to the active task treated as research or left uncertain. - **Status: Not implemented.** Content/task semantic context is not used in behavior classification.
-- [ ] Understand when Zoid Coach may be wrong. - **Status: Partially implemented.** Limited coverage and `Unclassified` communicate some uncertainty, but there is no explanation or correction affordance adjacent to a specific questionable classification.
+- [ ] Understand when Zoid 666 may be wrong. - **Status: Partially implemented.** Limited coverage and `Unclassified` communicate some uncertainty, but there is no explanation or correction affordance adjacent to a specific questionable classification.
 
 ## 26. Correcting observed activity
 

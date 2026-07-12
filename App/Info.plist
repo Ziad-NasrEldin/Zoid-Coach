@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Zoid Coach</string>
+    <string>Zoid 666</string>
     <key>CFBundleExecutable</key>
     <string>ZoidCoach</string>
     <key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Zoid Coach</string>
+    <string>Zoid 666</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -25,19 +25,19 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>Zoid Coach reads existing commitments and creates or updates its own work blocks to keep your daily plan realistic.</string>
+    <string>Zoid 666 reads existing commitments and creates or updates its own work blocks to keep your daily plan realistic.</string>
     <key>NSCalendarsUsageDescription</key>
-    <string>Zoid Coach reads existing commitments and creates or updates its own work blocks to keep your daily plan realistic.</string>
+    <string>Zoid 666 reads existing commitments and creates or updates its own work blocks to keep your daily plan realistic.</string>
     <key>NSRemindersFullAccessUsageDescription</key>
-    <string>Zoid Coach reads your selected reminders and updates completion when you explicitly complete a task.</string>
+    <string>Zoid 666 reads your selected reminders and updates completion when you explicitly complete a task.</string>
     <key>NSRemindersUsageDescription</key>
-    <string>Zoid Coach reads your selected reminders to build your daily plan.</string>
+    <string>Zoid 666 reads your selected reminders to build your daily plan.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Zoid Coach uses the microphone only while listening locally for Hey Zoid or during a visible voice conversation.</string>
+    <string>Zoid 666 uses the microphone only while listening locally for Hey Zoid or during a visible voice conversation.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Zoid Coach uses on-device speech recognition for the local wake word and command fallback after the Gemini budget cap.</string>
+    <string>Zoid 666 uses on-device speech recognition for the local wake word and command fallback after the Gemini budget cap.</string>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>Zoid Coach captures configured displays locally to understand work context and visible meeting proposals.</string>
+    <string>Zoid 666 captures configured displays locally to understand work context and visible meeting proposals.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>ZoidCoachPackageMode</key>

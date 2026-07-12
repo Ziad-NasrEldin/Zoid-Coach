@@ -47,7 +47,8 @@ protocol CalendarServicing: AnyObject {
 final class CalendarService: CalendarServicing {
     let isProductionAdapter = true
     private let store: EKEventStore
-    private let zoidCalendarTitle = "Zoid Coach"
+    private let zoidCalendarTitle = "Zoid 666"
+    private let legacyZoidCalendarTitle = "Zoid Coach"
     private let ownershipPrefix = "zoid-coach:block:"
 
     init(store: EKEventStore = EKEventStore()) {
@@ -214,7 +215,7 @@ final class CalendarService: CalendarServicing {
         event.title = title
         event.startDate = start
         event.endDate = start.addingTimeInterval(TimeInterval(max(1, durationMinutes) * 60))
-        event.notes = "Created by Zoid Coach after a confirmed local meeting detection."
+        event.notes = "Created by Zoid 666 after a confirmed local meeting detection."
         try store.save(event, span: .thisEvent, commit: true)
         return event.calendarItemIdentifier
     }
@@ -222,6 +223,11 @@ final class CalendarService: CalendarServicing {
     private func ensureZoidCalendar() throws -> EKCalendar {
         if let existing = store.calendars(for: .event).first(where: { $0.title == zoidCalendarTitle }) {
             return existing
+        }
+        if let legacy = store.calendars(for: .event).first(where: { $0.title == legacyZoidCalendarTitle }) {
+            legacy.title = zoidCalendarTitle
+            try store.saveCalendar(legacy, commit: true)
+            return legacy
         }
         guard let source = store.defaultCalendarForNewEvents?.source ?? store.sources.first else {
             throw CalendarServiceError.calendarUnavailable
@@ -235,13 +241,13 @@ final class CalendarService: CalendarServicing {
 
     private func authorizedHealth() async -> SourceHealth {
         let calendarCount = store.calendars(for: .event).count
-        let zoidCalendarExists = store.calendars(for: .event).contains { $0.title == zoidCalendarTitle }
+        let zoidCalendarExists = (try? ensureZoidCalendar()) != nil
         return SourceHealth(
             id: .calendar,
             title: "Apple Calendar",
             eyebrow: "Capacity",
             state: .healthy,
-            detail: zoidCalendarExists ? "Zoid Coach work calendar is ready" : "Calendar access is ready",
+            detail: zoidCalendarExists ? "Zoid 666 work calendar is ready" : "Calendar access is ready",
             evidence: "EventKit full access · \(calendarCount.formatted()) calendars discovered",
             actionTitle: "Refresh"
         )
@@ -288,7 +294,7 @@ enum CalendarServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .accessUnavailable: "Apple Calendar full access is unavailable"
-        case .calendarUnavailable: "A Calendar source is unavailable for Zoid Coach"
+        case .calendarUnavailable: "A Calendar source is unavailable for Zoid 666"
         }
     }
 }

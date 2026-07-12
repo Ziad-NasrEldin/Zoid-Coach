@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Product | Zoid Coach |
+| Product | Zoid 666 |
 | Document type | Founder-approved product direction addendum |
 | Status | Approved for phased implementation planning |
 | Date | 2026-07-10 |
@@ -13,7 +13,7 @@
 
 ## 1. Intent
 
-Zoid Coach will become a private, local-first executive function layer that works continuously, including while Ziad is asleep.
+Zoid 666 will become a private, local-first executive function layer that works continuously, including while Ziad is asleep.
 
 It will analyze prior and current evidence to construct a realistic daily plan, maintain that plan through the day, and learn from outcomes.
 
@@ -27,7 +27,7 @@ The long-term direction includes explicitly authorized wake-up interventions for
 
 ### 2.1 Automatic actions
 
-Zoid Coach may automatically create, reprioritize, and reschedule its own Apple Reminders and work blocks in Apple Calendar.
+Zoid 666 may automatically create, reprioritize, and reschedule its own Apple Reminders and work blocks in Apple Calendar.
 
 It may adjust its own existing work blocks when new evidence makes the plan stale.
 
@@ -37,7 +37,7 @@ The intended operating mode is fully automatic daily planning, not a manual prod
 
 ### 2.2 Confirmed actions
 
-Zoid Coach must request a fast, explicit confirmation before creating a calendar event inferred from a WhatsApp conversation.
+Zoid 666 must request a fast, explicit confirmation before creating a calendar event inferred from a WhatsApp conversation.
 
 This protects against natural-language ambiguity and prevents the system from representing an unconfirmed external commitment as fact.
 
@@ -150,7 +150,7 @@ Build the evidence-backed daily ranking, three-to-five-task plan, Today dashboar
 
 ### Phase 2: Autonomous Apple automation
 
-Add safe automatic reprioritization of Reminders plus creation and rescheduling of Zoid Coach work blocks while preserving calendar commitments.
+Add safe automatic reprioritization of Reminders plus creation and rescheduling of Zoid 666 work blocks while preserving calendar commitments.
 
 ### Phase 3: WhatsApp meeting capture
 

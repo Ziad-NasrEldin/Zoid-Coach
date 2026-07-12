@@ -29,7 +29,7 @@ The SwiftUI app must not calculate these values independently.
 
 The Today command ledger must visibly render the following sections in order.
 
-1. `Zoid Coach - Today`.
+1. `Zoid 666 - Today`.
 2. Formatted local date, such as `Thursday, July 9`.
 3. Main objective.
 4. Current active task, or the recommended-next fallback.

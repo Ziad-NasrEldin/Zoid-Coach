@@ -1,6 +1,6 @@
 # Build Identity
 
-Every packaged Zoid Coach app records the exact Git commit and repository state in its copied `Info.plist` before signing.
+Every packaged Zoid 666 app records the exact Git commit and repository state in its copied `Info.plist` before signing.
 The canonical identity is `zoid-coach-<40-character-commit>-<clean-or-dirty>`.
 
 The package contains these keys:

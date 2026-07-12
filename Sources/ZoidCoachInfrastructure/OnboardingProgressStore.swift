@@ -60,7 +60,6 @@ public enum OnboardingProgressStoreError: LocalizedError, Equatable, Sendable {
 /// The `fileManager` initializer argument remains source-compatible with the former Core store.
 /// Persistence intentionally uses descriptor-relative system calls instead of `FileManager`.
 public final class OnboardingProgressStore: @unchecked Sendable {
-    private static let directoryName = "Zoid Coach"
     private static let stateName = "onboarding-progress.json"
     private static let corruptStateName = "onboarding-progress.corrupt.json"
     private static let recoveryName = "onboarding-progress.recovery.json"
@@ -119,7 +118,7 @@ public final class OnboardingProgressStore: @unchecked Sendable {
                 return true
             }
         }
-        let directory = applicationSupportRoot.appendingPathComponent(Self.directoryName, isDirectory: true)
+        let directory = runtimeEnvironment.databaseURL.deletingLastPathComponent()
         fileURL = directory.appendingPathComponent(Self.stateName, isDirectory: false)
         corruptFileURL = directory.appendingPathComponent(Self.corruptStateName, isDirectory: false)
         recoveryFileURL = directory.appendingPathComponent(Self.recoveryName, isDirectory: false)
@@ -192,7 +191,7 @@ public final class OnboardingProgressStore: @unchecked Sendable {
     ) throws -> T {
         let storage = try DescriptorRelativeStateDirectory<OnboardingProgressStoreError>(
             rootURL: applicationSupportRoot,
-            directoryName: Self.directoryName,
+            directoryName: fileURL.deletingLastPathComponent().lastPathComponent,
             createRootIfMissing: true,
             unsafeEntryError: OnboardingProgressStoreError.unsafeFilesystemEntry,
             filesystemError: OnboardingProgressStoreError.filesystemOperation
