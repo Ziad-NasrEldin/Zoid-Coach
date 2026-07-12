@@ -59,7 +59,18 @@ Scripts/package-app.sh
 
 Package verification proved coherent application, LaunchAgent, Mach service, signing identities, full clean build identity, and the `Zoid 666 QA` display name.
 
-## Remaining independent verification
+## Independent verification on the integrated branch
 
-A parallel verifier should open two signed-QA Settings instances against the isolated QA root, create one overlapping and one independent edit, save the first instance, save the stale instance, inspect the conflict panel, exercise both decisions, relaunch, and compare the persisted winning policy and version history.
-The authoritative tracker and registry remain unchanged until that visible proof passes.
+- The 20 focused Settings tests passed against `codex/full-system` after integration.
+- The authoritative suite passed 462 Swift tests across five suites with four workers.
+- The Scenario Registry suite passed all 41 Python tests.
+- The release build and `git diff --check` passed.
+- The signed QA package passed deep code-sign validation.
+- The signed QA XPC probe passed mutation receipt verification, idempotent replay, and stale-version rejection.
+- Two deterministic Settings controllers against one database proved an overlapping current winner is preserved, a disjoint local edit remains available, Reapply My Changes retries against the new version, another intervening writer produces a fresh decision, and failed or stale requests create no duplicate versions.
+
+## Conservative acceptance boundary
+
+The native two-window click-through was not accepted as visible proof because the canonical signed-runtime installer encountered an interrupted staged replacement before it could open the application.
+No scenario was promoted to Fully implemented from this lane.
+The affected tracker rows record the stronger conflict-safe persistence evidence while retaining their prior conservative status until the visible Settings journey passes.

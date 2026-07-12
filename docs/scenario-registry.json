@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "e7f57a849ca6c591041e0ad37be7bf05e94de03978724ab85bb8d43c46e62ac1",
+  "tracker_sha256": "0e99700234fa35f94dbe1cee658bf9fb9e7f17103ccad586664b22c2e8a47afd",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9770,7 +9770,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Both controls persist through versioned policy and settings tests pass, but a live save, agent application, and relaunch check was not performed after runtime recovery.",
+      "audit_note": "Both controls persist through versioned policy and settings tests pass, including two-controller conflict recovery that preserves the current winner, rebases independent edits, and avoids duplicate policy versions. A visible signed-app save and relaunch check remains.",
       "tracker_line": 625
     },
     {
@@ -9791,7 +9791,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Nightly planning and morning confirmation are configurable, but review time is absent.",
+      "audit_note": "Nightly planning and morning confirmation are configurable and now participate in field-level conflict recovery, but review time is absent.",
       "tracker_line": 626
     },
     {
@@ -9896,7 +9896,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings now exposes permission state, System Settings repair, in-place recheck, discovery retry, explicit local-only configuration, deleted-list notices, and stable-ID Include or Exclude controls. Saves use list-only CAS rebasing, preserve concurrent unrelated settings, and refresh visible tasks exactly once; deterministic signed-QA restart and rename proof passes, while the Settings click-through remains unperformed.",
+      "audit_note": "Settings now exposes permission state, System Settings repair, in-place recheck, discovery retry, explicit local-only configuration, deleted-list notices, and stable-ID Include or Exclude controls. Saves use CAS rebasing, preserve concurrent unrelated settings, expose explicit Keep Current Values and Reapply My Changes decisions for overlapping edits, and refresh visible tasks exactly once. Deterministic signed-QA restart, rename, stale-writer rejection, and duplicate-free retry proof passes, while the Settings conflict click-through remains unperformed.",
       "tracker_line": 631
     },
     {
@@ -10022,7 +10022,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Observe, Suggest, Approve actions, and Autonomous operating modes exist, but these control automation authority rather than behavior-coaching style.",
+      "audit_note": "Observe, Suggest, Approve actions, and Autonomous operating modes exist and now participate in conflict-safe Settings saves, but these control automation authority rather than behavior-coaching style.",
       "tracker_line": 640
     },
     {
@@ -10085,7 +10085,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Quiet start/end controls persist in the versioned schedule policy; enforcement is present for scheduled wake behavior, but a complete behavior-prompt journey cannot be tested because behavior prompts are absent.",
+      "audit_note": "Quiet start/end controls persist in the versioned schedule policy and now survive disjoint concurrent Settings edits without overwriting a newer value. Enforcement is present for scheduled wake behavior, but a complete behavior-prompt journey cannot be tested because behavior prompts are absent.",
       "tracker_line": 643
     },
     {
@@ -10169,7 +10169,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`AppClassificationLedger` lists known/saved applications and work, gaming, or automatic choices; persistence tests pass, but a live classify-observe-result journey was not run.",
+      "audit_note": "`AppClassificationLedger` lists known/saved applications and work, gaming, or automatic choices. Persistence and conflict-retry tests preserve a newer classification winner and independent local edits without duplicate versions, but a live classify-observe-result journey was not run.",
       "tracker_line": 647
     },
     {
@@ -10253,7 +10253,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A persisted Screenwatch screenshot-analysis toggle exists and policy tests cover persistence; live agent behavior after toggling was not verified.",
+      "audit_note": "A persisted Screenwatch screenshot-analysis toggle exists, participates in field-level conflict recovery, and has persistence coverage. Live agent behavior after toggling was not verified.",
       "tracker_line": 651
     },
     {
@@ -10358,7 +10358,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Defaults select Disabled and Local only, remote evidence is disabled for local providers, and policy tests enforce it, but the installed settings state and an offline relaunch were not verified end to end.",
+      "audit_note": "Defaults select Disabled and Local only, remote evidence is disabled for local providers, and policy plus conflict tests preserve a newer remote-evidence winner. The installed settings state and an offline relaunch were not verified end to end.",
       "tracker_line": 659
     },
     {
@@ -10379,7 +10379,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings exposes Disabled, local Ollama, and Codex CLI according to capability gates, plus model/reasoning selection; actual provider execution was not exercised end to end.",
+      "audit_note": "Settings exposes Disabled, local Ollama, and Codex CLI according to capability gates, plus model/reasoning selection. Provider, model, and reasoning choices now participate in field-level conflict recovery, but actual provider execution was not exercised end to end.",
       "tracker_line": 660
     },
     {
@@ -10400,7 +10400,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Provider and Remote Evidence controls distinguish local-only/redacted/private modes, but the wording is evidence policy rather than a simple processing-location choice and no request preview is supplied.",
+      "audit_note": "Provider and Remote Evidence controls distinguish local-only, redacted, and private modes and preserve current winners during concurrent Settings saves. The wording is evidence policy rather than a simple processing-location choice, and no request preview is supplied.",
       "tracker_line": 661
     },
     {
@@ -10484,7 +10484,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Selecting Disabled preserves deterministic planning and tracking, but behavior coaching and reviews are not available to preserve, and the complete settings-to-runtime transition was not exercised.",
+      "audit_note": "Selecting Disabled preserves deterministic planning and tracking and now saves through the same conflict-safe version boundary as other Settings fields. Behavior coaching and reviews are not available to preserve, and the complete settings-to-runtime transition was not exercised.",
       "tracker_line": 665
     },
     {
