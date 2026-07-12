@@ -1614,6 +1614,8 @@ private struct SourceHealthLedgerView: View {
             ForEach(model.sources) { source in
                 SourceHealthRow(source: source)
             }
+
+            LocalSystemDiagnosticsView()
         }
     }
 }
