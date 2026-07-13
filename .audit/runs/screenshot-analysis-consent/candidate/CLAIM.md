@@ -11,8 +11,10 @@
 - `Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`
 - `Sources/ZoidCoachApp/Views/SettingsView.swift`
 - `Sources/ZoidCoachAgent/AgentMain.swift`
+- `Sources/ZoidCoachInfrastructure/ScreenwatchArchive.swift`
 - `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`
 - `Tests/ZoidCoachAppTests/ScreenwatchArchiveTests.swift`
+- `Tests/ZoidCoachAppTests/PromptResponseEffectRouterTests.swift`
 - `.audit/runs/screenshot-analysis-consent/candidate/*`
 
 ## Boundaries

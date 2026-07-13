@@ -822,8 +822,20 @@ struct SettingsView: View {
 
     private var privacySection: some View {
         SettingsCard(title: "AI + DATA RETENTION", detail: AIProviderCapabilities.production.settingsSummary) {
-            Toggle("Analyze Screenwatch screenshots", isOn: $controller.draft.screenshotAnalysisEnabled)
+            Toggle(
+                "Use screenshots only for ambiguous activity",
+                isOn: $controller.draft.screenshotAnalysisEnabled
+            )
                 .toggleStyle(SumiToggleStyle())
+                .accessibilityIdentifier("settings.screenshot-analysis")
+            Text(
+                controller.draft.screenshotAnalysisEnabled
+                    ? "ON · The local agent may inspect a Screenwatch screenshot only when app and time evidence remain ambiguous."
+                    : "OFF · Screenshots are never inspected, and ambiguous activity remains unknown for later review."
+            )
+            .font(Sumi.body(12))
+            .foregroundStyle(Sumi.muted)
+            .accessibilityIdentifier("settings.screenshot-analysis.explanation")
             SumiChoiceList(
                 "AI PROVIDER",
                 options: AIProviderSelection.allCases,

@@ -44,6 +44,7 @@ final class OnboardingCoordinator: ObservableObject {
     @Published var quietEndHour = 7
     @Published var quietEndMinute = 0
     @Published var gamingPolicy = OnboardingGamingPolicy.balanced
+    @Published var screenshotAnalysisEnabled = false
     @Published private(set) var deliveryResult: OnboardingDeliveryResult?
     @Published private(set) var testPrompt: PromptEpisode?
     @Published private(set) var testPromptMessage: String?
@@ -90,6 +91,8 @@ final class OnboardingCoordinator: ObservableObject {
                 activePolicyVersion = versioned?.version ?? 0
                 originalPolicy = policy
                 policyDraft = SettingsPolicyDraft(policy: policy)
+                screenshotAnalysisEnabled = versioned?.policy.privacy.screenshotAnalysisEnabled ?? false
+                policyDraft.screenshotAnalysisEnabled = screenshotAnalysisEnabled
                 workStartHour = policyDraft.workStart.hour
                 workStartMinute = policyDraft.workStart.minute
                 workEndHour = policyDraft.workEnd.hour
@@ -586,6 +589,9 @@ final class OnboardingCoordinator: ObservableObject {
             }
             policyDraft.confirmReminderListConfiguration()
             policy = policyDraft.policy(preserving: originalPolicy)
+        case .screenwatch:
+            policyDraft.screenshotAnalysisEnabled = screenshotAnalysisEnabled
+            policy = policyDraft.policy(preserving: originalPolicy)
         case .activityClassification:
             policy = policyDraft.policy(preserving: originalPolicy)
         case .schedule:
@@ -678,6 +684,7 @@ final class OnboardingCoordinator: ObservableObject {
         policyDraft = SettingsPolicyDraft(policy: applied.policy)
         activePolicyVersion = applied.receipt.resultingVersion
         gamingPolicy = OnboardingGamingPolicy(policy: applied.policy.gaming)
+        screenshotAnalysisEnabled = applied.policy.privacy.screenshotAnalysisEnabled
     }
 
     private func validateFirstPlanIfNeeded() throws {
