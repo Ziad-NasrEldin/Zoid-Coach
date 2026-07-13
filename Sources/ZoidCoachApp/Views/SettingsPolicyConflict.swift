@@ -73,6 +73,7 @@ enum SettingsPolicyConflictResolver {
         apply(\.quietEnd, label: "Quiet hours")
         apply(\.nightlyPlanningTime, label: "Planning times")
         apply(\.morningConfirmationTime, label: "Planning times")
+        apply(\.dailyReviewTime, label: "Review time")
         apply(\.capacityPercent, label: "Planning capacity")
         apply(\.defaultCoachingPauseDuration, label: "Default coaching pause")
         apply(\.visibleCalendarIdentifiers, label: "Visible calendars")

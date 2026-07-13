@@ -14,8 +14,24 @@ func userPolicyKeepsLocalScheduleMeaningAcrossTimeZones() throws {
     #expect(decoded.schedule.timeZoneIdentifier == "Africa/Cairo")
     #expect(decoded.schedule.nightlyPlanningTime == LocalTime(hour: 22, minute: 30))
     #expect(decoded.schedule.morningConfirmationTime == LocalTime(hour: 8, minute: 0))
+    #expect(decoded.schedule.dailyReviewTime == LocalTime(hour: 18, minute: 0))
     #expect(decoded.schedule.workWindows.first?.start == LocalTime(hour: 9, minute: 0))
     #expect(decoded.schedule.planningCapacityPercent == 70)
+}
+
+@Test
+func userPolicyDecodesLegacyScheduleWithoutConfiguredReviewTime() throws {
+    let encoded = try JSONEncoder.zoidPolicy.encode(UserPolicy.defaults(timeZoneIdentifier: "UTC"))
+    var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    var schedule = try #require(object["schedule"] as? [String: Any])
+    schedule.removeValue(forKey: "dailyReviewTime")
+    object["schedule"] = schedule
+
+    let legacyData = try JSONSerialization.data(withJSONObject: object)
+    let decoded = try JSONDecoder.zoidPolicy.decode(UserPolicy.self, from: legacyData)
+
+    #expect(decoded.schedule.dailyReviewTime == nil)
+    #expect(decoded.validationViolations().isEmpty)
 }
 
 @Test

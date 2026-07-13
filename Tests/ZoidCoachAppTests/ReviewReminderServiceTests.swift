@@ -71,6 +71,90 @@ func scheduledReviewRemindersRollForwardAfterTheFinalWorkday() throws {
 }
 
 @Test
+func scheduledDailyReviewUsesConfiguredTimeAndDefersThroughQuietHours() throws {
+    let databaseURL = temporaryReviewReminderDatabase("configured-time")
+    defer { removeReviewReminderDatabase(databaseURL) }
+    let now = try reviewReminderDate("2026-07-13T10:00:00Z")
+    let outbox = try ActionOutboxStore(databaseURL: databaseURL, now: { now })
+    let policy = reviewReminderPolicy(
+        quietStart: LocalTime(hour: 19, minute: 0),
+        quietEnd: LocalTime(hour: 20, minute: 0),
+        dailyReviewTime: LocalTime(hour: 19, minute: 30)
+    )
+
+    let resultValue = try ReviewReminderService(outbox: outbox).reconcile(
+        policy: policy,
+        policyVersion: 8,
+        now: now
+    )
+    let result = try #require(resultValue)
+    guard case let .notification(daily) = result.daily.command.desiredState else {
+        Issue.record("Expected a daily review notification command")
+        return
+    }
+
+    #expect(result.daily.command.entityID == "daily-review:2026-07-13")
+    let expectedDelivery = try reviewReminderDate("2026-07-13T20:00:00Z")
+    #expect(daily.deliveryDate == expectedDelivery)
+}
+
+@Test
+func changedConfiguredReviewTimeSupersedesPendingReminderWithoutRecreatingService() throws {
+    let databaseURL = temporaryReviewReminderDatabase("changed-time")
+    defer { removeReviewReminderDatabase(databaseURL) }
+    let now = try reviewReminderDate("2026-07-13T10:00:00Z")
+    let outbox = try ActionOutboxStore(databaseURL: databaseURL, now: { now })
+    let service = ReviewReminderService(outbox: outbox)
+
+    let firstValue = try service.reconcile(
+        policy: reviewReminderPolicy(dailyReviewTime: LocalTime(hour: 17, minute: 30)),
+        policyVersion: 9,
+        now: now
+    )
+    let changedValue = try service.reconcile(
+        policy: reviewReminderPolicy(dailyReviewTime: LocalTime(hour: 18, minute: 15)),
+        policyVersion: 10,
+        now: now
+    )
+    let first = try #require(firstValue)
+    let changed = try #require(changedValue)
+    guard case let .notification(notification) = changed.daily.command.desiredState else {
+        Issue.record("Expected an updated daily review notification command")
+        return
+    }
+
+    #expect(first.daily.command.entityID == changed.daily.command.entityID)
+    #expect(first.daily.command.id != changed.daily.command.id)
+    #expect(changed.daily.wasInserted)
+    let expectedDelivery = try reviewReminderDate("2026-07-13T18:15:00Z")
+    #expect(notification.deliveryDate == expectedDelivery)
+    #expect(try outbox.recentCommands().filter { $0.entityID == "daily-review:2026-07-13" }.count == 2)
+}
+
+@Test
+func configuredDailyReviewRollsToNextWorkingDayAfterTodaysTimePasses() throws {
+    let databaseURL = temporaryReviewReminderDatabase("configured-time-passed")
+    defer { removeReviewReminderDatabase(databaseURL) }
+    let now = try reviewReminderDate("2026-07-13T18:30:00Z")
+    let outbox = try ActionOutboxStore(databaseURL: databaseURL, now: { now })
+
+    let resultValue = try ReviewReminderService(outbox: outbox).reconcile(
+        policy: reviewReminderPolicy(dailyReviewTime: LocalTime(hour: 18, minute: 0)),
+        policyVersion: 11,
+        now: now
+    )
+    let result = try #require(resultValue)
+    guard case let .notification(daily) = result.daily.command.desiredState else {
+        Issue.record("Expected a next-working-day daily review notification command")
+        return
+    }
+    let expectedDelivery = try reviewReminderDate("2026-07-14T18:00:00Z")
+
+    #expect(result.daily.command.entityID == "daily-review:2026-07-14")
+    #expect(daily.deliveryDate == expectedDelivery)
+}
+
+@Test
 func scheduledReviewRemindersSupportOvernightWorkWindows() throws {
     let databaseURL = temporaryReviewReminderDatabase("overnight")
     defer { removeReviewReminderDatabase(databaseURL) }
@@ -168,7 +252,8 @@ private func reviewReminderPolicy(
     quietStart: LocalTime = LocalTime(hour: 22, minute: 0),
     quietEnd: LocalTime = LocalTime(hour: 7, minute: 0),
     workStart: LocalTime = LocalTime(hour: 9, minute: 0),
-    workEnd: LocalTime = LocalTime(hour: 17, minute: 0)
+    workEnd: LocalTime = LocalTime(hour: 17, minute: 0),
+    dailyReviewTime: LocalTime? = nil
 ) -> UserPolicy {
     let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     return UserPolicy(
@@ -184,6 +269,7 @@ private func reviewReminderPolicy(
             quietHours: DailyTimeWindow(start: quietStart, end: quietEnd),
             nightlyPlanningTime: defaults.schedule.nightlyPlanningTime,
             morningConfirmationTime: defaults.schedule.morningConfirmationTime,
+            dailyReviewTime: dailyReviewTime,
             planningCapacityPercent: defaults.schedule.planningCapacityPercent
         ),
         calendar: defaults.calendar,

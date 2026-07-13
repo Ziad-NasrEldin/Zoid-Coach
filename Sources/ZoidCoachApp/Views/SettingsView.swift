@@ -798,7 +798,13 @@ struct SettingsView: View {
             HStack(spacing: 18) {
                 LocalTimeField(title: "Nightly planning", time: $controller.draft.nightlyPlanningTime)
                 LocalTimeField(title: "Morning confirmation", time: $controller.draft.morningConfirmationTime)
+                LocalTimeField(title: "Daily review", time: $controller.draft.dailyReviewTime)
+                    .accessibilityIdentifier("settings.schedule.daily-review-time")
             }
+            Text("The daily review reminder uses this time on working days and waits until quiet hours end when needed.")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
             SumiStepper(
                 "PLANNING CAPACITY",
                 value: $controller.draft.capacityPercent,
