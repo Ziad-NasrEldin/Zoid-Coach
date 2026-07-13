@@ -138,6 +138,30 @@ public struct AcceptedBreakSnapshot: Equatable, Codable, Sendable {
     }
 }
 
+public struct LearnedEstimateSuggestion: Equatable, Codable, Sendable {
+    public let recommendedMinutes: Int
+    public let sampleCount: Int
+    public let minimumActualMinutes: Int
+    public let maximumActualMinutes: Int
+    public let confidence: Double
+
+    public init(
+        recommendedMinutes: Int,
+        sampleCount: Int,
+        minimumActualMinutes: Int,
+        maximumActualMinutes: Int,
+        confidence: Double
+    ) {
+        self.recommendedMinutes = max(1, recommendedMinutes)
+        self.sampleCount = max(1, sampleCount)
+        self.minimumActualMinutes = max(1, minimumActualMinutes)
+        self.maximumActualMinutes = max(self.minimumActualMinutes, maximumActualMinutes)
+        self.confidence = min(max(confidence, 0), 1)
+    }
+
+    public var hasLimitedEvidence: Bool { confidence < 0.75 }
+}
+
 public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let taskID: String
     public let title: String
@@ -154,6 +178,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let isOptional: Bool?
     public let blockedReason: String?
     public let deferredUntil: Date?
+    public let learnedEstimateSuggestion: LearnedEstimateSuggestion?
 
     public init(
         taskID: String,
@@ -170,7 +195,8 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         isLocked: Bool = false,
         isOptional: Bool = false,
         blockedReason: String? = nil,
-        deferredUntil: Date? = nil
+        deferredUntil: Date? = nil,
+        learnedEstimateSuggestion: LearnedEstimateSuggestion? = nil
     ) {
         self.taskID = taskID
         self.title = title
@@ -187,6 +213,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         self.isOptional = isOptional
         self.blockedReason = blockedReason
         self.deferredUntil = deferredUntil
+        self.learnedEstimateSuggestion = learnedEstimateSuggestion
     }
 
     public var id: String { taskID }

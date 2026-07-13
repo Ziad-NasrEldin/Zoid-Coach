@@ -62,7 +62,11 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 isMainObjective: entry.isMainObjective,
                 isOptional: entry.isOptional == true,
                 blockedReason: entry.blockedReason,
-                deferredUntil: entry.deferredUntil
+                deferredUntil: entry.deferredUntil,
+                learnedEstimateSuggestion: learnedEstimateSuggestion(
+                    for: reminder,
+                    currentEstimateMinutes: entry.estimateMinutes
+                )
             )
         }
         let behaviorObservations = try archive.behaviorObservations(for: now)
@@ -99,7 +103,11 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 latestPauseReason: executionSnapshot?.latestPauseReason,
                 acceptedBreak: executionSnapshot?.acceptedBreak,
                 sprint: executionSnapshot?.sprint,
-                isMainObjective: false
+                isMainObjective: false,
+                learnedEstimateSuggestion: learnedEstimateSuggestion(
+                    for: reminder,
+                    currentEstimateMinutes: 30
+                )
             ))
         }
         let timeZoneIdentifier = (try? userPolicyStore.current()?.policy.schedule.timeZoneIdentifier) ?? TimeZone.current.identifier
@@ -377,6 +385,41 @@ public final class TodayDashboardAgent: @unchecked Sendable {
 
     private func taskType(for title: String) -> String? {
         title.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).first.map { $0.lowercased() }
+    }
+
+    private func learnedEstimateSuggestion(
+        for reminder: ReminderSourceSnapshot,
+        currentEstimateMinutes: Int
+    ) -> LearnedEstimateSuggestion? {
+        let context = EstimateLearningContext(
+            taskType: taskType(for: reminder.title),
+            project: reminder.listName
+        )
+        guard let aggregate = try? learning.estimateAggregate(for: context),
+              let samples = try? learning.estimateEvidenceSamples(for: context)
+        else { return nil }
+        let evidenceIDs = Set(aggregate.proposal.evidenceIDs)
+        let eligibleActualMinutes = samples
+            .filter { evidenceIDs.contains($0.id) }
+            .map(\.actualAlignedMinutes)
+        guard eligibleActualMinutes.count == aggregate.proposal.sampleCount,
+              let minimumActualMinutes = eligibleActualMinutes.min(),
+              let maximumActualMinutes = eligibleActualMinutes.max()
+        else { return nil }
+        let policy = EstimateLearningPolicy()
+        let scaledMinutes = Double(max(1, currentEstimateMinutes)) * aggregate.proposal.appliedRatio
+        let roundedMinutes = Int((scaledMinutes / 5).rounded() * 5)
+        let recommendedMinutes = min(
+            max(roundedMinutes, policy.minimumRecommendedMinutes),
+            policy.maximumRecommendedMinutes
+        )
+        return LearnedEstimateSuggestion(
+            recommendedMinutes: recommendedMinutes,
+            sampleCount: aggregate.proposal.sampleCount,
+            minimumActualMinutes: minimumActualMinutes,
+            maximumActualMinutes: maximumActualMinutes,
+            confidence: aggregate.confidence
+        )
     }
 
     private static func localDayKey(_ date: Date, timeZoneIdentifier: String) -> String {

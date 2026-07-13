@@ -43,6 +43,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 25 | Complete the fixed five-minute coaching follow-up | done | Five-minute verifier at `b159b6f` | Signed QA proved the visible choice, durable response, no early prompt after helper restart, exactly one fixture-delivered follow-up after the boundary, no second snooze, and replay-safe counts; final proof is recorded in `.audit/runs/five-minute-coaching-followup/verifier/REPORT.md` |
 | 26 | End the workday and open the current-day review | done | End-workday verifier at `708cd14` | Signed QA proved active-only discovery, cancellation, unavailable-helper failure without navigation, exactly one durable end-workday pause, populated current-day Review navigation, and relaunch durability; final proof is recorded in `.audit/runs/pause-end-workday-review/verifier/REPORT.md` |
 | 27 | Resume an unfinished daily review after restart | verify | Review-resume lane | `ZC-040-005` and `ZC-053-008`; candidate persists unfinished-review discovery, restores the saved day and corrections from the review UI, and clears the prompt after confirmation. |
+| 28 | Surface advisory estimates from completed-task learning | verify | Learned-estimate lane | `ZC-012-001` through `ZC-012-009`; candidate shows threshold-gated sample count, exact aligned-duration range, early or established evidence, explicit Use and Keep actions, custom alternatives, restart-safe advice, and preserves the current estimate until the user chooses. |
 
 ## Pull Rules
 
