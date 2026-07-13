@@ -483,10 +483,7 @@ final class OnboardingCoordinator: ObservableObject {
         let workStart = LocalTime(hour: workStartHour, minute: workStartMinute)
         let workEnd = LocalTime(hour: workEndHour, minute: workEndMinute)
         if workStart == workEnd {
-            return "Work start and end cannot be the same. Choose a real daytime window."
-        }
-        if workStart > workEnd {
-            return "Work hours cannot cross midnight. Choose an end time later than the start time."
+            return "Work start and end cannot be the same. Choose a non-empty work window."
         }
         let quietStart = LocalTime(hour: quietStartHour, minute: quietStartMinute)
         let quietEnd = LocalTime(hour: quietEndHour, minute: quietEndMinute)

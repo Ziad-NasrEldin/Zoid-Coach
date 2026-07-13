@@ -590,7 +590,7 @@ func classificationAndScheduleAreAppliedBeforeAdvancing() async throws {
 
 @MainActor
 @Test
-func onboardingScheduleRejectsEmptyOrOvernightWorkAndAcceptsOvernightQuietHours() async throws {
+func onboardingScheduleRejectsEmptyWindowsAndAcceptsOvernightWorkAndQuietHours() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.schedule))
     let policyRecorder = PolicyRecorder()
     let coordinator = OnboardingCoordinator(
@@ -604,8 +604,8 @@ func onboardingScheduleRejectsEmptyOrOvernightWorkAndAcceptsOvernightQuietHours(
     #expect(coordinator.scheduleValidationMessage?.contains("cannot be the same") == true)
 
     coordinator.workEndHour = 8
-    #expect(!coordinator.canContinue)
-    #expect(coordinator.scheduleValidationMessage?.contains("cannot cross midnight") == true)
+    #expect(coordinator.canContinue)
+    #expect(coordinator.scheduleValidationMessage == nil)
 
     coordinator.workEndHour = 17
     coordinator.quietStartHour = 22
