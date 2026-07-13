@@ -2145,6 +2145,7 @@ private struct SourceHealthRow: View {
     let source: SourceHealth
 
     var body: some View {
+        let guidance = SourceRepairGuidance(source: source)
         HStack(spacing: 18) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(source.eyebrow)
@@ -2163,6 +2164,13 @@ private struct SourceHealthRow: View {
                 Text(source.evidence)
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
+                if let impact = guidance.impact {
+                    Text(impact)
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("source-health-\(source.id.rawValue)-impact")
+                }
             }
 
             Spacer()
@@ -2174,6 +2182,9 @@ private struct SourceHealthRow: View {
             }
                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                 .accessibilityLabel(source.actionTitle + " " + source.title)
+                .accessibilityHint(guidance.actionHint)
+                .accessibilityIdentifier("source-health-\(source.id.rawValue)-repair")
+                .disabled(!guidance.canAct)
         }
         .padding(.horizontal, 28)
         .frame(minHeight: 82)
