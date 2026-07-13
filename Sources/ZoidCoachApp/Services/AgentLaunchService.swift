@@ -55,6 +55,7 @@ struct AgentServiceRegistrationFactory {
 final class AgentLaunchService {
     private let plistName: String
     private let registrationFingerprintKey = "ZoidCoachAgentRegistrationFingerprint"
+    private let launchAtLoginChoiceKey = "ZoidCoachAgentLaunchAtLoginChoice"
     private let userDefaults: UserDefaults
     private let service: (any AgentServiceRegistration)?
     private let isControlDisabled: Bool
@@ -68,6 +69,7 @@ final class AgentLaunchService {
         runtimeEnvironment: RuntimeEnvironment = .current(),
         service: (any AgentServiceRegistration)? = nil,
         registrationFactory: AgentServiceRegistrationFactory = .live,
+        userDefaults: UserDefaults? = nil,
         bundleURL: URL = Bundle.main.bundleURL,
         buildVersion: String = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleVersion"
@@ -77,7 +79,7 @@ final class AgentLaunchService {
         heartbeatFreshness: TimeInterval = 120
     ) {
         plistName = runtimeEnvironment.identity.launchAgentPlistName
-        userDefaults = runtimeEnvironment.makeUserDefaults()
+        self.userDefaults = userDefaults ?? runtimeEnvironment.makeUserDefaults()
         self.bundleURL = bundleURL
         self.buildVersion = buildVersion
         self.now = now
@@ -170,6 +172,13 @@ final class AgentLaunchService {
         enableAndInspect(forceRepair: false)
     }
 
+    func reconcileAtLaunchAndInspect() -> SourceHealth {
+        if userDefaults.object(forKey: launchAtLoginChoiceKey) as? Bool == false {
+            return inspect()
+        }
+        return enableAndInspect()
+    }
+
     func repairAndInspect() -> SourceHealth {
         enableAndInspect(forceRepair: true)
     }
@@ -191,6 +200,7 @@ final class AgentLaunchService {
             if !forceRepair,
                service.status == .enabled,
                userDefaults.string(forKey: registrationFingerprintKey) == fingerprint {
+                userDefaults.set(true, forKey: launchAtLoginChoiceKey)
                 return inspect()
             }
             if service.status == .enabled {
@@ -198,6 +208,7 @@ final class AgentLaunchService {
             }
             try service.register()
             userDefaults.set(fingerprint, forKey: registrationFingerprintKey)
+            userDefaults.set(true, forKey: launchAtLoginChoiceKey)
         } catch {
             return SourceHealth(
                 id: .agent,
@@ -221,6 +232,7 @@ final class AgentLaunchService {
                 try service.unregister()
             }
             userDefaults.removeObject(forKey: registrationFingerprintKey)
+            userDefaults.set(false, forKey: launchAtLoginChoiceKey)
         } catch {
             return SourceHealth(
                 id: .agent,
