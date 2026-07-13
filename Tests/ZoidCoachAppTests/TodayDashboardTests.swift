@@ -3,6 +3,20 @@ import Testing
 @testable import ZoidCoachCore
 
 @Test
+func todayReminderEligibilityUsesTheConfiguredLocalDayBoundary() throws {
+    var cairo = Calendar(identifier: .gregorian)
+    cairo.timeZone = try #require(TimeZone(identifier: "Africa/Cairo"))
+    let reference = try #require(cairo.date(from: DateComponents(year: 2026, month: 7, day: 13, hour: 23, minute: 45)))
+    let beforeMidnight = try #require(cairo.date(from: DateComponents(year: 2026, month: 7, day: 13, hour: 23, minute: 59)))
+    let midnight = try #require(cairo.date(from: DateComponents(year: 2026, month: 7, day: 14, hour: 0)))
+
+    #expect(TodayReminderEligibility.isVisible(dueDate: nil, referenceDate: reference, calendar: cairo))
+    #expect(TodayReminderEligibility.isVisible(dueDate: beforeMidnight, referenceDate: reference, calendar: cairo))
+    #expect(!TodayReminderEligibility.isVisible(dueDate: midnight, referenceDate: reference, calendar: cairo))
+    #expect(TodayReminderEligibility.isVisible(dueDate: reference.addingTimeInterval(-86_400), referenceDate: reference, calendar: cairo))
+}
+
+@Test
 func urgencyUsesDeadlineBeforeReminderPriority() {
     let calendar = Calendar(identifier: .gregorian)
     let now = Date(timeIntervalSince1970: 1_700_000_000)
