@@ -21,6 +21,9 @@ func dailyReviewGroupsCoveredActivityWithoutExposingPrivateFields() throws {
     #expect(snapshot.sessions[1].classification == .gaming)
     #expect(snapshot.totals.first { $0.classification == .work }?.minutes == 2)
     #expect(snapshot.totals.first { $0.classification == .gaming }?.minutes == 1)
+    #expect(snapshot.plannedTasks.isEmpty)
+    #expect(snapshot.mainObjective == nil)
+    #expect(snapshot.completedPriorityTaskCount == 0)
 }
 
 @Test
@@ -48,6 +51,37 @@ func dailyReviewKeepsCompletedTasksVisibleAfterTheyLeaveTheActiveList() throws {
     #expect(snapshot.completedTasks[0].title == "Ship the launch brief")
     #expect(snapshot.completedTasks[0].sourceKind == .reminders)
     #expect(snapshot.sessions.isEmpty)
+}
+
+@Test
+func dailyReviewShowsMainObjectiveAndSameDayPriorityCompletionAcrossRestart() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insertPlanTask(id: "main-1", title: "Ship the client proposal", rank: 1, isMainObjective: true, estimateMinutes: 90)
+    try fixture.insertPlanTask(id: "priority-2", title: "Send project notes", rank: 2, isMainObjective: false, estimateMinutes: 30)
+    try fixture.insertPlanTask(id: "optional-3", title: "Tidy downloads", rank: 3, isMainObjective: false, estimateMinutes: 10, isOptional: true)
+    let formatter = DateFormatter()
+    formatter.calendar = .current
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = .current
+    formatter.dateFormat = "yyyy-MM-dd"
+    let sourceDate = try #require(formatter.date(from: fixture.sourceDay))
+    let history = try TaskHistoryStore(databaseURL: fixture.databaseURL)
+    try history.record(taskID: "main-1", state: .completed, title: "Ship the client proposal", sourceKind: .local, at: sourceDate.addingTimeInterval(12 * 3_600))
+    try history.record(taskID: "priority-2", state: .completed, title: "Send project notes", sourceKind: .local, at: sourceDate.addingTimeInterval(36 * 3_600))
+    try history.record(taskID: "optional-3", state: .completed, title: "Tidy downloads", sourceKind: .local, at: sourceDate.addingTimeInterval(13 * 3_600))
+
+    let snapshot = try fixture.store.load(sourceDay: fixture.sourceDay)
+
+    #expect(snapshot.plannedTasks.map(\.taskID) == ["main-1", "priority-2"])
+    #expect(snapshot.mainObjective?.title == "Ship the client proposal")
+    #expect(snapshot.mainObjective?.isCompleted == true)
+    #expect(snapshot.completedPriorityTaskCount == 1)
+    #expect(snapshot.plannedTasks[0].estimatedMinutes == 90)
+    #expect(snapshot.plannedTasks[1].isCompleted == false)
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    #expect(try reopened.load(sourceDay: fixture.sourceDay).plannedTasks == snapshot.plannedTasks)
 }
 
 @Test
@@ -333,6 +367,44 @@ private final class DailyReviewFixture {
         sqlite3_bind_text(statement, 3, app, -1, SQLITE_TRANSIENT_REVIEW)
         sqlite3_bind_text(statement, 4, classification.rawValue, -1, SQLITE_TRANSIENT_REVIEW)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw DailyReviewTestError.database }
+    }
+
+    func insertPlanTask(
+        id: String,
+        title: String,
+        rank: Int,
+        isMainObjective: Bool,
+        estimateMinutes: Int,
+        isOptional: Bool = false
+    ) throws {
+        var database: OpaquePointer?
+        guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK,
+              let database else { throw DailyReviewTestError.database }
+        defer { sqlite3_close(database) }
+        var sourceStatement: OpaquePointer?
+        let sourceSQL = "INSERT INTO source_tasks(source_id, title, priority, is_completed, updated_at, source_kind) VALUES (?, ?, 0, 0, '2026-07-10T08:00:00Z', 'local');"
+        guard sqlite3_prepare_v2(database, sourceSQL, -1, &sourceStatement, nil) == SQLITE_OK,
+              let sourceStatement else { throw DailyReviewTestError.database }
+        sqlite3_bind_text(sourceStatement, 1, id, -1, SQLITE_TRANSIENT_REVIEW)
+        sqlite3_bind_text(sourceStatement, 2, title, -1, SQLITE_TRANSIENT_REVIEW)
+        guard sqlite3_step(sourceStatement) == SQLITE_DONE else {
+            sqlite3_finalize(sourceStatement)
+            throw DailyReviewTestError.database
+        }
+        sqlite3_finalize(sourceStatement)
+
+        var planStatement: OpaquePointer?
+        let planSQL = "INSERT INTO daily_plan_entries(day_key, reminder_id, rank, is_main_objective, estimate_minutes, updated_at, selection_reason, selection_score, is_optional) VALUES (?, ?, ?, ?, ?, '2026-07-10T08:00:00Z', 'priority', 100, ?);"
+        guard sqlite3_prepare_v2(database, planSQL, -1, &planStatement, nil) == SQLITE_OK,
+              let planStatement else { throw DailyReviewTestError.database }
+        defer { sqlite3_finalize(planStatement) }
+        sqlite3_bind_text(planStatement, 1, sourceDay, -1, SQLITE_TRANSIENT_REVIEW)
+        sqlite3_bind_text(planStatement, 2, id, -1, SQLITE_TRANSIENT_REVIEW)
+        sqlite3_bind_int(planStatement, 3, Int32(rank))
+        sqlite3_bind_int(planStatement, 4, isMainObjective ? 1 : 0)
+        sqlite3_bind_int(planStatement, 5, Int32(estimateMinutes))
+        sqlite3_bind_int(planStatement, 6, isOptional ? 1 : 0)
+        guard sqlite3_step(planStatement) == SQLITE_DONE else { throw DailyReviewTestError.database }
     }
 
     func scalar(_ sql: String) throws -> Int {

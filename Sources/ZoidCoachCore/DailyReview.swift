@@ -112,6 +112,30 @@ public enum DailyReviewHypothesisState: String, Codable, Sendable {
     case rejected
 }
 
+public struct DailyReviewPlannedTaskOutcome: Identifiable, Equatable, Sendable {
+    public let taskID: String
+    public let title: String
+    public let isMainObjective: Bool
+    public let estimatedMinutes: Int?
+    public let isCompleted: Bool
+
+    public var id: String { taskID }
+
+    public init(
+        taskID: String,
+        title: String,
+        isMainObjective: Bool,
+        estimatedMinutes: Int?,
+        isCompleted: Bool
+    ) {
+        self.taskID = taskID
+        self.title = title
+        self.isMainObjective = isMainObjective
+        self.estimatedMinutes = estimatedMinutes
+        self.isCompleted = isCompleted
+    }
+}
+
 public struct DailyReviewSnapshot: Equatable, Sendable {
     public let sourceDay: String
     public let sessions: [DailyReviewSession]
@@ -121,6 +145,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
     public let confirmedAt: Date?
     public let offlineWork: [OfflineWorkEntry]
     public let completedTasks: [CompletedTaskHistoryEntry]
+    public let plannedTasks: [DailyReviewPlannedTaskOutcome]
 
     public init(
         sourceDay: String,
@@ -130,7 +155,8 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         hypothesisState: DailyReviewHypothesisState,
         confirmedAt: Date?,
         offlineWork: [OfflineWorkEntry] = [],
-        completedTasks: [CompletedTaskHistoryEntry] = []
+        completedTasks: [CompletedTaskHistoryEntry] = [],
+        plannedTasks: [DailyReviewPlannedTaskOutcome] = []
     ) {
         self.sourceDay = sourceDay
         self.sessions = sessions
@@ -140,11 +166,18 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         self.confirmedAt = confirmedAt
         self.offlineWork = offlineWork
         self.completedTasks = completedTasks
+        self.plannedTasks = plannedTasks
     }
 
     public var observedMinutes: Int { totals.reduce(0) { $0 + $1.minutes } }
     public var offlineMinutes: Int { offlineWork.reduce(0) { $0 + $1.durationMinutes } }
     public var actualMinutes: Int { observedMinutes + offlineMinutes }
+    public var mainObjective: DailyReviewPlannedTaskOutcome? {
+        plannedTasks.first(where: \.isMainObjective)
+    }
+    public var completedPriorityTaskCount: Int {
+        plannedTasks.filter(\.isCompleted).count
+    }
 }
 
 public struct CompletedTaskHistoryEntry: Identifiable, Equatable, Sendable {

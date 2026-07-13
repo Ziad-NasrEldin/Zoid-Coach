@@ -63,8 +63,12 @@ final class DailyReviewController: ObservableObject {
         do {
             let policy = try PolicyStore(databaseURL: runtimeEnvironment.databaseURL).current()?.policy
                 ?? UserPolicy.defaults()
+            let timeZone = TimeZone(identifier: policy.schedule.timeZoneIdentifier) ?? .current
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = timeZone
             try self.init(
-                service: DailyReviewStore(databaseURL: runtimeEnvironment.databaseURL),
+                service: DailyReviewStore(databaseURL: runtimeEnvironment.databaseURL, timeZone: timeZone),
+                calendar: calendar,
                 isRulesOnlyMode: policy.privacy.aiProvider == .disabled
             )
         } catch {
@@ -340,6 +344,7 @@ struct DailyReviewView: View {
     @ViewBuilder
     private func snapshotContent(_ snapshot: DailyReviewSnapshot) -> some View {
         reviewCoverage(snapshot)
+        planOutcomes(snapshot)
         DailySourceCoverageView(selectedDay: controller.selectedDay)
         if snapshot.sessions.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
@@ -388,6 +393,105 @@ struct DailyReviewView: View {
         )
         hypothesis(snapshot)
         confirmation(snapshot)
+    }
+
+    private func planOutcomes(_ snapshot: DailyReviewSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("PLAN OUTCOMES")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            if snapshot.plannedTasks.isEmpty {
+                Text("No priority plan was recorded for this day. Zoid 666 will not invent a main objective or completion count.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("reviews.plan.empty")
+            } else {
+                HStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(mainObjectiveStatus(snapshot))
+                            .font(Sumi.display(20))
+                            .foregroundStyle(mainObjectiveStatusColor(snapshot))
+                        Text("MAIN OBJECTIVE")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.muted)
+                        Text(snapshot.mainObjective?.title ?? "No main objective was designated")
+                            .font(Sumi.body(11))
+                            .lineLimit(2)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("reviews.plan.main-objective")
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("\(snapshot.completedPriorityTaskCount) OF \(snapshot.plannedTasks.count)")
+                            .font(Sumi.display(20))
+                        Text("PRIORITY TASKS COMPLETED")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.muted)
+                        Text("Only same-day durable completion history is counted.")
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("reviews.plan.priority-count")
+                }
+
+                VStack(spacing: 0) {
+                    ForEach(snapshot.plannedTasks) { task in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(task.isCompleted ? "DONE" : "OPEN")
+                                .font(Sumi.label(8))
+                                .sumiLabelTracking()
+                                .foregroundStyle(task.isCompleted ? Sumi.okay : Sumi.seal)
+                                .frame(width: 42, alignment: .leading)
+                            Text(task.title)
+                                .font(Sumi.body(12))
+                                .lineLimit(2)
+                            Spacer()
+                            if task.isMainObjective {
+                                Text("MAIN")
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.seal)
+                            }
+                            if let estimate = task.estimatedMinutes {
+                                Text("\(estimate) MIN EST")
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.muted)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 38)
+                        .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("reviews.plan.task.\(task.taskID)")
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityIdentifier("reviews.plan-outcomes")
+    }
+
+    private func mainObjectiveStatus(_ snapshot: DailyReviewSnapshot) -> String {
+        guard let mainObjective = snapshot.mainObjective else { return "NOT DESIGNATED" }
+        return mainObjective.isCompleted ? "COMPLETED" : "UNFINISHED"
+    }
+
+    private func mainObjectiveStatusColor(_ snapshot: DailyReviewSnapshot) -> Color {
+        guard let mainObjective = snapshot.mainObjective else { return Sumi.muted }
+        return mainObjective.isCompleted ? Sumi.okay : Sumi.seal
     }
 
     private func reviewCoverage(_ snapshot: DailyReviewSnapshot) -> some View {
