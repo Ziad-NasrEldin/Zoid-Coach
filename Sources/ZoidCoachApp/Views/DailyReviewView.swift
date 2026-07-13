@@ -84,6 +84,15 @@ final class DailyReviewController: ObservableObject {
         return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
     }
 
+    func localTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = .current
+        formatter.timeZone = calendar.timeZone
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
     func load() {
         guard !isLoading else { return }
         isLoading = true
@@ -345,6 +354,7 @@ struct DailyReviewView: View {
     private func snapshotContent(_ snapshot: DailyReviewSnapshot) -> some View {
         reviewCoverage(snapshot)
         planOutcomes(snapshot)
+        behavioralHighlights(snapshot)
         DailySourceCoverageView(selectedDay: controller.selectedDay)
         if snapshot.sessions.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
@@ -393,6 +403,124 @@ struct DailyReviewView: View {
         )
         hypothesis(snapshot)
         confirmation(snapshot)
+    }
+
+    private func behavioralHighlights(_ snapshot: DailyReviewSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("OBSERVED HIGHLIGHTS")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            Text("These are corrected local observations, not judgments about why the activity happened.")
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: 12) {
+                observedHighlight(
+                    title: "STRONGEST WORK BLOCK",
+                    session: snapshot.bestObservedWorkBlock,
+                    empty: "No corrected observed work block was available for this day.",
+                    identifier: "reviews.highlight.work"
+                )
+                observedHighlight(
+                    title: "LARGEST DRIFT EPISODE",
+                    session: snapshot.largestObservedDriftEpisode,
+                    empty: "No corrected gaming or distracting episode was observed for this day.",
+                    identifier: "reviews.highlight.drift"
+                )
+            }
+
+            Divider()
+            Text("BEHAVIOR COACHING")
+                .font(Sumi.label(10))
+                .sumiLabelTracking()
+            if snapshot.coachingInteractions.isEmpty {
+                Text("No gaming-drift or wake-intervention prompt was created for this day.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("reviews.coaching.empty")
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(snapshot.coachingInteractions) { interaction in
+                        VStack(alignment: .leading, spacing: 5) {
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(interaction.promptType == "GAMING_DRIFT" ? "GAMING DRIFT" : "WAKE INTERVENTION")
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.seal)
+                                Spacer()
+                                Text(controller.localTime(interaction.createdAt))
+                                    .font(Sumi.label(8))
+                                    .foregroundStyle(Sumi.muted)
+                            }
+                            Text(interaction.title)
+                                .font(Sumi.body(13))
+                            Text(interaction.summary)
+                                .font(Sumi.body(11))
+                                .foregroundStyle(Sumi.muted)
+                                .lineLimit(3)
+                            Text(coachingResponseSummary(interaction))
+                                .font(Sumi.label(8))
+                                .sumiLabelTracking()
+                                .foregroundStyle(interaction.effectWasApplied == false ? Sumi.seal : Sumi.okay)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("reviews.coaching.\(interaction.promptID)")
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityIdentifier("reviews.behavioral-highlights")
+    }
+
+    private func observedHighlight(
+        title: String,
+        session: DailyReviewSession?,
+        empty: String,
+        identifier: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+            if let session {
+                Text("\(session.durationMinutes) MIN")
+                    .font(Sumi.display(22))
+                Text("\(session.application) · \(controller.localTime(session.start))")
+                    .font(Sumi.body(12))
+                Text("\(session.classification.rawValue.capitalized) · corrected observed session")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+            } else {
+                Text("NOT OBSERVED")
+                    .font(Sumi.display(18))
+                    .foregroundStyle(Sumi.muted)
+                Text(empty)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
+    }
+
+    private func coachingResponseSummary(_ interaction: DailyReviewCoachingInteraction) -> String {
+        guard let action = interaction.responseAction else { return "NO RESPONSE RECORDED" }
+        let label = action.replacingOccurrences(of: "_", with: " ").uppercased()
+        let surface = interaction.responseSurface?.uppercased() ?? "UNKNOWN SURFACE"
+        return interaction.effectWasApplied == true
+            ? "\(label) · APPLIED VIA \(surface)"
+            : "\(label) · RECORDED VIA \(surface) · EFFECT PENDING"
     }
 
     private func planOutcomes(_ snapshot: DailyReviewSnapshot) -> some View {

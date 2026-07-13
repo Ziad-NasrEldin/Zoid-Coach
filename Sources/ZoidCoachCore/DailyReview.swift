@@ -136,6 +136,42 @@ public struct DailyReviewPlannedTaskOutcome: Identifiable, Equatable, Sendable {
     }
 }
 
+public struct DailyReviewCoachingInteraction: Identifiable, Equatable, Sendable {
+    public let promptID: String
+    public let promptType: String
+    public let title: String
+    public let summary: String
+    public let createdAt: Date
+    public let responseAction: String?
+    public let responseSurface: String?
+    public let respondedAt: Date?
+    public let effectWasApplied: Bool?
+
+    public var id: String { promptID }
+
+    public init(
+        promptID: String,
+        promptType: String,
+        title: String,
+        summary: String,
+        createdAt: Date,
+        responseAction: String?,
+        responseSurface: String?,
+        respondedAt: Date?,
+        effectWasApplied: Bool?
+    ) {
+        self.promptID = promptID
+        self.promptType = promptType
+        self.title = title
+        self.summary = summary
+        self.createdAt = createdAt
+        self.responseAction = responseAction
+        self.responseSurface = responseSurface
+        self.respondedAt = respondedAt
+        self.effectWasApplied = effectWasApplied
+    }
+}
+
 public struct DailyReviewSnapshot: Equatable, Sendable {
     public let sourceDay: String
     public let sessions: [DailyReviewSession]
@@ -146,6 +182,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
     public let offlineWork: [OfflineWorkEntry]
     public let completedTasks: [CompletedTaskHistoryEntry]
     public let plannedTasks: [DailyReviewPlannedTaskOutcome]
+    public let coachingInteractions: [DailyReviewCoachingInteraction]
 
     public init(
         sourceDay: String,
@@ -156,7 +193,8 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         confirmedAt: Date?,
         offlineWork: [OfflineWorkEntry] = [],
         completedTasks: [CompletedTaskHistoryEntry] = [],
-        plannedTasks: [DailyReviewPlannedTaskOutcome] = []
+        plannedTasks: [DailyReviewPlannedTaskOutcome] = [],
+        coachingInteractions: [DailyReviewCoachingInteraction] = []
     ) {
         self.sourceDay = sourceDay
         self.sessions = sessions
@@ -167,6 +205,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         self.offlineWork = offlineWork
         self.completedTasks = completedTasks
         self.plannedTasks = plannedTasks
+        self.coachingInteractions = coachingInteractions
     }
 
     public var observedMinutes: Int { totals.reduce(0) { $0 + $1.minutes } }
@@ -177,6 +216,21 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
     }
     public var completedPriorityTaskCount: Int {
         plannedTasks.filter(\.isCompleted).count
+    }
+    public var bestObservedWorkBlock: DailyReviewSession? {
+        longestSession(where: { $0.classification == .work })
+    }
+    public var largestObservedDriftEpisode: DailyReviewSession? {
+        longestSession(where: { $0.classification == .gaming || $0.classification == .distracting })
+    }
+
+    private func longestSession(where predicate: (DailyReviewSession) -> Bool) -> DailyReviewSession? {
+        sessions.filter(predicate).sorted {
+            if $0.durationMinutes != $1.durationMinutes {
+                return $0.durationMinutes > $1.durationMinutes
+            }
+            return $0.start < $1.start
+        }.first
     }
 }
 
