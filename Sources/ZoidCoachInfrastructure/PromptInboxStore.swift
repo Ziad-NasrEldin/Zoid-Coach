@@ -67,7 +67,8 @@ public final class PromptInboxStore: @unchecked Sendable {
         guard !draft.decisionKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !draft.type.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !draft.actions.isEmpty,
-              Set(draft.actions.map(\.kind)).count == draft.actions.count
+              Set(draft.actions.map(\.kind)).count == draft.actions.count,
+              BehaviorPromptPresentationPolicy.issues(for: draft).isEmpty
         else { throw PromptInboxStoreError.invalidDraft }
         let date = now()
         guard draft.expiresAt.map({ $0 > date }) ?? true else { throw PromptInboxStoreError.expired }

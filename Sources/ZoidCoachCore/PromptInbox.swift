@@ -271,6 +271,72 @@ public struct PromptDraft: Equatable, Sendable {
     }
 }
 
+public enum BehaviorPromptPresentationIssue: String, Equatable, Sendable {
+    case tooManySecondaryActions
+    case unreliableElapsedEvidence
+    case missingUncertaintyBoundary
+    case coerciveLanguage
+    case assertedIntent
+}
+
+public enum BehaviorPromptPresentationPolicy {
+    public static let contractVersion = "1"
+    public static let maximumSecondaryActions = 3
+
+    public static func issues(for draft: PromptDraft) -> [BehaviorPromptPresentationIssue] {
+        var issues: [BehaviorPromptPresentationIssue] = []
+        if draft.actions.filter({ $0.role == .secondary }).count > maximumSecondaryActions {
+            issues.append(.tooManySecondaryActions)
+        }
+        guard draft.payload["behaviorPromptContractVersion"] == contractVersion else {
+            return issues
+        }
+
+        let copy = ([draft.title, draft.summary] + draft.actions.map(\.title))
+            .joined(separator: " ")
+            .lowercased()
+        let coercivePhrases = [
+            "you are lazy",
+            "you failed",
+            "you wasted",
+            "disappointed in you",
+            "bad choice",
+            "lack discipline"
+        ]
+        if coercivePhrases.contains(where: copy.contains) {
+            issues.append(.coerciveLanguage)
+        }
+        let assertedIntentPhrases = [
+            "you wanted to",
+            "you meant to",
+            "you are avoiding",
+            "you do not care",
+            "you chose gaming over"
+        ]
+        if assertedIntentPhrases.contains(where: copy.contains) {
+            issues.append(.assertedIntent)
+        }
+        if !copy.contains("not why") && !copy.contains("does not establish your intent") {
+            issues.append(.missingUncertaintyBoundary)
+        }
+
+        guard let rawMinutes = draft.payload["observedGamingMinutes"],
+              let minutes = Int(rawMinutes),
+              let rawStart = draft.payload["evidenceStartedAtEpoch"],
+              let startedAt = Int64(rawStart),
+              let rawLatest = draft.payload["evidenceLatestAtEpoch"],
+              let latestAt = Int64(rawLatest),
+              latestAt >= startedAt,
+              minutes == max(1, Int((latestAt - startedAt + 60) / 60)),
+              draft.summary.localizedCaseInsensitiveContains("\(minutes) observed minutes")
+        else {
+            issues.append(.unreliableElapsedEvidence)
+            return issues
+        }
+        return issues
+    }
+}
+
 public struct PromptResponseCommand: Equatable, Codable, Sendable {
     public let promptID: String
     public let action: PromptActionKind

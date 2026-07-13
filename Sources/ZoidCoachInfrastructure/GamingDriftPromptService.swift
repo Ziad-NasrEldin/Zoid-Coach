@@ -185,8 +185,8 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             ? "Your five minutes are up"
             : (level == .gentle ? "Ready for an easy return?" : "Is this gaming intentional?")
         let summary = isFiveMinuteFollowUp
-            ? "The five minutes you chose have ended, and \(task.title) is still waiting. Ready to return?"
-            : "Observed \(session.minutes) minutes in \(session.application) while \(task.title) remains unfinished. This is an observation, not a judgment."
+            ? "The five-minute extension has ended. The current session contains \(session.minutes) observed minutes in \(session.application), and \(task.title) remains unfinished. This shows activity, not why it happened or what you intended."
+            : "The current session contains \(session.minutes) observed minutes in \(session.application) while \(task.title) remains unfinished. This shows activity, not why it happened or what you intended."
         var actions = [PromptAction(kind: .returnToActiveTask, title: "Return to \(task.title)", role: .primary)]
         if level == .gentle {
             actions.append(PromptAction(kind: .startShortSprint, title: "Start a 10-minute recovery sprint"))
@@ -206,6 +206,10 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             "taskTitle": task.title,
             "application": session.application,
             "observedGamingMinutes": String(session.minutes),
+            "evidenceStartedAtEpoch": String(session.startedAtEpoch),
+            "evidenceLatestAtEpoch": String(session.latestAtEpoch),
+            "behaviorPromptContractVersion": BehaviorPromptPresentationPolicy.contractVersion,
+            "uncertaintyHandling": "Limited source coverage suppresses the intervention",
             "sessionStartedAtEpoch": String(session.startedAtEpoch),
             "coachingLevel": level.rawValue,
             "allowsDismissal": "true"
