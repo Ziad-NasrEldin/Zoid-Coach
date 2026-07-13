@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "ec0db1bced79bd42d0ca661b2358c441546b2d1820e0e470ab0dbf2766147da3",
+  "tracker_sha256": "548d5fbf368afc84ccbf04ef9db3fecea2b5e766c4db99ce8078f27ec13427c9",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -2838,19 +2838,21 @@
       "section_title": "Understanding the Today dashboard",
       "item_index": 10,
       "wording": "End the workday from the dashboard.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "`endWorkday` exists only as an unused prompt action kind; no fixed dashboard control or effect is implemented (`PromptInbox.swift:47-64`; `PromptResponseEffectRouter.swift:43-108`).",
+      "evidence_paths": [
+        ".audit/runs/dashboard-end-workday/848dd365f1f2c751f64f8cecdb5fef748f2b8702/evidence.json"
+      ],
+      "last_verified_commit": "848dd365f1f2c751f64f8cecdb5fef748f2b8702",
+      "last_verified_build": "zoid-coach-848dd365f1f2c751f64f8cecdb5fef748f2b8702-clean",
+      "audit_note": "The signed Today surface hid the action without an active task, then exposed a fixed accessible end-workday control for the exact active task with explicit preserved-time and non-completion copy. Cancel kept the task active, a deliberately stale confirmation performed no second mutation, and a stopped helper produced an honest failure while remaining on Today. After signed helper recovery, confirmation paused the task with the end-of-workday reason and opened Reviews only after the durable agent response; Reviews kept the task unfinished with no completion record, and app plus helper restart restored three tracked minutes, the end-of-workday pause reason, and Resume (`DashboardEndWorkdayFlow.swift`; `DashboardView.swift`; `DashboardEndWorkdayFlowTests.swift`; `.audit/runs/dashboard-end-workday/848dd365f1f2c751f64f8cecdb5fef748f2b8702/evidence.json`).",
       "tracker_line": 217
     },
     {
