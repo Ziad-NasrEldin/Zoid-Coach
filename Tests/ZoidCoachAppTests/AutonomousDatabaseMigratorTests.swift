@@ -439,6 +439,20 @@ private enum TestDatabaseError: Error {
 }
 
 @Test
+func migration40AddsBoundedPersonalReviewNoteWithoutChangingExistingRows() throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-migration-40-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    _ = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+    try execute(
+        databaseURL,
+        "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES ('2026-07-10', 'pending', NULL, '2026-07-10T18:00:00Z');"
+    )
+
+    #expect(try columnExists(databaseURL, table: "daily_reviews", column: "personal_note"))
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM daily_reviews WHERE source_day = '2026-07-10' AND personal_note IS NULL;") == 1)
+}
+
+@Test
 func migration32CreatesRestartSafeBoundedSprintStorage() throws {
     let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-migration-32-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: databaseURL) }

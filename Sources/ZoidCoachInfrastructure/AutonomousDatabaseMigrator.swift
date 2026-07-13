@@ -1033,6 +1033,13 @@ private extension AutonomousDatabaseMigrator {
         CREATE INDEX IF NOT EXISTS quiet_drift_episodes_day
         ON quiet_drift_episodes(local_day, session_started_epoch);
         """)
+        ]),
+        Migration(version: 40, isDestructive: false, operations: [
+            .addColumnIfTableExists(
+                table: "daily_reviews",
+                column: "personal_note",
+                declaration: "TEXT CHECK(personal_note IS NULL OR length(personal_note) <= 1000)"
+            )
         ])
     ]
 }
