@@ -90,7 +90,7 @@ final class AppModel: ObservableObject {
     private let todayDashboardXPCClient: TodayDashboardXPCClient
     private let calendarPlanApprovalReceiptStore: CalendarPlanApprovalReceiptStore
     private let synchronizeReminderSnapshots: @Sendable ([AgentReminderSnapshot]) async throws -> Void
-    private var dailyPlanPersistenceTask: Task<Void, Never>?
+    private var dailyPlanPersistenceTask: Task<Bool, Never>?
     private var dailyPlanPersistenceRevision = 0
     private let retryReminderCompletion: @Sendable (String) async throws -> Void
     private let fetchReminderCompletionSync: @Sendable (String) async throws -> ReminderCompletionSyncState
@@ -777,10 +777,11 @@ final class AppModel: ObservableObject {
         persistDailyPlan()
     }
 
-    func deferTask(_ entry: DailyPlanEntry, until date: Date) {
+    @discardableResult
+    func deferTask(_ entry: DailyPlanEntry, until date: Date) -> Task<Bool, Never>? {
         guard !isLoadingDailyPlan, date > Date() else {
             persistenceMessage = "Choose a future time for this deferred task."
-            return
+            return nil
         }
         dailyPlan = dailyPlan.map {
             $0.reminderID == entry.reminderID
@@ -797,7 +798,7 @@ final class AppModel: ObservableObject {
                     : $0
             }
         }
-        persistDailyPlan()
+        return persistDailyPlan()
     }
 
     func deferTaskUntilTomorrow(_ entry: DailyPlanEntry) {
@@ -811,12 +812,13 @@ final class AppModel: ObservableObject {
             persistenceMessage = "This task is no longer in today's plan. Refresh before rescheduling it."
             return
         }
-        deferTask(entry, until: date)
-        guard !taskID.hasPrefix("local:") else {
-            persistenceMessage = "The local planning date is being saved. No Apple Reminders sync is needed for this local task."
-            return
-        }
+        guard let planPersistence = deferTask(entry, until: date) else { return }
         Task {
+            guard await planPersistence.value else { return }
+            guard !taskID.hasPrefix("local:") else {
+                persistenceMessage = "The local planning date is saved. No Apple Reminders sync is needed for this local task."
+                return
+            }
             do {
                 let receipt = try await todayDashboardXPCClient.apply(
                     .rescheduleReminder(reminderID: taskID, dueDate: date)
@@ -1341,7 +1343,8 @@ final class AppModel: ObservableObject {
         persistDailyPlan()
     }
 
-    private func persistDailyPlan() {
+    @discardableResult
+    private func persistDailyPlan() -> Task<Bool, Never> {
         let items = dailyPlan.map {
             AgentPlanItem(
                 reminderID: $0.reminderID,
@@ -1359,21 +1362,25 @@ final class AppModel: ObservableObject {
         dailyPlanPersistenceRevision += 1
         let revision = dailyPlanPersistenceRevision
         let previousPersistence = dailyPlanPersistenceTask
-        dailyPlanPersistenceTask = Task { [weak self] in
+        let task = Task { [weak self] in
             await previousPersistence?.value
-            guard let self else { return }
+            guard let self else { return false }
             do {
                 let receipt = try await todayDashboardXPCClient.apply(.replaceDailyPlan(items: items, day: Date()))
                 guard receipt.accepted else { throw AppModelPersistenceError.rejected }
                 if revision == dailyPlanPersistenceRevision {
                     persistenceMessage = nil
                 }
+                return true
             } catch {
-                guard revision == dailyPlanPersistenceRevision else { return }
+                guard revision == dailyPlanPersistenceRevision else { return false }
                 persistenceMessage = "The plan change was not saved. The last durable plan has been restored."
                 await reloadDailyPlan()
+                return false
             }
         }
+        dailyPlanPersistenceTask = task
+        return task
     }
 
     private func reloadReminderListOrder() async {
