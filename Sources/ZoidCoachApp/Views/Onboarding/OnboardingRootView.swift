@@ -505,6 +505,21 @@ struct OnboardingRootView: View {
             )
             timePicker("WORK START", hour: $coordinator.workStartHour, minute: $coordinator.workStartMinute, id: "work-start")
             timePicker("WORK END", hour: $coordinator.workEndHour, minute: $coordinator.workEndMinute, id: "work-end")
+            VStack(alignment: .leading, spacing: 8) {
+                Text("WORK DAYS").font(Sumi.label()).tracking(1.2)
+                HStack(spacing: 6) {
+                    ForEach(Weekday.allCases, id: \.rawValue) { weekday in
+                        let isSelected = coordinator.selectedWorkWeekdays.contains(weekday)
+                        Button(shortWeekday(weekday)) {
+                            coordinator.toggleWorkWeekday(weekday)
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: isSelected ? .primary : .quiet, size: .compact))
+                        .accessibilityLabel("\(longWeekday(weekday)) work day")
+                        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                        .accessibilityIdentifier("onboarding.schedule.weekday.\(weekday.rawValue)")
+                    }
+                }
+            }
             Rectangle().fill(Sumi.paleRule).frame(height: 1)
             timePicker("QUIET START", hour: $coordinator.quietStartHour, minute: $coordinator.quietStartMinute, id: "quiet-start")
             timePicker("QUIET END", hour: $coordinator.quietEndHour, minute: $coordinator.quietEndMinute, id: "quiet-end")
@@ -515,7 +530,7 @@ struct OnboardingRootView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("onboarding.schedule.validation")
             } else {
-                Text("Work and quiet windows are valid. Either may cross midnight.")
+                Text(coordinator.scheduleSummary)
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.okay)
                     .accessibilityIdentifier("onboarding.schedule.validation")
@@ -551,6 +566,14 @@ struct OnboardingRootView: View {
 
     private func minuteOptions(including current: Int) -> [Int] {
         Array(Set([0, 15, 30, 45, current])).sorted()
+    }
+
+    private func shortWeekday(_ weekday: Weekday) -> String {
+        ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][weekday.rawValue - 1]
+    }
+
+    private func longWeekday(_ weekday: Weekday) -> String {
+        ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][weekday.rawValue - 1]
     }
 
     private var gamingPolicyStep: some View {
