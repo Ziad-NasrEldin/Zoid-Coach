@@ -33,3 +33,12 @@ A fresh verifier should rebase this candidate onto the current integration tip a
 Using the serialized signed-QA runtime, verify denied onboarding continuation, the same prompt in Today, Settings repair failure and success copy, automatic foreground authorization refresh, one latest notification after repeated delivery, response resolution, agent restart, and no duplicated effect.
 The tracker, registry, Lavish report, shared runtime, and root worktree remain untouched by this candidate.
 
+## Independent verifier result
+
+The candidate was rebased once onto lifecycle integration `d0e11f6` as verifier tip `9a13467`.
+The focused notification health and recovery tests passed, and the release build passed.
+Clean signed-QA packaging, signing verification, exact helper registration, and launch passed from `/private/tmp/zoid-666-notification-recovery-installed/Zoid 666 QA E2E.app`.
+The installed app visibly reached Notifications with denied fixture authorization, reported Attention, explained that every important action remains available in Today, disabled the repeated Request Notification Access action after the denied request, and enabled Continue.
+The visible journey then stopped at activity-classification persistence because the running signed helper did not answer the XPC policy write within three seconds.
+A single retry was followed by ScreenCaptureKit error `-3811`, so the verifier stopped within the capped UI window.
+The signed repair, foreground refresh, latest-only delivery, response, and restart legs remain unqualified, and no scenario was promoted to fully implemented from this run.
