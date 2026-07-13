@@ -355,7 +355,10 @@ public final class AgentMutationRouter: @unchecked Sendable {
 
         case .deleteReviewsAndLearnedRules:
             let count = try privacyData.deleteReviewsAndLearnedRules()
-            return .init(accepted: true, message: "Deleted \(count) learned estimate and planner-trust records.")
+            return .init(
+                accepted: true,
+                message: ReviewLearningDeletionDisclosure.successMessage(deletedCount: count)
+            )
 
         case .deleteAllUserData:
             let count = try privacyData.deleteAllUserData()
