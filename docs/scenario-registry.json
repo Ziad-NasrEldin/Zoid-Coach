@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "dc0fa895831eca09cbf1cae6cbf1887fdc2926f538168cc6e23580d525d1752a",
+  "tracker_sha256": "cfeedb28074cf3831fc0b1ed4a583d5121e6106af3339cb5740b2408b686bb23",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4970,8 +4970,8 @@
       "item_index": 4,
       "wording": "See a paused state while coaching is paused.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4982,7 +4982,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The voice menu symbol reflects voice transport state, not coaching pause state.",
+      "audit_note": "The menu-bar controller now gives a durably paused coaching policy precedence through a distinct paused icon and label while retaining the active task, with focused state tests and signed pause/restart semantics passing. The macOS status item remained absent from the available accessibility tree, so visible popover acceptance remains (`MenuBarCoachState.swift`; `.audit/runs/menu-bar-coaching-pause/verifier/REPORT.md`).",
       "tracker_line": 343
     },
     {
@@ -5080,8 +5080,8 @@
       "item_index": 9,
       "wording": "Pause coaching.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5092,7 +5092,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Coaching pause is available in Settings policy, not the menu bar extra.",
+      "audit_note": "The menu bar now exposes receipt-validated Pause and Resume controls that reload the newest durable policy, preserve unrelated fields, and publish truthful progress, success, and failure copy. The signed app proved policy v1 to paused v2, intervention suppression, continued task tracking, app/helper restart persistence, and resumed v3 with an eligible prompt appearing, while the status-item control itself remained inaccessible to the UI harness (`MenuBarCoachingPauseController.swift`; `.audit/runs/menu-bar-coaching-pause/verifier/REPORT.md`).",
       "tracker_line": 348
     },
     {
