@@ -260,6 +260,7 @@ public struct CategoryUsageBreakdown: Identifiable, Equatable, Codable, Sendable
 public struct BehaviorSummary: Equatable, Codable, Sendable {
     public let workMinutes: Int
     public let gamingMinutes: Int
+    public let meaningfulGamingMinutes: Int
     public let distractingMinutes: Int
     public let gamingOrDistractingMinutes: Int
     public let idleMinutes: Int
@@ -284,9 +285,10 @@ public struct BehaviorSummary: Equatable, Codable, Sendable {
             }
     }
 
-    public init(workMinutes: Int = 0, gamingMinutes: Int = 0, distractingMinutes: Int = 0, idleMinutes: Int = 0, unknownMinutes: Int = 0, appUsage: [AppUsageBreakdown] = []) {
+    public init(workMinutes: Int = 0, gamingMinutes: Int = 0, meaningfulGamingMinutes: Int? = nil, distractingMinutes: Int = 0, idleMinutes: Int = 0, unknownMinutes: Int = 0, appUsage: [AppUsageBreakdown] = []) {
         self.workMinutes = max(0, workMinutes)
         self.gamingMinutes = max(0, gamingMinutes)
+        self.meaningfulGamingMinutes = max(0, meaningfulGamingMinutes ?? gamingMinutes)
         self.distractingMinutes = max(0, distractingMinutes)
         gamingOrDistractingMinutes = max(0, gamingMinutes) + max(0, distractingMinutes)
         self.idleMinutes = max(0, idleMinutes)
@@ -295,7 +297,7 @@ public struct BehaviorSummary: Equatable, Codable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case workMinutes, gamingMinutes, distractingMinutes, gamingOrDistractingMinutes, idleMinutes, unknownMinutes, appUsage
+        case workMinutes, gamingMinutes, meaningfulGamingMinutes, distractingMinutes, gamingOrDistractingMinutes, idleMinutes, unknownMinutes, appUsage
     }
 
     public init(from decoder: any Decoder) throws {
@@ -306,6 +308,7 @@ public struct BehaviorSummary: Equatable, Codable, Sendable {
         self.init(
             workMinutes: try container.decodeIfPresent(Int.self, forKey: .workMinutes) ?? 0,
             gamingMinutes: gaming,
+            meaningfulGamingMinutes: try container.decodeIfPresent(Int.self, forKey: .meaningfulGamingMinutes) ?? gaming,
             distractingMinutes: distracting,
             idleMinutes: try container.decodeIfPresent(Int.self, forKey: .idleMinutes) ?? 0,
             unknownMinutes: try container.decodeIfPresent(Int.self, forKey: .unknownMinutes) ?? 0,
@@ -317,6 +320,7 @@ public struct BehaviorSummary: Equatable, Codable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(workMinutes, forKey: .workMinutes)
         try container.encode(gamingMinutes, forKey: .gamingMinutes)
+        try container.encode(meaningfulGamingMinutes, forKey: .meaningfulGamingMinutes)
         try container.encode(distractingMinutes, forKey: .distractingMinutes)
         try container.encode(gamingOrDistractingMinutes, forKey: .gamingOrDistractingMinutes)
         try container.encode(idleMinutes, forKey: .idleMinutes)
@@ -432,30 +436,35 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
 }
 
 public struct GamingStatus: Equatable, Codable, Sendable {
+    public static let meaningfulSessionExplanation = "Gaming sessions under 2 continuous minutes are observed but do not use the allowance."
     public let budgetMinutes: Int
     public let earnedMinutes: Int
     public let usedMinutes: Int
     public let unlockedRemainingMinutes: Int
     public let lockedMinutes: Int
-    public let debtMinutes: Int
+    public let overageMinutes: Int
     public let nextUnlockReason: String
     public let confidenceIsLimited: Bool
     public let budgetEnabled: Bool
 
-    public init(budgetMinutes: Int, earnedMinutes: Int = 0, usedMinutes: Int, unlockedRemainingMinutes: Int, lockedMinutes: Int = 0, debtMinutes: Int = 0, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true) {
+    public init(budgetMinutes: Int, earnedMinutes: Int = 0, usedMinutes: Int, unlockedRemainingMinutes: Int, lockedMinutes: Int = 0, overageMinutes: Int = 0, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true) {
         self.budgetMinutes = max(0, budgetMinutes)
         self.earnedMinutes = max(0, earnedMinutes)
         self.usedMinutes = max(0, usedMinutes)
         self.unlockedRemainingMinutes = max(0, unlockedRemainingMinutes)
         self.lockedMinutes = max(0, lockedMinutes)
-        self.debtMinutes = max(0, debtMinutes)
+        self.overageMinutes = max(0, overageMinutes)
         self.nextUnlockReason = nextUnlockReason
         self.confidenceIsLimited = confidenceIsLimited
         self.budgetEnabled = budgetEnabled
     }
 
+    public var allowanceBreakdown: String {
+        "Base \(budgetMinutes)m · Earned \(earnedMinutes)m · Used \(usedMinutes)m · Locked \(lockedMinutes)m · Remaining \(unlockedRemainingMinutes)m · Same-day overage \(overageMinutes)m"
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case budgetMinutes, earnedMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, debtMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled
+        case budgetMinutes, earnedMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, overageMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -466,7 +475,7 @@ public struct GamingStatus: Equatable, Codable, Sendable {
             usedMinutes: try container.decode(Int.self, forKey: .usedMinutes),
             unlockedRemainingMinutes: try container.decode(Int.self, forKey: .unlockedRemainingMinutes),
             lockedMinutes: try container.decodeIfPresent(Int.self, forKey: .lockedMinutes) ?? 0,
-            debtMinutes: try container.decodeIfPresent(Int.self, forKey: .debtMinutes) ?? 0,
+            overageMinutes: try container.decodeIfPresent(Int.self, forKey: .overageMinutes) ?? 0,
             nextUnlockReason: try container.decode(String.self, forKey: .nextUnlockReason),
             confidenceIsLimited: try container.decode(Bool.self, forKey: .confidenceIsLimited),
             budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
@@ -620,7 +629,8 @@ public struct BehaviorSessionizer: Sendable {
             }
         let summary = BehaviorSummary(
             workMinutes: Int(totals[.work, default: 0] / 60),
-            gamingMinutes: Int(meaningfulGamingSeconds / 60),
+            gamingMinutes: Int(totals[.gaming, default: 0] / 60),
+            meaningfulGamingMinutes: Int(meaningfulGamingSeconds / 60),
             distractingMinutes: Int(totals[.distracting, default: 0] / 60),
             idleMinutes: Int(totals[.idle, default: 0] / 60),
             unknownMinutes: Int(totals[.unknown, default: 0] / 60),
@@ -737,7 +747,7 @@ public struct GamingStatusCalculator: Sendable {
             usedMinutes: gamingMinutes,
             unlockedRemainingMinutes: max(0, allowance - gamingMinutes),
             lockedMinutes: rewardMinutes == 0 ? policy.priorityTaskRewardMinutes : 0,
-            debtMinutes: max(0, gamingMinutes - allowance),
+            overageMinutes: max(0, gamingMinutes - allowance),
             nextUnlockReason: nextUnlockReason,
             confidenceIsLimited: coverage.isLimited
         )

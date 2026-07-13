@@ -68,7 +68,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         let rewardMinutes = try snapshots.priorityRewardMinutes(policy: gamingPolicy, day: now)
         let gaming = GamingStatusCalculator().status(
             policy: gamingPolicy,
-            gamingMinutes: behavior.summary.gamingMinutes,
+            gamingMinutes: behavior.summary.meaningfulGamingMinutes,
             appliedRewardMinutes: rewardMinutes,
             coverage: behavior.coverage
         )
