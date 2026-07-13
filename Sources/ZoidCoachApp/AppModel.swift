@@ -332,6 +332,7 @@ final class AppModel: ObservableObject {
             defer { pendingTaskCommandIDs.remove(taskID) }
             do {
                 todaySnapshot = try await todayDashboardXPCClient.apply(command, taskID: taskID)
+                await reconcileAcceptedBreakReminder(taskID: taskID)
                 lastActionMessage = taskCommandConfirmation(command)
                 if command == .complete {
                     await refreshActionAudit()
@@ -342,6 +343,22 @@ final class AppModel: ObservableObject {
                 todaySnapshot = try? todaySnapshotStore?.load()
             }
         }
+    }
+
+    func reconcileAcceptedBreakReminder(taskID: String) async {
+        guard let row = todaySnapshot?.taskRows.first(where: { $0.taskID == taskID }),
+              let acceptedBreak = row.acceptedBreak
+        else {
+            notificationService.cancelAcceptedBreakReminder(taskID: taskID)
+            return
+        }
+        let remaining = acceptedBreak.remainingSeconds(at: Date())
+        guard remaining > 0 else { return }
+        try? await notificationService.scheduleAcceptedBreakReminder(
+            taskID: taskID,
+            taskTitle: row.title,
+            after: TimeInterval(remaining)
+        )
     }
 
     func startSprint(taskID: String, durationMinutes: Int) {

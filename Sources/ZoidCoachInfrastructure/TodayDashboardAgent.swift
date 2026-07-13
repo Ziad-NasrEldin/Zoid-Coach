@@ -55,6 +55,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 state: current?.state ?? .ready,
                 elapsedMinutes: current?.elapsedMinutes ?? 0,
                 latestPauseReason: current?.latestPauseReason,
+                acceptedBreak: current?.acceptedBreak,
                 sprint: current?.sprint,
                 isMainObjective: entry.isMainObjective,
                 isOptional: entry.isOptional == true,
@@ -93,6 +94,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 state: executionSnapshot?.state ?? .active,
                 elapsedMinutes: executionSnapshot?.elapsedMinutes ?? 0,
                 latestPauseReason: executionSnapshot?.latestPauseReason,
+                acceptedBreak: executionSnapshot?.acceptedBreak,
                 sprint: executionSnapshot?.sprint,
                 isMainObjective: false
             ))

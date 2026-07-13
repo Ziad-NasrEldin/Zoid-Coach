@@ -909,6 +909,30 @@ private struct TodayTaskRowView: View {
             }
             .fixedSize()
         }
+        if let acceptedBreak = row.acceptedBreak {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let remaining = acceptedBreak.remainingSeconds(at: context.date)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(remaining == 0 ? "ACCEPTED BREAK ENDED" : "ACCEPTED BREAK")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.sealDeep)
+                    Text(remaining == 0
+                         ? "Your 15-minute break is complete. Resume when you are ready."
+                         : "\((remaining + 59) / 60) min left. This time is a break, not drift or failure.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                    Button(remaining == 0 ? "RESUME TASK" : "END BREAK EARLY") {
+                        model.applyTaskCommand(.resume, taskID: row.taskID)
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
+                    .accessibilityIdentifier("today.task.\(row.taskID).break.resume")
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("today.task.\(row.taskID).accepted-break")
+            }
+        }
+
         if row.state == .active || row.state == .paused {
             TaskEstimateProgressView(
                 progress: TaskEstimateProgress(

@@ -63,7 +63,9 @@ struct MenuBarCoachState: Equatable {
 
     var primaryTask: TodayTaskRow? { activeTask ?? pausedTask ?? recommendedTask }
 
-    var taskStatus: String {
+    var taskStatus: String { taskStatus(at: Date()) }
+
+    func taskStatus(at date: Date) -> String {
         if let activeTask {
             if let sprint = activeTask.sprint, sprint.state == .active {
                 return "Focus sprint · \(max(0, sprint.remainingSeconds / 60)) min left"
@@ -71,6 +73,13 @@ struct MenuBarCoachState: Equatable {
             return "Active · \(activeTask.elapsedMinutes) min tracked"
         }
         if let pausedTask {
+            if let acceptedBreak = pausedTask.acceptedBreak {
+                let remaining = acceptedBreak.remainingSeconds(at: date)
+                if remaining == 0 {
+                    return "Accepted break ended · Resume when ready"
+                }
+                return "Accepted break · \((remaining + 59) / 60) min left"
+            }
             return pausedTask.latestPauseReason?.userFacingLabel ?? "Paused"
         }
         if recommendedTask != nil {

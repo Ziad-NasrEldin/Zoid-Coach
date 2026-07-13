@@ -8,6 +8,13 @@ protocol NotificationServicing: AnyObject {
     var isProductionAdapter: Bool { get }
     func inspect() async -> SourceHealth
     func requestAccessAndInspect() async -> SourceHealth
+    func scheduleAcceptedBreakReminder(taskID: String, taskTitle: String, after seconds: TimeInterval) async throws
+    func cancelAcceptedBreakReminder(taskID: String)
+}
+
+extension NotificationServicing {
+    func scheduleAcceptedBreakReminder(taskID: String, taskTitle: String, after seconds: TimeInterval) async throws {}
+    func cancelAcceptedBreakReminder(taskID: String) {}
 }
 
 @MainActor
@@ -122,6 +129,27 @@ final class NotificationService: NotificationServicing {
             )
         }
         return await inspect()
+    }
+
+    func scheduleAcceptedBreakReminder(taskID: String, taskTitle: String, after seconds: TimeInterval) async throws {
+        guard !isRunningInSwiftPackageTests else { return }
+        let identifier = "\(notificationIdentity.wakeRequestPrefix)accepted-break.\(taskID)"
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
+        let content = UNMutableNotificationContent()
+        content.title = "Break complete"
+        content.body = "Your accepted break from \(taskTitle) has ended. Resume when you are ready."
+        content.sound = .default
+        try await notificationCenter.add(UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)
+        ))
+    }
+
+    func cancelAcceptedBreakReminder(taskID: String) {
+        let identifier = "\(notificationIdentity.wakeRequestPrefix)accepted-break.\(taskID)"
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [identifier])
+        notificationCenter.removeDeliveredNotifications(withIdentifiers: [identifier])
     }
 
     func scheduleWake(for day: Date, policy: WakeUpPolicy, reason: String) async throws {
