@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "run_id": "active-task-context/47527ac4840a67bbb3b618bc6e09f27942404f85",
+  "verified_commit": "47527ac4840a67bbb3b618bc6e09f27942404f85",
+  "build_identity": "zoid-coach-47527ac4840a67bbb3b618bc6e09f27942404f85-clean",
+  "fixture": "/private/tmp/zoid-666-active-task-context-qa/Application Support/Zoid 666/zoid-coach.sqlite",
+  "qa_root": "/private/tmp/zoid-666-active-task-context-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "7f1ed401f8ce30e5312631cd2d1247cc55cfef063f9b1b3c367e6118d0e61892",
+  "scenario_ids": [
+    "ZC-018-004",
+    "ZC-018-005"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T11:39:52.071606+00:00",
+  "completed_at": "2026-07-13T11:39:52Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "597147a992be05d99bac2fd0a727230dd64072b7eb1ba61792018044eee6bd68"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "missing_evidence_is_uncertain",
+      "result": "passed",
+      "detail": "The signed active focus card refused to guess when no current observation existed."
+    },
+    {
+      "name": "fresh_work_is_signal_not_proof",
+      "result": "passed",
+      "detail": "A fresh work observation rendered the aligned state with the exact signal-not-proof caveat."
+    },
+    {
+      "name": "fresh_gaming_is_neutral_mismatch",
+      "result": "passed",
+      "detail": "A fresh gaming observation rendered the mismatch state without judgmental productivity wording."
+    },
+    {
+      "name": "stale_evidence_returns_to_uncertain",
+      "result": "passed",
+      "detail": "Evidence older than fifteen minutes rendered the stale uncertain state and refused to guess."
+    },
+    {
+      "name": "relaunch_reconstructs_active_context",
+      "result": "passed",
+      "detail": "Application relaunch preserved the active task and reconstructed its assessment from durable observations."
+    }
+  ],
+  "commands": [
+    "swift test --filter TodayDashboardTests|TodayDashboardAgentTests",
+    "CONFIGURATION=release ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-active-task-context-qa Scripts/package-app.sh"
+  ]
+}

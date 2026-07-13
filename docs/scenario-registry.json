@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "033e74eb1706befa494cc63ab7e0942e7e2d4af9fc9a37420620f57a7c47ab42",
+  "tracker_sha256": "1cc25d3a42c9313892e6bee6be91e4aceea77286ead78cfa3fa7c24d657cfd86",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3934,9 +3934,9 @@
       "section_title": "Active-task controls",
       "item_index": 4,
       "wording": "See whether the current computer context appears aligned, uncertain, or mismatched.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3944,10 +3944,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Behavior classification and telemetry coverage exist, but there is no task-context alignment state or active-task alignment UI.",
+      "evidence_paths": [
+        ".audit/runs/active-task-context/47527ac4840a67bbb3b618bc6e09f27942404f85/evidence.json"
+      ],
+      "last_verified_commit": "47527ac4840a67bbb3b618bc6e09f27942404f85",
+      "last_verified_build": "zoid-coach-47527ac4840a67bbb3b618bc6e09f27942404f85-clean",
+      "audit_note": "The signed active focus card visibly moved from missing-evidence uncertain, to fresh-work aligned, to fresh-gaming mismatched, and back to stale-evidence uncertain. Relaunch preserved the same active task and reconstructed its assessment from durable observations, while focused rules cover inactive suppression, idle, and unclassified evidence (`ActiveTaskContextAssessor`; `TodayDashboardCommandOverview.swift`; `.audit/runs/active-task-context/47527ac4840a67bbb3b618bc6e09f27942404f85/evidence.json`).",
       "tracker_line": 282
     },
     {
@@ -3956,9 +3958,9 @@
       "section_title": "Active-task controls",
       "item_index": 5,
       "wording": "Read neutral alignment language rather than judgmental productivity labels.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3966,10 +3968,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Existing copy is generally neutral, but no alignment result is generated or displayed, so the intended scenario cannot be exercised.",
+      "evidence_paths": [
+        ".audit/runs/active-task-context/47527ac4840a67bbb3b618bc6e09f27942404f85/evidence.json"
+      ],
+      "last_verified_commit": "47527ac4840a67bbb3b618bc6e09f27942404f85",
+      "last_verified_build": "zoid-coach-47527ac4840a67bbb3b618bc6e09f27942404f85-clean",
+      "audit_note": "The signed aligned state explicitly said the evidence was `a signal, not proof`, the mismatched state asked the user to check context before changing the plan, and missing or stale evidence stated that Zoid 666 would not guess. Focused tests reject judgmental productivity wording and preserve neutral uncertain states (`ActiveTaskContextAssessor`; `.audit/runs/active-task-context/47527ac4840a67bbb3b618bc6e09f27942404f85/evidence.json`).",
       "tracker_line": 283
     },
     {
