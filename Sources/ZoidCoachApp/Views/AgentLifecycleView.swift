@@ -99,8 +99,8 @@ struct AgentLifecycleView: View {
             }
             .padding(.top, 4)
 
-            if controller.health.state == .attention || controller.health.state == .notConnected {
-                Text("If macOS requires approval, open Login Items, allow Zoid 666, then return here and choose CHECK AGAIN.")
+            if let recoveryGuidance = controller.recoveryGuidance {
+                Text(recoveryGuidance)
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.seal)
                     .fixedSize(horizontal: false, vertical: true)
