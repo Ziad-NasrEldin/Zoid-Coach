@@ -62,6 +62,7 @@ final class NotificationDeliveryHealthController: ObservableObject {
     @Published private(set) var records: [NotificationDeliveryRecord] = []
     @Published private(set) var isRefreshing = false
     @Published private(set) var statusMessage: String?
+    private var awaitingSystemSettingsReturn = false
 
     private let service: any NotificationDeliveryHealthServicing
     private let openURL: (URL) -> Bool
@@ -99,7 +100,15 @@ final class NotificationDeliveryHealthController: ObservableObject {
 
     func applicationDidBecomeActive() async {
         guard health != nil, !isRefreshing else { return }
+        let wasAwaitingSystemSettingsReturn = awaitingSystemSettingsReturn
+        awaitingSystemSettingsReturn = false
         await refresh()
+        guard wasAwaitingSystemSettingsReturn else { return }
+        if health?.state == .healthy {
+            statusMessage = "Notifications are enabled. Timely prompts can use Notification Center, and every unresolved choice also remains available in Today."
+        } else {
+            statusMessage = "Notifications are still off. In System Settings, choose Notifications, choose Zoid 666, and turn on Allow notifications. You can continue responding through Today meanwhile."
+        }
     }
 
     @discardableResult
@@ -114,6 +123,7 @@ final class NotificationDeliveryHealthController: ObservableObject {
         ]
         for address in addresses {
             if let url = URL(string: address), openURL(url) {
+                awaitingSystemSettingsReturn = true
                 statusMessage = "After changing access, return to Zoid 666. Permission is checked automatically, and Today remains available meanwhile."
                 return true
             }
