@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "aa8f82fb83f2f3cda5d6ccb0c5bd1c6ef213e9a917ebb8691efef373049e3c97",
+  "tracker_sha256": "e32128f34d9430fc94709a2afe31e4fc0e35924eb3c64651c1e78e8fe4a635c3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7705,8 +7705,8 @@
       "item_index": 11,
       "wording": "Mark the task blocked.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7717,7 +7717,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The prompt now has a reviewed blocker-reason sheet, 3-to-240-character validation, ordered local task blocking before prompt resolution, failure-safe retry copy, replacement-main promotion, and focused rule coverage. A signed build loaded a six-action `GAMING_DRIFT` decision for an active main task, but the prompt card exposed an empty action collection and rendered no action buttons, so an end user could not reach `Mark blocked`; the full invalid-reason, Cancel, successful block, replacement, answered-history, relaunch, and unavailable-agent journey remains blocked on that UI defect (`AppModel.swift`; `PromptTaskBlockState.swift`; `TodayPromptInboxLedger.swift`; `GamingDriftPromptService.swift`; `.audit/runs/prompt-task-block/verifier/REPORT.md`).",
+      "audit_note": "A signed installed app restored a six-action numeric-flag `GAMING_DRIFT` envelope across app and helper restart and visibly exposed all six accessible actions, including `Mark blocked`, after scrolling the adaptive collection. The compatibility fix preserves canonical Boolean encoding while accepting only legacy Boolean or exact integer `0/1` confirmation values, and focused prompt, blocker-state, and gaming-drift tests pass. The blocker-sheet click was not reliable before the capped signed session ended, so the too-short reason, Cancel, successful block, replacement-main promotion, answered history, durable relaunch, and unavailable-agent journeys remain (`PromptInboxStore.swift`; `PromptTaskBlockState.swift`; `GamingDriftPromptService.swift`; `.audit/runs/prompt-action-rendering/verifier/REPORT.md`).",
       "tracker_line": 494
     },
     {
