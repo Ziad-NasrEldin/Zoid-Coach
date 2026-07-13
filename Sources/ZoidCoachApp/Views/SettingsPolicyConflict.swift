@@ -64,6 +64,7 @@ enum SettingsPolicyConflictResolver {
         apply(\.gamingPromptCooldownMinutes, label: "Coaching prompt cooldown")
         apply(\.gamingBudgetEnabled, label: "Gaming budget mode")
         apply(\.isPaused, label: "Automation pause")
+        apply(\.timeZoneIdentifier, label: "Time zone")
         apply(\.workStart, label: "Workday window")
         apply(\.workEnd, label: "Workday window")
         apply(\.quietStart, label: "Quiet hours")

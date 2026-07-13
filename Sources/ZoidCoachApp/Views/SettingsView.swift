@@ -30,6 +30,7 @@ struct SettingsView: View {
     private let xpcClient = TodayDashboardXPCClient(
         runtimeEnvironment: RuntimeEnvironment.current()
     )
+    private static let timeZoneIdentifiers = TimeZone.knownTimeZoneIdentifiers.sorted()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -713,7 +714,37 @@ struct SettingsView: View {
     }
 
     private var scheduleSection: some View {
-        SettingsCard(title: "SCHEDULE", detail: "Times stay local to \(TimeZone.current.identifier). Capacity limits planned work after fixed calendar commitments.") {
+        SettingsCard(title: "SCHEDULE", detail: "Future local-day boundaries use the selected policy time zone. Historical event instants stay unchanged. Capacity limits planned work after fixed calendar commitments.") {
+            HStack(alignment: .bottom, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("POLICY TIME ZONE")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.sealDeep)
+                    Picker("Policy time zone", selection: $controller.draft.timeZoneIdentifier) {
+                        ForEach(Self.timeZoneIdentifiers, id: \.self) { identifier in
+                            Text(identifier).tag(identifier)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: 360)
+                    .accessibilityLabel("Policy time zone")
+                    .accessibilityIdentifier("settings.schedule.time-zone")
+                }
+
+                Button("USE MAC TIME ZONE") {
+                    controller.draft.timeZoneIdentifier = TimeZone.current.identifier
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                .accessibilityIdentifier("settings.schedule.time-zone.use-mac")
+            }
+
+            Text(timeZonePolicyDetail)
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("settings.schedule.time-zone.detail")
+
             HStack(spacing: 18) {
                 LocalTimeField(title: "Work starts", time: $controller.draft.workStart)
                 LocalTimeField(title: "Work ends", time: $controller.draft.workEnd)
@@ -732,6 +763,20 @@ struct SettingsView: View {
                 valueLabel: { "\($0)%" }
             )
         }
+    }
+
+    private var timeZonePolicyDetail: String {
+        guard let timeZone = TimeZone(identifier: controller.draft.timeZoneIdentifier) else {
+            return "Choose a valid IANA time zone before saving."
+        }
+        let seconds = timeZone.secondsFromGMT(for: Date())
+        let sign = seconds >= 0 ? "+" : "-"
+        let totalMinutes = abs(seconds) / 60
+        let offset = String(format: "UTC%@%02d:%02d", sign, totalMinutes / 60, totalMinutes % 60)
+        if timeZone.identifier == TimeZone.current.identifier {
+            return "\(timeZone.identifier) · \(offset) · matches this Mac. Existing historical timestamps remain the same instant."
+        }
+        return "\(timeZone.identifier) · \(offset) · this Mac currently uses \(TimeZone.current.identifier). Existing historical timestamps remain the same instant."
     }
 
     private var appClassificationSection: some View {

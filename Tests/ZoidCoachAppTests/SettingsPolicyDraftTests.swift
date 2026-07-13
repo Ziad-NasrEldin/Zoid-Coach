@@ -81,6 +81,69 @@ func settingsConflictResolverPreservesConcurrentCoachingLevelChoice() {
 }
 
 @Test
+func settingsTimeZoneRoundTripsAndParticipatesInConflictResolution() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
+    var draft = SettingsPolicyDraft(policy: original)
+    draft.timeZoneIdentifier = "America/Los_Angeles"
+
+    let saved = draft.policy(preserving: original)
+    #expect(saved.schedule.timeZoneIdentifier == "America/Los_Angeles")
+    #expect(SettingsPolicyDraft(policy: saved).timeZoneIdentifier == "America/Los_Angeles")
+    #expect(saved.validationViolations().isEmpty)
+
+    let base = SettingsPolicyDraft(policy: original)
+    var mine = base
+    mine.timeZoneIdentifier = "America/Los_Angeles"
+    var current = base
+    current.capacityPercent = 55
+
+    let independent = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+    #expect(independent.safeDraft.timeZoneIdentifier == "America/Los_Angeles")
+    #expect(independent.safeDraft.capacityPercent == 55)
+    #expect(independent.overlappingChanges.isEmpty)
+
+    current.timeZoneIdentifier = "Asia/Tokyo"
+    let overlap = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+    #expect(overlap.safeDraft.timeZoneIdentifier == "Asia/Tokyo")
+    #expect(overlap.retryDraft.timeZoneIdentifier == "America/Los_Angeles")
+    #expect(overlap.overlappingChanges == ["Time zone"])
+}
+
+@Test
+func changingPolicyTimeZonePreservesHistoricalEventInstantsAcrossRestart() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-settings-time-zone-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let completedAt = try #require(ISO8601DateFormatter().date(from: "2026-07-13T21:45:00Z"))
+
+    let history = try TaskHistoryStore(databaseURL: databaseURL)
+    try history.record(
+        taskID: "time-zone-history",
+        state: .completed,
+        title: "Keep the original instant",
+        sourceKind: .local,
+        at: completedAt
+    )
+
+    let policyStore = try PolicyStore(databaseURL: databaseURL)
+    _ = try policyStore.saveSystemMaintenancePolicy(.defaults(timeZoneIdentifier: "Africa/Cairo"))
+    var draft = SettingsPolicyDraft(policy: try #require(policyStore.current()?.policy))
+    draft.timeZoneIdentifier = "America/Los_Angeles"
+    _ = try policyStore.saveSystemMaintenancePolicy(
+        draft.policy(preserving: try #require(policyStore.current()?.policy))
+    )
+
+    let reopenedPolicy = try PolicyStore(databaseURL: databaseURL)
+    let reopenedHistory = try TaskHistoryStore(databaseURL: databaseURL)
+    #expect(try reopenedPolicy.current()?.policy.schedule.timeZoneIdentifier == "America/Los_Angeles")
+    let entry = try #require(reopenedHistory.completedEntries(for: completedAt).first)
+    #expect(entry.completedAt == completedAt)
+    #expect(entry.title == "Keep the original instant")
+}
+
+@Test
 func settingsConflictResolverPreservesIndependentGamingAllowanceAndFlagsOverlap() {
     let base = SettingsPolicyDraft(policy: .defaults(timeZoneIdentifier: "UTC"))
     var mine = base
