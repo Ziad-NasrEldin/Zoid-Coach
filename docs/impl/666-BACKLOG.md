@@ -493,6 +493,17 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Real Notification Center remains the conservative proof gap because signed QA mode intentionally uses the isolated fixture adapter.
 - Verification evidence is recorded in `.audit/runs/latest-relevant-notification/verifier/REPORT.md`.
 
+### Stable notification content replacement - candidate
+
+- Owns the remaining implementation hardening for `ZC-054-009`.
+- Derives the macOS notification request identifier from a privacy-safe SHA-256 digest of the logical decision key instead of the transient prompt episode identifier.
+- Updated episodes for the same decision now replace the accepted pending or delivered request directly while carrying the newest title, summary, actions, and prompt identifier.
+- Different decisions retain different request identities, production and QA namespaces remain separate, and raw decision keys, task identifiers, and episode identifiers never appear in the OS request identifier.
+- Existing relevance-group cleanup remains as migration-safe cleanup for older request identifiers and unrelated obsolete content.
+- The complete Prompt Notification Coordinator test group and focused stable-identity, separation, privacy, fallback, and namespace tests pass, and the release build passes.
+- Candidate evidence is recorded in `.audit/runs/stable-notification-content-replacement/candidate/REPORT.md`.
+- Independent real Notification Center updated-copy and relaunch verification remain before final tracker promotion.
+
 ### Delete reviews and learned rules - candidate
 
 - Owns `ZC-047-012`.

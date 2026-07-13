@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import UserNotifications
 import ZoidCoachCore
@@ -75,7 +76,10 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         let now = Date()
         let boundedDeliveryDate = deliveryBoundary(deliveryDate ?? now)
         let effectiveDeliveryDate = boundedDeliveryDate > now ? boundedDeliveryDate : nil
-        let requestIdentifier = notificationIdentity.promptRequestPrefix + episode.id
+        let requestIdentifier = Self.requestIdentifier(
+            for: episode,
+            notificationIdentity: notificationIdentity
+        )
         guard promptNotificationsEnabled() else { return false }
         if let fixtureAdapter {
             do {
@@ -180,6 +184,18 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             )
             throw error
         }
+    }
+
+    static func requestIdentifier(
+        for episode: PromptEpisode,
+        notificationIdentity: RuntimeNotificationIdentity
+    ) -> String {
+        let logicalIdentity = episode.decisionKey.isEmpty ? episode.id : episode.decisionKey
+        let digest = SHA256.hash(data: Data(logicalIdentity.utf8))
+            .prefix(16)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return notificationIdentity.promptRequestPrefix + "decision." + digest
     }
 
     public func scheduleAcceptedBreakEnd(
