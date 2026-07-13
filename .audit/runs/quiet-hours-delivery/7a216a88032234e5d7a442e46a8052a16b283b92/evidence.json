@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "run_id": "quiet-hours-delivery/7a216a88032234e5d7a442e46a8052a16b283b92",
+  "verified_commit": "7a216a88032234e5d7a442e46a8052a16b283b92",
+  "build_identity": "zoid-coach-7a216a88032234e5d7a442e46a8052a16b283b92-clean",
+  "fixture": "/private/tmp/zoid-666-quiet-hours-delivery-qa/OS Fixtures/state.json",
+  "qa_root": "/private/tmp/zoid-666-quiet-hours-delivery-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "613246401f13eb28a8aafb360145c489ba1a0680bd8f95931fca7874c511ce8f",
+  "scenario_ids": [
+    "ZC-005-008",
+    "ZC-054-008"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T04:54:41.478921+00:00",
+  "completed_at": "2026-07-13T04:55:06Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "debf6973dcda94ce12c1cf8adaa6ebde49b745766c70a9c4115b767472ddaf33"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "quiet_prompt_is_immediately_usable_in_today",
+      "result": "passed",
+      "detail": "The signed Today inbox displayed exactly one waiting ONBOARDING_TEST decision with both supported actions."
+    },
+    {
+      "name": "notification_waits_until_exact_quiet_end",
+      "result": "passed",
+      "detail": "The fixture scheduled the notification for 2026-07-13T05:15:00Z, exactly 08:15 Africa/Cairo."
+    },
+    {
+      "name": "restart_preserves_singularity",
+      "result": "passed",
+      "detail": "After app and helper restart, SQLite contained one queued prompt and one delivery-ledger row at attempt 1."
+    },
+    {
+      "name": "same_day_overnight_and_exact_end_boundaries",
+      "result": "passed",
+      "detail": "Focused deterministic tests covered same-day, overnight, exact-end, daytime, invalid-timezone, future-delivery, and latest-policy semantics."
+    }
+  ],
+  "commands": [
+    "swift test --filter QuietHoursDeliveryBoundaryTests|PromptNotificationCoordinatorTests",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-quiet-hours-delivery-qa Scripts/install-signed-qa-runtime.sh"
+  ]
+}
