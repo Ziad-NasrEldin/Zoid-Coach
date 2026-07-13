@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "b1c28041927a5660b3445058bebbe6274f1da93a9cee17b2e0e7302be99d7b70",
+  "tracker_sha256": "981c2d76673af6ac95238a883af7049fa4df12e026553c155d27aa079ec7710e",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3651,7 +3651,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Starting a task opens an unbounded activity interval and persists it, but the UI never labels the commitment as open-ended (`TaskExecutionStore.swift:39-45,123-129`).",
+      "audit_note": "Today and the menu bar now name the shared manual timing contract as `OPEN-ENDED SESSION`, explain that tracking continues until Pause or Complete, and focused canonical-agent tests prove restart-safe state. The signed package and exact helper passed, but the isolated Reminder fixture entered read-only safety mode before a task could be started visibly, so the installed start and relaunch journey remains (`ActiveCommitmentPresentation.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/active-commitment-visibility/verifier/REPORT.md`).",
       "tracker_line": 265
     },
     {
@@ -8271,7 +8271,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`TodayDashboardCommandOverview` selects `snapshot.activeTask` and the installed app visibly renders the current active commitment, but this audit did not start a controlled task and prove the full persisted transition.",
+      "audit_note": "Today now gives the canonical active row a named timing mode, tracked duration, factual manual-session explanation, Pause menu, and Complete control with stable accessibility evidence. Focused tests prove the canonical state and restart reconstruction, but the signed Reminder seed failed closed before a controlled active task could be rendered and relaunched (`ActiveCommitmentPresentation.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/active-commitment-visibility/verifier/REPORT.md`).",
       "tracker_line": 528
     },
     {
@@ -13615,8 +13615,8 @@
       "item_index": 7,
       "wording": "See the selected task become active everywhere.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13627,7 +13627,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The Today surface updates active commitment, but the menu bar lacks equivalent task state.",
+      "audit_note": "Today and the menu bar now derive the same named task, open-ended or bounded timing contract, tracked duration, and manual controls from the canonical snapshot, and focused tests prove the exact shared state after agent restart. The real macOS status item remains inaccessible to the verifier and the signed Reminder seed failed closed before the complete cross-surface journey, so installed parity is not yet proven (`ActiveCommitmentPresentation.swift`; `MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `.audit/runs/active-commitment-visibility/verifier/REPORT.md`).",
       "tracker_line": 833
     },
     {
@@ -14127,8 +14127,8 @@
       "item_index": 4,
       "wording": "Continue manually tracking the active task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -14139,7 +14139,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Active commitments continue independently of Screenwatch, but pause and full manual timing controls are incomplete.",
+      "audit_note": "Active commitments now expose explicit Pause, Break, Complete, and open-ended continuation semantics independently of Screenwatch, while canonical-agent tests prove one durable active interval across restart. A controlled Screenwatch outage plus installed manual-task continuation was not completed because the signed Reminder fixture failed closed, so the degraded-mode journey remains (`ActiveCommitmentPresentation.swift`; `MenuBarCoachView.swift`; `TodayDashboardAgentTests`; `.audit/runs/active-commitment-visibility/verifier/REPORT.md`).",
       "tracker_line": 865
     },
     {
