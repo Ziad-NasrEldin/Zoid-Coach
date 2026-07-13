@@ -791,6 +791,17 @@ final class AppModel: ObservableObject {
         )
     }
 
+    var remindersContinuityState: RemindersContinuityState {
+        let reminderHealth = sources.first(where: { $0.id == .reminders })?.state ?? .notConnected
+        let rows = todaySnapshot?.taskRows ?? []
+        return RemindersContinuityState(
+            isOutage: reminderHealth != .healthy && reminderHealth != .checking,
+            plannedTaskCount: rows.count,
+            plannedEstimateMinutes: rows.reduce(0) { $0 + $1.estimateMinutes },
+            hasActiveSession: todaySnapshot?.activeTask != nil
+        )
+    }
+
     func reduceOverCapacityPlan() {
         guard let reminderID = planningCapacityState.suggestedReminderID,
               let entry = dailyPlan.first(where: { $0.reminderID == reminderID })
