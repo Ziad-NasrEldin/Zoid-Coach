@@ -153,8 +153,8 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             trigger: trigger
         )
         do {
-            center.removePendingNotificationRequests(withIdentifiers: [requestIdentifier])
-            center.removeDeliveredNotifications(withIdentifiers: [requestIdentifier])
+            // Adding the same identifier replaces its existing request after the system accepts it.
+            // Keep the last accepted notification intact if the replacement is refused.
             try await center.add(request)
             try await removeSupersededPromptNotifications(
                 category: category,
