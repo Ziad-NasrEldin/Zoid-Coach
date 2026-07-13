@@ -191,6 +191,9 @@ public final class PromptInboxStore: @unchecked Sendable {
             committed = true
             return episode
         }
+        guard episode.allowsDismissal else {
+            throw PromptInboxStoreError.dismissalNotAllowed
+        }
         let dismissed = try transition(episode, on: .dismiss, at: now())
         try update(dismissed, releaseDecisionKey: true)
         committed = true
@@ -645,6 +648,7 @@ public enum PromptInboxStoreError: LocalizedError, Equatable {
     case expired
     case notFound
     case alreadyResolved
+    case dismissalNotAllowed
     case invalidActionToken
     case invalidTransition(PromptStateMachineError)
     case prepare(String)
@@ -659,6 +663,7 @@ public enum PromptInboxStoreError: LocalizedError, Equatable {
         case .expired: "The prompt has already expired."
         case .notFound: "The prompt episode was not found."
         case .alreadyResolved: "The prompt episode has already been resolved."
+        case .dismissalNotAllowed: "This decision requires one of its visible actions."
         case .invalidActionToken: "The response token is not valid for this prompt action."
         case .invalidTransition: "The prompt episode cannot make that state transition."
         case let .prepare(message): "Could not prepare a prompt inbox operation: \(message)"

@@ -103,10 +103,12 @@ struct TodayPromptInboxLedger: View {
                         .disabled(model.pendingPromptID != nil)
                         .accessibilityIdentifier("today.prompt.\(entry.id).action.\(action.kind.rawValue)")
                 }
-                Button("DISMISS") { model.dismissPrompt(entry.episode) }
-                    .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
-                    .disabled(model.pendingPromptID != nil)
-                    .accessibilityIdentifier("today.prompt.\(entry.id).dismiss")
+                if entry.episode.allowsDismissal {
+                    Button("DISMISS") { model.dismissPrompt(entry.episode) }
+                        .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                        .disabled(model.pendingPromptID != nil)
+                        .accessibilityIdentifier("today.prompt.\(entry.id).dismiss")
+                }
             }
         }
         .promptRow(identifier: "today.prompt.\(entry.id).waiting")
