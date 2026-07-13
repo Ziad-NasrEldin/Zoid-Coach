@@ -21,12 +21,15 @@ public final class ActionOutboxStore: @unchecked Sendable {
     private let now: @Sendable () -> Date
     private let makeID: @Sendable () -> String
     private let timeZone: TimeZone
+    private let lockRetryDelays: [TimeInterval]
 
     public init(
         databaseURL: URL = ZoidCoachStorage.databaseURL(),
         now: @escaping @Sendable () -> Date = Date.init,
         makeID: @escaping @Sendable () -> String = { UUID().uuidString },
-        timeZone: TimeZone = .current
+        timeZone: TimeZone = .current,
+        busyTimeoutMilliseconds: Int32 = 1_000,
+        lockRetryDelays: [TimeInterval] = [0.10, 0.30, 0.60]
     ) throws {
         try AutonomousDatabaseMigrator(databaseURL: databaseURL, now: now).migrate()
         var handle: OpaquePointer?
@@ -34,10 +37,11 @@ public final class ActionOutboxStore: @unchecked Sendable {
               let handle
         else { throw ActionOutboxStoreError.openDatabase }
         database = handle
-        sqlite3_busy_timeout(database, 5_000)
+        sqlite3_busy_timeout(database, max(0, busyTimeoutMilliseconds))
         self.now = now
         self.makeID = makeID
         self.timeZone = timeZone
+        self.lockRetryDelays = lockRetryDelays.map { max(0, $0) }
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -571,7 +575,19 @@ public final class ActionOutboxStore: @unchecked Sendable {
     }
 
     private func begin() throws {
-        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else { throw ActionOutboxStoreError.write(errorMessage) }
+        var retryIndex = 0
+        while true {
+            let result = sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil)
+            if result == SQLITE_OK { return }
+            let primaryResult = result & 0xFF
+            guard (primaryResult == SQLITE_BUSY || primaryResult == SQLITE_LOCKED),
+                  retryIndex < lockRetryDelays.count
+            else {
+                throw ActionOutboxStoreError.write(errorMessage)
+            }
+            Thread.sleep(forTimeInterval: lockRetryDelays[retryIndex])
+            retryIndex += 1
+        }
     }
 
     private func finishTransaction(commit: Bool) {
