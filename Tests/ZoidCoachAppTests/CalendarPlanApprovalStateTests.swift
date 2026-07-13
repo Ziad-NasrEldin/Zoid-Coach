@@ -110,6 +110,33 @@ struct CalendarPlanApprovalStateTests {
         #expect(restored.receipt != nil)
     }
 
+    @Test("terminal failure retries the exact receipt command identity")
+    func terminalFailureRetriesExactReceiptCommands() {
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 45)],
+            titlesByReminderID: ["main": "Write proposal"],
+            availableMinutes: 120,
+            fixedCommitmentMinutes: 30,
+            usesCalendarAvailability: true
+        )
+        state.queued(commandIDs: ["calendar", "reminder"])
+        state.reconcile(with: [
+            audit("calendar", .terminalFailure),
+            audit("reminder", .succeeded)
+        ])
+
+        #expect(state.writeState == .failed(commandIDs: ["calendar"]))
+        #expect(state.retryFailedCommands() == ["calendar"])
+        #expect(state.writeState == .pending(commandIDs: ["calendar"]))
+        #expect(state.receipt?.commandIDs == ["calendar"])
+        #expect(state.receipt?.outcome == .pending)
+
+        state.retryRequestFailed(commandIDs: ["calendar"])
+        #expect(state.writeState == .failed(commandIDs: ["calendar"]))
+        #expect(state.receipt?.outcome == .failed)
+    }
+
     private func audit(_ id: String, _ state: ActionCommandState) -> ActionAuditEntry {
         ActionAuditEntry(
             id: id,
