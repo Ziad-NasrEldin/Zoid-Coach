@@ -79,6 +79,17 @@ final class AgentLifecycleController: ObservableObject {
         }
     }
 
+    var recoveryGuidance: String? {
+        switch launchAtLoginStatus {
+        case .requiresApproval:
+            "macOS is waiting for approval. Open Login Items, allow Zoid 666, then return here and choose CHECK AGAIN."
+        case .enabled where health.state == .attention || health.state == .notConnected:
+            "Launch at Login is enabled, but the helper is not checking in. Choose REPAIR REGISTRATION, then CHECK AGAIN."
+        default:
+            nil
+        }
+    }
+
     func refresh() {
         perform(.checking) { $0.inspect() }
     }
