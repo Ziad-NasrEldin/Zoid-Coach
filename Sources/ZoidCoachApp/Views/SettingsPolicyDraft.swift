@@ -12,6 +12,7 @@ struct SettingsPolicyDraft: Equatable {
     var quietEnd: LocalTime
     var nightlyPlanningTime: LocalTime
     var morningConfirmationTime: LocalTime
+    var dailyReviewTime: LocalTime
     var capacityPercent: Int
     var defaultCoachingPauseDuration: CoachingPauseDuration
     var visibleCalendarIdentifiers: String
@@ -59,6 +60,7 @@ struct SettingsPolicyDraft: Equatable {
         quietEnd = policy.schedule.quietHours.end
         nightlyPlanningTime = policy.schedule.nightlyPlanningTime
         morningConfirmationTime = policy.schedule.morningConfirmationTime
+        dailyReviewTime = policy.schedule.dailyReviewTime ?? policy.schedule.workWindows.first?.end ?? LocalTime(hour: 18, minute: 0)
         capacityPercent = policy.schedule.planningCapacityPercent
         defaultCoachingPauseDuration = policy.schedule.effectiveDefaultCoachingPauseDuration
         visibleCalendarIdentifiers = policy.calendar.visibleCalendarIdentifiers.joined(separator: ", ")
@@ -227,6 +229,7 @@ struct SettingsPolicyDraft: Equatable {
                 quietHours: DailyTimeWindow(start: quietStart, end: quietEnd),
                 nightlyPlanningTime: nightlyPlanningTime,
                 morningConfirmationTime: morningConfirmationTime,
+                dailyReviewTime: dailyReviewTime,
                 planningCapacityPercent: capacityPercent,
                 defaultCoachingPauseDuration: defaultCoachingPauseDuration
             ),

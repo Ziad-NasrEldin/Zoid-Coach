@@ -269,3 +269,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Proved that the app is signed, installed outside `.build`, launched from the installed path, bound to an isolated QA root, and backed by the running QA Mach service.
 - Focused `XPCSigningIdentityTests` and `AgentLaunchServiceTests` pass.
 - The authoritative tracker remains owned by the root integrator and must only be upgraded after the parallel verifier completes classification persistence through the remaining onboarding steps.
+
+### Configurable daily review time - candidate
+
+- Added a visible Daily review time control to Settings with explicit quiet-hours behavior copy and a stable accessibility identifier.
+- Persisted the chosen local time through policy drafts, conflict resolution, and policy serialization.
+- Preserved legacy policies by continuing to derive review delivery from the configured workday end when no explicit review time exists.
+- Reconciled the latest policy on every agent pass so changing the review time replaces the pending reminder without recreating the service or producing duplicate identities.
+- Kept weekly review behavior tied to the final workday boundary.
+- Focused policy, Settings, and reminder tests pass, including quiet-hours deferral, next-working-day rollover, changed-time replacement, legacy decoding, and overnight legacy schedules.
+- Candidate evidence is recorded in `.audit/runs/configurable-review-time/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after an independent signed Settings-to-notification verification.

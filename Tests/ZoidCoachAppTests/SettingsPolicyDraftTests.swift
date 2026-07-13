@@ -232,6 +232,7 @@ func settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() {
     draft.capacityPercent = 80
     draft.nightlyPlanningTime = LocalTime(hour: 21, minute: 45)
     draft.morningConfirmationTime = LocalTime(hour: 7, minute: 15)
+    draft.dailyReviewTime = LocalTime(hour: 19, minute: 30)
     draft.visibleCalendarIdentifiers = "work, personal"
     draft.schedulingCalendarIdentifier = "work"
     draft.aiProvider = .localOllama
@@ -245,6 +246,7 @@ func settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() {
     #expect(policy.schedule.planningCapacityPercent == 80)
     #expect(policy.schedule.nightlyPlanningTime == LocalTime(hour: 21, minute: 45))
     #expect(policy.schedule.morningConfirmationTime == LocalTime(hour: 7, minute: 15))
+    #expect(policy.schedule.dailyReviewTime == LocalTime(hour: 19, minute: 30))
     #expect(policy.calendar.visibleCalendarIdentifiers == ["work", "personal"])
     #expect(policy.calendar.schedulingCalendarIdentifier == "work")
     #expect(policy.privacy.remoteEvidencePolicy == .localOnly)

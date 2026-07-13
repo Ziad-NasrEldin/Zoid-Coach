@@ -182,6 +182,7 @@ public struct SchedulePolicy: Codable, Equatable, Sendable {
     public let quietHours: DailyTimeWindow
     public let nightlyPlanningTime: LocalTime
     public let morningConfirmationTime: LocalTime
+    public let dailyReviewTime: LocalTime?
     public let planningCapacityPercent: Int
     public let defaultCoachingPauseDuration: CoachingPauseDuration?
 
@@ -195,6 +196,7 @@ public struct SchedulePolicy: Codable, Equatable, Sendable {
         quietHours: DailyTimeWindow,
         nightlyPlanningTime: LocalTime,
         morningConfirmationTime: LocalTime,
+        dailyReviewTime: LocalTime? = nil,
         planningCapacityPercent: Int,
         defaultCoachingPauseDuration: CoachingPauseDuration? = .indefinitely
     ) {
@@ -203,6 +205,7 @@ public struct SchedulePolicy: Codable, Equatable, Sendable {
         self.quietHours = quietHours
         self.nightlyPlanningTime = nightlyPlanningTime
         self.morningConfirmationTime = morningConfirmationTime
+        self.dailyReviewTime = dailyReviewTime
         self.planningCapacityPercent = planningCapacityPercent
         self.defaultCoachingPauseDuration = defaultCoachingPauseDuration
     }
@@ -671,6 +674,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
                 ),
                 nightlyPlanningTime: LocalTime(hour: 22, minute: 30),
                 morningConfirmationTime: LocalTime(hour: 8, minute: 0),
+                dailyReviewTime: LocalTime(hour: 18, minute: 0),
                 planningCapacityPercent: 70
             ),
             calendar: CalendarSelectionPolicy(
@@ -731,6 +735,9 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         }
         appendTimeViolation(schedule.nightlyPlanningTime, field: "schedule.nightlyPlanningTime", to: &violations)
         appendTimeViolation(schedule.morningConfirmationTime, field: "schedule.morningConfirmationTime", to: &violations)
+        if let dailyReviewTime = schedule.dailyReviewTime {
+            appendTimeViolation(dailyReviewTime, field: "schedule.dailyReviewTime", to: &violations)
+        }
         if !(25...100).contains(schedule.planningCapacityPercent) {
             violations.append(.init(code: .invalidCapacityPercent, field: "schedule.planningCapacityPercent"))
         }
