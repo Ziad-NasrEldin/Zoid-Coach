@@ -4,6 +4,9 @@ import ZoidCoachCore
 struct TodayPromptInboxLedger: View {
     @EnvironmentObject private var model: AppModel
     @State private var confirmation: PromptConfirmation?
+    @State private var rescheduleRequest: PromptTaskRescheduleRequest?
+    @State private var rescheduleDate = TaskRescheduleState().selectedDate
+    @State private var rescheduleError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -21,6 +24,16 @@ struct TodayPromptInboxLedger: View {
                 .padding(.horizontal, 28)
                 .padding(.vertical, 10)
                 .background(Sumi.sealWash)
+            }
+            if let rescheduleError, rescheduleRequest == nil {
+                Text(rescheduleError)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.sealWash)
+                    .accessibilityIdentifier("today.prompt.reschedule.error")
             }
             if model.promptInboxTimeline.isEmpty, model.promptInboxError == nil {
                 Text("No decisions are waiting and no recent coaching choices are recorded yet.")
@@ -62,6 +75,9 @@ struct TodayPromptInboxLedger: View {
             }
         } message: {
             Text("This choice is saved once. Today refreshes from the durable result, and an older notification or other surface cannot apply it twice.")
+        }
+        .sheet(item: $rescheduleRequest) { request in
+            promptRescheduleSheet(request)
         }
     }
 
@@ -174,11 +190,79 @@ struct TodayPromptInboxLedger: View {
     }
 
     private func choose(_ action: PromptAction, for episode: PromptEpisode) {
+        rescheduleError = nil
+        if action.kind == .rescheduleTask {
+            guard let request = PromptTaskRescheduleRequest(episode: episode) else {
+                rescheduleError = "This prompt no longer identifies a task that can be rescheduled. Refresh Decisions."
+                return
+            }
+            rescheduleDate = TaskRescheduleState().selectedDate
+            rescheduleError = nil
+            rescheduleRequest = request
+            return
+        }
         if action.requiresConfirmation || action.role == .destructive {
             confirmation = PromptConfirmation(episode: episode, action: action)
         } else {
             model.respondToPrompt(episode, action: action.kind)
         }
+    }
+
+    private func promptRescheduleSheet(_ request: PromptTaskRescheduleRequest) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("RESCHEDULE FROM COACHING")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            Text(request.taskTitle)
+                .font(Sumi.display(24))
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Choose a future planning date. Zoid 666 saves the local plan first, then queues the same Apple Reminders due date. The coaching decision stays open if either step cannot be accepted.")
+                .font(Sumi.body(13))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            DatePicker(
+                "New planning date",
+                selection: $rescheduleDate,
+                in: TaskRescheduleState().earliestDate...,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .accessibilityIdentifier("today.prompt.reschedule.date")
+            if let rescheduleError {
+                Text(rescheduleError)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("today.prompt.reschedule.error")
+            }
+            HStack {
+                Button("CANCEL") { rescheduleRequest = nil }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                Spacer()
+                Button(model.pendingPromptID == request.episode.id ? "SAVING" : "CONFIRM NEW DATE") {
+                    switch TaskRescheduleState().validated(rescheduleDate) {
+                    case let .success(date):
+                        Task {
+                            if await model.rescheduleTaskFromPrompt(request.episode, until: date) {
+                                rescheduleRequest = nil
+                            } else {
+                                rescheduleError = model.promptInboxError ?? "The task was not rescheduled. The coaching decision is still waiting."
+                            }
+                        }
+                    case let .failure(error):
+                        rescheduleError = error.message
+                    }
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                .disabled(model.pendingPromptID != nil)
+                .accessibilityIdentifier("today.prompt.reschedule.confirm")
+            }
+        }
+        .padding(24)
+        .frame(width: 440)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.prompt.reschedule.sheet")
     }
 
     private func actionRole(_ role: PromptActionRole) -> SumiActionRole {
