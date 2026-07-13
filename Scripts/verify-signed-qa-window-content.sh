@@ -8,25 +8,45 @@ fi
 
 APP_PATH="${1:A}"
 QA_ROOT="${2:A}"
-EXECUTABLE="$APP_PATH/Contents/MacOS/ZoidCoachQA"
+SOURCE_EXECUTABLE="$APP_PATH/Contents/MacOS/ZoidCoachQA"
 SCRIPT_ROOT="${0:A:h}"
+INSTALL_ROOT="${QA_ROOT}-install"
+INSTALLED_APP="$INSTALL_ROOT/Zoid 666 QA E2E.app"
+EXECUTABLE="$INSTALLED_APP/Contents/MacOS/ZoidCoachQA"
 
-if [[ ! -x "$EXECUTABLE" ]]; then
-    echo "SETUP_FAIL: signed QA executable is missing at $EXECUTABLE" >&2
+if [[ ! -x "$SOURCE_EXECUTABLE" ]]; then
+    echo "SETUP_FAIL: signed QA executable is missing at $SOURCE_EXECUTABLE" >&2
     exit 2
 fi
 
 codesign --verify --deep --strict "$APP_PATH"
-rm -rf "$QA_ROOT"
-mkdir -p "$QA_ROOT"
+rm -rf "$QA_ROOT" "$INSTALL_ROOT"
+mkdir -p "$QA_ROOT" "$INSTALL_ROOT"
+ditto "$APP_PATH" "$INSTALLED_APP"
+"$EXECUTABLE" --qa-register-agent >/tmp/zoid-qa-window-register.stdout 2>/tmp/zoid-qa-window-register.stderr
+for _ in {1..100}; do
+    if launchctl print gui/$UID/qa.ziadnasreldin.ZoidCoach.agent 2>/dev/null | grep -q 'state = running'; then
+        break
+    fi
+    sleep 0.1
+done
+open -na "$INSTALLED_APP"
 
-ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT="$QA_ROOT" "$EXECUTABLE" >/tmp/zoid-qa-window-repro.stdout 2>/tmp/zoid-qa-window-repro.stderr &
-APP_PID=$!
+APP_PID=""
+for _ in {1..100}; do
+    APP_PID="$(pgrep -f "$EXECUTABLE" | head -1 || true)"
+    [[ -n "$APP_PID" ]] && break
+    sleep 0.1
+done
+if [[ -z "$APP_PID" ]]; then
+    echo "SETUP_FAIL: installed signed QA process did not launch" >&2
+    exit 2
+fi
 
 cleanup() {
     kill "$APP_PID" 2>/dev/null || true
-    wait "$APP_PID" 2>/dev/null || true
-    rm -rf "$QA_ROOT"
+    "$EXECUTABLE" --qa-unregister-agent >/dev/null 2>&1 || true
+    rm -rf "$QA_ROOT" "$INSTALL_ROOT"
 }
 trap cleanup EXIT INT TERM
 
