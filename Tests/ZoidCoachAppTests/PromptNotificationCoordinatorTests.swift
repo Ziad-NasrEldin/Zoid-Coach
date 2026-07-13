@@ -1,6 +1,135 @@
+import Foundation
 import Testing
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
+
+@Test
+func logicalDecisionUsesStablePrivateRequestIdentityAcrossUpdatedEpisodes() {
+    let first = notificationIdentityEpisode(
+        id: "episode-1",
+        decisionKey: "plan:private-client-title",
+        title: "Earlier plan"
+    )
+    let updated = notificationIdentityEpisode(
+        id: "episode-2",
+        decisionKey: first.decisionKey,
+        title: "Updated plan"
+    )
+    let separate = notificationIdentityEpisode(
+        id: "episode-3",
+        decisionKey: "plan:another-private-title",
+        title: "Another plan"
+    )
+
+    let firstID = PromptNotificationCoordinator.requestIdentifier(
+        for: first,
+        notificationIdentity: RuntimeIdentity.production.notification
+    )
+    let updatedID = PromptNotificationCoordinator.requestIdentifier(
+        for: updated,
+        notificationIdentity: RuntimeIdentity.production.notification
+    )
+    let separateID = PromptNotificationCoordinator.requestIdentifier(
+        for: separate,
+        notificationIdentity: RuntimeIdentity.production.notification
+    )
+
+    #expect(firstID == updatedID)
+    #expect(firstID != separateID)
+    #expect(firstID.hasPrefix(RuntimeIdentity.production.notification.promptRequestPrefix + "decision."))
+    #expect(firstID.hasSuffix("decision.b91ecd4e3cf7ff1d0958dc904682de59"))
+    #expect(!firstID.contains("private-client-title"))
+    #expect(!firstID.contains(first.id))
+    #expect(firstID.count <= 80)
+}
+
+@Test
+func updatedEpisodeReplacesPersistedFixtureNotificationAcrossCoordinatorRelaunch() async throws {
+    let root = try notificationFixtureRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let environment = try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: root,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let firstAdapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: environment,
+        clock: .fixed(now)
+    )
+    try firstAdapter.reset(to: .init(permissions: [.notifications: .granted]))
+    let promptStore = try PromptInboxStore(databaseURL: environment.databaseURL)
+    let first = notificationIdentityEpisode(
+        id: "episode-before-relaunch",
+        decisionKey: "plan:stable-decision",
+        title: "Earlier plan"
+    )
+    let updated = notificationIdentityEpisode(
+        id: "episode-after-relaunch",
+        decisionKey: first.decisionKey,
+        title: "Updated plan"
+    )
+
+    let firstCoordinator = PromptNotificationCoordinator(
+        promptStore: promptStore,
+        fixtureAdapter: firstAdapter,
+        runtimeEnvironment: environment
+    )
+    #expect(try await firstCoordinator.schedule(first))
+
+    let relaunchedAdapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: environment,
+        clock: .fixed(now)
+    )
+    let relaunchedCoordinator = PromptNotificationCoordinator(
+        promptStore: promptStore,
+        fixtureAdapter: relaunchedAdapter,
+        runtimeEnvironment: environment
+    )
+    #expect(try await relaunchedCoordinator.schedule(updated))
+
+    let afterReplacement = try relaunchedAdapter.snapshot().notifications
+    #expect(afterReplacement.count == 1)
+    #expect(afterReplacement[0].id == updated.id)
+    #expect(afterReplacement[0].desired.promptID == updated.id)
+    #expect(afterReplacement[0].desired.title == "Updated plan")
+    #expect(afterReplacement[0].status == .delivered)
+
+    let disabledCoordinator = PromptNotificationCoordinator(
+        promptStore: promptStore,
+        fixtureAdapter: relaunchedAdapter,
+        runtimeEnvironment: environment,
+        promptNotificationsEnabled: { false }
+    )
+    try await disabledCoordinator.reconcilePromptNotificationPreference()
+    let postCancellationRelaunch = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: environment,
+        clock: .fixed(now)
+    )
+    #expect(try postCancellationRelaunch.snapshot().notifications.isEmpty)
+}
+
+@Test
+func emptyDecisionKeyStillReceivesDeterministicPrivateRequestIdentity() {
+    let episode = notificationIdentityEpisode(id: "private-episode-id", decisionKey: "", title: "Prompt")
+    let first = PromptNotificationCoordinator.requestIdentifier(
+        for: episode,
+        notificationIdentity: RuntimeIdentity.qa.notification
+    )
+    let second = PromptNotificationCoordinator.requestIdentifier(
+        for: episode,
+        notificationIdentity: RuntimeIdentity.qa.notification
+    )
+
+    #expect(first == second)
+    #expect(first.hasPrefix(RuntimeIdentity.qa.notification.promptRequestPrefix + "decision."))
+    #expect(!first.contains(episode.id))
+}
 
 @Test
 func promptNotificationContractMapsRequiredCategoriesAndActions() {
@@ -79,4 +208,33 @@ func qaPromptNotificationActionsUseOnlyTheQANamespace() {
         promptID: "prompt-1",
         deliveryDate: nil
     )) == "prompt-1")
+}
+
+private func notificationIdentityEpisode(id: String, decisionKey: String, title: String) -> PromptEpisode {
+    PromptEpisode(
+        id: id,
+        decisionKey: decisionKey,
+        type: PromptNotificationCategory.planChanged.rawValue,
+        state: .queued,
+        title: title,
+        summary: "Current summary",
+        actions: [.init(kind: .reviewPlan, title: "Review")],
+        payload: [:],
+        createdAt: Date(timeIntervalSince1970: 1_800_000_000),
+        expiresAt: nil,
+        presentedAt: nil,
+        resolvedAt: nil
+    )
+}
+
+private func notificationFixtureRoot() throws -> URL {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let root = repositoryRoot
+        .appendingPathComponent(".build/notification-replacement-tests", isDirectory: true)
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    return root
 }
