@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "48b2fa7813197cffcbccadb072f8a2327ebe3099a4aa21336539c69bdd62841c",
+  "tracker_sha256": "5645c10b43068c3a7e3179cb1d743d455844a1c593940561dc1207f92e9be524",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -2453,9 +2453,9 @@
       "section_title": "Learning from previous estimates",
       "item_index": 1,
       "wording": "See a suggested estimate based on similar completed tasks when enough history exists.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2463,10 +2463,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/learned-estimate-suggestions/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Estimate learning records robust aggregates and tests pass, but no UI reads or displays a learned suggestion (`TodayDashboardAgent.swift:140-165`; `LearningAggregateStore.swift`).",
+      "audit_note": "The installed signed Today view showed no suggestion with three eligible matching samples, then displayed a 50-minute learned estimate after the fourth sample and one app/helper relaunch (`TodayDashboardAgent.swift`; `LearnedEstimateSuggestionView.swift`; `.audit/runs/learned-estimate-suggestions/verifier/REPORT.md`).",
       "tracker_line": 196
     },
     {
@@ -2475,9 +2477,9 @@
       "section_title": "Learning from previous estimates",
       "item_index": 2,
       "wording": "See how many similar tasks support the suggestion.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2485,10 +2487,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/learned-estimate-suggestions/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Aggregate evidence/sample counts exist in storage, but are never surfaced in the app.",
+      "audit_note": "The signed learned-estimate card explicitly stated that four similar completed tasks supported the recommendation (`LearnedEstimateSuggestionView.swift`; `.audit/runs/learned-estimate-suggestions/verifier/REPORT.md`).",
       "tracker_line": 197
     },
     {
@@ -2497,9 +2501,9 @@
       "section_title": "Learning from previous estimates",
       "item_index": 3,
       "wording": "See the historical duration range behind the suggestion.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2507,10 +2511,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/learned-estimate-suggestions/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Learning aggregates retain evidence and rollback values, but no duration-range UI exists.",
+      "audit_note": "The signed card exposed the exact aligned-work evidence range of 40 to 55 minutes from the aggregate's immutable sample identifiers (`LearningAggregateStore.swift`; `.audit/runs/learned-estimate-suggestions/verifier/REPORT.md`).",
       "tracker_line": 198
     },
     {
@@ -2519,9 +2525,9 @@
       "section_title": "Learning from previous estimates",
       "item_index": 4,
       "wording": "Understand when the evidence is uncertain.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2529,10 +2535,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/learned-estimate-suggestions/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Core learning suppresses sparse aggregates, but Today provides no uncertainty explanation for estimates.",
+      "audit_note": "The signed four-sample card labeled the evidence `EARLY PATTERN`, named its sample count and range, and described the recommendation as advisory (`LearnedEstimateSuggestionView.swift`; `.audit/runs/learned-estimate-suggestions/verifier/REPORT.md`).",
       "tracker_line": 199
     },
     {
@@ -2542,8 +2550,8 @@
       "item_index": 5,
       "wording": "Accept the suggested estimate.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2554,7 +2562,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Users can choose a preset estimate, but there is no learned-suggestion value or Accept action.",
+      "audit_note": "Today now exposes an accessible Use action through the existing durable estimate mutation path, and focused tests prove explicit presentation semantics, but the capped signed run stopped before Use and relaunch durability (`LearnedEstimateSuggestionView.swift`; `.audit/runs/learned-estimate-suggestions/verifier/REPORT.md`).",
       "tracker_line": 200
     },
     {
@@ -2564,8 +2572,8 @@
       "item_index": 6,
       "wording": "Keep the original estimate instead.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2576,7 +2584,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Existing estimates remain unchanged unless clicked, but there is no suggestion comparison or explicit Keep action.",
+      "audit_note": "Today exposes an accessible Keep action with direct confirmation and no plan mutation, but the capped signed run stopped before Keep and relaunch verification (`LearnedEstimateSuggestionView.swift`; `.audit/runs/learned-estimate-suggestions/verifier/REPORT.md`).",
       "tracker_line": 201
     },
     {
@@ -2586,8 +2594,8 @@
       "item_index": 7,
       "wording": "Enter a different estimate.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2598,7 +2606,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Users can select a different preset, but cannot enter arbitrary minutes.",
+      "audit_note": "Every Today estimate strip now offers validated custom minutes with Save, Return, Cancel, and corrective copy, but invalid and valid signed input branches remain (`TaskEstimateInput.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/learned-estimate-suggestions/verifier/REPORT.md`).",
       "tracker_line": 202
     },
     {
@@ -2620,7 +2628,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Sparse evidence is prevented from creating aggregates by passing tests, but the end-user absence and later appearance of advice were not verified (`LearningAggregateStoreTests`).",
+      "audit_note": "The installed app visibly suppressed advice at three eligible samples and surfaced it at four, while focused policy coverage also rejects low tracking coverage; the low-coverage signed branch remains (`EstimateLearningPolicy`; `.audit/runs/learned-estimate-suggestions/verifier/REPORT.md`).",
       "tracker_line": 203
     },
     {
@@ -2629,9 +2637,9 @@
       "section_title": "Learning from previous estimates",
       "item_index": 9,
       "wording": "Avoid having an advisory estimate silently replace the user's estimate.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2639,10 +2647,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/learned-estimate-suggestions/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Learned aggregates are separate from daily-plan values and no UI auto-writes them, but no end-to-end history scenario was exercised.",
+      "audit_note": "The signed four-sample recommendation remained advisory while the task stayed visibly selected at its original 30 minutes before any explicit choice (`TodayDashboardAgent.swift`; `.audit/runs/learned-estimate-suggestions/verifier/REPORT.md`).",
       "tracker_line": 204
     },
     {
