@@ -22,3 +22,26 @@ func sumiAppearancePalettesKeepControlBoundariesVisible() {
         #expect(palette.okay.contrastRatio(with: palette.paper) >= 4.5)
     }
 }
+
+@Test
+func sumiMotionPolicyRemovesAnimationAndSpatialMovementWhenReduced() {
+    let reduced = SumiMotionPolicy.resolve(reduceMotion: true)
+
+    #expect(!reduced.animatesStateChanges)
+    #expect(!reduced.allowsSpatialMotion)
+    #expect(reduced.preservesImmediateFeedback)
+    #expect(SumiMotion.animation(reduceMotion: true, duration: 0.2) == nil)
+    #expect(SumiMotion.scale(reduceMotion: true, isActive: true, activeScale: 0.8) == 1)
+}
+
+@Test
+func sumiMotionPolicyKeepsRestrainedMotionInStandardMode() {
+    let standard = SumiMotionPolicy.resolve(reduceMotion: false)
+
+    #expect(standard.animatesStateChanges)
+    #expect(standard.allowsSpatialMotion)
+    #expect(standard.preservesImmediateFeedback)
+    #expect(SumiMotion.animation(reduceMotion: false, duration: 0.2) != nil)
+    #expect(SumiMotion.scale(reduceMotion: false, isActive: true, activeScale: 0.8) == 0.8)
+    #expect(SumiMotion.scale(reduceMotion: false, isActive: false, activeScale: 0.8) == 1)
+}

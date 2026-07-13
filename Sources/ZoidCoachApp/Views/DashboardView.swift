@@ -113,6 +113,7 @@ struct DashboardView: View {
 private struct TodayCommandView: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var modalCoordinator: SumiModalCoordinator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var editingCandidate: StoredMeetingCandidate?
     let createLocalTask: () -> Void
     @StateObject private var endWorkdayFlow = DashboardEndWorkdayFlow()
@@ -373,12 +374,12 @@ private struct TodayCommandView: View {
                             group: group,
                             draggedListID: $draggedReminderListID,
                             moveUp: index > 0 ? {
-                                withAnimation(.easeOut(duration: 0.2)) {
+                                withAnimation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2)) {
                                     model.moveReminderList(group.listID, before: groups[index - 1].listID)
                                 }
                             } : nil,
                             moveDown: index < groups.count - 1 ? {
-                                withAnimation(.easeOut(duration: 0.2)) {
+                                withAnimation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2)) {
                                     model.moveReminderList(groups[index + 1].listID, before: group.listID)
                                 }
                             } : nil
@@ -1268,6 +1269,7 @@ private struct ReminderTaskGroup: Identifiable {
 
 private struct ReminderListGroup: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let group: ReminderTaskGroup
     @Binding var draggedListID: String?
     let moveUp: (() -> Void)?
@@ -1320,7 +1322,7 @@ private struct ReminderListGroup: View {
                 draggedListID: $draggedListID,
                 isDropTarget: $isDropTarget
             ) { listID in
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2)) {
                     model.moveReminderList(listID, before: group.listID)
                 }
             })
@@ -1336,6 +1338,7 @@ private struct ReminderListGroup: View {
 
 private struct ReminderListEndDropTarget: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var draggedListID: String?
     @State private var isDropTarget = false
 
@@ -1351,7 +1354,7 @@ private struct ReminderListEndDropTarget: View {
                 draggedListID: $draggedListID,
                 isDropTarget: $isDropTarget
             ) { listID in
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2)) {
                     model.moveReminderListToEnd(listID)
                 }
             })
@@ -1486,10 +1489,10 @@ private struct DailyPlanLedger: View {
             ForEach(entries) { entry in
                 if let task = task(for: entry) {
                     PlannedReminderRow(entry: entry, task: task)
-                        .transition(.asymmetric(
+                        .transition(SumiMotion.transition(reduceMotion: reduceMotion, normal: .asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .top)),
                             removal: .opacity
-                        ))
+                        )))
                 }
             }
 
@@ -1504,8 +1507,8 @@ private struct DailyPlanLedger: View {
             }
         }
         .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: entries)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: mainObjective?.id)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.22), value: entries)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: mainObjective?.id)
     }
 
     private func task(for entry: DailyPlanEntry?) -> ReminderTask? {
@@ -1845,7 +1848,7 @@ private struct PlannedReminderRow: View {
         .padding(.horizontal, 28)
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: entry.isMainObjective)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: entry.isMainObjective)
         .sheet(isPresented: $isBlockReasonPresented) {
             TaskBlockReasonSheet(taskTitle: task.title, reason: $blockReason) {
                 model.markTaskBlocked(entry, reason: blockReason)
@@ -2079,7 +2082,10 @@ private struct TimeBlockSelector: View {
                 .frame(height: 22)
                 .background(Sumi.seal)
                 .accessibilityLabel("Time estimate confirmed: \(durationLabel(selectedMinutes))")
-                .transition(.scale(scale: 0.9).combined(with: .opacity))
+                .transition(SumiMotion.transition(
+                    reduceMotion: reduceMotion,
+                    normal: .scale(scale: 0.9).combined(with: .opacity)
+                ))
 
                 Button {
                     isChanging = true
@@ -2160,9 +2166,9 @@ private struct TimeBlockSelector: View {
             }
             Spacer()
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: selectedMinutes)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isChanging)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isEnteringCustom)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedMinutes)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isChanging)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isEnteringCustom)
     }
 
     private func saveCustomEstimate() {
@@ -2192,8 +2198,8 @@ private struct TimeSlotButtonStyle: ButtonStyle {
             .overlay {
                 Rectangle().stroke(configuration.isPressed ? Sumi.seal : Sumi.rule, lineWidth: 1)
             }
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
+            .scaleEffect(SumiMotion.scale(reduceMotion: reduceMotion, isActive: configuration.isPressed, activeScale: 0.96))
+            .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.15), value: configuration.isPressed)
     }
 }
 

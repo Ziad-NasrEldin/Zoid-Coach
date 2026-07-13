@@ -1,6 +1,48 @@
 import AppKit
 import SwiftUI
 
+struct SumiMotionPolicy: Equatable, Sendable {
+    let animatesStateChanges: Bool
+    let allowsSpatialMotion: Bool
+    let preservesImmediateFeedback: Bool
+
+    static func resolve(reduceMotion: Bool) -> Self {
+        Self(
+            animatesStateChanges: !reduceMotion,
+            allowsSpatialMotion: !reduceMotion,
+            preservesImmediateFeedback: true
+        )
+    }
+}
+
+enum SumiMotion {
+    static func animation(reduceMotion: Bool, duration: Double) -> Animation? {
+        SumiMotionPolicy.resolve(reduceMotion: reduceMotion).animatesStateChanges
+            ? .easeOut(duration: duration)
+            : nil
+    }
+
+    static func transition(
+        reduceMotion: Bool,
+        normal: AnyTransition
+    ) -> AnyTransition {
+        SumiMotionPolicy.resolve(reduceMotion: reduceMotion).allowsSpatialMotion
+            ? normal
+            : .identity
+    }
+
+    static func scale(
+        reduceMotion: Bool,
+        isActive: Bool,
+        activeScale: CGFloat
+    ) -> CGFloat {
+        guard SumiMotionPolicy.resolve(reduceMotion: reduceMotion).allowsSpatialMotion else {
+            return 1
+        }
+        return isActive ? activeScale : 1
+    }
+}
+
 @MainActor
 final class SumiModalCoordinator: ObservableObject {
     @Published private(set) var confirmation: SumiConfirmationRequest?
@@ -219,9 +261,9 @@ struct SumiActionButtonStyle: ButtonStyle {
             .overlay { Rectangle().stroke(borderColor, lineWidth: 1) }
             .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.82 : 1)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: isHovering)
+            .scaleEffect(SumiMotion.scale(reduceMotion: reduceMotion, isActive: configuration.isPressed, activeScale: 0.98))
+            .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.15), value: configuration.isPressed)
+            .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.18), value: isHovering)
             .onHover { isHovering = $0 }
     }
 
@@ -263,8 +305,8 @@ struct SumiPressButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .opacity(configuration.isPressed ? 0.7 : 1)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: configuration.isPressed)
+            .scaleEffect(SumiMotion.scale(reduceMotion: reduceMotion, isActive: configuration.isPressed, activeScale: 0.97))
+            .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -394,7 +436,7 @@ struct SumiSelectorLabel: View {
         .background(isHovering ? Sumi.softPaper : Sumi.paper)
         .overlay { Rectangle().stroke(isHovering ? Sumi.seal : Sumi.rule, lineWidth: 1) }
         .contentShape(Rectangle())
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: isHovering)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.18), value: isHovering)
         .onHover { isHovering = $0 }
     }
 }
@@ -445,10 +487,10 @@ struct SumiDropdown<Label: View, Content: View>: View {
                 .frame(minWidth: minimumMenuWidth, alignment: .leading)
                 .background(Sumi.paper)
                 .overlay { Rectangle().stroke(Sumi.ink, lineWidth: 1) }
-                .transition(reduceMotion ? .identity : .opacity)
+                .transition(SumiMotion.transition(reduceMotion: reduceMotion, normal: .opacity))
             }
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: isExpanded)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.16), value: isExpanded)
     }
 }
 
@@ -831,6 +873,7 @@ struct SumiConfirmationSheet: View {
 }
 
 struct SumiModalOverlay<Content: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let dismiss: () -> Void
     @ViewBuilder let content: Content
 
@@ -844,7 +887,7 @@ struct SumiModalOverlay<Content: View>: View {
             content
                 .accessibilityElement(children: .contain)
         }
-        .transition(.opacity)
+        .transition(SumiMotion.transition(reduceMotion: reduceMotion, normal: .opacity))
         .zIndex(1_000)
     }
 }
