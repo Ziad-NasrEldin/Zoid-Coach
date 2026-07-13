@@ -42,6 +42,7 @@ final class DailyReviewController: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var successMessage: String?
     @Published private(set) var classificationRules: [AppClassificationCorrectionRule] = []
+    @Published private(set) var isRulesOnlyMode: Bool
 
     private let service: any DailyReviewServicing
     private let calendar: Calendar
@@ -49,16 +50,23 @@ final class DailyReviewController: ObservableObject {
     init(
         service: any DailyReviewServicing,
         selectedDay: Date = Date(),
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        isRulesOnlyMode: Bool = false
     ) {
         self.service = service
         self.selectedDay = selectedDay
         self.calendar = calendar
+        self.isRulesOnlyMode = isRulesOnlyMode
     }
 
     convenience init(runtimeEnvironment: RuntimeEnvironment = .current()) {
         do {
-            try self.init(service: DailyReviewStore(databaseURL: runtimeEnvironment.databaseURL))
+            let policy = try PolicyStore(databaseURL: runtimeEnvironment.databaseURL).current()?.policy
+                ?? UserPolicy.defaults()
+            try self.init(
+                service: DailyReviewStore(databaseURL: runtimeEnvironment.databaseURL),
+                isRulesOnlyMode: policy.privacy.aiProvider == .disabled
+            )
         } catch {
             self.init(service: UnavailableDailyReviewService(error: error))
             errorMessage = error.localizedDescription
@@ -244,6 +252,31 @@ struct DailyReviewView: View {
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.okay)
                     .accessibilityIdentifier("reviews.success")
+            }
+            if let snapshot = controller.snapshot {
+                let state = RulesOnlyReviewState(
+                    isRulesOnly: controller.isRulesOnlyMode,
+                    sessionCount: snapshot.sessions.count,
+                    hasLimitedCoverage: snapshot.sessions.isEmpty
+                )
+                if state.isRulesOnly {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(state.title)
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.seal)
+                        Text(state.detail)
+                            .font(Sumi.body(12))
+                            .foregroundStyle(Sumi.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.softPaper)
+                    .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("reviews.rules-only-boundary")
+                }
             }
             if controller.isLoading {
                 ProgressView("Loading local activity...")
