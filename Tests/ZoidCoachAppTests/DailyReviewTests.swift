@@ -85,6 +85,90 @@ func dailyReviewShowsMainObjectiveAndSameDayPriorityCompletionAcrossRestart() th
 }
 
 @Test
+func dailyReviewShowsCorrectionAwareHighlightsAndBehaviorCoachingResponsesAcrossRestart() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    let workStart: Int64 = 1_783_663_200
+    for offset in 0..<5 {
+        try fixture.insert(epoch: workStart + Int64(offset * 60), app: "YouTube", classification: .gaming)
+    }
+    let driftStart = workStart + 20 * 60
+    for offset in 0..<3 {
+        try fixture.insert(epoch: driftStart + Int64(offset * 60), app: "Steam", classification: .gaming)
+    }
+    let laterWorkStart = workStart + 40 * 60
+    for offset in 0..<5 {
+        try fixture.insert(epoch: laterWorkStart + Int64(offset * 60), app: "Xcode", classification: .work)
+    }
+    let initial = try fixture.store.load(sourceDay: fixture.sourceDay)
+    let correctedSession = try #require(initial.sessions.first { $0.application == "YouTube" })
+    try fixture.store.correct(correctedSession, to: .work, taskID: "main-1", from: nil)
+
+    let dayFormatter = DateFormatter()
+    dayFormatter.calendar = .current
+    dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+    dayFormatter.timeZone = .current
+    dayFormatter.dateFormat = "yyyy-MM-dd"
+    let sourceDate = try #require(dayFormatter.date(from: fixture.sourceDay))
+    do {
+        let promptStore = try PromptInboxStore(
+            databaseURL: fixture.databaseURL,
+            now: { sourceDate.addingTimeInterval(10 * 3_600) }
+        )
+        let gaming = try promptStore.enqueue(PromptDraft(
+            decisionKey: "review-gaming",
+            type: "GAMING_DRIFT",
+            title: "Ready to return?",
+            summary: "Observed gaming while the main task remained open.",
+            actions: [PromptAction(kind: .continueIntentionally, title: "Continue intentionally")]
+        )).episode
+        let response = try promptStore.respond(
+            promptID: gaming.id,
+            action: .continueIntentionally,
+            actionToken: PromptResponseToken.make(promptID: gaming.id, action: .continueIntentionally),
+            surface: .dashboard
+        )
+        try promptStore.markEffectApplied(responseID: response.response.id)
+    }
+    do {
+        let promptStore = try PromptInboxStore(
+            databaseURL: fixture.databaseURL,
+            now: { sourceDate.addingTimeInterval(11 * 3_600) }
+        )
+        _ = try promptStore.enqueue(PromptDraft(
+            decisionKey: "review-wake",
+            type: "WAKE_INTERVENTION",
+            title: "Ready to continue?",
+            summary: "The active task is still available.",
+            actions: [PromptAction(kind: .startRecommendedTask, title: "Start task")]
+        ))
+        _ = try promptStore.enqueue(PromptDraft(
+            decisionKey: "review-plan",
+            type: "PLAN_READY",
+            title: "Plan ready",
+            summary: "This planning prompt is not a behavior intervention.",
+            actions: [PromptAction(kind: .acceptPlan, title: "Accept")]
+        ))
+    }
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let snapshot = try reopened.load(sourceDay: fixture.sourceDay)
+
+    #expect(snapshot.bestObservedWorkBlock?.application == "YouTube")
+    #expect(snapshot.bestObservedWorkBlock?.durationMinutes == 5)
+    #expect(snapshot.largestObservedDriftEpisode?.application == "Steam")
+    #expect(snapshot.largestObservedDriftEpisode?.durationMinutes == 3)
+    #expect(snapshot.coachingInteractions.count == 2)
+    #expect(snapshot.coachingInteractions[0].promptType == "GAMING_DRIFT")
+    #expect(snapshot.coachingInteractions[0].responseAction == PromptActionKind.continueIntentionally.rawValue)
+    #expect(snapshot.coachingInteractions[0].responseSurface == PromptSurface.dashboard.rawValue)
+    #expect(snapshot.coachingInteractions[0].effectWasApplied == true)
+    #expect(snapshot.coachingInteractions[1].promptType == "WAKE_INTERVENTION")
+    #expect(snapshot.coachingInteractions[1].responseAction == nil)
+    #expect(snapshot.coachingInteractions[1].effectWasApplied == nil)
+}
+
+@Test
 func correctionAndTaskAttachmentPersistAndRecalculateTotalsAfterRestart() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }

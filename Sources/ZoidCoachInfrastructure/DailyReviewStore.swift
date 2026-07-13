@@ -51,6 +51,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         let offlineWork = try readOfflineWork(sourceDay: sourceDay)
         let completedTasks = try completedTasks(sourceDay: sourceDay)
         let plannedTasks = try plannedTasks(sourceDay: sourceDay, completedTasks: completedTasks)
+        let coachingInteractions = try coachingInteractions(sourceDay: sourceDay)
         return DailyReviewSnapshot(
             sourceDay: sourceDay,
             sessions: sessions,
@@ -60,8 +61,70 @@ public final class DailyReviewStore: @unchecked Sendable {
             confirmedAt: state.confirmedAt,
             offlineWork: offlineWork,
             completedTasks: completedTasks,
-            plannedTasks: plannedTasks
+            plannedTasks: plannedTasks,
+            coachingInteractions: coachingInteractions
         )
+    }
+
+    private func coachingInteractions(sourceDay: String) throws -> [DailyReviewCoachingInteraction] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let dayFormatter = DateFormatter()
+        dayFormatter.calendar = calendar
+        dayFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dayFormatter.timeZone = timeZone
+        dayFormatter.dateFormat = "yyyy-MM-dd"
+        guard let dayStart = dayFormatter.date(from: sourceDay),
+              let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)
+        else { return [] }
+
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT episode.id,
+               episode.prompt_type,
+               episode.title,
+               episode.summary,
+               episode.created_at_utc,
+               response.response,
+               response.surface,
+               response.responded_at_utc,
+               effect.state
+        FROM prompt_episodes episode
+        LEFT JOIN prompt_responses response ON response.prompt_id = episode.id
+        LEFT JOIN prompt_response_effects effect ON effect.response_id = response.id
+        WHERE episode.prompt_type IN ('GAMING_DRIFT', 'WAKE_INTERVENTION')
+          AND episode.created_at_utc >= ?
+          AND episode.created_at_utc < ?
+        ORDER BY episode.created_at_utc ASC, episode.id ASC;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError(.read) }
+        defer { sqlite3_finalize(statement) }
+        bind(Self.timestamp(dayStart), statement, 1)
+        bind(Self.timestamp(dayEnd), statement, 2)
+        let formatter = ISO8601DateFormatter()
+        var interactions: [DailyReviewCoachingInteraction] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let promptID = text(statement, 0),
+                  let promptType = text(statement, 1),
+                  let title = text(statement, 2),
+                  let summary = text(statement, 3),
+                  let createdAt = text(statement, 4).flatMap(formatter.date(from:))
+            else { continue }
+            let responseAction = text(statement, 5)
+            interactions.append(DailyReviewCoachingInteraction(
+                promptID: promptID,
+                promptType: promptType,
+                title: title,
+                summary: summary,
+                createdAt: createdAt,
+                responseAction: responseAction,
+                responseSurface: text(statement, 6),
+                respondedAt: text(statement, 7).flatMap(formatter.date(from:)),
+                effectWasApplied: responseAction.map { _ in text(statement, 8) == "applied" }
+            ))
+        }
+        return interactions
     }
 
     private func plannedTasks(
