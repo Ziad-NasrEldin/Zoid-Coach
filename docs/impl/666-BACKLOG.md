@@ -152,6 +152,15 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - `ZC-053-011` advances from Partially implemented to Touches remaining because the native Pause selection did not reach persisted state in the isolated fixture.
 - Verifier evidence is recorded in `.audit/runs/clock-safe-task-durations/verifier/REPORT.md`.
 
+### Onboarding system-of-record positioning - candidate
+
+- Owns `ZC-001-005`.
+- States directly on the first welcome screen that Zoid 666 is a coach, not a replacement task manager.
+- Names Apple Reminders as the system of record for connected tasks and tells users which work remains in Reminders versus Today.
+- Preserves the non-punitive product boundary and exposes the complete positioning through one stable accessibility element.
+- Four focused copy, accessibility, onboarding-order, and restart tests plus the release build pass.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/onboarding-system-of-record-copy/candidate/REPORT.md`.
+
 ### Settings notification delivery test - candidate
 
 - Owns `ZC-044-012`.
