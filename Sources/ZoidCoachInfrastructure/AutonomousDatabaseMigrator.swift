@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 39
+    public static let currentVersion = 41
 
     private let databaseURL: URL
     private let fileManager: FileManager
