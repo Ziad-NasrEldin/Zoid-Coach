@@ -37,6 +37,47 @@ public struct MeetingAnalysisResult: Equatable, Sendable {
     }
 }
 
+public struct ScreenshotAnalysisAuthorization: Equatable, Sendable {
+    public let consentEnabled: Bool
+    public let canMateriallyChangeIntervention: Bool
+    public let resourceConstrained: Bool
+    public let rawScreenshotRetentionDays: Int
+    public let now: Date
+
+    public init(
+        consentEnabled: Bool,
+        canMateriallyChangeIntervention: Bool,
+        resourceConstrained: Bool,
+        rawScreenshotRetentionDays: Int,
+        now: Date
+    ) {
+        self.consentEnabled = consentEnabled
+        self.canMateriallyChangeIntervention = canMateriallyChangeIntervention
+        self.resourceConstrained = resourceConstrained
+        self.rawScreenshotRetentionDays = rawScreenshotRetentionDays
+        self.now = now
+    }
+
+    public static let denied = ScreenshotAnalysisAuthorization(
+        consentEnabled: false,
+        canMateriallyChangeIntervention: false,
+        resourceConstrained: false,
+        rawScreenshotRetentionDays: 0,
+        now: .distantPast
+    )
+
+    public var allowsInspection: Bool {
+        consentEnabled
+            && canMateriallyChangeIntervention
+            && !resourceConstrained
+            && rawScreenshotRetentionDays > 0
+    }
+
+    fileprivate var earliestAllowedEpoch: Int {
+        Int(now.addingTimeInterval(-TimeInterval(rawScreenshotRetentionDays) * 86_400).timeIntervalSince1970)
+    }
+}
+
 public struct StoredMeetingCandidate: Equatable, Sendable, Identifiable {
     public let sourceDay: String
     public let epoch: Int
@@ -183,10 +224,16 @@ public final class ScreenwatchArchive: @unchecked Sendable {
     }
 
     public func analyzePendingWhatsAppScreenshots(
+        authorization: ScreenshotAnalysisAuthorization = .denied,
         using recognizer: any ScreenshotTextRecognizing = ScreenshotTextRecognizer(),
         cipher: (any EvidenceCiphering)? = nil
     ) async throws -> MeetingAnalysisResult {
-        let pending = try pendingWhatsAppScreenshots()
+        guard authorization.allowsInspection else {
+            return MeetingAnalysisResult(screenshotsProcessed: 0, candidatesCreated: 0)
+        }
+        let pending = try pendingWhatsAppScreenshots(
+            sinceEpoch: authorization.earliestAllowedEpoch
+        )
         let extractor = MeetingCandidateExtractor()
         var candidatesCreated = 0
         let evidenceCipher: any EvidenceCiphering
@@ -663,7 +710,7 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         return nil
     }
 
-    private func pendingWhatsAppScreenshots() throws -> [PendingScreenshot] {
+    private func pendingWhatsAppScreenshots(sinceEpoch: Int) throws -> [PendingScreenshot] {
         let sql = """
         SELECT record.source_day, record.epoch, record.screenshot_path, artifact.content_hash
         FROM behavior_records AS record
@@ -673,6 +720,8 @@ public final class ScreenwatchArchive: @unchecked Sendable {
           ON artifact.behavior_day = record.source_day AND artifact.behavior_epoch = record.epoch
         WHERE LOWER(record.app_name) LIKE '%whatsapp%'
           AND record.screenshot_path IS NOT NULL
+          AND COALESCE(record.classification, 'unknown') = 'unknown'
+          AND record.epoch >= ?
           AND analysis.epoch IS NULL
         ORDER BY record.epoch ASC;
         """
@@ -681,6 +730,7 @@ public final class ScreenwatchArchive: @unchecked Sendable {
               let statement
         else { throw ScreenwatchArchiveError.prepareRead }
         defer { sqlite3_finalize(statement) }
+        sqlite3_bind_int64(statement, 1, Int64(sinceEpoch))
 
         var screenshots: [PendingScreenshot] = []
         while sqlite3_step(statement) == SQLITE_ROW {

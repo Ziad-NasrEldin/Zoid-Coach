@@ -20,6 +20,7 @@ func meetingPromptResponseEnqueuesExactlyOneConfirmedMeetingActionAcrossSurfaces
         OCRTextBlock(text: "Meeting tomorrow at 3 pm for 30 minutes", confidence: 0.95, boundingBox: NormalizedBoundingBox(x: 0, y: 0, width: 1, height: 1), localeHint: "en")
     ])
     _ = try await archive.analyzePendingWhatsAppScreenshots(
+        authorization: promptScreenshotAnalysis(at: observedAt),
         using: PromptEffectRecognizer(result: ocr),
         cipher: try LocalEvidenceCipher(keyData: Data(repeating: 9, count: 32))
     )
@@ -49,6 +50,16 @@ func meetingPromptResponseEnqueuesExactlyOneConfirmedMeetingActionAcrossSurfaces
     #expect(try archive.meetingCandidate(id: candidate.id)?.state == "accepted")
 }
 
+private func promptScreenshotAnalysis(at now: Date) -> ScreenshotAnalysisAuthorization {
+    ScreenshotAnalysisAuthorization(
+        consentEnabled: true,
+        canMateriallyChangeIntervention: true,
+        resourceConstrained: false,
+        rawScreenshotRetentionDays: 30,
+        now: now
+    )
+}
+
 private struct PromptEffectRecognizer: ScreenshotTextRecognizing {
     let result: ScreenshotOCRResult
     func recognize(in imageURL: URL) async throws -> ScreenshotOCRResult { result }
@@ -71,6 +82,7 @@ func editMeetingResponseRoutesCandidateIntoTheDashboardEditorQueue() async throw
         OCRTextBlock(text: "Meeting tomorrow at 3 pm", confidence: 0.95, boundingBox: NormalizedBoundingBox(x: 0, y: 0, width: 1, height: 1), localeHint: "en")
     ])
     _ = try await archive.analyzePendingWhatsAppScreenshots(
+        authorization: promptScreenshotAnalysis(at: observedAt),
         using: PromptEffectRecognizer(result: ocr),
         cipher: try LocalEvidenceCipher(keyData: Data(repeating: 4, count: 32))
     )
