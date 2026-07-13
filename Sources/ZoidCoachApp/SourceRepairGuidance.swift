@@ -35,13 +35,13 @@ struct SourceRepairGuidance: Equatable, Sendable {
         case .reminders:
             "\(actionTitle) checks permission and refreshes Apple task access."
         case .notifications:
-            "\(actionTitle) checks authorization and opens the repair path when needed."
+            "\(actionTitle) checks notification authorization. If access is denied, use Settings to open the macOS repair path."
         case .agent:
             "\(actionTitle) verifies the helper and exposes registration or Login Items repair."
         case .calendar:
             "\(actionTitle) checks permission and refreshes Calendar capacity."
         case .screenwatch:
-            "\(actionTitle) checks the selected source and opens folder repair when needed."
+            "\(actionTitle) checks the currently selected source. Change or renew the folder from Settings when needed."
         }
     }
 }

@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "cbdb6a41c30dca3ca39058fe9c3b5a65d23912de448fe78c5c35acf516a6cb82",
+  "tracker_sha256": "39e3716abf041b1c226084b58ddd12f14f57d810abb362aa7866a27b79af9d84",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11202,7 +11202,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The Background Agent window now explains missing and stale check-ins, what Disable stops, what local data remains, and how Repair behaves. Several non-agent source states still do not explain every downstream feature impact (`AgentLifecycleView.swift`; `.audit/runs/agent-lifecycle-recovery/verifier/REPORT.md`).",
+      "audit_note": "Every unhealthy Today source row now names the affected capability and safe fallback for Reminders, notifications, agent, Calendar, and Screenwatch, with focused all-state proof. Signed representative-state inspection remained blocked by the capped computer-use timeout (`SourceRepairGuidance.swift`; `.audit/runs/source-repair-guidance/verifier/REPORT.md`).",
       "tracker_line": 698
     },
     {
@@ -11224,7 +11224,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed stale-agent state exposed Repair Registration, forced a real unregister/register cycle, launched a new helper PID, and returned to Healthy without deleting local data. Notification denial still lacks its correct direct settings route (`AgentLaunchService.swift`; `.audit/runs/agent-lifecycle-recovery/verifier/REPORT.md`).",
+      "audit_note": "Every Today source row now exposes a stable source-specific control and truthful accessibility hint, publishes Checking synchronously, and deduplicates rapid activation until the adapter finishes. Notification and Screenwatch rechecks still correctly direct the user to Settings for their actual repair paths, and signed click-through remains (`AppModel.swift`; `SourceRepairGuidance.swift`; `.audit/runs/source-repair-guidance/verifier/REPORT.md`).",
       "tracker_line": 699
     },
     {
