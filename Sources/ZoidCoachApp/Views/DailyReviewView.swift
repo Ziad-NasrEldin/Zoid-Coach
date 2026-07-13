@@ -499,6 +499,9 @@ struct DailyReviewView: View {
             Text("BEHAVIOR COACHING")
                 .font(Sumi.label(10))
                 .sumiLabelTracking()
+            if let quietDrift = snapshot.quietDrift {
+                quietDriftSummary(quietDrift)
+            }
             if snapshot.coachingInteractions.isEmpty {
                 Text("No gaming-drift or wake-intervention prompt was created for this day.")
                     .font(Sumi.body(12))
@@ -556,6 +559,40 @@ struct DailyReviewView: View {
         .background(Sumi.softPaper)
         .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
         .accessibilityIdentifier("reviews.behavioral-highlights")
+    }
+
+    private func quietDriftSummary(_ summary: DailyReviewQuietDriftSummary) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("PROMPT CAP REACHED")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Spacer()
+                Text("\(summary.episodeCount) LATER EPISODE\(summary.episodeCount == 1 ? "" : "S")")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+            }
+            Text("Later eligible drift was recorded without another interruption and is shown only in this review.")
+                .font(Sumi.body(12))
+                .fixedSize(horizontal: false, vertical: true)
+            Text("\(summary.totalObservedMinutes) observed minutes · largest \(summary.largestEpisodeMinutes) minutes")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.ink)
+            if !summary.applications.isEmpty {
+                Text(summary.applications.joined(separator: ", "))
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .lineLimit(2)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Sumi.paper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("reviews.coaching.quiet-drift")
     }
 
     private func observedHighlight(

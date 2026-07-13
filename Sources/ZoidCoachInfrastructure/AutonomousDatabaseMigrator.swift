@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 38
+    public static let currentVersion = 39
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1018,6 +1018,21 @@ private extension AutonomousDatabaseMigrator {
                 column: "estimate_is_uncertain",
                 declaration: "INTEGER NOT NULL DEFAULT 0 CHECK(estimate_is_uncertain IN (0, 1))"
             )
+        ]),
+        Migration(version: 39, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS quiet_drift_episodes (
+            local_day TEXT NOT NULL,
+            session_started_epoch INTEGER NOT NULL,
+            latest_observed_epoch INTEGER NOT NULL,
+            application TEXT NOT NULL CHECK(length(application) BETWEEN 1 AND 240),
+            observed_minutes INTEGER NOT NULL CHECK(observed_minutes >= 10),
+            recorded_at_utc TEXT NOT NULL,
+            updated_at_utc TEXT NOT NULL,
+            PRIMARY KEY(local_day, session_started_epoch)
+        );
+        CREATE INDEX IF NOT EXISTS quiet_drift_episodes_day
+        ON quiet_drift_episodes(local_day, session_started_epoch);
+        """)
         ])
     ]
 }
