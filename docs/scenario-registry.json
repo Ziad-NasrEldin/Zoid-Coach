@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "fdd399ed8142cde4ff2af7f37fa4595bce306e285e2db03a9570bb0e7fa88a0c",
+  "tracker_sha256": "c1e35722968e1cf28215202cb0ca3cf88beb9742d2175f1d53d1bf71875ecf58",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -2763,19 +2763,21 @@
       "section_title": "Understanding the Today dashboard",
       "item_index": 7,
       "wording": "See work, gaming, distraction, idle, and unknown totals.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/today-behavior-evidence/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Core snapshot tracks all five and the usage popover separates categories, but the primary card emphasizes work and older installed UI combines gaming/distraction (`TodayDashboard.swift:128-192`; `TodayDashboardCommandOverview.swift:106-191`).",
+      "audit_note": "The signed Today sheet simultaneously exposed five separate accessible totals with the seeded exact values Work 5 minutes, Gaming 4 minutes, Distraction 3 minutes, Idle observed 2 minutes, and Unknown 1 minute. The sheet is available from a persistent native View All Activity button rather than a hover-only surface (`BehaviorEvidenceState.swift`; `BehaviorEvidenceSheet.swift`; `.audit/runs/today-behavior-evidence/verifier/REPORT.md`).",
       "tracker_line": 214
     },
     {
@@ -5266,9 +5268,9 @@
       "section_title": "Understanding behavior totals",
       "item_index": 6,
       "wording": "See unknown time separately from distraction.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5277,10 +5279,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/today-behavior-evidence/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The model and usage-category selector separate unknown and distracting time. Live app usage inspection confirms an `Unclassified` category, but no long-duration E2E correction was run.",
+      "audit_note": "The signed Today sheet rendered Unknown 1 minute and Distraction 3 minutes as separate accessible totals and explicitly explained that unknown time is not counted as distraction or used as strong drift evidence. Focused state and dashboard tests passed (`BehaviorEvidenceState.swift`; `BehaviorEvidenceSheet.swift`; `.audit/runs/today-behavior-evidence/verifier/REPORT.md`).",
       "tracker_line": 360
     },
     {
@@ -5372,7 +5376,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The signed review named Screenwatch as unavailable, showed the checkpoint detail and privacy-safe evidence, and displayed its last-check time beside the qualified totals (`DailySourceCoverageStore.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
+      "audit_note": "The Today evidence state now attributes behavior coverage only to Screenwatch and focused tests prove that unrelated Reminders or Calendar outages are never blamed. The signed current-coverage sheet remained correct while Reminders was unavailable, but a fresh signed stale-Screenwatch click-through and Source Health repair-route assertion remain (`BehaviorEvidenceState.swift`; `BehaviorEvidenceSheet.swift`; `.audit/runs/today-behavior-evidence/verifier/REPORT.md`).",
       "tracker_line": 364
     },
     {
@@ -5547,8 +5551,8 @@
       "item_index": 8,
       "wording": "Understand when Zoid 666 may be wrong.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5560,7 +5564,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Limited coverage and `Unclassified` communicate some uncertainty, but there is no explanation or correction affordance adjacent to a specific questionable classification.",
+      "audit_note": "The signed Today sheet explains that Unknown is not distraction or strong drift evidence, that missing time is never idle, and that idle is shown only when reliably observed. Review and Correct Activity and Open Source Health actions are adjacent to that explanation, but the verifier did not complete both signed destination assertions before the UI time cap (`BehaviorEvidenceState.swift`; `BehaviorEvidenceSheet.swift`; `.audit/runs/today-behavior-evidence/verifier/REPORT.md`).",
       "tracker_line": 375
     },
     {
