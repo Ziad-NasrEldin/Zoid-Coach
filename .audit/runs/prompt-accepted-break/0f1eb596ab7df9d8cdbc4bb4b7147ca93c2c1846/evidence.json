@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "run_id": "prompt-accepted-break/0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846",
+  "verified_commit": "0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846",
+  "build_identity": "zoid-coach-0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846-clean",
+  "scenario_ids": ["ZC-028-003"],
+  "required_proof_classes": ["installed_app_e2e", "integration", "ui_automation", "unit_rule"],
+  "status": "passed",
+  "completed_at": "2026-07-13T03:35:00Z",
+  "artifacts": [{"path": "REPORT.md", "sha256": "fdd08f9ae89b0fa5166d00341bed66e16c487dd15a377c254bdf789102a321d3"}],
+  "assertions": [
+    {"name": "Installed coach prompt offered Take a break only with active work", "result": "passed"},
+    {"name": "Break produced one durable pause and neutral paused UI", "result": "passed"},
+    {"name": "App and helper restart preserved break and Resume restored active work", "result": "passed"}
+  ]
+}

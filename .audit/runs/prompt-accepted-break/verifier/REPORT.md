@@ -24,6 +24,13 @@ Normal Resume closes the pause, after which ordinary coaching eligibility applie
 - One release build passed.
 - `git diff --check` passed.
 
-## Signed acceptance pending
+## Signed acceptance
 
-The signed active-task prompt, break, cross-surface replay, restart, and resume journey remains pending the serialized runtime lease.
+The installed signed app showed one active tracked task and one gaming prompt with Take a break.
+Choosing it visibly changed Today to `PAUSED FOR A BREAK`, retained neutral `for a break` copy, resolved the prompt into Answered history, and produced exactly one response, one open break pause, and one paused execution state.
+
+After terminating both app and helper, launchd started a new helper PID and the relaunched app restored the same paused break and answered prompt history.
+Resume returned the task to Active commitment and closed the open break.
+
+A simultaneous installed notification replay was not available in the seeded fixture.
+Focused same-token replay proof remains the evidence for duplicate-effect prevention.
