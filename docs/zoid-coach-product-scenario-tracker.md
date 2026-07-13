@@ -15,11 +15,11 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 Only scenarios proven completely usable end to end are checked.
 
 - **Fully implemented:** 173
-- **Touches remaining:** 295
+- **Touches remaining:** 296
 - **Frontend only left:** 3
 - **Partially implemented:** 103
 - **Barely started:** 8
-- **Not implemented:** 57
+- **Not implemented:** 56
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -703,7 +703,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 - [ ] See a warning when Screenwatch stops reporting during active use. **Status: Partially implemented.** Today Source Freshness and coverage text show `limited`/stale state, but there is no prominent active-use warning or proven automatic foreground refresh.
 - [ ] Understand that behavior totals and drift detection are temporarily unreliable. **Status: Partially implemented.** The dashboard states that Screenwatch coverage is limited/stale, but does not explicitly mention drift-detection suspension.
-- [ ] Avoid receiving behavior prompts while Screenwatch is stale. **Status: Not implemented.** Behavior prompts do not exist, so no stale-source suppression behavior can be verified.
+- [ ] Avoid receiving behavior prompts while Screenwatch is stale. **Status: Touches remaining.** Gaming-drift production now rejects missing, older-than-three-minute, and future-dated Screenwatch evidence, dismisses a queued gaming-drift prompt when coverage later becomes limited, and restores exactly-once eligibility when fresh evidence resumes. Four focused lifecycle and policy tests pass, and an installed signed-QA missing-source run plus relaunch showed Today with zero persisted or unresolved prompts. The signed stale-to-fresh prompt presentation journey still needs supported baseline and current-plan fixture prerequisites before this can be marked fully usable end to end (`Sources/ZoidCoachInfrastructure/GamingDriftPromptService.swift`; `Tests/ZoidCoachAppTests/GamingDriftPromptServiceTests.swift`; `.audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md`).
 - [ ] Continue planning and manually tracking tasks during the outage. **Status: Touches remaining.** Planning and task execution are independent of Screenwatch and tests pass with limited coverage, but a live controlled Screenwatch outage was not induced after runtime recovery.
 - [ ] See missing time represented as missing rather than productive or distracting. **Status: Touches remaining.** The signed review displayed a dedicated Missing metric and stated that uncovered active-task time is not counted as work, gaming, or distraction, while focused fixtures prove a 40-minute gap remains separate from every category (`DailySourceCoverage.swift`; `DailySourceCoverageTests.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).
 - [ ] See Screenwatch return to healthy automatically when valid activity resumes. **Status: Touches remaining.** The signed Settings card visibly returned from Waiting and Stale to Healthy when valid current activity appeared and Recheck ran. Foreground activation also rechecks without reselection in passing controller tests, but the capped run did not visibly leave and return to the app for automatic foreground recovery (`ScreenwatchConnectionView.swift`; `.audit/runs/screenwatch-recovery-ux/verifier/REPORT.md`).

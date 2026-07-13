@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "f28cbbb57724c71f9e58b8d448e2f335cf46c12f31c0a3bf80a58ad2f90e9607",
+  "tracker_sha256": "73aff5747710a011c71d3640c99d66e2c5ee8d433cb1091d29ca2c20ed7b87ae",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11465,8 +11465,8 @@
       "item_index": 3,
       "wording": "Avoid receiving behavior prompts while Screenwatch is stale.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11474,10 +11474,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Behavior prompts do not exist, so no stale-source suppression behavior can be verified.",
+      "audit_note": "Gaming-drift production now rejects missing, older-than-three-minute, and future-dated Screenwatch evidence, dismisses a queued gaming-drift prompt when coverage later becomes limited, and restores exactly-once eligibility when fresh evidence resumes. Four focused lifecycle and policy tests pass, and an installed signed-QA missing-source run plus relaunch showed Today with zero persisted or unresolved prompts. The signed stale-to-fresh prompt presentation journey still needs supported baseline and current-plan fixture prerequisites before this can be marked fully usable end to end (`Sources/ZoidCoachInfrastructure/GamingDriftPromptService.swift`; `Tests/ZoidCoachAppTests/GamingDriftPromptServiceTests.swift`; `.audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md`).",
       "tracker_line": 706
     },
     {
