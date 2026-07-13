@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import Testing
 @testable import ZoidCoachApp
 import ZoidCoachCore
@@ -19,6 +20,7 @@ struct AgentLaunchServiceTests {
 
         #expect(service.inspect().state == .unavailable)
         #expect(service.enableAndInspect().state == .unavailable)
+        #expect(service.repairAndInspect().state == .unavailable)
         #expect(service.disableAndInspect().state == .unavailable)
         #expect(registration.statusReadCount == 0)
         #expect(registration.registerCount == 0)
@@ -60,7 +62,9 @@ struct AgentLaunchServiceTests {
             runtimeEnvironment: runtimeEnvironment,
             registrationFactory: factory,
             bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid 666 QA.app"),
-            buildVersion: "qa-1"
+            buildVersion: "qa-1",
+            now: { Date(timeIntervalSince1970: 1_800_000_000) },
+            heartbeat: { Date(timeIntervalSince1970: 1_799_999_995) }
         )
 
         #expect(service.inspect().state == .notConnected)
@@ -73,6 +77,57 @@ struct AgentLaunchServiceTests {
         #expect(production.statusReadCount == 0)
         #expect(production.registerCount == 0)
         #expect(production.unregisterCount == 0)
+    }
+
+    @MainActor
+    @Test
+    func enabledRegistrationRequiresAFreshRuntimeHeartbeatToBeHealthy() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let registration = RecordingAgentServiceRegistration(status: .enabled)
+        let missing = AgentLaunchService(
+            service: registration,
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid 666.app"),
+            now: { now },
+            heartbeat: { nil }
+        )
+        let stale = AgentLaunchService(
+            service: registration,
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid 666.app"),
+            now: { now },
+            heartbeat: { now.addingTimeInterval(-300) },
+            heartbeatFreshness: 120
+        )
+        let running = AgentLaunchService(
+            service: registration,
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid 666.app"),
+            now: { now },
+            heartbeat: { now.addingTimeInterval(-5) },
+            heartbeatFreshness: 120
+        )
+
+        #expect(missing.inspect().state == .attention)
+        #expect(missing.inspect().detail.contains("has not checked in"))
+        #expect(stale.inspect().state == .attention)
+        #expect(stale.inspect().evidence.contains("5 minutes ago"))
+        #expect(running.inspect().state == .healthy)
+        #expect(running.inspect().detail == "Background agent is running")
+    }
+
+    @MainActor
+    @Test
+    func forcedRepairReregistersEvenWhenRegistrationLooksEnabled() {
+        let registration = RecordingAgentServiceRegistration(status: .enabled)
+        let service = AgentLaunchService(
+            service: registration,
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid 666.app"),
+            buildVersion: "8",
+            heartbeat: { Date() }
+        )
+
+        _ = service.repairAndInspect()
+
+        #expect(registration.unregisterCount == 1)
+        #expect(registration.registerCount == 1)
     }
 
     @Test
@@ -111,6 +166,33 @@ struct AgentLaunchServiceTests {
         )
 
         #expect(first == second)
+    }
+
+    @Test
+    func heartbeatReaderIsReadOnlyAndReturnsTheCanonicalAgentCheckpoint() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("agent-heartbeat-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let missing = root.appendingPathComponent("missing.sqlite")
+        #expect(AgentLaunchService.readAgentHeartbeat(databaseURL: missing) == nil)
+        #expect(!FileManager.default.fileExists(atPath: missing.path))
+
+        let databaseURL = root.appendingPathComponent("zoid.sqlite")
+        var database: OpaquePointer?
+        #expect(sqlite3_open(databaseURL.path, &database) == SQLITE_OK)
+        let opened = try #require(database)
+        defer { sqlite3_close(opened) }
+        #expect(sqlite3_exec(
+            opened,
+            "CREATE TABLE processing_checkpoints(source_id TEXT PRIMARY KEY, last_success_at_utc TEXT); INSERT INTO processing_checkpoints VALUES('agent-runtime','2027-01-15T10:11:12Z');",
+            nil,
+            nil,
+            nil
+        ) == SQLITE_OK)
+
+        #expect(AgentLaunchService.readAgentHeartbeat(databaseURL: databaseURL)
+            == ISO8601DateFormatter().date(from: "2027-01-15T10:11:12Z"))
     }
 }
 

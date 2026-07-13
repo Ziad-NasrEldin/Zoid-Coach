@@ -23,7 +23,7 @@ func agentLifecycleControllerExposesApprovalRecoveryAndReturnsHealthy() {
 
     controller.repair()
 
-    #expect(service.enableCalls == 1)
+    #expect(service.repairCalls == 1)
     #expect(controller.health.state == .healthy)
     #expect(controller.health.detail == "Agent is running")
     #expect(controller.canDisable)
@@ -100,6 +100,7 @@ private final class StubAgentLifecycleService: AgentLifecycleServicing {
     let disabled: SourceHealth
     private(set) var inspectCalls = 0
     private(set) var enableCalls = 0
+    private(set) var repairCalls = 0
     private(set) var disableCalls = 0
 
     init(inspected: SourceHealth, enabled: SourceHealth, disabled: SourceHealth) {
@@ -115,6 +116,11 @@ private final class StubAgentLifecycleService: AgentLifecycleServicing {
 
     func enableAndInspect() -> SourceHealth {
         enableCalls += 1
+        return enabled
+    }
+
+    func repairAndInspect() -> SourceHealth {
+        repairCalls += 1
         return enabled
     }
 
