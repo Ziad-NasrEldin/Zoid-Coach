@@ -837,15 +837,24 @@ final class AppModel: ObservableObject {
         guard pendingTaskCommandIDs.isEmpty else { return }
         pendingTaskCommandIDs.insert(taskID)
         taskCommandError = nil
+        let blockedWasMainObjective = dailyPlan.first(where: { $0.reminderID == taskID })?.isMainObjective == true
+        let blockedTitle = todaySnapshot?.taskRows.first(where: { $0.taskID == taskID })?.title
         Task {
             defer { pendingTaskCommandIDs.remove(taskID) }
             do {
-                todaySnapshot = try await todayDashboardXPCClient.blockTask(
+                let refreshedSnapshot = try await todayDashboardXPCClient.blockTask(
                     taskID: taskID,
                     reason: normalizedReason
                 )
+                todaySnapshot = refreshedSnapshot
                 await reloadDailyPlan()
-                lastActionMessage = "Task marked blocked with its reason saved locally."
+                if blockedWasMainObjective,
+                   let replacement = refreshedSnapshot.mainObjective,
+                   replacement != blockedTitle {
+                    lastActionMessage = "Task marked blocked. The reason is saved, and \(replacement) is now the main objective."
+                } else {
+                    lastActionMessage = "Task marked blocked with its reason saved locally."
+                }
             } catch {
                 taskCommandError = "The blocker was not saved. The last confirmed task and plan state are still shown."
                 await reloadDailyPlan()
