@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "d8f7663c0b75f0409f933a774e5e3605bdd8f057eafc3d0886009c1dd270e8b4",
+  "tracker_sha256": "d713de263a1934599d2ff9ad8761bf19e6b343e97e0db4cf75c4c0a9e9b4989c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -112,7 +112,9 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/daily-review-deferral/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "First launch consistently presents Zoid 666 as a coach grounded in Reminders, but it still does not state as directly as it should that Reminders remains the task system of record.",
@@ -8918,9 +8920,9 @@
       "section_title": "End-of-day review trigger",
       "item_index": 4,
       "wording": "Delay the review without losing the day's evidence.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8928,10 +8930,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/daily-review-deferral/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Evidence persists independently, but there is no delay-review action or review state.",
+      "audit_note": "In the signed isolated QA app, Review Tomorrow persisted an exact future time and preservation copy, stayed quiet before the boundary across relaunch, resumed early through Resume Review Now, and returned automatically after the due boundary with the saved correction, task attachment, and personal note unchanged (`DailyReviewView.swift`; `DailyReviewStore.swift`; `.audit/runs/daily-review-deferral/verifier/REPORT.md`).",
       "tracker_line": 566
     },
     {
