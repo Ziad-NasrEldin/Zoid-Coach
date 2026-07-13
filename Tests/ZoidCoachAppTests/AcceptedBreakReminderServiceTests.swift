@@ -97,6 +97,16 @@ struct AcceptedBreakReminderServiceTests {
         #expect(scheduled[0].desired.deliveryDate == deliveryDate)
         #expect(scheduled[0].id.hasPrefix("zcqa.action.accepted-break.priority."))
 
+        try adapter.cancelNotifications(withPrefix: "zcqa.action.accepted-break.priority.")
+        #expect(try adapter.snapshot().notifications.isEmpty)
+        #expect(try await coordinator.scheduleAcceptedBreakEnd(
+            taskID: "priority",
+            taskTitle: "Ship proposal",
+            startedAt: startedAt,
+            deliveryDate: deliveryDate
+        ) == false)
+        #expect(try adapter.snapshot().notifications.isEmpty)
+
         await coordinator.cancelAcceptedBreakEnds(taskID: "priority")
         #expect(try adapter.snapshot().notifications.isEmpty)
 
