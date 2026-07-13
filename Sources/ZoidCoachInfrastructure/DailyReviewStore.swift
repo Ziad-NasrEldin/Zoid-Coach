@@ -325,6 +325,15 @@ public final class DailyReviewStore: @unchecked Sendable {
         )
     }
 
+    @discardableResult
+    public func resetClassificationRules() throws -> Int {
+        let activeRules = try classificationRules()
+        for rule in activeRules {
+            try removeClassificationRule(normalizedApplication: rule.normalizedApplication)
+        }
+        return activeRules.count
+    }
+
     public func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws {
         lock.lock()
         defer { lock.unlock() }

@@ -29,6 +29,7 @@ protocol DailyReviewServicing: AnyObject {
         classification: BehaviorClassification
     ) throws -> AppClassificationCorrectionRule
     func removeClassificationRule(normalizedApplication: String) throws
+    func resetClassificationRules() throws -> Int
 }
 
 extension DailyReviewStore: DailyReviewServicing {}
@@ -132,6 +133,19 @@ final class DailyReviewController: ObservableObject {
         }
     }
 
+    func resetClassificationRules() {
+        do {
+            let removed = try service.resetClassificationRules()
+            classificationRules = try service.classificationRules()
+            errorMessage = nil
+            successMessage = removed == 1
+                ? "1 learned future rule was reset. Historical corrections are unchanged."
+                : "\(removed) learned future rules were reset. Historical corrections are unchanged."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func setHypothesis(_ state: DailyReviewHypothesisState) {
         do {
             try service.setHypothesisState(state, sourceDay: sourceDay)
@@ -208,10 +222,12 @@ private final class UnavailableDailyReviewService: DailyReviewServicing {
     func classificationRules() throws -> [AppClassificationCorrectionRule] { throw error }
     func upsertClassificationRule(for session: DailyReviewSession, classification: BehaviorClassification) throws -> AppClassificationCorrectionRule { throw error }
     func removeClassificationRule(normalizedApplication: String) throws { throw error }
+    func resetClassificationRules() throws -> Int { throw error }
 }
 
 struct DailyReviewView: View {
     @StateObject private var controller: DailyReviewController
+    @State private var confirmsRuleReset = false
 
     init(controller: DailyReviewController? = nil) {
         _controller = StateObject(wrappedValue: controller ?? DailyReviewController())
@@ -262,6 +278,29 @@ struct DailyReviewView: View {
             DatePicker("Review day", selection: $controller.selectedDay, displayedComponents: .date)
                 .datePickerStyle(.compact)
                 .accessibilityIdentifier("reviews.day")
+            if !controller.classificationRules.isEmpty {
+                HStack(spacing: 12) {
+                    Text("\(controller.classificationRules.count) ACTIVE LEARNED RULE\(controller.classificationRules.count == 1 ? "" : "S")")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.muted)
+                    Button("RESET LEARNED RULES") { confirmsRuleReset = true }
+                        .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                        .accessibilityIdentifier("reviews.learned-rules.reset")
+                }
+            }
+        }
+        .confirmationDialog(
+            "Reset all learned app rules?",
+            isPresented: $confirmsRuleReset,
+            titleVisibility: .visible
+        ) {
+            Button("Reset all learned rules", role: .destructive) {
+                controller.resetClassificationRules()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Future observations will return to the normal Settings policy. Historical corrections and review totals will remain unchanged.")
         }
     }
 
