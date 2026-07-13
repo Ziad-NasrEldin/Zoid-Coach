@@ -128,11 +128,12 @@ final class DailyReviewController: ObservableObject {
             snapshot = try service.load(sourceDay: sourceDay)
             classificationRules = try service.classificationRules()
             errorMessage = nil
+            let action = session.classification == .unknown ? "classified" : "corrected"
             successMessage = applyToFuture
-                ? "The session was corrected. Future \(session.application) activity will be classified as \(classification.rawValue)."
+                ? "The session was \(action). Future \(session.application) activity will be classified as \(classification.rawValue)."
                 : splitAtMidpoint
-                ? "The second half of the session was corrected. Totals were recalculated."
-                : "The session was corrected. Totals were recalculated."
+                ? "The second half of the session was \(action). Totals were recalculated."
+                : "The session was \(action). Totals were recalculated."
         } catch {
             errorMessage = error.localizedDescription
         }
