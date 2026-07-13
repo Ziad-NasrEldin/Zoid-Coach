@@ -177,7 +177,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             return .suppressed(.sessionAlreadyHandled)
         }
         let prefix = decisionKeyPrefix
-        let level = policy.gaming.coachingLevel
+        let maximumInterventionLevel = policy.gaming.coachingLevel
         let isBelowDailyPromptCap = try promptCount(decisionKeyPrefix: prefix) < policy.gaming.dailyPromptCap
         guard isFiveMinuteFollowUp || isBelowDailyPromptCap else {
             try recordQuietDrift(localDay: localDay, session: session, at: date)
@@ -201,12 +201,12 @@ public final class GamingDriftPromptService: @unchecked Sendable {
 
         let title = isFiveMinuteFollowUp
             ? "Your five minutes are up"
-            : (level == .gentle ? "Ready for an easy return?" : "Is this gaming intentional?")
+            : (maximumInterventionLevel == .gentle ? "Ready for an easy return?" : "Is this gaming intentional?")
         let summary = isFiveMinuteFollowUp
             ? "The five-minute extension has ended. The current session contains \(session.minutes) observed minutes in \(session.application), and \(task.title) remains unfinished. This shows activity, not why it happened or what you intended."
             : "The current session contains \(session.minutes) observed minutes in \(session.application) while \(task.title) remains unfinished. This shows activity, not why it happened or what you intended."
         var actions = [PromptAction(kind: .returnToActiveTask, title: "Return to \(task.title)", role: .primary)]
-        if level == .gentle {
+        if maximumInterventionLevel == .gentle {
             actions.append(PromptAction(kind: .startShortSprint, title: "Start a 10-minute recovery sprint"))
             if !isFiveMinuteFollowUp {
                 actions.append(PromptAction(kind: .fiveMoreMinutes, title: "Five more minutes"))
@@ -214,7 +214,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         } else {
             actions.append(PromptAction(kind: .startWorkSprint, title: "Start a 20-minute work sprint"))
         }
-        if level == .accountability, try hasActiveTask() {
+        if maximumInterventionLevel == .accountability, try hasActiveTask() {
             actions.append(PromptAction(kind: .startBreak, title: "Take a break"))
         }
         actions.append(PromptAction(
@@ -244,7 +244,8 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             "behaviorPromptContractVersion": BehaviorPromptPresentationPolicy.contractVersion,
             "uncertaintyHandling": "Limited source coverage suppresses the intervention",
             "sessionStartedAtEpoch": String(session.startedAtEpoch),
-            "coachingLevel": level.rawValue,
+            "coachingLevel": maximumInterventionLevel.rawValue,
+            "maximumInterventionLevel": maximumInterventionLevel.rawValue,
             "allowsDismissal": "true"
         ]
         if case let .elapsed(_, promptID) = snooze {

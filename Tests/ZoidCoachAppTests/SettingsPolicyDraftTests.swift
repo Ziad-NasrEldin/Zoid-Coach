@@ -29,7 +29,7 @@ func settingsScreenwatchIngestionPauseRoundTripsAndMergesIndependently() {
 func settingsRoundTripsConfiguredCoachingLevelAndGamingAllowance() {
     let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     var draft = SettingsPolicyDraft(policy: original)
-    draft.coachingLevel = .accountability
+    draft.maximumInterventionLevel = .accountability
     draft.gamingDailyBudgetMinutes = 95
     draft.gamingPriorityTaskRewardMinutes = 25
     draft.gamingIntentionalOverrideMinutes = 25
@@ -49,6 +49,7 @@ func settingsRoundTripsConfiguredCoachingLevelAndGamingAllowance() {
     #expect(saved.gaming.taskStartGraceMinutes == 12)
     #expect(saved.gaming.returnFromIdleGraceMinutes == 4)
     #expect(SettingsPolicyDraft(policy: saved).coachingLevel == .accountability)
+    #expect(SettingsPolicyDraft(policy: saved).maximumInterventionLevel == .accountability)
     #expect(SettingsPolicyDraft(policy: saved).gamingDailyBudgetMinutes == 95)
     #expect(SettingsPolicyDraft(policy: saved).gamingPriorityTaskRewardMinutes == 25)
     #expect(SettingsPolicyDraft(policy: saved).gamingIntentionalOverrideMinutes == 25)
@@ -75,6 +76,18 @@ func settingsRoundTripsConfiguredCoachingLevelAndGamingAllowance() {
     )
     #expect(afterCompletion.unlockedRemainingMinutes == 100)
     #expect(afterCompletion.nextUnlockReason.contains("already applied"))
+}
+
+@Test
+func maximumInterventionLevelIsAnExplicitAliasForThePersistedCoachingCeiling() {
+    var draft = SettingsPolicyDraft(policy: .defaults(timeZoneIdentifier: "UTC"))
+
+    draft.maximumInterventionLevel = .accountability
+    #expect(draft.coachingLevel == .accountability)
+
+    draft.maximumInterventionLevel = .gentle
+    #expect(draft.coachingLevel == .gentle)
+    #expect(draft.policy(preserving: .defaults(timeZoneIdentifier: "UTC")).gaming.coachingLevel == .gentle)
 }
 
 @Test
