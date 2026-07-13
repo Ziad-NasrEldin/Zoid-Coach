@@ -212,6 +212,83 @@ public struct BehaviorObservation: Equatable, Codable, Sendable {
     }
 }
 
+public enum ActiveTaskContextState: String, Equatable, Codable, Sendable {
+    case aligned
+    case uncertain
+    case mismatched
+
+    public var title: String {
+        switch self {
+        case .aligned: "Context looks work-aligned"
+        case .uncertain: "Context is uncertain"
+        case .mismatched: "Context may not match this task"
+        }
+    }
+}
+
+public struct ActiveTaskContextAssessment: Equatable, Codable, Sendable {
+    public let state: ActiveTaskContextState
+    public let explanation: String
+    public let lastObservedAt: Date?
+
+    public init(state: ActiveTaskContextState, explanation: String, lastObservedAt: Date?) {
+        self.state = state
+        self.explanation = explanation
+        self.lastObservedAt = lastObservedAt
+    }
+}
+
+public struct ActiveTaskContextAssessor: Sendable {
+    public init() {}
+
+    public func assess(
+        observations: [BehaviorObservation],
+        now: Date,
+        staleAfter: TimeInterval = 900
+    ) -> ActiveTaskContextAssessment {
+        guard let latest = observations.max(by: { $0.observedAt < $1.observedAt }) else {
+            return ActiveTaskContextAssessment(
+                state: .uncertain,
+                explanation: "No current activity evidence is available, so Zoid 666 will not guess.",
+                lastObservedAt: nil
+            )
+        }
+        guard now.timeIntervalSince(latest.observedAt) <= staleAfter else {
+            return ActiveTaskContextAssessment(
+                state: .uncertain,
+                explanation: "The latest activity evidence is stale, so Zoid 666 will not guess.",
+                lastObservedAt: latest.observedAt
+            )
+        }
+        switch latest.classification {
+        case .work:
+            return ActiveTaskContextAssessment(
+                state: .aligned,
+                explanation: "The latest observed app is classified as work. This is a signal, not proof that it matches this task.",
+                lastObservedAt: latest.observedAt
+            )
+        case .gaming, .distracting:
+            return ActiveTaskContextAssessment(
+                state: .mismatched,
+                explanation: "The latest observed app is not classified as work. Check the context before changing your plan.",
+                lastObservedAt: latest.observedAt
+            )
+        case .idle:
+            return ActiveTaskContextAssessment(
+                state: .uncertain,
+                explanation: "The latest observation is idle. Zoid 666 cannot infer whether that matches this task.",
+                lastObservedAt: latest.observedAt
+            )
+        case .unknown:
+            return ActiveTaskContextAssessment(
+                state: .uncertain,
+                explanation: "The latest activity is unclassified, so Zoid 666 will not guess.",
+                lastObservedAt: latest.observedAt
+            )
+        }
+    }
+}
+
 public struct AppUsageBreakdown: Identifiable, Equatable, Codable, Sendable {
     public let application: String
     public let observedSeconds: Int
@@ -539,6 +616,7 @@ public struct TodaySnapshot: Equatable, Codable, Sendable {
     public let mainObjective: String?
     public let taskRows: [TodayTaskRow]
     public let activeTask: ActiveTaskSnapshot?
+    public let activeTaskContext: ActiveTaskContextAssessment?
     public let recommendation: NextTaskRecommendation
     public let behavior: BehaviorSummary
     public let coverage: TelemetryCoverage
@@ -548,12 +626,13 @@ public struct TodaySnapshot: Equatable, Codable, Sendable {
     public let sources: [SourceFreshnessSnapshot]?
     public let planningStatus: PlanningDayStatus?
 
-    public init(localDate: Date, timeZoneIdentifier: String, mainObjective: String?, taskRows: [TodayTaskRow], activeTask: ActiveTaskSnapshot?, recommendation: NextTaskRecommendation, behavior: BehaviorSummary, coverage: TelemetryCoverage, gaming: GamingStatus, sourceFreshnessExplanation: String, unplannedReminders: [TodayReminderQueueRow] = [], sources: [SourceFreshnessSnapshot] = [], planningStatus: PlanningDayStatus? = nil) {
+    public init(localDate: Date, timeZoneIdentifier: String, mainObjective: String?, taskRows: [TodayTaskRow], activeTask: ActiveTaskSnapshot?, activeTaskContext: ActiveTaskContextAssessment? = nil, recommendation: NextTaskRecommendation, behavior: BehaviorSummary, coverage: TelemetryCoverage, gaming: GamingStatus, sourceFreshnessExplanation: String, unplannedReminders: [TodayReminderQueueRow] = [], sources: [SourceFreshnessSnapshot] = [], planningStatus: PlanningDayStatus? = nil) {
         self.localDate = localDate
         self.timeZoneIdentifier = timeZoneIdentifier
         self.mainObjective = mainObjective
         self.taskRows = taskRows
         self.activeTask = activeTask
+        self.activeTaskContext = activeTaskContext
         self.recommendation = recommendation
         self.behavior = behavior
         self.coverage = coverage

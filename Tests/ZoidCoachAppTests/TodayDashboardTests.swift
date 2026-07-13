@@ -3,6 +3,52 @@ import Testing
 @testable import ZoidCoachCore
 
 @Test
+func activeTaskContextAssessmentUsesNeutralEvidenceStates() {
+    let now = Date(timeIntervalSince1970: 1_750_000_000)
+    let assessor = ActiveTaskContextAssessor()
+
+    let aligned = assessor.assess(
+        observations: [BehaviorObservation(observedAt: now.addingTimeInterval(-20), application: "Xcode", classification: .work)],
+        now: now
+    )
+    #expect(aligned.state == .aligned)
+    #expect(aligned.explanation.contains("signal, not proof"))
+
+    let mismatched = assessor.assess(
+        observations: [BehaviorObservation(observedAt: now.addingTimeInterval(-20), application: "Game", classification: .gaming)],
+        now: now
+    )
+    #expect(mismatched.state == .mismatched)
+    #expect(!mismatched.explanation.localizedCaseInsensitiveContains("unproductive"))
+
+    let unknown = assessor.assess(
+        observations: [BehaviorObservation(observedAt: now.addingTimeInterval(-20), application: "Browser", classification: .unknown)],
+        now: now
+    )
+    #expect(unknown.state == .uncertain)
+    #expect(unknown.explanation.contains("will not guess"))
+}
+
+@Test
+func activeTaskContextAssessmentRefusesMissingAndStaleEvidence() {
+    let now = Date(timeIntervalSince1970: 1_750_000_000)
+    let assessor = ActiveTaskContextAssessor()
+
+    let missing = assessor.assess(observations: [], now: now)
+    #expect(missing.state == .uncertain)
+    #expect(missing.lastObservedAt == nil)
+
+    let staleDate = now.addingTimeInterval(-901)
+    let stale = assessor.assess(
+        observations: [BehaviorObservation(observedAt: staleDate, application: "Xcode", classification: .work)],
+        now: now
+    )
+    #expect(stale.state == .uncertain)
+    #expect(stale.lastObservedAt == staleDate)
+    #expect(stale.explanation.contains("stale"))
+}
+
+@Test
 func todayReminderEligibilityUsesTheConfiguredLocalDayBoundary() throws {
     var cairo = Calendar(identifier: .gregorian)
     cairo.timeZone = try #require(TimeZone(identifier: "Africa/Cairo"))
