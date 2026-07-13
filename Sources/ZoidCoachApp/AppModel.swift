@@ -58,6 +58,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var pendingTaskCommandIDs: Set<String> = []
     @Published private(set) var taskCommandError: String?
     @Published private(set) var promptEpisodes: [PromptEpisode] = []
+    @Published private(set) var promptInboxTimeline: PromptInboxTimeline = .empty
+    @Published private(set) var promptInboxError: String?
+    @Published private(set) var pendingPromptID: String?
     @Published private(set) var actionAudit: [ActionAuditEntry] = []
     @Published private(set) var actionAuditError: String?
     @Published private(set) var reminderCompletionSyncStates: [String: ReminderCompletionSyncState] = [:]
@@ -425,7 +428,14 @@ final class AppModel: ObservableObject {
     }
 
     func refreshPromptInbox() async {
-        promptEpisodes = (try? await todayDashboardXPCClient.fetchPromptInbox()) ?? []
+        do {
+            let timeline = try await todayDashboardXPCClient.fetchPromptInboxTimeline()
+            promptInboxTimeline = timeline
+            promptEpisodes = timeline.awaitingResponse.map(\.episode)
+            promptInboxError = nil
+        } catch {
+            promptInboxError = "Decisions could not be refreshed. The last confirmed inbox remains visible."
+        }
     }
 
     func refreshActionAudit() async {
@@ -477,13 +487,17 @@ final class AppModel: ObservableObject {
     }
 
     func respondToPrompt(_ episode: PromptEpisode, action: PromptActionKind) {
+        guard pendingPromptID == nil else { return }
         let command = PromptResponseCommand(
             promptID: episode.id,
             action: action,
             actionToken: PromptResponseToken.make(promptID: episode.id, action: action),
             surface: .dashboard
         )
+        pendingPromptID = episode.id
+        promptInboxError = nil
         Task {
+            defer { pendingPromptID = nil }
             do {
                 _ = try await todayDashboardXPCClient.respondToPrompt(command)
                 await refreshPromptInbox()
@@ -493,7 +507,24 @@ final class AppModel: ObservableObject {
                     selectedSection = .today
                 }
             } catch {
-                meetingCandidateError = "The prompt could not be resolved through the background agent."
+                await refreshPromptInbox()
+                promptInboxError = "That decision changed before the action completed. The current inbox has been refreshed."
+            }
+        }
+    }
+
+    func dismissPrompt(_ episode: PromptEpisode) {
+        guard pendingPromptID == nil else { return }
+        pendingPromptID = episode.id
+        promptInboxError = nil
+        Task {
+            defer { pendingPromptID = nil }
+            do {
+                _ = try await todayDashboardXPCClient.dismissPrompt(episode.id)
+                await refreshPromptInbox()
+            } catch {
+                await refreshPromptInbox()
+                promptInboxError = "That decision changed before dismissal completed. The current inbox has been refreshed."
             }
         }
     }

@@ -223,6 +223,51 @@ public final class PromptInboxStore: @unchecked Sendable {
             }
     }
 
+    public func timeline(recentLimit: Int = 10) throws -> PromptInboxTimeline {
+        lock.lock()
+        defer { lock.unlock() }
+        guard recentLimit >= 0 else { throw PromptInboxStoreError.invalidLimit }
+        try expireDue()
+        let reference = now()
+        let storedEpisodes = try episodes(
+            where: "1 = 1",
+            bindings: [],
+            suffix: "ORDER BY created_at_utc ASC, id ASC"
+        )
+        var occurrences: [String: Int] = [:]
+        var awaiting: [PromptInboxTimelineEntry] = []
+        var snoozed: [PromptInboxTimelineEntry] = []
+        var recent: [PromptInboxTimelineEntry] = []
+        for episode in storedEpisodes {
+            occurrences[episode.decisionKey, default: 0] += 1
+            let occurrence = occurrences[episode.decisionKey] ?? 1
+            let availableAt = episode.payload["notBefore"].flatMap(formatter.date(from:))
+            let entry = PromptInboxTimelineEntry(
+                episode: episode,
+                response: try response(promptID: episode.id),
+                availableAt: availableAt,
+                occurrence: occurrence
+            )
+            if episode.state.isUnresolved {
+                if let availableAt, availableAt > reference {
+                    snoozed.append(entry)
+                } else {
+                    awaiting.append(entry)
+                }
+            } else {
+                recent.append(entry)
+            }
+        }
+        return PromptInboxTimeline(
+            awaitingResponse: awaiting.sorted { $0.episode.createdAt > $1.episode.createdAt },
+            snoozed: snoozed.sorted { ($0.availableAt ?? .distantFuture) < ($1.availableAt ?? .distantFuture) },
+            recent: Array(recent.sorted {
+                ($0.episode.resolvedAt ?? $0.episode.createdAt)
+                    > ($1.episode.resolvedAt ?? $1.episode.createdAt)
+            }.prefix(recentLimit))
+        )
+    }
+
     public func latestEpisode(decisionKeyPrefix: String) throws -> PromptEpisode? {
         lock.lock()
         defer { lock.unlock() }
@@ -596,6 +641,7 @@ private struct StoredPromptEnvelope: Codable {
 public enum PromptInboxStoreError: LocalizedError, Equatable {
     case openDatabase
     case invalidDraft
+    case invalidLimit
     case expired
     case notFound
     case alreadyResolved
@@ -609,6 +655,7 @@ public enum PromptInboxStoreError: LocalizedError, Equatable {
         switch self {
         case .openDatabase: "Could not open the prompt inbox."
         case .invalidDraft: "The prompt draft is incomplete or has duplicate actions."
+        case .invalidLimit: "The prompt inbox history limit is invalid."
         case .expired: "The prompt has already expired."
         case .notFound: "The prompt episode was not found."
         case .alreadyResolved: "The prompt episode has already been resolved."

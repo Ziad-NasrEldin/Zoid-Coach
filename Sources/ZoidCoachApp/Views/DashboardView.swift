@@ -258,7 +258,7 @@ private struct TodayCommandView: View {
                     .accessibilityLabel("Task action failed. \(taskError)")
             }
 
-            PromptInboxLedger()
+            TodayPromptInboxLedger()
             MeetingCandidateLedger(editingCandidate: $editingCandidate)
             ReminderCompletionSyncLedger()
             AutomaticActionLedger()
@@ -516,58 +516,6 @@ private struct PlanningInvitationBanner: View {
             "Tasks and behavior totals remain available, but Zoid 666 will not claim that activity violated a plan that does not exist."
         case .planning:
             "Review the proposed commitments before accepting them."
-        }
-    }
-}
-
-private struct PromptInboxLedger: View {
-    @EnvironmentObject private var model: AppModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-                Text("DECISIONS")
-                    .font(Sumi.label(9))
-                    .sumiLabelTracking()
-                    .foregroundStyle(Sumi.ink)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Sumi.mist)
-                    .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
-                if model.promptEpisodes.isEmpty {
-                Text("No decisions are waiting. Prompts from notifications and this dashboard resolve through this shared inbox.")
-                        .font(Sumi.body(12))
-                        .foregroundStyle(Sumi.muted)
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
-                }
-                ForEach(model.promptEpisodes) { episode in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(episode.title).font(Sumi.body(15)).foregroundStyle(Sumi.ink)
-                        Text(episode.summary).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
-                        HStack(spacing: 8) {
-                            ForEach(episode.actions) { action in
-                                Button(action.title.uppercased()) {
-                                    model.respondToPrompt(episode, action: action.kind)
-                                }
-                                .buttonStyle(SumiActionButtonStyle(role: actionRole(action.role), size: .compact))
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 12)
-                    .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
-                }
-        }
-    }
-
-    private func actionRole(_ role: PromptActionRole) -> SumiActionRole {
-        switch role {
-        case .primary: .primary
-        case .secondary: .quiet
-        case .destructive: .destructive
         }
     }
 }
