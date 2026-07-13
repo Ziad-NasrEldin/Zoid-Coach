@@ -217,6 +217,12 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         if level == .accountability, try hasActiveTask() {
             actions.append(PromptAction(kind: .startBreak, title: "Take a break"))
         }
+        actions.append(PromptAction(
+            kind: .rescheduleTask,
+            title: "Reschedule \(task.title)",
+            role: .destructive,
+            requiresConfirmation: true
+        ))
         actions.append(PromptAction(kind: .continueIntentionally, title: "Continue intentionally"))
         if isFiveMinuteFollowUp {
             actions.append(PromptAction(kind: .endWorkday, title: "I am done today"))
