@@ -166,6 +166,94 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         }
     }
 
+    public func scheduleAcceptedBreakEnd(
+        taskID: String,
+        taskTitle: String,
+        startedAt: Date,
+        deliveryDate: Date
+    ) async throws -> Bool {
+        let requestPrefix = acceptedBreakRequestPrefix(taskID: taskID)
+        let requestIdentifier = requestPrefix + String(Int(startedAt.timeIntervalSince1970))
+        let desired = NotificationDesiredState(
+            category: "BREAK_END",
+            title: "Break complete",
+            body: "\(taskTitle) is ready when you are. Resume when it feels right.",
+            promptID: requestIdentifier,
+            deliveryDate: deliveryDate
+        )
+
+        if let fixtureAdapter {
+            let notifications = try fixtureAdapter.snapshot().notifications
+            if notifications.contains(where: { $0.id == requestIdentifier }) {
+                return false
+            }
+            guard try fixtureAdapter.permission(.notifications) == .granted else {
+                return false
+            }
+            try fixtureAdapter.cancelNotifications(withPrefix: requestPrefix, keeping: requestIdentifier)
+            _ = try await fixtureAdapter.schedule(desired)
+            return true
+        }
+
+        guard let center else { return false }
+        let pending = await center.pendingNotificationRequests()
+        let delivered = await center.deliveredNotifications()
+        if pending.contains(where: { $0.identifier == requestIdentifier })
+            || delivered.contains(where: { $0.request.identifier == requestIdentifier }) {
+            return false
+        }
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+            return false
+        }
+
+        let obsoletePending = pending.map(\.identifier).filter {
+            $0.hasPrefix(requestPrefix) && $0 != requestIdentifier
+        }
+        let obsoleteDelivered = delivered.map(\.request.identifier).filter {
+            $0.hasPrefix(requestPrefix) && $0 != requestIdentifier
+        }
+        center.removePendingNotificationRequests(withIdentifiers: obsoletePending)
+        center.removeDeliveredNotifications(withIdentifiers: obsoleteDelivered)
+
+        let content = UNMutableNotificationContent()
+        content.title = desired.title
+        content.body = desired.body
+        content.categoryIdentifier = notificationIdentity.promptCategoryIdentifier(desired.category)
+        content.userInfo = ["acceptedBreakTaskID": taskID]
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: max(1, deliveryDate.timeIntervalSinceNow),
+            repeats: false
+        )
+        try await center.add(UNNotificationRequest(
+            identifier: requestIdentifier,
+            content: content,
+            trigger: trigger
+        ))
+        return true
+    }
+
+    public func cancelAcceptedBreakEnds(taskID: String) async {
+        let requestPrefix = acceptedBreakRequestPrefix(taskID: taskID)
+        if let fixtureAdapter {
+            try? fixtureAdapter.cancelNotifications(withPrefix: requestPrefix)
+            return
+        }
+        guard let center else { return }
+        let pending = await center.pendingNotificationRequests()
+        let delivered = await center.deliveredNotifications()
+        center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier).filter {
+            $0.hasPrefix(requestPrefix)
+        })
+        center.removeDeliveredNotifications(withIdentifiers: delivered.map(\.request.identifier).filter {
+            $0.hasPrefix(requestPrefix)
+        })
+    }
+
+    private func acceptedBreakRequestPrefix(taskID: String) -> String {
+        notificationIdentity.actionRequestIdentifier("accepted-break.\(taskID).")
+    }
+
     private func recordDelivery(
         requestIdentifier: String,
         episode: PromptEpisode,
@@ -364,3 +452,5 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         )
     }
 }
+
+extension PromptNotificationCoordinator: AcceptedBreakReminderScheduling {}

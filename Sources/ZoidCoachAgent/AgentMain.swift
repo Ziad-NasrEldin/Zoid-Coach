@@ -202,6 +202,7 @@ struct ZoidCoachAgentMain {
                 }
             }
             notificationCoordinator.activate()
+            let acceptedBreakReminders = AcceptedBreakReminderService(scheduler: notificationCoordinator)
             let onboardingTestPrompts = OnboardingTestPromptService(
                 store: promptStore,
                 notifications: notificationCoordinator
@@ -612,7 +613,11 @@ struct ZoidCoachAgentMain {
                             )
                         }
                     }
-                    if let snapshot = try? todayDashboardAgent.snapshot(now: now),
+                    let dashboardSnapshot = try? todayDashboardAgent.snapshot(now: now)
+                    if let dashboardSnapshot {
+                        await acceptedBreakReminders.reconcile(taskRows: dashboardSnapshot.taskRows, now: now)
+                    }
+                    if let snapshot = dashboardSnapshot,
                        let baselineStatus = try? baselineObservationStore.status(),
                        let promptResult = try? gamingDriftPrompts.produce(
                            policy: policy,
@@ -826,7 +831,11 @@ struct ZoidCoachAgentMain {
                         )
                     }
                 }
-                if let snapshot = try? todayDashboardAgent.snapshot(now: baselineNow),
+                let dashboardSnapshot = try? todayDashboardAgent.snapshot(now: baselineNow)
+                if let dashboardSnapshot {
+                    await acceptedBreakReminders.reconcile(taskRows: dashboardSnapshot.taskRows, now: baselineNow)
+                }
+                if let snapshot = dashboardSnapshot,
                    let baselineStatus = try? baselineObservationStore.status(),
                    let promptResult = try? gamingDriftPrompts.produce(
                        policy: initialPolicy,
