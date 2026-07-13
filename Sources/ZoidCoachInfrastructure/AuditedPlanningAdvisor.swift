@@ -9,6 +9,7 @@ public struct AuditedPlanningAdvisor: PlanningAdvising, Sendable {
     private let store: ModelRunStore
     private let gate: StructuredGenerationConcurrencyGate
     private let dailyRequestBudget: Int
+    private let monthlyRequestBudget: Int
     private let now: @Sendable () -> Date
 
     public init(
@@ -18,6 +19,7 @@ public struct AuditedPlanningAdvisor: PlanningAdvising, Sendable {
         store: ModelRunStore,
         gate: StructuredGenerationConcurrencyGate,
         dailyRequestBudget: Int = 100,
+        monthlyRequestBudget: Int = 3_000,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.advisor = advisor
@@ -26,23 +28,38 @@ public struct AuditedPlanningAdvisor: PlanningAdvising, Sendable {
         self.store = store
         self.gate = gate
         self.dailyRequestBudget = max(0, dailyRequestBudget)
+        self.monthlyRequestBudget = max(0, monthlyRequestBudget)
         self.now = now
     }
 
     public func advise(on tasks: [PlanningAdviceInput], recentBehavior: [PlanningBehaviorEvidence]) async throws -> [PlanningAdvice] {
+        let inputHash = try normalizedHash(tasks: tasks, behavior: recentBehavior)
+        let reservationID = UUID().uuidString
+        try await gate.acquire()
         let started = now()
-        guard try store.canStartRequest(provider: providerID, dailyBudget: dailyRequestBudget, now: started) else {
+        let reserved: Bool
+        do {
+            reserved = try store.reserveRequest(
+                run(id: reservationID, inputHash: inputHash, state: .pending, started: started, finished: started, diagnostic: nil),
+                dailyBudget: dailyRequestBudget,
+                monthlyBudget: monthlyRequestBudget,
+                now: started
+            )
+        } catch {
+            await gate.release()
+            throw error
+        }
+        guard reserved else {
+            await gate.release()
             throw StructuredGenerationError.requestBudgetExceeded
         }
-        try await gate.acquire()
-        let inputHash = try normalizedHash(tasks: tasks, behavior: recentBehavior)
         do {
             let advice = try await advisor.advise(on: tasks, recentBehavior: recentBehavior)
-            try store.record(run(inputHash: inputHash, state: .validated, started: started, finished: now(), diagnostic: nil))
+            try store.record(run(id: reservationID, inputHash: inputHash, state: .validated, started: started, finished: now(), diagnostic: nil))
             await gate.release()
             return advice
         } catch {
-            try? store.record(run(inputHash: inputHash, state: .providerFailure, started: started, finished: now(), diagnostic: String(describing: type(of: error))))
+            try? store.record(run(id: reservationID, inputHash: inputHash, state: .providerFailure, started: started, finished: now(), diagnostic: String(describing: type(of: error))))
             await gate.release()
             throw error
         }
@@ -57,9 +74,9 @@ public struct AuditedPlanningAdvisor: PlanningAdvising, Sendable {
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
-    private func run(inputHash: String, state: ModelRunValidationState, started: Date, finished: Date, diagnostic: String?) -> ModelRun {
+    private func run(id: String, inputHash: String, state: ModelRunValidationState, started: Date, finished: Date, diagnostic: String?) -> ModelRun {
         ModelRun(
-            id: UUID().uuidString, provider: providerID, model: modelID,
+            id: id, provider: providerID, model: modelID,
             schemaVersion: 1, promptVersion: 1, normalizedInputHash: inputHash,
             validationState: state, redactedDiagnostic: diagnostic,
             startedAtUTC: started, finishedAtUTC: finished,

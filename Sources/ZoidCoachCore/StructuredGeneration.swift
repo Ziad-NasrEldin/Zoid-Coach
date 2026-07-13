@@ -50,7 +50,7 @@ public enum StructuredGenerationError: LocalizedError, Equatable {
         case .invalidEndpoint: "The configured model endpoint is not allowed."
         case .unavailable: "The configured structured generation provider is unavailable."
         case .invalidStructuredOutput: "The provider returned invalid structured output."
-        case .requestBudgetExceeded: "The daily model request budget has been reached."
+        case .requestBudgetExceeded: "The configured model request budget has been reached."
         case .concurrencyLimitReached: "The model concurrency limit has been reached."
         }
     }

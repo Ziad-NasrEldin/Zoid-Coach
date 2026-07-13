@@ -5,6 +5,30 @@ import Testing
 @testable import ZoidCoachInfrastructure
 
 @Test
+func settingsAIRequestBudgetsRoundTripAndMergeIndependently() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var mine = SettingsPolicyDraft(policy: original)
+    mine.aiDailyRequestBudget = 40
+    mine.aiMonthlyRequestBudget = 600
+
+    let saved = mine.policy(preserving: original)
+    #expect(saved.privacy.effectiveAIDailyRequestBudget == 40)
+    #expect(saved.privacy.effectiveAIMonthlyRequestBudget == 600)
+    #expect(SettingsPolicyDraft(policy: saved).aiDailyRequestBudget == 40)
+    #expect(SettingsPolicyDraft(policy: saved).aiMonthlyRequestBudget == 600)
+    #expect(saved.validationViolations().isEmpty)
+
+    let base = SettingsPolicyDraft(policy: original)
+    var current = base
+    current.aiDailyRequestBudget = 75
+    let merged = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+    #expect(merged.safeDraft.aiDailyRequestBudget == 75)
+    #expect(merged.safeDraft.aiMonthlyRequestBudget == 600)
+    #expect(merged.concurrentChanges == ["AI daily request budget"])
+    #expect(merged.overlappingChanges == ["AI daily request budget"])
+}
+
+@Test
 func settingsScreenwatchIngestionPauseRoundTripsAndMergesIndependently() {
     let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     var mine = SettingsPolicyDraft(policy: original)

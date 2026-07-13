@@ -93,6 +93,8 @@ enum SettingsPolicyConflictResolver {
         apply(\.codexCLIModel, label: "Codex model")
         apply(\.codexCLICustomModelID, label: "Codex model")
         apply(\.codexCLIReasoningEffort, label: "Codex reasoning")
+        apply(\.aiDailyRequestBudget, label: "AI daily request budget")
+        apply(\.aiMonthlyRequestBudget, label: "AI monthly request budget")
         apply(\.wakeEligible, label: "Wake coaching")
         apply(\.wakeStart, label: "Wake window")
         apply(\.wakeEnd, label: "Wake window")
