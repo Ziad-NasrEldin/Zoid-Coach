@@ -58,7 +58,7 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
-### Active commitment visibility - candidate
+### Active commitment visibility - verified with conservative installed boundary
 
 - Owns `ZC-017-001`, `ZC-037-001`, `ZC-059-007`, and `ZC-062-004`.
 - Names ordinary active work as an open-ended session in Today and the menu bar instead of implying an unspoken timer.
@@ -67,6 +67,11 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Adds menu-bar Complete through the existing canonical agent command boundary while preserving Pause, Break, Resume, and End Workday behavior.
 - Focused presentation, exact menu command, canonical-agent start, new-agent persistence, break, resume, and end-day proof passes.
 - Candidate evidence and the signed verifier plan are recorded in `.audit/runs/active-commitment-visibility/candidate/REPORT.md`.
+- Independent focused verification passed nine presentation, menu-command, and canonical-agent tests in one invocation.
+- One release signed package passed identity, signing, LaunchAgent, exact-helper, and installed-runtime gates at code root `d95ace7`.
+- The installed app reached Today, then failed closed into read-only safety mode when the one-task Reminder seed used an unsupported fixture encoding; no retry or substitute journey was used.
+- `ZC-059-007` and `ZC-062-004` advance from Partially implemented to Touches remaining, while `ZC-017-001` and `ZC-037-001` remain Touches remaining pending controlled installed start, relaunch, and real status-item proof.
+- Independent evidence is recorded in `.audit/runs/active-commitment-visibility/verifier/REPORT.md`.
 
 ### Settings working-day selection - verified
 

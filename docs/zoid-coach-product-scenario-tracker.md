@@ -8,18 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-13 against branch `codex/full-system` through integrated root `27cc006` plus rebased Screenwatch verifier tip `25be9ba`, focused Screenwatch coverage, a passing signed-QA package and helper gate, deterministic operating-system fixtures, the exact 666-scenario registry, and visible macOS accessibility click-through testing.
+Updated on 2026-07-13 against branch `codex/full-system` through provisional active-commitment code root `d95ace7`, one passing focused presentation, menu, and canonical-agent test invocation, one passing signed release package and exact-helper gate, the exact 666-scenario registry, and capped installed macOS accessibility testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 153
-- **Touches remaining:** 275
-- **Frontend only left:** 10
-- **Partially implemented:** 107
-- **Barely started:** 13
-- **Not implemented:** 81
+- **Fully implemented:** 172
+- **Touches remaining:** 290
+- **Frontend only left:** 4
+- **Partially implemented:** 101
+- **Barely started:** 9
+- **Not implemented:** 63
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -262,7 +262,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 17. Choosing a work commitment
 
-- [ ] Start an open-ended work session. **Status: Touches remaining.** Starting a task opens an unbounded activity interval and persists it, but the UI never labels the commitment as open-ended (`TaskExecutionStore.swift:39-45,123-129`).
+- [ ] Start an open-ended work session. **Status: Touches remaining.** Today and the menu bar now name the shared manual timing contract as `OPEN-ENDED SESSION`, explain that tracking continues until Pause or Complete, and focused canonical-agent tests prove restart-safe state. The signed package and exact helper passed, but the isolated Reminder fixture entered read-only safety mode before a task could be started visibly, so the installed start and relaunch journey remains (`ActiveCommitmentPresentation.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/active-commitment-visibility/verifier/REPORT.md`).
 - [ ] Start a 10-minute recovery sprint. **Status: Touches remaining.** The signed QA Today surface visibly offered the preset, started it through the installed helper, changed the task to Active, and showed a live `9 minutes and 54 seconds remaining` countdown; the longer pause, expiry, and completion journey remains (`.audit/runs/bounded-sprints/verifier/REPORT.md`).
 - [ ] Start a 20-minute work sprint. **Status: Touches remaining.** Today exposes the distinct preset and the same durable XPC/store lifecycle is covered by focused tests, but the installed 20-minute selection was not clicked (`TaskExecutionStoreTests`; `.audit/runs/bounded-sprints/verifier/REPORT.md`).
 - [ ] Start a 25-minute focus sprint. **Status: Touches remaining.** Today exposes the distinct preset and the same durable XPC/store lifecycle is covered by focused tests, but the installed 25-minute selection was not clicked (`TaskExecutionStoreTests`; `.audit/runs/bounded-sprints/verifier/REPORT.md`).
@@ -525,7 +525,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 37. Dashboard active-task status
 
-- [ ] See the active task in the Today dashboard. **Status: Touches remaining.** `TodayDashboardCommandOverview` selects `snapshot.activeTask` and the installed app visibly renders the current active commitment, but this audit did not start a controlled task and prove the full persisted transition.
+- [ ] See the active task in the Today dashboard. **Status: Touches remaining.** Today now gives the canonical active row a named timing mode, tracked duration, factual manual-session explanation, Pause menu, and Complete control with stable accessibility evidence. Focused tests prove the canonical state and restart reconstruction, but the signed Reminder seed failed closed before a controlled active task could be rendered and relaunched (`ActiveCommitmentPresentation.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/active-commitment-visibility/verifier/REPORT.md`).
 - [ ] See elapsed time for an open-ended task. **Status: Frontend only left.** `TodayTaskRow.elapsedMinutes` and `TaskExecutionStore.elapsedMinutes` are implemented and tested, but the current Today UI never renders elapsed minutes.
 - [ ] See remaining time for a sprint. **Status: Touches remaining.** The signed installed Today dashboard visibly rendered the active bounded-sprint countdown and the active task stayed available with pause and complete controls; the full persisted lifecycle remains (`.audit/runs/bounded-sprints/verifier/REPORT.md`).
 - [x] See estimate or meaningful progress where appropriate. **Status: Fully implemented.** The signed installed Today dashboard visibly presented the same canonical 5-minute estimate and factual tracked progress in active, paused, relaunched, and over-estimate states, with stable accessibility identifiers on the primary focus and detailed-row surfaces (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).
@@ -830,7 +830,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Understand the observed gaming time and unfinished task. **Status: Touches remaining.** The signed Daily Review visibly decoded one behavior prompt into `12 MIN IN STEAM` and the unfinished proposal with stable accessibility evidence, and relaunch preserved it. A real gaming threshold was not triggered in the installed run, so the complete source-to-review journey remains (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).
 - [ ] Start a 20-minute sprint from the prompt. **Status: Not implemented.** No 20-minute sprint action appears in the installed prompt or task controls.
 - [ ] See gaming stop accumulating when the context changes. **Status: Partially implemented.** Behavior sessions can close on context changes, but the installed UI did not show a full gaming-to-work transition.
-- [ ] See the selected task become active everywhere. **Status: Partially implemented.** The Today surface updates active commitment, but the menu bar lacks equivalent task state.
+- [ ] See the selected task become active everywhere. **Status: Touches remaining.** Today and the menu bar now derive the same named task, open-ended or bounded timing contract, tracked duration, and manual controls from the canonical snapshot, and focused tests prove the exact shared state after agent restart. The real macOS status item remains inaccessible to the verifier and the signed Reminder seed failed closed before the complete cross-surface journey, so installed parity is not yet proven (`ActiveCommitmentPresentation.swift`; `MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `.audit/runs/active-commitment-visibility/verifier/REPORT.md`).
 - [ ] Work in an aligned context for at least ten minutes. **Status: Partially implemented.** Aligned work can be inferred in domain logic, but the user cannot verify the recovery window end to end.
 - [ ] See the intervention counted as a recovery. **Status: Touches remaining.** The signed review counted one observed follow-through and two recovery starts, required corrected selected-task work within 30 minutes, excluded unrelated work from the task-specific minutes, and truthfully kept an applied response with no later work at `RECOVERY STARTED`. The actual gaming prompt-to-work action was seeded rather than performed live (`DailyReviewStore.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).
 - [ ] See the journey described factually in the daily review. **Status: Touches remaining.** The signed review combined observed gaming, unfinished-task context, selected-task start evidence, no-work follow-through, action surface, and unanswered state without inferring success, and reproduced the result after relaunch. A complete naturally triggered gaming journey remains (`DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).
@@ -862,7 +862,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Begin a planned workday with all sources healthy. **Status: Partially implemented.** One post-recovery run confirmed Reminders, Screenwatch, the background agent, canonical database, and ingestion verifier healthy, but the later Screenwatch freshness recheck failed and the exact approved-day start flow remains incomplete.
 - [ ] Lose Screenwatch activity during an active task. **Status: Blocked from verification.** Disrupting the user's real capture service was not performed; this needs an isolated fixture or explicit controlled outage.
 - [ ] See a source warning and prompt suppression. **Status: Partially implemented.** Freshness warnings and suppression policies exist, but a live outage was not induced.
-- [ ] Continue manually tracking the active task. **Status: Partially implemented.** Active commitments continue independently of Screenwatch, but pause and full manual timing controls are incomplete.
+- [ ] Continue manually tracking the active task. **Status: Touches remaining.** Active commitments now expose explicit Pause, Break, Complete, and open-ended continuation semantics independently of Screenwatch, while canonical-agent tests prove one durable active interval across restart. A controlled Screenwatch outage plus installed manual-task continuation was not completed because the signed Reminder fixture failed closed, so the degraded-mode journey remains (`ActiveCommitmentPresentation.swift`; `MenuBarCoachView.swift`; `TodayDashboardAgentTests`; `.audit/runs/active-commitment-visibility/verifier/REPORT.md`).
 - [ ] Lose notification availability before a prompt. **Status: Blocked from verification.** Notification authorization was not changed during the audit.
 - [ ] Receive the prompt through notification or dashboard instead. **Status: Partially implemented.** Prompt inbox fallback exists, but notification-loss routing was not exercised end to end.
 - [ ] Resolve the prompt once from the available surface. **Status: Partially implemented.** Idempotent prompt response infrastructure is tested, but no live degraded-mode episode was resolved.
