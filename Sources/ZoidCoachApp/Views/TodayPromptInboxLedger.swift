@@ -7,6 +7,9 @@ struct TodayPromptInboxLedger: View {
     @State private var rescheduleRequest: PromptTaskRescheduleRequest?
     @State private var rescheduleDate = TaskRescheduleState().selectedDate
     @State private var rescheduleError: String?
+    @State private var blockRequest: PromptTaskBlockRequest?
+    @State private var blockReason = ""
+    @State private var blockError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -34,6 +37,16 @@ struct TodayPromptInboxLedger: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Sumi.sealWash)
                     .accessibilityIdentifier("today.prompt.reschedule.error")
+            }
+            if let blockError, blockRequest == nil {
+                Text(blockError)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.sealWash)
+                    .accessibilityIdentifier("today.prompt.block.error")
             }
             if model.promptInboxTimeline.isEmpty, model.promptInboxError == nil {
                 Text("No decisions are waiting and no recent coaching choices are recorded yet.")
@@ -78,6 +91,9 @@ struct TodayPromptInboxLedger: View {
         }
         .sheet(item: $rescheduleRequest) { request in
             promptRescheduleSheet(request)
+        }
+        .sheet(item: $blockRequest) { request in
+            promptBlockSheet(request)
         }
     }
 
@@ -127,7 +143,7 @@ struct TodayPromptInboxLedger: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("today.prompt.\(entry.id).applying")
             }
-            HStack(spacing: 8) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 8)], alignment: .leading, spacing: 8) {
                 ForEach(entry.episode.actions) { action in
                     Button(action.title.uppercased()) { choose(action, for: entry.episode) }
                         .buttonStyle(SumiActionButtonStyle(role: actionRole(action.role), size: .compact))
@@ -191,6 +207,7 @@ struct TodayPromptInboxLedger: View {
 
     private func choose(_ action: PromptAction, for episode: PromptEpisode) {
         rescheduleError = nil
+        blockError = nil
         if action.kind == .rescheduleTask {
             guard let request = PromptTaskRescheduleRequest(episode: episode) else {
                 rescheduleError = "This prompt no longer identifies a task that can be rescheduled. Refresh Decisions."
@@ -199,6 +216,16 @@ struct TodayPromptInboxLedger: View {
             rescheduleDate = TaskRescheduleState().selectedDate
             rescheduleError = nil
             rescheduleRequest = request
+            return
+        }
+        if action.kind == .markBlocked {
+            guard let request = PromptTaskBlockRequest(episode: episode) else {
+                blockError = "This prompt no longer identifies a task that can be marked blocked. Refresh Decisions."
+                return
+            }
+            blockReason = ""
+            blockError = nil
+            blockRequest = request
             return
         }
         if action.requiresConfirmation || action.role == .destructive {
@@ -263,6 +290,67 @@ struct TodayPromptInboxLedger: View {
         .frame(width: 440)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.prompt.reschedule.sheet")
+    }
+
+    private func promptBlockSheet(_ request: PromptTaskBlockRequest) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("MARK BLOCKED FROM COACHING")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            Text(request.taskTitle)
+                .font(Sumi.display(24))
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Describe the external dependency or decision that prevents progress. Zoid 666 saves this reason with the task, pauses active work, revises today's objective when needed, and keeps this coaching decision open if the mutation fails.")
+                .font(Sumi.body(13))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            TextEditor(text: $blockReason)
+                .font(Sumi.body(13))
+                .frame(height: 104)
+                .padding(8)
+                .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                .accessibilityLabel("What is blocking this task")
+                .accessibilityIdentifier("today.prompt.block.reason")
+            Text("\(blockReason.count) / \(PromptTaskBlockReasonState.maximumLength)")
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(blockReason.count > PromptTaskBlockReasonState.maximumLength ? Sumi.sealDeep : Sumi.muted)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            if let blockError {
+                Text(blockError)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("today.prompt.block.error")
+            }
+            HStack {
+                Button("CANCEL") { blockRequest = nil }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                Spacer()
+                Button(model.pendingPromptID == request.episode.id ? "SAVING" : "SAVE BLOCKER") {
+                    switch PromptTaskBlockReasonState().validated(blockReason) {
+                    case let .success(reason):
+                        Task {
+                            if await model.blockTaskFromPrompt(request.episode, reason: reason) {
+                                blockRequest = nil
+                            } else {
+                                blockError = model.promptInboxError ?? model.taskCommandError ?? "The blocker was not saved. The coaching decision is still waiting."
+                            }
+                        }
+                    case let .failure(error):
+                        blockError = error.message
+                    }
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
+                .disabled(model.pendingPromptID != nil)
+                .accessibilityIdentifier("today.prompt.block.confirm")
+            }
+        }
+        .padding(24)
+        .frame(width: 440)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.prompt.block.sheet")
     }
 
     private func actionRole(_ role: PromptActionRole) -> SumiActionRole {
