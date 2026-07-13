@@ -159,6 +159,33 @@ struct CalendarPlanApprovalStateTests {
         #expect(state.receipt?.commandCount == 2)
     }
 
+    @Test("post-commit audit recovers a lost schedule acknowledgement")
+    func recoversCommittedScheduleWhenTheReplyIsLost() {
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [DailyPlanEntry(reminderID: "task", rank: 1, isMainObjective: true, estimateMinutes: 45)],
+            titlesByReminderID: ["task": "Write proposal"],
+            availableMinutes: 180,
+            fixedCommitmentMinutes: 0,
+            usesCalendarAvailability: true,
+            availabilityRevision: revision(commitments: [])
+        )
+        let committedAt = Date(timeIntervalSince1970: 1_700_000_100)
+        state.beginQueueing(at: committedAt.addingTimeInterval(-1))
+        let audit = [
+            committedAudit("calendar", .reconcileCalendarBlock, entityID: "task", at: committedAt),
+            committedAudit("notification", .scheduleNotification, entityID: "task", at: committedAt),
+            committedAudit("priority", .setReminderPriority, entityID: "task", at: committedAt),
+            committedAudit("due", .setReminderDueDate, entityID: "task", at: committedAt)
+        ]
+
+        state.reconcile(with: audit)
+
+        #expect(state.writeState == .applied(commandCount: 4))
+        #expect(state.receipt?.outcome == .applied)
+        #expect(state.receipt?.commandIDs.sorted() == ["calendar", "due", "notification", "priority"])
+    }
+
     @Test("terminal failure is never presented as a Calendar confirmation")
     func terminalFailure() {
         var state = CalendarPlanApprovalState()
@@ -262,6 +289,24 @@ struct CalendarPlanApprovalStateTests {
             createdAt: Date(timeIntervalSince1970: 1_700_000_000),
             updatedAt: Date(timeIntervalSince1970: 1_700_000_001),
             canUndo: state == .succeeded
+        )
+    }
+
+    private func committedAudit(
+        _ id: String,
+        _ type: ActionCommandType,
+        entityID: String,
+        at date: Date
+    ) -> ActionAuditEntry {
+        ActionAuditEntry(
+            id: id,
+            actionType: type.rawValue,
+            entityID: entityID,
+            state: ActionCommandState.succeeded.rawValue,
+            attemptCount: 1,
+            createdAt: date,
+            updatedAt: date,
+            canUndo: true
         )
     }
 

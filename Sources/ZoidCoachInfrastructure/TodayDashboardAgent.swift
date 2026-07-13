@@ -1,5 +1,6 @@
 import Foundation
 import EventKit
+import SQLite3
 import ZoidCoachCore
 
 public final class TodayDashboardAgent: @unchecked Sendable {
@@ -15,8 +16,15 @@ public final class TodayDashboardAgent: @unchecked Sendable {
     private let checkpoints: ProcessingCheckpointStore
     private let planningInvitations: PlanningInvitationService
     private let recommendationFeedback: RecommendationFeedbackStore
+    private let databaseURL: URL
+    private let mutationLockRetryDelays: [TimeInterval]
 
-    public init(databaseURL: URL = ZoidCoachStorage.databaseURL()) throws {
+    public init(
+        databaseURL: URL = ZoidCoachStorage.databaseURL(),
+        mutationLockRetryDelays: [TimeInterval] = [0.10, 0.30, 0.60]
+    ) throws {
+        self.databaseURL = databaseURL
+        self.mutationLockRetryDelays = mutationLockRetryDelays.map { max(0, $0) }
         reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
         let policyStore = try PolicyStore(databaseURL: databaseURL)
         userPolicyStore = policyStore
@@ -382,6 +390,27 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         blockedReason: String? = nil,
         now: Date = Date()
     ) throws -> TodaySnapshot {
+        try waitForMutationWriteAvailability()
+        var retryIndex = 0
+        while true {
+            do {
+                return try applyOnce(command, taskID: taskID, blockedReason: blockedReason, now: now)
+            } catch {
+                guard retryIndex < mutationLockRetryDelays.count,
+                      databaseHasCompetingWriteLock()
+                else { throw error }
+                Thread.sleep(forTimeInterval: mutationLockRetryDelays[retryIndex])
+                retryIndex += 1
+            }
+        }
+    }
+
+    private func applyOnce(
+        _ command: TaskActivityCommand,
+        taskID: String,
+        blockedReason: String?,
+        now: Date
+    ) throws -> TodaySnapshot {
         let previousSnapshot = try snapshots.load(for: now)
         let previousExecution = try execution.snapshot(for: [taskID], now: now)[taskID]
         let activeBefore = try execution.activeTask(now: now)
@@ -485,6 +514,38 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         try execution.startSprint(taskID: taskID, durationMinutes: durationMinutes, at: now)
         try taskHistory.record(taskID: taskID, state: .selected, at: now)
         return try snapshot(now: now)
+    }
+
+    private func databaseHasCompetingWriteLock() -> Bool {
+        var probe: OpaquePointer?
+        guard sqlite3_open_v2(
+            databaseURL.path,
+            &probe,
+            SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX,
+            nil
+        ) == SQLITE_OK, let probe else {
+            return false
+        }
+        defer { sqlite3_close(probe) }
+        sqlite3_busy_timeout(probe, 5)
+        let result = sqlite3_exec(probe, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil)
+        if result == SQLITE_OK {
+            _ = sqlite3_exec(probe, "ROLLBACK;", nil, nil, nil)
+            return false
+        }
+        let primaryResult = result & 0xFF
+        return primaryResult == SQLITE_BUSY || primaryResult == SQLITE_LOCKED
+    }
+
+    private func waitForMutationWriteAvailability() throws {
+        var retryIndex = 0
+        while databaseHasCompetingWriteLock() {
+            guard retryIndex < mutationLockRetryDelays.count else {
+                throw TodayDashboardAgentError.databaseTemporarilyLocked
+            }
+            Thread.sleep(forTimeInterval: mutationLockRetryDelays[retryIndex])
+            retryIndex += 1
+        }
     }
 
     public func startUnplannedTask(_ taskID: String, now: Date = Date()) throws -> TodaySnapshot {
@@ -634,6 +695,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
 public enum TodayDashboardAgentError: LocalizedError, Equatable {
     case unavailableTask
     case completionNotRetryable
+    case databaseTemporarilyLocked
 
     public var errorDescription: String? {
         switch self {
@@ -641,6 +703,8 @@ public enum TodayDashboardAgentError: LocalizedError, Equatable {
             "That Reminder is no longer available. Refresh tasks and choose another one."
         case .completionNotRetryable:
             "This completion is not waiting for a manual retry. Refresh its sync status before trying again."
+        case .databaseTemporarilyLocked:
+            "The local database is still busy. The last confirmed task state is unchanged. Try again in a moment."
         }
     }
 }
