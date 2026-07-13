@@ -138,6 +138,15 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - AXPress failed and the single native frame click opened Notification Center, so compact-popover pixels and controls remain unverified.
 - `ZC-037-006` advances from Not implemented to Touches remaining with evidence in `.audit/runs/compact-active-task/verifier/REPORT.md`.
 
+### Clock-safe task durations - candidate
+
+- Owns `ZC-053-011`.
+- Normalizes backward-clock interval closes so an end instant never precedes its start.
+- Caps one continuous interval at 24 hours while preserving additive elapsed time across legitimate separate sessions.
+- Keeps the normalized duration stable across database reopen.
+- Four focused backward, forward-jump, restart, pause/resume, and task-switch tests plus the release build pass.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/clock-safe-task-durations/candidate/REPORT.md`.
+
 ### Settings notification delivery test - candidate
 
 - Owns `ZC-044-012`.
