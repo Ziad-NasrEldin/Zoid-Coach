@@ -274,6 +274,18 @@ struct SettingsView: View {
             title: "NOTIFICATION DELIVERY",
             detail: "See current macOS access, the last local delivery outcomes, and a direct repair path. Every unresolved decision remains available in Today."
         ) {
+            Toggle("SEND COACHING PROMPTS AS NOTIFICATIONS", isOn: $controller.draft.notificationPromptsEnabled)
+                .toggleStyle(.switch)
+                .accessibilityIdentifier("settings.notifications.prompt-delivery")
+
+            Text(controller.draft.notificationPromptsEnabled
+                ? "Coaching decisions may appear as macOS notifications and always remain available in Today."
+                : "macOS notification prompts are off. Coaching decisions still remain available in Today.")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("settings.notifications.prompt-delivery.detail")
+
             NotificationDeliveryHealthView()
         }
     }
