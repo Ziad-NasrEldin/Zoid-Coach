@@ -16,6 +16,7 @@ struct TodayDashboardCommandOverview: View {
     @State private var usageDismissTask: Task<Void, Never>?
     @State private var pendingSwitchTask: TodayTaskRow?
     @State private var customSprintTask: TodayTaskRow?
+    @State private var offlineWorkTask: TodayTaskRow?
     @State private var blockReasonTask: TodayTaskRow?
     @State private var blockReason = ""
     @FocusState private var isUsageFocused: Bool
@@ -88,6 +89,9 @@ struct TodayDashboardCommandOverview: View {
                     model.startSprint(taskID: row.taskID, durationMinutes: durationMinutes)
                 }
             )
+        }
+        .sheet(item: $offlineWorkTask) { row in
+            ActiveOfflineWorkSheet(task: row)
         }
         .sheet(item: $blockReasonTask) { row in
             TaskBlockReasonSheet(taskTitle: row.title, reason: $blockReason) {
@@ -162,6 +166,13 @@ struct TodayDashboardCommandOverview: View {
                         Button("COMPLETE") { model.applyTaskCommand(.complete, taskID: row.taskID) }
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
                             .accessibilityLabel("Complete paused task \(row.title)")
+                    }
+                    if row.state == .active || row.state == .paused {
+                        Button("ADD AWAY WORK") { offlineWorkTask = row }
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
+                            .help("Record intentional work completed away from this Mac")
+                            .accessibilityLabel("Add away-from-Mac work for \(row.title)")
+                            .accessibilityIdentifier("today.focus.offline-work.\(row.taskID)")
                     }
                 }
                 .disabled(model.isAnyTaskCommandPending)
