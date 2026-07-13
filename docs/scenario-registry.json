@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "b1cadfb48a82e84d2a84e82d35bc657dd26974ee6380322ebe7a8f69ec1323e8",
+  "tracker_sha256": "af60abbef911678dddb86588049f87dfcbdc09080c9908a7f1002e79d5911a83",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10425,8 +10425,8 @@
       "item_index": 15,
       "wording": "Reset learned rules.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10436,7 +10436,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Policy rollback exists, but there is no targeted learned-rule reset.",
+      "audit_note": "Reviews now shows the exact active learned-rule count and a targeted destructive reset with cancel, historical-preservation copy, immediate count refresh, and exact removed-count feedback. The store appends all active-rule tombstones atomically, remains idempotent when empty, and preserves historical corrections and task attachments across reopen; the signed installed cancel/reset/relaunch journey remains (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/learned-rule-reset/verifier/REPORT.md`).",
       "tracker_line": 654
     },
     {
