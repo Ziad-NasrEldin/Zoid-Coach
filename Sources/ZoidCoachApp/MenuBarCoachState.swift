@@ -37,10 +37,19 @@ struct MenuBarCoachState: Equatable {
     let recommendedTask: TodayTaskRow?
     let attentionDetail: String?
     let coachingIsPaused: Bool
+    let unresolvedPromptCount: Int
+    let notificationFallbackIsActive: Bool
 
-    init(snapshot: TodaySnapshot?, coachingIsPaused: Bool = false) {
+    init(
+        snapshot: TodaySnapshot?,
+        coachingIsPaused: Bool = false,
+        unresolvedPromptCount: Int = 0,
+        notificationsUnavailable: Bool = false
+    ) {
         self.snapshot = snapshot
         self.coachingIsPaused = coachingIsPaused
+        self.unresolvedPromptCount = max(0, unresolvedPromptCount)
+        notificationFallbackIsActive = notificationsUnavailable && unresolvedPromptCount > 0
         let rows = snapshot?.taskRows ?? []
         activeTask = snapshot?.activeTask.flatMap { active in
             rows.first { $0.taskID == active.taskID }
@@ -69,6 +78,23 @@ struct MenuBarCoachState: Equatable {
     }
 
     var primaryTask: TodayTaskRow? { activeTask ?? pausedTask ?? recommendedTask }
+
+    var menuBarSymbol: String {
+        notificationFallbackIsActive ? "exclamationmark.bubble.fill" : tone.symbol
+    }
+
+    var menuBarLabel: String {
+        guard notificationFallbackIsActive else { return tone.label }
+        return unresolvedPromptCount == 1
+            ? "One decision is waiting in Today"
+            : "\(unresolvedPromptCount) decisions are waiting in Today"
+    }
+
+    var notificationFallbackDetail: String? {
+        guard notificationFallbackIsActive else { return nil }
+        let decision = unresolvedPromptCount == 1 ? "decision" : "decisions"
+        return "Notifications are unavailable. \(unresolvedPromptCount) \(decision) waiting in Today. Task controls remain available here."
+    }
 
     var canStartBreak: Bool { activeTask != nil }
 

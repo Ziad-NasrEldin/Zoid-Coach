@@ -176,10 +176,30 @@ struct ZoidCoachApplication: App {
         }
         .defaultSize(width: 760, height: 660)
 
-        MenuBarExtra("Zoid 666", systemImage: MenuBarCoachState(snapshot: model.todaySnapshot).tone.symbol) {
+        MenuBarExtra {
             MenuBarCoachView(appModel: model, voiceModel: voiceModel)
+        } label: {
+            Image(systemName: menuBarState.menuBarSymbol)
+                .accessibilityLabel(menuBarState.menuBarLabel)
         }
         .menuBarExtraStyle(.window)
+    }
+
+    private var menuBarState: MenuBarCoachState {
+        MenuBarCoachState(
+            snapshot: model.todaySnapshot,
+            unresolvedPromptCount: model.promptEpisodes.count,
+            notificationsUnavailable: notificationsUnavailable
+        )
+    }
+
+    private var notificationsUnavailable: Bool {
+        guard let notifications = model.sources.first(where: { $0.id == .notifications }) else {
+            return false
+        }
+        return notifications.state == .attention
+            || notifications.state == .notConnected
+            || notifications.state == .unavailable
     }
 
     private func positionInitialWindow() {
