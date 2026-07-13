@@ -29,15 +29,27 @@ func gamingDriftStaysQuietUntilBaselineCompletesThenQueuesEvidenceFirstPrompt() 
     }
     #expect(wasInserted)
     #expect(episode.type == "GAMING_DRIFT")
-    #expect(episode.summary.contains("10 minutes in Steam"))
+    #expect(episode.summary.contains("10 observed minutes in Steam"))
     #expect(episode.summary.contains("Ship client proposal remains unfinished"))
+    #expect(episode.summary.contains("not why it happened or what you intended"))
     #expect(episode.actions.first?.kind == .returnToActiveTask)
     #expect(episode.actions.first?.role == .primary)
     #expect(episode.actions.count == 4)
     #expect(episode.actions.filter { $0.role == .primary }.count == 1)
+    #expect(episode.actions.filter { $0.role == .secondary }.count == 3)
     #expect(episode.actions.contains { $0.kind == .startShortSprint })
     #expect(!episode.actions.contains { $0.kind == .startBreak })
     #expect(episode.payload["coachingLevel"] == CoachingLevel.gentle.rawValue)
+    #expect(episode.payload["behaviorPromptContractVersion"] == BehaviorPromptPresentationPolicy.contractVersion)
+    #expect(BehaviorPromptPresentationPolicy.issues(for: PromptDraft(
+        decisionKey: episode.decisionKey,
+        type: episode.type,
+        title: episode.title,
+        summary: episode.summary,
+        actions: episode.actions,
+        payload: episode.payload,
+        expiresAt: episode.expiresAt
+    )).isEmpty)
     #expect(try fixture.promptStore.unresolved().count == 1)
 
     let reopened = try PromptInboxStore(databaseURL: fixture.databaseURL, now: { fixture.clock.now })

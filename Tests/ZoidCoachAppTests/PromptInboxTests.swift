@@ -267,6 +267,83 @@ private func promptDraft(decisionKey: String, expiresAt: Date? = nil) -> PromptD
     )
 }
 
+@Test
+func promptInboxRejectsMoreThanThreeSecondaryActionsOnEverySurface() throws {
+    let url = temporaryPromptInboxURL("too-many-secondary-actions")
+    defer { removePromptInboxDatabase(url) }
+    let store = try PromptInboxStore(databaseURL: url)
+    let actions = [
+        PromptAction(kind: .returnToActiveTask, title: "Return", role: .primary),
+        PromptAction(kind: .startShortSprint, title: "Short sprint"),
+        PromptAction(kind: .fiveMoreMinutes, title: "Five more minutes"),
+        PromptAction(kind: .startBreak, title: "Take a break"),
+        PromptAction(kind: .continueIntentionally, title: "Continue intentionally")
+    ]
+    let draft = PromptDraft(
+        decisionKey: "too-many-actions",
+        type: "GAMING_DRIFT",
+        title: "Choose a next step",
+        summary: "The current session contains 10 observed minutes in Steam. This shows activity, not why it happened or what you intended.",
+        actions: actions
+    )
+
+    #expect(BehaviorPromptPresentationPolicy.issues(for: draft) == [.tooManySecondaryActions])
+    #expect(throws: PromptInboxStoreError.invalidDraft) {
+        try store.enqueue(draft)
+    }
+    #expect(try store.unresolved().isEmpty)
+}
+
+@Test
+func behaviorPromptContractRejectsUnreliableCoerciveOrIntentAssertingCopy() throws {
+    let url = temporaryPromptInboxURL("behavior-prompt-contract")
+    defer { removePromptInboxDatabase(url) }
+    let store = try PromptInboxStore(databaseURL: url)
+    let basePayload = [
+        "behaviorPromptContractVersion": BehaviorPromptPresentationPolicy.contractVersion,
+        "observedGamingMinutes": "10",
+        "evidenceStartedAtEpoch": "1000",
+        "evidenceLatestAtEpoch": "1540"
+    ]
+    let action = PromptAction(kind: .returnToActiveTask, title: "Return", role: .primary)
+
+    let coercive = PromptDraft(
+        decisionKey: "coercive",
+        type: "GAMING_DRIFT",
+        title: "You failed",
+        summary: "The current session contains 10 observed minutes. This shows activity, not why it happened or what you intended.",
+        actions: [action],
+        payload: basePayload
+    )
+    #expect(BehaviorPromptPresentationPolicy.issues(for: coercive).contains(.coerciveLanguage))
+    #expect(throws: PromptInboxStoreError.invalidDraft) { try store.enqueue(coercive) }
+
+    let assertedIntent = PromptDraft(
+        decisionKey: "asserted-intent",
+        type: "GAMING_DRIFT",
+        title: "Return?",
+        summary: "You are avoiding the task after 10 observed minutes.",
+        actions: [action],
+        payload: basePayload
+    )
+    let intentIssues = BehaviorPromptPresentationPolicy.issues(for: assertedIntent)
+    #expect(intentIssues.contains(.assertedIntent))
+    #expect(intentIssues.contains(.missingUncertaintyBoundary))
+    #expect(throws: PromptInboxStoreError.invalidDraft) { try store.enqueue(assertedIntent) }
+
+    let unreliable = PromptDraft(
+        decisionKey: "unreliable-time",
+        type: "GAMING_DRIFT",
+        title: "Return?",
+        summary: "The current session contains 12 observed minutes. This shows activity, not why it happened or what you intended.",
+        actions: [action],
+        payload: basePayload
+    )
+    #expect(BehaviorPromptPresentationPolicy.issues(for: unreliable).contains(.unreliableElapsedEvidence))
+    #expect(throws: PromptInboxStoreError.invalidDraft) { try store.enqueue(unreliable) }
+    #expect(try store.unresolved().isEmpty)
+}
+
 private final class PromptInboxTestClock: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: Date
