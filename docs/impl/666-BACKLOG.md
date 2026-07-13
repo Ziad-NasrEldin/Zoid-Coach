@@ -42,6 +42,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 24 | Complete evidence-gated weekly review and next-week experiment | done | Weekly-review verifier at `b98464e` | Signed QA proved limited and sufficient evidence states, corrected factual patterns, expandable dated evidence, exactly one editable experiment, accept and reject actions, and restart-safe next-week tracking; final proof is recorded in `.audit/runs/weekly-review/verifier/REPORT.md` |
 | 25 | Complete the fixed five-minute coaching follow-up | done | Five-minute verifier at `b159b6f` | Signed QA proved the visible choice, durable response, no early prompt after helper restart, exactly one fixture-delivered follow-up after the boundary, no second snooze, and replay-safe counts; final proof is recorded in `.audit/runs/five-minute-coaching-followup/verifier/REPORT.md` |
 | 26 | End the workday and open the current-day review | done | End-workday verifier at `708cd14` | Signed QA proved active-only discovery, cancellation, unavailable-helper failure without navigation, exactly one durable end-workday pause, populated current-day Review navigation, and relaunch durability; final proof is recorded in `.audit/runs/pause-end-workday-review/verifier/REPORT.md` |
+| 27 | Resume an unfinished daily review after restart | verify | Review-resume lane | `ZC-040-005` and `ZC-053-008`; candidate persists unfinished-review discovery, restores the saved day and corrections from the review UI, and clears the prompt after confirmation. |
 
 ## Pull Rules
 
