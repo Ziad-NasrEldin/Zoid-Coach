@@ -16,7 +16,8 @@ struct CalendarPlanApprovalStateTests {
             titlesByReminderID: ["a": "Write proposal", "b": "Review budget"],
             availableMinutes: 180,
             fixedCommitmentMinutes: 45,
-            usesCalendarAvailability: true
+            usesCalendarAvailability: true,
+            availabilityRevision: revision(commitments: [commitment(id: "meeting")])
         )
 
         #expect(state.writeState == .reviewing)
@@ -25,6 +26,72 @@ struct CalendarPlanApprovalStateTests {
         #expect(state.remainingMinutes == 90)
         #expect(state.fixedCommitmentMinutes == 45)
         #expect(state.usesCalendarAvailability)
+        #expect(state.preflight(against: revision(commitments: [commitment(id: "meeting")])) == .current)
+    }
+
+    @Test("confirm preflight rejects a changed commitment even when occupied minutes stay equal")
+    func changedCommitmentRefusesApproval() {
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 60)],
+            titlesByReminderID: ["main": "Write proposal"],
+            availableMinutes: 180,
+            fixedCommitmentMinutes: 60,
+            usesCalendarAvailability: true,
+            availabilityRevision: revision(commitments: [commitment(id: "original")])
+        )
+
+        #expect(state.preflight(against: revision(commitments: [commitment(id: "replacement")])) == .changed)
+        #expect(state.writeState == .reviewing)
+        #expect(state.items.map(\.title) == ["Write proposal"])
+    }
+
+    @Test("confirm preflight rejects a cancelled reviewed commitment")
+    func cancelledCommitmentRefusesApproval() {
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 60)],
+            titlesByReminderID: ["main": "Write proposal"],
+            availableMinutes: 180,
+            fixedCommitmentMinutes: 60,
+            usesCalendarAvailability: true,
+            availabilityRevision: revision(commitments: [commitment(id: "cancelled")])
+        )
+
+        #expect(state.preflight(against: revision(commitments: [])) == .changed)
+        #expect(state.items.map(\.id) == ["main"])
+    }
+
+    @Test("confirm preflight rejects unavailable Calendar without changing the reviewed plan")
+    func unavailableCalendarRefusesApproval() {
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 60)],
+            titlesByReminderID: ["main": "Write proposal"],
+            availableMinutes: 180,
+            fixedCommitmentMinutes: 60,
+            usesCalendarAvailability: true,
+            availabilityRevision: revision(commitments: [commitment(id: "meeting")])
+        )
+
+        #expect(state.preflight(against: nil) == .unavailable)
+        #expect(state.writeState == .reviewing)
+        #expect(state.plannedMinutes == 60)
+    }
+
+    @Test("a review created while Calendar is unavailable cannot be confirmed")
+    func unavailableReviewRefusesApproval() {
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 60)],
+            titlesByReminderID: ["main": "Write proposal"],
+            availableMinutes: 240,
+            fixedCommitmentMinutes: 0,
+            usesCalendarAvailability: false
+        )
+
+        #expect(state.preflight(against: revision(commitments: [])) == .unavailable)
+        #expect(state.items.map(\.title) == ["Write proposal"])
     }
 
     @Test("write receipt stays pending until every exact command succeeds")
@@ -147,6 +214,30 @@ struct CalendarPlanApprovalStateTests {
             createdAt: Date(timeIntervalSince1970: 1_700_000_000),
             updatedAt: Date(timeIntervalSince1970: 1_700_000_001),
             canUndo: state == .succeeded
+        )
+    }
+
+    private func revision(commitments: [ZoidCoachApp.CalendarCommitment]) -> CalendarPlanAvailabilityRevision {
+        CalendarPlanAvailabilityRevision(
+            workIntervals: [
+                CalendarInterval(
+                    start: Date(timeIntervalSince1970: 1_800_000_000),
+                    end: Date(timeIntervalSince1970: 1_800_028_800)
+                )
+            ],
+            visibleCalendarIdentifiers: ["work"],
+            commitments: commitments
+        )
+    }
+
+    private func commitment(id: String) -> ZoidCoachApp.CalendarCommitment {
+        ZoidCoachApp.CalendarCommitment(
+            id: id,
+            title: "Meeting",
+            start: Date(timeIntervalSince1970: 1_800_003_600),
+            end: Date(timeIntervalSince1970: 1_800_007_200),
+            calendarIdentifier: "work",
+            isZoidOwned: false
         )
     }
 }
