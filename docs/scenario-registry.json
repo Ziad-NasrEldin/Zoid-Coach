@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "1821fabf24feb3ea93ffaf37612836009f0332bf0ab6262a8a163718a6cae172",
+  "tracker_sha256": "b1cadfb48a82e84d2a84e82d35bc657dd26974ee6380322ebe7a8f69ec1323e8",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -2276,8 +2276,8 @@
       "item_index": 6,
       "wording": "Enter a custom estimate.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2288,7 +2288,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Estimate selectors expose only `[15, 30, 45, 60, 90]` and no text or stepper input (`DashboardView.swift:1236`; `TodayDashboardCommandOverview.swift:755`).",
+      "audit_note": "Every plan task estimate selector now offers a per-task `CUSTOM` editor, supports Return or Save, uses the existing durable estimate callback, and supports Cancel or Escape without changing the plan. Focused callback-dependent capacity tests pass, while signed installed save and restart proof remains (`TaskEstimateInput.swift`; `DashboardView.swift`; `.audit/runs/custom-task-estimate/verifier/REPORT.md`).",
       "tracker_line": 186
     },
     {
@@ -2298,8 +2298,8 @@
       "item_index": 7,
       "wording": "Receive a clear error for an empty, zero, negative, or malformed estimate.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2310,7 +2310,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no custom estimate input and no estimate validation/error surface.",
+      "audit_note": "Empty, zero, negative, decimal, text, and values above 480 minutes remain in the editor with specific corrective copy and per-task accessibility identifiers. Focused validation passes; installed invalid-input matrix proof remains (`TaskEstimateInput.swift`; `TaskEstimateInputTests.swift`; `.audit/runs/custom-task-estimate/verifier/REPORT.md`).",
       "tracker_line": 187
     },
     {
