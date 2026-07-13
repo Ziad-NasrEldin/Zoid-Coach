@@ -1,4 +1,5 @@
 import Foundation
+import ZoidCoachCore
 
 struct TaskRescheduleState: Equatable, Sendable {
     let selectedDate: Date
@@ -20,4 +21,28 @@ struct TaskRescheduleState: Equatable, Sendable {
         case mustBeFuture
         var message: String { "Choose tomorrow or a later date." }
     }
+}
+
+struct PromptTaskRescheduleRequest: Identifiable {
+    let episode: PromptEpisode
+    let taskID: String
+    let taskTitle: String
+
+    var id: String { episode.id }
+
+    init?(episode: PromptEpisode) {
+        guard episode.actions.contains(where: { $0.kind == .rescheduleTask }),
+              let taskID = episode.payload["taskID"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              taskID.isEmpty == false
+        else { return nil }
+        self.episode = episode
+        self.taskID = taskID
+        taskTitle = episode.payload["taskTitle"]?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            ?? episode.payload["title"]?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            ?? "the selected task"
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
