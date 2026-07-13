@@ -5,6 +5,7 @@ enum MenuBarCoachTone: Equatable {
     case neutral
     case active
     case paused
+    case coachingPaused
     case attention
 
     var symbol: String {
@@ -12,6 +13,7 @@ enum MenuBarCoachTone: Equatable {
         case .neutral: "circle.dotted"
         case .active: "play.fill"
         case .paused: "pause.fill"
+        case .coachingPaused: "pause.circle.fill"
         case .attention: "exclamationmark.triangle.fill"
         }
     }
@@ -21,6 +23,7 @@ enum MenuBarCoachTone: Equatable {
         case .neutral: "Zoid 666 is ready"
         case .active: "A task is active"
         case .paused: "A task is paused"
+        case .coachingPaused: "Coaching is paused"
         case .attention: "A source needs attention"
         }
     }
@@ -33,9 +36,11 @@ struct MenuBarCoachState: Equatable {
     let pausedTask: TodayTaskRow?
     let recommendedTask: TodayTaskRow?
     let attentionDetail: String?
+    let coachingIsPaused: Bool
 
-    init(snapshot: TodaySnapshot?) {
+    init(snapshot: TodaySnapshot?, coachingIsPaused: Bool = false) {
         self.snapshot = snapshot
+        self.coachingIsPaused = coachingIsPaused
         let rows = snapshot?.taskRows ?? []
         activeTask = snapshot?.activeTask.flatMap { active in
             rows.first { $0.taskID == active.taskID }
@@ -50,7 +55,9 @@ struct MenuBarCoachState: Equatable {
         }
         attentionDetail = unhealthy.map { "\($0.sourceID): \($0.detail)" }
 
-        if activeTask != nil {
+        if coachingIsPaused {
+            tone = .coachingPaused
+        } else if activeTask != nil {
             tone = .active
         } else if pausedTask != nil {
             tone = .paused
