@@ -160,6 +160,27 @@ import ZoidCoachInfrastructure
 }
 
 @MainActor
+@Test func endWorkdayConfirmationDoesNothingWhenTheActiveTaskChanged() async {
+    let first = menuSnapshot(
+        rows: [menuTask(id: "first", title: "First", state: .active)],
+        activeTask: .init(taskID: "first", startedAt: Date(), elapsedMinutes: 2)
+    )
+    let second = menuSnapshot(
+        rows: [menuTask(id: "second", title: "Second", state: .active)],
+        activeTask: .init(taskID: "second", startedAt: Date(), elapsedMinutes: 1)
+    )
+    let client = SwitchingMenuBarTodayClient(snapshots: [first, second])
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.refresh()
+    await controller.endWorkdayIfStillActive(taskID: "first")
+
+    #expect(controller.state.activeTask?.taskID == "second")
+    #expect(controller.errorMessage?.contains("Nothing was paused") == true)
+    #expect(await client.commands.isEmpty)
+}
+
+@MainActor
 @Test func menuBarBreakAndEndWorkdayPersistThroughTheCanonicalAgent() async throws {
     let databaseURL = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-666-menu-workday-\(UUID().uuidString).sqlite")
@@ -251,6 +272,25 @@ private actor AgentMenuBarTodayClient: MenuBarTodayClient {
     func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
         now = now.addingTimeInterval(60)
         return try agent.apply(command, taskID: taskID, now: now)
+    }
+}
+
+private actor SwitchingMenuBarTodayClient: MenuBarTodayClient {
+    var snapshots: [TodaySnapshot]
+    var commands: [(TaskActivityCommand, String)] = []
+
+    init(snapshots: [TodaySnapshot]) {
+        self.snapshots = snapshots
+    }
+
+    func fetchTodaySnapshot() throws -> TodaySnapshot {
+        if snapshots.count > 1 { return snapshots.removeFirst() }
+        return snapshots[0]
+    }
+
+    func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
+        commands.append((command, taskID))
+        return snapshots[0]
     }
 }
 
