@@ -24,24 +24,36 @@ Package verification confirmed coherent application, LaunchAgent, Mach service, 
 
 The verifier worktree was clean after packaging.
 
-## Runtime lease boundary
+## Signed installed acceptance
 
-No application installation, launch, helper registration, fixture mutation, tracker edit, registry edit, backlog edit, or Lavish edit was performed during the source gate.
+The exclusive runtime lease was granted after the review-reminder verifier removed its application, helper, and runtime root.
 
-The review-reminder verifier owns the shared signed runtime lease.
+The signed QA application ran from `/private/tmp/zoid-settings-time-zone-installed/Zoid 666 QA E2E.app` with isolated root `/private/tmp/zoid-qa-settings-time-zone-verifier` and build identity `zoid-coach-aedc669a5cc5da5457684a670b690f8bcb060de4-clean`.
 
-## Capped signed acceptance plan
+Settings visibly presented the full IANA picker, `Africa/Cairo`, `UTC+03:00`, the Mac match explanation, the historical-instant explanation, and `USE MAC TIME ZONE`.
 
-1. Install the prepared signed QA application under a unique isolated root after orchestration grants the runtime lease.
-2. Open Settings and capture the persisted zone, current UTC offset, Mac comparison, full IANA picker, and `USE MAC TIME ZONE` action.
-3. Select `America/Los_Angeles`, save through the live helper, close and reopen Settings, and require the exact zone to persist.
-4. Restart the application and helper, reopen Settings, and require the same saved zone.
-5. Confirm Today derives its visible local date from `America/Los_Angeles` at a fixture instant whose Cairo and Los Angeles calendar dates differ.
-6. Complete one local task at an exact fixture instant, change the zone, and require Review plus stored history to retain the same historical instant.
-7. Apply an independent concurrent policy edit while the zone draft is open and require both changes to survive the safe merge.
-8. Apply a competing time-zone mutation and require the conflict panel to name `Time zone`, preserve the current winner, and retain the user's zone for deliberate reapply.
-9. Reapply the user's zone, save, restart, and require it to persist.
-10. Select `USE MAC TIME ZONE`, save, restart, and require the policy to return to the Mac's exact current identifier.
-11. Unregister the QA helper and remove the isolated application and runtime root before releasing the lease.
+The user selected `America/Los_Angeles`, saw `UTC-07:00`, saved policy version 2 through the live helper, reopened Settings, restarted the application and helper, and saw the exact selection persist.
+
+A proper concurrent `PolicyStore` client changed the saved zone to `Europe/London` while the user held a Los Angeles draft.
+
+The signed interface named `Time zone` under both changed-elsewhere and needs-decision copy, preserved the London winner, retained the Los Angeles proposal, and saved Los Angeles as policy version 6 only after deliberate `REAPPLY MY CHANGES`.
+
+A second proper concurrent client changed planning capacity to 55 percent while the user held a Tokyo zone draft.
+
+The signed interface named only `Planning capacity`, kept the Tokyo draft ready, showed 55 percent, and saved policy version 8 with both `Asia/Tokyo` and 55 percent intact.
+
+The user created, started, and completed `Historical instant proof` in the signed application.
+
+Daily Review visibly retained the completed local task and displayed its completion record.
+
+Storage recorded the completion as the exact UTC instant `2026-07-13T11:21:36Z`.
+
+After additional zone changes, `USE MAC TIME ZONE`, save, application restart, and helper restart, storage still contained the byte-identical UTC value and Settings restored `Africa/Cairo`, `UTC+03:00`, the Mac match, and the independently merged 55 percent capacity.
+
+Today visibly remained Monday, 13 July during the run because Cairo, Los Angeles, and Tokyo shared the same calendar date at the actual verification instant.
+
+The application has no installed QA clock fixture, so this run does not claim a signed divergent-local-date boundary for Today.
+
+The QA helper was unregistered, the application and helper were stopped, both isolated roots were removed, and the runtime lease was released.
 
 `ZC-053-010` remains outside this candidate because moving an existing plan across local-day boundaries still requires a separate explicit-confirmation implementation.
