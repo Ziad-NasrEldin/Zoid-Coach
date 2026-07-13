@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "f7381cad28273ee33b90356673d896da43cc8abb22eb16364801bc0b2861920a",
+  "tracker_sha256": "5ce5651046791db0a58be11f843b1d43ef69b9a8cc6f65b6636e7a673b8f1efe",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12331,8 +12331,8 @@
       "item_index": 10,
       "wording": "Confirm before a time-zone change moves a plan to another local day.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12343,7 +12343,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No user confirmation flow for moving an existing plan across local-day boundaries was found.",
+      "audit_note": "Settings now detects when a policy time-zone change crosses the current local plan day, counts the affected plan entries, and requires a privacy-safe native Cancel or Confirm choice before saving. Deterministic controller, real SQLite, DST-boundary, failure, and controller-recreation tests prove that Cancel preserves the draft and durable policy, Confirm persists the new policy without silently rewriting the historical plan day, same-day and empty-plan changes do not over-prompt, and inspection failure blocks the save. A signed isolated QA app reached a real drafted plan and the Settings time-zone picker, but accessibility automation could not select a cross-day picker value, so the visible warning, Cancel, Confirm, database check, and relaunch sequence remain required before this can be fully implemented (`Sources/ZoidCoachInfrastructure/TimeZonePlanMoveInspector.swift`; `Sources/ZoidCoachApp/Views/SettingsPolicyController.swift`; `Sources/ZoidCoachApp/Views/SettingsView.swift`; `Tests/ZoidCoachAppTests/TimeZonePlanMoveInspectorTests.swift`; `Tests/ZoidCoachAppTests/SettingsPolicyDraftTests.swift`; `.audit/runs/time-zone-plan-move-confirmation/verifier/REPORT.md`).",
       "tracker_line": 756
     },
     {
