@@ -282,6 +282,34 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
         return try sourceKind(for: id)
     }
 
+    public func snapshot(forID id: String) throws -> ReminderSourceSnapshot? {
+        lock.lock()
+        defer { lock.unlock() }
+        let sql = "SELECT source_id, title, due_at, priority, notes, list_id, list_name, modified_at, is_completed, source_kind FROM source_tasks WHERE source_id = ?;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw ReminderSnapshotStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(id, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let sourceID = text(statement, 0),
+              let title = text(statement, 1)
+        else { return nil }
+        return ReminderSourceSnapshot(
+            id: sourceID,
+            title: title,
+            dueDate: text(statement, 2).flatMap(formatter.date(from:)),
+            priority: Int(sqlite3_column_int(statement, 3)),
+            notes: text(statement, 4),
+            listID: text(statement, 5),
+            listName: text(statement, 6),
+            modificationDate: text(statement, 7).flatMap(formatter.date(from:)),
+            isCompleted: sqlite3_column_int(statement, 8) == 1,
+            sourceKind: try decodedSourceKind(text(statement, 9))
+        )
+    }
+
     public func loadIncomplete() throws -> [ReminderSourceSnapshot] {
         lock.lock()
         defer { lock.unlock() }
