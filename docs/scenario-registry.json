@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "73aff5747710a011c71d3640c99d66e2c5ee8d433cb1091d29ca2c20ed7b87ae",
+  "tracker_sha256": "6de4727a8000b813b9cd10595cdd59a9fbcac391175b628ba9d8f701c990ca78",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12347,8 +12347,8 @@
       "item_index": 11,
       "wording": "Avoid negative or impossible durations when the system clock changes.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12356,10 +12356,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/clock-safe-task-durations/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Replay and date handling cover anomalies in code, but live task timing under a backward clock change was not verified.",
+      "audit_note": "Task timing now clamps backward discontinuities to zero, caps one continuous forward discontinuity at 1,440 minutes, preserves later legitimate intervals additively, and survives reopen. Four focused tests pass, while a signed isolated runtime visibly reported 0 minutes for a future-started active interval, 1,440 minutes for a seven-day discontinuity, and 1,445 minutes after a separate five-minute interval and relaunch. The native Pause selection did not reach persisted state in that fixture, so a signed backward-close, pause, resume, and task-switch journey remains (`Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift`; `Tests/ZoidCoachAppTests/TaskExecutionStoreTests.swift`; `.audit/runs/clock-safe-task-durations/verifier/REPORT.md`).",
       "tracker_line": 757
     },
     {
