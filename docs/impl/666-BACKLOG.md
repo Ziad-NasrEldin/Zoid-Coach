@@ -119,6 +119,10 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Enforces both UTC daily and calendar-month boundaries through one provider-independent budget and atomically reserves each allowed request before audited planning or structured generation begins.
 - Keeps deterministic planning available when a request limit is reached.
 - Focused Settings, ledger, and provider tests pass; candidate evidence is recorded in `.audit/runs/ai-request-budgets/candidate/REPORT.md`.
+- Independent verification passed all seven focused tests and one QA release package.
+- The signed Intelligence Settings journey exposed accessible daily and monthly limits, truthful first-limit and zero-limit copy, saved distinct 110 and 3,100 values, and restored both after relaunch.
+- No safe installed deterministic provider-budget probe exists, so the live provider-switch invocation remains the final acceptance touch.
+- `ZC-046-006` advances from Frontend only left to Touches remaining, with evidence in `.audit/runs/ai-request-budgets/verifier/REPORT.md`.
 
 ### Settings notification delivery test - candidate
 
