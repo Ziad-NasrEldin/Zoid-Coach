@@ -1162,6 +1162,16 @@ final class AppModel: ObservableObject {
         calendarPlanApproval.dismiss()
     }
 
+    func acceptCalendarPlanLocally() {
+        guard calendarPlanApproval.acceptLocally() else {
+            calendarScheduleError = "This plan cannot be approved locally from its current state. Review the plan again before continuing."
+            return
+        }
+        calendarScheduleError = nil
+        persistCalendarPlanApprovalReceipt()
+        lastActionMessage = "The plan is approved locally. No Calendar or Reminder changes were requested."
+    }
+
     func showCalendarPlanApprovalReceipt() {
         calendarPlanApproval.presentReceipt()
     }
