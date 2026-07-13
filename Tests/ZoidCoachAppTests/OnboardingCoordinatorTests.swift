@@ -615,6 +615,28 @@ func screenshotAnalysisStartsOffForNewSetupAndPersistsExplicitConsent() async th
 
 @MainActor
 @Test
+func screenshotAnalysisConsentAdoptsPolicyBootstrappedAfterCoordinatorInitialization() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.screenwatch))
+    let policyRecorder = PolicyRecorder()
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(policyRecorder: policyRecorder)
+    )
+
+    #expect(!coordinator.screenshotAnalysisEnabled)
+    policyRecorder.version = 1
+    coordinator.screenshotAnalysisEnabled = true
+    coordinator.deferAccess(for: .screenwatch)
+    try await coordinator.continueFromCurrentStep()
+
+    #expect(coordinator.progress.currentStep == .notifications)
+    #expect(policyRecorder.version == 2)
+    #expect(policyRecorder.applyCallCount == 1)
+    #expect(policyRecorder.policy.privacy.screenshotAnalysisEnabled)
+}
+
+@MainActor
+@Test
 func screenshotAnalysisRestoresExistingPolicyAndPersistsOptOut() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.screenwatch))
     let policyRecorder = PolicyRecorder()
