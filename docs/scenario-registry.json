@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "2de222844aadfb2f66765692c50e6663ad653895032ebe7b8b8035a4c9005880",
+  "tracker_sha256": "e9f5389dcfd69c719b4398b90c96a96255d96bc163e99b72528ada622c2feb3d",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3465,8 +3465,8 @@
       "item_index": 3,
       "wording": "Start a task from a dashboard prompt.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3474,10 +3474,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/dashboard-prompt-task-start/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Prompt actions can render generically and the enum includes `startRecommendedTask`, but the prompt response effect router ignores task actions, so clicking cannot start work end to end (`PromptInbox.swift:47-64`; `PromptResponseEffectRouter.swift:43-108`).",
+      "audit_note": "The dashboard action routes the task start exactly once through the canonical prompt effect boundary, refreshes Today, and shows and announces `<task> is active in Today.` only when the refreshed active task matches the prompt payload. Focused tests prove dashboard and notification replay idempotency, one active interval, safe title fallback, and no confirmation for stale, mismatched, or unrelated actions. The signed ready-state fixture has no supported prompt seed seam, and a direct isolated seed was rejected by the decoder, so native prompt activation, replay, and relaunch persistence remain (`AppModel.swift`; `DashboardPromptActionOutcome.swift`; `TodayPromptInboxLedger.swift`; `.audit/runs/dashboard-prompt-task-start/verifier/REPORT.md`).",
       "tracker_line": 254
     },
     {

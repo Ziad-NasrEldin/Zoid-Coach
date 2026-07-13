@@ -15,10 +15,10 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 Only scenarios proven completely usable end to end are checked.
 
 - **Fully implemented:** 173
-- **Touches remaining:** 294
+- **Touches remaining:** 295
 - **Frontend only left:** 3
 - **Partially implemented:** 103
-- **Barely started:** 9
+- **Barely started:** 8
 - **Not implemented:** 57
 - **Blocked from verification:** 27
 - **Total:** 666
@@ -251,7 +251,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 - [ ] Start a task from the Today dashboard. **Status: Touches remaining.** Ready task rows and the focus recommendation issue serialized `.start` commands through the agent, return an updated snapshot, and expose clear pending, success, and failure states. The signed-QA package and deterministic agent journey pass, but the Mac was locked during independent verification, so the installed click-through remains (`AppModel.swift`; `DashboardView.swift`; `TodayDashboardCommandOverview.swift`; `TodayDashboardAgentTests`).
 - [ ] Start a task from the menu bar. **Status: Touches remaining.** The menu-bar recommendation now exposes a task-specific Start action that fetches the latest snapshot before mutation, rejects stale, active, or paused state, prevents overlapping activation, requires the exact task to return active, preserves the last confirmed state on failure, and refreshes Today after the attempt. Fourteen focused menu tests pass, including canonical-agent persistence, and the signed installed app created the exact ready recommendation used for acceptance. The separate SwiftUI MenuBarExtra remained outside the available Computer Use accessibility tree despite direct SystemUIServer and keyboard-focus attempts, so the current, stale, double-click, helper-failure, exact single-interval, and restart journeys remain unclicked in the signed UI (`MenuBarCoachView.swift`; `.audit/runs/menu-bar-start-task/verifier/REPORT.md`).
-- [ ] Start a task from a dashboard prompt. **Status: Barely started.** Prompt actions can render generically and the enum includes `startRecommendedTask`, but the prompt response effect router ignores task actions, so clicking cannot start work end to end (`PromptInbox.swift:47-64`; `PromptResponseEffectRouter.swift:43-108`).
+- [ ] Start a task from a dashboard prompt. **Status: Touches remaining.** The dashboard action routes the task start exactly once through the canonical prompt effect boundary, refreshes Today, and shows and announces `<task> is active in Today.` only when the refreshed active task matches the prompt payload. Focused tests prove dashboard and notification replay idempotency, one active interval, safe title fallback, and no confirmation for stale, mismatched, or unrelated actions. The signed ready-state fixture has no supported prompt seed seam, and a direct isolated seed was rejected by the decoder, so native prompt activation, replay, and relaunch persistence remain (`AppModel.swift`; `DashboardPromptActionOutcome.swift`; `TodayPromptInboxLedger.swift`; `.audit/runs/dashboard-prompt-task-start/verifier/REPORT.md`).
 - [ ] Start a task from the recommendation card. **Status: Touches remaining.** The recommendation card routes a ready row through `.start`, but the installed-app action and persisted result were not exercised end to end during this audit (`TodayDashboardCommandOverview.swift:279-282,368-374`).
 - [ ] Start a task with a keyboard shortcut. **Status: Touches remaining.** The signed Task menu named the exact Ready recommendation, displayed the Command-Option-S binding, started it through the same menu command exactly once, then disabled Start while the task was active. Focused tests cover the shortcut state and canonical command path, but the automation driver did not deliver the physical Command-Option-S chord, so direct keystroke activation remains (`TaskKeyboardCommands.swift`; `.audit/runs/task-keyboard-controls/verifier/REPORT.md`).
 - [ ] See the task become the single active task everywhere. **Status: Partially implemented.** Backend execution enforces one open interval and Today updates to the active row, but the menu bar does not show task state and no cross-surface live test exists (`TaskExecutionStore.swift:35-46`; `TodayDashboardAgent.swift:60-61`).
