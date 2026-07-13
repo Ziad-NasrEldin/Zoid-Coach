@@ -77,12 +77,31 @@ public final class ReviewReminderService: @unchecked Sendable {
         let startOfToday = calendar.startOfDay(for: date)
         for offset in 0..<8 {
             guard let day = calendar.date(byAdding: .day, value: offset, to: startOfToday),
-                  let end = workdayEnd(on: day, schedule: schedule, calendar: calendar),
-                  end > date
+                  let review = dailyReview(on: day, schedule: schedule, calendar: calendar),
+                  review > date
             else { continue }
-            return Occurrence(key: localDay(day, calendar: calendar), deliveryDate: end)
+            return Occurrence(key: localDay(day, calendar: calendar), deliveryDate: review)
         }
         return nil
+    }
+
+    private func dailyReview(
+        on day: Date,
+        schedule: SchedulePolicy,
+        calendar: Calendar
+    ) -> Date? {
+        guard let reviewTime = schedule.dailyReviewTime else {
+            return workdayEnd(on: day, schedule: schedule, calendar: calendar)
+        }
+        guard let weekday = Weekday(rawValue: calendar.component(.weekday, from: day)),
+              schedule.workWindows.contains(where: { $0.weekdays.contains(weekday) })
+        else { return nil }
+        return calendar.date(
+            bySettingHour: reviewTime.hour,
+            minute: reviewTime.minute,
+            second: 0,
+            of: calendar.startOfDay(for: day)
+        )
     }
 
     private func nextWeeklyOccurrence(after date: Date, schedule: SchedulePolicy) -> Occurrence? {
