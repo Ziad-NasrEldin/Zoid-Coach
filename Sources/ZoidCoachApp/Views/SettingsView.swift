@@ -25,6 +25,7 @@ struct SettingsView: View {
     @State private var voiceSettingsMessage: String?
     @State private var captureConfiguration = (try? NativeCaptureConfigurationStore().load()) ?? .legacy
     @State private var captureConfigurationMessage: String?
+    @State private var showsRemoteEvidencePreview = false
     private let xpcClient = TodayDashboardXPCClient(
         runtimeEnvironment: RuntimeEnvironment.current()
     )
@@ -710,6 +711,14 @@ struct SettingsView: View {
                 !controller.draft.aiProvider.usesRemoteProcessing
                     || !AIProviderCapabilities.production[controller.draft.aiProvider].isSelectable
             )
+            Button(showsRemoteEvidencePreview ? "HIDE REQUEST PREVIEW" : "PREVIEW REQUEST DATA") {
+                showsRemoteEvidencePreview.toggle()
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+            .accessibilityIdentifier("settings.ai.preview.toggle")
+            if showsRemoteEvidencePreview {
+                remoteEvidencePreview
+            }
             if controller.draft.aiProvider == .codexCLI {
                 VStack(alignment: .leading, spacing: 7) {
                     SumiControlLabel("CODEX MODEL")
@@ -756,6 +765,18 @@ struct SettingsView: View {
                         .foregroundStyle(Sumi.muted)
                 }
             }
+            Button("CLEAR AI CACHE AND REQUEST HISTORY") {
+                presentConfirmation(.deleteAIMetadata)
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+            .accessibilityIdentifier("settings.ai.clear-cache")
+            if let dataStatusMessage {
+                Text(dataStatusMessage)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.ai.clear-cache.status")
+            }
             HStack(spacing: 18) {
                 RetentionField(title: "Screenshots", days: $controller.draft.rawScreenshotRetentionDays)
                 RetentionField(title: "Extracted text", days: $controller.draft.extractedTextRetentionDays)
@@ -771,6 +792,36 @@ struct SettingsView: View {
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
         }
+    }
+
+    private var remoteEvidencePreview: some View {
+        let preview = RemoteEvidencePreview.representative(for: controller.draft.remoteEvidencePolicy)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(preview.heading)
+                .font(Sumi.label(10))
+                .sumiLabelTracking()
+            Text(preview.explanation)
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+            Text(preview.payload)
+                .font(.system(size: 11, design: .monospaced))
+                .textSelection(.enabled)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Sumi.paper)
+                .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+                .accessibilityIdentifier("settings.ai.preview.payload")
+            Text("NEVER INCLUDED · \(preview.excluded.joined(separator: ", "))")
+                .font(Sumi.label(9))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("settings.ai.preview.exclusions")
+        }
+        .padding(12)
+        .background(Sumi.mist)
+        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.ai.preview")
     }
 
     private var wakeSection: some View {
