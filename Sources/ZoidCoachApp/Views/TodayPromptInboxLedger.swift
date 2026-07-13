@@ -151,12 +151,10 @@ struct TodayPromptInboxLedger: View {
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("today.prompt.\(entry.id).task-change-label")
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 8)], alignment: .leading, spacing: 8) {
-                    ForEach(actions.taskChangeActions) { action in
-                        promptActionButton(action, episode: entry.episode, presentation: presentation)
-                    }
+                ForEach(actions.taskChangeActions) { action in
+                    promptActionButton(action, episode: entry.episode, presentation: presentation)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .accessibilityIdentifier("today.prompt.\(entry.id).task-change-actions")
             }
             if !actions.recoveryActions.isEmpty {
                 Text("RECOVERY OPTIONS")
