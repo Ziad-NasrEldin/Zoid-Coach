@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "1cc25d3a42c9313892e6bee6be91e4aceea77286ead78cfa3fa7c24d657cfd86",
+  "tracker_sha256": "e1e7d9d9b3f50d902e57c7c789aad158aff8c55c4716e658d97d1c5bae5b0f5c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8780,8 +8780,8 @@
       "item_index": 8,
       "wording": "Disable notification prompts while retaining dashboard access.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8792,7 +8792,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no notification-prompt preference independent of dashboard access.",
+      "audit_note": "The installed signed QA app saved the dedicated Settings switch off through the live helper, removed only the queued coaching notification after one agent loop, kept the same unresolved decision visibly available in Today, preserved an unrelated break-end reminder, wrote no false delivery-ledger attempt, and restored the disabled policy plus Today decision after app and helper restart. Focused proof also passes legacy defaulting, concurrent Settings conflict handling, and re-enable without coordinator restart, but the capped signed run stopped before visibly completing the final re-enable and resumed-delivery leg (`.audit/runs/notification-prompt-preference/verifier/REPORT.md`).",
       "tracker_line": 558
     },
     {

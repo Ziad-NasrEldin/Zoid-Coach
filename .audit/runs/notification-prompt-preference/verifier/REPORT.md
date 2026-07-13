@@ -27,19 +27,24 @@ The QA fixture proof also preserves an accepted-break notification while removin
 - Package, LaunchAgent, Mach service, and signing identities are coherent.
 - Packaged artifact: `/private/tmp/zoid-666-verify-notification-prompt-preference/.build/app-qa/Zoid 666 QA.app`
 
-## Capped signed runtime sequence
+## Capped signed runtime result
 
-This sequence is prepared but intentionally not executed until the shared runtime lease is assigned.
+- Installed app: `/private/tmp/zoid-666-notification-pref-install/Zoid 666 QA E2E.app`
+- Isolated QA root: `/private/tmp/zoid-666-verify-notification-prompt-preference/.build/qa-notification-prompt-preference-verifier`
+- The registered QA helper ran from the installed signed app with the exact QA LaunchAgent and Mach-service identity.
+- Notification fixture permission was granted.
+- The saved version-1 policy exposed `SEND COACHING PROMPTS AS NOTIFICATIONS` as on.
+- One valid queued `GAMING_DRIFT` decision appeared visibly in Today while the fixture held its coaching notification and a separate `BREAK_END` notification.
+- The signed Settings switch was turned off and saved through the live helper boundary.
+- The saved policy advanced to version 2 with `notificationPromptsEnabled = false`.
+- After one agent loop, the coaching notification was removed while the queued prompt remained in Today and the `BREAK_END` notification remained scheduled.
+- The notification delivery ledger remained at zero rows, proving suppression did not create a false attempt or failure.
+- After restarting both app and helper, policy version 2 remained disabled, the queued decision remained unresolved, and the break notification remained present.
 
-1. Install the verifier's signed QA artifact with its isolated QA root and start from granted notification permission.
-2. Save notification prompts as enabled and create one unresolved coaching prompt.
-3. Confirm the same prompt is visible in Today and has one fixture or Notification Center delivery.
-4. Schedule an accepted-break end reminder as the non-prompt control.
-5. Disable coaching prompt notifications through Settings and save through the helper boundary.
-6. Wait for one agent policy loop, then confirm the coaching notification is removed while the Today row and accepted-break reminder survive.
-7. Confirm the delivery ledger contains no new attempt or failure for a prompt created while disabled.
-8. Restart the app and helper, then confirm the switch remains disabled and a new unresolved prompt appears only in Today.
-9. Re-enable the switch without restarting, create a fresh prompt, and confirm notification delivery resumes while the Today row remains available.
-10. Clean the isolated QA installation and preserve the evidence bundle for tracker integration.
+## Conservative acceptance boundary
 
-The tracker, registry, backlog, Lavish artifact, and shared runtime were not changed in this verifier pass.
+The hard runtime cap stopped the signed run before the final re-enable and resumed-delivery leg completed.
+The focused coordinator test proves re-enable without restart in process, but this report does not claim the corresponding installed UI journey.
+`ZC-039-008` therefore advances only to `Touches remaining`.
+
+The tracker, registry, and Lavish artifact are synchronized after this report, and the signed QA runtime is removed during cleanup.
