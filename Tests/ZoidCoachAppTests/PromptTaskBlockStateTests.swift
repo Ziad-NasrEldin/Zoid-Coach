@@ -37,6 +37,30 @@ func promptTaskBlockReasonTrimsMeaningfulCopyAndRejectsUnsafeLengths() throws {
     #expect(try state.validated(String(repeating: "x", count: 240)).get().count == 240)
 }
 
+@Test
+func promptActionReachabilityMovesTaskChangesAheadWithoutDuplicatingActions() throws {
+    let original: [PromptAction] = [
+        .init(kind: .returnToActiveTask, title: "Return"),
+        .init(kind: .startWorkSprint, title: "Sprint"),
+        .init(kind: .startBreak, title: "Break"),
+        .init(kind: .rescheduleTask, title: "Reschedule", role: .destructive),
+        .init(kind: .markBlocked, title: "Mark blocked", role: .destructive),
+        .init(kind: .continueIntentionally, title: "Continue")
+    ]
+
+    let layout = PromptActionReachabilityLayout(actions: original)
+
+    #expect(layout.taskChangeActions.map(\.kind) == [.rescheduleTask, .markBlocked])
+    #expect(layout.recoveryActions.map(\.kind) == [
+        .returnToActiveTask,
+        .startWorkSprint,
+        .startBreak,
+        .continueIntentionally
+    ])
+    #expect(Set((layout.taskChangeActions + layout.recoveryActions).map(\.id)).count == original.count)
+    #expect(layout.taskChangeActions.count + layout.recoveryActions.count == original.count)
+}
+
 private func promptEpisode(
     id: String,
     actions: [PromptAction],
