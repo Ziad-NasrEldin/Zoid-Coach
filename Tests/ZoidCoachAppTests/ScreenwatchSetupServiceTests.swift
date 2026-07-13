@@ -69,7 +69,13 @@ func screenwatchSetupRejectsMalformedSchemaWithPrivacySafeDiagnostics() async th
     defer { fixture.remove() }
     let secretTitle = "SECRET MERGER TITLE"
     let secretURL = "https://private.example/client"
-    try fixture.writeRawLine(
+    let validEpoch = Int(fixture.now.timeIntervalSince1970) - 60
+    try fixture.writeValidRecord(
+        in: fixture.runtime.screenwatchDirectory,
+        secret: "Earlier valid private title",
+        epoch: validEpoch
+    )
+    try fixture.appendRawLine(
         #"{"t":"now","epoch":"wrong","app":"SecretApp","window":"\#(secretTitle)","url":"\#(secretURL)","img":true}"#,
         in: fixture.runtime.screenwatchDirectory
     )
@@ -81,6 +87,8 @@ func screenwatchSetupRejectsMalformedSchemaWithPrivacySafeDiagnostics() async th
     #expect(status.health == .malformed)
     #expect(status.continuation == .degraded)
     #expect(status.repair == .recheck)
+    #expect(status.validRecordCount == 1)
+    #expect(status.lastValidRecordAt == Date(timeIntervalSince1970: TimeInterval(validEpoch)))
     #expect(!visibleText.contains(secretTitle))
     #expect(!visibleText.contains(secretURL))
     #expect(!visibleText.contains("SecretApp"))
@@ -391,6 +399,15 @@ private struct ScreenwatchSetupFixture {
         let day = daysDirectory.appendingPathComponent("2027-01-15", isDirectory: true)
         try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
         try Data((line + "\n").utf8).write(to: day.appendingPathComponent("log.jsonl"))
+    }
+
+    func appendRawLine(_ line: String, in daysDirectory: URL) throws {
+        let day = daysDirectory.appendingPathComponent("2027-01-15", isDirectory: true)
+        let log = day.appendingPathComponent("log.jsonl")
+        let handle = try FileHandle(forWritingTo: log)
+        defer { try? handle.close() }
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data((line + "\n").utf8))
     }
 
     func visibleText(_ status: ScreenwatchSetupStatus) -> String {

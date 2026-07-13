@@ -216,8 +216,7 @@ actor ScreenwatchSetupService: ScreenwatchSetupServicing {
         }
         do {
             let validation = try validateJSONL(data)
-            guard validation.invalidRecordCount == 0,
-                  validation.validRecordCount > 0,
+            guard validation.validRecordCount > 0,
                   let latestEpoch = validation.latestEpoch else {
                 return ScreenwatchSetupStatus(
                     source: source,
@@ -231,6 +230,19 @@ actor ScreenwatchSetupService: ScreenwatchSetupServicing {
                 )
             }
             let lastValidRecordAt = Date(timeIntervalSince1970: TimeInterval(latestEpoch))
+            guard validation.invalidRecordCount == 0 else {
+                return ScreenwatchSetupStatus(
+                    source: source,
+                    health: .malformed,
+                    continuation: .degraded,
+                    repair: .recheck,
+                    summary: "Some Screenwatch telemetry does not match the expected schema.",
+                    evidence: "The latest schema-valid local record remains available without displaying captured titles or URLs.",
+                    validRecordCount: validation.validRecordCount,
+                    sourcePath: lease.rootURL.path,
+                    lastValidRecordAt: lastValidRecordAt
+                )
+            }
             let age = max(0, now.timeIntervalSince1970 - TimeInterval(latestEpoch))
             if age > staleThreshold {
                 return ScreenwatchSetupStatus(
