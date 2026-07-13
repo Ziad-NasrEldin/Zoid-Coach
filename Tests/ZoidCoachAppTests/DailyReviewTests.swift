@@ -251,6 +251,38 @@ func dailyReviewShowsCorrectionAwareHighlightsAndBehaviorCoachingResponsesAcross
 }
 
 @Test
+func dailyReviewSummarizesPostCapDriftWithoutInventingPrompts() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insertQuietDrift(
+        startedAtEpoch: 1_783_663_200,
+        latestAtEpoch: 1_783_663_860,
+        application: "Steam",
+        observedMinutes: 12
+    )
+    try fixture.insertQuietDrift(
+        startedAtEpoch: 1_783_665_000,
+        latestAtEpoch: 1_783_666_140,
+        application: "GeForce NOW",
+        observedMinutes: 20
+    )
+
+    let snapshot = try fixture.store.load(sourceDay: fixture.sourceDay)
+
+    #expect(snapshot.coachingInteractions.isEmpty)
+    #expect(snapshot.quietDrift == DailyReviewQuietDriftSummary(
+        episodeCount: 2,
+        totalObservedMinutes: 32,
+        largestEpisodeMinutes: 20,
+        applications: ["Steam", "GeForce NOW"]
+    ))
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    #expect(try reopened.load(sourceDay: fixture.sourceDay).quietDrift == snapshot.quietDrift)
+    #expect(try reopened.load(sourceDay: "2026-07-11").quietDrift == nil)
+}
+
+@Test
 func dailyReviewHighlightUsesExactDurationBeforeRoundedDisplayMinutes() {
     let start = Date(timeIntervalSince1970: 1_783_663_200)
     let earlier = DailyReviewSession(
@@ -677,6 +709,29 @@ private final class DailyReviewFixture {
         sqlite3_bind_int(planStatement, 5, Int32(estimateMinutes))
         sqlite3_bind_int(planStatement, 6, isOptional ? 1 : 0)
         guard sqlite3_step(planStatement) == SQLITE_DONE else { throw DailyReviewTestError.database }
+    }
+
+    func insertQuietDrift(
+        startedAtEpoch: Int64,
+        latestAtEpoch: Int64,
+        application: String,
+        observedMinutes: Int
+    ) throws {
+        var database: OpaquePointer?
+        guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK,
+              let database else { throw DailyReviewTestError.database }
+        defer { sqlite3_close(database) }
+        var statement: OpaquePointer?
+        let sql = "INSERT INTO quiet_drift_episodes(local_day, session_started_epoch, latest_observed_epoch, application, observed_minutes, recorded_at_utc, updated_at_utc) VALUES (?, ?, ?, ?, ?, '2026-07-10T12:00:00Z', '2026-07-10T12:00:00Z');"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw DailyReviewTestError.database }
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_text(statement, 1, sourceDay, -1, SQLITE_TRANSIENT_REVIEW)
+        sqlite3_bind_int64(statement, 2, startedAtEpoch)
+        sqlite3_bind_int64(statement, 3, latestAtEpoch)
+        sqlite3_bind_text(statement, 4, application, -1, SQLITE_TRANSIENT_REVIEW)
+        sqlite3_bind_int(statement, 5, Int32(observedMinutes))
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw DailyReviewTestError.database }
     }
 
     func scalar(_ sql: String) throws -> Int {

@@ -52,6 +52,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         let completedTasks = try completedTasks(sourceDay: sourceDay)
         let plannedTasks = try plannedTasks(sourceDay: sourceDay, completedTasks: completedTasks)
         let coachingInteractions = try coachingInteractions(sourceDay: sourceDay, sessions: sessions)
+        let quietDrift = try quietDriftSummary(sourceDay: sourceDay)
         return DailyReviewSnapshot(
             sourceDay: sourceDay,
             sessions: sessions,
@@ -62,7 +63,44 @@ public final class DailyReviewStore: @unchecked Sendable {
             offlineWork: offlineWork,
             completedTasks: completedTasks,
             plannedTasks: plannedTasks,
-            coachingInteractions: coachingInteractions
+            coachingInteractions: coachingInteractions,
+            quietDrift: quietDrift
+        )
+    }
+
+    private func quietDriftSummary(sourceDay: String) throws -> DailyReviewQuietDriftSummary? {
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT application, observed_minutes
+        FROM quiet_drift_episodes
+        WHERE local_day = ?
+        ORDER BY session_started_epoch ASC;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError(.read) }
+        defer { sqlite3_finalize(statement) }
+        bind(sourceDay, statement, 1)
+        var episodeCount = 0
+        var totalObservedMinutes = 0
+        var largestEpisodeMinutes = 0
+        var applications: [String] = []
+        var seenApplications = Set<String>()
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let application = text(statement, 0) else { continue }
+            let minutes = max(0, Int(sqlite3_column_int(statement, 1)))
+            episodeCount += 1
+            totalObservedMinutes += minutes
+            largestEpisodeMinutes = max(largestEpisodeMinutes, minutes)
+            if seenApplications.insert(application).inserted {
+                applications.append(application)
+            }
+        }
+        guard episodeCount > 0 else { return nil }
+        return DailyReviewQuietDriftSummary(
+            episodeCount: episodeCount,
+            totalObservedMinutes: totalObservedMinutes,
+            largestEpisodeMinutes: largestEpisodeMinutes,
+            applications: applications
         )
     }
 
