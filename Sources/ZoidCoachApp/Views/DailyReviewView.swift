@@ -16,6 +16,8 @@ protocol DailyReviewServicing: AnyObject {
     func savePersonalNote(_ note: String?, sourceDay: String) throws
     func confirm(sourceDay: String) throws
     func skip(sourceDay: String) throws
+    func deferReview(sourceDay: String, until date: Date) throws
+    func resumeDeferredReview(sourceDay: String) throws
     @discardableResult
     func saveOfflineWork(
         id: String?,
@@ -51,17 +53,20 @@ final class DailyReviewController: ObservableObject {
 
     private let service: any DailyReviewServicing
     private let calendar: Calendar
+    private let now: () -> Date
 
     init(
         service: any DailyReviewServicing,
         selectedDay: Date = Date(),
         calendar: Calendar = .current,
-        isRulesOnlyMode: Bool = false
+        isRulesOnlyMode: Bool = false,
+        now: @escaping () -> Date = Date.init
     ) {
         self.service = service
         self.selectedDay = selectedDay
         self.calendar = calendar
         self.isRulesOnlyMode = isRulesOnlyMode
+        self.now = now
     }
 
     convenience init(runtimeEnvironment: RuntimeEnvironment = .current()) {
@@ -243,6 +248,33 @@ final class DailyReviewController: ObservableObject {
         }
     }
 
+    func deferUntilTomorrow() {
+        do {
+            let current = now()
+            guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: current) else {
+                errorMessage = "The review could not be delayed because tomorrow could not be calculated."
+                return
+            }
+            try service.deferReview(sourceDay: sourceDay, until: tomorrow)
+            try refreshSnapshotAndResumeState()
+            errorMessage = nil
+            successMessage = "Review delayed until (tomorrow.formatted(date: .abbreviated, time: .shortened)). All local evidence and corrections remain available."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func resumeDeferredReview() {
+        do {
+            try service.resumeDeferredReview(sourceDay: sourceDay)
+            try refreshSnapshotAndResumeState()
+            errorMessage = nil
+            successMessage = "Daily review resumed with its saved evidence and corrections."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func saveOfflineWork(
         id: String?,
         startedAt: Date,
@@ -293,6 +325,8 @@ private final class UnavailableDailyReviewService: DailyReviewServicing {
     func savePersonalNote(_ note: String?, sourceDay: String) throws { throw error }
     func confirm(sourceDay: String) throws { throw error }
     func skip(sourceDay: String) throws { throw error }
+    func deferReview(sourceDay: String, until date: Date) throws { throw error }
+    func resumeDeferredReview(sourceDay: String) throws { throw error }
     func saveOfflineWork(id: String?, sourceDay: String, taskID: String?, startedAt: Date, durationMinutes: Int, note: String?) throws -> String { throw error }
     func deleteOfflineWork(id: String, sourceDay: String) throws { throw error }
     func classificationRules() throws -> [AppClassificationCorrectionRule] { throw error }
@@ -987,7 +1021,19 @@ struct DailyReviewView: View {
 
     private func confirmation(_ snapshot: DailyReviewSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let skippedAt = snapshot.skippedAt {
+            if let deferredUntil = snapshot.deferredUntil {
+                Text("REVIEW DEFERRED UNTIL \(deferredUntil.formatted(date: .abbreviated, time: .shortened).uppercased())")
+                    .font(Sumi.label())
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                    .accessibilityIdentifier("reviews.deferred")
+                Text("The review will return after this time. All local activity, task outcomes, corrections, and notes remain available.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                Button("RESUME REVIEW NOW") { controller.resumeDeferredReview() }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
+                    .accessibilityIdentifier("reviews.defer.resume")
+            } else if let skippedAt = snapshot.skippedAt {
                 Text("SKIPPED \(skippedAt.formatted(date: .abbreviated, time: .shortened).uppercased())")
                     .font(Sumi.label())
                     .sumiLabelTracking()
@@ -1013,6 +1059,10 @@ struct DailyReviewView: View {
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
                     .accessibilityIdentifier("reviews.skip")
                     .accessibilityHint("Asks for confirmation before closing this day without confirming review conclusions.")
+                Button("REVIEW TOMORROW") { controller.deferUntilTomorrow() }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
+                    .accessibilityIdentifier("reviews.defer.tomorrow")
+                    .accessibilityHint("Keeps all local evidence and returns this unfinished review after the same time tomorrow.")
             }
         }
     }

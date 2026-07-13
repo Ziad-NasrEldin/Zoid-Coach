@@ -1047,6 +1047,13 @@ private extension AutonomousDatabaseMigrator {
                 column: "skipped_at_utc",
                 declaration: "TEXT"
             )
+        ]),
+        Migration(version: 42, isDestructive: false, operations: [
+            .addColumnIfTableExists(
+                table: "daily_reviews",
+                column: "deferred_until_utc",
+                declaration: "TEXT"
+            )
         ])
     ]
 }
