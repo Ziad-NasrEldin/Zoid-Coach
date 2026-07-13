@@ -13,7 +13,7 @@ The manifest explicitly separates completed onboarding decisions from determinis
 Reminders, Calendar commitments, notifications, and permission states use the existing QA fixture schema.
 Screenwatch supports `healthy`, `stale`, `missing`, and `deferred` states under the isolated QA root.
 
-The preparer rejects unknown fields, invalid enum values, duplicate identifiers, missing Reminder lists, inconsistent granted states, malformed Screenwatch records, relative roots, root-directory targets, and symbolic-link targets.
+The preparer rejects unknown fields, invalid enum values, duplicate identifiers, notification IDs that differ from their prompt IDs, missing Reminder lists, inconsistent granted states, malformed Screenwatch records, relative roots, root-directory targets, and symbolic-link targets.
 Validation completes before the target is changed.
 Replacing an existing root requires `--replace` and uses a staged atomic replacement.
 

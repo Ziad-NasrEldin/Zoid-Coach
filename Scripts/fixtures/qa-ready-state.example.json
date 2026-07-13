@@ -50,7 +50,7 @@
           "category": "ZCQA_PLAN_READY",
           "title": "Fixture prompt",
           "body": "A deterministic fixture prompt is ready.",
-          "promptID": "qa-ready-prompt"
+          "promptID": "qa-ready-notification"
         },
         "status": "scheduled"
       }

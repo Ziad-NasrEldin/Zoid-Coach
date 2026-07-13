@@ -211,6 +211,8 @@ def validate_manifest(raw: Any) -> dict[str, Any]:
         exact_keys(desired, {"category", "title", "body", "promptID"}, {"deliveryDate"}, "notification desired")
         for key in ("category", "title", "body", "promptID"):
             require_string(desired[key], f"notification {item['id']} desired.{key}")
+        if desired["promptID"] != item["id"]:
+            fail(f"notification {item['id']} desired.promptID must match its id")
         if desired.get("deliveryDate") is not None:
             require_number(desired["deliveryDate"], f"notification {item['id']} deliveryDate")
         if item["status"] not in {"scheduled", "delivered", "responded"}:

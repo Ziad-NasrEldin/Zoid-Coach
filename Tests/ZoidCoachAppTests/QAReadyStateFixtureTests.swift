@@ -55,6 +55,61 @@ func qaReadyStateFixtureProducesFinishedOnboardingAndProcessableState() async th
 }
 
 @Test
+func qaReadyStateProcessingArtifactIsConsumedAcrossHelperStartup() throws {
+    let paths = try QAReadyStateTestPaths(label: "processing-artifact")
+    defer { paths.remove() }
+
+    let result = try runReadyStateScript(
+        manifest: paths.exampleManifest,
+        root: paths.runRoot
+    )
+    #expect(result.status == 0)
+
+    let request = paths.runRoot.appendingPathComponent(
+        QAFixtureOSComposition.controlRelativePath
+    )
+    let processing = request.deletingLastPathComponent()
+        .appendingPathComponent("os-fixture-request.processing.json")
+    try FileManager.default.moveItem(at: request, to: processing)
+
+    let child = try launchReadyStateConsumerChild(root: paths.runRoot)
+    let exited = waitForReadyStateChild(child, timeout: 5)
+    if !exited { child.terminate() }
+    try #require(exited, "The helper control consumer did not finish within five seconds")
+    #expect(child.terminationStatus == 0)
+
+    let runtime = try packagedQARuntime(root: paths.runRoot)
+    let progress = try OnboardingProgressStore(runtimeEnvironment: runtime).load()
+    #expect(progress.isFinished)
+    let snapshot = try DeterministicOSFixtureAdapters(
+        workspace: QAFixtureWorkspace(runtimeEnvironment: runtime),
+        clock: .fixed(Date(timeIntervalSince1970: 1_783_944_020)),
+        stableID: { kind, index in "qa-\(kind.rawValue)-\(index)" }
+    ).snapshot()
+    #expect(snapshot.permissions[.reminders] == .granted)
+    #expect(snapshot.permissions[.calendar] == .granted)
+    #expect(snapshot.permissions[.notifications] == .granted)
+    #expect(snapshot.reminders.map(\.id) == ["qa-ready-task"])
+    #expect(snapshot.calendarCommitments.map(\.id) == ["qa-ready-calendar"])
+    #expect(snapshot.notifications.map(\.id) == ["qa-ready-notification"])
+    #expect(!FileManager.default.fileExists(atPath: processing.path))
+    #expect(FileManager.default.fileExists(
+        atPath: paths.runRoot
+            .appendingPathComponent(QAFixtureOSComposition.snapshotRelativePath)
+            .path
+    ))
+}
+
+@Test
+func qaReadyStateConsumerChild() throws {
+    let environment = ProcessInfo.processInfo.environment
+    guard let rootPath = environment["ZOID_READY_STATE_CHILD_ROOT"] else { return }
+    let root = URL(fileURLWithPath: rootPath, isDirectory: true)
+    let runtime = try packagedQARuntime(root: root)
+    _ = try QAFixtureOSComposition.makeAuthorizedAdapter(runtimeEnvironment: runtime)
+}
+
+@Test
 func qaReadyStateFixtureSupportsExplicitDeferredSources() throws {
     let paths = try QAReadyStateTestPaths(label: "deferred")
     defer { paths.remove() }
@@ -120,6 +175,40 @@ func qaReadyStateFixtureFailsClosedWithoutReplacingExistingRoot() throws {
     #expect(try String(contentsOf: sentinel, encoding: .utf8) == "preserve-me")
     let remainingFiles = try FileManager.default.contentsOfDirectory(atPath: paths.runRoot.path)
     #expect(remainingFiles == ["sentinel.txt"])
+}
+
+@Test
+func qaReadyStateFixtureRejectsMismatchedNotificationIdentityBeforeReplacement() throws {
+    let paths = try QAReadyStateTestPaths(label: "notification-identity")
+    defer { paths.remove() }
+    try FileManager.default.createDirectory(at: paths.runRoot, withIntermediateDirectories: true)
+    let sentinel = paths.runRoot.appendingPathComponent("sentinel.txt")
+    try Data("preserve-me".utf8).write(to: sentinel)
+
+    var manifest = try #require(
+        JSONSerialization.jsonObject(with: Data(contentsOf: paths.exampleManifest)) as? [String: Any]
+    )
+    var fixture = try #require(manifest["osFixture"] as? [String: Any])
+    var notifications = try #require(fixture["notifications"] as? [[String: Any]])
+    var notification = try #require(notifications.first)
+    var desired = try #require(notification["desired"] as? [String: Any])
+    desired["promptID"] = "mismatched-prompt"
+    notification["desired"] = desired
+    notifications[0] = notification
+    fixture["notifications"] = notifications
+    manifest["osFixture"] = fixture
+    try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys])
+        .write(to: paths.customManifest, options: .atomic)
+
+    let result = try runReadyStateScript(
+        manifest: paths.customManifest,
+        root: paths.runRoot,
+        replace: true
+    )
+    #expect(result.status == 2)
+    #expect(result.stderr.contains("desired.promptID must match its id"))
+    #expect(try String(contentsOf: sentinel, encoding: .utf8) == "preserve-me")
+    #expect(try FileManager.default.contentsOfDirectory(atPath: paths.runRoot.path) == ["sentinel.txt"])
 }
 
 private struct QAReadyStateTestPaths {
@@ -190,4 +279,64 @@ private func packagedQARuntime(root: URL) throws -> RuntimeEnvironment {
         ),
         executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
     ).environment
+}
+
+private func launchReadyStateConsumerChild(root: URL) throws -> Process {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let process = Process()
+    process.executableURL = try activeReadyStateSwiftPMTestingHelper()
+    guard let bundleExecutable = Bundle(for: ReadyStateTestBundleMarker.self).executableURL?.path else {
+        throw CocoaError(.fileNoSuchFile)
+    }
+    process.arguments = [
+        "--test-bundle-path", bundleExecutable,
+        "--filter", "qaReadyStateConsumerChild",
+        bundleExecutable,
+        "--testing-library", "swift-testing",
+    ]
+    var environment = ProcessInfo.processInfo.environment
+    environment["ZOID_READY_STATE_CHILD_ROOT"] = root.path
+    process.environment = environment
+    process.currentDirectoryURL = repositoryRoot
+    try process.run()
+    return process
+}
+
+private final class ReadyStateTestBundleMarker {}
+
+private func waitForReadyStateChild(_ process: Process, timeout: TimeInterval) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while process.isRunning, Date() < deadline {
+        Thread.sleep(forTimeInterval: 0.01)
+    }
+    return !process.isRunning
+}
+
+private func activeReadyStateSwiftPMTestingHelper() throws -> URL {
+    let lookup = Process()
+    let output = Pipe()
+    lookup.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+    lookup.arguments = ["--find", "swiftc"]
+    lookup.standardOutput = output
+    lookup.standardError = Pipe()
+    try lookup.run()
+    lookup.waitUntilExit()
+    guard lookup.terminationStatus == 0 else { throw CocoaError(.executableNotLoadable) }
+    let swiftCompilerPath = String(
+        decoding: output.fileHandleForReading.readDataToEndOfFile(),
+        as: UTF8.self
+    ).trimmingCharacters(in: .whitespacesAndNewlines)
+    let toolchainUSR = URL(fileURLWithPath: swiftCompilerPath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let helper = toolchainUSR.appendingPathComponent(
+        "libexec/swift/pm/swiftpm-testing-helper"
+    )
+    guard FileManager.default.isExecutableFile(atPath: helper.path) else {
+        throw CocoaError(.executableNotLoadable)
+    }
+    return helper
 }
