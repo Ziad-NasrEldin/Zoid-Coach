@@ -557,7 +557,18 @@ public final class ScreenwatchArchive: @unchecked Sendable {
         ) {
             return (correctedClassification, versionedPolicy?.version ?? 0)
         }
-        let classifier = BehaviorClassifier(policy: versionedPolicy?.policy.behavior ?? BehaviorPolicy())
+        let behaviorPolicy = versionedPolicy?.policy.behavior ?? BehaviorPolicy()
+        if let policyClassification = behaviorPolicy.classificationOverride(for: observation.appName) {
+            return (policyClassification, versionedPolicy?.version ?? 0)
+        }
+        if let contextualClassification = ContextualAppClassification().classify(
+            application: observation.appName,
+            windowTitle: observation.windowTitle,
+            url: observation.url
+        ) {
+            return (contextualClassification, versionedPolicy?.version ?? 0)
+        }
+        let classifier = BehaviorClassifier(policy: behaviorPolicy)
         return (classifier.classify(application: observation.appName), versionedPolicy?.version ?? 0)
     }
 
