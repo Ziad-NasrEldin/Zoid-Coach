@@ -204,6 +204,61 @@ public final class AutonomousPlanStore: @unchecked Sendable {
     }
 
     @discardableResult
+    public func promoteReplacementMainObjective(
+        afterBlocking blockedTaskID: String,
+        eligibleTaskIDs: [String],
+        for day: Date
+    ) throws -> StoredAutonomousPlanEntry? {
+        lock.lock()
+        defer { lock.unlock() }
+        let dayKey = dayKey(for: day)
+        let entries = try loadDailyPlan(for: day)
+        guard entries.first(where: { $0.reminderID == blockedTaskID })?.isMainObjective == true else {
+            return nil
+        }
+        let eligible = Set(eligibleTaskIDs)
+        guard let replacement = entries.first(where: {
+            $0.reminderID != blockedTaskID
+                && eligible.contains($0.reminderID)
+                && $0.blockedReason == nil
+                && ($0.deferredUntil.map { $0 <= day } ?? true)
+        }) else {
+            return nil
+        }
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
+            throw AutonomousPlanStoreError.transaction
+        }
+        var committed = false
+        defer { if !committed { sqlite3_exec(database, "ROLLBACK;", nil, nil, nil) } }
+        try saveRevision(entries, dayKey: dayKey)
+        var statement: OpaquePointer?
+        let sql = "UPDATE daily_plan_entries SET is_main_objective = CASE WHEN reminder_id = ? THEN 1 ELSE 0 END, updated_at = ? WHERE day_key = ?;"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw AutonomousPlanStoreError.prepare
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(replacement.reminderID, to: statement, at: 1)
+        bind(dateFormatter.string(from: Date()), to: statement, at: 2)
+        bind(dayKey, to: statement, at: 3)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw AutonomousPlanStoreError.write }
+        guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+            throw AutonomousPlanStoreError.transaction
+        }
+        committed = true
+        return StoredAutonomousPlanEntry(
+            reminderID: replacement.reminderID,
+            rank: replacement.rank,
+            isMainObjective: true,
+            estimateMinutes: replacement.estimateMinutes,
+            selectionReason: replacement.selectionReason,
+            selectionScore: replacement.selectionScore,
+            isOptional: replacement.isOptional ?? false,
+            blockedReason: replacement.blockedReason,
+            deferredUntil: replacement.deferredUntil
+        )
+    }
+
+    @discardableResult
     public func restoreLatestRevision(for day: Date) throws -> Bool {
         lock.lock()
         defer { lock.unlock() }

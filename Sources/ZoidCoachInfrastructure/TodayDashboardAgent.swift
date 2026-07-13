@@ -202,6 +202,28 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         let reminderBefore = try reminders.loadIncomplete().first(where: { $0.id == taskID })
         let sourceKind = try reminders.sourceKind(forID: taskID)
         try execution.apply(command, taskID: taskID, blockedReason: blockedReason, at: now)
+        if command == .block {
+            let plan = try plans.loadDailyPlan(for: now)
+            let executionByID = try execution.snapshot(for: plan.map(\.reminderID), now: now)
+            let availableReminderIDs = Set(try reminders.loadIncomplete().map(\.id))
+            let eligibleTaskIDs = plan.compactMap { entry -> String? in
+                guard availableReminderIDs.contains(entry.reminderID),
+                      entry.blockedReason == nil,
+                      entry.deferredUntil == nil || entry.deferredUntil! <= now
+                else { return nil }
+                switch executionByID[entry.reminderID]?.state ?? .ready {
+                case .ready, .paused:
+                    return entry.reminderID
+                case .active, .blocked, .completed, .rescheduled:
+                    return nil
+                }
+            }
+            try plans.promoteReplacementMainObjective(
+                afterBlocking: taskID,
+                eligibleTaskIDs: eligibleTaskIDs,
+                for: now
+            )
+        }
         switch command {
         case .complete:
             if sourceKind == .local {
