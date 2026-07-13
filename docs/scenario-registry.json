@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "53addff08e7bc5254e51a418114bc812dbfcdfb3c4857b0ceea6e26f9233f9a2",
+  "tracker_sha256": "a4c188fc3f037404d43e88bd01ff77ad475319b5a9c01743627f005285a15b8d",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -6215,9 +6215,9 @@
       "section_title": "Gaming policy setup",
       "item_index": 1,
       "wording": "Observe gaming without applying a budget.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6225,10 +6225,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Gaming is always evaluated against a `GamingPolicy` with a default 60-minute budget; there is no disabled-budget mode.",
+      "evidence_paths": [
+        ".audit/runs/gaming-observation-mode/fd24a048eaec782532a2401f6fd422a3861307fc/evidence.json"
+      ],
+      "last_verified_commit": "fd24a048eaec782532a2401f6fd422a3861307fc",
+      "last_verified_build": "zoid-coach-fd24a048eaec782532a2401f6fd422a3861307fc-clean",
+      "audit_note": "In the installed signed app, the user disabled the gaming budget and prompts, saved through the agent, relaunched with all configured values retained in disabled controls, seeded exactly 42 gaming minutes, and saw `GAMING OBSERVED 42m` with no allowance, unlock, debt, waiting decision, or durable prompt before and after a helper restart (`GamingPolicy`; `SettingsView.swift`; `GamingDriftPromptService.swift`; `.audit/runs/gaming-observation-mode/fd24a048eaec782532a2401f6fd422a3861307fc/evidence.json`).",
       "tracker_line": 416
     },
     {

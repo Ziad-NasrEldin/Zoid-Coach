@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "run_id": "gaming-observation-mode/fd24a048eaec782532a2401f6fd422a3861307fc",
+  "verified_commit": "fd24a048eaec782532a2401f6fd422a3861307fc",
+  "build_identity": "zoid-coach-fd24a048eaec782532a2401f6fd422a3861307fc-clean",
+  "fixture": "gaming-observation-mode",
+  "qa_root": "/private/tmp/zoid-666-gaming-observation-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "28fff58a07e3fe9d9b1419f6b638b41319ffa4ec8c81ff3dfb7d09cb78cd9dfa",
+  "scenario_ids": [
+    "ZC-029-001"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T03:51:13.227980+00:00",
+  "completed_at": "2026-07-13T03:51:16Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "08aa96ecbf41d03b8177475201c0a50e4d0759dc3caed9fdab2a005aba89c173"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "Signed Settings disabled and persisted gaming budgets without discarding configured values",
+      "result": "passed"
+    },
+    {
+      "name": "Signed Today showed exactly 42 factual gaming minutes with no budget, debt, unlock, or prompt",
+      "result": "passed"
+    },
+    {
+      "name": "Observation mode and zero prompt episodes survived app and helper restart",
+      "result": "passed"
+    },
+    {
+      "name": "Focused policy, dashboard, and prompt-suppression rules passed",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "swift test --filter SettingsPolicyDraftTests",
+    "swift test --filter TodayDashboardTests",
+    "swift test --filter gamingObservationModeNeverProducesABehaviorPrompt",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-gaming-observation-qa Scripts/install-signed-qa-runtime.sh"
+  ]
+}
