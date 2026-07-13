@@ -57,7 +57,14 @@ enum ScreenwatchSetupServiceError: LocalizedError, Equatable, Sendable {
     }
 }
 
-actor ScreenwatchSetupService {
+protocol ScreenwatchSetupServicing: Sendable {
+    func inspect(now: Date) async -> ScreenwatchSetupStatus
+    func recheck(now: Date) async -> ScreenwatchSetupStatus
+    func selectAlternateDaysDirectory(_ url: URL, now: Date) async throws -> ScreenwatchSetupStatus
+    func useDefaultLocation(now: Date) async -> ScreenwatchSetupStatus
+}
+
+actor ScreenwatchSetupService: ScreenwatchSetupServicing {
     static let bookmarkDefaultsKey = ScreenwatchSourceRepository.legacyBookmarkDefaultsKey
 
     private let repository: ScreenwatchSourceRepository
