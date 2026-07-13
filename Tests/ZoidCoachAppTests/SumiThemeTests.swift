@@ -1,3 +1,5 @@
+import AppKit
+import SwiftUI
 import Testing
 @testable import ZoidCoachApp
 
@@ -44,4 +46,219 @@ func sumiMotionPolicyKeepsRestrainedMotionInStandardMode() {
     #expect(SumiMotion.animation(reduceMotion: false, duration: 0.2) != nil)
     #expect(SumiMotion.scale(reduceMotion: false, isActive: true, activeScale: 0.8) == 0.8)
     #expect(SumiMotion.scale(reduceMotion: false, isActive: false, activeScale: 0.8) == 1)
+}
+
+@Test @MainActor
+func reducedMotionViewHostKeepsFiveInteractionOutcomesWithoutSpatialMotion() async throws {
+    let model = MotionInteractionFixtureModel()
+    let host = NSHostingView(
+        rootView: MotionInteractionFixture(model: model)
+            .environment(\.sumiReduceMotionOverride, true)
+    )
+    host.frame = NSRect(x: 0, y: 0, width: 640, height: 480)
+    await settle(host)
+
+    model.pressAction()
+    let pressed = try await snapshot(afterSettling: host, model: model)
+    assertReducedPolicy(pressed)
+    #expect(pressed.pressedScale == 1)
+    #expect(pressed.pressedOpacity == 0.82)
+    #expect(pressed.actionLabel == "ACTION PRESSED")
+
+    model.insertPlanRow()
+    let planned = try await snapshot(afterSettling: host, model: model)
+    assertReducedPolicy(planned)
+    #expect(planned.planRows == ["Write verifier evidence"])
+
+    model.switchUsageCategory()
+    let usage = try await snapshot(afterSettling: host, model: model)
+    assertReducedPolicy(usage)
+    #expect(usage.usageLabel == "WORK USAGE SELECTED")
+
+    model.confirmEstimate()
+    let estimate = try await snapshot(afterSettling: host, model: model)
+    assertReducedPolicy(estimate)
+    #expect(estimate.estimateLabel == "TIME ESTIMATE CONFIRMED: 45 MINUTES")
+
+    model.reorderReminders()
+    let reordered = try await snapshot(afterSettling: host, model: model)
+    assertReducedPolicy(reordered)
+    #expect(reordered.reminderOrder == ["Second reminder", "First reminder"])
+
+    withExtendedLifetime(host) {}
+}
+
+@Test @MainActor
+func standardMotionViewHostRetainsRepresentativePressedFeedbackAndMotion() async throws {
+    let model = MotionInteractionFixtureModel()
+    let host = NSHostingView(
+        rootView: MotionInteractionFixture(model: model)
+            .environment(\.sumiReduceMotionOverride, false)
+    )
+    host.frame = NSRect(x: 0, y: 0, width: 640, height: 480)
+    await settle(host)
+
+    model.pressAction()
+    let pressed = try await snapshot(afterSettling: host, model: model)
+
+    #expect(pressed.policy.animatesStateChanges)
+    #expect(pressed.policy.allowsSpatialMotion)
+    #expect(pressed.policy.preservesImmediateFeedback)
+    #expect(pressed.pressedScale == 0.98)
+    #expect(pressed.pressedOpacity == 0.82)
+    #expect(pressed.actionLabel == "ACTION PRESSED")
+
+    withExtendedLifetime(host) {}
+}
+
+private func assertReducedPolicy(_ snapshot: MotionInteractionSnapshot) {
+    #expect(!snapshot.policy.animatesStateChanges)
+    #expect(!snapshot.policy.allowsSpatialMotion)
+    #expect(snapshot.policy.preservesImmediateFeedback)
+}
+
+@MainActor
+private func settle<Content: View>(_ host: NSHostingView<Content>) async {
+    host.layoutSubtreeIfNeeded()
+    await Task.yield()
+    host.layoutSubtreeIfNeeded()
+}
+
+@MainActor
+private func snapshot<Content: View>(
+    afterSettling host: NSHostingView<Content>,
+    model: MotionInteractionFixtureModel
+) async throws -> MotionInteractionSnapshot {
+    await settle(host)
+    let snapshot = try #require(model.latestSnapshot)
+    #expect(snapshot.revision == model.revision)
+    return snapshot
+}
+
+private struct MotionInteractionSnapshot: Equatable {
+    let revision: Int
+    let policy: SumiMotionPolicy
+    let pressedScale: CGFloat
+    let pressedOpacity: Double
+    let actionLabel: String
+    let planRows: [String]
+    let usageLabel: String
+    let estimateLabel: String
+    let reminderOrder: [String]
+}
+
+@MainActor
+private final class MotionInteractionFixtureModel: ObservableObject {
+    @Published private(set) var revision = 0
+    @Published private(set) var isPressed = false
+    @Published private(set) var planRows: [String] = []
+    @Published private(set) var showsWorkUsage = false
+    @Published private(set) var confirmedEstimateMinutes: Int?
+    @Published private(set) var reminderOrder = ["First reminder", "Second reminder"]
+    var latestSnapshot: MotionInteractionSnapshot?
+
+    func pressAction() {
+        isPressed = true
+        revision += 1
+    }
+
+    func insertPlanRow() {
+        planRows.append("Write verifier evidence")
+        revision += 1
+    }
+
+    func switchUsageCategory() {
+        showsWorkUsage = true
+        revision += 1
+    }
+
+    func confirmEstimate() {
+        confirmedEstimateMinutes = 45
+        revision += 1
+    }
+
+    func reorderReminders() {
+        reminderOrder.swapAt(0, 1)
+        revision += 1
+    }
+}
+
+private struct MotionInteractionFixture: View {
+    @SumiReduceMotion private var reduceMotion
+    @ObservedObject var model: MotionInteractionFixtureModel
+
+    var body: some View {
+        let policy = SumiMotionPolicy.resolve(reduceMotion: reduceMotion)
+        let pressedScale = SumiMotion.scale(
+            reduceMotion: reduceMotion,
+            isActive: model.isPressed,
+            activeScale: 0.98
+        )
+        let pressedOpacity = model.isPressed ? 0.82 : 1
+        let actionLabel = model.isPressed ? "ACTION PRESSED" : "ACTION READY"
+        let usageLabel = model.showsWorkUsage ? "WORK USAGE SELECTED" : "ALL USAGE SELECTED"
+        let estimateLabel = model.confirmedEstimateMinutes.map {
+            "TIME ESTIMATE CONFIRMED: \($0) MINUTES"
+        } ?? "TIME ESTIMATE NOT CONFIRMED"
+        let snapshot = MotionInteractionSnapshot(
+            revision: model.revision,
+            policy: policy,
+            pressedScale: pressedScale,
+            pressedOpacity: pressedOpacity,
+            actionLabel: actionLabel,
+            planRows: model.planRows,
+            usageLabel: usageLabel,
+            estimateLabel: estimateLabel,
+            reminderOrder: model.reminderOrder
+        )
+
+        VStack(alignment: .leading, spacing: 8) {
+            Text(actionLabel)
+                .opacity(pressedOpacity)
+                .scaleEffect(pressedScale)
+                .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.15), value: model.isPressed)
+
+            ForEach(model.planRows, id: \.self) { row in
+                Text(row)
+                    .transition(SumiMotion.transition(
+                        reduceMotion: reduceMotion,
+                        normal: .opacity.combined(with: .scale(scale: 0.98, anchor: .top))
+                    ))
+            }
+            .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.22), value: model.planRows)
+
+            Text(usageLabel)
+                .transition(SumiMotion.transition(
+                    reduceMotion: reduceMotion,
+                    normal: .opacity.combined(with: .offset(x: 7))
+                ))
+                .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: model.showsWorkUsage)
+
+            Text(estimateLabel)
+                .transition(SumiMotion.transition(
+                    reduceMotion: reduceMotion,
+                    normal: .scale(scale: 0.9).combined(with: .opacity)
+                ))
+                .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: model.confirmedEstimateMinutes)
+
+            ForEach(model.reminderOrder, id: \.self) { reminder in
+                Text(reminder)
+            }
+            .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: model.reminderOrder)
+        }
+        .background(MotionSnapshotProbe(snapshot: snapshot, model: model))
+    }
+}
+
+private struct MotionSnapshotProbe: NSViewRepresentable {
+    let snapshot: MotionInteractionSnapshot
+    let model: MotionInteractionFixtureModel
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        model.latestSnapshot = snapshot
+    }
 }

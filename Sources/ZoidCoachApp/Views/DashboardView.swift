@@ -113,7 +113,7 @@ struct DashboardView: View {
 private struct TodayCommandView: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var modalCoordinator: SumiModalCoordinator
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     @Binding var editingCandidate: StoredMeetingCandidate?
     let createLocalTask: () -> Void
     @StateObject private var endWorkdayFlow = DashboardEndWorkdayFlow()
@@ -1269,7 +1269,7 @@ private struct ReminderTaskGroup: Identifiable {
 
 private struct ReminderListGroup: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     let group: ReminderTaskGroup
     @Binding var draggedListID: String?
     let moveUp: (() -> Void)?
@@ -1338,7 +1338,7 @@ private struct ReminderListGroup: View {
 
 private struct ReminderListEndDropTarget: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     @Binding var draggedListID: String?
     @State private var isDropTarget = false
 
@@ -1422,7 +1422,7 @@ private extension View {
 
 private struct DailyPlanLedger: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
 
     var body: some View {
         let entries = model.dailyPlan.sorted { $0.rank < $1.rank }
@@ -1721,7 +1721,7 @@ struct TaskBlockReasonSheet: View {
 
 private struct PlannedReminderRow: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     let entry: DailyPlanEntry
     let task: ReminderTask
     @State private var isBlockReasonPresented = false
@@ -2028,7 +2028,7 @@ private struct MeetingCandidateEditor: View {
 }
 
 private struct TimeBlockSelector: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     let selectedMinutes: Int?
     let isUnknown: Bool
     let taskTitle: String
@@ -2189,7 +2189,7 @@ private struct TimeBlockSelector: View {
 }
 
 private struct TimeSlotButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
