@@ -223,6 +223,12 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             role: .destructive,
             requiresConfirmation: true
         ))
+        actions.append(PromptAction(
+            kind: .markBlocked,
+            title: "Mark \(task.title) blocked",
+            role: .destructive,
+            requiresConfirmation: true
+        ))
         actions.append(PromptAction(kind: .continueIntentionally, title: "Continue intentionally"))
         if isFiveMinuteFollowUp {
             actions.append(PromptAction(kind: .endWorkday, title: "I am done today"))

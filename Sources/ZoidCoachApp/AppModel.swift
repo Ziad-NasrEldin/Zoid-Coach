@@ -917,37 +917,74 @@ final class AppModel: ObservableObject {
     }
 
     func markTaskBlocked(taskID: String, reason: String) {
+        Task { _ = await performTaskBlock(taskID: taskID, reason: reason) }
+    }
+
+    @MainActor
+    func blockTaskFromPrompt(_ episode: PromptEpisode, reason: String) async -> Bool {
+        guard pendingPromptID == nil,
+              let request = PromptTaskBlockRequest(episode: episode)
+        else { return false }
+        pendingPromptID = episode.id
+        promptInboxError = nil
+        defer { pendingPromptID = nil }
+
+        guard await performTaskBlock(taskID: request.taskID, reason: reason) else {
+            promptInboxError = taskCommandError ?? "The blocker was not saved, so this decision is still waiting."
+            await refreshPromptInbox()
+            return false
+        }
+        let command = PromptResponseCommand(
+            promptID: episode.id,
+            action: .markBlocked,
+            actionToken: PromptResponseToken.make(promptID: episode.id, action: .markBlocked),
+            surface: .dashboard
+        )
+        do {
+            _ = try await todayDashboardXPCClient.respondToPrompt(command)
+            await refreshPromptInbox()
+            await refreshTodaySnapshot()
+            return true
+        } catch {
+            await refreshPromptInbox()
+            promptInboxError = "The blocker is saved, but the decision could not be closed. Retry Mark blocked to reconcile it safely."
+            return false
+        }
+    }
+
+    @MainActor
+    private func performTaskBlock(taskID: String, reason: String) async -> Bool {
         let normalizedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (3...240).contains(normalizedReason.count) else {
             taskCommandError = "Explain the blocker in 3 to 240 characters."
-            return
+            return false
         }
-        guard pendingTaskCommandIDs.isEmpty else { return }
+        guard pendingTaskCommandIDs.isEmpty else { return false }
         pendingTaskCommandIDs.insert(taskID)
         taskCommandError = nil
         let blockedWasMainObjective = dailyPlan.first(where: { $0.reminderID == taskID })?.isMainObjective == true
         let blockedTitle = todaySnapshot?.taskRows.first(where: { $0.taskID == taskID })?.title
-        Task {
-            defer { pendingTaskCommandIDs.remove(taskID) }
-            do {
-                let refreshedSnapshot = try await todayDashboardXPCClient.blockTask(
-                    taskID: taskID,
-                    reason: normalizedReason
-                )
-                todaySnapshot = refreshedSnapshot
-                await reloadDailyPlan()
-                if blockedWasMainObjective,
-                   let replacement = refreshedSnapshot.mainObjective,
-                   replacement != blockedTitle {
-                    lastActionMessage = "Task marked blocked. The reason is saved, and \(replacement) is now the main objective."
-                } else {
-                    lastActionMessage = "Task marked blocked with its reason saved locally."
-                }
-            } catch {
-                taskCommandError = "The blocker was not saved. The last confirmed task and plan state are still shown."
-                await reloadDailyPlan()
-                todaySnapshot = try? todaySnapshotStore?.load()
+        defer { pendingTaskCommandIDs.remove(taskID) }
+        do {
+            let refreshedSnapshot = try await todayDashboardXPCClient.blockTask(
+                taskID: taskID,
+                reason: normalizedReason
+            )
+            todaySnapshot = refreshedSnapshot
+            await reloadDailyPlan()
+            if blockedWasMainObjective,
+               let replacement = refreshedSnapshot.mainObjective,
+               replacement != blockedTitle {
+                lastActionMessage = "Task marked blocked. The reason is saved, and \(replacement) is now the main objective."
+            } else {
+                lastActionMessage = "Task marked blocked with its reason saved locally."
             }
+            return true
+        } catch {
+            taskCommandError = "The blocker was not saved. The last confirmed task and plan state are still shown."
+            await reloadDailyPlan()
+            todaySnapshot = try? todaySnapshotStore?.load()
+            return false
         }
     }
 
