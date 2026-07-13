@@ -474,6 +474,34 @@ func neutralSupportingActivitySuppressesCoachingWithoutMutatingTheActiveTask() t
         #expect(try fixture.activeTaskCount() == 1)
         #expect(try fixture.promptStore.unresolved().isEmpty)
     }
+
+    for nonNeutral in [
+        (app: "OpenTTD", title: "", url: ""),
+        (app: "Steam", title: "Open World", url: ""),
+        (app: "Gmail Notifier", title: "Inbox", url: "")
+    ] {
+        let fixture = try GamingPromptFixture()
+        defer { fixture.remove() }
+        try fixture.insertPriorityTask()
+        try fixture.startTask(secondsAgo: 900)
+        try fixture.insertGaming(minutes: 10)
+        try fixture.insertLatestObservation(
+            app: nonNeutral.app,
+            classification: .gaming,
+            windowTitle: nonNeutral.title,
+            url: nonNeutral.url
+        )
+
+        guard case .queued = try fixture.service.produce(
+            policy: fixture.policy(level: .accountability),
+            gamingStatus: fixture.gamingStatus,
+            baselineStatus: fixture.baseline()
+        ) else {
+            Issue.record("Expected \(nonNeutral.app) / \(nonNeutral.title) to remain non-neutral")
+            continue
+        }
+        #expect(try fixture.activeTaskCount() == 1)
+    }
 }
 
 private final class GamingPromptFixture: @unchecked Sendable {
@@ -604,10 +632,17 @@ private final class GamingPromptFixture: @unchecked Sendable {
         try execute("INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES ('2026-07-13', \(now - 30), '09-59-30', 'Steam', '', '', 0, NULL, '2026-07-13T10:00:00Z', 'gaming', 1);")
     }
 
-    func insertLatestObservation(app: String, classification: BehaviorClassification) throws {
+    func insertLatestObservation(
+        app: String,
+        classification: BehaviorClassification,
+        windowTitle: String = "",
+        url: String = ""
+    ) throws {
         let epoch = Int64(clock.now.timeIntervalSince1970) - 30
         let safeApp = app.replacingOccurrences(of: "'", with: "''")
-        try execute("INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES ('2026-07-13', \(epoch), '09-59-30', '\(safeApp)', '', '', 0, NULL, '2026-07-13T10:00:00Z', '\(classification.rawValue)', 1);")
+        let safeTitle = windowTitle.replacingOccurrences(of: "'", with: "''")
+        let safeURL = url.replacingOccurrences(of: "'", with: "''")
+        try execute("INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES ('2026-07-13', \(epoch), '09-59-30', '\(safeApp)', '\(safeTitle)', '\(safeURL)', 0, NULL, '2026-07-13T10:00:00Z', '\(classification.rawValue)', 1);")
     }
 
     func activeTaskCount() throws -> Int {
