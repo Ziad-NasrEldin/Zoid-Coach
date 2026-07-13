@@ -65,7 +65,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 deferredUntil: entry.deferredUntil
             )
         }
-        let behavior = BehaviorSessionizer().summarize(observations: try archive.behaviorObservations(for: now), now: now)
+        let behaviorObservations = try archive.behaviorObservations(for: now)
+        let behavior = BehaviorSessionizer().summarize(observations: behaviorObservations, now: now)
         let gamingPolicy = try userPolicyStore.currentGamingPolicy()
         let rewardMinutes = try snapshots.priorityRewardMinutes(policy: gamingPolicy, day: now)
         let gaming = GamingStatusCalculator().status(
@@ -172,6 +173,9 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             mainObjective: rows.first(where: \.isMainObjective)?.title,
             taskRows: rows,
             activeTask: active,
+            activeTaskContext: active.map { _ in
+                ActiveTaskContextAssessor().assess(observations: behaviorObservations, now: now)
+            },
             recommendation: recommendation,
             behavior: behavior.summary,
             coverage: behavior.coverage,

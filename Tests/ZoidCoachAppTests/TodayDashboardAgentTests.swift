@@ -23,7 +23,10 @@ func agentSnapshotCarriesRequiredDashboardFieldsAndCommandsRefreshIt() throws {
     #expect(before.recommendation.taskID == "priority")
     #expect(before.sources?.contains(where: { $0.sourceID == "calendar" }) == true)
     #expect(before.sources?.contains(where: { $0.sourceID == "reminders" && $0.detail.contains("Apple Reminders") }) == true)
+    #expect(before.activeTaskContext == nil)
     #expect(after.activeTask?.taskID == "priority")
+    #expect(after.activeTaskContext?.state == .uncertain)
+    #expect(after.activeTaskContext?.explanation.contains("will not guess") == true)
     #expect(after.taskRows.first?.state == .active)
 }
 
