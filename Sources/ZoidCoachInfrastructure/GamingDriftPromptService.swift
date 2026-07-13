@@ -13,6 +13,9 @@ public enum GamingDriftSuppressionReason: String, Equatable, Sendable {
     case limitedCoverage
     case noGamingSession
     case belowThreshold
+    case taskStartGrace
+    case returnFromIdleGrace
+    case neutralSupportingActivity
     case gamingIsUnlocked
     case noIncompletePriorityWork
     case intentionalOverrideActive
@@ -98,8 +101,22 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         default: break
         }
         guard !gamingStatus.confidenceIsLimited else { return .suppressed(.limitedCoverage) }
+        if let observation = try latestObservation(localDay: localDay, now: date), observation.isNeutralSupporting {
+            return .suppressed(.neutralSupportingActivity)
+        }
         guard let session = try currentGamingSession(localDay: localDay, now: date) else {
             return .suppressed(.noGamingSession)
+        }
+        let sustainedBeforeTask = try activeTaskStartedAt().map {
+            session.minutes >= 10 && session.startedAtEpoch < Int64($0.timeIntervalSince1970)
+        } ?? false
+        if !sustainedBeforeTask,
+           let taskStartedAt = try activeTaskStartedAt(),
+           date.timeIntervalSince(taskStartedAt) < 180 {
+            return .suppressed(.taskStartGrace)
+        }
+        if !sustainedBeforeTask, try isWithinReturnFromIdleGrace(localDay: localDay, now: date) {
+            return .suppressed(.returnFromIdleGrace)
         }
         guard session.minutes >= 10 else { return .suppressed(.belowThreshold) }
         guard gamingStatus.unlockedRemainingMinutes == 0 else { return .suppressed(.gamingIsUnlocked) }
@@ -186,6 +203,95 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         ) == SQLITE_OK, let statement else { throw databaseError() }
         defer { sqlite3_finalize(statement) }
         return sqlite3_step(statement) == SQLITE_ROW
+    }
+
+    private func activeTaskStartedAt() throws -> Date? {
+        guard try tableExists("task_activity_intervals") else { return nil }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT started_at FROM task_activity_intervals WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let startedAt = text(statement, 0)
+        else { return nil }
+        return formatter.date(from: startedAt)
+    }
+
+    private struct ObservationContext {
+        let epoch: Int64
+        let app: String
+        let windowTitle: String
+        let url: String
+
+        var isNeutralSupporting: Bool {
+            let normalizedApp = app.lowercased()
+            let normalizedTitle = windowTitle.lowercased()
+            let normalizedURL = url.lowercased()
+            let neutralApps = [
+                "system settings", "system preferences", "1password", "bitwarden", "keychain access",
+                "finder", "slack", "messages", "mail", "microsoft teams", "zoom"
+            ]
+            if neutralApps.contains(where: { normalizedApp.contains($0) }) { return true }
+            let isFileDialog = normalizedTitle == "open"
+                || normalizedTitle.hasPrefix("open ")
+                || normalizedTitle == "save"
+                || normalizedTitle.hasPrefix("save ")
+                || normalizedTitle.contains("choose a file")
+            return isFileDialog || normalizedURL.hasPrefix("file://")
+        }
+    }
+
+    private func latestObservation(localDay: String, now: Date) throws -> ObservationContext? {
+        guard try tableExists("behavior_records") else { return nil }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT epoch, app_name, window_title, url FROM behavior_records WHERE source_day = ? ORDER BY epoch DESC LIMIT 1;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        bind(localDay, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+        let epoch = sqlite3_column_int64(statement, 0)
+        guard now.timeIntervalSince1970 - Double(epoch) <= 180 else { return nil }
+        return ObservationContext(
+            epoch: epoch,
+            app: text(statement, 1) ?? "",
+            windowTitle: text(statement, 2) ?? "",
+            url: text(statement, 3) ?? ""
+        )
+    }
+
+    private func isWithinReturnFromIdleGrace(localDay: String, now: Date) throws -> Bool {
+        guard try tableExists("behavior_records") else { return false }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT epoch, classification FROM behavior_records WHERE source_day = ? ORDER BY epoch DESC LIMIT 2;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        bind(localDay, statement, 1)
+        var rows: [(epoch: Int64, classification: String?)] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            rows.append((sqlite3_column_int64(statement, 0), text(statement, 1)))
+        }
+        guard let latest = rows.first,
+              now.timeIntervalSince1970 - Double(latest.epoch) <= 60,
+              rows.count > 1
+        else { return false }
+        let previous = rows[1]
+        return previous.classification == BehaviorClassification.idle.rawValue
+            || latest.epoch - previous.epoch > 300
     }
 
     private func intentionalOverrideState(
