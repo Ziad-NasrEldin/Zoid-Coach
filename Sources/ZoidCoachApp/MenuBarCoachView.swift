@@ -74,22 +74,29 @@ struct MenuBarCoachView: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var voiceModel: VoiceConversationModel
     @StateObject private var controller: MenuBarCoachController
+    @StateObject private var pauseController: MenuBarCoachingPauseController
     @State private var pendingEndWorkdayTask: TodayTaskRow?
 
     @MainActor
     init(
         appModel: AppModel,
         voiceModel: VoiceConversationModel,
-        controller: MenuBarCoachController = MenuBarCoachController()
+        controller: MenuBarCoachController = MenuBarCoachController(),
+        pauseController: MenuBarCoachingPauseController = MenuBarCoachingPauseController()
     ) {
         self.appModel = appModel
         self.voiceModel = voiceModel
         _controller = StateObject(wrappedValue: controller)
+        _pauseController = StateObject(wrappedValue: pauseController)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             coachHeader
+            coachingPauseSection
+
+            Divider().overlay(Sumi.rule)
+
             taskSection
 
             Divider().overlay(Sumi.rule)
@@ -109,7 +116,9 @@ struct MenuBarCoachView: View {
         .frame(width: 360)
         .background(Sumi.paper)
         .task {
-            await controller.refresh()
+            async let todayRefresh: Void = controller.refresh()
+            async let pauseRefresh: Void = pauseController.refresh()
+            _ = await (todayRefresh, pauseRefresh)
             await appModel.refreshTodaySnapshot()
         }
         .accessibilityElement(children: .contain)
@@ -135,11 +144,18 @@ struct MenuBarCoachView: View {
         }
     }
 
+    private var menuState: MenuBarCoachState {
+        MenuBarCoachState(
+            snapshot: controller.snapshot,
+            coachingIsPaused: pauseController.isPaused
+        )
+    }
+
     private var coachHeader: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: controller.state.tone.symbol)
+            Image(systemName: menuState.tone.symbol)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(controller.state.tone == .attention ? Sumi.seal : Sumi.ink)
+                .foregroundStyle(menuState.tone == .attention ? Sumi.seal : Sumi.ink)
                 .frame(width: 24, height: 24)
                 .accessibilityHidden(true)
 
@@ -148,7 +164,7 @@ struct MenuBarCoachView: View {
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.sealDeep)
-                Text(controller.state.tone.label)
+                Text(menuState.tone.label)
                     .font(Sumi.body(13))
                     .foregroundStyle(Sumi.ink)
             }
@@ -169,31 +185,87 @@ struct MenuBarCoachView: View {
         .accessibilityIdentifier("menu-bar.status")
     }
 
+    private var coachingPauseSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(pauseController.isPaused ? "COACHING PAUSED" : "COACHING RUNNING")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(pauseController.isPaused ? Sumi.seal : Sumi.ink)
+                    Text(pauseController.isPaused
+                         ? "Behavior prompts and automatic actions are paused. Task tracking and Today stay available."
+                         : "Zoid 666 may offer evidence-based coaching while your workday is active.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 10)
+                Button(pauseController.isPaused ? "RESUME" : "PAUSE") {
+                    Task {
+                        await pauseController.setPaused(!pauseController.isPaused)
+                        await controller.refresh()
+                        await appModel.refreshTodaySnapshot()
+                    }
+                }
+                .buttonStyle(SumiActionButtonStyle(
+                    role: pauseController.isPaused ? .primary : .quiet,
+                    size: .compact
+                ))
+                .disabled(pauseController.isLoading || pauseController.isSaving)
+                .accessibilityLabel(pauseController.isPaused ? "Resume coaching" : "Pause coaching indefinitely")
+                .accessibilityIdentifier(pauseController.isPaused ? "menu-bar.coaching.resume" : "menu-bar.coaching.pause")
+            }
+
+            if pauseController.isSaving {
+                ProgressView(pauseController.isPaused ? "Resuming coaching" : "Pausing coaching")
+                    .controlSize(.small)
+                    .accessibilityIdentifier("menu-bar.coaching.progress")
+            }
+            if let message = pauseController.statusMessage {
+                Text(message)
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.ink)
+                    .accessibilityIdentifier("menu-bar.coaching.status")
+            }
+            if let error = pauseController.errorMessage {
+                Text(error)
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .accessibilityIdentifier("menu-bar.coaching.error")
+            }
+        }
+        .padding(14)
+        .background(pauseController.isPaused ? Sumi.sealWash : Sumi.softPaper)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("menu-bar.coaching-control")
+    }
+
     @ViewBuilder
     private var taskSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            if let task = controller.state.primaryTask {
+            if let task = menuState.primaryTask {
                 Text(task.title)
                     .font(Sumi.body(15))
                     .foregroundStyle(Sumi.ink)
                     .lineLimit(2)
                     .accessibilityIdentifier("menu-bar.task.title")
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(controller.state.taskStatus(at: context.date))
+                    Text(menuState.taskStatus(at: context.date))
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.muted)
                         .accessibilityIdentifier("menu-bar.task.status")
                 }
 
                 HStack(spacing: 8) {
-                    if controller.state.activeTask != nil {
+                    if menuState.activeTask != nil {
                         taskButton("PAUSE", identifier: "menu-bar.task.pause") {
                             await apply(.pauseDoneForNow, taskID: task.taskID)
                         }
                         taskButton("BREAK 15", role: .quiet, identifier: "menu-bar.task.break") {
                             await apply(.pauseForBreak, taskID: task.taskID)
                         }
-                    } else if controller.state.pausedTask != nil {
+                    } else if menuState.pausedTask != nil {
                         taskButton(task.acceptedBreak == nil ? "RESUME" : "END BREAK", identifier: "menu-bar.task.resume") {
                             await apply(.resume, taskID: task.taskID)
                         }
@@ -206,7 +278,7 @@ struct MenuBarCoachView: View {
                         open(.today)
                     }
                 }
-                if controller.state.canEndWorkday {
+                if menuState.canEndWorkday {
                     Button("END WORKDAY") {
                         pendingEndWorkdayTask = task
                     }
@@ -226,7 +298,7 @@ struct MenuBarCoachView: View {
                 }
             }
 
-            if let attention = controller.state.attentionDetail {
+            if let attention = menuState.attentionDetail {
                 Text(attention)
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.sealDeep)
