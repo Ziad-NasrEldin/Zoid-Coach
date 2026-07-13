@@ -11,6 +11,38 @@ func externalReminderCompletionReasonIsExplicitForTheUser() {
 }
 
 @Test
+func externallyCompletedReminderRowUsesExplicitReasonInsteadOfGenericCompletedCopy() {
+    let row = TodayTaskRow(
+        taskID: "external-completion",
+        title: "Finish report",
+        estimateMinutes: 30,
+        dueDate: nil,
+        urgency: .medium,
+        state: .completed,
+        completionReason: .appleReminderCompleted
+    )
+
+    #expect(
+        row.userFacingStateLabel(defaultLabel: "Completed")
+            == "Ended because the Apple Reminder was completed"
+    )
+}
+
+@Test
+func ordinaryLocalCompletionKeepsGenericCompletedCopy() {
+    let row = TodayTaskRow(
+        taskID: "local-completion",
+        title: "Finish report",
+        estimateMinutes: 30,
+        dueDate: nil,
+        urgency: .medium,
+        state: .completed
+    )
+
+    #expect(row.userFacingStateLabel(defaultLabel: "Completed") == "Completed")
+}
+
+@Test
 func activeTaskTimeComparisonSeparatesElapsedTimeFromObservedAlignment() {
     let now = Date(timeIntervalSince1970: 1_750_000_000)
     let activeSince = now.addingTimeInterval(-180)

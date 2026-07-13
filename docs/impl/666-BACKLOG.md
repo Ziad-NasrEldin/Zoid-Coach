@@ -105,6 +105,9 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Database proof showed one ended interval with zero open intervals, exactly one Reminder completion history row, and zero redundant completion commands.
 - The signed row still says only `Completed`, and the signed journey created no sprint, so `ZC-021-002` remains Partially implemented with unchanged counts.
 - Follow-up evidence is recorded in `.audit/runs/external-reminder-completion/unplanned-verifier/REPORT.md`.
+- A narrow reason-UI candidate now makes externally completed rows prefer the persisted Apple Reminder completion reason over generic `Completed` copy while preserving ordinary local completion copy.
+- Five focused UI, domain, persistence, and deletion-ordering tests plus the release build pass.
+- Candidate evidence and the independent installed-app verification boundary are recorded in `.audit/runs/external-reminder-completion/reason-ui-candidate/REPORT.md`.
 
 ### Settings notification delivery test - candidate
 
