@@ -82,6 +82,33 @@ func outboxStopsRetryingWhenADatabaseLockPersists() throws {
 }
 
 @Test
+func outboxDoesNotRetryANonLockDatabaseFailure() throws {
+    let url = temporaryOutboxURL("non-lock-failure")
+    defer { removeOutboxDatabase(url) }
+    let store = try ActionOutboxStore(
+        databaseURL: url,
+        busyTimeoutMilliseconds: 5,
+        lockRetryDelays: [1, 1]
+    )
+    var rawSaboteur: OpaquePointer?
+    #expect(sqlite3_open_v2(url.path, &rawSaboteur, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK)
+    let saboteur = try #require(rawSaboteur)
+    defer { sqlite3_close(saboteur) }
+    #expect(sqlite3_exec(saboteur, "DROP TABLE action_commands;", nil, nil, nil) == SQLITE_OK)
+
+    let startedAt = Date()
+    #expect(throws: ActionOutboxStoreError.self) {
+        try store.enqueue(
+            type: .setReminderPriority,
+            entityID: "reminder-broken-schema",
+            desiredState: .reminder(ReminderDesiredState(priority: 5, metadataMarker: "zoid:v1")),
+            planVersion: 1
+        )
+    }
+    #expect(Date().timeIntervalSince(startedAt) < 0.5)
+}
+
+@Test
 func leavingAutomaticModeCancelsOnlyUnapprovedPlanWrites() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("outbox-origin-\(UUID().uuidString).sqlite")
     defer { for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) } }
