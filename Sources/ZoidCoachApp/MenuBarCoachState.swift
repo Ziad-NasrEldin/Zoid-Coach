@@ -63,6 +63,12 @@ struct MenuBarCoachState: Equatable {
 
     var primaryTask: TodayTaskRow? { activeTask ?? pausedTask ?? recommendedTask }
 
+    var canStartBreak: Bool { activeTask != nil }
+
+    var canEndWorkday: Bool { activeTask != nil }
+
+    var workdayHasEnded: Bool { pausedTask?.latestPauseReason == .endingWorkday }
+
     var taskStatus: String { taskStatus(at: Date()) }
 
     func taskStatus(at date: Date) -> String {
@@ -79,6 +85,9 @@ struct MenuBarCoachState: Equatable {
                     return "Accepted break ended · Resume when ready"
                 }
                 return "Accepted break · \((remaining + 59) / 60) min left"
+            }
+            if workdayHasEnded {
+                return "Workday ended · Tracked time is saved"
             }
             return pausedTask.latestPauseReason?.userFacingLabel ?? "Paused"
         }
