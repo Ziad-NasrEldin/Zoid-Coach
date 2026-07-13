@@ -14,6 +14,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
     private let userPolicyStore: PolicyStore
     private let checkpoints: ProcessingCheckpointStore
     private let planningInvitations: PlanningInvitationService
+    private let recommendationFeedback: RecommendationFeedbackStore
 
     public init(databaseURL: URL = ZoidCoachStorage.databaseURL()) throws {
         reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
@@ -32,6 +33,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         outbox = try ActionOutboxStore(databaseURL: databaseURL)
         taskHistory = try TaskHistoryStore(databaseURL: databaseURL)
         checkpoints = try ProcessingCheckpointStore(databaseURL: databaseURL)
+        recommendationFeedback = try RecommendationFeedbackStore(databaseURL: databaseURL)
         planningInvitations = PlanningInvitationService(
             store: try PromptInboxStore(databaseURL: databaseURL)
         )
@@ -99,9 +101,25 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 isMainObjective: false
             ))
         }
-        let recommendation = active == nil ? NextTaskRecommender().recommend(tasks: rows, referenceDate: now, availableMinutes: 60, coverage: behavior.coverage) : NextTaskRecommendation(taskID: active?.taskID, sentence: "Continue the active task before starting another one.", reasons: [], coverageUncertainty: behavior.coverage.isLimited ? behavior.coverage.explanation : nil)
-        let plannedIDs = Set(rows.map(\.taskID))
         let timeZoneIdentifier = (try? userPolicyStore.current()?.policy.schedule.timeZoneIdentifier) ?? TimeZone.current.identifier
+        let suppressedRecommendationIDs = try recommendationFeedback.suppressedTaskIDs(
+            at: now,
+            timeZoneIdentifier: timeZoneIdentifier
+        )
+        let recommendation = active == nil
+            ? NextTaskRecommender().recommend(
+                tasks: rows.filter { !suppressedRecommendationIDs.contains($0.taskID) },
+                referenceDate: now,
+                availableMinutes: 60,
+                coverage: behavior.coverage
+            )
+            : NextTaskRecommendation(
+                taskID: active?.taskID,
+                sentence: "Continue the active task before starting another one.",
+                reasons: [],
+                coverageUncertainty: behavior.coverage.isLimited ? behavior.coverage.explanation : nil
+            )
+        let plannedIDs = Set(rows.map(\.taskID))
         var eligibilityCalendar = Calendar(identifier: .gregorian)
         eligibilityCalendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
         let unplanned = reminderSnapshots

@@ -12,6 +12,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
     private let reminderSnapshots: ReminderSnapshotStore
     private let privacyData: PrivacyDataService
     private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
+    private let recommendationFeedback: RecommendationFeedbackStore?
     private let draftPlan: (@Sendable (Date, Bool) async throws -> Int)?
 
     public init(
@@ -24,6 +25,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
         reminderSnapshots: ReminderSnapshotStore,
         privacyData: PrivacyDataService,
         writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(),
+        recommendationFeedback: RecommendationFeedbackStore? = nil,
         draftPlan: (@Sendable (Date, Bool) async throws -> Int)? = nil
     ) {
         self.outbox = outbox
@@ -35,6 +37,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
         self.reminderSnapshots = reminderSnapshots
         self.privacyData = privacyData
         self.writeCircuitBreaker = writeCircuitBreaker
+        self.recommendationFeedback = recommendationFeedback
         self.draftPlan = draftPlan
     }
 
@@ -131,6 +134,24 @@ public final class AgentMutationRouter: @unchecked Sendable {
             }
             try taskHistory.record(taskID: taskID, state: historyState, at: occurredAt)
             return .init(accepted: true, message: "Task history recorded.")
+
+        case let .recordRecommendationFeedback(request):
+            guard let recommendationFeedback else {
+                throw AgentMutationRouterError.invalidCommand
+            }
+            guard abs(request.occurredAt.timeIntervalSinceNow) <= 5 * 60 else {
+                throw AgentMutationRouterError.invalidCommand
+            }
+            let timeZoneIdentifier = try policyStore.current()?.policy.schedule.timeZoneIdentifier
+                ?? TimeZone.current.identifier
+            _ = try recommendationFeedback.record(
+                request,
+                timeZoneIdentifier: timeZoneIdentifier
+            )
+            return .init(
+                accepted: true,
+                message: request.kind.confirmationMessage
+            )
 
         case let .recordSourceCheck(sourceID, state, detail, evidence, checkedAt):
             try stateStore.recordSourceCheck(
