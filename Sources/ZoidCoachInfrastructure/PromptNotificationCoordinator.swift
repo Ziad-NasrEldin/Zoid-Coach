@@ -22,6 +22,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
     private let deliveryLedger: NotificationDeliveryLedger?
     private let fixtureAdapter: DeterministicOSFixtureAdapters?
     private let deliveryBoundary: @Sendable (Date) -> Date
+    private let promptNotificationsEnabled: @Sendable () -> Bool
     private let onResponse: @Sendable (PromptResponseResult) async -> Void
 
     public init(
@@ -29,6 +30,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         center: UNUserNotificationCenter = .current(),
         runtimeEnvironment: RuntimeEnvironment = .production(),
         deliveryBoundary: @escaping @Sendable (Date) -> Date = { $0 },
+        promptNotificationsEnabled: @escaping @Sendable () -> Bool = { true },
         onResponse: @escaping @Sendable (PromptResponseResult) async -> Void = { _ in }
     ) {
         self.promptStore = promptStore
@@ -37,6 +39,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         notificationIdentity = runtimeEnvironment.identity.notification
         deliveryLedger = try? NotificationDeliveryLedger(databaseURL: runtimeEnvironment.databaseURL)
         self.deliveryBoundary = deliveryBoundary
+        self.promptNotificationsEnabled = promptNotificationsEnabled
         self.onResponse = onResponse
         super.init()
     }
@@ -46,6 +49,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         fixtureAdapter: DeterministicOSFixtureAdapters,
         runtimeEnvironment: RuntimeEnvironment,
         deliveryBoundary: @escaping @Sendable (Date) -> Date = { $0 },
+        promptNotificationsEnabled: @escaping @Sendable () -> Bool = { true },
         onResponse: @escaping @Sendable (PromptResponseResult) async -> Void = { _ in }
     ) {
         self.promptStore = promptStore
@@ -54,6 +58,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         notificationIdentity = runtimeEnvironment.identity.notification
         deliveryLedger = try? NotificationDeliveryLedger(databaseURL: runtimeEnvironment.databaseURL)
         self.deliveryBoundary = deliveryBoundary
+        self.promptNotificationsEnabled = promptNotificationsEnabled
         self.onResponse = onResponse
         super.init()
     }
@@ -71,6 +76,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         let boundedDeliveryDate = deliveryBoundary(deliveryDate ?? now)
         let effectiveDeliveryDate = boundedDeliveryDate > now ? boundedDeliveryDate : nil
         let requestIdentifier = notificationIdentity.promptRequestPrefix + episode.id
+        guard promptNotificationsEnabled() else { return false }
         if let fixtureAdapter {
             do {
                 guard try fixtureAdapter.permission(.notifications) == .granted else {
@@ -257,6 +263,32 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             try? fixtureAdapter.cancelNotifications(withPrefix: requestPrefix)
             return
         }
+        guard let center else { return }
+        let pending = await center.pendingNotificationRequests()
+        let delivered = await center.deliveredNotifications()
+        center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier).filter {
+            $0.hasPrefix(requestPrefix)
+        })
+        center.removeDeliveredNotifications(withIdentifiers: delivered.map(\.request.identifier).filter {
+            $0.hasPrefix(requestPrefix)
+        })
+    }
+
+    /// Removes only coaching-prompt notifications when the user disables prompt delivery.
+    /// The prompt episode itself remains in `PromptInboxStore`, so it is still available in Today.
+    public func reconcilePromptNotificationPreference() async throws {
+        guard !promptNotificationsEnabled() else { return }
+
+        let requestPrefix = notificationIdentity.promptRequestPrefix
+        if let fixtureAdapter {
+            let promptCategories = Set(PromptNotificationCategory.allCases.map(\.rawValue))
+            let identifiers = Set(try fixtureAdapter.snapshot().notifications.compactMap { notification in
+                promptCategories.contains(notification.desired.category) ? notification.id : nil
+            })
+            try fixtureAdapter.cancelNotifications(withIdentifiers: identifiers)
+            return
+        }
+
         guard let center else { return }
         let pending = await center.pendingNotificationRequests()
         let delivered = await center.deliveredNotifications()

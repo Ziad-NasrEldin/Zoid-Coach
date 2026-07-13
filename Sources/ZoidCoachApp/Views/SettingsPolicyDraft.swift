@@ -16,6 +16,7 @@ struct SettingsPolicyDraft: Equatable {
     var visibleCalendarIdentifiers: String
     var schedulingCalendarIdentifier: String
     var screenshotAnalysisEnabled: Bool
+    var notificationPromptsEnabled: Bool
     var aiProvider: AIProviderSelection
     var remoteEvidencePolicy: RemoteEvidencePolicy
     var rawScreenshotRetentionDays: Int
@@ -59,6 +60,7 @@ struct SettingsPolicyDraft: Equatable {
         visibleCalendarIdentifiers = policy.calendar.visibleCalendarIdentifiers.joined(separator: ", ")
         schedulingCalendarIdentifier = policy.calendar.schedulingCalendarIdentifier ?? ""
         screenshotAnalysisEnabled = policy.privacy.screenshotAnalysisEnabled
+        notificationPromptsEnabled = policy.privacy.effectiveNotificationPromptsEnabled
         let configuredProvider = policy.privacy.aiProvider
         aiProvider = AIProviderCapabilities.production[configuredProvider].isSelectable ? configuredProvider : .disabled
         remoteEvidencePolicy = aiProvider.usesRemoteProcessing ? policy.privacy.remoteEvidencePolicy : .localOnly
@@ -227,6 +229,7 @@ struct SettingsPolicyDraft: Equatable {
             ),
             privacy: PrivacyPolicy(
                 screenshotAnalysisEnabled: screenshotAnalysisEnabled,
+                notificationPromptsEnabled: notificationPromptsEnabled,
                 aiProvider: selectedProvider,
                 remoteEvidencePolicy: selectedProvider.usesRemoteProcessing ? remoteEvidencePolicy : .localOnly,
                 rawScreenshotRetentionDays: rawScreenshotRetentionDays,

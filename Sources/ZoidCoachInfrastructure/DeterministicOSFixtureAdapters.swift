@@ -652,6 +652,17 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         }
     }
 
+    public func cancelNotifications(withIdentifiers identifiers: Set<String>) throws {
+        guard !identifiers.isEmpty else { return }
+        try mutate(
+            subsystem: "notifications",
+            operation: "cancel-identifiers",
+            targetID: nil
+        ) { state in
+            state.notifications.removeAll { identifiers.contains($0.id) }
+        }
+    }
+
     private func mutate<T>(
         subsystem: String,
         operation: String,

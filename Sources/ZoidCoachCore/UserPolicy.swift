@@ -221,6 +221,7 @@ public enum CodexCLIReasoningEffort: String, Codable, CaseIterable, Sendable {
 
 public struct PrivacyPolicy: Codable, Equatable, Sendable {
     public let screenshotAnalysisEnabled: Bool
+    public let notificationPromptsEnabled: Bool?
     public let aiProvider: AIProviderSelection
     public let remoteEvidencePolicy: RemoteEvidencePolicy
     public let rawScreenshotRetentionDays: Int
@@ -235,6 +236,7 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
     public let codexCLIReasoningEffort: CodexCLIReasoningEffort?
 
     public var effectiveCodexCLIModel: CodexCLIModel { codexCLIModel ?? .gpt56Terra }
+    public var effectiveNotificationPromptsEnabled: Bool { notificationPromptsEnabled ?? true }
     public var effectiveCodexCLIModelID: String {
         let customModelID = codexCLICustomModelID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if effectiveCodexCLIModel == .custom, !customModelID.isEmpty {
@@ -250,6 +252,7 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
 
     public init(
         screenshotAnalysisEnabled: Bool,
+        notificationPromptsEnabled: Bool? = true,
         aiProvider: AIProviderSelection,
         remoteEvidencePolicy: RemoteEvidencePolicy,
         rawScreenshotRetentionDays: Int,
@@ -264,6 +267,7 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
         codexCLIReasoningEffort: CodexCLIReasoningEffort? = .low
     ) {
         self.screenshotAnalysisEnabled = screenshotAnalysisEnabled
+        self.notificationPromptsEnabled = notificationPromptsEnabled
         self.aiProvider = aiProvider
         self.remoteEvidencePolicy = remoteEvidencePolicy
         self.rawScreenshotRetentionDays = rawScreenshotRetentionDays
