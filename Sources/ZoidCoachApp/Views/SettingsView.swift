@@ -9,6 +9,7 @@ struct SettingsView: View {
     @EnvironmentObject private var modalCoordinator: SumiModalCoordinator
     @EnvironmentObject private var voiceModel: VoiceConversationModel
     @StateObject private var controller = SettingsPolicyController()
+    @StateObject private var endWorkdayController = EndWorkdayReviewController()
     @State private var actionAudit: [ActionAuditEntry] = []
     @State private var actionAuditError: String?
     @State private var deleteRangeStart = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
@@ -541,6 +542,34 @@ struct SettingsView: View {
                 }
             }
 
+            if let task = activeWorkdayTask {
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("END TODAY'S WORKDAY")
+                        .font(Sumi.label(10))
+                        .sumiLabelTracking()
+                    Text("Stop tracking \(task.title) and open today's review so you can confirm the evidence before closing the day.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button(endWorkdayController.isEndingWorkday ? "ENDING WORKDAY" : "END WORKDAY AND REVIEW") {
+                        requestEndWorkday(task)
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
+                    .disabled(endWorkdayController.isEndingWorkday)
+                    .accessibilityLabel("End the workday for \(task.title) and open today's review")
+                    .accessibilityIdentifier("settings.coaching-pause.end-workday")
+                }
+            }
+
+            if let message = endWorkdayController.statusMessage {
+                Text(message)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(message.hasPrefix("The workday could not") ? Sumi.seal : Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.coaching-pause.end-workday-status")
+            }
+
             SumiChoiceRail(
                 "OPERATING MODE",
                 options: OperatingMode.allCases,
@@ -643,6 +672,28 @@ struct SettingsView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return "PAUSED UNTIL \(formatter.string(from: resumesAt).uppercased())"
+    }
+
+    private var activeWorkdayTask: TodayTaskRow? {
+        guard let activeTaskID = model.todaySnapshot?.activeTask?.taskID else { return nil }
+        return model.todaySnapshot?.taskRows.first { $0.taskID == activeTaskID }
+    }
+
+    private func requestEndWorkday(_ task: TodayTaskRow) {
+        modalCoordinator.present(
+            eyebrow: "END WORKDAY",
+            title: "End work on \(task.title)?",
+            message: "Zoid 666 will stop the active timer, mark the workday as ended, and open today's review. Nothing is marked complete.",
+            confirmTitle: "END AND REVIEW",
+            confirmRole: .destructive,
+            confirm: {
+                Task {
+                    guard await endWorkdayController.endWorkday(taskID: task.taskID) else { return }
+                    await model.refreshTodaySnapshot()
+                    model.selectedSection = .reviews
+                }
+            }
+        )
     }
 
     private var gamingAllowanceExplanation: String {
