@@ -94,6 +94,7 @@ public final class ActionOutboxStore: @unchecked Sendable {
         }
         let date = now()
         let recordsWouldDoOnly = try activeOperatingMode() == OperatingMode.observe.rawValue
+            && origin != .scheduledReview
         let command = ActionCommand(
             id: makeID(),
             idempotencyKey: idempotencyKey,
@@ -183,10 +184,13 @@ public final class ActionOutboxStore: @unchecked Sendable {
         SELECT id FROM action_commands
         WHERE state IN ('pending', 'retryable_failure')
           AND (next_attempt_at_utc IS NULL OR next_attempt_at_utc <= ?)
-          AND COALESCE(
-            (SELECT json_extract(payload_json, '$.operatingMode') FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1 ORDER BY version DESC LIMIT 1),
-            'suggest'
-          ) != 'observe'
+          AND (
+            action_origin = 'scheduled_review'
+            OR COALESCE(
+              (SELECT json_extract(payload_json, '$.operatingMode') FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1 ORDER BY version DESC LIMIT 1),
+              'suggest'
+            ) != 'observe'
+          )
           AND (
             action_origin != 'automatic_plan'
             OR COALESCE(

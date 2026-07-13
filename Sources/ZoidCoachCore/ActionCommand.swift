@@ -28,6 +28,7 @@ public enum ActionOrigin: String, Codable, Sendable {
     case automaticPlan = "automatic_plan"
     case approvedPlan = "approved_plan"
     case explicitUser = "explicit_user"
+    case scheduledReview = "scheduled_review"
 }
 
 public struct CalendarBlockDesiredState: Equatable, Codable, Sendable {

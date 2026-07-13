@@ -154,6 +154,7 @@ struct ZoidCoachAgentMain {
             )
             let planningInvitations = PlanningInvitationService(store: promptStore)
             let actionOutbox = try ActionOutboxStore(databaseURL: configuration.databaseURL)
+            let reviewReminders = ReviewReminderService(outbox: actionOutbox)
             let planUndoRequests = try PlanUndoRequestStore(databaseURL: configuration.databaseURL)
             let planScheduleRequests = try PlanScheduleRequestStore(databaseURL: configuration.databaseURL)
             try planUndoRequests.recoverInterrupted()
@@ -538,6 +539,7 @@ struct ZoidCoachAgentMain {
                 var lastAutomaticDraftAttempt: Date?
                 var lastMaintenanceAttempt: Date?
                 var lastDaytimeSourceCheck: Date?
+                var lastReviewReminderCheck: Date?
                 var lastCalendarSignature: String?
                 var lastBaselineReconciliationDay = try? checkpointStore.checkpoint(
                     sourceID: "baseline-observation-reconciliation"
@@ -640,6 +642,14 @@ struct ZoidCoachAgentMain {
                         await progressMonitor.markProgress()
                         try await Task.sleep(for: .seconds(5))
                         continue
+                    }
+                    if lastReviewReminderCheck.map({ now.timeIntervalSince($0) >= 60 }) ?? true {
+                        _ = try reviewReminders.reconcile(
+                            policy: policy,
+                            policyVersion: versionedPolicy.version,
+                            now: now
+                        )
+                        lastReviewReminderCheck = now
                     }
                     let execution = await actionExecutor.executeNext()
                     try? Self.finalizeMeetingEffect(execution, outbox: actionOutbox, archive: archive)
