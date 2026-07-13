@@ -106,7 +106,6 @@ struct DashboardView: View {
             }
         }
         .background(Sumi.paper)
-        .preferredColorScheme(.light)
         .tint(Sumi.seal)
     }
 }
