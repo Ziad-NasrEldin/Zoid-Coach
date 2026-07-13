@@ -33,6 +33,9 @@ func gamingDriftStaysQuietUntilBaselineCompletesThenQueuesEvidenceFirstPrompt() 
     #expect(episode.summary.contains("Ship client proposal remains unfinished"))
     #expect(episode.actions.first?.kind == .returnToActiveTask)
     #expect(episode.actions.first?.role == .primary)
+    #expect(episode.actions.count == 4)
+    #expect(episode.actions.filter { $0.role == .primary }.count == 1)
+    #expect(episode.actions.contains { $0.kind == .startShortSprint })
     #expect(!episode.actions.contains { $0.kind == .startBreak })
     #expect(episode.payload["coachingLevel"] == CoachingLevel.gentle.rawValue)
     #expect(try fixture.promptStore.unresolved().count == 1)
@@ -58,6 +61,9 @@ func gamingDriftOffersBreakOnlyWhenATaskIsActivelyTracking() throws {
         Issue.record("Expected an accountability prompt")
         return
     }
+    #expect(episode.actions.count == 4)
+    #expect(episode.actions.filter { $0.role == .primary }.count == 1)
+    #expect(episode.actions.contains { $0.kind == .startWorkSprint })
     #expect(episode.actions.contains { $0.kind == .startBreak && $0.title == "Take a break" })
 }
 

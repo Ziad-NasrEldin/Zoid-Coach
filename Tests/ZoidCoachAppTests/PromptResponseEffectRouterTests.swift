@@ -275,15 +275,20 @@ func coachingTaskActionsApplyExactDurationsAndNeverReplay() throws {
     pair = try responses(.returnToActiveTask, taskID: "work")
     #expect(try router.apply(pair.0) == .coachingTaskStarted(taskID: "work"))
     #expect(try router.apply(pair.1) == .none)
-    #expect(try execution.snapshot(for: ["work"], now: now)["work"]?.state == .active)
+    var workSnapshot = try execution.snapshot(for: ["work"], now: now)["work"]
+    #expect(workSnapshot?.state == .active)
+    #expect(workSnapshot?.sprint?.durationMinutes == 20)
 
-    pair = try responses(.pauseTask, taskID: "work")
+    pair = try responses(.pauseTask, taskID: "stale-payload")
     #expect(try router.apply(pair.0) == .coachingTaskPaused(taskID: "work"))
     #expect(try router.apply(pair.1) == .none)
-    #expect(try execution.snapshot(for: ["work"], now: now)["work"]?.state == .paused)
+    workSnapshot = try execution.snapshot(for: ["work"], now: now)["work"]
+    #expect(workSnapshot?.state == .paused)
+    #expect(workSnapshot?.sprint?.durationMinutes == 20)
+    #expect(workSnapshot?.sprint?.state == .paused)
 
     try execution.apply(.start, taskID: "end-day", at: now.addingTimeInterval(2))
-    pair = try responses(.endWorkday, taskID: "end-day")
+    pair = try responses(.endWorkday, taskID: "different-stale-payload")
     #expect(try router.apply(pair.0) == .coachingWorkdayEnded(taskID: "end-day"))
     #expect(try router.apply(pair.1) == .none)
     let ended = try execution.snapshot(for: ["end-day"], now: now)["end-day"]

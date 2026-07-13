@@ -76,13 +76,11 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
                 try taskExecution.apply(state == .paused ? .resume : .start, taskID: taskID, at: result.response.respondedAt)
                 return .coachingTaskStarted(taskID: taskID)
             case .pauseTask:
-                let taskID = try payloadTaskID ?? taskExecution.activeTask(now: result.response.respondedAt)?.taskID
-                guard let taskID else { break }
+                guard let taskID = try taskExecution.activeTask(now: result.response.respondedAt)?.taskID else { break }
                 try taskExecution.apply(.pause, taskID: taskID, at: result.response.respondedAt)
                 return .coachingTaskPaused(taskID: taskID)
             case .endWorkday:
-                let taskID = try payloadTaskID ?? taskExecution.activeTask(now: result.response.respondedAt)?.taskID
-                guard let taskID else { break }
+                guard let taskID = try taskExecution.activeTask(now: result.response.respondedAt)?.taskID else { break }
                 try taskExecution.apply(.pauseForEndOfDay, taskID: taskID, at: result.response.respondedAt)
                 return .coachingWorkdayEnded(taskID: taskID)
             default:
