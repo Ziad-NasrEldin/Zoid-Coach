@@ -240,6 +240,37 @@ func gamingPolicyValidationRejectsUnsupportedOrUnboundedValues() {
 }
 
 @Test
+func gamingGraceControlsDecodeLegacyDefaultsAndValidateBounds() throws {
+    let legacy = try JSONDecoder().decode(
+        GamingPolicy.self,
+        from: Data(#"{"version":1,"dailyBudgetMinutes":60,"priorityTaskRewardMinutes":15}"#.utf8)
+    )
+    #expect(legacy.taskStartGraceMinutes == 3)
+    #expect(legacy.returnFromIdleGraceMinutes == 1)
+
+    let configured = GamingPolicy(
+        taskStartGraceMinutes: 12,
+        returnFromIdleGraceMinutes: 4
+    )
+    let roundTrip = try JSONDecoder().decode(
+        GamingPolicy.self,
+        from: JSONEncoder().encode(configured)
+    )
+    #expect(roundTrip.taskStartGraceMinutes == 12)
+    #expect(roundTrip.returnFromIdleGraceMinutes == 4)
+
+    let invalid = UserPolicy.defaults(timeZoneIdentifier: "UTC").replacingGamingPolicy(
+        GamingPolicy(
+            taskStartGraceMinutes: 61,
+            returnFromIdleGraceMinutes: 31
+        )
+    )
+    #expect(invalid.validationViolations().contains { $0.field == "gaming.taskStartGraceMinutes" })
+    #expect(invalid.validationViolations().contains { $0.field == "gaming.returnFromIdleGraceMinutes" })
+    #expect(invalid.validationViolations().filter { $0.code == .invalidGamingGrace }.count == 2)
+}
+
+@Test
 func capturePolicyNormalizesDisplayIDsAndRoundTripsThroughRuntimeConfiguration() throws {
     let policy = CapturePolicy(mode: .native, configuredDisplayIDs: [42, 7, 42])
     let runtime = NativeCaptureConfiguration(policy: policy, parityPassed: true)

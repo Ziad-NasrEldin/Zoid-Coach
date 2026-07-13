@@ -62,6 +62,8 @@ enum SettingsPolicyConflictResolver {
         apply(\.gamingIntentionalOverrideMinutes, label: "Intentional gaming override")
         apply(\.gamingDailyPromptCap, label: "Daily coaching prompt cap")
         apply(\.gamingPromptCooldownMinutes, label: "Coaching prompt cooldown")
+        apply(\.gamingTaskStartGraceMinutes, label: "Task-start grace")
+        apply(\.gamingReturnFromIdleGraceMinutes, label: "Return-from-idle grace")
         apply(\.gamingBudgetEnabled, label: "Gaming budget mode")
         apply(\.isPaused, label: "Automation pause")
         apply(\.timeZoneIdentifier, label: "Time zone")

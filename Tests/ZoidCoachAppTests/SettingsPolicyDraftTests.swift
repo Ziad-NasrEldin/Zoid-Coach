@@ -14,6 +14,8 @@ func settingsRoundTripsConfiguredCoachingLevelAndGamingAllowance() {
     draft.gamingIntentionalOverrideMinutes = 25
     draft.gamingDailyPromptCap = 4
     draft.gamingPromptCooldownMinutes = 35
+    draft.gamingTaskStartGraceMinutes = 12
+    draft.gamingReturnFromIdleGraceMinutes = 4
 
     let saved = draft.policy(preserving: original)
 
@@ -23,12 +25,16 @@ func settingsRoundTripsConfiguredCoachingLevelAndGamingAllowance() {
     #expect(saved.gaming.intentionalOverrideMinutes == 25)
     #expect(saved.gaming.dailyPromptCap == 4)
     #expect(saved.gaming.promptCooldownMinutes == 35)
+    #expect(saved.gaming.taskStartGraceMinutes == 12)
+    #expect(saved.gaming.returnFromIdleGraceMinutes == 4)
     #expect(SettingsPolicyDraft(policy: saved).coachingLevel == .accountability)
     #expect(SettingsPolicyDraft(policy: saved).gamingDailyBudgetMinutes == 95)
     #expect(SettingsPolicyDraft(policy: saved).gamingPriorityTaskRewardMinutes == 25)
     #expect(SettingsPolicyDraft(policy: saved).gamingIntentionalOverrideMinutes == 25)
     #expect(SettingsPolicyDraft(policy: saved).gamingDailyPromptCap == 4)
     #expect(SettingsPolicyDraft(policy: saved).gamingPromptCooldownMinutes == 35)
+    #expect(SettingsPolicyDraft(policy: saved).gamingTaskStartGraceMinutes == 12)
+    #expect(SettingsPolicyDraft(policy: saved).gamingReturnFromIdleGraceMinutes == 4)
 
     let beforeCompletion = GamingStatusCalculator().status(
         policy: saved.gaming,
@@ -152,6 +158,8 @@ func settingsConflictResolverPreservesIndependentGamingAllowanceAndFlagsOverlap(
     mine.gamingIntentionalOverrideMinutes = 25
     mine.gamingDailyPromptCap = 4
     mine.gamingPromptCooldownMinutes = 35
+    mine.gamingTaskStartGraceMinutes = 12
+    mine.gamingReturnFromIdleGraceMinutes = 4
     var current = base
     current.capacityPercent = 55
 
@@ -161,6 +169,8 @@ func settingsConflictResolverPreservesIndependentGamingAllowanceAndFlagsOverlap(
     #expect(independent.safeDraft.gamingIntentionalOverrideMinutes == 25)
     #expect(independent.safeDraft.gamingDailyPromptCap == 4)
     #expect(independent.safeDraft.gamingPromptCooldownMinutes == 35)
+    #expect(independent.safeDraft.gamingTaskStartGraceMinutes == 12)
+    #expect(independent.safeDraft.gamingReturnFromIdleGraceMinutes == 4)
     #expect(independent.safeDraft.capacityPercent == 55)
     #expect(independent.overlappingChanges.isEmpty)
 
@@ -178,11 +188,17 @@ func settingsConflictResolverPreservesIndependentGamingAllowanceAndFlagsOverlap(
 
     current.gamingDailyPromptCap = 2
     current.gamingPromptCooldownMinutes = 90
+    current.gamingTaskStartGraceMinutes = 6
+    current.gamingReturnFromIdleGraceMinutes = 2
     let limitsOverlap = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
     #expect(limitsOverlap.safeDraft.gamingDailyPromptCap == 2)
     #expect(limitsOverlap.retryDraft.gamingDailyPromptCap == 4)
     #expect(limitsOverlap.safeDraft.gamingPromptCooldownMinutes == 90)
     #expect(limitsOverlap.retryDraft.gamingPromptCooldownMinutes == 35)
+    #expect(limitsOverlap.safeDraft.gamingTaskStartGraceMinutes == 6)
+    #expect(limitsOverlap.retryDraft.gamingTaskStartGraceMinutes == 12)
+    #expect(limitsOverlap.safeDraft.gamingReturnFromIdleGraceMinutes == 2)
+    #expect(limitsOverlap.retryDraft.gamingReturnFromIdleGraceMinutes == 4)
 }
 
 @MainActor

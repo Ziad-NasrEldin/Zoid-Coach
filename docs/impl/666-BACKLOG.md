@@ -30,7 +30,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 12 | Complete Today source-health and repair actions | verify | Source repair guidance candidate at `246f44b` | `ZC-048-008` and `ZC-048-009`; every unhealthy source names its exact safe impact and direct repair action with focused proof in `.audit/runs/source-repair-guidance/candidate/REPORT.md` |
 | 13 | Complete Today prompt inbox lifecycle | verify | Prompt action feedback candidate at `8307a77` | `ZC-038-005` and `ZC-038-006`; selected-row progress, Today duplicate controls, and prompt-store token idempotency proof are recorded in `.audit/runs/prompt-action-feedback/candidate/REPORT.md` |
 | 14 | Complete daily-plan task lifecycle | verify | Local reschedule confirmation candidate at `a069230` | `ZC-020-008` and `ZC-034-010`; future-date review, cancellation, local-day normalization, stale-plan refusal, Apple due-date boundary, durable plan mutation, and focused proof are recorded in `.audit/runs/task-reschedule-date/candidate/REPORT.md` |
-| 15 | Complete drift detection and compassionate recovery | ready | Unowned | Real activity drift produces a timely, non-shaming recovery choice whose result changes the plan durably |
+| 15 | Complete drift detection and compassionate recovery | verify | Grace controls candidate | `ZC-027-001` through `ZC-027-003` and `ZC-045-006`; conflict-safe task-start and return-from-idle grace controls persist, affect the next behavior decision without restart, preserve sustained high-confidence bypass, and retain factual non-shaming suppression semantics; candidate evidence is in `.audit/runs/behavior-grace-controls/candidate/REPORT.md` |
 | 16 | Complete meeting-aware planning and calendar boundaries | ready | Unowned | Calendar grant, denial, changes, overlap, cancellation, and offline states produce usable plans and repair paths |
 | 17 | Complete app-classification management in Settings | verify | Learned-rule reset candidate at `c62aa88` | `ZC-045-015`; reviewed destructive reset, active count, append-only tombstones, restart persistence, historical-correction preservation, and focused proof are recorded in `.audit/runs/learned-rule-reset/candidate/REPORT.md` |
 | 18 | Complete Settings policy mutation conflict UX | verify | Settings conflict lane at `87f326f` | Concurrent edits never silently overwrite; the user sees the winning state and can retry safely without duplicates |
@@ -54,6 +54,16 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Configurable behavior grace controls - candidate
+
+- Owns `ZC-027-001`, `ZC-027-002`, `ZC-027-003`, and `ZC-045-006`.
+- Adds legacy-safe task-start and return-from-idle grace durations to the versioned Gaming Policy.
+- Adds bounded, conflict-safe Settings controls with stable accessibility identifiers and explicit No Grace states.
+- Applies the latest saved durations to every behavior-coaching decision without recreating the service or restarting the helper.
+- Preserves the existing sustained high-confidence gaming bypass when gaming began before the active task.
+- Focused policy, Settings, conflict, and behavior-decision tests pass.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/behavior-grace-controls/candidate/REPORT.md`.
 
 ### Gaming budget transparency - verified
 
