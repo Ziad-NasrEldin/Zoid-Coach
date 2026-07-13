@@ -71,9 +71,9 @@ final class NotificationService: NotificationServicing {
                 title: "macOS Notifications",
                 eyebrow: "Escalation",
                 state: .attention,
-                detail: "Notifications are unavailable",
-                evidence: deliveryEvidence(fallback: "Enable Zoid 666 notifications in System Settings"),
-                actionTitle: "Retry"
+                detail: "Notifications are off. Every unresolved coaching choice remains available in Today.",
+                evidence: deliveryEvidence(fallback: "Enable Zoid 666 in System Settings for timely delivery, or keep using Today without notifications."),
+                actionTitle: "Open Settings"
             )
         @unknown default:
             return SourceHealth(

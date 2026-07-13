@@ -64,14 +64,20 @@ final class NotificationDeliveryHealthController: ObservableObject {
     @Published private(set) var statusMessage: String?
 
     private let service: any NotificationDeliveryHealthServicing
+    private let openURL: (URL) -> Bool
 
-    init(service: (any NotificationDeliveryHealthServicing)? = nil) {
+    init(
+        service: (any NotificationDeliveryHealthServicing)? = nil,
+        openURL: @escaping (URL) -> Bool = { NSWorkspace.shared.open($0) }
+    ) {
         self.service = service ?? Self.liveService()
+        self.openURL = openURL
     }
 
     var usesSystemSettingsRepair: Bool { service.usesSystemSettingsRepair }
 
     func refresh() async {
+        guard !isRefreshing else { return }
         isRefreshing = true
         health = await service.inspect()
         records = service.recentDeliveryRecords(limit: 12)
@@ -80,6 +86,8 @@ final class NotificationDeliveryHealthController: ObservableObject {
     }
 
     func requestAccess() async {
+        guard !isRefreshing,
+              health == nil || health?.state == .notConnected else { return }
         isRefreshing = true
         health = await service.requestAccessAndInspect()
         records = service.recentDeliveryRecords(limit: 12)
@@ -89,22 +97,29 @@ final class NotificationDeliveryHealthController: ObservableObject {
         isRefreshing = false
     }
 
-    func openSystemSettings() {
+    func applicationDidBecomeActive() async {
+        guard health != nil, !isRefreshing else { return }
+        await refresh()
+    }
+
+    @discardableResult
+    func openSystemSettings() -> Bool {
         guard service.usesSystemSettingsRepair else {
             statusMessage = "Apply the prepared QA permission control, relaunch, then refresh. No production System Settings page was opened."
-            return
+            return false
         }
         let addresses = [
             "x-apple.systempreferences:com.apple.Notifications-Settings.extension",
             "x-apple.systempreferences:com.apple.preference.notifications"
         ]
         for address in addresses {
-            if let url = URL(string: address), NSWorkspace.shared.open(url) {
-                statusMessage = "After changing access, return here and refresh status. Today remains available meanwhile."
-                return
+            if let url = URL(string: address), openURL(url) {
+                statusMessage = "After changing access, return to Zoid 666. Permission is checked automatically, and Today remains available meanwhile."
+                return true
             }
         }
         statusMessage = "Open System Settings, choose Notifications, then choose Zoid 666."
+        return false
     }
 
     private static func liveService() -> any NotificationDeliveryHealthServicing {
@@ -125,6 +140,7 @@ final class NotificationDeliveryHealthController: ObservableObject {
 }
 
 struct NotificationDeliveryHealthView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var controller: NotificationDeliveryHealthController
 
     @MainActor
@@ -235,6 +251,10 @@ struct NotificationDeliveryHealthView: View {
             }
         }
         .task { await controller.refresh() }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await controller.applicationDidBecomeActive() }
+        }
     }
 
     private func deliveryRow(_ record: NotificationDeliveryRecord) -> some View {
