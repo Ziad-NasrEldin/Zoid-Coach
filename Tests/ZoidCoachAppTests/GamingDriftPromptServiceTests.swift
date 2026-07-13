@@ -52,6 +52,7 @@ func gamingDriftStaysQuietUntilBaselineCompletesThenQueuesEvidenceFirstPrompt() 
     })
     #expect(!episode.actions.contains { $0.kind == .startBreak })
     #expect(episode.payload["coachingLevel"] == CoachingLevel.gentle.rawValue)
+    #expect(episode.payload["maximumInterventionLevel"] == CoachingLevel.gentle.rawValue)
     #expect(episode.payload["behaviorPromptContractVersion"] == BehaviorPromptPresentationPolicy.contractVersion)
     #expect(BehaviorPromptPresentationPolicy.issues(for: PromptDraft(
         decisionKey: episode.decisionKey,
@@ -91,6 +92,7 @@ func gamingDriftOffersBreakOnlyWhenATaskIsActivelyTracking() throws {
     #expect(episode.actions.contains { $0.kind == .rescheduleTask })
     #expect(episode.actions.contains { $0.kind == .markBlocked })
     #expect(episode.actions.contains { $0.kind == .startBreak && $0.title == "Take a break" })
+    #expect(episode.payload["maximumInterventionLevel"] == CoachingLevel.accountability.rawValue)
 }
 
 @Test

@@ -605,15 +605,16 @@ struct SettingsView: View {
             )
 
             SumiChoiceRail(
-                "COACHING LEVEL AFTER BASELINE",
+                "MAXIMUM INTERVENTION LEVEL",
                 options: CoachingLevel.allCases,
-                selection: $controller.draft.coachingLevel,
+                selection: $controller.draft.maximumInterventionLevel,
                 title: coachingLevelLabel
             )
-            Text("Gentle allows one dismissible gaming prompt per day. Accountability allows up to three, with at least one hour between separate sessions. The first seven complete observation days always stay quiet.")
+            .accessibilityIdentifier("settings.coaching.maximum-intervention-level")
+            Text("This is a hard ceiling, not a target. Gentle uses the lighter recovery prompt and never offers the accountability-only break intervention. Accountability may use the stronger recovery prompt and break option, while remaining dismissible and bounded by your prompt cap and cooldown. The first seven complete observation days always stay quiet.")
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
-                .accessibilityIdentifier("settings.coaching-level.explanation")
+                .accessibilityIdentifier("settings.coaching.maximum-intervention-explanation")
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("GAMING ALLOWANCE")
