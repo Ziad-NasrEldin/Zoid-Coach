@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "89c28984175a25c15bdb0c5d40a3def1af4f1b604b96f1a4384b2529fbe07d71",
+  "tracker_sha256": "2de222844aadfb2f66765692c50e6663ad653895032ebe7b8b8035a4c9005880",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10710,18 +10710,20 @@
       "item_index": 6,
       "wording": "Set a daily or monthly request budget.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/ai-request-budgets/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`ModelRunStore` enforces a supplied daily request budget and voice has a separate Gemini cap, but general AI policy/settings do not expose a daily or monthly budget.",
+      "audit_note": "The signed Intelligence Settings surface exposes separate accessible daily and monthly limits, explains that the first reached limit stops general AI requests, explains that zero preserves local planning, tracking, coaching rules, and reviews, saves distinct values, and restores them after app relaunch. Seven focused tests prove provider-independent daily and UTC-month enforcement, atomic reservations under concurrency, deterministic fallback, and independent conflict merging. The signed app has no dedicated deterministic provider-budget probe, so an installed provider invocation across a live provider switch remains (`UserPolicy.swift`; `SettingsView.swift`; `ModelRunStore.swift`; `AuditedPlanningAdvisor.swift`; `StructuredGenerationProviders.swift`; `.audit/runs/ai-request-budgets/verifier/REPORT.md`).",
       "tracker_line": 663
     },
     {
