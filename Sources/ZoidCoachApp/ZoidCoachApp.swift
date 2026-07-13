@@ -10,6 +10,7 @@ struct ZoidCoachApplication: App {
     @StateObject private var voiceModel: VoiceConversationModel
     @StateObject private var onboarding: OnboardingCoordinator
     @StateObject private var agentLifecycle: AgentLifecycleController
+    @StateObject private var wakeTaskReconfirmation: WakeTaskReconfirmationController
     private let launchesForBackgroundScheduling: Bool
 
     init() {
@@ -49,6 +50,7 @@ struct ZoidCoachApplication: App {
         _voiceModel = StateObject(wrappedValue: VoiceConversationModel())
         _onboarding = StateObject(wrappedValue: OnboardingCoordinator())
         _agentLifecycle = StateObject(wrappedValue: AgentLifecycleController())
+        _wakeTaskReconfirmation = StateObject(wrappedValue: WakeTaskReconfirmationController())
     }
 
     var body: some Scene {
@@ -88,6 +90,31 @@ struct ZoidCoachApplication: App {
                 .environmentObject(voiceModel)
                 .frame(minWidth: 980, minHeight: 680)
                 .background(Sumi.paper)
+                .overlay(alignment: .topTrailing) {
+                    if let notice = wakeTaskReconfirmation.notice {
+                        WakeTaskReconciliationNoticeView(
+                            notice: notice,
+                            dismiss: { wakeTaskReconfirmation.dismissNotice() }
+                        )
+                        .padding(20)
+                    }
+                }
+                .sheet(item: Binding(
+                    get: { wakeTaskReconfirmation.pendingConfirmation },
+                    set: { _ in }
+                )) { confirmation in
+                    WakeTaskReconfirmationView(
+                        confirmation: confirmation,
+                        continueTask: {
+                            wakeTaskReconfirmation.confirmTaskIsStillActive()
+                        },
+                        pauseTask: {
+                            model.applyTaskCommand(.pauseForExternalInterruption, taskID: confirmation.taskID)
+                            wakeTaskReconfirmation.confirmTaskWasInterrupted()
+                        }
+                    )
+                    .interactiveDismissDisabled()
+                }
                 .onAppear {
                     if onboarding.route == .today {
                         voiceModel.startAlwaysAvailable()
@@ -108,6 +135,18 @@ struct ZoidCoachApplication: App {
                             await model.refreshActionAudit()
                         }
                     }
+                }
+                .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.willSleepNotification)) { _ in
+                    wakeTaskReconfirmation.noteInactive()
+                }
+                .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidSleepNotification)) { _ in
+                    wakeTaskReconfirmation.noteInactive()
+                }
+                .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in
+                    reconcileTaskAfterWake()
+                }
+                .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.screensDidWakeNotification)) { _ in
+                    reconcileTaskAfterWake()
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
@@ -156,6 +195,21 @@ struct ZoidCoachApplication: App {
             }
             window.setFrameAutosaveName(frameAutosaveName)
             window.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    private func reconcileTaskAfterWake() {
+        guard onboarding.route == .today else { return }
+        Task {
+            await model.refreshTodaySnapshot()
+            let activeTaskID = model.todaySnapshot?.activeTask?.taskID
+            let activeTaskTitle = model.todaySnapshot?.taskRows.first(where: {
+                $0.taskID == activeTaskID
+            })?.title
+            wakeTaskReconfirmation.reconcileActivation(
+                activeTaskID: activeTaskID,
+                taskTitle: activeTaskTitle
+            )
         }
     }
 }
