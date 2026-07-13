@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "2a81da3429091961a1c518b9af27652f1f359055babeea7e1a5207ca3f519e8a",
+  "tracker_sha256": "554831da01d591b97f94a665cc40bcd690c901c11a8889e56471af35d7331be8",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5228,8 +5228,8 @@
       "item_index": 5,
       "wording": "Avoid seeing false minute-level precision when coverage is incomplete.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5241,7 +5241,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Stale/no telemetry produces limited coverage and avoids filling gaps, with tests in `TodayDashboardTests`. The UI still renders integer minute totals without expressing a range or coverage proportion.",
+      "audit_note": "The installed signed Daily Review visibly labelled limited coverage, rendered category and task totals as rounded `about` observations, explained that they were not a complete account of the day, and retained missing time outside productive or distracting categories (`DailySourceCoverage.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 359
     },
     {
@@ -5320,8 +5320,8 @@
       "item_index": 9,
       "wording": "See a low-coverage warning when too much of a task session is unknown.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5333,7 +5333,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A general Screenwatch stale/no-observation warning exists, but coverage is day-level rather than task-session unknown share.",
+      "audit_note": "The signed review visibly rendered `LIMITED COVERAGE`, the observed-task proportion, rounded categories, an unreliable-idle result, and a direct explanation when the latest Screenwatch checkpoint was unavailable (`DailySourceCoverage.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 363
     },
     {
@@ -5356,7 +5356,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The dashboard displays Screenwatch freshness details and source health repair information. The wording does not always connect a specific missing total to its cause.",
+      "audit_note": "The signed review named Screenwatch as unavailable, showed the checkpoint detail and privacy-safe evidence, and displayed its last-check time beside the qualified totals (`DailySourceCoverageStore.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 364
     },
     {
@@ -8892,8 +8892,8 @@
       "item_index": 3,
       "wording": "See total active-task time.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8904,7 +8904,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Task intervals and elapsed minutes are stored, but no day-level review total is produced.",
+      "audit_note": "The installed signed Daily Review visibly rendered the selected day's 60-minute active-task total from persisted task intervals and restored the same local evidence after application relaunch (`DailySourceCoverageStore.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 574
     },
     {
@@ -8914,8 +8914,8 @@
       "item_index": 4,
       "wording": "See aligned work time separately.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8926,7 +8926,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Work-classified Screenwatch time appears in Today, but it is not reconciled with tasks in a review.",
+      "audit_note": "The signed review visibly separated active-task, Screenwatch-observed, and work-aligned minutes, while focused tests prove interval merging and correction-aware alignment without rewriting source evidence (`DailySourceCoverageStore.swift`; `DailySourceCoverageTests.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 575
     },
     {
@@ -8958,8 +8958,8 @@
       "item_index": 6,
       "wording": "See gaming and distraction time.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8970,7 +8970,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Today stores and displays these totals, but the Reviews surface is a placeholder.",
+      "audit_note": "The installed signed review visibly rendered separate gaming and distraction totals and distinct source sessions, while missing time remained outside both categories (`DailySourceCoverageStore.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 577
     },
     {
@@ -8980,8 +8980,8 @@
       "item_index": 7,
       "wording": "See reliable idle time.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8992,7 +8992,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Idle observations are summarized in the core, but not presented as a review with reliability context.",
+      "audit_note": "The signed limited-coverage review visibly rendered idle as `not reliable`, and focused tests prove that healthy adequate coverage exposes observed idle minutes, but the reliable-idle branch was not captured visibly in the installed app (`DailySourceCoverage.swift`; `DailySourceCoverageTests.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 578
     },
     {
@@ -9002,8 +9002,8 @@
       "item_index": 8,
       "wording": "See unknown or missing coverage.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9014,7 +9014,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Today exposes limited coverage and unknown time, but no daily-review view exists.",
+      "audit_note": "The signed review visibly exposed unknown, missing, observed-task, and source-cause fields, explicitly refused to infer unobserved minutes into a behavioral category, and retained the underlying sessions separately (`DailySourceCoverage.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 579
     },
     {
@@ -9134,8 +9134,8 @@
       "item_index": 14,
       "wording": "Understand when incomplete data makes a total less precise.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9146,7 +9146,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Today labels limited Screenwatch coverage, but the absent review cannot qualify each review total.",
+      "audit_note": "The signed review paired its limited-coverage warning with `about` values, source status, last-check evidence, unreliable idle, and explicit language that rounded categories are not a complete account of the day (`DailySourceCoverage.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 585
     },
     {
@@ -11334,8 +11334,8 @@
       "item_index": 5,
       "wording": "See missing time represented as missing rather than productive or distracting.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11346,7 +11346,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The sessionizer leaves totals unchanged and marks coverage limited, but does not display the amount of missing time explicitly.",
+      "audit_note": "The signed review displayed a dedicated Missing metric and stated that uncovered active-task time is not counted as work, gaming, or distraction, while focused fixtures prove a 40-minute gap remains separate from every category (`DailySourceCoverage.swift`; `DailySourceCoverageTests.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).",
       "tracker_line": 708
     },
     {
