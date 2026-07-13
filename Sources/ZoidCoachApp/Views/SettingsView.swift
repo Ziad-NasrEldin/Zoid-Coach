@@ -76,6 +76,25 @@ struct SettingsView: View {
                 model.refreshReminderTasks()
             }
         }
+        .alert(
+            "SWITCH TODAY'S LOCAL PLAN DAY?",
+            isPresented: Binding(
+                get: { controller.timeZonePlanMoveConfirmation != nil },
+                set: { if !$0 { controller.cancelTimeZonePlanMove() } }
+            ),
+            presenting: controller.timeZonePlanMoveConfirmation
+        ) { _ in
+            Button("CHANGE TIME ZONE AND SAVE") {
+                controller.confirmTimeZonePlanMove()
+            }
+            .accessibilityIdentifier("settings.schedule.time-zone.confirm-plan-move")
+            Button("CANCEL", role: .cancel) {
+                controller.cancelTimeZonePlanMove()
+            }
+            .accessibilityIdentifier("settings.schedule.time-zone.cancel-plan-move")
+        } message: { warning in
+            Text(warning.confirmationMessage)
+        }
     }
 
     private var actionAuditSection: some View {
