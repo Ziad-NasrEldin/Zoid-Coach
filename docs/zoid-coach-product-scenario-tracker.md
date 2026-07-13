@@ -8,18 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-13 against branch `codex/full-system` through rebased Screenwatch schema-mismatch code root `09cb7e3`, one passing focused reader invocation, one passing signed release package and exact-helper gate, the exact 666-scenario registry, and capped installed macOS accessibility testing.
+Updated on 2026-07-13 against branch `codex/full-system` through signed Daily Review deferral verification commit `6128c80656627cb635bbdea2b3a46eda571a4e40`, the exact 666-scenario registry, and capped native macOS accessibility and pixel testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 172
+- **Fully implemented:** 173
 - **Touches remaining:** 293
 - **Frontend only left:** 4
 - **Partially implemented:** 103
 - **Barely started:** 9
-- **Not implemented:** 58
+- **Not implemented:** 57
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -563,7 +563,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [x] Open the review at the configured review time. **Status: Fully implemented.** The installed signed app exposed and persisted an accessible Daily review time, replaced its scheduled daily notification without duplicates after two time changes, deferred a 23:30 choice to the 07:00 quiet-hours boundary, and preserved policy version 4 plus exactly one pending reminder after app and helper restart (`ReviewReminderService.swift`; `SettingsView.swift`; `.audit/runs/configurable-review-time/verifier/REPORT.md`).
 - [x] Open the review immediately after ending the workday manually. **Status: Fully implemented.** The signed success path refreshed Today and opened the current-day Review with visible work evidence only after the durable command succeeded, while failure remained in Settings; helper and app relaunch restored the end-workday pause with no active timer (`SettingsView.swift`; `.audit/runs/pause-end-workday-review/verifier/REPORT.md`).
 - [ ] Find an unfinished previous-day review on the next launch. **Status: Not implemented.** No review draft/persistence lifecycle exists.
-- [ ] Delay the review without losing the day's evidence. **Status: Not implemented.** Evidence persists independently, but there is no delay-review action or review state.
+- [x] Delay the review without losing the day's evidence. **Status: Fully implemented.** In the signed isolated QA app, Review Tomorrow persisted an exact future time and preservation copy, stayed quiet before the boundary across relaunch, resumed early through Resume Review Now, and returned automatically after the due boundary with the saved correction, task attachment, and personal note unchanged (`DailyReviewView.swift`; `DailyReviewStore.swift`; `.audit/runs/daily-review-deferral/verifier/REPORT.md`).
 - [x] Resume an unfinished review after restarting the app. **Status: Fully implemented.** The installed signed app persisted a Daily Review correction across two pre-confirmation relaunches, exposed an accessible cross-day Resume action, restored the exact day and corrected classification, then cleared the unfinished notice only after confirmation and kept it cleared after a final relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/unfinished-review-resume/verifier/REPORT.md`).
 - [ ] Skip the review explicitly and close the day. **Status: Not implemented.** No skip-review or close-day action exists.
 
