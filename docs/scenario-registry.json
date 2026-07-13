@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "981c2d76673af6ac95238a883af7049fa4df12e026553c155d27aa079ec7710e",
+  "tracker_sha256": "972861211e13b3d3f7071dbef449eafb81dfbb30f5150fdc2b448907624ad83b",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8824,8 +8824,8 @@
       "item_index": 9,
       "wording": "Stop Screenwatch ingestion without deleting existing data.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8836,7 +8836,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Capture mode can switch pipelines, but there is no user-facing stop-ingestion switch.",
+      "audit_note": "Signed Settings now exposes an `INGEST NEW SCREENWATCH ACTIVITY` toggle with stable accessibility semantics and explicit copy that pausing keeps existing Zoid 666 history and every source-owned Screenwatch file. The versioned policy defaults legacy documents to enabled, persists a pause, merges unrelated concurrent Settings edits, gates live and maintenance ingestion before the source is opened, and re-reads policy each watch loop so resume needs no agent restart. Focused tests and one signed release package passed, but the capped signed journey stopped because the isolated baseline observation had not imported or created a canonical-source checkpoint before the bounded fixture deadline; pause across two loops, relaunch persistence, exactly-once resume, and concurrent signed save remain unproven (`ScreenwatchIngestionControl.swift`; `UserPolicy.swift`; `AgentMain.swift`; `SettingsView.swift`; `.audit/runs/screenwatch-ingestion-control/verifier/REPORT.md`).",
       "tracker_line": 559
     },
     {
