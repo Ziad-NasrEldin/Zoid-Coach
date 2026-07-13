@@ -68,6 +68,25 @@ public final class DailyReviewStore: @unchecked Sendable {
         )
     }
 
+    public func mostRecentUnfinishedReview() throws -> UnfinishedDailyReview? {
+        lock.lock()
+        defer { lock.unlock() }
+        var statement: OpaquePointer?
+        let sql = "SELECT source_day, updated_at_utc FROM daily_reviews WHERE confirmed_at_utc IS NULL ORDER BY updated_at_utc DESC, source_day DESC LIMIT 1;"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError(.read) }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let sourceDayValue = sqlite3_column_text(statement, 0),
+              let updatedAtValue = sqlite3_column_text(statement, 1),
+              let updatedAt = ISO8601DateFormatter().date(from: String(cString: updatedAtValue))
+        else { return nil }
+        return UnfinishedDailyReview(
+            sourceDay: String(cString: sourceDayValue),
+            lastEditedAt: updatedAt
+        )
+    }
+
     private func quietDriftSummary(sourceDay: String) throws -> DailyReviewQuietDriftSummary? {
         var statement: OpaquePointer?
         let sql = """

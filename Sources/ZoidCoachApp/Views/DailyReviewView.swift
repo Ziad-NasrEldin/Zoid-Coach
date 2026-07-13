@@ -4,6 +4,7 @@ import ZoidCoachInfrastructure
 
 protocol DailyReviewServicing: AnyObject {
     func load(sourceDay: String) throws -> DailyReviewSnapshot
+    func mostRecentUnfinishedReview() throws -> UnfinishedDailyReview?
     func correct(
         _ session: DailyReviewSession,
         to classification: BehaviorClassification,
@@ -41,6 +42,7 @@ final class DailyReviewController: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var successMessage: String?
+    @Published private(set) var unfinishedReview: UnfinishedDailyReview?
     @Published private(set) var classificationRules: [AppClassificationCorrectionRule] = []
     @Published private(set) var isRulesOnlyMode: Bool
 
@@ -98,13 +100,33 @@ final class DailyReviewController: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
-            snapshot = try service.load(sourceDay: sourceDay)
+            try refreshSnapshotAndResumeState()
             classificationRules = try service.classificationRules()
             errorMessage = nil
         } catch {
             snapshot = nil
             errorMessage = error.localizedDescription
         }
+    }
+
+    func resumeUnfinishedReview() {
+        guard let unfinishedReview,
+              let date = Self.date(from: unfinishedReview.sourceDay, calendar: calendar)
+        else { return }
+        selectedDay = date
+        load()
+        successMessage = "Unfinished review restored. Your previous corrections are still applied."
+    }
+
+    private func refreshSnapshotAndResumeState() throws {
+        snapshot = try service.load(sourceDay: sourceDay)
+        unfinishedReview = try service.mostRecentUnfinishedReview()
+    }
+
+    private static func date(from sourceDay: String, calendar: Calendar) -> Date? {
+        let parts = sourceDay.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
     }
 
     func correct(
@@ -125,7 +147,7 @@ final class DailyReviewController: ObservableObject {
                 from: splitDate,
                 applyToFuture: applyToFuture
             )
-            snapshot = try service.load(sourceDay: sourceDay)
+            try refreshSnapshotAndResumeState()
             classificationRules = try service.classificationRules()
             errorMessage = nil
             let action = session.classification == .unknown ? "classified" : "corrected"
@@ -171,7 +193,7 @@ final class DailyReviewController: ObservableObject {
     func setHypothesis(_ state: DailyReviewHypothesisState) {
         do {
             try service.setHypothesisState(state, sourceDay: sourceDay)
-            snapshot = try service.load(sourceDay: sourceDay)
+            try refreshSnapshotAndResumeState()
             errorMessage = nil
             successMessage = state == .rejected
                 ? "The explanation was rejected and will not be treated as fact."
@@ -184,7 +206,7 @@ final class DailyReviewController: ObservableObject {
     func confirm() {
         do {
             try service.confirm(sourceDay: sourceDay)
-            snapshot = try service.load(sourceDay: sourceDay)
+            try refreshSnapshotAndResumeState()
             errorMessage = nil
             successMessage = "Daily review confirmed. Corrections remain editable."
         } catch {
@@ -208,7 +230,7 @@ final class DailyReviewController: ObservableObject {
                 durationMinutes: durationMinutes,
                 note: note
             )
-            snapshot = try service.load(sourceDay: sourceDay)
+            try refreshSnapshotAndResumeState()
             errorMessage = nil
             successMessage = id == nil
                 ? "Away-from-Mac work added. It is included in actual time and kept separate from Screenwatch coverage."
@@ -223,7 +245,7 @@ final class DailyReviewController: ObservableObject {
     func deleteOfflineWork(_ entry: OfflineWorkEntry) {
         do {
             try service.deleteOfflineWork(id: entry.id, sourceDay: entry.sourceDay)
-            snapshot = try service.load(sourceDay: sourceDay)
+            try refreshSnapshotAndResumeState()
             errorMessage = nil
             successMessage = "Away-from-Mac work removed. Actual time was recalculated."
         } catch {
@@ -236,6 +258,7 @@ private final class UnavailableDailyReviewService: DailyReviewServicing {
     private let error: Error
     init(error: Error) { self.error = error }
     func load(sourceDay: String) throws -> DailyReviewSnapshot { throw error }
+    func mostRecentUnfinishedReview() throws -> UnfinishedDailyReview? { throw error }
     func correct(_ session: DailyReviewSession, to classification: BehaviorClassification, taskID: String?, from splitDate: Date?, applyToFuture: Bool) throws { throw error }
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws { throw error }
     func confirm(sourceDay: String) throws { throw error }
@@ -258,6 +281,7 @@ struct DailyReviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             header
+            unfinishedReviewBanner
             if let errorMessage = controller.errorMessage {
                 errorCard(errorMessage)
             }
@@ -308,6 +332,36 @@ struct DailyReviewView: View {
         .task { controller.load() }
         .onChange(of: controller.selectedDay) { controller.load() }
         .accessibilityIdentifier("reviews.daily")
+    }
+
+    @ViewBuilder
+    private var unfinishedReviewBanner: some View {
+        if let unfinished = controller.unfinishedReview {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(unfinished.sourceDay == controller.sourceDay ? "REVIEW IN PROGRESS" : "UNFINISHED REVIEW")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Text(unfinished.sourceDay == controller.sourceDay
+                    ? "Your previous corrections are loaded and remain local until you confirm this review."
+                    : "You changed the review for \(unfinished.sourceDay) but did not confirm it. Resume with every saved correction intact.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                if unfinished.sourceDay != controller.sourceDay {
+                    Button("RESUME \(unfinished.sourceDay)") { controller.resumeUnfinishedReview() }
+                        .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                        .accessibilityIdentifier("reviews.unfinished.resume")
+                        .accessibilityHint("Opens the most recently changed unconfirmed daily review with its saved corrections.")
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Sumi.softPaper)
+            .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("reviews.unfinished")
+        }
     }
 
     private var header: some View {
