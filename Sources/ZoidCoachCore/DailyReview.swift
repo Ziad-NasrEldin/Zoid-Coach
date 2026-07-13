@@ -226,8 +226,10 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
 
     private func longestSession(where predicate: (DailyReviewSession) -> Bool) -> DailyReviewSession? {
         sessions.filter(predicate).sorted {
-            if $0.durationMinutes != $1.durationMinutes {
-                return $0.durationMinutes > $1.durationMinutes
+            let leftDuration = $0.end.timeIntervalSince($0.start)
+            let rightDuration = $1.end.timeIntervalSince($1.start)
+            if leftDuration != rightDuration {
+                return leftDuration > rightDuration
             }
             return $0.start < $1.start
         }.first

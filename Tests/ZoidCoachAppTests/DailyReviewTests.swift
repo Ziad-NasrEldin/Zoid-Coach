@@ -169,6 +169,39 @@ func dailyReviewShowsCorrectionAwareHighlightsAndBehaviorCoachingResponsesAcross
 }
 
 @Test
+func dailyReviewHighlightUsesExactDurationBeforeRoundedDisplayMinutes() {
+    let start = Date(timeIntervalSince1970: 1_783_663_200)
+    let earlier = DailyReviewSession(
+        sourceDay: "2026-07-10",
+        start: start,
+        end: start.addingTimeInterval(241),
+        application: "Earlier",
+        classification: .work,
+        observationCount: 5
+    )
+    let laterStart = start.addingTimeInterval(600)
+    let later = DailyReviewSession(
+        sourceDay: "2026-07-10",
+        start: laterStart,
+        end: laterStart.addingTimeInterval(299),
+        application: "Later",
+        classification: .work,
+        observationCount: 5
+    )
+    let snapshot = DailyReviewSnapshot(
+        sourceDay: "2026-07-10",
+        sessions: [earlier, later],
+        totals: [],
+        hypothesis: nil,
+        hypothesisState: .pending,
+        confirmedAt: nil
+    )
+
+    #expect(earlier.durationMinutes == later.durationMinutes)
+    #expect(snapshot.bestObservedWorkBlock?.application == "Later")
+}
+
+@Test
 func correctionAndTaskAttachmentPersistAndRecalculateTotalsAfterRestart() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
