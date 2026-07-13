@@ -135,6 +135,16 @@ func identicalActiveOfflineWorkIsIdempotentAcrossReopenedSheets() throws {
     #expect(snapshot.offlineMinutes == 35)
 }
 
+@Test
+func offlineWorkTaskTitleResolverShowsThePlannedTaskTitleAndKeepsAnHonestFallback() {
+    let resolver = OfflineWorkTaskTitleResolver(titles: [
+        "local:user:task-1": "Research migration risks"
+    ])
+
+    #expect(resolver.title(for: "local:user:task-1") == "Research migration risks")
+    #expect(resolver.title(for: "external-task") == "external-task")
+}
+
 private var utcActiveOfflineWorkCalendar: Calendar {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!

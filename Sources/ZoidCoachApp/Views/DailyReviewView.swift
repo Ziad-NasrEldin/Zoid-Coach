@@ -381,6 +381,7 @@ struct DailyReviewView: View {
         CompletedTaskHistorySection(entries: snapshot.completedTasks)
         OfflineWorkSection(
             entries: snapshot.offlineWork,
+            taskTitles: Dictionary(uniqueKeysWithValues: snapshot.plannedTasks.map { ($0.taskID, $0.title) }),
             selectedDay: controller.selectedDay,
             onSave: controller.saveOfflineWork,
             onDelete: controller.deleteOfflineWork
@@ -888,6 +889,7 @@ struct DailyReviewView: View {
 
 private struct OfflineWorkSection: View {
     let entries: [OfflineWorkEntry]
+    let taskTitles: [String: String]
     let selectedDay: Date
     let onSave: (String?, Date, Int, String, String) -> Bool
     let onDelete: (OfflineWorkEntry) -> Void
@@ -920,7 +922,8 @@ private struct OfflineWorkSection: View {
                                 .font(Sumi.label(10))
                                 .sumiLabelTracking()
                             if let taskID = entry.taskID {
-                                Text("Task: \(taskID)").font(Sumi.body(12))
+                                Text("Task: \(OfflineWorkTaskTitleResolver(titles: taskTitles).title(for: taskID))")
+                                    .font(Sumi.body(12))
                             }
                             if let note = entry.note {
                                 Text(note).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
@@ -1034,6 +1037,14 @@ private struct OfflineWorkSection: View {
         return (!trimmedTask.isEmpty || !trimmedNote.isEmpty)
             && trimmedTask.count <= 200
             && trimmedNote.count <= 1_000
+    }
+}
+
+struct OfflineWorkTaskTitleResolver: Equatable, Sendable {
+    let titles: [String: String]
+
+    func title(for taskID: String) -> String {
+        titles[taskID] ?? taskID
     }
 }
 
