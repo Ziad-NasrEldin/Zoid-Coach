@@ -4,6 +4,7 @@
 
 The candidate `a2ec031` was applied to authoritative base `c73fbd5` in an isolated verifier worktree.
 Focused verification found and fixed three end-user blockers in verifier commit `52f5c14`.
+After rebasing onto authoritative dark-appearance commit `9df31e0`, those fixes became `07cf110`.
 
 ## Blockers fixed
 
@@ -34,16 +35,16 @@ Focused verification found and fixed three end-user blockers in verifier commit 
 
 ## Capped signed journey
 
-The shared runtime remains untouched while the dark-appearance verifier owns its lease.
-When the lease is released, the capped journey is:
+The installed signed QA app completed the capped journey under isolated root `.build/qa-active-offline-signed`.
+Today created and started `Research migration risks`, then exposed Add Away Work only for that active commitment.
+The sheet visibly named the exact task, showed privacy and evidence-boundary copy, changed from its 15-minute default to 10 minutes, accepted `Read deployment notes`, and displayed exact 10-minute success feedback.
+The save action disappeared after success, and SQLite contained exactly one matching row after cancel and relaunch.
+Reviews visibly showed 10 minutes Actual Time, 0 minutes Screenwatch-observed, and 10 minutes Away from Mac with the exact note.
+Foreground-app relaunch preserved the active task, entry, note, and separated totals.
+Cancel returned without mutation.
+The DatePicker clamped a future start to now, and Record Work became disabled because the selected duration would extend beyond now.
 
-1. Install the verifier's signed QA artifact under its isolated QA root.
-2. Create and start one local Today task and confirm Add Away Work is visible for that exact active task.
-3. Open the sheet, choose a non-default completed interval of 35 minutes, enter `Read deployment notes`, and save once.
-4. Verify the success message names 35 minutes and the exact task, then activate the default action again and confirm no second entry exists.
-5. Open Reviews for the same configured local day and verify Actual Time and Away from Mac increase by 35 while Screenwatch-observed time does not.
-6. Relaunch and verify the entry, task binding, duration, note, and separated totals persist.
-7. Reopen the active-task sheet, cancel, and verify no mutation.
-8. Select a future start and then a past start whose duration ends in the future, and verify both paths remain unsaved.
-
-Tracker, registry, Lavish, root, and the shared runtime remain outside this verifier until the serialized lease is granted.
+The installed Reviews row exposed the raw local task identifier instead of its readable title.
+Verifier commit `341eb59` resolves planned task identifiers to their readable titles with an honest identifier fallback.
+The resolver's focused test and the final release package, LaunchAgent, Mach-service, signature, and designated-requirement checks passed.
+The ten-minute UI cap ended before reinstalling that final package, so both scenarios remain conservative at Touches remaining until one installed Reviews title recheck passes.

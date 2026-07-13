@@ -14,12 +14,12 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 100
-- **Touches remaining:** 230
-- **Frontend only left:** 15
-- **Partially implemented:** 109
-- **Barely started:** 32
-- **Not implemented:** 153
+- **Fully implemented:** 143
+- **Touches remaining:** 262
+- **Frontend only left:** 11
+- **Partially implemented:** 110
+- **Barely started:** 17
+- **Not implemented:** 96
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -327,8 +327,8 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 22. Work away from the Mac
 
-- [ ] Mark a task session as work completed away from the Mac. **Status: Not implemented.** No offline-work domain type, command, or UI exists.
-- [ ] Add offline work during the task session. **Status: Not implemented.** No duration entry is available from the active task.
+- [ ] Mark a task session as work completed away from the Mac. **Status: Touches remaining.** The signed QA Today surface exposed `ADD AWAY-FROM-MAC WORK FOR RESEARCH MIGRATION RISKS` only after that exact local task became active, bound the sheet to the readable task title, explained the Screenwatch boundary, saved one non-default 10-minute interval and note, and retained the active task plus entry through foreground-app relaunch. A verifier-fixed Reviews title resolver passed focused and signed-package validation, but its readable-title presentation still needs one installed visual recheck (`ActiveOfflineWorkEntry.swift`; `ActiveOfflineWorkSheet.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/active-offline-work/verifier/REPORT.md`).
+- [ ] Add offline work during the task session. **Status: Touches remaining.** The installed active-task sheet showed a bounded duration stepper, completed-time default, optional note, exact success feedback, Return/Escape semantics, and disabled saving when the selected interval would extend into the future. The database contained exactly one 10-minute row after save, cancel, and relaunch; Reviews showed 10 Actual, 0 Screenwatch-observed, and 10 Away from Mac with the persisted note. A final installed recheck of the post-verifier readable task-title fix remains (`ActiveOfflineWorkEntry.swift`; `DailyReviewView.swift`; `.audit/runs/active-offline-work/verifier/REPORT.md`).
 - [x] Add offline work during end-of-day review. **Status: Fully implemented.** The signed-QA Reviews screen accepted a labeled 30-minute away-from-Mac entry and immediately displayed it in the selected day's review (`.audit/runs/offline-work/9cb54454/REPORT.md`).
 - [x] See offline work included in actual task time. **Status: Fully implemented.** The signed-QA review changed Actual Time from 0 to 30 minutes and then to 45 minutes after correction, with restart preserving the corrected total (`.audit/runs/offline-work/9cb54454/REPORT.md`).
 - [x] See offline work kept separate from Screenwatch-aligned time. **Status: Fully implemented.** The signed-QA coverage summary kept Screenwatch-observed at 0 minutes while Away from Mac and Actual Time changed independently, and the persisted entry retained that separation after relaunch (`.audit/runs/offline-work/9cb54454/REPORT.md`).

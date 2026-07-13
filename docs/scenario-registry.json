@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "bb8c53c0a331407d398c38ce6c574b782a8d1e78d0998e494526b6433eaf3a8f",
+  "tracker_sha256": "dfbd6c9a9afb747481b5f8436ef30e630953107f3f4c8c359f574002de6cb719",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4732,8 +4732,8 @@
       "item_index": 1,
       "wording": "Mark a task session as work completed away from the Mac.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4744,7 +4744,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No offline-work domain type, command, or UI exists.",
+      "audit_note": "The signed QA Today surface exposed `ADD AWAY-FROM-MAC WORK FOR RESEARCH MIGRATION RISKS` only after that exact local task became active, bound the sheet to the readable task title, explained the Screenwatch boundary, saved one non-default 10-minute interval and note, and retained the active task plus entry through foreground-app relaunch. A verifier-fixed Reviews title resolver passed focused and signed-package validation, but its readable-title presentation still needs one installed visual recheck (`ActiveOfflineWorkEntry.swift`; `ActiveOfflineWorkSheet.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/active-offline-work/verifier/REPORT.md`).",
       "tracker_line": 330
     },
     {
@@ -4754,8 +4754,8 @@
       "item_index": 2,
       "wording": "Add offline work during the task session.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4766,7 +4766,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No duration entry is available from the active task.",
+      "audit_note": "The installed active-task sheet showed a bounded duration stepper, completed-time default, optional note, exact success feedback, Return/Escape semantics, and disabled saving when the selected interval would extend into the future. The database contained exactly one 10-minute row after save, cancel, and relaunch; Reviews showed 10 Actual, 0 Screenwatch-observed, and 10 Away from Mac with the persisted note. A final installed recheck of the post-verifier readable task-title fix remains (`ActiveOfflineWorkEntry.swift`; `DailyReviewView.swift`; `.audit/runs/active-offline-work/verifier/REPORT.md`).",
       "tracker_line": 331
     },
     {
