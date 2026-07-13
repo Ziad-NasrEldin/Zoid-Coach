@@ -791,6 +791,18 @@ public struct BehaviorClassifier: Sendable {
     }
 }
 
+public enum RecommendationSprintPresentation {
+    public static func durationMinutes(estimateMinutes: Int, availableMinutes: Int) -> Int? {
+        guard estimateMinutes > availableMinutes, availableMinutes > 0 else { return nil }
+        return min(25, availableMinutes)
+    }
+
+    public static func sentence(taskTitle: String, sprintMinutes: Int, availableMinutes: Int) -> String {
+        let availableLabel = "\(availableMinutes) minute\(availableMinutes == 1 ? "" : "s")"
+        return "Start \"\(taskTitle)\" with a \(sprintMinutes)-minute sprint. It is larger than the \(availableLabel) available, and the task will stay incomplete when the sprint ends."
+    }
+}
+
 public struct NextTaskRecommender: Sendable {
     public init() {}
 

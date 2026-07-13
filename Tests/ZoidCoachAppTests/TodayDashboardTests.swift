@@ -139,6 +139,19 @@ func boundedSprintRecommendationCapsLongWindowsAndAvoidsZeroTime() {
 }
 
 @Test
+func recommendationSprintPresentationUsesLiveAvailability() {
+    #expect(RecommendationSprintPresentation.durationMinutes(estimateMinutes: 90, availableMinutes: 20) == 20)
+    #expect(RecommendationSprintPresentation.durationMinutes(estimateMinutes: 90, availableMinutes: 40) == 25)
+    #expect(RecommendationSprintPresentation.durationMinutes(estimateMinutes: 90, availableMinutes: 0) == nil)
+    #expect(RecommendationSprintPresentation.durationMinutes(estimateMinutes: 15, availableMinutes: 20) == nil)
+    #expect(RecommendationSprintPresentation.sentence(
+        taskTitle: "Prepare migration plan",
+        sprintMinutes: 20,
+        availableMinutes: 20
+    ).contains("task will stay incomplete"))
+}
+
+@Test
 func legacyRecommendationDecodesWithoutASuggestedSprint() throws {
     let data = Data(#"{"taskID":"task","sentence":"Start now.","reasons":["shortFit"]}"#.utf8)
 
