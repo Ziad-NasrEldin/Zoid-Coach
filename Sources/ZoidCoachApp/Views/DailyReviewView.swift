@@ -15,6 +15,7 @@ protocol DailyReviewServicing: AnyObject {
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws
     func savePersonalNote(_ note: String?, sourceDay: String) throws
     func confirm(sourceDay: String) throws
+    func skip(sourceDay: String) throws
     @discardableResult
     func saveOfflineWork(
         id: String?,
@@ -231,6 +232,17 @@ final class DailyReviewController: ObservableObject {
         }
     }
 
+    func skip() {
+        do {
+            try service.skip(sourceDay: sourceDay)
+            try refreshSnapshotAndResumeState()
+            errorMessage = nil
+            successMessage = "Review skipped. The day is closed without confirming any conclusions, and its evidence remains available."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func saveOfflineWork(
         id: String?,
         startedAt: Date,
@@ -280,6 +292,7 @@ private final class UnavailableDailyReviewService: DailyReviewServicing {
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws { throw error }
     func savePersonalNote(_ note: String?, sourceDay: String) throws { throw error }
     func confirm(sourceDay: String) throws { throw error }
+    func skip(sourceDay: String) throws { throw error }
     func saveOfflineWork(id: String?, sourceDay: String, taskID: String?, startedAt: Date, durationMinutes: Int, note: String?) throws -> String { throw error }
     func deleteOfflineWork(id: String, sourceDay: String) throws { throw error }
     func classificationRules() throws -> [AppClassificationCorrectionRule] { throw error }
@@ -291,6 +304,7 @@ private final class UnavailableDailyReviewService: DailyReviewServicing {
 struct DailyReviewView: View {
     @StateObject private var controller: DailyReviewController
     @State private var confirmsRuleReset = false
+    @State private var confirmsSkipReview = false
 
     init(controller: DailyReviewController? = nil) {
         _controller = StateObject(wrappedValue: controller ?? DailyReviewController())
@@ -349,6 +363,16 @@ struct DailyReviewView: View {
         .frame(maxWidth: 980, alignment: .leading)
         .task { controller.load() }
         .onChange(of: controller.selectedDay) { controller.load() }
+        .confirmationDialog(
+            "Skip this daily review?",
+            isPresented: $confirmsSkipReview,
+            titleVisibility: .visible
+        ) {
+            Button("SKIP REVIEW AND CLOSE DAY", role: .destructive) { controller.skip() }
+            Button("KEEP REVIEW OPEN", role: .cancel) {}
+        } message: {
+            Text("No review conclusions will be confirmed. Local activity, corrections, and notes stay available, and a later edit will reopen the review.")
+        }
         .accessibilityIdentifier("reviews.daily")
     }
 
@@ -963,7 +987,16 @@ struct DailyReviewView: View {
 
     private func confirmation(_ snapshot: DailyReviewSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let confirmedAt = snapshot.confirmedAt {
+            if let skippedAt = snapshot.skippedAt {
+                Text("SKIPPED \(skippedAt.formatted(date: .abbreviated, time: .shortened).uppercased())")
+                    .font(Sumi.label())
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("reviews.skipped")
+                Text("This day is closed without confirmed conclusions. Its local evidence and corrections remain available, and any later edit reopens the review.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+            } else if let confirmedAt = snapshot.confirmedAt {
                 Text("CONFIRMED \(confirmedAt.formatted(date: .abbreviated, time: .shortened).uppercased())")
                     .font(Sumi.label())
                     .sumiLabelTracking()
@@ -976,6 +1009,10 @@ struct DailyReviewView: View {
                 Button("CONFIRM CORRECTED REVIEW") { controller.confirm() }
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .large))
                     .accessibilityIdentifier("reviews.confirm")
+                Button("SKIP REVIEW") { confirmsSkipReview = true }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
+                    .accessibilityIdentifier("reviews.skip")
+                    .accessibilityHint("Asks for confirmation before closing this day without confirming review conclusions.")
             }
         }
     }

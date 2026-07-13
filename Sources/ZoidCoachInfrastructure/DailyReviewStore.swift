@@ -60,6 +60,7 @@ public final class DailyReviewStore: @unchecked Sendable {
             hypothesis: Self.hypothesis(for: totals),
             hypothesisState: state.hypothesisState,
             confirmedAt: state.confirmedAt,
+            skippedAt: state.skippedAt,
             personalNote: state.personalNote,
             offlineWork: offlineWork,
             completedTasks: completedTasks,
@@ -73,7 +74,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         var statement: OpaquePointer?
-        let sql = "SELECT source_day, updated_at_utc FROM daily_reviews WHERE confirmed_at_utc IS NULL ORDER BY updated_at_utc DESC, source_day DESC LIMIT 1;"
+        let sql = "SELECT source_day, updated_at_utc FROM daily_reviews WHERE confirmed_at_utc IS NULL AND skipped_at_utc IS NULL ORDER BY updated_at_utc DESC, source_day DESC LIMIT 1;"
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement else { throw databaseError(.read) }
         defer { sqlite3_finalize(statement) }
@@ -413,7 +414,7 @@ public final class DailyReviewStore: @unchecked Sendable {
                 ]
             )
             try execute(
-                "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES (?, 'pending', NULL, ?) ON CONFLICT(source_day) DO UPDATE SET hypothesis_state = 'pending', confirmed_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
+                "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES (?, 'pending', NULL, ?) ON CONFLICT(source_day) DO UPDATE SET hypothesis_state = 'pending', confirmed_at_utc = NULL, skipped_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
                 bindings: [.text(session.sourceDay), .text(Self.timestamp(now()))]
             )
             if applyToFuture {
@@ -621,7 +622,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         try execute(
-            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES (?, ?, NULL, ?) ON CONFLICT(source_day) DO UPDATE SET hypothesis_state = excluded.hypothesis_state, confirmed_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES (?, ?, NULL, ?) ON CONFLICT(source_day) DO UPDATE SET hypothesis_state = excluded.hypothesis_state, confirmed_at_utc = NULL, skipped_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
             bindings: [.text(sourceDay), .text(state.rawValue), .text(Self.timestamp(now()))]
         )
     }
@@ -633,7 +634,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         guard (normalized?.count ?? 0) <= 1_000 else { throw DailyReviewStoreError.personalNoteTooLong }
         let timestamp = Self.timestamp(now())
         try execute(
-            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, personal_note) VALUES (?, 'pending', NULL, ?, ?) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, updated_at_utc = excluded.updated_at_utc, personal_note = excluded.personal_note;",
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, personal_note) VALUES (?, 'pending', NULL, ?, ?) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, skipped_at_utc = NULL, updated_at_utc = excluded.updated_at_utc, personal_note = excluded.personal_note;",
             bindings: [.text(sourceDay), .text(timestamp), normalized.map(Binding.text) ?? .null]
         )
     }
@@ -643,7 +644,17 @@ public final class DailyReviewStore: @unchecked Sendable {
         defer { lock.unlock() }
         let timestamp = Self.timestamp(now())
         try execute(
-            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES (?, 'pending', ?, ?) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = excluded.confirmed_at_utc, updated_at_utc = excluded.updated_at_utc;",
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, skipped_at_utc) VALUES (?, 'pending', ?, ?, NULL) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = excluded.confirmed_at_utc, skipped_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
+            bindings: [.text(sourceDay), .text(timestamp), .text(timestamp)]
+        )
+    }
+
+    public func skip(sourceDay: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let timestamp = Self.timestamp(now())
+        try execute(
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, skipped_at_utc) VALUES (?, 'pending', NULL, ?, ?) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, skipped_at_utc = excluded.skipped_at_utc, updated_at_utc = excluded.updated_at_utc;",
             bindings: [.text(sourceDay), .text(timestamp), .text(timestamp)]
         )
     }
@@ -731,7 +742,7 @@ public final class DailyReviewStore: @unchecked Sendable {
 
     private func reopenReview(sourceDay: String, timestamp: String) throws {
         try execute(
-            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc) VALUES (?, 'pending', NULL, ?) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, skipped_at_utc) VALUES (?, 'pending', NULL, ?, NULL) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, skipped_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
             bindings: [.text(sourceDay), .text(timestamp)]
         )
     }
@@ -748,27 +759,32 @@ public final class DailyReviewStore: @unchecked Sendable {
     private func readReviewState(sourceDay: String) throws -> (
         hypothesisState: DailyReviewHypothesisState,
         confirmedAt: Date?,
+        skippedAt: Date?,
         personalNote: String?
     ) {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
-            "SELECT hypothesis_state, confirmed_at_utc, personal_note FROM daily_reviews WHERE source_day = ? LIMIT 1;",
+            "SELECT hypothesis_state, confirmed_at_utc, skipped_at_utc, personal_note FROM daily_reviews WHERE source_day = ? LIMIT 1;",
             -1,
             &statement,
             nil
         ) == SQLITE_OK, let statement else { throw databaseError(.read) }
         defer { sqlite3_finalize(statement) }
         bind(sourceDay, statement, 1)
-        guard sqlite3_step(statement) == SQLITE_ROW else { return (.pending, nil, nil) }
+        guard sqlite3_step(statement) == SQLITE_ROW else { return (.pending, nil, nil, nil) }
         let rawState = sqlite3_column_text(statement, 0).map { String(cString: $0) } ?? "pending"
         let confirmed = sqlite3_column_text(statement, 1)
+            .map { String(cString: $0) }
+            .flatMap(ISO8601DateFormatter().date(from:))
+        let skipped = sqlite3_column_text(statement, 2)
             .map { String(cString: $0) }
             .flatMap(ISO8601DateFormatter().date(from:))
         return (
             DailyReviewHypothesisState(rawValue: rawState) ?? .pending,
             confirmed,
-            text(statement, 2)
+            skipped,
+            text(statement, 3)
         )
     }
 

@@ -550,6 +550,36 @@ func unfinishedReviewSurvivesRestartAndDisappearsOnlyAfterConfirmation() throws 
 }
 
 @Test
+func skippedReviewClosesDayWithoutLosingEvidenceAndLaterEditReopensIt() throws {
+    let skippedAt = Date(timeIntervalSince1970: 1_783_700_000)
+    let fixture = try DailyReviewFixture(now: { skippedAt })
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Cursor", classification: .work)
+    let session = try fixture.store.load(sourceDay: fixture.sourceDay).sessions[0]
+    try fixture.store.correct(session, to: .distracting, taskID: nil, from: nil)
+    #expect(try fixture.store.mostRecentUnfinishedReview()?.sourceDay == fixture.sourceDay)
+
+    try fixture.store.skip(sourceDay: fixture.sourceDay)
+    let skipped = try fixture.store.load(sourceDay: fixture.sourceDay)
+    #expect(skipped.skippedAt == skippedAt)
+    #expect(skipped.confirmedAt == nil)
+    #expect(skipped.sessions[0].classification == .distracting)
+    #expect(try fixture.store.mostRecentUnfinishedReview() == nil)
+
+    let restarted = try DailyReviewStore(databaseURL: fixture.databaseURL, now: { skippedAt.addingTimeInterval(60) })
+    let restored = try restarted.load(sourceDay: fixture.sourceDay)
+    #expect(restored.skippedAt == skippedAt)
+    #expect(restored.sessions[0].classification == .distracting)
+    #expect(try restarted.mostRecentUnfinishedReview() == nil)
+
+    try restarted.savePersonalNote("Follow up tomorrow.", sourceDay: fixture.sourceDay)
+    let reopened = try restarted.load(sourceDay: fixture.sourceDay)
+    #expect(reopened.skippedAt == nil)
+    #expect(reopened.personalNote == "Follow up tomorrow.")
+    #expect(try restarted.mostRecentUnfinishedReview()?.sourceDay == fixture.sourceDay)
+}
+
+@Test
 func offlineWorkPersistsAcrossRestartAndRemainsSeparateFromObservedCoverage() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
@@ -666,6 +696,7 @@ func migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() throws {
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM behavior_records;") == 1)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('daily_reviews', 'daily_review_corrections', 'offline_work_entries');") == 3)
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM pragma_table_info('daily_reviews') WHERE name = 'skipped_at_utc';") == 1)
 }
 
 @Test
