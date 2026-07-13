@@ -189,6 +189,13 @@ func dailyReviewShowsCorrectionAwareHighlightsAndBehaviorCoachingResponsesAcross
                 classification: .work
             )
         }
+        for offset in 0..<2 {
+            try fixture.insert(
+                epoch: followThroughStart + 10 * 60 + Int64(offset * 60),
+                app: "Notes",
+                classification: .work
+            )
+        }
         let withFollowThrough = try fixture.store.load(sourceDay: fixture.sourceDay)
         let followThrough = try #require(withFollowThrough.sessions.first {
             $0.application == "Xcode" && $0.start.timeIntervalSince1970 >= Double(followThroughStart)
