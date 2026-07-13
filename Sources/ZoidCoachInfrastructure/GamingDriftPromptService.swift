@@ -129,9 +129,10 @@ public final class GamingDriftPromptService: @unchecked Sendable {
                 "taskTitle": task.title,
                 "application": session.application,
                 "observedGamingMinutes": String(session.minutes),
-                "sessionStartedAtEpoch": String(session.startedAtEpoch),
-                "coachingLevel": level.rawValue
-            ],
+            "sessionStartedAtEpoch": String(session.startedAtEpoch),
+            "coachingLevel": level.rawValue,
+            "allowsDismissal": "true"
+        ],
             expiresAt: date.addingTimeInterval(30 * 60)
         ))
         return .queued(result.episode, wasInserted: result.wasInserted)

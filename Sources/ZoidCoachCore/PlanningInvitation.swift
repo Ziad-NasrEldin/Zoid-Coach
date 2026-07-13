@@ -38,7 +38,8 @@ public enum PlanningInvitationPolicy {
     ) -> PromptDraft {
         var payload = [
             "localDay": localDay,
-            "itemCount": String(max(0, itemCount))
+            "itemCount": String(max(0, itemCount)),
+            "allowsDismissal": "true"
         ]
         if let notBefore {
             payload["notBefore"] = ISO8601DateFormatter().string(from: notBefore)

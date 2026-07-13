@@ -231,6 +231,26 @@ func promptInboxTimelineExpiresDueEpisodesAndRejectsInvalidHistoryLimits() throw
     }
 }
 
+@Test
+func promptInboxRefusesToDismissAMandatoryDecision() throws {
+    let url = temporaryPromptInboxURL("mandatory-dismissal")
+    defer { removePromptInboxDatabase(url) }
+    let store = try PromptInboxStore(databaseURL: url)
+    let mandatory = try store.enqueue(PromptDraft(
+        decisionKey: "onboarding:mandatory",
+        type: "ONBOARDING_TEST",
+        title: "Continue setup",
+        summary: "Choose how to continue.",
+        actions: [PromptAction(kind: .continueIntentionally, title: "Continue")]
+    )).episode
+
+    #expect(mandatory.allowsDismissal == false)
+    #expect(throws: PromptInboxStoreError.dismissalNotAllowed) {
+        try store.dismiss(promptID: mandatory.id)
+    }
+    #expect(try store.episode(promptID: mandatory.id)?.state == .detected)
+}
+
 private func promptDraft(decisionKey: String, expiresAt: Date? = nil) -> PromptDraft {
     PromptDraft(
         decisionKey: decisionKey,
@@ -242,7 +262,7 @@ private func promptDraft(decisionKey: String, expiresAt: Date? = nil) -> PromptD
             PromptAction(kind: .editMeeting, title: "Edit"),
             PromptAction(kind: .ignore, title: "Ignore")
         ],
-        payload: ["candidateID": "candidate-1"],
+        payload: ["candidateID": "candidate-1", "allowsDismissal": "true"],
         expiresAt: expiresAt
     )
 }

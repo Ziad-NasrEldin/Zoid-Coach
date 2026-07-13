@@ -113,6 +113,10 @@ public struct PromptEpisode: Identifiable, Equatable, Codable, Sendable {
     public let presentedAt: Date?
     public let resolvedAt: Date?
 
+    public var allowsDismissal: Bool {
+        payload["allowsDismissal"] == "true"
+    }
+
     public init(
         id: String,
         decisionKey: String,
