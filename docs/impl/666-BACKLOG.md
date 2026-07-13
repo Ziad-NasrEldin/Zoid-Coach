@@ -222,6 +222,11 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Restores prompt eligibility automatically when fresh evidence resumes.
 - Four focused stale, recovery, policy, lifecycle, correction, and exactly-once tests plus the release build pass.
 - Candidate evidence and the signed verifier plan are recorded in `.audit/runs/stale-screenwatch-prompt-suppression/candidate/REPORT.md`.
+- Independent verification fixed future-dated evidence acceptance, stale queued-prompt retention, and same-runtime recovery coverage.
+- Four focused tests and one QA release package pass.
+- The installed signed missing-source app plus relaunch displayed Today with zero total or unresolved prompts.
+- `ZC-049-003` advances from Not implemented to Touches remaining because signed stale-to-fresh visible prompt recovery still needs supported baseline and current-plan fixture prerequisites.
+- Verifier evidence is recorded in `.audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md`.
 
 ### Reduced-motion state feedback - candidate
 
