@@ -52,6 +52,11 @@ struct SettingsPolicyDraft: Equatable {
     var gamingReturnFromIdleGraceMinutes: Int
     var gamingBudgetEnabled: Bool
 
+    var maximumInterventionLevel: CoachingLevel {
+        get { coachingLevel }
+        set { coachingLevel = newValue }
+    }
+
     init(policy: UserPolicy) {
         operatingMode = policy.operatingMode
         automationPause = policy.automationPause
