@@ -812,6 +812,54 @@ final class AppModel: ObservableObject {
             return
         }
         deferTask(entry, until: date)
+        guard !taskID.hasPrefix("local:") else {
+            persistenceMessage = "The local planning date is being saved. No Apple Reminders sync is needed for this local task."
+            return
+        }
+        Task {
+            do {
+                let receipt = try await todayDashboardXPCClient.apply(
+                    .rescheduleReminder(reminderID: taskID, dueDate: date)
+                )
+                guard receipt.accepted, receipt.commandIDs.count == 1 else {
+                    throw AppModelPersistenceError.rejected
+                }
+                persistenceMessage = "The new planning date is saved locally. Apple Reminders sync is pending."
+                await refreshActionAudit()
+                await monitorReminderRescheduleSync(taskID: taskID, dueDate: date)
+            } catch {
+                persistenceMessage = "The new planning date remains selected locally, but Apple Reminders sync could not be queued. Check Reminders access and try again."
+            }
+        }
+    }
+
+    var visibleReminderRescheduleSyncStates: [ReminderRescheduleSyncState] {
+        dailyPlan.compactMap { entry in
+            guard let dueDate = entry.deferredUntil else { return nil }
+            let state = ReminderRescheduleSyncState(
+                taskID: entry.reminderID,
+                taskTitle: reminderTasks.first(where: { $0.id == entry.reminderID })?.title
+                    ?? todaySnapshot?.taskRows.first(where: { $0.taskID == entry.reminderID })?.title
+                    ?? "Reminder task",
+                dueDate: dueDate,
+                audit: actionAudit
+            )
+            return state.isVisible ? state : nil
+        }
+        .sorted { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
+    }
+
+    private func monitorReminderRescheduleSync(taskID: String, dueDate: Date) async {
+        for _ in 0..<20 {
+            guard let state = visibleReminderRescheduleSyncStates.first(where: {
+                $0.taskID == taskID && $0.dueDate == dueDate
+            }),
+            state.phase == .pending || state.phase == .retrying
+            else { return }
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            await refreshActionAudit()
+        }
     }
 
     func clearTaskDeferral(_ entry: DailyPlanEntry) {

@@ -82,6 +82,26 @@ public final class AgentMutationRouter: @unchecked Sendable {
             )
             return .init(accepted: true, commandIDs: [result.command.id], message: "Reminder completion queued.")
 
+        case let .rescheduleReminder(reminderID, dueDate):
+            guard dueDate > Date(),
+                  let reminder = try reminderSnapshots.loadIncomplete().first(where: { $0.id == reminderID }),
+                  reminder.sourceKind == .reminders
+            else {
+                throw AgentMutationRouterError.invalidCommand
+            }
+            let result = try outbox.enqueue(
+                type: .setReminderDueDate,
+                entityID: reminderID,
+                desiredState: .reminder(ReminderDesiredState(dueDate: dueDate)),
+                planVersion: activePolicyVersion(),
+                supersedingPending: true
+            )
+            return .init(
+                accepted: true,
+                commandIDs: [result.command.id],
+                message: "Reminder reschedule queued."
+            )
+
         case let .createLocalTask(task, addToToday, day):
             let title = task.title.trimmingCharacters(in: .whitespacesAndNewlines)
             let notes = task.notes?.trimmingCharacters(in: .whitespacesAndNewlines)

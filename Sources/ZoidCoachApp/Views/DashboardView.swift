@@ -319,6 +319,7 @@ private struct TodayCommandView: View {
             TodayPromptInboxLedger()
             MeetingCandidateLedger(editingCandidate: $editingCandidate)
             ReminderCompletionSyncLedger()
+            ReminderRescheduleSyncLedger()
             AutomaticActionLedger()
             MacPermissionHealthLedger()
 
@@ -542,6 +543,65 @@ private struct ReminderCompletionSyncLedger: View {
                     .accessibilityIdentifier("today.completion-sync.\(state.taskID)")
                 }
             }
+        }
+    }
+}
+
+private struct ReminderRescheduleSyncLedger: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        if !model.visibleReminderRescheduleSyncStates.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("REMINDERS RESCHEDULE SYNC")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                    Spacer()
+                    Text("LOCAL DATE PRESERVED")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.muted)
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 10)
+                .background(Sumi.mist)
+                .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+                ForEach(model.visibleReminderRescheduleSyncStates, id: \.taskID) { state in
+                    HStack(spacing: 12) {
+                        Image(systemName: syncIcon(for: state.phase))
+                            .foregroundStyle(
+                                state.phase == .failed || state.phase == .unavailable
+                                    ? Sumi.seal
+                                    : Sumi.muted
+                            )
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("\(state.taskTitle) · \(state.dueDate.formatted(date: .abbreviated, time: .omitted))")
+                                .font(Sumi.body(13))
+                                .foregroundStyle(Sumi.ink)
+                            Text(state.userFacingDetail)
+                                .font(Sumi.body(11))
+                                .foregroundStyle(Sumi.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 11)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("today.reschedule-sync.\(state.taskID)")
+                }
+            }
+        }
+    }
+
+    private func syncIcon(for phase: ReminderRescheduleSyncPhase) -> String {
+        switch phase {
+        case .failed, .unavailable: "exclamationmark.arrow.triangle.2.circlepath"
+        case .confirmed: "checkmark.circle.fill"
+        case .notRequested, .pending, .retrying: "clock.arrow.circlepath"
         }
     }
 }
@@ -1081,7 +1141,7 @@ private struct TodayTaskRowView: View {
                     .foregroundStyle(Sumi.seal)
                 Text(row.title)
                     .font(Sumi.display(24))
-                Text("Choose a future local deferral date. This removes the task from today's capacity, but it does not automatically add a future plan or change the Apple Reminder due date.")
+                Text("Choose a future planning date. This removes the task from today's capacity and asks Apple Reminders to use the same due date. If source sync fails, the local planning date and task history remain safe.")
                     .font(Sumi.body(13))
                     .foregroundStyle(Sumi.muted)
                     .fixedSize(horizontal: false, vertical: true)
