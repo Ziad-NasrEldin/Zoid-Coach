@@ -250,6 +250,7 @@ struct SettingsView: View {
             scheduleSection
         case .signals:
             remindersConnectionSection
+            screenwatchConnectionSection
             notificationDeliverySection
             reminderListsSection
             appClassificationSection
@@ -286,6 +287,15 @@ struct SettingsView: View {
                 controller.configureReminderListsLocalOnly()
                 _ = controller.save()
             }
+        }
+    }
+
+    private var screenwatchConnectionSection: some View {
+        SettingsCard(
+            title: "SCREENWATCH CONNECTION",
+            detail: "Inspect the current local source, repair a moved or invalid folder, choose an alternate days folder, or return to the expected location without exposing captured content."
+        ) {
+            ScreenwatchConnectionView()
         }
     }
 
