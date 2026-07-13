@@ -5,17 +5,40 @@ import Testing
 @testable import ZoidCoachInfrastructure
 
 @Test
-func settingsRoundTripsConfiguredCoachingLevelWithoutChangingGamingAllowance() {
+func settingsRoundTripsConfiguredCoachingLevelAndGamingAllowance() {
     let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     var draft = SettingsPolicyDraft(policy: original)
     draft.coachingLevel = .accountability
+    draft.gamingDailyBudgetMinutes = 95
+    draft.gamingPriorityTaskRewardMinutes = 25
 
     let saved = draft.policy(preserving: original)
 
     #expect(saved.gaming.coachingLevel == .accountability)
-    #expect(saved.gaming.dailyBudgetMinutes == original.gaming.dailyBudgetMinutes)
-    #expect(saved.gaming.priorityTaskRewardMinutes == original.gaming.priorityTaskRewardMinutes)
+    #expect(saved.gaming.dailyBudgetMinutes == 95)
+    #expect(saved.gaming.priorityTaskRewardMinutes == 25)
     #expect(SettingsPolicyDraft(policy: saved).coachingLevel == .accountability)
+    #expect(SettingsPolicyDraft(policy: saved).gamingDailyBudgetMinutes == 95)
+    #expect(SettingsPolicyDraft(policy: saved).gamingPriorityTaskRewardMinutes == 25)
+
+    let beforeCompletion = GamingStatusCalculator().status(
+        policy: saved.gaming,
+        gamingMinutes: 20,
+        rewardApplied: false,
+        coverage: TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: Date())
+    )
+    #expect(beforeCompletion.budgetMinutes == 95)
+    #expect(beforeCompletion.unlockedRemainingMinutes == 75)
+    #expect(beforeCompletion.nextUnlockReason.contains("one priority task"))
+
+    let afterCompletion = GamingStatusCalculator().status(
+        policy: saved.gaming,
+        gamingMinutes: 20,
+        rewardApplied: true,
+        coverage: TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: Date())
+    )
+    #expect(afterCompletion.unlockedRemainingMinutes == 100)
+    #expect(afterCompletion.nextUnlockReason.contains("already applied"))
 }
 
 @Test
@@ -31,6 +54,28 @@ func settingsConflictResolverPreservesConcurrentCoachingLevelChoice() {
     #expect(result.safeDraft.coachingLevel == .accountability)
     #expect(result.safeDraft.capacityPercent == 55)
     #expect(result.overlappingChanges.isEmpty)
+}
+
+@Test
+func settingsConflictResolverPreservesIndependentGamingAllowanceAndFlagsOverlap() {
+    let base = SettingsPolicyDraft(policy: .defaults(timeZoneIdentifier: "UTC"))
+    var mine = base
+    mine.gamingDailyBudgetMinutes = 75
+    mine.gamingPriorityTaskRewardMinutes = 20
+    var current = base
+    current.capacityPercent = 55
+
+    let independent = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+    #expect(independent.safeDraft.gamingDailyBudgetMinutes == 75)
+    #expect(independent.safeDraft.gamingPriorityTaskRewardMinutes == 20)
+    #expect(independent.safeDraft.capacityPercent == 55)
+    #expect(independent.overlappingChanges.isEmpty)
+
+    current.gamingDailyBudgetMinutes = 30
+    let overlapping = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+    #expect(overlapping.safeDraft.gamingDailyBudgetMinutes == 30)
+    #expect(overlapping.retryDraft.gamingDailyBudgetMinutes == 75)
+    #expect(overlapping.overlappingChanges == ["Gaming daily budget"])
 }
 
 @MainActor
