@@ -509,6 +509,20 @@ struct SettingsView: View {
 
     private var automationSection: some View {
         SettingsCard(title: "COACHING PAUSE", detail: "Pause prompts and autonomous actions while task and behavior tracking continue.") {
+            Picker("QUICK PAUSE DEFAULT", selection: $controller.draft.defaultCoachingPauseDuration) {
+                ForEach(CoachingPauseDuration.allCases, id: \.self) { duration in
+                    Text(duration.label.uppercased()).tag(duration)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("settings.coaching-pause.default-duration")
+
+            Text("The menu-bar Pause action will apply \(controller.draft.defaultCoachingPauseDuration.selectionDescription). Settings always keeps every explicit pause option available.")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("settings.coaching-pause.default-duration.detail")
+
             TimelineView(.periodic(from: .now, by: 30)) { _ in
                 VStack(alignment: .leading, spacing: 10) {
                     Text(coachingPauseStatus)
