@@ -44,6 +44,9 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         let reminderSnapshots = try reminders.loadIncomplete()
         let reminderByID = Dictionary(uniqueKeysWithValues: reminderSnapshots.map { ($0.id, $0) })
         let executionByID = try execution.snapshot(for: reminderSnapshots.map(\.id), now: now)
+        let behaviorObservations = try archive.behaviorObservations(for: now)
+        let behavior = BehaviorSessionizer().summarize(observations: behaviorObservations, now: now)
+        let active = try execution.activeTask(now: now)
         var rows = plan.compactMap { entry -> TodayTaskRow? in
             guard let reminder = reminderByID[entry.reminderID] else { return nil }
             let current = executionByID[entry.reminderID]
@@ -56,6 +59,12 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 urgency: TaskUrgency.resolve(dueDate: reminder.dueDate, priority: reminderPriority(reminder.priority), referenceDate: now),
                 state: current?.state ?? .ready,
                 elapsedMinutes: current?.elapsedMinutes ?? 0,
+                activeTimeComparison: activeTimeComparison(
+                    taskID: reminder.id,
+                    active: active,
+                    observations: behaviorObservations,
+                    now: now
+                ),
                 latestPauseReason: current?.latestPauseReason,
                 acceptedBreak: current?.acceptedBreak,
                 sprint: current?.sprint,
@@ -69,8 +78,6 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 )
             )
         }
-        let behaviorObservations = try archive.behaviorObservations(for: now)
-        let behavior = BehaviorSessionizer().summarize(observations: behaviorObservations, now: now)
         let gamingPolicy = try userPolicyStore.currentGamingPolicy()
         let rewardMinutes = try snapshots.priorityRewardMinutes(policy: gamingPolicy, day: now)
         let gaming = GamingStatusCalculator().status(
@@ -79,7 +86,6 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             appliedRewardMinutes: rewardMinutes,
             coverage: behavior.coverage
         )
-        let active = try execution.activeTask(now: now)
         let activeIsUnplanned = active.map { active in
             !plan.contains(where: { $0.reminderID == active.taskID })
         } ?? false
@@ -100,6 +106,12 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 ),
                 state: executionSnapshot?.state ?? .active,
                 elapsedMinutes: executionSnapshot?.elapsedMinutes ?? 0,
+                activeTimeComparison: activeTimeComparison(
+                    taskID: reminder.id,
+                    active: active,
+                    observations: behaviorObservations,
+                    now: now
+                ),
                 latestPauseReason: executionSnapshot?.latestPauseReason,
                 acceptedBreak: executionSnapshot?.acceptedBreak,
                 sprint: executionSnapshot?.sprint,
@@ -358,6 +370,21 @@ public final class TodayDashboardAgent: @unchecked Sendable {
 
     public func cachedSnapshot(for day: Date = Date()) throws -> TodaySnapshot? {
         try snapshots.load(for: day)
+    }
+
+    private func activeTimeComparison(
+        taskID: String,
+        active: ActiveTaskSnapshot?,
+        observations: [BehaviorObservation],
+        now: Date
+    ) -> ActiveTaskTimeComparison? {
+        guard let active, active.taskID == taskID, let activeSince = active.startedAt else { return nil }
+        return ActiveTaskTimeComparison(
+            elapsedMinutes: active.elapsedMinutes,
+            activeSince: activeSince,
+            observations: observations,
+            now: now
+        )
     }
 
     private func reminderPriority(_ rawValue: Int) -> ReminderPriority {

@@ -3,6 +3,47 @@ import Testing
 @testable import ZoidCoachCore
 
 @Test
+func activeTaskTimeComparisonSeparatesElapsedTimeFromObservedAlignment() {
+    let now = Date(timeIntervalSince1970: 1_750_000_000)
+    let activeSince = now.addingTimeInterval(-180)
+    let comparison = ActiveTaskTimeComparison(
+        elapsedMinutes: 17,
+        activeSince: activeSince,
+        observations: [
+            BehaviorObservation(observedAt: activeSince.addingTimeInterval(-60), application: "Xcode", classification: .work),
+            BehaviorObservation(observedAt: activeSince, application: "Steam", classification: .gaming),
+            BehaviorObservation(observedAt: activeSince.addingTimeInterval(60), application: "Xcode", classification: .work),
+            BehaviorObservation(observedAt: activeSince.addingTimeInterval(120), application: "Terminal", classification: .work)
+        ],
+        now: now
+    )
+
+    #expect(comparison.elapsedMinutes == 17)
+    #expect(comparison.observedAlignedMinutes == 2)
+    #expect(comparison.observedSessionMinutes == 3)
+    #expect(comparison.coverageIsLimited == false)
+    #expect(comparison.evidenceExplanation.contains("signal, not proof"))
+    #expect(comparison.accessibilitySummary.contains("Task elapsed 17 minutes"))
+    #expect(comparison.accessibilitySummary.contains("Observed aligned 2 minutes"))
+}
+
+@Test
+func activeTaskTimeComparisonExplainsMissingEvidenceWithoutGuessing() {
+    let now = Date(timeIntervalSince1970: 1_750_000_000)
+    let comparison = ActiveTaskTimeComparison(
+        elapsedMinutes: 9,
+        activeSince: now.addingTimeInterval(-540),
+        observations: [],
+        now: now
+    )
+
+    #expect(comparison.observedAlignedMinutes == 0)
+    #expect(comparison.coverageIsLimited)
+    #expect(comparison.evidenceExplanation.contains("No Screenwatch time"))
+    #expect(comparison.evidenceExplanation.contains("reliable task timer"))
+}
+
+@Test
 func activeTaskContextAssessmentUsesNeutralEvidenceStates() {
     let now = Date(timeIntervalSince1970: 1_750_000_000)
     let assessor = ActiveTaskContextAssessor()

@@ -58,6 +58,17 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Active-task elapsed and observed alignment - candidate
+
+- Owns `ZC-024-008`.
+- Shows cumulative Task elapsed separately from Observed aligned on the active Today focus.
+- Counts observed alignment only from work-classified Screenwatch time at or after the current active-session start.
+- Excludes earlier observations and identifies the result as a signal rather than proof that the observed activity matched the task.
+- Preserves the reliable task timer and shows explicit limited-evidence copy when Screenwatch evidence is missing or stale.
+- Adds stable combined accessibility for both values and the limitation.
+- Three focused domain and persistence-backed agent tests pass, and the release build passes.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/active-task-alignment/candidate/REPORT.md`.
+
 ### Active commitment visibility - verified with conservative installed boundary
 
 - Owns `ZC-017-001`, `ZC-037-001`, `ZC-059-007`, and `ZC-062-004`.

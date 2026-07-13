@@ -154,6 +154,22 @@ struct TodayDashboardCommandOverview: View {
                     )
                     .padding(.top, 14)
                 }
+                if let comparison = row.activeTimeComparison {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 14) {
+                            detail("Task elapsed", "\(comparison.elapsedMinutes)m")
+                            detail("Observed aligned", "\(comparison.observedAlignedMinutes)m")
+                        }
+                        Text(comparison.evidenceExplanation)
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, 14)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(comparison.accessibilitySummary)
+                    .accessibilityIdentifier("today.focus.active-time-comparison")
+                }
                 if row.state == .active, let context = snapshot.activeTaskContext {
                     ActiveTaskContextPanel(assessment: context)
                         .padding(.top, 14)
