@@ -14,6 +14,7 @@ public enum GamingDriftSuppressionReason: String, Equatable, Sendable {
     case belowThreshold
     case gamingIsUnlocked
     case noIncompletePriorityWork
+    case intentionalOverrideActive
     case sessionAlreadyHandled
     case dailyLimitReached
     case cooldownActive
@@ -35,6 +36,13 @@ public final class GamingDriftPromptService: @unchecked Sendable {
     private struct PriorityTask {
         let id: String
         let title: String
+    }
+
+    private enum IntentionalOverrideState: Equatable {
+        case none
+        case active
+        case ended(responseEpoch: Int64)
+        case expired(responseEpoch: Int64)
     }
 
     private let database: OpaquePointer
@@ -96,11 +104,27 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             return .suppressed(.noIncompletePriorityWork)
         }
 
-        let decisionKey = "gaming-drift:\(localDay):\(session.startedAtEpoch)"
+        let decisionKeyPrefix = "gaming-drift:\(localDay):"
+        let override = try intentionalOverrideState(
+            decisionKeyPrefix: decisionKeyPrefix,
+            localDay: localDay,
+            at: date,
+            durationMinutes: policy.gaming.coachingLevel.cooldownMinutes
+        )
+        guard override != .active else { return .suppressed(.intentionalOverrideActive) }
+
+        let baseDecisionKey = "\(decisionKeyPrefix)\(session.startedAtEpoch)"
+        let decisionKey: String
+        switch override {
+        case let .ended(responseEpoch), let .expired(responseEpoch):
+            decisionKey = "\(baseDecisionKey):after-intentional:\(responseEpoch)"
+        case .none, .active:
+            decisionKey = baseDecisionKey
+        }
         if try hasPrompt(decisionKey: decisionKey) {
             return .suppressed(.sessionAlreadyHandled)
         }
-        let prefix = "gaming-drift:\(localDay):"
+        let prefix = decisionKeyPrefix
         let level = policy.gaming.coachingLevel
         guard try promptCount(decisionKeyPrefix: prefix) < level.maximumDailyPrompts else {
             return .suppressed(.dailyLimitReached)
@@ -136,6 +160,69 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             expiresAt: date.addingTimeInterval(30 * 60)
         ))
         return .queued(result.episode, wasInserted: result.wasInserted)
+    }
+
+    private func intentionalOverrideState(
+        decisionKeyPrefix: String,
+        localDay: String,
+        at date: Date,
+        durationMinutes: Int
+    ) throws -> IntentionalOverrideState {
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT response.responded_at_utc
+        FROM prompt_responses response
+        JOIN prompt_episodes episode ON episode.id = response.prompt_id
+        WHERE response.response = ?
+          AND (episode.decision_key LIKE ? OR episode.decision_key LIKE ?)
+        ORDER BY response.responded_at_utc DESC, response.id DESC
+        LIMIT 1;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        bind(PromptActionKind.continueIntentionally.rawValue, statement, 1)
+        bind(decisionKeyPrefix + "%", statement, 2)
+        bind("resolved:%:" + decisionKeyPrefix + "%", statement, 3)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let raw = text(statement, 0),
+              let respondedAt = formatter.date(from: raw) else { return .none }
+
+        let responseEpoch = Int64(respondedAt.timeIntervalSince1970)
+        if try hasNonGamingObservation(localDay: localDay, after: responseEpoch) {
+            return .ended(responseEpoch: responseEpoch)
+        }
+        if date.timeIntervalSince(respondedAt) >= TimeInterval(durationMinutes * 60) {
+            return .expired(responseEpoch: responseEpoch)
+        }
+        return .active
+    }
+
+    private func hasNonGamingObservation(localDay: String, after epoch: Int64) throws -> Bool {
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT 1
+        FROM behavior_records behavior
+        WHERE behavior.source_day = ?
+          AND behavior.epoch > ?
+          AND COALESCE(
+                (SELECT correction.classification
+                 FROM daily_review_corrections correction
+                 WHERE correction.source_day = behavior.source_day
+                   AND behavior.epoch >= correction.start_epoch
+                   AND behavior.epoch < correction.end_epoch
+                 ORDER BY correction.created_at_utc DESC, correction.rowid DESC LIMIT 1),
+                behavior.classification
+              ) != ?
+        LIMIT 1;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        bind(localDay, statement, 1)
+        sqlite3_bind_int64(statement, 2, epoch)
+        bind(BehaviorClassification.gaming.rawValue, statement, 3)
+        return sqlite3_step(statement) == SQLITE_ROW
     }
 
     private func currentGamingSession(localDay: String, now: Date) throws -> GamingSession? {

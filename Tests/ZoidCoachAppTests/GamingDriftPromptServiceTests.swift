@@ -140,8 +140,71 @@ func gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() throws {
     }
     #expect(try deduped.service.produce(
         policy: deduped.policy(), gamingStatus: deduped.gamingStatus, baselineStatus: deduped.baseline()
-    ) == .suppressed(.sessionAlreadyHandled))
+    ) == .suppressed(.intentionalOverrideActive))
     #expect(try deduped.promptStore.unresolved().count == 1)
+}
+
+@Test
+func intentionalGamingOverrideEndsOnWorkAndExpiresAcrossRestart() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(level: .accountability)
+    guard case let .queued(episode, _) = try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected the initial accountability prompt")
+        return
+    }
+
+    _ = try fixture.promptStore.respond(
+        promptID: episode.id,
+        action: .continueIntentionally,
+        actionToken: PromptResponseToken.make(
+            promptID: episode.id,
+            action: .continueIntentionally
+        ),
+        surface: .dashboard
+    )
+    #expect(try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.intentionalOverrideActive))
+
+    fixture.advance(minutes: 5)
+    try fixture.insertWork(minutes: 1)
+    #expect(try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.noGamingSession))
+
+    fixture.advance(minutes: 56)
+    try fixture.insertGaming(minutes: 10)
+    let reopenedStore = try PromptInboxStore(
+        databaseURL: fixture.databaseURL,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+    let restartedService = try GamingDriftPromptService(
+        databaseURL: fixture.databaseURL,
+        promptStore: reopenedStore,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+    guard case let .queued(reprompt, wasInserted) = try restartedService.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected normal coaching after the override window")
+        return
+    }
+    #expect(wasInserted)
+    #expect(reprompt.id != episode.id)
+    #expect(reprompt.actions.contains { $0.kind == .continueIntentionally })
 }
 
 @Test
@@ -351,6 +414,14 @@ private final class GamingPromptFixture: @unchecked Sendable {
         for offset in 0..<minutes {
             let epoch = end - Int64((minutes - 1 - offset) * 60)
             try execute("INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES ('2026-07-13', \(epoch), '09-00-00', 'Steam', '', '', 0, NULL, '2026-07-13T10:00:00Z', 'gaming', 1);")
+        }
+    }
+
+    func insertWork(minutes: Int) throws {
+        let end = Int64(clock.now.timeIntervalSince1970) - 60
+        for offset in 0..<minutes {
+            let epoch = end - Int64((minutes - 1 - offset) * 60)
+            try execute("INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES ('2026-07-13', \(epoch), '09-00-00', 'Xcode', '', '', 0, NULL, '2026-07-13T10:00:00Z', 'work', 1);")
         }
     }
 
