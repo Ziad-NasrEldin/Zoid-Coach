@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "run_id": "onboarding-schedule-weekdays/1c30a680a844ba2f7974e4f210d4446ca35f9fb1",
+  "verified_commit": "1c30a680a844ba2f7974e4f210d4446ca35f9fb1",
+  "build_identity": "zoid-coach-1c30a680a844ba2f7974e4f210d4446ca35f9fb1-clean",
+  "fixture": "onboarding-schedule-weekdays",
+  "qa_root": "/private/tmp/zoid-666-onboarding-schedule-weekdays-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "faf215d37b14451f51cfaa366906ca644d75175064468fed147162b38e4047b8",
+  "scenario_ids": [
+    "ZC-005-007"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T04:03:22.865079+00:00",
+  "completed_at": "2026-07-13T04:03:44Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "b5f61cd31e918a276fa0675c2dbeb12f4e0ab8f5ac8571fdac8dd58ab7354a21"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "Signed onboarding saved a non-default Monday and Saturday work-week subset",
+      "result": "passed"
+    },
+    {
+      "name": "Exact work and overnight quiet boundaries survived save and relaunch",
+      "result": "passed"
+    },
+    {
+      "name": "Removing the final work weekday disabled Continue with a recovery message",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "swift test --filter classificationAndScheduleAreAppliedBeforeAdvancing",
+    "swift test --filter onboardingScheduleRejectsEmptyWindowsAndAcceptsOvernightWorkAndQuietHours",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-onboarding-schedule-weekdays-qa Scripts/install-signed-qa-runtime.sh"
+  ]
+}

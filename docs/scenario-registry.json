@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "a4c188fc3f037404d43e88bd01ff77ad475319b5a9c01743627f005285a15b8d",
+  "tracker_sha256": "b884f0377a9722cc48f471fa74309b59b6473994a1d06f5440d5ae225658e900",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -879,19 +879,21 @@
       "section_title": "Initial preferences",
       "item_index": 7,
       "wording": "Configure a flexible work window.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Onboarding now exposes separate hour and minute controls, preserves exact existing non-quarter values, supports daytime or overnight work, rejects only an equal empty window, and defensively blocks invalid persistence. Focused proof saved 08:30-17:15 exactly, while a signed non-default picker and relaunch journey remains (`OnboardingCoordinator.swift`; `OnboardingRootView.swift`; `.audit/runs/onboarding-schedule-boundaries/verifier/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/onboarding-schedule-weekdays/1c30a680a844ba2f7974e4f210d4446ca35f9fb1/evidence.json"
+      ],
+      "last_verified_commit": "1c30a680a844ba2f7974e4f210d4446ca35f9fb1",
+      "last_verified_build": "zoid-coach-1c30a680a844ba2f7974e4f210d4446ca35f9fb1-clean",
+      "audit_note": "The installed signed onboarding step selected only Monday and Saturday, saved exact 08:30-18:15 work boundaries through the agent, advanced, and reloaded the identical weekday subset and times after relaunch. Removing the final selected weekday visibly changed the message to `Choose at least one work day.` and disabled Continue (`OnboardingCoordinator.swift`; `OnboardingRootView.swift`; `.audit/runs/onboarding-schedule-weekdays/1c30a680a844ba2f7974e4f210d4446ca35f9fb1/evidence.json`).",
       "tracker_line": 104
     },
     {
@@ -912,7 +914,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Onboarding now exposes exact quiet-hour minutes, preserves legacy values, supports overnight boundaries, rejects an equal empty window, and shows accessible validation state before Continue. Focused proof saved 21:45-06:30 exactly, while the signed picker, relaunch, and delivery-boundary journey remains (`OnboardingCoordinator.swift`; `OnboardingRootView.swift`; `.audit/runs/onboarding-schedule-boundaries/verifier/REPORT.md`).",
+      "audit_note": "The installed signed onboarding step saved overnight 23:45-07:30 quiet hours together with the work schedule, advanced, and reloaded the exact values after relaunch. Focused rules also preserve legacy non-quarter minutes and reject only equal empty windows, while a real notification-delivery traversal across the configured quiet boundary remains (`OnboardingCoordinator.swift`; `OnboardingRootView.swift`; `.audit/runs/onboarding-schedule-weekdays/1c30a680a844ba2f7974e4f210d4446ca35f9fb1/REPORT.md`).",
       "tracker_line": 105
     },
     {
