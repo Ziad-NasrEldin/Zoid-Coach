@@ -60,6 +60,7 @@ public final class DailyReviewStore: @unchecked Sendable {
             hypothesis: Self.hypothesis(for: totals),
             hypothesisState: state.hypothesisState,
             confirmedAt: state.confirmedAt,
+            personalNote: state.personalNote,
             offlineWork: offlineWork,
             completedTasks: completedTasks,
             plannedTasks: plannedTasks,
@@ -625,6 +626,18 @@ public final class DailyReviewStore: @unchecked Sendable {
         )
     }
 
+    public func savePersonalNote(_ note: String?, sourceDay: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let normalized = Self.normalized(note)
+        guard (normalized?.count ?? 0) <= 1_000 else { throw DailyReviewStoreError.personalNoteTooLong }
+        let timestamp = Self.timestamp(now())
+        try execute(
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, personal_note) VALUES (?, 'pending', NULL, ?, ?) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, updated_at_utc = excluded.updated_at_utc, personal_note = excluded.personal_note;",
+            bindings: [.text(sourceDay), .text(timestamp), normalized.map(Binding.text) ?? .null]
+        )
+    }
+
     public func confirm(sourceDay: String) throws {
         lock.lock()
         defer { lock.unlock() }
@@ -734,24 +747,29 @@ public final class DailyReviewStore: @unchecked Sendable {
 
     private func readReviewState(sourceDay: String) throws -> (
         hypothesisState: DailyReviewHypothesisState,
-        confirmedAt: Date?
+        confirmedAt: Date?,
+        personalNote: String?
     ) {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
-            "SELECT hypothesis_state, confirmed_at_utc FROM daily_reviews WHERE source_day = ? LIMIT 1;",
+            "SELECT hypothesis_state, confirmed_at_utc, personal_note FROM daily_reviews WHERE source_day = ? LIMIT 1;",
             -1,
             &statement,
             nil
         ) == SQLITE_OK, let statement else { throw databaseError(.read) }
         defer { sqlite3_finalize(statement) }
         bind(sourceDay, statement, 1)
-        guard sqlite3_step(statement) == SQLITE_ROW else { return (.pending, nil) }
+        guard sqlite3_step(statement) == SQLITE_ROW else { return (.pending, nil, nil) }
         let rawState = sqlite3_column_text(statement, 0).map { String(cString: $0) } ?? "pending"
         let confirmed = sqlite3_column_text(statement, 1)
             .map { String(cString: $0) }
             .flatMap(ISO8601DateFormatter().date(from:))
-        return (DailyReviewHypothesisState(rawValue: rawState) ?? .pending, confirmed)
+        return (
+            DailyReviewHypothesisState(rawValue: rawState) ?? .pending,
+            confirmed,
+            text(statement, 2)
+        )
     }
 
     private static func hypothesis(for totals: [DailyReviewTotal]) -> String? {
@@ -818,6 +836,7 @@ public enum DailyReviewStoreError: LocalizedError {
     case invalidOfflineDuration
     case missingOfflineWorkDescription
     case offlineWorkDescriptionTooLong
+    case personalNoteTooLong
     case invalidFutureRuleClassification
     case invalidFutureRuleApplication
     case database(Operation, String)
@@ -834,6 +853,8 @@ public enum DailyReviewStoreError: LocalizedError {
             "Add a task or a short note so this intentional work can be distinguished from missing telemetry."
         case .offlineWorkDescriptionTooLong:
             "Keep the task under 200 characters and the note under 1,000 characters."
+        case .personalNoteTooLong:
+            "Keep the personal review note under 1,000 characters."
         case .invalidFutureRuleClassification:
             "Future app rules can be Work, Gaming, or Distracting. Idle and Unknown remain observation states."
         case .invalidFutureRuleApplication:

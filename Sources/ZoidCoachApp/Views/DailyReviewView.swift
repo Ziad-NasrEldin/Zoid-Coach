@@ -13,6 +13,7 @@ protocol DailyReviewServicing: AnyObject {
         applyToFuture: Bool
     ) throws
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws
+    func savePersonalNote(_ note: String?, sourceDay: String) throws
     func confirm(sourceDay: String) throws
     @discardableResult
     func saveOfflineWork(
@@ -45,6 +46,7 @@ final class DailyReviewController: ObservableObject {
     @Published private(set) var unfinishedReview: UnfinishedDailyReview?
     @Published private(set) var classificationRules: [AppClassificationCorrectionRule] = []
     @Published private(set) var isRulesOnlyMode: Bool
+    @Published var personalNote = ""
 
     private let service: any DailyReviewServicing
     private let calendar: Calendar
@@ -119,7 +121,9 @@ final class DailyReviewController: ObservableObject {
     }
 
     private func refreshSnapshotAndResumeState() throws {
-        snapshot = try service.load(sourceDay: sourceDay)
+        let loaded = try service.load(sourceDay: sourceDay)
+        snapshot = loaded
+        personalNote = loaded.personalNote ?? ""
         unfinishedReview = try service.mostRecentUnfinishedReview()
     }
 
@@ -203,6 +207,19 @@ final class DailyReviewController: ObservableObject {
         }
     }
 
+    func savePersonalNote() {
+        do {
+            try service.savePersonalNote(personalNote, sourceDay: sourceDay)
+            try refreshSnapshotAndResumeState()
+            errorMessage = nil
+            successMessage = snapshot?.personalNote == nil
+                ? "Personal review note cleared."
+                : "Personal review note saved locally. Confirm the review when it is ready."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func confirm() {
         do {
             try service.confirm(sourceDay: sourceDay)
@@ -261,6 +278,7 @@ private final class UnavailableDailyReviewService: DailyReviewServicing {
     func mostRecentUnfinishedReview() throws -> UnfinishedDailyReview? { throw error }
     func correct(_ session: DailyReviewSession, to classification: BehaviorClassification, taskID: String?, from splitDate: Date?, applyToFuture: Bool) throws { throw error }
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws { throw error }
+    func savePersonalNote(_ note: String?, sourceDay: String) throws { throw error }
     func confirm(sourceDay: String) throws { throw error }
     func saveOfflineWork(id: String?, sourceDay: String, taskID: String?, startedAt: Date, durationMinutes: Int, note: String?) throws -> String { throw error }
     func deleteOfflineWork(id: String, sourceDay: String) throws { throw error }
@@ -441,6 +459,7 @@ struct DailyReviewView: View {
             onDelete: controller.deleteOfflineWork
         )
         hypothesis(snapshot)
+        personalNoteSection(snapshot)
         confirmation(snapshot)
     }
 
@@ -959,6 +978,42 @@ struct DailyReviewView: View {
                     .accessibilityIdentifier("reviews.confirm")
             }
         }
+    }
+
+    private func personalNoteSection(_ snapshot: DailyReviewSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("PERSONAL NOTE")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            Text("Keep private context for this day. This note stays local and is not treated as observed behavior, a hypothesis, or a learned fact.")
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            TextEditor(text: $controller.personalNote)
+                .font(Sumi.body(13))
+                .frame(minHeight: 88)
+                .padding(8)
+                .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                .accessibilityLabel("Personal daily review note")
+                .accessibilityIdentifier("reviews.personal-note.editor")
+            HStack {
+                Text("\(controller.personalNote.count) / 1000")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(controller.personalNote.count > 1_000 ? Sumi.sealDeep : Sumi.muted)
+                Spacer()
+                Button(snapshot.personalNote == nil ? "SAVE NOTE" : "UPDATE NOTE") {
+                    controller.savePersonalNote()
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                .disabled(controller.personalNote.count > 1_000 || controller.personalNote == (snapshot.personalNote ?? ""))
+                .accessibilityIdentifier("reviews.personal-note.save")
+            }
+        }
+        .padding(18)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reviews.personal-note")
     }
 
     private func errorCard(_ message: String) -> some View {
