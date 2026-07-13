@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "run_id": "reduced-motion-feedback/5d70aae75751e5b24c8cd59a9877875a569255c2",
+  "verified_commit": "5d70aae75751e5b24c8cd59a9877875a569255c2",
+  "build_identity": "zoid-coach-5d70aae75751e5b24c8cd59a9877875a569255c2-clean",
+  "fixture": "reduced-motion-view-host-and-signed-package",
+  "qa_root": "/private/tmp/zoid-666-reduced-motion-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "56a760b68b2ba11fb5980c7162b77b8f8066630d0996687d3fa396b7613d7552",
+  "scenario_ids": [
+    "ZC-055-011",
+    "ZC-056-010"
+  ],
+  "required_proof_classes": [
+    "accessibility",
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T14:15:15.680859+00:00",
+  "completed_at": "2026-07-13T14:15:49Z",
+  "artifacts": [
+    {
+      "path": "accessibility-snapshot.txt",
+      "sha256": "2c9282e7a7e374947980a929549ef89dd9fad2f2c6be5dd6e68e26f97ecfb36b",
+      "kind": "accessibility_snapshot"
+    },
+    {
+      "path": "verification.txt",
+      "sha256": "1bd4e7e5ac880bc84461d099ea85c4682c1b6c3cfd6f5e79fd6e7cdd283d6d3a",
+      "kind": "verification_log"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "Reduced-motion view host removes spatial motion and preserves feedback for five representative interactions.",
+      "result": "passed"
+    },
+    {
+      "name": "Standard mode preserves restrained motion and immediate pressed feedback.",
+      "result": "passed"
+    },
+    {
+      "name": "The exact signed release QA package launches with a complete accessibility tree.",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "swift test --filter SumiThemeTests",
+    "CONFIGURATION=release ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-reduced-motion-qa Scripts/package-app.sh",
+    "Computer Use accessibility inspection of the exact signed Zoid 666 QA package"
+  ]
+}

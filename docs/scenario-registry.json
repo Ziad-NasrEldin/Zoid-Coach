@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "e96cac3d8e9c0cb8eda4846e0d2ac662e23b209ed7d7beb26fcc5ca2e9f57a00",
+  "tracker_sha256": "367d60ac22b2b285413c77682be0ff8e20e7fd547a86ef786d30b78cabf6e9a1",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12764,9 +12764,9 @@
       "section_title": "Accessibility",
       "item_index": 11,
       "wording": "Use reduced motion without losing state-change feedback.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "accessibility",
@@ -12774,10 +12774,12 @@
         "ui_automation"
       ],
       "affected_capability": "product_quality",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Motion is restrained, but no explicit reduced-motion handling or user-visible verification was found.",
+      "evidence_paths": [
+        ".audit/runs/reduced-motion-feedback/5d70aae75751e5b24c8cd59a9877875a569255c2/evidence.json"
+      ],
+      "last_verified_commit": "5d70aae75751e5b24c8cd59a9877875a569255c2",
+      "last_verified_build": "zoid-coach-5d70aae75751e5b24c8cd59a9877875a569255c2-clean",
+      "audit_note": "All 29 owned Today and shared-control motion sites now consume one environment-backed policy that removes animation, pressed scaling, offset, scale, asymmetric, and reorder motion when Reduce Motion is enabled while preserving immediate labels, selection, counts, ordering, focus, and actions. A deterministic `NSHostingView` fixture exercised pressed feedback, plan insertion, usage switching, estimate confirmation, and reminder reordering with reduced motion, a standard-mode control retained restrained motion, six focused tests passed, and the exact signed release QA package launched with a complete accessibility tree without changing the user's macOS setting (`SumiTheme.swift`; `DashboardView.swift`; `TodayDashboardCommandOverview.swift`; `SumiThemeTests.swift`; `.audit/runs/reduced-motion-feedback/verifier/REPORT.md`).",
       "tracker_line": 783
     },
     {
@@ -12999,19 +13001,21 @@
       "section_title": "Localization and visual clarity",
       "item_index": 10,
       "wording": "Avoid distracting motion or celebratory feedback around interruptions.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "product_quality",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Current UI motion is limited and functional, but reduced-motion behavior is not explicit.",
+      "evidence_paths": [
+        ".audit/runs/reduced-motion-feedback/5d70aae75751e5b24c8cd59a9877875a569255c2/evidence.json"
+      ],
+      "last_verified_commit": "5d70aae75751e5b24c8cd59a9877875a569255c2",
+      "last_verified_build": "zoid-coach-5d70aae75751e5b24c8cd59a9877875a569255c2-clean",
+      "audit_note": "Shared actions, dropdowns, overlays, Today planning changes, usage filters, estimate confirmations, and reminder reorders now become immediate and non-spatial under Reduce Motion while retaining useful opacity, border, fill, label, selection, focus, and ordering feedback. The deterministic reduced-motion view host and standard-mode control passed, static inspection found no remaining unconditional spatial-motion pattern in the 29 owned sites, and the coherent signed release QA package launched successfully (`SumiTheme.swift`; `DashboardView.swift`; `TodayDashboardCommandOverview.swift`; `SumiThemeTests.swift`; `.audit/runs/reduced-motion-feedback/verifier/REPORT.md`).",
       "tracker_line": 797
     },
     {

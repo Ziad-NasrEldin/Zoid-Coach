@@ -65,10 +65,14 @@ The package, embedded LaunchAgent, Mach service, signing identities, nested exec
 
 The resulting package is `/private/tmp/zoid-666-verify-reduced-motion/.build/app-qa/Zoid 666 QA.app`.
 
-The verifier did not install or launch the package because another verifier owned the shared runtime lease.
+After the prior verifier released the runtime lease, the verifier launched this exact signed package directly without installing a helper or changing the user's macOS Reduce Motion setting.
+
+The live accessibility tree exposed the Zoid 666 window, complete onboarding content, progress state, Exit For Now action, Continue action, menu bar, and stable accessibility identifiers.
+
+The package was then terminated and its disposable QA root was removed.
 
 ## Acceptance Boundary
 
 The candidate and verifier changes do not alter task mutation, persistence, prompt delivery, notification behavior, runtime installation, the scenario tracker, the scenario registry, or Lavish artifacts.
 
-The focused host proof and signed release package are sufficient for the two reduced-motion scenarios because the behavior is environment-driven presentation policy rather than a persistence or helper lifecycle journey.
+The deterministic accessibility-environment host proof, standard-mode control, and live signed-package accessibility inspection jointly satisfy the two presentation-policy scenarios without mutating the user's system setting.
