@@ -33,11 +33,32 @@ func gamingDriftStaysQuietUntilBaselineCompletesThenQueuesEvidenceFirstPrompt() 
     #expect(episode.summary.contains("Ship client proposal remains unfinished"))
     #expect(episode.actions.first?.kind == .returnToActiveTask)
     #expect(episode.actions.first?.role == .primary)
+    #expect(!episode.actions.contains { $0.kind == .startBreak })
     #expect(episode.payload["coachingLevel"] == CoachingLevel.gentle.rawValue)
     #expect(try fixture.promptStore.unresolved().count == 1)
 
     let reopened = try PromptInboxStore(databaseURL: fixture.databaseURL, now: { fixture.clock.now })
     #expect(try reopened.unresolved().first?.id == episode.id)
+}
+
+@Test
+func gamingDriftOffersBreakOnlyWhenATaskIsActivelyTracking() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let execution = try TaskExecutionStore(databaseURL: fixture.databaseURL)
+    try execution.apply(.start, taskID: "active-1", at: fixture.clock.now.addingTimeInterval(-600))
+
+    guard case let .queued(episode, _) = try fixture.service.produce(
+        policy: fixture.policy(level: .accountability),
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected an accountability prompt")
+        return
+    }
+    #expect(episode.actions.contains { $0.kind == .startBreak && $0.title == "Take a break" })
 }
 
 @Test

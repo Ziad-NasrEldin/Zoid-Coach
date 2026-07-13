@@ -143,17 +143,20 @@ public final class GamingDriftPromptService: @unchecked Sendable {
 
         let title = level == .gentle ? "Ready for an easy return?" : "Is this gaming intentional?"
         let summary = "Observed \(session.minutes) minutes in \(session.application) while \(task.title) remains unfinished. This is an observation, not a judgment."
+        var actions = [
+            PromptAction(kind: .returnToActiveTask, title: "Return to \(task.title)", role: .primary),
+            PromptAction(kind: .fiveMoreMinutes, title: "Five more minutes")
+        ]
+        if try hasActiveTask() {
+            actions.append(PromptAction(kind: .startBreak, title: "Take a break"))
+        }
+        actions.append(PromptAction(kind: .continueIntentionally, title: "Continue intentionally"))
         let result = try prompts.enqueue(PromptDraft(
             decisionKey: decisionKey,
             type: PromptNotificationCategory.gamingDrift.rawValue,
             title: title,
             summary: summary,
-            actions: [
-                PromptAction(kind: .returnToActiveTask, title: "Return to \(task.title)", role: .primary),
-                PromptAction(kind: .fiveMoreMinutes, title: "Five more minutes"),
-                PromptAction(kind: .startBreak, title: "Take a break"),
-                PromptAction(kind: .continueIntentionally, title: "Continue intentionally")
-            ],
+            actions: actions,
             payload: [
                 "localDay": localDay,
                 "taskID": task.id,
@@ -167,6 +170,20 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             expiresAt: date.addingTimeInterval(30 * 60)
         ))
         return .queued(result.episode, wasInserted: result.wasInserted)
+    }
+
+    private func hasActiveTask() throws -> Bool {
+        guard try tableExists("task_execution_states") else { return false }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT 1 FROM task_execution_states WHERE state = 'active' LIMIT 1;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        return sqlite3_step(statement) == SQLITE_ROW
     }
 
     private func intentionalOverrideState(
