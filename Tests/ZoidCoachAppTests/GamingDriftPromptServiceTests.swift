@@ -34,13 +34,19 @@ func gamingDriftStaysQuietUntilBaselineCompletesThenQueuesEvidenceFirstPrompt() 
     #expect(episode.summary.contains("not why it happened or what you intended"))
     #expect(episode.actions.first?.kind == .returnToActiveTask)
     #expect(episode.actions.first?.role == .primary)
-    #expect(episode.actions.count == 5)
+    #expect(episode.actions.count == 6)
     #expect(episode.actions.filter { $0.role == .primary }.count == 1)
     #expect(episode.actions.filter { $0.role == .secondary }.count == 3)
     #expect(episode.actions.contains { $0.kind == .startShortSprint })
     #expect(episode.actions.contains {
         $0.kind == .rescheduleTask
             && $0.title == "Reschedule Ship client proposal"
+            && $0.role == .destructive
+            && $0.requiresConfirmation
+    })
+    #expect(episode.actions.contains {
+        $0.kind == .markBlocked
+            && $0.title == "Mark Ship client proposal blocked"
             && $0.role == .destructive
             && $0.requiresConfirmation
     })
@@ -79,10 +85,11 @@ func gamingDriftOffersBreakOnlyWhenATaskIsActivelyTracking() throws {
         Issue.record("Expected an accountability prompt")
         return
     }
-    #expect(episode.actions.count == 5)
+    #expect(episode.actions.count == 6)
     #expect(episode.actions.filter { $0.role == .primary }.count == 1)
     #expect(episode.actions.contains { $0.kind == .startWorkSprint })
     #expect(episode.actions.contains { $0.kind == .rescheduleTask })
+    #expect(episode.actions.contains { $0.kind == .markBlocked })
     #expect(episode.actions.contains { $0.kind == .startBreak && $0.title == "Take a break" })
 }
 
