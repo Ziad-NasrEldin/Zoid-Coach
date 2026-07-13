@@ -110,6 +110,32 @@ func explicitRescheduleMutationQueuesOneSupersedingReminderDueDateCommand() asyn
     #expect(abs(persistedDueDate.timeIntervalSince(secondDate)) < 1)
 }
 
+@Test
+func fullyDeferredDailyPlanPersistsWithoutInventingAnActiveMainObjective() throws {
+    let databaseURL = temporaryRescheduleDatabaseURL()
+    defer { removeRescheduleDatabase(at: databaseURL) }
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let deferredUntil = now.addingTimeInterval(24 * 60 * 60)
+    let stateStore = try AgentOwnedStateStore(databaseURL: databaseURL)
+
+    try stateStore.replaceDailyPlan([
+        AgentPlanItem(
+            reminderID: "focus",
+            rank: 1,
+            isMainObjective: false,
+            estimateMinutes: 45,
+            selectionReason: "Deferred from coaching",
+            selectionScore: 100,
+            deferredUntil: deferredUntil
+        )
+    ], day: now, now: now)
+
+    let persisted = try AutonomousPlanStore(databaseURL: databaseURL).loadDailyPlan(for: now)
+    let item = try #require(persisted.first)
+    #expect(!item.isMainObjective)
+    #expect(abs(try #require(item.deferredUntil).timeIntervalSince(deferredUntil)) < 1)
+}
+
 private func rescheduleAudit(state: String, attempts: Int) -> ActionAuditEntry {
     let date = Date(timeIntervalSince1970: 1_800_000_000 + TimeInterval(attempts))
     return ActionAuditEntry(
