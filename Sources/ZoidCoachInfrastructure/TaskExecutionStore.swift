@@ -115,6 +115,16 @@ public final class TaskExecutionStore: @unchecked Sendable {
         }
     }
 
+    public func pauseForDeletedReminder(taskID: String, at date: Date = Date()) throws {
+        try transaction {
+            guard try state(for: taskID) == .active else { return }
+            try closeOpenInterval(taskID: taskID, at: date)
+            try upsertState(taskID: taskID, state: .paused, at: date)
+            try recordPause(taskID: taskID, reason: .reminderDeleted, at: date)
+            try pauseSprint(taskID: taskID, at: date)
+        }
+    }
+
     public func snapshot(for taskIDs: [String], now: Date = Date()) throws -> [String: TaskExecutionSnapshot] {
         let states = try states(for: taskIDs)
         let open = try openInterval()
