@@ -24,7 +24,8 @@ import ZoidCoachInfrastructure
     let activeState = MenuBarCoachState(snapshot: active)
     #expect(activeState.tone == .active)
     #expect(activeState.primaryTask?.title == "Write proposal")
-    #expect(activeState.taskStatus == "Active · 12 min tracked")
+    #expect(activeState.taskStatus == "Active · Open-ended · 12 min tracked")
+    #expect(activeState.activeCommitment?.modeLabel == "OPEN-ENDED SESSION")
     #expect(activeState.canStartBreak)
     #expect(activeState.canEndWorkday)
 
@@ -76,6 +77,33 @@ import ZoidCoachInfrastructure
     )
     #expect(noDecision.menuBarSymbol == MenuBarCoachTone.active.symbol)
     #expect(noDecision.notificationFallbackDetail == nil)
+}
+
+@MainActor
+@Test func activeMenuTaskCompletesThroughTheSameDurableCommandBoundary() async {
+    let activeRow = menuTask(id: "task", title: "Write proposal", state: .active, elapsedMinutes: 12)
+    let active = menuSnapshot(
+        rows: [activeRow],
+        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 12)
+    )
+    let completed = menuSnapshot(rows: [
+        menuTask(id: "task", title: "Write proposal", state: .completed, elapsedMinutes: 12)
+    ])
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(active),
+        applyResults: [.success(completed)]
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.refresh()
+    await controller.apply(.complete, taskID: "task")
+
+    #expect(controller.state.activeTask == nil)
+    #expect(controller.state.primaryTask == nil)
+    let commands = await client.commands
+    #expect(commands.count == 1)
+    #expect(commands.first?.0 == .complete)
+    #expect(commands.first?.1 == "task")
 }
 
 @MainActor
@@ -407,6 +435,14 @@ import ZoidCoachInfrastructure
     await controller.refresh()
     await controller.startRecommendedTaskIfStillReady(taskID: "focus")
     #expect(controller.state.activeTask?.taskID == "focus")
+    #expect(controller.state.activeCommitment?.modeLabel == "OPEN-ENDED SESSION")
+    #expect(controller.state.taskStatus == "Active · Open-ended · 0 min tracked")
+    let activeAfterRestart = try TodayDashboardAgent(databaseURL: databaseURL)
+        .snapshot(now: now.addingTimeInterval(90))
+    let restartedActiveRow = try #require(activeAfterRestart.taskRows.first { $0.taskID == "focus" })
+    #expect(restartedActiveRow.state == .active)
+    #expect(ActiveCommitmentPresentation(task: restartedActiveRow)?.modeLabel == "OPEN-ENDED SESSION")
+    #expect(MenuBarCoachState(snapshot: activeAfterRestart).activeTask?.taskID == "focus")
     await controller.apply(.pauseForBreak, taskID: "focus")
     #expect(controller.state.pausedTask?.acceptedBreak != nil)
 
@@ -531,6 +567,7 @@ private func menuTask(
     elapsedMinutes: Int = 0,
     pauseReason: TaskPauseReason? = nil,
     acceptedBreak: AcceptedBreakSnapshot? = nil,
+    sprint: SprintSnapshot? = nil,
     isOptional: Bool = false
 ) -> TodayTaskRow {
     TodayTaskRow(
@@ -543,6 +580,7 @@ private func menuTask(
         elapsedMinutes: elapsedMinutes,
         latestPauseReason: pauseReason,
         acceptedBreak: acceptedBreak,
+        sprint: sprint,
         isOptional: isOptional
     )
 }

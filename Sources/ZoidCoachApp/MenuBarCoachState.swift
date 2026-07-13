@@ -102,14 +102,16 @@ struct MenuBarCoachState: Equatable {
 
     var workdayHasEnded: Bool { pausedTask?.latestPauseReason == .endingWorkday }
 
+    var activeCommitment: ActiveCommitmentPresentation? {
+        activeTask.flatMap { ActiveCommitmentPresentation(task: $0) }
+    }
+
     var taskStatus: String { taskStatus(at: Date()) }
 
     func taskStatus(at date: Date) -> String {
         if let activeTask {
-            if let sprint = activeTask.sprint, sprint.state == .active {
-                return "Focus sprint · \(max(0, sprint.remainingSeconds / 60)) min left"
-            }
-            return "Active · \(activeTask.elapsedMinutes) min tracked"
+            return ActiveCommitmentPresentation(task: activeTask, at: date)?.menuStatus
+                ?? "Active · \(activeTask.elapsedMinutes) min tracked"
         }
         if let pausedTask {
             if let acceptedBreak = pausedTask.acceptedBreak {

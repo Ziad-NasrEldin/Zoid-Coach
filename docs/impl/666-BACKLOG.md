@@ -57,6 +57,16 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Active commitment visibility - candidate
+
+- Owns `ZC-017-001`, `ZC-037-001`, `ZC-059-007`, and `ZC-062-004`.
+- Names ordinary active work as an open-ended session in Today and the menu bar instead of implying an unspoken timer.
+- Distinguishes bounded sprint, completed sprint, and continued-open-ended timing contracts with shared truthful copy.
+- Shows task identity, tracked duration, remaining sprint time, and the manual Pause or Complete contract with stable accessibility identifiers.
+- Adds menu-bar Complete through the existing canonical agent command boundary while preserving Pause, Break, Resume, and End Workday behavior.
+- Focused presentation, exact menu command, canonical-agent start, new-agent persistence, break, resume, and end-day proof passes.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/active-commitment-visibility/candidate/REPORT.md`.
+
 ### Settings working-day selection - verified
 
 - Owns `ZC-044-002`.
