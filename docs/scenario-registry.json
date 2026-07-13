@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "3f7a905e3b2f0ac3a1dff1fbcbb40c65197f3d9a815e4ca2e6f9ac8f9808c7ff",
+  "tracker_sha256": "d766da64b51545ddb8930f2667aef1f92fb009d5beaaa54ac8cc5c3409e6f64c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12071,7 +12071,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Retry and recheck mechanisms exist, but no complete UI-visible lock, recovery, and successful mutation journey was proven.",
+      "audit_note": "ActionOutboxStore now retries only SQLite busy and locked results on a bounded schedule, inserts exactly once after a real temporary lock clears, fails closed when a lock persists, and leaves non-lock failures immediate in focused tests. In the installed signed app, however, completing a task after releasing a real exclusive lock still failed before reaching the outbox because upstream task and history writes share the locked database. A Calendar approval later persisted its four distinct commands exactly once but falsely displayed `NOTHING WAS WRITTEN`, so the full user mutation boundary and visible receipt still require repair (`ActionOutboxStore.swift`; `ActionOutboxStoreTests.swift`; `.audit/runs/database-lock-retry/verifier/REPORT.md`).",
       "tracker_line": 741
     },
     {
