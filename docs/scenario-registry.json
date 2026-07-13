@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "9036dd24ad45d5b1bedc7b7fc7fc6fff18a8c35c7f9fce3fbbb4a6c43334900f",
+  "tracker_sha256": "8cc02be81006792cb2fabcb8a74406dbba904a2a12f8230e3cc9ee5d1e5a300e",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1107,7 +1107,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed signed app exposed the enabled Dismiss For Now action and focused persistence tests prove two-hour suppression and due recovery, but the verifier conservatively stopped before a second destructive prompt mutation (`PlanningInvitationService.swift`; `PlanningInvitationServiceTests.swift`; `.audit/runs/morning-planning/27ad4f34c23d4a77e36ae3f065e9c70cda7f6f4d/REPORT.md`).",
+      "audit_note": "Planning invitations now opt into dismissal, Today exposes Dismiss only for eligible prompts, and focused lifecycle tests prove mandatory decisions cannot be dismissed. The installed signed inbox could not refresh its seeded fixture rows, so the final click-through remains (`PromptInbox.swift`; `PromptInboxStore.swift`; `.audit/runs/today-prompt-inbox/verifier/REPORT.md`).",
       "tracker_line": 117
     },
     {
@@ -2799,7 +2799,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Prompt inbox and automatic-action ledger show recent decisions/actions, but there is no concise chronological coach-decision history and the installed screen was dominated by stale meeting detections.",
+      "audit_note": "Today now has a bounded Recent decisions section for answered, dismissed, and expired prompts with state and resolution time. The installed signed inbox rendered but could not refresh seeded history, and behavior-coaching production remains incomplete (`PromptInboxTimeline.swift`; `DashboardView.swift`; `.audit/runs/today-prompt-inbox/verifier/REPORT.md`).",
       "tracker_line": 216
     },
     {
@@ -7648,7 +7648,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`ignore` is fully routed for meeting prompts and the prompt store supports dismissal state, but generic coaching prompt dismissal is not exposed consistently in the dashboard.",
+      "audit_note": "Today renders prompt actions and conditionally exposes Dismiss, the store persists eligible dismissal, and mandatory prompts are protected from accidental dismissal. Behavior-coaching prompts and the installed click-through remain incomplete (`DashboardView.swift`; `PromptInboxStore.swift`; `.audit/runs/today-prompt-inbox/verifier/REPORT.md`).",
       "tracker_line": 496
     },
     {
@@ -7692,7 +7692,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A resolved prompt is removed after the XPC response and prompt state transitions reject invalid repeats. There is no coaching-specific stale-state validation against a changed active task or gaming session.",
+      "audit_note": "Today refreshes the timeline after action success and after stale or failed action responses, while the store rejects already-resolved tokens. Coaching-specific stale validation and signed UI proof remain (`AppModel.swift`; `PromptInboxStore.swift`; `.audit/runs/today-prompt-inbox/verifier/REPORT.md`).",
       "tracker_line": 498
     },
     {
@@ -8398,7 +8398,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`PromptInboxLedger` displays the shared unresolved prompt store and explains the shared surface; persistence tests pass, but the installed app had no healthy live prompt journey to verify.",
+      "audit_note": "Today now groups every durable due prompt under Awaiting your response and separates future snoozes from recent resolved history. Focused persistence coverage passes, but the installed helper could not refresh the seeded fixture journey (`PromptInboxTimeline.swift`; `DashboardView.swift`; `.audit/runs/today-prompt-inbox/verifier/REPORT.md`).",
       "tracker_line": 542
     },
     {
@@ -12078,8 +12078,8 @@
       "item_index": 7,
       "wording": "Restart with an unresolved prompt and see its current valid state.",
       "checkbox_state": "unchecked",
-      "audit_status": "Blocked from verification",
-      "delivery_status": "blocked_from_verification",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12090,7 +12090,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Prompt persistence is implemented in the healthy canonical store, but no controlled unresolved prompt was carried through a restart.",
+      "audit_note": "Focused timeline tests reopen SQLite and recover the unresolved prompt's current state while expiry is recalculated on fetch. The signed installed helper could not load seeded prompts, so app-and-agent restart acceptance remains (`PromptInboxTimelineTests.swift`; `.audit/runs/today-prompt-inbox/verifier/REPORT.md`).",
       "tracker_line": 753
     },
     {
