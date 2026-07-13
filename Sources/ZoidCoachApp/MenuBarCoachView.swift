@@ -55,6 +55,7 @@ struct MenuBarCoachView: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var voiceModel: VoiceConversationModel
     @StateObject private var controller: MenuBarCoachController
+    @State private var pendingEndWorkdayTask: TodayTaskRow?
 
     @MainActor
     init(
@@ -94,6 +95,22 @@ struct MenuBarCoachView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("menu-bar.coach")
+        .confirmationDialog(
+            "END THE WORKDAY?",
+            isPresented: endWorkdayConfirmationIsPresented,
+            titleVisibility: .visible
+        ) {
+            Button("END WORKDAY", role: .destructive) {
+                guard let task = pendingEndWorkdayTask else { return }
+                pendingEndWorkdayTask = nil
+                Task { await apply(.pauseForEndOfDay, taskID: task.taskID) }
+            }
+            Button("KEEP WORKING", role: .cancel) {
+                pendingEndWorkdayTask = nil
+            }
+        } message: {
+            Text("The active task will pause and its tracked time will remain saved. You can resume it later from Today or this menu.")
+        }
     }
 
     private var coachHeader: some View {
@@ -166,6 +183,15 @@ struct MenuBarCoachView: View {
                     taskButton("OPEN TODAY", role: .quiet, identifier: "menu-bar.open-today") {
                         open(.today)
                     }
+                }
+                if controller.state.canEndWorkday {
+                    Button("END WORKDAY") {
+                        pendingEndWorkdayTask = task
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                    .disabled(controller.isApplying)
+                    .help("Pause this task and close the workday after confirmation")
+                    .accessibilityIdentifier("menu-bar.task.end-workday")
                 }
             } else {
                 Text("No task is active or ready. Open Today to plan the next deliberate move.")
@@ -242,5 +268,14 @@ struct MenuBarCoachView: View {
                 window.makeKeyAndOrderFront(nil)
             }
         }
+    }
+
+    private var endWorkdayConfirmationIsPresented: Binding<Bool> {
+        Binding(
+            get: { pendingEndWorkdayTask != nil },
+            set: { isPresented in
+                if !isPresented { pendingEndWorkdayTask = nil }
+            }
+        )
     }
 }
