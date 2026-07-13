@@ -14,6 +14,7 @@ This lane claims the first coherent unimplemented notification-control gap that 
 
 - Notification-prompt preference only in `Sources/ZoidCoachCore/UserPolicy.swift`.
 - Notification-prompt delivery gating only in `Sources/ZoidCoachInfrastructure/PromptNotificationCoordinator.swift`.
+- Exact fixture notification cancellation support only in `Sources/ZoidCoachInfrastructure/DeterministicOSFixtureAdapters.swift`.
 - Notification preference composition only in `Sources/ZoidCoachAgent/AgentMain.swift`.
 - Notification preference only in `Sources/ZoidCoachApp/Views/SettingsPolicyDraft.swift`.
 - Notification preference merge only in `Sources/ZoidCoachApp/Views/SettingsPolicyConflict.swift`.
