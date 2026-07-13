@@ -414,13 +414,13 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 ## 29. Gaming policy setup
 
 - [ ] Observe gaming without applying a budget. **Status: Not implemented.** Gaming is always evaluated against a `GamingPolicy` with a default 60-minute budget; there is no disabled-budget mode.
-- [ ] Set a daily gaming budget. **Status: Frontend only left.** `GamingPolicy.dailyBudgetMinutes` exists, but it is not part of `UserPolicy`, Settings, or persistence and the agent uses its initializer default.
-- [ ] Unlock gaming after selected priority tasks are completed. **Status: Partially implemented.** Completing the main objective can apply a one-time reward, but the user cannot select unlock tasks or configure the condition.
+- [ ] Set a daily gaming budget. **Status: Touches remaining.** Settings now exposes a 0-1,440 minute base allowance in five-minute steps, reconstructs it from the active policy, and saves it through the conflict-safe policy mutation boundary. Focused persistence and runtime allowance tests pass, while the signed installed save and relaunch journey remains (`SettingsPolicyDraft.swift`; `SettingsView.swift`; `.audit/runs/gaming-policy-settings/verifier/REPORT.md`).
+- [ ] Unlock gaming after selected priority tasks are completed. **Status: Partially implemented.** Settings now configures the additional minutes unlocked once by completing the existing priority objective, and runtime tests prove the reward changes remaining allowance. The user still cannot select arbitrary unlock tasks and the installed Today effect remains unverified (`SettingsView.swift`; `SettingsPolicyDraftTests.swift`; `.audit/runs/gaming-policy-settings/verifier/REPORT.md`).
 - [ ] Earn gaming time from aligned focus time. **Status: Not implemented.** Rewards are completion-based only; aligned focus time is not calculated.
 - [ ] Combine a base budget, task unlock, and focus-time rewards. **Status: Not implemented.** Only base budget plus a fixed one-time priority reward exists.
 - [ ] Choose which applications count as gaming. **Status: Touches remaining.** Settings provides per-app Gaming classification and persists it in `BehaviorPolicy`. There is no context-sensitive rule or current-session preview.
 - [ ] Decide whether Discord or Twitch count only in a gaming context. **Status: Not implemented.** Rules are global by application name; Discord is built-in gaming and Twitch is not context aware.
-- [ ] Set the base available minutes. **Status: Frontend only left.** The core policy supports a numeric base budget, but no Settings control or policy-store field exposes it.
+- [ ] Set the base available minutes. **Status: Touches remaining.** Settings now exposes the stored base minutes with bounded five-minute edits, conflict-safe merging, and factual zero-budget copy. The signed installed edit, save, and relaunch persistence sequence remains (`SettingsView.swift`; `SettingsPolicyConflict.swift`; `.audit/runs/gaming-policy-settings/verifier/REPORT.md`).
 - [ ] Set the unlock tasks or focus-time rule. **Status: Not implemented.** Unlock selection and focus ratios are not modeled.
 - [ ] Set the daily maximum during work hours. **Status: Not implemented.** No separate work-hours maximum exists.
 - [ ] Choose whether early gaming creates same-day debt. **Status: Not implemented.** Debt is not modeled.

@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "8e4ab1f6196754b3a9af23da883c053a1c17af29d33f39e07321ab67299fe240",
+  "tracker_sha256": "ffa5b3782c873faa5dea438e687e461239319e552f745d292d0331150b3388cd",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -6236,8 +6236,8 @@
       "item_index": 2,
       "wording": "Set a daily gaming budget.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6248,7 +6248,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`GamingPolicy.dailyBudgetMinutes` exists, but it is not part of `UserPolicy`, Settings, or persistence and the agent uses its initializer default.",
+      "audit_note": "Settings now exposes a 0-1,440 minute base allowance in five-minute steps, reconstructs it from the active policy, and saves it through the conflict-safe policy mutation boundary. Focused persistence and runtime allowance tests pass, while the signed installed save and relaunch journey remains (`SettingsPolicyDraft.swift`; `SettingsView.swift`; `.audit/runs/gaming-policy-settings/verifier/REPORT.md`).",
       "tracker_line": 417
     },
     {
@@ -6270,7 +6270,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Completing the main objective can apply a one-time reward, but the user cannot select unlock tasks or configure the condition.",
+      "audit_note": "Settings now configures the additional minutes unlocked once by completing the existing priority objective, and runtime tests prove the reward changes remaining allowance. The user still cannot select arbitrary unlock tasks and the installed Today effect remains unverified (`SettingsView.swift`; `SettingsPolicyDraftTests.swift`; `.audit/runs/gaming-policy-settings/verifier/REPORT.md`).",
       "tracker_line": 418
     },
     {
@@ -6368,8 +6368,8 @@
       "item_index": 8,
       "wording": "Set the base available minutes.",
       "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6380,7 +6380,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The core policy supports a numeric base budget, but no Settings control or policy-store field exposes it.",
+      "audit_note": "Settings now exposes the stored base minutes with bounded five-minute edits, conflict-safe merging, and factual zero-budget copy. The signed installed edit, save, and relaunch persistence sequence remains (`SettingsView.swift`; `SettingsPolicyConflict.swift`; `.audit/runs/gaming-policy-settings/verifier/REPORT.md`).",
       "tracker_line": 423
     },
     {
