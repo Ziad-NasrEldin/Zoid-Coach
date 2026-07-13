@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "run_id": "timed-coaching-pause/b9f655b20d62d2455f5b78c6380da53fb4b72471",
+  "verified_commit": "b9f655b20d62d2455f5b78c6380da53fb4b72471",
+  "build_identity": "zoid-coach-b9f655b20d62d2455f5b78c6380da53fb4b72471-clean",
+  "fixture": "/private/tmp/zoid-666-timed-coaching-pause-qa/OS Fixtures/state.json",
+  "qa_root": "/private/tmp/zoid-666-timed-coaching-pause-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "db4fbcbc7ac7997e75652fd0eb29639c2e009857f031dec1a2caa860e3d2cc0c",
+  "scenario_ids": [
+    "ZC-039-001",
+    "ZC-039-002",
+    "ZC-039-003",
+    "ZC-039-004"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T06:03:28.286872+00:00",
+  "completed_at": "2026-07-13T06:05:10Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "f0417410749ee03b3e6978254a91dd3ac87b16a439a1bfedb60c5bf36ca10e29"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "signed_one_hour_pause_and_relaunch",
+      "result": "passed",
+      "detail": "The signed card persisted an exact one-hour boundary and restored it after relaunch."
+    },
+    {
+      "name": "signed_until_tomorrow_uses_policy_timezone",
+      "result": "passed",
+      "detail": "Until Tomorrow displayed Cairo midnight and persisted the matching UTC boundary."
+    },
+    {
+      "name": "signed_resume_and_indefinite_states",
+      "result": "passed",
+      "detail": "Resume Now persisted Running immediately and Indefinite displayed without a boundary."
+    },
+    {
+      "name": "signed_expiry_refreshes_to_running",
+      "result": "passed",
+      "detail": "A shortened signed boundary changed visibly from Paused Until to Running on the built-in refresh without restart."
+    }
+  ],
+  "commands": [
+    "swift test --filter UserPolicyTests|SettingsPolicyDraftTests",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-timed-coaching-pause-qa Scripts/install-signed-qa-runtime.sh"
+  ]
+}
