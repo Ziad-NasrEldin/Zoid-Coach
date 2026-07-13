@@ -64,6 +64,12 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Evidence is recorded in `.audit/runs/notification-permission-recovery/0d6ec2d/REPORT.md`.
 - A fresh verifier owns signed-QA traversal, tracker and registry integration, and Lavish refresh.
 
+### Intentional gaming override - active candidate
+
+- Owns `ZC-036-001`, `ZC-036-002`, `ZC-036-003`, `ZC-036-007`, and `ZC-036-008`.
+- Owns only `GamingDriftPromptService.swift`, its focused tests, candidate evidence, and this backlog entry.
+- Notification permission, notification repair, Today fallback, tracker, registry, Lavish, runtime, and root remain outside this lane.
+
 ### Background-agent lifecycle and Login Items repair - `57a7f54`
 
 - Distinguishes an enabled ServiceManagement registration from a fresh canonical runtime heartbeat.
