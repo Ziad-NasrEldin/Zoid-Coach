@@ -308,7 +308,11 @@ struct OnboardingRootView: View {
                     Task { await coordinator.requestAccess(for: step) }
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
-                .disabled(coordinator.isWorking || accessDecision(for: step) != nil)
+                .disabled(
+                    coordinator.isWorking
+                        || accessDecision(for: step) == .denied
+                        || accessDecision(for: step) == .granted
+                )
                 .keyboardShortcut("g", modifiers: [.option])
                 .accessibilityIdentifier("onboarding.source.\(step.rawValue).grant")
                 Button("NOT NOW") { coordinator.deferAccess(for: step) }
