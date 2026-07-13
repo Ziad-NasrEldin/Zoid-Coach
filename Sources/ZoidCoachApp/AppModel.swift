@@ -92,6 +92,7 @@ final class AppModel: ObservableObject {
     private let fetchReminderCompletionSync: @Sendable (String) async throws -> ReminderCompletionSyncState
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
+    private var sourceChecksInFlight: Set<SourceID> = []
 
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
@@ -227,11 +228,17 @@ final class AppModel: ObservableObject {
     }
 
     func checkSource(_ sourceID: SourceID) {
+        guard sourceChecksInFlight.insert(sourceID).inserted else { return }
+        markSourceChecking(sourceID)
         switch sourceID {
         case .screenwatch:
-            Task { await refreshScreenwatch() }
+            Task {
+                defer { sourceChecksInFlight.remove(sourceID) }
+                await refreshScreenwatch()
+            }
         case .reminders:
             Task {
+                defer { sourceChecksInFlight.remove(sourceID) }
                 let result = await remindersService.requestAccessAndInspect()
                 updateSource(result)
                 if result.state == .healthy {
@@ -241,17 +248,26 @@ final class AppModel: ObservableObject {
             }
         case .calendar:
             Task {
+                defer { sourceChecksInFlight.remove(sourceID) }
                 let result = await calendarService.requestAccessAndInspect()
                 updateSource(result)
                 refreshPlanningCapacity()
             }
         case .agent:
             updateSource(agentLaunchService.enableAndInspect())
+            sourceChecksInFlight.remove(sourceID)
         case .notifications:
             Task {
+                defer { sourceChecksInFlight.remove(sourceID) }
                 updateSource(await notificationService.requestAccessAndInspect())
             }
         }
+    }
+
+    private func markSourceChecking(_ sourceID: SourceID) {
+        guard let index = sources.firstIndex(where: { $0.id == sourceID }) else { return }
+        sources[index].state = .checking
+        sources[index].detail = "Checking the current connection and repair path"
     }
 
     var calendarSelectionAvailability: CalendarSelectionAvailability {

@@ -37,6 +37,30 @@ func sourceCheckCompletesWithStableSourceStates() async {
 
 @MainActor
 @Test
+func repeatedSourceRepairActivationStartsOnlyOneInFlightRequest() async throws {
+    let reminders = GatedRemindersRepairService()
+    let model = AppModel(remindersService: reminders)
+
+    model.checkSource(.reminders)
+    model.checkSource(.reminders)
+    await Task.yield()
+
+    #expect(reminders.requestCount == 1)
+    #expect(model.sources.first(where: { $0.id == .reminders })?.state == .checking)
+
+    reminders.finish()
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(2))
+    while model.sources.first(where: { $0.id == .reminders })?.state == .checking,
+          clock.now < deadline {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+
+    #expect(model.sources.first(where: { $0.id == .reminders })?.state == .healthy)
+}
+
+@MainActor
+@Test
 func appModelPropagatesQARuntimeToBackgroundAgentControl() async throws {
     let root = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-app-model-qa-\(UUID().uuidString)", isDirectory: true)
@@ -121,6 +145,35 @@ private final class RecordingProductionRemindersService: RemindersServicing {
     func fetchIncompleteTasks() async -> ReminderTaskLoad {
         callCount += 1
         return .available([])
+    }
+}
+
+@MainActor
+private final class GatedRemindersRepairService: RemindersServicing {
+    let isProductionAdapter = false
+    private(set) var requestCount = 0
+    private var continuation: CheckedContinuation<SourceHealth, Never>?
+
+    func inspect() async -> SourceHealth { .initial[0] }
+
+    func requestAccessAndInspect() async -> SourceHealth {
+        requestCount += 1
+        return await withCheckedContinuation { continuation = $0 }
+    }
+
+    func fetchIncompleteTasks() async -> ReminderTaskLoad { .available([]) }
+
+    func finish() {
+        continuation?.resume(returning: SourceHealth(
+            id: .reminders,
+            title: "Apple Reminders",
+            eyebrow: "Intent",
+            state: .healthy,
+            detail: "Connected",
+            evidence: "Fixture",
+            actionTitle: "Refresh"
+        ))
+        continuation = nil
     }
 }
 
