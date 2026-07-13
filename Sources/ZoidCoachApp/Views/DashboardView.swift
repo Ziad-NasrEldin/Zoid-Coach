@@ -791,12 +791,15 @@ private struct TodayAgentLedger: View {
                 .padding(.horizontal, 28)
                 .padding(.vertical, 12)
 
-            sectionTitle("GAMING BUDGET")
-            Text("\(snapshot.gaming.usedMinutes)m used of \(snapshot.gaming.budgetMinutes)m. \(snapshot.gaming.unlockedRemainingMinutes)m remaining.")
+            sectionTitle(snapshot.gaming.budgetEnabled ? "GAMING BUDGET" : "GAMING OBSERVATION")
+            Text(snapshot.gaming.budgetEnabled
+                 ? "\(snapshot.gaming.usedMinutes)m used of \(snapshot.gaming.budgetMinutes)m. \(snapshot.gaming.unlockedRemainingMinutes)m remaining."
+                 : "\(snapshot.gaming.usedMinutes)m observed. No budget is applied.")
                 .font(Sumi.body(14))
                 .foregroundStyle(Sumi.ink)
                 .padding(.horizontal, 28)
                 .padding(.top, 12)
+                .accessibilityIdentifier("today.gaming.status")
             Text(snapshot.gaming.nextUnlockReason)
                 .font(Sumi.body(12))
                 .foregroundStyle(Sumi.muted)

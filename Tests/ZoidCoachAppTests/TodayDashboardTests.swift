@@ -164,6 +164,22 @@ func gamingAllowanceUsesOnlyClassifiedGamingTime() {
 }
 
 @Test
+func gamingObservationModeKeepsFactsWithoutInventingABudget() {
+    let coverage = TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: Date())
+    let status = GamingStatusCalculator().status(
+        policy: GamingPolicy(dailyBudgetMinutes: 60, priorityTaskRewardMinutes: 15, budgetEnabled: false),
+        gamingMinutes: 42,
+        rewardApplied: true,
+        coverage: coverage
+    )
+    #expect(!status.budgetEnabled)
+    #expect(status.usedMinutes == 42)
+    #expect(status.budgetMinutes == 0)
+    #expect(status.unlockedRemainingMinutes == 0)
+    #expect(status.nextUnlockReason.contains("Observation only"))
+}
+
+@Test
 func explicitAppClassificationOverridesBuiltInRulesWithoutUsingPartialMatches() {
     let classifier = BehaviorClassifier(
         policy: BehaviorPolicy(
