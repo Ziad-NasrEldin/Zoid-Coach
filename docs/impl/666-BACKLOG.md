@@ -306,7 +306,7 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Candidate evidence is recorded in `.audit/runs/configurable-review-time/candidate/REPORT.md`.
 - The authoritative tracker remains owned by the root integrator and must only advance after an independent signed Settings-to-notification verification.
 
-### Latest relevant prompt notification - candidate
+### Latest relevant prompt notification - verified with touches remaining
 
 - Owns `ZC-038-007` and the notification-replacement portion of `ZC-033-011`.
 - Replaces older notifications only inside the same relevance group after the new request is accepted.
@@ -314,4 +314,6 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Leaves every unresolved prompt in the durable Today inbox when its notification is superseded.
 - Focused policy, coordinator, preference, same-prompt replacement, and deterministic end-to-end tests pass.
 - Candidate evidence is recorded in `.audit/runs/latest-relevant-notification/candidate/REPORT.md`.
-- The authoritative tracker remains owned by the root integrator and must only advance after an independent real Notification Center verification.
+- Signed fixture latest-per-group state, Today preservation, exactly-once older response, and app plus helper relaunch durability passed.
+- Real Notification Center remains the conservative proof gap because signed QA mode intentionally uses the isolated fixture adapter.
+- Verification evidence is recorded in `.audit/runs/latest-relevant-notification/verifier/REPORT.md`.

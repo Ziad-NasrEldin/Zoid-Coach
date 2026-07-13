@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "48b6894edb2a7b800c33ba52a91c743b6e6dfd7c12aa4d2dadd95ae49d09031e",
+  "tracker_sha256": "8a9abbca324ff9fb609c50b6973a6c47b22e57a5d6a7f93acda062c07c4599a9",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7449,8 +7449,8 @@
       "item_index": 11,
       "wording": "Find the same unresolved prompt in the dashboard if the initial surface disappears.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7458,10 +7458,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/latest-relevant-notification/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`PromptInboxStore.unresolved()` and the live `DECISIONS` dashboard prove shared persistence for plan and meeting prompts across notification and dashboard surfaces, but coaching prompts are not generated and a live notification-disappearance sequence was not exercised.",
+      "audit_note": "The signed fixture retained superseded plan and gaming decisions in Today while exposing only the latest notification per relevance group, allowed one older decision to resolve exactly once, and preserved four waiting plus one answered decision through app and helper relaunch. Real Notification Center disappearance remains unverified because signed QA mode intentionally uses its isolated notification fixture (`PromptNotificationRelevance`; `.audit/runs/latest-relevant-notification/verifier/REPORT.md`).",
       "tracker_line": 480
     },
     {
@@ -7690,12 +7692,10 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [
-        ".audit/runs/prompt-task-reschedule/verifier/REPORT.md"
-      ],
-      "last_verified_commit": "75abc4269c0b4cb2dd571762658c74aaa66ee1ba",
-      "last_verified_build": "zoid-coach-218cd1c3a227b8eda96ce854bd565d141558136d-clean",
-      "audit_note": "A generated signed coaching prompt exposes an accessible future-date sheet, safe Cancel, ordered local and Apple Reminder mutation, and single prompt resolution. Signed acceptance found and fixed fully deferred-plan validation and automatic planner overwrite defects; one fresh signed relaunch on the final retention fix remains (`AppModel.swift`; `AgentOwnedStateStore.swift`; `AutonomousPlanStore.swift`; `.audit/runs/prompt-task-reschedule/verifier/REPORT.md`).",
+      "evidence_paths": [],
+      "last_verified_commit": null,
+      "last_verified_build": null,
+      "audit_note": "A generated signed coaching prompt opens an accessible future-date sheet, Cancel safely preserves the decision, and Confirm saves the local date before queuing exactly one matching Apple Reminder mutation and resolving the prompt. Signed acceptance found and fixed both the fully deferred-plan validator rejection and the automatic planner overwrite; one fresh signed relaunch on the final retention fix remains (`AppModel.swift`; `AgentOwnedStateStore.swift`; `AutonomousPlanStore.swift`; `.audit/runs/prompt-task-reschedule/verifier/REPORT.md`).",
       "tracker_line": 493
     },
     {
@@ -8591,8 +8591,8 @@
       "item_index": 7,
       "wording": "See only the latest relevant notification when delivery is throttled.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8600,10 +8600,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/latest-relevant-notification/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Notifications use prompt-specific identifiers, but there is no relevance/throttling policy that cancels older decisions.",
+      "audit_note": "Plan-ready and plan-changed now share one replacement group, while meeting, gaming, wake, and onboarding groups remain independent and the previous accepted notification survives a refused replacement. Focused coordinator tests and the signed fixture proved latest plan, meeting, and gaming records alongside all durable Today decisions and restart persistence. Real Notification Center remains the final proof gap because signed QA mode intentionally routes notifications to the isolated fixture (`PromptNotificationRelevance`; `PromptNotificationCoordinator`; `.audit/runs/latest-relevant-notification/verifier/REPORT.md`).",
       "tracker_line": 546
     },
     {
