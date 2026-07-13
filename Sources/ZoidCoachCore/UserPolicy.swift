@@ -792,6 +792,12 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         if !(5...1_440).contains(gaming.promptCooldownMinutes) {
             violations.append(.init(code: .invalidGamingBudget, field: "gaming.promptCooldownMinutes"))
         }
+        if !(0...60).contains(gaming.taskStartGraceMinutes) {
+            violations.append(.init(code: .invalidGamingGrace, field: "gaming.taskStartGraceMinutes"))
+        }
+        if !(0...30).contains(gaming.returnFromIdleGraceMinutes) {
+            violations.append(.init(code: .invalidGamingGrace, field: "gaming.returnFromIdleGraceMinutes"))
+        }
         appendTimeViolation(wake.window.start, field: "wake.window.start", to: &violations)
         appendTimeViolation(wake.window.end, field: "wake.window.end", to: &violations)
         if wake.window.start == wake.window.end {
@@ -887,6 +893,7 @@ public struct PolicyViolation: Codable, Equatable, Sendable {
         case unsupportedGamingPolicyVersion
         case invalidGamingBudget
         case invalidGamingReward
+        case invalidGamingGrace
         case invalidWakeBudget
         case emptyReminderListIdentifier
         case duplicateReminderListIdentifier

@@ -672,6 +672,24 @@ struct SettingsView: View {
                 )
                 .accessibilityIdentifier("settings.gaming.prompt-cooldown")
                 .disabled(!controller.draft.gamingBudgetEnabled)
+                SumiStepper(
+                    "AFTER STARTING A TASK",
+                    value: $controller.draft.gamingTaskStartGraceMinutes,
+                    in: 0...60,
+                    valueLabel: { $0 == 0 ? "NO GRACE" : "\($0) MIN GRACE" }
+                )
+                .accessibilityIdentifier("settings.gaming.task-start-grace")
+                .accessibilityHint("Normal behavior coaching waits this long after a task starts. Sustained high-confidence gaming that began before the task can still bypass the grace.")
+                .disabled(!controller.draft.gamingBudgetEnabled)
+                SumiStepper(
+                    "AFTER RETURNING FROM IDLE",
+                    value: $controller.draft.gamingReturnFromIdleGraceMinutes,
+                    in: 0...30,
+                    valueLabel: { $0 == 0 ? "NO GRACE" : "\($0) MIN GRACE" }
+                )
+                .accessibilityIdentifier("settings.gaming.return-from-idle-grace")
+                .accessibilityHint("Behavior coaching waits this long after reliable idle activity or a telemetry gap ends.")
+                .disabled(!controller.draft.gamingBudgetEnabled)
                 Text(gamingAllowanceExplanation)
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
