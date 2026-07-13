@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "d930f38195a1411ce6ffac7ac8231c2bcba6551b1edf4ef875074e3e433a481e",
+  "tracker_sha256": "ddaf411d97d92d0e31dafe6d6894de64235d654234236e02bf13db8199f98339",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7795,8 +7795,8 @@
       "item_index": 1,
       "wording": "Receive no more than six behavior interventions during a default workday.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7807,7 +7807,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No behavior-intervention producer or daily behavior-cap policy exists; `AgentMain` only creates plan-ready, plan-changed, and meeting prompts.",
+      "audit_note": "The behavior producer now counts only same-local-day gaming-drift decisions and enforces the configured default cap of six across restart; focused cap-boundary tests pass, while the signed capped run proved real delivery under cap one rather than a full six-intervention day (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).",
       "tracker_line": 502
     },
     {
@@ -7817,8 +7817,8 @@
       "item_index": 2,
       "wording": "Avoid having estimate requests and source warnings counted against the behavior cap.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7829,7 +7829,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no behavior-cap ledger or prompt-type accounting to distinguish these cases.",
+      "audit_note": "Daily cap accounting now scopes exclusively to `GAMING_DRIFT` decision keys, and focused tests prove plan-ready and source-warning episodes do not consume it. The signed run proved a real behavior decision under cap one, but did not seed both unrelated prompt types before delivery (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).",
       "tracker_line": 503
     },
     {
@@ -7839,8 +7839,8 @@
       "item_index": 3,
       "wording": "Receive no duplicate prompt during its cooldown.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7851,7 +7851,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`PromptInboxStore` deduplicates one unresolved `decisionKey`, but there is no behavior cooldown model, expiry policy, or end-user behavior-prompt flow.",
+      "audit_note": "The producer now enforces decision-key deduplication, the configured cross-session cooldown, and response-specific pause windows across restart. The signed run rendered one prompt and applied its response exactly once, while a full installed expiry-and-reprompt boundary remains (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).",
       "tracker_line": 504
     },
     {
@@ -7861,8 +7861,8 @@
       "item_index": 4,
       "wording": "Receive a 15-minute pause after a gentle nudge.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7873,7 +7873,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No gentle-nudge prompt or 15-minute suppression state exists.",
+      "audit_note": "A gentle response now suppresses generic behavior interventions for exactly fifteen minutes, with deterministic 14-minute and 15-minute boundary tests passing. The installed signed journey produced and answered the gentle prompt, but the real-time boundary was outside the capped UI window (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).",
       "tracker_line": 505
     },
     {
@@ -7883,8 +7883,8 @@
       "item_index": 5,
       "wording": "Receive a 20-minute pause after answering an accountability prompt.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7895,7 +7895,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No accountability-prompt producer or response-specific suppression timer exists.",
+      "audit_note": "An accountability response now suppresses generic behavior interventions for exactly twenty minutes, with deterministic 19-minute and 20-minute boundary tests passing. Installed accountability response and real-time boundary capture remain (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).",
       "tracker_line": 506
     },
     {
@@ -7949,8 +7949,8 @@
       "item_index": 8,
       "wording": "Receive no more prompts that day after choosing `I am done today`.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7961,7 +7961,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`endWorkday` exists as an action enum, but it is not surfaced, routed, or persisted as a day-level prompt stop.",
+      "audit_note": "The five-more follow-up now surfaces `I am done today`, the response router pauses the active task with the durable end-workday reason, and the producer suppresses later same-local-day behavior prompts while resetting eligibility on the next local day. Focused same-day, restart, and next-day tests pass; the installed end-day restart journey remains (`GamingDriftPromptService.swift`; `PromptResponseEffectRouter.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).",
       "tracker_line": 509
     },
     {

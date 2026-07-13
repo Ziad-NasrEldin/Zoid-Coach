@@ -14,12 +14,12 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 143
-- **Touches remaining:** 262
-- **Frontend only left:** 11
-- **Partially implemented:** 110
-- **Barely started:** 17
-- **Not implemented:** 96
+- **Fully implemented:** 153
+- **Touches remaining:** 275
+- **Frontend only left:** 10
+- **Partially implemented:** 107
+- **Barely started:** 13
+- **Not implemented:** 81
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -499,14 +499,14 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 35. Prompt frequency and escalation
 
-- [ ] Receive no more than six behavior interventions during a default workday. **Status: Not implemented.** No behavior-intervention producer or daily behavior-cap policy exists; `AgentMain` only creates plan-ready, plan-changed, and meeting prompts.
-- [ ] Avoid having estimate requests and source warnings counted against the behavior cap. **Status: Not implemented.** There is no behavior-cap ledger or prompt-type accounting to distinguish these cases.
-- [ ] Receive no duplicate prompt during its cooldown. **Status: Barely started.** `PromptInboxStore` deduplicates one unresolved `decisionKey`, but there is no behavior cooldown model, expiry policy, or end-user behavior-prompt flow.
-- [ ] Receive a 15-minute pause after a gentle nudge. **Status: Not implemented.** No gentle-nudge prompt or 15-minute suppression state exists.
-- [ ] Receive a 20-minute pause after answering an accountability prompt. **Status: Not implemented.** No accountability-prompt producer or response-specific suppression timer exists.
+- [ ] Receive no more than six behavior interventions during a default workday. **Status: Touches remaining.** The behavior producer now counts only same-local-day gaming-drift decisions and enforces the configured default cap of six across restart; focused cap-boundary tests pass, while the signed capped run proved real delivery under cap one rather than a full six-intervention day (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).
+- [ ] Avoid having estimate requests and source warnings counted against the behavior cap. **Status: Touches remaining.** Daily cap accounting now scopes exclusively to `GAMING_DRIFT` decision keys, and focused tests prove plan-ready and source-warning episodes do not consume it. The signed run proved a real behavior decision under cap one, but did not seed both unrelated prompt types before delivery (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).
+- [ ] Receive no duplicate prompt during its cooldown. **Status: Touches remaining.** The producer now enforces decision-key deduplication, the configured cross-session cooldown, and response-specific pause windows across restart. The signed run rendered one prompt and applied its response exactly once, while a full installed expiry-and-reprompt boundary remains (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).
+- [ ] Receive a 15-minute pause after a gentle nudge. **Status: Touches remaining.** A gentle response now suppresses generic behavior interventions for exactly fifteen minutes, with deterministic 14-minute and 15-minute boundary tests passing. The installed signed journey produced and answered the gentle prompt, but the real-time boundary was outside the capped UI window (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).
+- [ ] Receive a 20-minute pause after answering an accountability prompt. **Status: Touches remaining.** An accountability response now suppresses generic behavior interventions for exactly twenty minutes, with deterministic 19-minute and 20-minute boundary tests passing. Installed accountability response and real-time boundary capture remain (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).
 - [ ] Receive the selected snooze duration after choosing a snooze. **Status: Touches remaining.** The fixed five-minute choice now persists its response timestamp, survives restart, and produces one follow-up with `snoozeDurationMinutes: 5`, but arbitrary end-user duration selection is not implemented (`GamingDriftPromptService.swift`; `.audit/runs/five-minute-coaching-followup/verifier/REPORT.md`).
 - [ ] Receive a 45-minute same-behavior pause after an intentional override. **Status: Not implemented.** `continueIntentionally` is only an unused action enum; no override window is stored or enforced.
-- [ ] Receive no more prompts that day after choosing `I am done today`. **Status: Barely started.** `endWorkday` exists as an action enum, but it is not surfaced, routed, or persisted as a day-level prompt stop.
+- [ ] Receive no more prompts that day after choosing `I am done today`. **Status: Touches remaining.** The five-more follow-up now surfaces `I am done today`, the response router pauses the active task with the durable end-workday reason, and the producer suppresses later same-local-day behavior prompts while resetting eligibility on the next local day. Focused same-day, restart, and next-day tests pass; the installed end-day restart journey remains (`GamingDriftPromptService.swift`; `PromptResponseEffectRouter.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/behavior-intervention-guardrails/verifier/REPORT.md`).
 - [ ] See later drift recorded quietly after reaching the prompt cap. **Status: Not implemented.** There is no prompt-cap state and no quiet post-cap drift ledger.
 - [ ] See quietly recorded drift summarized only during review. **Status: Not implemented.** The Reviews navigation item renders the generic source-health foundation view, not a drift review.
 - [ ] See coaching return to observation after aligned work resumes. **Status: Not implemented.** `CoachingState` is display-only and no behavior episode state machine returns it to observation.
