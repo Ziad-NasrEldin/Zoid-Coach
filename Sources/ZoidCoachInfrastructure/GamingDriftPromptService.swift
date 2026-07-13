@@ -113,7 +113,11 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         default: break
         }
         guard !gamingStatus.confidenceIsLimited else { return .suppressed(.limitedCoverage) }
-        if let observation = try latestObservation(localDay: localDay, now: date), observation.isNeutralSupporting {
+        guard let observation = try latestObservation(localDay: localDay),
+              date.timeIntervalSince1970 - Double(observation.epoch) <= 180 else {
+            return .suppressed(.limitedCoverage)
+        }
+        if observation.isNeutralSupporting {
             return .suppressed(.neutralSupportingActivity)
         }
         guard let session = try currentGamingSession(localDay: localDay, now: date) else {
@@ -356,7 +360,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         }
     }
 
-    private func latestObservation(localDay: String, now: Date) throws -> ObservationContext? {
+    private func latestObservation(localDay: String) throws -> ObservationContext? {
         guard try tableExists("behavior_records") else { return nil }
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
@@ -370,7 +374,6 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         bind(localDay, statement, 1)
         guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
         let epoch = sqlite3_column_int64(statement, 0)
-        guard now.timeIntervalSince1970 - Double(epoch) <= 180 else { return nil }
         return ObservationContext(
             epoch: epoch,
             app: text(statement, 1) ?? "",

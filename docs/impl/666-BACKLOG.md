@@ -214,6 +214,15 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - The signed ready-state app exposed the known task, but the fixture contract has no prompt-episode seed seam and rejected a direct isolated seed, so no native prompt Start action rendered.
 - `ZC-016-003` advances from Barely started to Touches remaining, while native activation, replay, and relaunch proof remain in `.audit/runs/dashboard-prompt-task-start/verifier/REPORT.md`.
 
+### Stale Screenwatch prompt suppression - candidate
+
+- Owns `ZC-049-003`.
+- Requires a Screenwatch observation no older than three minutes before evaluating gaming drift.
+- Returns limited-coverage suppression and queues no prompt when Screenwatch evidence is missing or stale.
+- Restores prompt eligibility automatically when fresh evidence resumes.
+- Four focused stale, recovery, policy, lifecycle, correction, and exactly-once tests plus the release build pass.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/stale-screenwatch-prompt-suppression/candidate/REPORT.md`.
+
 ### Reduced-motion state feedback - candidate
 
 - Owns `ZC-055-011` and `ZC-056-010`.
