@@ -22,7 +22,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 4 | Prove all 12 onboarding steps in one fresh signed-QA journey | ready | Unowned | One evidence run completes every step, persists app classifications and preferences through XPC, creates the first plan, reaches Today, and survives restart |
 | 5 | Finish Reminders permission grant, denial, repair, and recovery UX | verify | Reminders outage continuity candidate at `8a49afb` | `ZC-051-001` and `ZC-051-004`; Today explains preserved plan, estimates, active tracking and local history, with direct local-task and repair actions plus focused continuity proof in `.audit/runs/reminders-outage-continuity/candidate/REPORT.md` |
 | 6 | Finish Screenwatch healthy, invalid, alternate-folder, denial, and repair UX | verify | Screenwatch recovery candidate at `1fde15e` | Signed-QA flows prove each state without exposing screenshot content and preserve the selected source through restart |
-| 7 | Finish notification permission and Today fallback UX | ready | Unowned after verifier `9a13467` | `ZC-004-002`, `ZC-004-004`, `ZC-050-002`, `ZC-050-005`, and `ZC-050-007`; denied fallback, repair, replacement, and exactly-once response seams pass, while real Notification Center and the signed repaired response journey remain |
+| 7 | Finish notification permission and Today fallback UX | ready | Unowned after verifier `9a13467`; latest-relevance candidate pending verification | `ZC-038-007` and the replacement portion of `ZC-033-011` now keep only the latest notification per relevance group while preserving every unresolved Today decision, with focused proof in `.audit/runs/latest-relevant-notification/candidate/REPORT.md`; permission repair and real Notification Center verification remain |
 | 8 | Complete flexible work-window and quiet-hours onboarding | ready | Unowned | User can configure, validate, persist, edit, and observe both policies in runtime behavior after restart |
 | 9 | Complete gaming-policy onboarding and runtime enforcement | ready | Unowned | Flexible and firm policies persist, affect planning and recovery behavior, remain non-punitive, and are editable |
 | 10 | Finish rules-only mode and optional-AI boundary | verify | Rules-only factual review candidate at `16da3e6` | `ZC-041-015` and `ZC-046-001`; persisted-provider detection, factual session/coverage copy, local correction boundary, stable accessibility, and focused review proof are recorded in `.audit/runs/rules-only-review/candidate/REPORT.md` |
@@ -305,3 +305,13 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Focused policy, Settings, and reminder tests pass, including quiet-hours deferral, next-working-day rollover, changed-time replacement, legacy decoding, and overnight legacy schedules.
 - Candidate evidence is recorded in `.audit/runs/configurable-review-time/candidate/REPORT.md`.
 - The authoritative tracker remains owned by the root integrator and must only advance after an independent signed Settings-to-notification verification.
+
+### Latest relevant prompt notification - candidate
+
+- Owns `ZC-038-007` and the notification-replacement portion of `ZC-033-011`.
+- Replaces older notifications only inside the same relevance group after the new request is accepted.
+- Treats plan-ready and plan-changed prompts as one planning group while preserving independent meeting, coaching, wake, and onboarding decisions.
+- Leaves every unresolved prompt in the durable Today inbox when its notification is superseded.
+- Focused policy, coordinator, preference, same-prompt replacement, and deterministic end-to-end tests pass.
+- Candidate evidence is recorded in `.audit/runs/latest-relevant-notification/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after an independent real Notification Center verification.
