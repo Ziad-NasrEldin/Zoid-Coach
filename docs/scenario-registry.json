@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "972861211e13b3d3f7071dbef449eafb81dfbb30f5150fdc2b448907624ad83b",
+  "tracker_sha256": "aa8f82fb83f2f3cda5d6ccb0c5bd1c6ef213e9a917ebb8691efef373049e3c97",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11565,8 +11565,8 @@
       "item_index": 8,
       "wording": "See a clear schema-mismatch message when the source format changes.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11577,7 +11577,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Invalid records produce the generic `no valid records` or read-failure message, not a schema mismatch with repair guidance.",
+      "audit_note": "Complete JSON records that no longer match the expected Screenwatch schema now produce a privacy-safe Attention state, explicit unsupported-format guidance, aggregate parsed and mismatch counts, and a direct Repair action, while malformed or truncated JSON is not mislabeled and captured app, title, and URL content is never displayed. Four focused reader tests and one signed package plus exact-helper gate passed; the installed Source Health surface and Screenwatch repair control were visible, but repeated ScreenCaptureKit `-3811` failures stopped the healthy-to-changed-to-mixed-to-repaired visual sequence before promotion to Fully implemented (`ScreenwatchReader.swift`; `ScreenwatchReaderTests.swift`; `.audit/runs/screenwatch-schema-mismatch/verifier/REPORT.md`).",
       "tracker_line": 711
     },
     {

@@ -8,18 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-13 against branch `codex/full-system` through provisional active-commitment code root `d95ace7`, one passing focused presentation, menu, and canonical-agent test invocation, one passing signed release package and exact-helper gate, the exact 666-scenario registry, and capped installed macOS accessibility testing.
+Updated on 2026-07-13 against branch `codex/full-system` through rebased Screenwatch schema-mismatch code root `09cb7e3`, one passing focused reader invocation, one passing signed release package and exact-helper gate, the exact 666-scenario registry, and capped installed macOS accessibility testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
 - **Fully implemented:** 172
-- **Touches remaining:** 290
+- **Touches remaining:** 291
 - **Frontend only left:** 4
-- **Partially implemented:** 101
+- **Partially implemented:** 102
 - **Barely started:** 9
-- **Not implemented:** 63
+- **Not implemented:** 61
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -708,7 +708,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] See missing time represented as missing rather than productive or distracting. **Status: Touches remaining.** The signed review displayed a dedicated Missing metric and stated that uncovered active-task time is not counted as work, gaming, or distraction, while focused fixtures prove a 40-minute gap remains separate from every category (`DailySourceCoverage.swift`; `DailySourceCoverageTests.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).
 - [ ] See Screenwatch return to healthy automatically when valid activity resumes. **Status: Touches remaining.** The signed Settings card visibly returned from Waiting and Stale to Healthy when valid current activity appeared and Recheck ran. Foreground activation also rechecks without reselection in passing controller tests, but the capped run did not visibly leave and return to the app for automatic foreground recovery (`ScreenwatchConnectionView.swift`; `.audit/runs/screenwatch-recovery-ux/verifier/REPORT.md`).
 - [ ] Continue totals from the correct point without obvious duplicates after recovery. **Status: Touches remaining.** Archive/checkpoint tests cover incremental reads, partial lines, and deterministic replay without duplicate ingestion; live outage/recovery totals were not verified.
-- [ ] See a clear schema-mismatch message when the source format changes. **Status: Not implemented.** Invalid records produce the generic `no valid records` or read-failure message, not a schema mismatch with repair guidance.
+- [ ] See a clear schema-mismatch message when the source format changes. **Status: Touches remaining.** Complete JSON records that no longer match the expected Screenwatch schema now produce a privacy-safe Attention state, explicit unsupported-format guidance, aggregate parsed and mismatch counts, and a direct Repair action, while malformed or truncated JSON is not mislabeled and captured app, title, and URL content is never displayed. Four focused reader tests and one signed package plus exact-helper gate passed; the installed Source Health surface and Screenwatch repair control were visible, but repeated ScreenCaptureKit `-3811` failures stopped the healthy-to-changed-to-mixed-to-repaired visual sequence before promotion to Fully implemented (`ScreenwatchReader.swift`; `ScreenwatchReaderTests.swift`; `.audit/runs/screenwatch-schema-mismatch/verifier/REPORT.md`).
 - [ ] Preserve prior activity and task history during the outage. **Status: Touches remaining.** Existing history is not deleted by missing or stale reads, the canonical database is healthy, and stores are independently tested, but a live outage and recovery comparison was not performed.
 
 ## 50. Notification failure
