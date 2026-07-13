@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "b54d827dc6c122acbd402a0c48218e38d8ed2059affe4218164c731aee4bd758",
+  "tracker_sha256": "e96cac3d8e9c0cb8eda4846e0d2ac662e23b209ed7d7beb26fcc5ca2e9f57a00",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -275,7 +275,9 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminders-permission-recovery/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed QA app restored the exact Reminders step after restart, consumed an isolated denied-to-granted fixture transition, displayed healthy permission state, disabled repeated Request Access, and entered list selection, while a real EventKit authorization prompt still requires a user-controlled macOS reset (`OnboardingCoordinator.swift`; `QAFixtureOSCompositionTests.swift`; `.audit/runs/reminders-permission-recovery/verifier/REPORT.md`).",
@@ -297,7 +299,9 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/reminders-permission-recovery/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The installed signed app visibly showed denied fixture status, no production Reminders access, disabled repeated Request Access after the explicit request, enabled Continue, and then explained that Apple tasks stay unavailable while local tasks and setup remain usable (`OnboardingRootView.swift`; `.audit/runs/reminders-permission-recovery/verifier/REPORT.md`).",
@@ -8837,7 +8841,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/unfinished-review-resume/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Settings has nightly planning and morning confirmation times, but no review time or review UI.",
@@ -8918,9 +8924,9 @@
       "section_title": "End-of-day review trigger",
       "item_index": 5,
       "wording": "Resume an unfinished review after restarting the app.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8928,10 +8934,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/unfinished-review-resume/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No unfinished-review record exists.",
+      "audit_note": "The installed signed app persisted a Daily Review correction across two pre-confirmation relaunches, exposed an accessible cross-day Resume action, restored the exact day and corrected classification, then cleared the unfinished notice only after confirmation and kept it cleared after a final relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/unfinished-review-resume/verifier/REPORT.md`).",
       "tracker_line": 567
     },
     {
@@ -9959,7 +9967,7 @@
       ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed signed app visibly showed `TRACKING 2/7 DAYS \u00b7 START 2026-07-11` after acceptance and again after relaunch, proving durable next-week progress from the stable prior-week review (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
+      "audit_note": "The installed signed app visibly showed `TRACKING 2/7 DAYS · START 2026-07-11` after acceptance and again after relaunch, proving durable next-week progress from the stable prior-week review (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 620
     },
     {
@@ -11188,7 +11196,9 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/unfinished-review-resume/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "Missing-state evidence shows the path and healthy/stale state shows relative age, but the UI does not show the absolute last-record time together with the path.",
@@ -12236,9 +12246,9 @@
       "section_title": "Sleep, wake, and restart",
       "item_index": 8,
       "wording": "Restart with an unfinished review and resume it.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12246,10 +12256,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/unfinished-review-resume/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The Reviews sidebar does not route to a functional review workflow and no unfinished-review UI exists.",
+      "audit_note": "The installed signed Daily Review reopened the most recently edited unconfirmed review after restart, preserved its corrected session, resumed it from another selected day, and retained the confirmed result without an unfinished banner after the final relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/unfinished-review-resume/verifier/REPORT.md`).",
       "tracker_line": 754
     },
     {
@@ -13835,7 +13847,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The signed review visibly recorded Continue intentionally as `INTENTIONAL CHOICE RECORDED \u00b7 NO JUDGMENT`, counted it separately from recovery, and preserved it after relaunch. Choosing the action from a naturally triggered gaming prompt and observing its cooldown remain outstanding (`DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).",
+      "audit_note": "The signed review visibly recorded Continue intentionally as `INTENTIONAL CHOICE RECORDED · NO JUDGMENT`, counted it separately from recovery, and preserved it after relaunch. Choosing the action from a naturally triggered gaming prompt and observing its cooldown remain outstanding (`DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).",
       "tracker_line": 847
     },
     {
