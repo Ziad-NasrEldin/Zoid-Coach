@@ -1,36 +1,39 @@
 #!/bin/zsh
 set -euo pipefail
 
-if [[ $# -ne 2 ]]; then
-    echo "usage: $0 <signed-qa-app> <isolated-qa-root>" >&2
+if [[ $# -lt 3 || $# -gt 4 ]]; then
+    echo "usage: $0 <package-repository> <isolated-qa-root> <isolated-install-root> [screenshot-path]" >&2
     exit 2
 fi
 
-APP_PATH="${1:A}"
+PACKAGE_REPOSITORY="${1:A}"
 QA_ROOT="${2:A}"
-SOURCE_EXECUTABLE="$APP_PATH/Contents/MacOS/ZoidCoachQA"
+INSTALL_ROOT="${3:A}"
 SCRIPT_ROOT="${0:A:h}"
-INSTALL_ROOT="${QA_ROOT}-install"
+SCREENSHOT_PATH="${4:-}"
 INSTALLED_APP="$INSTALL_ROOT/Zoid 666 QA E2E.app"
 EXECUTABLE="$INSTALLED_APP/Contents/MacOS/ZoidCoachQA"
+AGENT_EXECUTABLE="$INSTALLED_APP/Contents/MacOS/ZoidCoachAgentQA"
+INSTALL_SCRIPT="$PACKAGE_REPOSITORY/Scripts/install-signed-qa-runtime.sh"
+UNINSTALL_SCRIPT="$PACKAGE_REPOSITORY/Scripts/uninstall-signed-qa-runtime.sh"
 
-if [[ ! -x "$SOURCE_EXECUTABLE" ]]; then
-    echo "SETUP_FAIL: signed QA executable is missing at $SOURCE_EXECUTABLE" >&2
+if [[ ! -x "$INSTALL_SCRIPT" || ! -x "$UNINSTALL_SCRIPT" ]]; then
+    echo "SETUP_FAIL: signed QA lifecycle scripts are missing in $PACKAGE_REPOSITORY" >&2
     exit 2
 fi
 
-codesign --verify --deep --strict "$APP_PATH"
-rm -rf "$QA_ROOT" "$INSTALL_ROOT"
-mkdir -p "$QA_ROOT" "$INSTALL_ROOT"
-ditto "$APP_PATH" "$INSTALLED_APP"
-"$EXECUTABLE" --qa-register-agent >/tmp/zoid-qa-window-register.stdout 2>/tmp/zoid-qa-window-register.stderr
-for _ in {1..100}; do
-    if launchctl print gui/$UID/qa.ziadnasreldin.ZoidCoach.agent 2>/dev/null | grep -q 'state = running'; then
-        break
-    fi
-    sleep 0.1
-done
-open -na "$INSTALLED_APP"
+cleanup() {
+    pkill -f "$EXECUTABLE" 2>/dev/null || true
+    pkill -f "$AGENT_EXECUTABLE" 2>/dev/null || true
+    ZOID_COACH_QA_RUN_ROOT="$QA_ROOT" ZOID_COACH_QA_INSTALL_ROOT="$INSTALL_ROOT" \
+        "$UNINSTALL_SCRIPT" >/dev/null 2>&1 || true
+    rm -rf "$QA_ROOT" "$INSTALL_ROOT"
+}
+trap cleanup EXIT INT TERM
+
+cleanup
+ZOID_COACH_QA_RUN_ROOT="$QA_ROOT" ZOID_COACH_QA_INSTALL_ROOT="$INSTALL_ROOT" \
+    "$INSTALL_SCRIPT" >/tmp/zoid-qa-window-install.stdout 2>/tmp/zoid-qa-window-install.stderr
 
 APP_PID=""
 for _ in {1..100}; do
@@ -43,11 +46,9 @@ if [[ -z "$APP_PID" ]]; then
     exit 2
 fi
 
-cleanup() {
-    kill "$APP_PID" 2>/dev/null || true
-    "$EXECUTABLE" --qa-unregister-agent >/dev/null 2>&1 || true
-    rm -rf "$QA_ROOT" "$INSTALL_ROOT"
-}
-trap cleanup EXIT INT TERM
-
-swift "$SCRIPT_ROOT/qa-window-content-probe.swift" "$APP_PID"
+PROBE_ARGS=("$APP_PID")
+if [[ -n "$SCREENSHOT_PATH" ]]; then
+    mkdir -p "${SCREENSHOT_PATH:h}"
+    PROBE_ARGS+=(--screenshot "$SCREENSHOT_PATH")
+fi
+/usr/bin/swift "$SCRIPT_ROOT/qa-window-content-probe.swift" "${PROBE_ARGS[@]}"
