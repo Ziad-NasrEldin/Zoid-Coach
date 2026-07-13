@@ -185,6 +185,18 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - The fitting-task branch remains focused-test-only because the strict signed-interface cap ended before its final installed-app observation.
 - Verification evidence is recorded in `.audit/runs/recommended-bounded-sprint/verifier/REPORT.md`.
 
+### Dashboard prompt task start - candidate
+
+- Owns `ZC-016-003`.
+- Keeps the existing exactly-once dashboard prompt response and canonical task-start effect.
+- Refreshes Today after the accepted action so the selected task becomes visibly active without a manual refresh.
+- Adds an explicit task-named current-state confirmation to the dashboard prompt ledger only after the refreshed Today snapshot proves that task is active.
+- Announces the confirmed active task to VoiceOver when the acted-on prompt row disappears.
+- Clears the success message on the next inbox refresh or decision so stale confirmation is not presented after state changes.
+- Two focused dashboard-start tests and the existing exactly-once coaching-action test pass.
+- The release build passes.
+- Candidate evidence is recorded in `.audit/runs/dashboard-prompt-task-start/candidate/REPORT.md`.
+
 ### Reduced-motion state feedback - candidate
 
 - Owns `ZC-055-011` and `ZC-056-010`.
