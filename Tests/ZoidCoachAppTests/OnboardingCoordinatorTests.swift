@@ -579,9 +579,14 @@ func classificationAndScheduleAreAppliedBeforeAdvancing() async throws {
     coordinator.quietStartMinute = 45
     coordinator.quietEndHour = 6
     coordinator.quietEndMinute = 30
+    for weekday in coordinator.selectedWorkWeekdays where weekday != .monday {
+        coordinator.toggleWorkWeekday(weekday)
+    }
+    coordinator.toggleWorkWeekday(.saturday)
     try await coordinator.continueFromCurrentStep()
     #expect(policyRecorder.policy.schedule.workWindows.first?.start == LocalTime(hour: 8, minute: 30))
     #expect(policyRecorder.policy.schedule.workWindows.first?.end == LocalTime(hour: 17, minute: 15))
+    #expect(policyRecorder.policy.schedule.workWindows.first?.weekdays == [.monday, .saturday])
     #expect(policyRecorder.policy.schedule.quietHours == DailyTimeWindow(
         start: LocalTime(hour: 21, minute: 45),
         end: LocalTime(hour: 6, minute: 30)
@@ -612,6 +617,17 @@ func onboardingScheduleRejectsEmptyWindowsAndAcceptsOvernightWorkAndQuietHours()
     coordinator.quietEndHour = 6
     #expect(coordinator.canContinue)
     #expect(coordinator.scheduleValidationMessage == nil)
+    #expect(coordinator.scheduleSummary.contains("Quiet hours are overnight"))
+
+    for weekday in coordinator.selectedWorkWeekdays {
+        coordinator.toggleWorkWeekday(weekday)
+    }
+    #expect(!coordinator.canContinue)
+    #expect(coordinator.scheduleValidationMessage == "Choose at least one work day.")
+
+    coordinator.toggleWorkWeekday(.friday)
+    #expect(coordinator.canContinue)
+    #expect(coordinator.scheduleSummary.contains("1 selected day"))
 }
 
 @MainActor
