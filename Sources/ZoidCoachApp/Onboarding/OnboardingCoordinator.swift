@@ -580,6 +580,7 @@ final class OnboardingCoordinator: ObservableObject {
         base: OnboardingProgress
     ) async throws -> AppliedPolicyEffect? {
         guard let dependencies else { return nil }
+        try adoptBootstrapPolicyIfNeeded(base: base, dependencies: dependencies)
         let policy: UserPolicy
         switch base.currentStep {
         case .reminders:
@@ -676,6 +677,31 @@ final class OnboardingCoordinator: ObservableObject {
         } catch {
             errorMessage = "This setup choice could not be applied. \(error.localizedDescription)"
             throw error
+        }
+    }
+
+    private func adoptBootstrapPolicyIfNeeded(
+        base: OnboardingProgress,
+        dependencies: OnboardingDependencies
+    ) throws {
+        guard activePolicyVersion == 0,
+              let versioned = try dependencies.loadPolicy(),
+              versioned.version > 0 else {
+            return
+        }
+
+        let selectedAIProvider = policyDraft.aiProvider
+        activePolicyVersion = versioned.version
+        originalPolicy = versioned.policy
+        policyDraft = SettingsPolicyDraft(policy: versioned.policy)
+        policyDraft.aiProvider = selectedAIProvider
+        policyDraft.screenshotAnalysisEnabled = screenshotAnalysisEnabled
+
+        for decision in base.reminderListDecisions {
+            policyDraft.setReminderListDecision(decision.isIncluded, listID: decision.listID)
+        }
+        for (application, choice) in classifications {
+            policyDraft.setClassification(choice, for: application)
         }
     }
 
