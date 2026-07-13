@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "e9f5389dcfd69c719b4398b90c96a96255d96bc163e99b72528ada622c2feb3d",
+  "tracker_sha256": "f28cbbb57724c71f9e58b8d448e2f335cf46c12f31c0a3bf80a58ad2f90e9607",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8377,8 +8377,8 @@
       "item_index": 6,
       "wording": "Use the compact active-task view without losing essential task state.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8389,7 +8389,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The menu-bar surface is only `Zoid Voice`; there is no compact active-task view.",
+      "audit_note": "The menu-bar task card now keeps the task title, live active or paused timing, estimate, urgency, deadline, main-objective state, locked state, blocked reason, and canonical task controls in one compact presentation, with one deduplicated accessibility summary. Five focused presentation and lifecycle tests pass, the QA release package passes signing and helper coherence, and signed ready-state proof established one active task with one open interval. Native AX exposed the real status item as `A task is active`, but AXPress failed and the single frame-based click opened Notification Center, so compact-popover pixels, native control clicks, state variants, and relaunch persistence remain unverified (`MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `.audit/runs/compact-active-task/verifier/REPORT.md`).",
       "tracker_line": 533
     },
     {
