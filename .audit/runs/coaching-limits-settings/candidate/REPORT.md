@@ -28,3 +28,12 @@ The user can now configure the maximum daily gaming-coaching prompts and the coo
 
 The candidate does not claim installed Settings interaction or restart proof.
 A fresh verifier should change both controls in signed QA, save through the helper, relaunch, exercise qualifying separate gaming sessions around the configured cooldown, and confirm the exact daily cap survives app and helper restart.
+
+## Independent verifier result
+
+Both focused Settings policy and gaming drift groups passed once on the candidate.
+The verifier confirmed bounded controls, legacy Gentle and Accountability decoding, field-level conflict recovery, configured runtime enforcement, and intentional-override suppression taking precedence while active without bypassing the later daily cap.
+The release artifact built successfully.
+The single signed-QA package attempt passed signing, package verification, exact helper registration, and launch from `/private/tmp/zoid-666-coaching-limits-installed/Zoid 666 QA E2E.app`.
+The installed Settings UI visibly changed the cap from 1 to 2 and cooldown from 180 to 35 minutes with the expected accessible values.
+The stop instruction arrived before Save, relaunch, seeded sessions, or helper restart, so persistence and installed runtime enforcement remain unqualified.
