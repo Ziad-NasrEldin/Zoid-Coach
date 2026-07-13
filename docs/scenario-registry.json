@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "ffa5b3782c873faa5dea438e687e461239319e552f745d292d0331150b3388cd",
+  "tracker_sha256": "5104f022f515b9d10e4f958ce622ce044ed932ba93d5db7528304443aa8c44a5",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11626,7 +11626,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed signed-QA no-access journey visibly created a Mac-local task while the Reminders source reported Not Connected, added it to Today, refreshed the in-memory and durable plan immediately, and left Apple Reminders untouched. Focused tests cover list-policy immunity, idempotent retry, restart persistence, local start/completion/history, and no external completion command, but a strict macOS denied-or-revoked acceptance run with an immutable scenario manifest remains (`Sources/ZoidCoachApp/Views/DashboardView.swift`; `Sources/ZoidCoachInfrastructure/ReminderSnapshotStore.swift`; `Tests/ZoidCoachAppTests/LocalTaskCreationControllerTests.swift`; `Tests/ZoidCoachAppTests/TodayDashboardAgentTests.swift`; `.audit/runs/manual-local-task/eb0866b/REPORT.md`).",
+      "audit_note": "Today now adds a dedicated outage banner with exact retained plan facts plus direct New Local Task and Open Source Health actions, while existing signed proof covers local-only task creation and restart-safe planning without touching Apple Reminders. A strict installed revoke-to-restore journey remains (`RemindersContinuityState.swift`; `DashboardView.swift`; `.audit/runs/reminders-outage-continuity/verifier/REPORT.md`).",
       "tracker_line": 726
     },
     {
@@ -11696,7 +11696,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "These values are stored separately from EventKit in the recovered canonical database, but the full permission-loss, continued work, restart, and recovery journey was not verified.",
+      "audit_note": "The outage banner now reports canonical retained task count and estimated minutes and explicitly confirms that an active session continues tracking locally. Focused canonical snapshot and restart persistence tests pass, while the full installed permission-loss, continued-work, helper restart, and recovery journey remains (`RemindersContinuityState.swift`; `TodayDashboardAgentTests.swift`; `.audit/runs/reminders-outage-continuity/verifier/REPORT.md`).",
       "tracker_line": 729
     },
     {
