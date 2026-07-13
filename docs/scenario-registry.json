@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "48d233a96c13e4200ba825044eaf56b0ec51072824e53807d9b09874497e869d",
+  "tracker_sha256": "bb8c53c0a331407d398c38ce6c574b782a8d1e78d0998e494526b6433eaf3a8f",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12837,18 +12837,20 @@
       "item_index": 5,
       "wording": "Use dark appearance with sufficient contrast.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "product_quality",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/dark-appearance/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`DashboardView` forces `.preferredColorScheme(.light)`.",
+      "audit_note": "The forced Light override is removed, both semantic Sumi-Ink palettes pass focused text and control-boundary contrast requirements, and the installed signed Light appearance remained coherent across onboarding, Today, Source Health, Settings, Reviews, and Background Agent. A live macOS Dark-to-Light traversal remains because the required action-time confirmation to change the system appearance was not available (`SumiTheme.swift`; `SumiThemeTests.swift`; `.audit/runs/dark-appearance/verifier/REPORT.md`).",
       "tracker_line": 792
     },
     {
