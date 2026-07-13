@@ -22,6 +22,10 @@ The destructive confirmation explains future-policy fallback and historical pres
 - One release build passed.
 - `git diff --check` passed.
 
-## Signed acceptance pending
+## Signed acceptance boundary
 
-The signed two-rule creation, cancel, confirmed reset, exact count, and relaunch journey remains pending the package step.
+The single package/install attempt exited without creating an installed app, registering a QA helper, mutating the shared runtime, or emitting diagnostic output.
+No retry was performed under the package-once and UI cap.
+
+The signed two-rule creation, cancel, confirmed reset, exact count, and relaunch journey remains unverified.
+The mapped tracker scenario remains conservative.
