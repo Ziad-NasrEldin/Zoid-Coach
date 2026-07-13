@@ -15,11 +15,11 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 Only scenarios proven completely usable end to end are checked.
 
 - **Fully implemented:** 173
-- **Touches remaining:** 296
+- **Touches remaining:** 298
 - **Frontend only left:** 3
-- **Partially implemented:** 103
+- **Partially implemented:** 102
 - **Barely started:** 8
-- **Not implemented:** 56
+- **Not implemented:** 55
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -754,7 +754,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [x] Restart with an unfinished review and resume it. **Status: Fully implemented.** The installed signed Daily Review reopened the most recently edited unconfirmed review after restart, preserved its corrected session, resumed it from another selected day, and retained the confirmed result without an unfinished banner after the final relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/unfinished-review-resume/verifier/REPORT.md`).
 - [x] Change time zones and retain accurate historical event times. **Status: Fully implemented.** In the installed signed-QA app, a local task was created, started, completed, and retained visibly in Daily Review while the policy moved through Los Angeles, London, Tokyo, and back to the Mac's Cairo zone; the durable completion instant remained byte-identical at `2026-07-13T11:21:36Z` after the final app and helper restart (`SettingsPolicyDraftTests.swift`; `.audit/runs/settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4/evidence.json`).
 - [ ] Confirm before a time-zone change moves a plan to another local day. **Status: Not implemented.** No user confirmation flow for moving an existing plan across local-day boundaries was found.
-- [ ] Avoid negative or impossible durations when the system clock changes. **Status: Partially implemented.** Replay and date handling cover anomalies in code, but live task timing under a backward clock change was not verified.
+- [ ] Avoid negative or impossible durations when the system clock changes. **Status: Touches remaining.** Task timing now clamps backward discontinuities to zero, caps one continuous forward discontinuity at 1,440 minutes, preserves later legitimate intervals additively, and survives reopen. Four focused tests pass, while a signed isolated runtime visibly reported 0 minutes for a future-started active interval, 1,440 minutes for a seven-day discontinuity, and 1,445 minutes after a separate five-minute interval and relaunch. The native Pause selection did not reach persisted state in that fixture, so a signed backward-close, pause, resume, and task-switch journey remains (`Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift`; `Tests/ZoidCoachAppTests/TaskExecutionStoreTests.swift`; `.audit/runs/clock-safe-task-durations/verifier/REPORT.md`).
 
 ## 54. Quiet hours and scheduling
 

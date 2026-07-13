@@ -146,6 +146,11 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Keeps the normalized duration stable across database reopen.
 - Four focused backward, forward-jump, restart, pause/resume, and task-switch tests plus the release build pass.
 - Candidate evidence and the signed verifier plan are recorded in `.audit/runs/clock-safe-task-durations/candidate/REPORT.md`.
+- Independent verification passes the exact four focused tests and one QA release package.
+- The strengthened forward-jump test proves a capped 1,440-minute interval plus a later legitimate five-minute interval remains additive after reopen.
+- The installed signed app visibly reports 0 minutes for a backward discontinuity, 1,440 minutes for a seven-day forward discontinuity, and 1,445 minutes after a separate interval and relaunch.
+- `ZC-053-011` advances from Partially implemented to Touches remaining because the native Pause selection did not reach persisted state in the isolated fixture.
+- Verifier evidence is recorded in `.audit/runs/clock-safe-task-durations/verifier/REPORT.md`.
 
 ### Settings notification delivery test - candidate
 
