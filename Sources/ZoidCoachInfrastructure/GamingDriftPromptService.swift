@@ -122,12 +122,17 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         let sustainedBeforeTask = try activeTaskStartedAt().map {
             session.minutes >= 10 && session.startedAtEpoch < Int64($0.timeIntervalSince1970)
         } ?? false
+        let taskStartGrace = TimeInterval(policy.gaming.taskStartGraceMinutes * 60)
         if !sustainedBeforeTask,
+           taskStartGrace > 0,
            let taskStartedAt = try activeTaskStartedAt(),
-           date.timeIntervalSince(taskStartedAt) < 180 {
+           date.timeIntervalSince(taskStartedAt) < taskStartGrace {
             return .suppressed(.taskStartGrace)
         }
-        if !sustainedBeforeTask, try isWithinReturnFromIdleGrace(localDay: localDay, now: date) {
+        let idleGrace = TimeInterval(policy.gaming.returnFromIdleGraceMinutes * 60)
+        if !sustainedBeforeTask,
+           idleGrace > 0,
+           try isWithinReturnFromIdleGrace(localDay: localDay, now: date, graceInterval: idleGrace) {
             return .suppressed(.returnFromIdleGrace)
         }
         guard session.minutes >= 10 else { return .suppressed(.belowThreshold) }
@@ -361,7 +366,11 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         )
     }
 
-    private func isWithinReturnFromIdleGrace(localDay: String, now: Date) throws -> Bool {
+    private func isWithinReturnFromIdleGrace(
+        localDay: String,
+        now: Date,
+        graceInterval: TimeInterval
+    ) throws -> Bool {
         guard try tableExists("behavior_records") else { return false }
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
@@ -378,7 +387,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             rows.append((sqlite3_column_int64(statement, 0), text(statement, 1)))
         }
         guard let latest = rows.first,
-              now.timeIntervalSince1970 - Double(latest.epoch) <= 60,
+              now.timeIntervalSince1970 - Double(latest.epoch) <= graceInterval,
               rows.count > 1
         else { return false }
         let previous = rows[1]

@@ -471,6 +471,8 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
     public let intentionalOverrideMinutes: Int
     public let dailyPromptCap: Int
     public let promptCooldownMinutes: Int
+    public let taskStartGraceMinutes: Int
+    public let returnFromIdleGraceMinutes: Int
     public let budgetEnabled: Bool
 
     public init(
@@ -481,6 +483,8 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
         intentionalOverrideMinutes: Int = 45,
         dailyPromptCap: Int? = nil,
         promptCooldownMinutes: Int? = nil,
+        taskStartGraceMinutes: Int = 3,
+        returnFromIdleGraceMinutes: Int = 1,
         budgetEnabled: Bool = true
     ) {
         self.version = version
@@ -490,11 +494,13 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
         self.intentionalOverrideMinutes = max(5, intentionalOverrideMinutes)
         self.dailyPromptCap = max(1, dailyPromptCap ?? coachingLevel.maximumDailyPrompts)
         self.promptCooldownMinutes = max(5, promptCooldownMinutes ?? coachingLevel.cooldownMinutes)
+        self.taskStartGraceMinutes = max(0, taskStartGraceMinutes)
+        self.returnFromIdleGraceMinutes = max(0, returnFromIdleGraceMinutes)
         self.budgetEnabled = budgetEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes, dailyPromptCap, promptCooldownMinutes, budgetEnabled
+        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes, dailyPromptCap, promptCooldownMinutes, taskStartGraceMinutes, returnFromIdleGraceMinutes, budgetEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -507,6 +513,8 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
             intentionalOverrideMinutes: try container.decodeIfPresent(Int.self, forKey: .intentionalOverrideMinutes) ?? 45,
             dailyPromptCap: try container.decodeIfPresent(Int.self, forKey: .dailyPromptCap),
             promptCooldownMinutes: try container.decodeIfPresent(Int.self, forKey: .promptCooldownMinutes),
+            taskStartGraceMinutes: try container.decodeIfPresent(Int.self, forKey: .taskStartGraceMinutes) ?? 3,
+            returnFromIdleGraceMinutes: try container.decodeIfPresent(Int.self, forKey: .returnFromIdleGraceMinutes) ?? 1,
             budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
         )
     }

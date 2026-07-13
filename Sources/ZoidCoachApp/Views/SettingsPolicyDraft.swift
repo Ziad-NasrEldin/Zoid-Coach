@@ -45,6 +45,8 @@ struct SettingsPolicyDraft: Equatable {
     var gamingIntentionalOverrideMinutes: Int
     var gamingDailyPromptCap: Int
     var gamingPromptCooldownMinutes: Int
+    var gamingTaskStartGraceMinutes: Int
+    var gamingReturnFromIdleGraceMinutes: Int
     var gamingBudgetEnabled: Bool
 
     init(policy: UserPolicy) {
@@ -91,6 +93,8 @@ struct SettingsPolicyDraft: Equatable {
         gamingIntentionalOverrideMinutes = policy.gaming.intentionalOverrideMinutes
         gamingDailyPromptCap = policy.gaming.dailyPromptCap
         gamingPromptCooldownMinutes = policy.gaming.promptCooldownMinutes
+        gamingTaskStartGraceMinutes = policy.gaming.taskStartGraceMinutes
+        gamingReturnFromIdleGraceMinutes = policy.gaming.returnFromIdleGraceMinutes
         gamingBudgetEnabled = policy.gaming.budgetEnabled
     }
 
@@ -262,6 +266,8 @@ struct SettingsPolicyDraft: Equatable {
                 intentionalOverrideMinutes: gamingIntentionalOverrideMinutes,
                 dailyPromptCap: gamingDailyPromptCap,
                 promptCooldownMinutes: gamingPromptCooldownMinutes,
+                taskStartGraceMinutes: gamingTaskStartGraceMinutes,
+                returnFromIdleGraceMinutes: gamingReturnFromIdleGraceMinutes,
                 budgetEnabled: gamingBudgetEnabled
             ),
             reminderLists: reminderListPolicy

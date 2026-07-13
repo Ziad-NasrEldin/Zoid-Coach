@@ -694,6 +694,48 @@ func newTaskAndIdleReturnReceiveExplicitGraceWhileSustainedGamingBypassesIt() th
 }
 
 @Test
+func savedGraceDurationsAffectTheNextDecisionWithoutRestart() throws {
+    let taskGrace = try GamingPromptFixture()
+    defer { taskGrace.remove() }
+    try taskGrace.insertPriorityTask()
+    try taskGrace.startTask(secondsAgo: 12 * 60)
+    try taskGrace.insertGaming(minutes: 10)
+
+    #expect(try taskGrace.service.produce(
+        policy: taskGrace.policy(level: .accountability, taskStartGraceMinutes: 15),
+        gamingStatus: taskGrace.gamingStatus,
+        baselineStatus: taskGrace.baseline()
+    ) == .suppressed(.taskStartGrace))
+
+    guard case .queued = try taskGrace.service.produce(
+        policy: taskGrace.policy(level: .accountability, taskStartGraceMinutes: 10),
+        gamingStatus: taskGrace.gamingStatus,
+        baselineStatus: taskGrace.baseline()
+    ) else {
+        Issue.record("Expected the next evaluation to use the shorter saved task-start grace")
+        return
+    }
+
+    let idleGrace = try GamingPromptFixture()
+    defer { idleGrace.remove() }
+    try idleGrace.insertPriorityTask()
+    try idleGrace.startTask(secondsAgo: 10 * 60)
+    try idleGrace.insertIdleThenGaming()
+
+    #expect(try idleGrace.service.produce(
+        policy: idleGrace.policy(level: .accountability, returnFromIdleGraceMinutes: 2),
+        gamingStatus: idleGrace.gamingStatus,
+        baselineStatus: idleGrace.baseline()
+    ) == .suppressed(.returnFromIdleGrace))
+
+    #expect(try idleGrace.service.produce(
+        policy: idleGrace.policy(level: .accountability, returnFromIdleGraceMinutes: 0),
+        gamingStatus: idleGrace.gamingStatus,
+        baselineStatus: idleGrace.baseline()
+    ) == .suppressed(.belowThreshold))
+}
+
+@Test
 func neutralSupportingActivitySuppressesCoachingWithoutMutatingTheActiveTask() throws {
     for neutralApp in ["System Settings", "1Password", "Finder Downloads", "Slack"] {
         let fixture = try GamingPromptFixture()
@@ -809,6 +851,8 @@ private final class GamingPromptFixture: @unchecked Sendable {
         intentionalOverrideMinutes: Int = 45,
         dailyPromptCap: Int? = nil,
         promptCooldownMinutes: Int? = nil,
+        taskStartGraceMinutes: Int = 3,
+        returnFromIdleGraceMinutes: Int = 1,
         budgetEnabled: Bool = true
     ) -> UserPolicy {
         let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
@@ -839,6 +883,8 @@ private final class GamingPromptFixture: @unchecked Sendable {
                 intentionalOverrideMinutes: intentionalOverrideMinutes,
                 dailyPromptCap: dailyPromptCap,
                 promptCooldownMinutes: promptCooldownMinutes,
+                taskStartGraceMinutes: taskStartGraceMinutes,
+                returnFromIdleGraceMinutes: returnFromIdleGraceMinutes,
                 budgetEnabled: budgetEnabled
             ),
             reminderLists: defaults.reminderLists
