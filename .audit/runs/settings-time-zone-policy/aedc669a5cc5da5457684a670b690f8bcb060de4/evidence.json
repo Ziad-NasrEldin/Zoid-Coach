@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "run_id": "settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4",
+  "verified_commit": "aedc669a5cc5da5457684a670b690f8bcb060de4",
+  "build_identity": "zoid-coach-aedc669a5cc5da5457684a670b690f8bcb060de4-clean",
+  "fixture": "signed-installed-settings-time-zone",
+  "qa_root": "/private/tmp/zoid-qa-settings-time-zone-verifier",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "a3744bc93476e905cfd7a0cc3d61fee725c53bab833398678bbaf28f6cdc9d4d",
+  "scenario_ids": [
+    "ZC-044-005",
+    "ZC-053-009"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T11:27:28.990575+00:00",
+  "completed_at": "2026-07-13T11:23:30Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "498dad420ef4f09fa0742309679705a04beb27755705755e033d675f087f9725"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "time_zone_select_save_and_restart",
+      "result": "passed",
+      "detail": "The installed signed interface selected and saved America/Los_Angeles through the live helper, then restored the same selection after application and helper restart."
+    },
+    {
+      "name": "time_zone_conflict_and_independent_merge",
+      "result": "passed",
+      "detail": "A competing zone named Time zone and required deliberate reapply, while an independent capacity mutation preserved both the Tokyo draft and 55 percent capacity."
+    },
+    {
+      "name": "historical_completion_instant_survives_zone_changes",
+      "result": "passed",
+      "detail": "Daily Review retained the signed-flow task and storage retained 2026-07-13T11:21:36Z exactly through further zone changes and restart."
+    },
+    {
+      "name": "restore_mac_time_zone",
+      "result": "passed",
+      "detail": "Use Mac Time Zone restored Africa/Cairo with UTC+03:00 and survived application and helper restart."
+    }
+  ],
+  "commands": [
+    "swift test --filter SettingsPolicyDraftTests",
+    "ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT=/tmp/zoid-qa-settings-time-zone-verifier Scripts/package-app.sh",
+    "signed installed UI acceptance through the live QA helper"
+  ]
+}

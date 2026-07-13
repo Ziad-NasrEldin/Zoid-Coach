@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "6ebc9d3ae2494982fbba01da77a01ba12c9c8e7d4275d130e95450a3b2c8e14f",
+  "tracker_sha256": "033e74eb1706befa494cc63ab7e0942e7e2d4af9fc9a37420620f57a7c47ab42",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10046,19 +10046,21 @@
       "section_title": "General settings",
       "item_index": 5,
       "wording": "Configure time-zone behavior.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Policy preserves the existing time zone and the UI only states the current zone; it cannot be configured.",
+      "evidence_paths": [
+        ".audit/runs/settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4/evidence.json"
+      ],
+      "last_verified_commit": "aedc669a5cc5da5457684a670b690f8bcb060de4",
+      "last_verified_build": "zoid-coach-aedc669a5cc5da5457684a670b690f8bcb060de4-clean",
+      "audit_note": "The installed signed-QA Settings flow exposed the full IANA picker, current UTC offset, Mac-zone comparison, and direct Mac-zone restore; `America/Los_Angeles` persisted through save, reopen, and app-plus-helper restart, while independent and overlapping concurrent policy edits preserved their correct values and required deliberate reapply only for the competing time-zone choice (`SettingsView.swift`; `SettingsPolicyDraft.swift`; `SettingsPolicyConflict.swift`; `.audit/runs/settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4/evidence.json`).",
       "tracker_line": 628
     },
     {
@@ -12246,9 +12248,9 @@
       "section_title": "Sleep, wake, and restart",
       "item_index": 9,
       "wording": "Change time zones and retain accurate historical event times.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12256,10 +12258,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "UTC events and policy time zones are stored and tested, but no complete installed-app time-zone-change journey was verified.",
+      "evidence_paths": [
+        ".audit/runs/settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4/evidence.json"
+      ],
+      "last_verified_commit": "aedc669a5cc5da5457684a670b690f8bcb060de4",
+      "last_verified_build": "zoid-coach-aedc669a5cc5da5457684a670b690f8bcb060de4-clean",
+      "audit_note": "In the installed signed-QA app, a local task was created, started, completed, and retained visibly in Daily Review while the policy moved through Los Angeles, London, Tokyo, and back to the Mac's Cairo zone; the durable completion instant remained byte-identical at `2026-07-13T11:21:36Z` after the final app and helper restart (`SettingsPolicyDraftTests.swift`; `.audit/runs/settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4/evidence.json`).",
       "tracker_line": 755
     },
     {
