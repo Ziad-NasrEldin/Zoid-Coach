@@ -61,6 +61,7 @@ public final class DailyReviewStore: @unchecked Sendable {
             hypothesisState: state.hypothesisState,
             confirmedAt: state.confirmedAt,
             skippedAt: state.skippedAt,
+            deferredUntil: state.deferredUntil,
             personalNote: state.personalNote,
             offlineWork: offlineWork,
             completedTasks: completedTasks,
@@ -74,10 +75,11 @@ public final class DailyReviewStore: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         var statement: OpaquePointer?
-        let sql = "SELECT source_day, updated_at_utc FROM daily_reviews WHERE confirmed_at_utc IS NULL AND skipped_at_utc IS NULL ORDER BY updated_at_utc DESC, source_day DESC LIMIT 1;"
+        let sql = "SELECT source_day, updated_at_utc FROM daily_reviews WHERE confirmed_at_utc IS NULL AND skipped_at_utc IS NULL AND (deferred_until_utc IS NULL OR deferred_until_utc <= ?) ORDER BY updated_at_utc DESC, source_day DESC LIMIT 1;"
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement else { throw databaseError(.read) }
         defer { sqlite3_finalize(statement) }
+        bind(Self.timestamp(now()), statement, 1)
         guard sqlite3_step(statement) == SQLITE_ROW,
               let sourceDayValue = sqlite3_column_text(statement, 0),
               let updatedAtValue = sqlite3_column_text(statement, 1),
@@ -644,7 +646,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         defer { lock.unlock() }
         let timestamp = Self.timestamp(now())
         try execute(
-            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, skipped_at_utc) VALUES (?, 'pending', ?, ?, NULL) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = excluded.confirmed_at_utc, skipped_at_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, skipped_at_utc, deferred_until_utc) VALUES (?, 'pending', ?, ?, NULL, NULL) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = excluded.confirmed_at_utc, skipped_at_utc = NULL, deferred_until_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
             bindings: [.text(sourceDay), .text(timestamp), .text(timestamp)]
         )
     }
@@ -654,8 +656,30 @@ public final class DailyReviewStore: @unchecked Sendable {
         defer { lock.unlock() }
         let timestamp = Self.timestamp(now())
         try execute(
-            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, skipped_at_utc) VALUES (?, 'pending', NULL, ?, ?) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, skipped_at_utc = excluded.skipped_at_utc, updated_at_utc = excluded.updated_at_utc;",
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, skipped_at_utc, deferred_until_utc) VALUES (?, 'pending', NULL, ?, ?, NULL) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, skipped_at_utc = excluded.skipped_at_utc, deferred_until_utc = NULL, updated_at_utc = excluded.updated_at_utc;",
             bindings: [.text(sourceDay), .text(timestamp), .text(timestamp)]
+        )
+    }
+
+    public func deferReview(sourceDay: String, until date: Date) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let current = now()
+        guard date > current else { throw DailyReviewStoreError.invalidDeferralDate }
+        let timestamp = Self.timestamp(current)
+        try execute(
+            "INSERT INTO daily_reviews(source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, skipped_at_utc, deferred_until_utc) VALUES (?, 'pending', NULL, ?, NULL, ?) ON CONFLICT(source_day) DO UPDATE SET confirmed_at_utc = NULL, skipped_at_utc = NULL, deferred_until_utc = excluded.deferred_until_utc, updated_at_utc = excluded.updated_at_utc;",
+            bindings: [.text(sourceDay), .text(timestamp), .text(Self.timestamp(date))]
+        )
+    }
+
+    public func resumeDeferredReview(sourceDay: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let timestamp = Self.timestamp(now())
+        try execute(
+            "UPDATE daily_reviews SET deferred_until_utc = NULL, updated_at_utc = ? WHERE source_day = ? AND confirmed_at_utc IS NULL AND skipped_at_utc IS NULL;",
+            bindings: [.text(timestamp), .text(sourceDay)]
         )
     }
 
@@ -760,19 +784,20 @@ public final class DailyReviewStore: @unchecked Sendable {
         hypothesisState: DailyReviewHypothesisState,
         confirmedAt: Date?,
         skippedAt: Date?,
+        deferredUntil: Date?,
         personalNote: String?
     ) {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
-            "SELECT hypothesis_state, confirmed_at_utc, skipped_at_utc, personal_note FROM daily_reviews WHERE source_day = ? LIMIT 1;",
+            "SELECT hypothesis_state, confirmed_at_utc, skipped_at_utc, deferred_until_utc, personal_note FROM daily_reviews WHERE source_day = ? LIMIT 1;",
             -1,
             &statement,
             nil
         ) == SQLITE_OK, let statement else { throw databaseError(.read) }
         defer { sqlite3_finalize(statement) }
         bind(sourceDay, statement, 1)
-        guard sqlite3_step(statement) == SQLITE_ROW else { return (.pending, nil, nil, nil) }
+        guard sqlite3_step(statement) == SQLITE_ROW else { return (.pending, nil, nil, nil, nil) }
         let rawState = sqlite3_column_text(statement, 0).map { String(cString: $0) } ?? "pending"
         let confirmed = sqlite3_column_text(statement, 1)
             .map { String(cString: $0) }
@@ -780,11 +805,16 @@ public final class DailyReviewStore: @unchecked Sendable {
         let skipped = sqlite3_column_text(statement, 2)
             .map { String(cString: $0) }
             .flatMap(ISO8601DateFormatter().date(from:))
+        let deferredUntil = sqlite3_column_text(statement, 3)
+            .map { String(cString: $0) }
+            .flatMap(ISO8601DateFormatter().date(from:))
+        let activeDeferral = deferredUntil.flatMap { $0 > now() ? $0 : nil }
         return (
             DailyReviewHypothesisState(rawValue: rawState) ?? .pending,
             confirmed,
             skipped,
-            text(statement, 3)
+            activeDeferral,
+            text(statement, 4)
         )
     }
 
@@ -853,6 +883,7 @@ public enum DailyReviewStoreError: LocalizedError {
     case missingOfflineWorkDescription
     case offlineWorkDescriptionTooLong
     case personalNoteTooLong
+    case invalidDeferralDate
     case invalidFutureRuleClassification
     case invalidFutureRuleApplication
     case database(Operation, String)
@@ -871,6 +902,8 @@ public enum DailyReviewStoreError: LocalizedError {
             "Keep the task under 200 characters and the note under 1,000 characters."
         case .personalNoteTooLong:
             "Keep the personal review note under 1,000 characters."
+        case .invalidDeferralDate:
+            "Choose a future time for the daily review."
         case .invalidFutureRuleClassification:
             "Future app rules can be Work, Gaming, or Distracting. Idle and Unknown remain observation states."
         case .invalidFutureRuleApplication:

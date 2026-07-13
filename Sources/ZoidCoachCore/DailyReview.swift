@@ -258,6 +258,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
     public let hypothesisState: DailyReviewHypothesisState
     public let confirmedAt: Date?
     public let skippedAt: Date?
+    public let deferredUntil: Date?
     public let personalNote: String?
     public let offlineWork: [OfflineWorkEntry]
     public let completedTasks: [CompletedTaskHistoryEntry]
@@ -273,6 +274,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         hypothesisState: DailyReviewHypothesisState,
         confirmedAt: Date?,
         skippedAt: Date? = nil,
+        deferredUntil: Date? = nil,
         personalNote: String? = nil,
         offlineWork: [OfflineWorkEntry] = [],
         completedTasks: [CompletedTaskHistoryEntry] = [],
@@ -287,6 +289,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         self.hypothesisState = hypothesisState
         self.confirmedAt = confirmedAt
         self.skippedAt = skippedAt
+        self.deferredUntil = deferredUntil
         self.personalNote = personalNote
         self.offlineWork = offlineWork
         self.completedTasks = completedTasks

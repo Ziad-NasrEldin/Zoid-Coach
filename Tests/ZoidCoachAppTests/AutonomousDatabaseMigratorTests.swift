@@ -453,6 +453,32 @@ func migration40AddsBoundedPersonalReviewNoteWithoutChangingExistingRows() throw
 }
 
 @Test
+func migration42AddsRestartSafeDailyReviewDeferral() throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-migration-42-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (41, '2026-07-13T00:00:00Z');
+    CREATE TABLE daily_reviews (
+        source_day TEXT PRIMARY KEY,
+        hypothesis_state TEXT NOT NULL DEFAULT 'pending',
+        confirmed_at_utc TEXT,
+        updated_at_utc TEXT NOT NULL,
+        skipped_at_utc TEXT,
+        personal_note TEXT
+    );
+    INSERT INTO daily_reviews(source_day, updated_at_utc) VALUES ('2026-07-10', '2026-07-10T22:00:00Z');
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.currentVersion == 42)
+    #expect(try columnExists(databaseURL, table: "daily_reviews", column: "deferred_until_utc"))
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM daily_reviews WHERE source_day = '2026-07-10' AND deferred_until_utc IS NULL;") == 1)
+}
+
+@Test
 func migration32CreatesRestartSafeBoundedSprintStorage() throws {
     let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-migration-32-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: databaseURL) }
