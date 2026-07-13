@@ -1040,6 +1040,13 @@ private extension AutonomousDatabaseMigrator {
                 column: "personal_note",
                 declaration: "TEXT CHECK(personal_note IS NULL OR length(personal_note) <= 1000)"
             )
+        ]),
+        Migration(version: 41, isDestructive: false, operations: [
+            .addColumnIfTableExists(
+                table: "daily_reviews",
+                column: "skipped_at_utc",
+                declaration: "TEXT"
+            )
         ])
     ]
 }
