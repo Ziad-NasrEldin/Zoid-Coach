@@ -161,6 +161,11 @@ final class AgentLaunchService {
         }
     }
 
+    func launchAtLoginStatus() -> AgentRegistrationStatus {
+        guard !isControlDisabled, isBundled, let service else { return .notFound }
+        return service.status
+    }
+
     func enableAndInspect() -> SourceHealth {
         enableAndInspect(forceRepair: false)
     }

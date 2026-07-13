@@ -23,11 +23,11 @@ struct AgentLifecycleView: View {
                 try? await Task.sleep(for: .seconds(5))
             }
         }
-        .alert("Disable the background agent?", isPresented: $confirmsDisable) {
+        .alert("Disable launch at login?", isPresented: $confirmsDisable) {
             Button("Cancel", role: .cancel) {}
-            Button("Disable", role: .destructive) { controller.disable() }
+            Button("Disable Launch at Login", role: .destructive) { controller.disable() }
         } message: {
-            Text("Overnight planning and automatic source refreshes will stop. Your local plans, reviews, and history stay on this Mac.")
+            Text("The background agent will stop launching automatically. Overnight planning and automatic source refreshes will stop, while your local plans, reviews, and history stay on this Mac.")
         }
         .alert(
             "Login Items could not be opened",
@@ -85,6 +85,20 @@ struct AgentLifecycleView: View {
                 .foregroundStyle(Sumi.muted)
                 .fixedSize(horizontal: false, vertical: true)
 
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("LAUNCH AT LOGIN")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+                Spacer()
+                Text(controller.launchAtLoginDescription.uppercased())
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.ink)
+                    .accessibilityIdentifier("agent-lifecycle.launch-at-login-status")
+            }
+            .padding(.top, 4)
+
             if controller.health.state == .attention || controller.health.state == .notConnected {
                 Text("If macOS requires approval, open Login Items, allow Zoid 666, then return here and choose CHECK AGAIN.")
                     .font(Sumi.body(12))
@@ -106,8 +120,8 @@ struct AgentLifecycleView: View {
                 .font(Sumi.label(9))
                 .sumiLabelTracking()
                 .foregroundStyle(Sumi.muted)
-            behaviorRow("Enabled", "The signed local helper can run after login and recover after it exits.")
-            behaviorRow("Disabled", "Only background work stops. Existing local data and the foreground app remain available.")
+            behaviorRow("Enabled", "Launch at login is on. The signed local helper can run after login and recover after it exits.")
+            behaviorRow("Disabled", "Launch at login is off. Only background work stops. Existing local data and the foreground app remain available.")
             behaviorRow("Repair", "Reconciles this installed build with macOS without deleting plans or history.")
             behaviorRow("Runtime proof", "A fresh local heartbeat confirms the helper is actually running; registration alone is never shown as healthy.")
             behaviorRow("Resource policy", "The helper uses bounded polling, backs off when the Mac is resource constrained, and stores no duplicate screenshot files.")
@@ -142,7 +156,7 @@ struct AgentLifecycleView: View {
                     .disabled(controller.operation != .idle)
                     .accessibilityIdentifier("agent-lifecycle.open-login-items")
                 if controller.canEnable {
-                    Button("ENABLE") { controller.enable() }
+                    Button("ENABLE LAUNCH AT LOGIN") { controller.enable() }
                         .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
                         .accessibilityIdentifier("agent-lifecycle.enable")
                 }
@@ -153,7 +167,7 @@ struct AgentLifecycleView: View {
                 }
                 Spacer()
                 if controller.canDisable {
-                    Button("DISABLE") { confirmsDisable = true }
+                    Button("DISABLE LAUNCH AT LOGIN") { confirmsDisable = true }
                         .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                         .accessibilityIdentifier("agent-lifecycle.disable")
                 }
