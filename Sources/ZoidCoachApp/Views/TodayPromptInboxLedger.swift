@@ -61,7 +61,7 @@ struct TodayPromptInboxLedger: View {
                 Button("Cancel", role: .cancel) { self.confirmation = nil }
             }
         } message: {
-            Text("This choice is saved once. Today, notifications, and other open surfaces refresh from the same durable result.")
+            Text("This choice is saved once. Today refreshes from the durable result, and an older notification or other surface cannot apply it twice.")
         }
     }
 
