@@ -14,8 +14,8 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 173
-- **Touches remaining:** 298
+- **Fully implemented:** 174
+- **Touches remaining:** 297
 - **Frontend only left:** 3
 - **Partially implemented:** 102
 - **Barely started:** 8
@@ -55,7 +55,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [x] Understand that Apple Reminders represents intended work. **Status: Fully implemented.** The Welcome and Local Truth steps explicitly describe Reminders as intended work before the dedicated permission step, and both screens were verified in the signed-QA app (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`).
 - [x] Understand that Screenwatch represents observed computer activity. **Status: Fully implemented.** The first-launch copy explains what actually happens on the Mac and the dedicated Screenwatch step explains behavior coaching before access or folder selection; the visible run reached and inspected this step (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`).
 - [x] Understand that the Today dashboard provides persistent status and prompts. **Status: Fully implemented.** Welcome states that Today keeps the plan, source status, and unanswered coaching choices in one place, and Exit For Now visibly opened Today (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:104`; `Sources/ZoidCoachApp/Views/DashboardView.swift`).
-- [ ] Understand that Zoid 666 is a coach rather than a replacement task manager. **Status: Touches remaining.** First launch consistently presents Zoid 666 as a coach grounded in Reminders, but it still does not state as directly as it should that Reminders remains the task system of record.
+- [x] Understand that Zoid 666 is a coach rather than a replacement task manager. **Status: Fully implemented.** A truly fresh signed-QA Welcome screen visibly and accessibly states that Zoid 666 is a coach, not a replacement task manager, names Apple Reminders as the system of record for connected tasks, tells users what remains in Reminders versus Today, and retains the non-punitive boundary. Native Continue advanced to Local Privacy, persisted the exact order, and signed relaunch restored step 2 without replaying Welcome (`Sources/ZoidCoachApp/OnboardingWelcomeCopy.swift`; `Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingWelcomeCopyTests.swift`; `.audit/runs/onboarding-system-of-record-copy/verifier/REPORT.md`).
 - [x] Understand that the app does not punish, shame, or block the user by default. **Status: Fully implemented.** The Welcome step says recovery is without shame and nothing is blocked or punished by default; the gaming-policy step reinforces that no option locks apps or removes the user's final decision (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:104`).
 - [x] Understand that important data stays on the Mac by default. **Status: Fully implemented.** The Local Truth step explicitly explains local Reminders, Screenwatch summaries, plans, and coaching history, and the signed-QA run visibly confirmed the screen (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:108`).
 - [x] Continue onboarding without being forced to configure optional AI features. **Status: Fully implemented.** The installed signed-QA run selected Rules-only, saved it through the XPC policy boundary, continued without configuring a model provider, and completed setup (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).
