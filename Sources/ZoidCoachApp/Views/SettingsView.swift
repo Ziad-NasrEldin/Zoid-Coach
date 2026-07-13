@@ -558,6 +558,21 @@ struct SettingsView: View {
                     valueLabel: { "\($0) MIN" }
                 )
                 .accessibilityIdentifier("settings.gaming.intentional-override")
+                SumiStepper(
+                    "DAILY COACHING PROMPT CAP",
+                    value: $controller.draft.gamingDailyPromptCap,
+                    in: 1...10,
+                    valueLabel: { "\($0) PROMPT\($0 == 1 ? "" : "S")" }
+                )
+                .accessibilityIdentifier("settings.gaming.daily-prompt-cap")
+                SumiStepper(
+                    "BETWEEN SEPARATE PROMPTS",
+                    value: $controller.draft.gamingPromptCooldownMinutes,
+                    in: 5...1_440,
+                    step: 5,
+                    valueLabel: { "\($0) MIN" }
+                )
+                .accessibilityIdentifier("settings.gaming.prompt-cooldown")
                 Text(gamingAllowanceExplanation)
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)

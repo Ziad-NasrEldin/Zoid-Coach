@@ -704,6 +704,12 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         if !(5...1_440).contains(gaming.intentionalOverrideMinutes) {
             violations.append(.init(code: .invalidGamingBudget, field: "gaming.intentionalOverrideMinutes"))
         }
+        if !(1...10).contains(gaming.dailyPromptCap) {
+            violations.append(.init(code: .invalidGamingBudget, field: "gaming.dailyPromptCap"))
+        }
+        if !(5...1_440).contains(gaming.promptCooldownMinutes) {
+            violations.append(.init(code: .invalidGamingBudget, field: "gaming.promptCooldownMinutes"))
+        }
         appendTimeViolation(wake.window.start, field: "wake.window.start", to: &violations)
         appendTimeViolation(wake.window.end, field: "wake.window.end", to: &violations)
         if wake.window.start == wake.window.end {
