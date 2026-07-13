@@ -14,8 +14,8 @@ struct RulesOnlyReviewState: Equatable, Sendable {
         }
         let sessions = sessionCount == 1 ? "1 factual session" : "\(sessionCount) factual sessions"
         let coverage = hasLimitedCoverage
-            ? " Coverage is limited and is labeled instead of filled with an AI guess."
-            : " Coverage is sufficient for the displayed factual totals."
+            ? " No observed sessions are available for this day; missing time remains unobserved instead of being filled with an AI guess."
+            : " Displayed totals come only from those observed sessions; unobserved time is not inferred."
         return "Rules-only mode generated \(sessions) from local activity and task history. You can correct, reject, and confirm the record without configuring a model.\(coverage)"
     }
 }
