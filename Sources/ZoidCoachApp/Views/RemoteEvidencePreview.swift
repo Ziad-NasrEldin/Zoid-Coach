@@ -18,32 +18,46 @@ struct RemoteEvidencePreview: Equatable {
             )
         case .redactedMetadataOnly:
             Self(
-                heading: "REPRESENTATIVE REDACTED PAYLOAD",
-                explanation: "This is a fixed example, not your current data. Anonymous labels replace task and application names.",
+                heading: "AUTOMATIC PLANNING / REDACTED EXAMPLE",
+                explanation: "This fixed example mirrors the automatic planning request, not your current data. Anonymous labels replace task and application names.",
                 payload: """
                 {
-                  "task": "task_1",
-                  "priority": "high",
-                  "estimate_minutes": 45,
-                  "due_offset_days": 0,
-                  "available_focus_minutes": 120,
-                  "recent_pattern": "2_carryovers"
+                  "tasks": [{
+                    "id": "task-1",
+                    "title": "Task 1",
+                    "dueDate": "2026-07-13T15:00:00Z",
+                    "reminderPriority": 9,
+                    "carryoverDays": 2,
+                    "deferralCount": 1,
+                    "recentAlignedMinutes": 30
+                  }],
+                  "recentBehavior": [{
+                    "application": "Application 1",
+                    "observationCount": 12
+                  }]
                 }
                 """,
                 excluded: commonExclusions + ["Task titles", "Application names"]
             )
         case .explicitPrivateContent:
             Self(
-                heading: "REPRESENTATIVE PRIVATE-CONTENT PAYLOAD",
-                explanation: "This is a fixed example, not your current data. A real request may include task and application names only after you save this explicit choice.",
+                heading: "AUTOMATIC PLANNING / PRIVATE-CONTENT EXAMPLE",
+                explanation: "This fixed example mirrors the automatic planning request, not your current data. A real request may include task and application names only after you save this explicit choice.",
                 payload: """
                 {
-                  "task_title": "Prepare client proposal",
-                  "application": "Writing app",
-                  "priority": "high",
-                  "estimate_minutes": 45,
-                  "due_offset_days": 0,
-                  "available_focus_minutes": 120
+                  "tasks": [{
+                    "id": "task-1",
+                    "title": "Prepare client proposal",
+                    "dueDate": "2026-07-13T15:00:00Z",
+                    "reminderPriority": 9,
+                    "carryoverDays": 2,
+                    "deferralCount": 1,
+                    "recentAlignedMinutes": 30
+                  }],
+                  "recentBehavior": [{
+                    "application": "Writing app",
+                    "observationCount": 12
+                  }]
                 }
                 """,
                 excluded: commonExclusions
