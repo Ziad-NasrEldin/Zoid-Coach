@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "4db769e5677372d24518e3d0e98934dee18352bcbd07dfefd542c4a95b50ede0",
+  "tracker_sha256": "48d233a96c13e4200ba825044eaf56b0ec51072824e53807d9b09874497e869d",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9935,18 +9935,20 @@
       "item_index": 1,
       "wording": "Enable or disable launch at login.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/launch-at-login-control/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The app auto-registers the bundled agent on launch; `disableAndInspect` exists in the service but no settings control calls it.",
+      "audit_note": "The installed signed Background Agent window visibly separated Enabled registration from Healthy and stale Attention runtime states, kept Disable available during a stale heartbeat, and presented truthful impact and local-data preservation copy. Focused relaunch proof prevents a user-disabled helper from silently re-registering and preserves byte-identical local data, but the installed Disable and Enable actions were not activated because the required action-time confirmation was not available (`AgentLaunchService.swift`; `AgentLifecycleController.swift`; `.audit/runs/launch-at-login-control/verifier/REPORT.md`).",
       "tracker_line": 624
     },
     {
