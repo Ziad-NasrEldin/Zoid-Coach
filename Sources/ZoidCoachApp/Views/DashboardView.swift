@@ -1726,6 +1726,7 @@ private struct PlannedReminderRow: View {
     let task: ReminderTask
     @State private var isBlockReasonPresented = false
     @State private var blockReason = ""
+    @State private var isGamingUnlockConfirmationPresented = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -1772,6 +1773,13 @@ private struct PlannedReminderRow: View {
                         .accessibilityIdentifier("plan.task.\(entry.reminderID).optional-state")
                 }
 
+                if let unlockLabel = gamingUnlock.conditionLabel(isMainObjective: entry.isMainObjective) {
+                    Text(unlockLabel)
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .accessibilityIdentifier("plan.task.\(entry.reminderID).gaming-unlock-condition")
+                }
+
                 TimeBlockSelector(
                     selectedMinutes: entry.estimateMinutes,
                     isUnknown: entry.estimateIsUncertain,
@@ -1813,9 +1821,19 @@ private struct PlannedReminderRow: View {
                         .disabled(entry.rank >= model.dailyPlan.count)
                         .accessibilityIdentifier("plan.task.\(entry.reminderID).move-down")
                     Spacer()
-                    Button("ADJUST: MAKE MAIN") { model.setMainObjective(entry) }
+                    Button(gamingUnlock.makeMainTitle(isMainObjective: entry.isMainObjective)) {
+                        if gamingUnlock.isConfigurable {
+                            isGamingUnlockConfirmationPresented = true
+                        } else {
+                            model.setMainObjective(entry)
+                        }
+                    }
                         .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                         .disabled(entry.isMainObjective)
+                        .accessibilityHint(gamingUnlock.isConfigurable
+                            ? "Moves both today's main objective and the one-time gaming reward condition to this task."
+                            : "Makes this task today's main objective.")
+                        .accessibilityIdentifier("plan.task.\(entry.reminderID).make-main")
                     Button("EXCLUDE") { model.removeFromDailyPlan(entry) }
                         .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
                 }
@@ -1849,12 +1867,22 @@ private struct PlannedReminderRow: View {
         .padding(.vertical, 16)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: entry.isMainObjective)
+        .alert("Move main objective and gaming unlock?", isPresented: $isGamingUnlockConfirmationPresented) {
+            Button("Cancel", role: .cancel) {}
+            Button("Move unlock condition") { model.setMainObjective(entry) }
+        } message: {
+            Text(gamingUnlock.confirmationMessage(taskTitle: task.title))
+        }
         .sheet(isPresented: $isBlockReasonPresented) {
             TaskBlockReasonSheet(taskTitle: task.title, reason: $blockReason) {
                 model.markTaskBlocked(entry, reason: blockReason)
                 isBlockReasonPresented = false
             }
         }
+    }
+
+    private var gamingUnlock: GamingUnlockConditionPresentation {
+        GamingUnlockConditionPresentation(gaming: model.todaySnapshot?.gaming)
     }
 }
 
