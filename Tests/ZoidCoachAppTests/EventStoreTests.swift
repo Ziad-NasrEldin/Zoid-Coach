@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import ZoidCoachApp
+import ZoidCoachCore
 import ZoidCoachInfrastructure
 
 @Test
@@ -42,6 +43,40 @@ func eventStorePersistsDailyPlanEntries() async throws {
     await store.replaceDailyPlan(entries, for: day)
 
     #expect(await store.loadDailyPlan(for: day) == entries)
+}
+
+@Test
+func agentPlanPersistenceRetainsExplicitUnknownEstimateAcrossRestart() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-unknown-estimate-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: databaseURL) }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+
+    try AgentOwnedStateStore(databaseURL: databaseURL).replaceDailyPlan([
+        AgentPlanItem(
+            reminderID: "uncertain",
+            rank: 1,
+            isMainObjective: true,
+            estimateMinutes: nil,
+            estimateIsUncertain: true,
+            selectionReason: "User explicitly chose Unknown.",
+            selectionScore: nil
+        )
+    ], day: day, now: day)
+
+    let restored = await EventStore(databaseURL: databaseURL).loadDailyPlan(for: day)
+    #expect(restored.count == 1)
+    #expect(restored[0].estimateMinutes == nil)
+    #expect(restored[0].estimateIsUncertain)
+}
+
+@Test
+func legacyPlanMutationDecodesAsConfidentWhenUncertaintyFieldIsAbsent() throws {
+    let data = Data(#"{"reminderID":"legacy","rank":1,"isMainObjective":true,"estimateMinutes":30,"selectionReason":null,"selectionScore":null,"isOptional":false,"blockedReason":null,"deferredUntil":null}"#.utf8)
+
+    let item = try JSONDecoder().decode(AgentPlanItem.self, from: data)
+
+    #expect(item.estimateMinutes == 30)
+    #expect(item.estimateIsUncertain == nil)
 }
 
 @Test

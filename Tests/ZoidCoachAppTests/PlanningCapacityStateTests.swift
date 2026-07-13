@@ -20,6 +20,52 @@ func capacityStateExplainsMissingEstimatesBeforeClaimingAPlanIsRealistic() {
 }
 
 @Test
+func explicitUnknownEstimateUsesConservativePlaceholderAndAllowsApproval() {
+    let state = PlanningCapacityState(
+        entries: [
+            DailyPlanEntry(
+                reminderID: "uncertain",
+                rank: 1,
+                isMainObjective: true,
+                estimateMinutes: nil,
+                estimateIsUncertain: true
+            )
+        ],
+        availableMinutes: 60
+    )
+
+    #expect(state.plannedMinutes == 45)
+    #expect(state.remainingBufferMinutes == 15)
+    #expect(state.readiness == .realistic)
+    #expect(state.canApprove)
+}
+
+@Test
+func calendarApprovalKeepsUnknownEstimateVisiblyUncertain() {
+    var approval = CalendarPlanApprovalState()
+    approval.begin(
+        entries: [
+            DailyPlanEntry(
+                reminderID: "uncertain",
+                rank: 1,
+                isMainObjective: true,
+                estimateMinutes: nil,
+                estimateIsUncertain: true
+            )
+        ],
+        titlesByReminderID: ["uncertain": "Investigate production issue"],
+        availableMinutes: 60,
+        fixedCommitmentMinutes: 0,
+        usesCalendarAvailability: false
+    )
+
+    #expect(approval.items.count == 1)
+    #expect(approval.items[0].estimateMinutes == 45)
+    #expect(approval.items[0].estimateIsUncertain == true)
+    #expect(approval.plannedMinutes == 45)
+}
+
+@Test
 func capacityExcludesOptionalAndFutureDeferredTasksWithoutHidingCommittedWork() {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
     let entries = [

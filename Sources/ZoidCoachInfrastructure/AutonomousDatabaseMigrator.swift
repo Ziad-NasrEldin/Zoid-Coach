@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 37
+    public static let currentVersion = 38
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1011,6 +1011,13 @@ private extension AutonomousDatabaseMigrator {
             CREATE INDEX IF NOT EXISTS baseline_observation_days_coverage
             ON baseline_observation_days(coverage, local_day);
             """)
+        ]),
+        Migration(version: 38, isDestructive: false, operations: [
+            .addColumnIfTableExists(
+                table: "daily_plan_entries",
+                column: "estimate_is_uncertain",
+                declaration: "INTEGER NOT NULL DEFAULT 0 CHECK(estimate_is_uncertain IN (0, 1))"
+            )
         ])
     ]
 }
