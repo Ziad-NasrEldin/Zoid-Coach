@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "e32128f34d9430fc94709a2afe31e4fc0e35924eb3c64651c1e78e8fe4a635c3",
+  "tracker_sha256": "f2db4f491ab9b69bbae4cd6c540409a0ad64f89207cc8b07939d55f76ce51800",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9481,8 +9481,8 @@
       "item_index": 8,
       "wording": "Add a personal note.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9493,7 +9493,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No review-note field or storage exists.",
+      "audit_note": "Daily Review now has a day-scoped, nullable, trimmed, 1,000-character personal note that reopens a confirmed review, preserves evidence rows, survives store reopen, clears to absent, and migrates existing reviews without rewriting them. A signed populated review visibly showed the local-only boundary, stable editor/save accessibility, unchanged two-minute actual and one-minute work totals, a live `38 / 1000` counter, and an enabled Save action after entry. The save could not be verified because the next Computer Use capture failed twice with ScreenCaptureKit `-3811`; the database still had no note, so signed save, confirm/edit reopen, day switching, relaunch, clear, and over-limit behavior remain unproven (`DailyReview.swift`; `DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-personal-note/verifier/REPORT.md`).",
       "tracker_line": 597
     },
     {
