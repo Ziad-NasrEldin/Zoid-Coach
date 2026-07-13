@@ -33,6 +33,32 @@ public struct DailyReviewSession: Identifiable, Equatable, Sendable {
     }
 }
 
+public struct UnknownSessionReviewState: Equatable, Sendable {
+    public let pending: [DailyReviewSession]
+    public let classified: [DailyReviewSession]
+    public let pendingMinutes: Int
+
+    public init(sessions: [DailyReviewSession]) {
+        pending = sessions
+            .filter { $0.classification == .unknown }
+            .sorted(by: Self.sessionOrder)
+        classified = sessions
+            .filter { $0.classification != .unknown }
+            .sorted(by: Self.sessionOrder)
+        pendingMinutes = pending.reduce(0) { $0 + $1.durationMinutes }
+    }
+
+    public var hasPending: Bool { !pending.isEmpty }
+
+    private static func sessionOrder(_ lhs: DailyReviewSession, _ rhs: DailyReviewSession) -> Bool {
+        if lhs.start != rhs.start { return lhs.start < rhs.start }
+        if lhs.application != rhs.application {
+            return lhs.application.localizedCaseInsensitiveCompare(rhs.application) == .orderedAscending
+        }
+        return lhs.id < rhs.id
+    }
+}
+
 public struct DailyReviewTotal: Identifiable, Equatable, Sendable {
     public let classification: BehaviorClassification
     public let minutes: Int

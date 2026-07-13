@@ -284,6 +284,46 @@ func dailyReviewHighlightUsesExactDurationBeforeRoundedDisplayMinutes() {
 }
 
 @Test
+func unknownSessionReviewSeparatesPendingEvidenceWithoutChangingItsClassification() {
+    let sourceDay = "2026-07-10"
+    let unknownLater = DailyReviewSession(
+        sourceDay: sourceDay,
+        start: Date(timeIntervalSince1970: 1_783_663_320),
+        end: Date(timeIntervalSince1970: 1_783_663_440),
+        application: "Preview",
+        classification: .unknown,
+        observationCount: 2
+    )
+    let known = DailyReviewSession(
+        sourceDay: sourceDay,
+        start: Date(timeIntervalSince1970: 1_783_663_260),
+        end: Date(timeIntervalSince1970: 1_783_663_320),
+        application: "Cursor",
+        classification: .work,
+        observationCount: 1
+    )
+    let unknownEarlier = DailyReviewSession(
+        sourceDay: sourceDay,
+        start: Date(timeIntervalSince1970: 1_783_663_200),
+        end: Date(timeIntervalSince1970: 1_783_663_260),
+        application: "Safari",
+        classification: .unknown,
+        observationCount: 1
+    )
+
+    let state = UnknownSessionReviewState(
+        sessions: [unknownLater, known, unknownEarlier]
+    )
+
+    #expect(state.hasPending)
+    #expect(state.pending.map(\.application) == ["Safari", "Preview"])
+    #expect(state.pending.allSatisfy { $0.classification == .unknown })
+    #expect(state.pendingMinutes == 3)
+    #expect(state.classified == [known])
+    #expect(!UnknownSessionReviewState(sessions: [known]).hasPending)
+}
+
+@Test
 func correctionAndTaskAttachmentPersistAndRecalculateTotalsAfterRestart() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
@@ -299,6 +339,39 @@ func correctionAndTaskAttachmentPersistAndRecalculateTotalsAfterRestart() throws
     #expect(corrected.sessions[0].classification == .work)
     #expect(corrected.sessions[0].taskID == "Write proposal")
     #expect(corrected.totals == [DailyReviewTotal(classification: .work, minutes: 2)])
+}
+
+@Test
+func correctingUnknownSessionClearsReviewQueueAndPersistsScopedFutureRule() throws {
+    let fixedNow = Date(timeIntervalSince1970: 1_783_700_000)
+    let fixture = try DailyReviewFixture(now: { fixedNow })
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Safari", classification: .unknown)
+    try fixture.insert(epoch: 1_783_663_260, app: "Safari", classification: .unknown)
+    try fixture.insert(epoch: 1_783_663_900, app: "Cursor", classification: .work)
+    var state = UnknownSessionReviewState(
+        sessions: try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+    )
+    let pending = try #require(state.pending.first)
+
+    try fixture.store.correct(
+        pending,
+        to: .work,
+        taskID: "Research",
+        applyToFuture: true
+    )
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    state = UnknownSessionReviewState(
+        sessions: try reopened.load(sourceDay: fixture.sourceDay).sessions
+    )
+    let rules = try reopened.classificationRules()
+    #expect(!state.hasPending)
+    #expect(state.classified.count == 2)
+    #expect(state.classified.first { $0.application == "Safari" }?.taskID == "Research")
+    #expect(rules.count == 1)
+    #expect(rules[0].normalizedApplication == "safari")
+    #expect(rules[0].classification == .work)
 }
 
 @Test
