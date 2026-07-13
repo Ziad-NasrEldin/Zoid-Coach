@@ -211,12 +211,12 @@ func intentionalGamingOverrideRequiresTwoMinutesOfWorkBeforeEarlyReprompt() thro
 }
 
 @Test
-func intentionalGamingOverrideExpiresAtFortyFiveMinutesAcrossRestart() throws {
+func intentionalGamingOverrideUsesConfiguredDurationAcrossRestart() throws {
     let fixture = try GamingPromptFixture()
     defer { fixture.remove() }
     try fixture.insertPriorityTask()
     try fixture.insertGaming(minutes: 10)
-    let policy = fixture.policy(level: .accountability)
+    let policy = fixture.policy(level: .accountability, intentionalOverrideMinutes: 25)
     guard case let .queued(episode, _) = try fixture.service.produce(
         policy: policy,
         gamingStatus: fixture.gamingStatus,
@@ -235,7 +235,7 @@ func intentionalGamingOverrideExpiresAtFortyFiveMinutesAcrossRestart() throws {
         surface: .dashboard
     )
 
-    fixture.advance(minutes: 30)
+    fixture.advance(minutes: 20)
     try fixture.insertGaming(minutes: 10)
     let reopenedStore = try PromptInboxStore(
         databaseURL: fixture.databaseURL,
@@ -252,7 +252,7 @@ func intentionalGamingOverrideExpiresAtFortyFiveMinutesAcrossRestart() throws {
         baselineStatus: fixture.baseline()
     ) == .suppressed(.intentionalOverrideActive))
 
-    fixture.advance(minutes: 16)
+    fixture.advance(minutes: 6)
     try fixture.insertGaming(minutes: 10)
     guard case let .queued(reprompt, wasInserted) = try restartedService.produce(
         policy: policy,
@@ -433,7 +433,8 @@ private final class GamingPromptFixture: @unchecked Sendable {
     func policy(
         paused: Bool = false,
         workStart: LocalTime = LocalTime(hour: 8, minute: 0),
-        level: CoachingLevel = .gentle
+        level: CoachingLevel = .gentle,
+        intentionalOverrideMinutes: Int = 45
     ) -> UserPolicy {
         let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
         return UserPolicy(
@@ -459,7 +460,8 @@ private final class GamingPromptFixture: @unchecked Sendable {
             gaming: GamingPolicy(
                 dailyBudgetMinutes: 0,
                 priorityTaskRewardMinutes: 0,
-                coachingLevel: level
+                coachingLevel: level,
+                intentionalOverrideMinutes: intentionalOverrideMinutes
             ),
             reminderLists: defaults.reminderLists
         )

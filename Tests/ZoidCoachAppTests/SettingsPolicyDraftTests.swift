@@ -11,15 +11,18 @@ func settingsRoundTripsConfiguredCoachingLevelAndGamingAllowance() {
     draft.coachingLevel = .accountability
     draft.gamingDailyBudgetMinutes = 95
     draft.gamingPriorityTaskRewardMinutes = 25
+    draft.gamingIntentionalOverrideMinutes = 25
 
     let saved = draft.policy(preserving: original)
 
     #expect(saved.gaming.coachingLevel == .accountability)
     #expect(saved.gaming.dailyBudgetMinutes == 95)
     #expect(saved.gaming.priorityTaskRewardMinutes == 25)
+    #expect(saved.gaming.intentionalOverrideMinutes == 25)
     #expect(SettingsPolicyDraft(policy: saved).coachingLevel == .accountability)
     #expect(SettingsPolicyDraft(policy: saved).gamingDailyBudgetMinutes == 95)
     #expect(SettingsPolicyDraft(policy: saved).gamingPriorityTaskRewardMinutes == 25)
+    #expect(SettingsPolicyDraft(policy: saved).gamingIntentionalOverrideMinutes == 25)
 
     let beforeCompletion = GamingStatusCalculator().status(
         policy: saved.gaming,
@@ -62,12 +65,14 @@ func settingsConflictResolverPreservesIndependentGamingAllowanceAndFlagsOverlap(
     var mine = base
     mine.gamingDailyBudgetMinutes = 75
     mine.gamingPriorityTaskRewardMinutes = 20
+    mine.gamingIntentionalOverrideMinutes = 25
     var current = base
     current.capacityPercent = 55
 
     let independent = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
     #expect(independent.safeDraft.gamingDailyBudgetMinutes == 75)
     #expect(independent.safeDraft.gamingPriorityTaskRewardMinutes == 20)
+    #expect(independent.safeDraft.gamingIntentionalOverrideMinutes == 25)
     #expect(independent.safeDraft.capacityPercent == 55)
     #expect(independent.overlappingChanges.isEmpty)
 
@@ -76,6 +81,12 @@ func settingsConflictResolverPreservesIndependentGamingAllowanceAndFlagsOverlap(
     #expect(overlapping.safeDraft.gamingDailyBudgetMinutes == 30)
     #expect(overlapping.retryDraft.gamingDailyBudgetMinutes == 75)
     #expect(overlapping.overlappingChanges == ["Gaming daily budget"])
+
+    current.gamingIntentionalOverrideMinutes = 90
+    let overrideOverlap = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+    #expect(overrideOverlap.safeDraft.gamingIntentionalOverrideMinutes == 90)
+    #expect(overrideOverlap.retryDraft.gamingIntentionalOverrideMinutes == 25)
+    #expect(overrideOverlap.overlappingChanges.contains("Intentional gaming override"))
 }
 
 @MainActor

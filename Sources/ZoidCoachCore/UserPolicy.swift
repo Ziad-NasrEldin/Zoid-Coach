@@ -701,6 +701,9 @@ public struct UserPolicy: Codable, Equatable, Sendable {
                 field: "gaming.priorityTaskRewardMinutes"
             ))
         }
+        if !(5...1_440).contains(gaming.intentionalOverrideMinutes) {
+            violations.append(.init(code: .invalidGamingBudget, field: "gaming.intentionalOverrideMinutes"))
+        }
         appendTimeViolation(wake.window.start, field: "wake.window.start", to: &violations)
         appendTimeViolation(wake.window.end, field: "wake.window.end", to: &violations)
         if wake.window.start == wake.window.end {
