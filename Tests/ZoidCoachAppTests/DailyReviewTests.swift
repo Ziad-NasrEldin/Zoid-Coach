@@ -550,6 +550,90 @@ func unfinishedReviewSurvivesRestartAndDisappearsOnlyAfterConfirmation() throws 
 }
 
 @Test
+func deferredReviewKeepsEvidenceHiddenUntilDueAndReturnsAfterRestart() throws {
+    let current = Date(timeIntervalSince1970: 1_783_700_000)
+    let deferredUntil = current.addingTimeInterval(86_400)
+    let fixture = try DailyReviewFixture(now: { current })
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Cursor", classification: .work)
+    let session = try fixture.store.load(sourceDay: fixture.sourceDay).sessions[0]
+    try fixture.store.correct(session, to: .distracting, taskID: "proposal", from: nil)
+
+    try fixture.store.deferReview(sourceDay: fixture.sourceDay, until: deferredUntil)
+    let deferred = try fixture.store.load(sourceDay: fixture.sourceDay)
+    #expect(deferred.deferredUntil == deferredUntil)
+    #expect(deferred.sessions[0].classification == .distracting)
+    #expect(deferred.sessions[0].taskID == "proposal")
+    #expect(try fixture.store.mostRecentUnfinishedReview() == nil)
+
+    let beforeDue = try DailyReviewStore(
+        databaseURL: fixture.databaseURL,
+        now: { current.addingTimeInterval(3_600) }
+    )
+    #expect(try beforeDue.mostRecentUnfinishedReview() == nil)
+    #expect(try beforeDue.load(sourceDay: fixture.sourceDay).deferredUntil == deferredUntil)
+
+    let afterDue = try DailyReviewStore(
+        databaseURL: fixture.databaseURL,
+        now: { deferredUntil.addingTimeInterval(1) }
+    )
+    #expect(try afterDue.load(sourceDay: fixture.sourceDay).deferredUntil == nil)
+    #expect(try afterDue.mostRecentUnfinishedReview()?.sourceDay == fixture.sourceDay)
+    #expect(try afterDue.load(sourceDay: fixture.sourceDay).sessions[0].classification == .distracting)
+}
+
+@Test
+func deferredReviewCanBeResumedEarlyAndRejectsPastDates() throws {
+    let current = Date(timeIntervalSince1970: 1_783_700_000)
+    let fixture = try DailyReviewFixture(now: { current })
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Cursor", classification: .work)
+    let session = try fixture.store.load(sourceDay: fixture.sourceDay).sessions[0]
+    try fixture.store.correct(session, to: .work, taskID: nil, from: nil)
+
+    #expect(throws: DailyReviewStoreError.self) {
+        try fixture.store.deferReview(sourceDay: fixture.sourceDay, until: current)
+    }
+    try fixture.store.deferReview(sourceDay: fixture.sourceDay, until: current.addingTimeInterval(86_400))
+    try fixture.store.resumeDeferredReview(sourceDay: fixture.sourceDay)
+
+    #expect(try fixture.store.load(sourceDay: fixture.sourceDay).deferredUntil == nil)
+    #expect(try fixture.store.mostRecentUnfinishedReview()?.sourceDay == fixture.sourceDay)
+}
+
+@MainActor
+@Test
+func dailyReviewControllerExplainsDeferralAndRestoresTheReviewOnResume() throws {
+    let current = try #require(ISO8601DateFormatter().date(from: "2026-07-10T20:00:00Z"))
+    let fixture = try DailyReviewFixture(now: { current })
+    defer { fixture.remove() }
+    try fixture.insert(epoch: Int64(current.timeIntervalSince1970), app: "Cursor", classification: .work)
+    let session = try fixture.store.load(sourceDay: fixture.sourceDay).sessions[0]
+    try fixture.store.correct(session, to: .work, taskID: nil, from: nil)
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+    let controller = DailyReviewController(
+        service: fixture.store,
+        selectedDay: current,
+        calendar: calendar,
+        now: { current }
+    )
+
+    controller.load()
+    controller.deferUntilTomorrow()
+
+    #expect(controller.snapshot?.deferredUntil == current.addingTimeInterval(86_400))
+    #expect(controller.successMessage?.contains("All local evidence and corrections remain available") == true)
+    #expect(controller.unfinishedReview == nil)
+
+    controller.resumeDeferredReview()
+
+    #expect(controller.snapshot?.deferredUntil == nil)
+    #expect(controller.unfinishedReview?.sourceDay == fixture.sourceDay)
+    #expect(controller.successMessage == "Daily review resumed with its saved evidence and corrections.")
+}
+
+@Test
 func skippedReviewClosesDayWithoutLosingEvidenceAndLaterEditReopensIt() throws {
     let skippedAt = Date(timeIntervalSince1970: 1_783_700_000)
     let fixture = try DailyReviewFixture(now: { skippedAt })
