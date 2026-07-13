@@ -26,10 +26,11 @@ public final class AgentOwnedStateStore: @unchecked Sendable {
             try execute("DELETE FROM daily_plan_entries WHERE day_key = ?;", values: [.text(dayKey)])
             for item in items {
                 try execute(
-                    "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                    "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, estimate_is_uncertain, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                     values: [
                         .text(dayKey), .text(item.reminderID), .integer(item.rank), .integer(item.isMainObjective ? 1 : 0),
                         item.estimateMinutes.map(Value.integer) ?? .null,
+                        .integer(item.estimateIsUncertain == true ? 1 : 0),
                         item.selectionReason.map(Value.text) ?? .null,
                         item.selectionScore.map(Value.integer) ?? .null,
                         .integer(item.isOptional == true ? 1 : 0),
@@ -53,6 +54,7 @@ public final class AgentOwnedStateStore: @unchecked Sendable {
               Set(ranks) == Set(1...items.count),
               items.filter(\.isMainObjective).count == 1,
               items.allSatisfy({ $0.estimateMinutes.map { $0 > 0 } ?? true }),
+              items.allSatisfy({ !($0.estimateIsUncertain == true && $0.estimateMinutes != nil) }),
               items.allSatisfy({ item in
                   guard let reason = item.blockedReason else { return true }
                   return (3...240).contains(reason.trimmingCharacters(in: .whitespacesAndNewlines).count)

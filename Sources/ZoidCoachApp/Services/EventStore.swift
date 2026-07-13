@@ -16,6 +16,7 @@ struct DailyPlanEntry: Identifiable, Equatable, Sendable {
     let rank: Int
     let isMainObjective: Bool
     let estimateMinutes: Int?
+    let estimateIsUncertain: Bool
     let selectionReason: String?
     let selectionScore: Int?
     let isOptional: Bool
@@ -27,6 +28,7 @@ struct DailyPlanEntry: Identifiable, Equatable, Sendable {
         rank: Int,
         isMainObjective: Bool,
         estimateMinutes: Int?,
+        estimateIsUncertain: Bool = false,
         selectionReason: String? = nil,
         selectionScore: Int? = nil,
         isOptional: Bool = false,
@@ -37,6 +39,7 @@ struct DailyPlanEntry: Identifiable, Equatable, Sendable {
         self.rank = rank
         self.isMainObjective = isMainObjective
         self.estimateMinutes = estimateMinutes
+        self.estimateIsUncertain = estimateIsUncertain
         self.selectionReason = selectionReason
         self.selectionScore = selectionScore
         self.isOptional = isOptional
@@ -107,7 +110,7 @@ actor EventStore {
         bind(dayKey, to: delete, index: 1)
         guard sqlite3_step(delete) == SQLITE_DONE else { return }
 
-        let sql = "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+        let sql = "INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, estimate_is_uncertain, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
         for entry in entries {
             guard let statement = prepare(sql, database: database) else { return }
             bind(dayKey, to: statement, index: 1)
@@ -119,28 +122,29 @@ actor EventStore {
             } else {
                 sqlite3_bind_null(statement, 5)
             }
+            sqlite3_bind_int(statement, 6, entry.estimateIsUncertain ? 1 : 0)
             if let selectionReason = entry.selectionReason {
-                bind(selectionReason, to: statement, index: 6)
-            } else {
-                sqlite3_bind_null(statement, 6)
-            }
-            if let selectionScore = entry.selectionScore {
-                sqlite3_bind_int(statement, 7, Int32(selectionScore))
+                bind(selectionReason, to: statement, index: 7)
             } else {
                 sqlite3_bind_null(statement, 7)
             }
-            sqlite3_bind_int(statement, 8, entry.isOptional ? 1 : 0)
-            if let blockedReason = entry.blockedReason {
-                bind(blockedReason, to: statement, index: 9)
+            if let selectionScore = entry.selectionScore {
+                sqlite3_bind_int(statement, 8, Int32(selectionScore))
             } else {
-                sqlite3_bind_null(statement, 9)
+                sqlite3_bind_null(statement, 8)
             }
-            if let deferredUntil = entry.deferredUntil {
-                bind(dateFormatter.string(from: deferredUntil), to: statement, index: 10)
+            sqlite3_bind_int(statement, 9, entry.isOptional ? 1 : 0)
+            if let blockedReason = entry.blockedReason {
+                bind(blockedReason, to: statement, index: 10)
             } else {
                 sqlite3_bind_null(statement, 10)
             }
-            bind(dateFormatter.string(from: Date()), to: statement, index: 11)
+            if let deferredUntil = entry.deferredUntil {
+                bind(dateFormatter.string(from: deferredUntil), to: statement, index: 11)
+            } else {
+                sqlite3_bind_null(statement, 11)
+            }
+            bind(dateFormatter.string(from: Date()), to: statement, index: 12)
             guard sqlite3_step(statement) == SQLITE_DONE else {
                 sqlite3_finalize(statement)
                 return
@@ -152,7 +156,7 @@ actor EventStore {
 
     func loadDailyPlan(for day: Date = Date()) -> [DailyPlanEntry] {
         guard let database = handle?.pointer else { return [] }
-        let sql = "SELECT reminder_id, rank, is_main_objective, estimate_minutes, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc FROM daily_plan_entries WHERE day_key = ? ORDER BY rank ASC;"
+        let sql = "SELECT reminder_id, rank, is_main_objective, estimate_minutes, estimate_is_uncertain, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc FROM daily_plan_entries WHERE day_key = ? ORDER BY rank ASC;"
         guard let statement = prepare(sql, database: database) else { return [] }
         defer { sqlite3_finalize(statement) }
         bind(Self.dayKey(for: day), to: statement, index: 1)
@@ -160,21 +164,22 @@ actor EventStore {
         while sqlite3_step(statement) == SQLITE_ROW {
             guard let reminderID = columnText(statement, index: 0) else { continue }
             let estimateMinutes = sqlite3_column_type(statement, 3) == SQLITE_NULL ? nil : Int(sqlite3_column_int(statement, 3))
-            let selectionReason = sqlite3_column_type(statement, 4) == SQLITE_NULL ? nil : columnText(statement, index: 4)
-            let selectionScore = sqlite3_column_type(statement, 5) == SQLITE_NULL ? nil : Int(sqlite3_column_int(statement, 5))
-            let blockedReason = sqlite3_column_type(statement, 7) == SQLITE_NULL ? nil : columnText(statement, index: 7)
-            let deferredUntil = sqlite3_column_type(statement, 8) == SQLITE_NULL
+            let selectionReason = sqlite3_column_type(statement, 5) == SQLITE_NULL ? nil : columnText(statement, index: 5)
+            let selectionScore = sqlite3_column_type(statement, 6) == SQLITE_NULL ? nil : Int(sqlite3_column_int(statement, 6))
+            let blockedReason = sqlite3_column_type(statement, 8) == SQLITE_NULL ? nil : columnText(statement, index: 8)
+            let deferredUntil = sqlite3_column_type(statement, 9) == SQLITE_NULL
                 ? nil
-                : columnText(statement, index: 8).flatMap(dateFormatter.date(from:))
+                : columnText(statement, index: 9).flatMap(dateFormatter.date(from:))
             entries.append(
                 DailyPlanEntry(
                     reminderID: reminderID,
                     rank: Int(sqlite3_column_int(statement, 1)),
                     isMainObjective: sqlite3_column_int(statement, 2) == 1,
                     estimateMinutes: estimateMinutes,
+                    estimateIsUncertain: sqlite3_column_int(statement, 4) == 1,
                     selectionReason: selectionReason,
                     selectionScore: selectionScore,
-                    isOptional: sqlite3_column_int(statement, 6) == 1,
+                    isOptional: sqlite3_column_int(statement, 7) == 1,
                     blockedReason: blockedReason,
                     deferredUntil: deferredUntil
                 )
@@ -325,6 +330,7 @@ actor EventStore {
         _ = sqlite3_exec(database, "ALTER TABLE daily_plan_entries ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0;", nil, nil, nil)
         _ = sqlite3_exec(database, "ALTER TABLE daily_plan_entries ADD COLUMN blocked_reason TEXT;", nil, nil, nil)
         _ = sqlite3_exec(database, "ALTER TABLE daily_plan_entries ADD COLUMN deferred_until_utc TEXT;", nil, nil, nil)
+        _ = sqlite3_exec(database, "ALTER TABLE daily_plan_entries ADD COLUMN estimate_is_uncertain INTEGER NOT NULL DEFAULT 0 CHECK(estimate_is_uncertain IN (0, 1));", nil, nil, nil)
         applyMigration(
             version: 3,
             statements: [

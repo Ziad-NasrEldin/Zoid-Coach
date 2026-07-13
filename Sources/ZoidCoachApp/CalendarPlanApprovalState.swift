@@ -6,7 +6,24 @@ struct CalendarPlanApprovalItem: Codable, Equatable, Identifiable, Sendable {
     let title: String
     let rank: Int
     let estimateMinutes: Int
+    let estimateIsUncertain: Bool?
     let isMainObjective: Bool
+
+    init(
+        reminderID: String,
+        title: String,
+        rank: Int,
+        estimateMinutes: Int,
+        estimateIsUncertain: Bool = false,
+        isMainObjective: Bool
+    ) {
+        self.reminderID = reminderID
+        self.title = title
+        self.rank = rank
+        self.estimateMinutes = estimateMinutes
+        self.estimateIsUncertain = estimateIsUncertain
+        self.isMainObjective = isMainObjective
+    }
 
     var id: String { reminderID }
 }
@@ -126,12 +143,15 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
         availabilityRevision: CalendarPlanAvailabilityRevision? = nil
     ) {
         items = entries.compactMap { entry in
-            guard let estimate = entry.estimateMinutes else { return nil }
+            let estimate = entry.estimateMinutes
+                ?? (entry.estimateIsUncertain ? PlanningCapacityState.unknownEstimatePlaceholderMinutes : nil)
+            guard let estimate else { return nil }
             return CalendarPlanApprovalItem(
                 reminderID: entry.reminderID,
                 title: titlesByReminderID[entry.reminderID] ?? "Unavailable reminder",
                 rank: entry.rank,
                 estimateMinutes: estimate,
+                estimateIsUncertain: entry.estimateIsUncertain,
                 isMainObjective: entry.isMainObjective
             )
         }.sorted { $0.rank < $1.rank }

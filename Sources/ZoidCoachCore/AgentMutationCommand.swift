@@ -11,6 +11,7 @@ public struct AgentPlanItem: Equatable, Codable, Sendable {
     public let rank: Int
     public let isMainObjective: Bool
     public let estimateMinutes: Int?
+    public let estimateIsUncertain: Bool?
     public let selectionReason: String?
     public let selectionScore: Int?
     public let isOptional: Bool?
@@ -22,6 +23,7 @@ public struct AgentPlanItem: Equatable, Codable, Sendable {
         rank: Int,
         isMainObjective: Bool,
         estimateMinutes: Int?,
+        estimateIsUncertain: Bool = false,
         selectionReason: String?,
         selectionScore: Int?,
         isOptional: Bool = false,
@@ -32,6 +34,7 @@ public struct AgentPlanItem: Equatable, Codable, Sendable {
         self.rank = rank
         self.isMainObjective = isMainObjective
         self.estimateMinutes = estimateMinutes
+        self.estimateIsUncertain = estimateIsUncertain
         self.selectionReason = selectionReason
         self.selectionScore = selectionScore
         self.isOptional = isOptional

@@ -244,7 +244,7 @@ func driftThatCrossesTheThresholdWhileWorkIsUnfinishedRemainsEligibleAfterLaterC
 func migration37AddsNonDestructiveBaselineLedgerAfterCorrectionRules() throws {
     let fixture = try BaselineFixture()
     defer { fixture.remove() }
-    #expect(try fixture.scalar("SELECT MAX(version) FROM schema_migrations;") == 37)
+    #expect(try fixture.scalar("SELECT MAX(version) FROM schema_migrations;") == 38)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'baseline_observation_days';") == 1)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'app_classification_correction_rules';") == 1)
 }

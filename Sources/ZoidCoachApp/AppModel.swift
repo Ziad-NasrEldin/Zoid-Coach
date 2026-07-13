@@ -630,6 +630,7 @@ final class AppModel: ObservableObject {
                 rank: index + 1,
                 isMainObjective: entry.isMainObjective,
                 estimateMinutes: entry.estimateMinutes,
+                estimateIsUncertain: entry.estimateIsUncertain,
                 selectionReason: entry.selectionReason,
                 selectionScore: entry.selectionScore,
                 isOptional: entry.isOptional,
@@ -652,6 +653,7 @@ final class AppModel: ObservableObject {
                 rank: $0.rank,
                 isMainObjective: $0.reminderID == entry.reminderID,
                 estimateMinutes: $0.estimateMinutes,
+                estimateIsUncertain: $0.estimateIsUncertain,
                 selectionReason: $0.selectionReason,
                 selectionScore: $0.selectionScore,
                 isOptional: $0.isOptional,
@@ -671,6 +673,27 @@ final class AppModel: ObservableObject {
                 rank: $0.rank,
                 isMainObjective: $0.isMainObjective,
                 estimateMinutes: $0.reminderID == entry.reminderID ? minutes : $0.estimateMinutes,
+                estimateIsUncertain: $0.reminderID == entry.reminderID ? false : $0.estimateIsUncertain,
+                selectionReason: $0.selectionReason,
+                selectionScore: $0.selectionScore,
+                isOptional: $0.isOptional,
+                blockedReason: $0.blockedReason,
+                deferredUntil: $0.deferredUntil
+            )
+        }
+        persistDailyPlan()
+    }
+
+    func setEstimateUnknown(for entry: DailyPlanEntry) {
+        guard !isLoadingDailyPlan else { return }
+        calendarScheduleError = nil
+        dailyPlan = dailyPlan.map {
+            DailyPlanEntry(
+                reminderID: $0.reminderID,
+                rank: $0.rank,
+                isMainObjective: $0.isMainObjective,
+                estimateMinutes: $0.reminderID == entry.reminderID ? nil : $0.estimateMinutes,
+                estimateIsUncertain: $0.reminderID == entry.reminderID ? true : $0.estimateIsUncertain,
                 selectionReason: $0.selectionReason,
                 selectionScore: $0.selectionScore,
                 isOptional: $0.isOptional,
@@ -799,6 +822,7 @@ final class AppModel: ObservableObject {
             rank: rank ?? entry.rank,
             isMainObjective: isMainObjective ?? entry.isMainObjective,
             estimateMinutes: entry.estimateMinutes,
+            estimateIsUncertain: entry.estimateIsUncertain,
             selectionReason: entry.selectionReason,
             selectionScore: entry.selectionScore,
             isOptional: isOptional ?? entry.isOptional,
@@ -1190,6 +1214,7 @@ final class AppModel: ObservableObject {
                 rank: index + 1,
                 isMainObjective: entry.isMainObjective,
                 estimateMinutes: entry.estimateMinutes,
+                estimateIsUncertain: entry.estimateIsUncertain,
                 selectionReason: entry.selectionReason,
                 selectionScore: entry.selectionScore,
                 isOptional: entry.isOptional,
@@ -1203,6 +1228,7 @@ final class AppModel: ObservableObject {
                 rank: dailyPlan[0].rank,
                 isMainObjective: true,
                 estimateMinutes: dailyPlan[0].estimateMinutes,
+                estimateIsUncertain: dailyPlan[0].estimateIsUncertain,
                 selectionReason: dailyPlan[0].selectionReason,
                 selectionScore: dailyPlan[0].selectionScore,
                 isOptional: dailyPlan[0].isOptional,
@@ -1220,6 +1246,7 @@ final class AppModel: ObservableObject {
                 rank: $0.rank,
                 isMainObjective: $0.isMainObjective,
                 estimateMinutes: $0.estimateMinutes,
+                estimateIsUncertain: $0.estimateIsUncertain,
                 selectionReason: $0.selectionReason,
                 selectionScore: $0.selectionScore,
                 isOptional: $0.isOptional,

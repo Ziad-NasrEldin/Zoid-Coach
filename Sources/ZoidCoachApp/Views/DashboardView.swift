@@ -1645,11 +1645,12 @@ private struct PlannedReminderRow: View {
 
                 TimeBlockSelector(
                     selectedMinutes: entry.estimateMinutes,
+                    isUnknown: entry.estimateIsUncertain,
                     taskTitle: task.title,
-                    taskID: entry.reminderID
-                ) { minutes in
-                    model.setEstimate(minutes, for: entry)
-                }
+                    taskID: entry.reminderID,
+                    select: { model.setEstimate($0, for: entry) },
+                    selectUnknown: { model.setEstimateUnknown(for: entry) }
+                )
 
                 if let selectionReason = entry.selectionReason {
                     HStack(alignment: .firstTextBaseline, spacing: 7) {
@@ -1900,9 +1901,11 @@ private struct MeetingCandidateEditor: View {
 private struct TimeBlockSelector: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let selectedMinutes: Int?
+    let isUnknown: Bool
     let taskTitle: String
     let taskID: String
     let select: (Int) -> Void
+    let selectUnknown: () -> Void
 
     private let durations = [15, 30, 45, 60, 90]
     @State private var isChanging = false
@@ -1912,12 +1915,31 @@ private struct TimeBlockSelector: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            Text(selectedMinutes == nil || isChanging ? "ADD ESTIMATE" : "TIME BLOCK")
+            Text((selectedMinutes == nil && !isUnknown) || isChanging ? "ADD ESTIMATE" : "TIME BLOCK")
                 .font(Sumi.label(8))
                 .sumiLabelTracking()
-                .foregroundStyle(selectedMinutes == nil ? Sumi.seal : Sumi.muted)
+                .foregroundStyle(selectedMinutes == nil && !isUnknown ? Sumi.seal : Sumi.muted)
 
-            if let selectedMinutes, !isChanging {
+            if isUnknown, !isChanging {
+                Label("UNKNOWN · ~\(PlanningCapacityState.unknownEstimatePlaceholderMinutes) MIN", systemImage: "questionmark")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.paper)
+                    .padding(.horizontal, 7)
+                    .frame(height: 22)
+                    .background(Sumi.seal)
+                    .accessibilityLabel("Unknown estimate. Uses a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder for planning.")
+                    .accessibilityIdentifier("task-estimate-unknown-selected-\(taskID)")
+                Button {
+                    isChanging = true
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 10, weight: .medium))
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(SumiPressStyle())
+                .accessibilityLabel("Change \(taskTitle) unknown estimate")
+            } else if let selectedMinutes, !isChanging {
                 Label {
                     Text(durationLabel(selectedMinutes))
                         .font(Sumi.label(8))
@@ -2001,6 +2023,14 @@ private struct TimeBlockSelector: View {
                 .buttonStyle(TimeSlotButtonStyle())
                 .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
                 .accessibilityIdentifier("task-estimate-custom-\(taskID)")
+                Button("UNKNOWN") {
+                    selectUnknown()
+                    isChanging = false
+                    isEnteringCustom = false
+                }
+                .buttonStyle(TimeSlotButtonStyle())
+                .accessibilityLabel("Set \(taskTitle) estimate to unknown and use a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder")
+                .accessibilityIdentifier("task-estimate-unknown-\(taskID)")
             }
             Spacer()
         }

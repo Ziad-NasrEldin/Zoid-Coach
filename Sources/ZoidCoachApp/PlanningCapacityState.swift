@@ -2,6 +2,8 @@ import Foundation
 import ZoidCoachCore
 
 struct PlanningCapacityState: Equatable, Sendable {
+    static let unknownEstimatePlaceholderMinutes = 45
+
     enum Readiness: Equatable, Sendable {
         case empty
         case missingEstimates(count: Int)
@@ -19,8 +21,18 @@ struct PlanningCapacityState: Equatable, Sendable {
         let committedEntries = entries.filter {
             !$0.isOptional && !($0.deferredUntil.map { $0 > referenceDate } ?? false)
         }
-        let missingEstimateCount = committedEntries.count { $0.estimateMinutes == nil }
-        let plannedMinutes = committedEntries.reduce(0) { $0 + max(0, $1.estimateMinutes ?? 0) }
+        let missingEstimateCount = committedEntries.count {
+            $0.estimateMinutes == nil && !$0.estimateIsUncertain
+        }
+        let plannedMinutes = committedEntries.reduce(0) { total, entry in
+            if let minutes = entry.estimateMinutes {
+                return total + max(0, minutes)
+            }
+            if entry.estimateIsUncertain {
+                return total + Self.unknownEstimatePlaceholderMinutes
+            }
+            return total
+        }
 
         self.plannedMinutes = plannedMinutes
         self.availableMinutes = availableMinutes
