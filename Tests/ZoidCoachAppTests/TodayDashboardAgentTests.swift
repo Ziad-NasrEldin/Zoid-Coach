@@ -524,6 +524,84 @@ func deletingActiveAppleReminderPausesVisibleTaskAndSurvivesRestart() throws {
 }
 
 @Test
+func externallyCompletingActiveAppleReminderEndsSessionWithDurableReason() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-external-reminder-completion-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "active", title: "Prepare the proposal", dueDate: day, priority: 9),
+        ReminderSourceSnapshot(id: "next", title: "Send the follow-up", dueDate: day, priority: 5)
+    ])
+    try AutonomousPlanStore(databaseURL: url).replaceDailyPlan(
+        DailyPlanProposal(
+            items: [
+                PlannedTask(taskID: "active", title: "Prepare the proposal", rank: 1, estimateMinutes: 30, reason: "Main", score: 100),
+                PlannedTask(taskID: "next", title: "Send the follow-up", rank: 2, estimateMinutes: 15, reason: "Next", score: 50)
+            ],
+            mainObjectiveTaskID: "active",
+            plannedFocusMinutes: 45,
+            availableFocusMinutes: 60
+        ),
+        for: day
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url)
+
+    _ = try agent.startSprint(taskID: "active", durationMinutes: 25, now: day)
+    try reminders.replace([
+        ReminderSourceSnapshot(
+            id: "active",
+            title: "Prepare the proposal",
+            dueDate: day,
+            priority: 9,
+            isCompleted: true
+        ),
+        ReminderSourceSnapshot(id: "next", title: "Send the follow-up", dueDate: day, priority: 5)
+    ])
+
+    let completed = try agent.snapshot(now: day.addingTimeInterval(300))
+    let completedRow = try #require(completed.taskRows.first(where: { $0.taskID == "active" }))
+    #expect(completed.activeTask == nil)
+    #expect(completedRow.state == .completed)
+    #expect(completedRow.elapsedMinutes == 5)
+    #expect(completedRow.completionReason == .appleReminderCompleted)
+    #expect(completed.taskRows.contains(where: { $0.taskID == "next" }))
+    #expect(try ActionOutboxStore(databaseURL: url).recentCommands().contains { $0.entityID == "active" } == false)
+
+    let firstHistory = try #require(
+        try TaskHistoryStore(databaseURL: url)
+            .completedEntries(for: day)
+            .first(where: { $0.taskID == "active" })
+    )
+    #expect(firstHistory.title == "Prepare the proposal")
+    #expect(firstHistory.sourceKind == .reminders)
+    #expect(firstHistory.completedAt == day.addingTimeInterval(300))
+
+    let repeated = try agent.snapshot(now: day.addingTimeInterval(900))
+    #expect(repeated.taskRows.filter { $0.taskID == "active" }.count == 1)
+    #expect(repeated.taskRows.first(where: { $0.taskID == "active" })?.elapsedMinutes == 5)
+    #expect(
+        try TaskHistoryStore(databaseURL: url)
+            .completedEntries(for: day)
+            .first(where: { $0.taskID == "active" })?
+            .completedAt == firstHistory.completedAt
+    )
+
+    let restarted = try TodayDashboardAgent(databaseURL: url)
+    let restored = try restarted.snapshot(now: day.addingTimeInterval(1_200))
+    let restoredRow = try #require(restored.taskRows.first(where: { $0.taskID == "active" }))
+    #expect(restored.activeTask == nil)
+    #expect(restoredRow.state == .completed)
+    #expect(restoredRow.completionReason == .appleReminderCompleted)
+    #expect(restoredRow.elapsedMinutes == 5)
+}
+
+@Test
 func agentBoundedSprintRemainsActiveAfterExpiryAndSurvivesRestart() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-agent-sprint-\(UUID().uuidString).sqlite")
     defer {

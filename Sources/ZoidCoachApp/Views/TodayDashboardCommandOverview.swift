@@ -138,6 +138,9 @@ struct TodayDashboardCommandOverview: View {
                     detail("Estimate", planEntry(for: row)?.estimateMinutes.map { "\($0)m" } ?? "Choose")
                     detail("Deadline", deadlineLabel(row.dueDate))
                     detail("Urgency", "\(row.urgency.rawValue.capitalized)")
+                    if let reason = row.completionReason {
+                        detail("Completion", reason.userFacingLabel)
+                    }
                     if let reason = row.latestPauseReason {
                         detail("Last pause", reason.userFacingLabel.replacingOccurrences(of: "Paused ", with: ""))
                     }
@@ -548,6 +551,9 @@ struct TodayDashboardCommandOverview: View {
 
     private var primaryFocusHeading: String {
         guard let row = primaryFocusRow else { return "MAIN OBJECTIVE" }
+        if let reason = row.completionReason {
+            return reason.userFacingLabel.uppercased()
+        }
         if let activeCommitment = ActiveCommitmentPresentation(task: row) {
             return activeCommitment.dashboardHeading
         }
