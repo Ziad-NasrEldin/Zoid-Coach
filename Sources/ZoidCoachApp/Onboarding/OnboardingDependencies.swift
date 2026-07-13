@@ -59,7 +59,7 @@ enum OnboardingDependencyError: LocalizedError {
         case .invalidPolicyMutationReceipt:
             "The agent did not return a durable policy receipt. Setup was not advanced."
         case .invalidScheduleBoundaries:
-            "Choose a valid daytime work window and non-empty quiet hours before continuing."
+            "Choose non-empty work and quiet windows before continuing."
         case .reminderListSelectionRequired:
             "Choose Include or Exclude for every discovered Reminder list before continuing."
         case .testPromptUnavailable:

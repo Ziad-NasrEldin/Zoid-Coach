@@ -515,7 +515,7 @@ struct OnboardingRootView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("onboarding.schedule.validation")
             } else {
-                Text("Work boundaries are valid. Quiet hours may cross midnight.")
+                Text("Work and quiet windows are valid. Either may cross midnight.")
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.okay)
                     .accessibilityIdentifier("onboarding.schedule.validation")
@@ -538,7 +538,7 @@ struct OnboardingRootView: View {
             .accessibilityIdentifier("onboarding.schedule.\(id).hour")
             Text(":").font(Sumi.body(14))
             Picker("\(title) minute", selection: minute) {
-                ForEach([0, 15, 30, 45], id: \.self) { minute in
+                ForEach(minuteOptions(including: minute.wrappedValue), id: \.self) { minute in
                     Text(String(format: "%02d", minute)).tag(minute)
                 }
             }
@@ -547,6 +547,10 @@ struct OnboardingRootView: View {
             .accessibilityLabel("\(title.capitalized) minute")
             .accessibilityIdentifier("onboarding.schedule.\(id).minute")
         }
+    }
+
+    private func minuteOptions(including current: Int) -> [Int] {
+        Array(Set([0, 15, 30, 45, current])).sorted()
     }
 
     private var gamingPolicyStep: some View {

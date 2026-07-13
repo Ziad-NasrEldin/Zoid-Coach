@@ -98,7 +98,7 @@ struct TodayPromptInboxLedger: View {
             pendingPromptID: model.pendingPromptID,
             replayed: entry.isReplay
         )
-        VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 8) {
             promptHeading(entry, state: presentation.stateLabel)
             Text(entry.episode.summary).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
             if let progressMessage = presentation.progressMessage {
