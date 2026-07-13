@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "06ff1dc106ed98ea14e2e72031c74da25968d216443609d13298507dc78c80d2",
+  "tracker_sha256": "601365c4c7d6ee6bc3ad33dc3b0107ed7b8c49b994fe106a924f34c896dcb501",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -6478,8 +6478,8 @@
       "item_index": 13,
       "wording": "Set the intentional-override cooldown.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6490,7 +6490,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no intentional gaming override policy engine.",
+      "audit_note": "Settings now exposes a conflict-safe 5-to-1,440-minute `Continue intentionally` duration, persists it in Gaming Policy, and the restart-safe coaching service consumes the saved value. Focused 25-minute round-trip, conflict, suppression, expiry, legacy decode, and range proof passes; signed Settings save and relaunch remains (`SettingsPolicyDraft.swift`; `GamingDriftPromptService.swift`; `.audit/runs/intentional-override-policy/verifier/REPORT.md`).",
       "tracker_line": 428
     },
     {
@@ -8030,7 +8030,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A persisted intentional response now suppresses equivalent gaming coaching for 45 minutes across service restart, while leaving the daily cap active. Signed-package verification passed, but installed runtime suppression was not completed in the capped acceptance run (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/intentional-gaming-override/verifier/REPORT.md`).",
+      "audit_note": "A persisted intentional response suppresses equivalent gaming coaching for the user-configured duration across service restart while leaving daily caps active. Focused proof passes at 25 minutes, but installed runtime suppression remains (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/intentional-override-policy/verifier/REPORT.md`).",
       "tracker_line": 519
     },
     {
@@ -8140,7 +8140,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "After 45 minutes, a still-qualifying gaming session receives a new persisted decision key and can prompt again without being incorrectly blocked by the generic coaching cooldown. Focused restart tests pass; installed expiry and reprompt proof remains (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/intentional-gaming-override/verifier/REPORT.md`).",
+      "audit_note": "After the configured duration, a still-qualifying gaming session receives a new persisted decision key and can prompt again without being blocked by the generic coaching cooldown. Focused restart proof passes with a 25-minute duration and reprompt after 26 minutes; installed expiry proof remains (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/intentional-override-policy/verifier/REPORT.md`).",
       "tracker_line": 524
     },
     {
