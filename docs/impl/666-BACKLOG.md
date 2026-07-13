@@ -21,7 +21,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 3 | Complete the canonical onboarding test-prompt loop | done | Canonical verifier at `0920a29` before final rebase | Agent-owned idempotent creation, notification delivery and action resolution, denied Today fallback, dashboard response, exact-step Resume Setup, and relaunch durability passed in `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md` |
 | 4 | Prove all 12 onboarding steps in one fresh signed-QA journey | ready | Unowned | One evidence run completes every step, persists app classifications and preferences through XPC, creates the first plan, reaches Today, and survives restart |
 | 5 | Finish Reminders permission grant, denial, repair, and recovery UX | ready | Unowned | Real or deterministic signed-QA flows prove grant, denial, System Settings repair, recheck, no prompt loop, and useful local fallback |
-| 6 | Finish Screenwatch healthy, invalid, alternate-folder, denial, and repair UX | active | Screenwatch recovery UX lane at `55c86bb` | Signed-QA flows prove each state without exposing screenshot content and preserve the selected source through restart |
+| 6 | Finish Screenwatch healthy, invalid, alternate-folder, denial, and repair UX | verify | Screenwatch recovery candidate at `1fde15e` | Signed-QA flows prove each state without exposing screenshot content and preserve the selected source through restart |
 | 7 | Finish notification permission and Today fallback UX | ready | Unowned | Grant and denial both leave coaching actionable, repair is discoverable, and no prompt becomes inaccessible |
 | 8 | Complete flexible work-window and quiet-hours onboarding | ready | Unowned | User can configure, validate, persist, edit, and observe both policies in runtime behavior after restart |
 | 9 | Complete gaming-policy onboarding and runtime enforcement | ready | Unowned | Flexible and firm policies persist, affect planning and recovery behavior, remain non-punitive, and are editable |
@@ -63,6 +63,17 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Focused service and controller tests pass, including a filesystem-backed canonical-checkpoint fixture.
 - Evidence is recorded in `.audit/runs/agent-lifecycle-recovery/57a7f54/REPORT.md`.
 - A fresh verifier owns signed-QA lifecycle traversal, bounded resource sampling, tracker and registry integration, and Lavish refresh.
+
+### Screenwatch recovery and source management - `1fde15e`
+
+- Added a complete Screenwatch Connection card to Settings so recovery is available after onboarding rather than trapped in first-run setup.
+- Shows privacy-safe healthy, stale, waiting, incompatible-format, expired-access, unavailable, and unsafe-folder states with direct next-step guidance.
+- Lets the user recheck, select a direct alternate days folder, renew a moved or expired folder, and return to the expected location.
+- Foreground activation rechecks the selected source without opening or reading captured titles, URLs, screenshots, or file locations into the UI.
+- Failed folder selection preserves the last confirmed source state and exposes only redacted actionable copy.
+- Deferred screenshot-analysis policy remains outside this batch as `ZC-003-009`.
+- Three focused connection-controller tests and the complete focused Screenwatch setup suite pass.
+- Evidence and exact signed-QA verifier instructions are recorded in `.audit/runs/screenwatch-recovery-ux/candidate/REPORT.md`.
 
 ### Evidence-gated weekly review and next-week experiment - candidate
 
