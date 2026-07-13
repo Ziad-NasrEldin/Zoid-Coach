@@ -384,7 +384,7 @@ public final class TaskExecutionStore: @unchecked Sendable {
         bind(formatter.string(from: date), statement, 2)
         if let taskID { bind(taskID, statement, 3) }
         guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
-}
+    }
 
     private func recordPause(taskID: String, reason: TaskPauseReason, at date: Date) throws {
         try closeOpenPause(taskID: taskID, at: date)
@@ -448,7 +448,7 @@ public final class TaskExecutionStore: @unchecked Sendable {
             let endedAt = sqlite3_column_type(statement, 1) == SQLITE_NULL ? now : sqlite3_column_text(statement, 1).flatMap { formatter.date(from: String(cString: $0)) } ?? now
             let intervalSeconds = max(0, endedAt.timeIntervalSince(startedAt))
             seconds += min(Self.maximumContinuousIntervalSeconds, intervalSeconds)
-}
+        }
         return Int(seconds / 60)
     }
 

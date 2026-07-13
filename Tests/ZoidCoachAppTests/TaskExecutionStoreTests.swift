@@ -136,6 +136,11 @@ func forwardClockJumpCapsOneContinuousIntervalAtOneDayAcrossRestart() throws {
     let restored = try reopened.snapshot(for: ["task"], now: jumpedForward)["task"]
     #expect(restored?.elapsedMinutes == 1_440)
     #expect(restored?.state == .paused)
+
+    try reopened.apply(.resume, taskID: "task", at: jumpedForward.addingTimeInterval(60))
+    try reopened.apply(.pauseDoneForNow, taskID: "task", at: jumpedForward.addingTimeInterval(360))
+    let accumulated = try reopened.snapshot(for: ["task"], now: jumpedForward.addingTimeInterval(600))["task"]
+    #expect(accumulated?.elapsedMinutes == 1_445)
 }
 
 @Test
