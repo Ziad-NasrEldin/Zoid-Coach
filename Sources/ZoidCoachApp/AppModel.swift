@@ -1108,7 +1108,7 @@ final class AppModel: ObservableObject {
         }
 
         isSchedulingDailyPlan = true
-        calendarPlanApproval.writeState = .queueing
+        calendarPlanApproval.beginQueueing()
         calendarScheduleError = nil
         Task {
             do {
@@ -1125,8 +1125,14 @@ final class AppModel: ObservableObject {
                 await refreshActionAudit()
                 reconcileCalendarPlanApproval()
             } catch {
-                calendarScheduleError = "The background agent could not queue Calendar blocks. Check Source health and try again."
-                calendarPlanApproval.writeState = .reviewing
+                await refreshActionAudit()
+                if calendarPlanApproval.receipt != nil {
+                    calendarScheduleError = nil
+                    lastActionMessage = "Calendar and Reminder updates were queued and confirmed from the local action ledger."
+                } else {
+                    calendarScheduleError = "The background agent could not queue Calendar blocks. Check Source health and try again."
+                    calendarPlanApproval.writeState = .reviewing
+                }
             }
             isSchedulingDailyPlan = false
         }
