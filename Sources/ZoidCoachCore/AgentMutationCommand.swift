@@ -146,6 +146,7 @@ public struct PolicyMutationReceipt: Equatable, Codable, Sendable {
 
 public enum AgentMutationCommand: Equatable, Codable, Sendable {
     case completeReminder(reminderID: String)
+    case rescheduleReminder(reminderID: String, dueDate: Date)
     case createLocalTask(task: AgentLocalTask, addToToday: Bool, day: Date)
     case replaceDailyPlan(items: [AgentPlanItem], day: Date)
     case replaceReminderListOrder([String])
