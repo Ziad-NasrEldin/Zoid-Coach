@@ -417,6 +417,65 @@ func legacyGamingPolicyDefaultsToGentleCoaching() throws {
     })
 }
 
+@Test
+func newTaskAndIdleReturnReceiveExplicitGraceWhileSustainedGamingBypassesIt() throws {
+    let newTask = try GamingPromptFixture()
+    defer { newTask.remove() }
+    try newTask.insertPriorityTask()
+    try newTask.insertGaming(minutes: 2)
+    try newTask.startTask(secondsAgo: 150)
+    #expect(try newTask.service.produce(
+        policy: newTask.policy(level: .accountability),
+        gamingStatus: newTask.gamingStatus,
+        baselineStatus: newTask.baseline()
+    ) == .suppressed(.taskStartGrace))
+
+    let idleReturn = try GamingPromptFixture()
+    defer { idleReturn.remove() }
+    try idleReturn.insertPriorityTask()
+    try idleReturn.startTask(secondsAgo: 600)
+    try idleReturn.insertIdleThenGaming()
+    #expect(try idleReturn.service.produce(
+        policy: idleReturn.policy(level: .accountability),
+        gamingStatus: idleReturn.gamingStatus,
+        baselineStatus: idleReturn.baseline()
+    ) == .suppressed(.returnFromIdleGrace))
+
+    let sustained = try GamingPromptFixture()
+    defer { sustained.remove() }
+    try sustained.insertPriorityTask()
+    try sustained.insertGaming(minutes: 10)
+    try sustained.startTask(secondsAgo: 90)
+    guard case .queued = try sustained.service.produce(
+        policy: sustained.policy(level: .accountability),
+        gamingStatus: sustained.gamingStatus,
+        baselineStatus: sustained.baseline()
+    ) else {
+        Issue.record("Expected sustained high-confidence gaming to bypass task-start grace")
+        return
+    }
+}
+
+@Test
+func neutralSupportingActivitySuppressesCoachingWithoutMutatingTheActiveTask() throws {
+    for neutralApp in ["System Settings", "1Password", "Finder Downloads", "Slack"] {
+        let fixture = try GamingPromptFixture()
+        defer { fixture.remove() }
+        try fixture.insertPriorityTask()
+        try fixture.startTask(secondsAgo: 900)
+        try fixture.insertGaming(minutes: 10)
+        try fixture.insertLatestObservation(app: neutralApp, classification: .unknown)
+
+        #expect(try fixture.service.produce(
+            policy: fixture.policy(level: .accountability),
+            gamingStatus: fixture.gamingStatus,
+            baselineStatus: fixture.baseline()
+        ) == .suppressed(.neutralSupportingActivity))
+        #expect(try fixture.activeTaskCount() == 1)
+        #expect(try fixture.promptStore.unresolved().isEmpty)
+    }
+}
+
 private final class GamingPromptFixture: @unchecked Sendable {
     final class Clock: @unchecked Sendable {
         var now: Date
@@ -532,6 +591,27 @@ private final class GamingPromptFixture: @unchecked Sendable {
             let epoch = end - Int64((minutes - 1 - offset) * 60)
             try execute("INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES ('2026-07-13', \(epoch), '09-00-00', 'Steam', '', '', 0, NULL, '2026-07-13T10:00:00Z', 'gaming', 1);")
         }
+    }
+
+    func startTask(secondsAgo: TimeInterval) throws {
+        let store = try TaskExecutionStore(databaseURL: databaseURL)
+        try store.apply(.start, taskID: "priority-1", at: clock.now.addingTimeInterval(-secondsAgo))
+    }
+
+    func insertIdleThenGaming() throws {
+        let now = Int64(clock.now.timeIntervalSince1970)
+        try execute("INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES ('2026-07-13', \(now - 120), '09-58-00', '', '', '', 0, NULL, '2026-07-13T10:00:00Z', 'idle', 1);")
+        try execute("INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES ('2026-07-13', \(now - 30), '09-59-30', 'Steam', '', '', 0, NULL, '2026-07-13T10:00:00Z', 'gaming', 1);")
+    }
+
+    func insertLatestObservation(app: String, classification: BehaviorClassification) throws {
+        let epoch = Int64(clock.now.timeIntervalSince1970) - 30
+        let safeApp = app.replacingOccurrences(of: "'", with: "''")
+        try execute("INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) VALUES ('2026-07-13', \(epoch), '09-59-30', '\(safeApp)', '', '', 0, NULL, '2026-07-13T10:00:00Z', '\(classification.rawValue)', 1);")
+    }
+
+    func activeTaskCount() throws -> Int {
+        try scalar("SELECT COUNT(*) FROM task_execution_states WHERE state = 'active';")
     }
 
     func insertWork(minutes: Int) throws {
