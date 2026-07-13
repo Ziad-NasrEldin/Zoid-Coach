@@ -221,6 +221,25 @@ public struct DailyReviewCoachingInteraction: Identifiable, Equatable, Sendable 
     }
 }
 
+public struct DailyReviewQuietDriftSummary: Equatable, Sendable {
+    public let episodeCount: Int
+    public let totalObservedMinutes: Int
+    public let largestEpisodeMinutes: Int
+    public let applications: [String]
+
+    public init(
+        episodeCount: Int,
+        totalObservedMinutes: Int,
+        largestEpisodeMinutes: Int,
+        applications: [String]
+    ) {
+        self.episodeCount = max(0, episodeCount)
+        self.totalObservedMinutes = max(0, totalObservedMinutes)
+        self.largestEpisodeMinutes = max(0, largestEpisodeMinutes)
+        self.applications = applications
+    }
+}
+
 public struct DailyReviewSnapshot: Equatable, Sendable {
     public let sourceDay: String
     public let sessions: [DailyReviewSession]
@@ -232,6 +251,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
     public let completedTasks: [CompletedTaskHistoryEntry]
     public let plannedTasks: [DailyReviewPlannedTaskOutcome]
     public let coachingInteractions: [DailyReviewCoachingInteraction]
+    public let quietDrift: DailyReviewQuietDriftSummary?
 
     public init(
         sourceDay: String,
@@ -243,7 +263,8 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         offlineWork: [OfflineWorkEntry] = [],
         completedTasks: [CompletedTaskHistoryEntry] = [],
         plannedTasks: [DailyReviewPlannedTaskOutcome] = [],
-        coachingInteractions: [DailyReviewCoachingInteraction] = []
+        coachingInteractions: [DailyReviewCoachingInteraction] = [],
+        quietDrift: DailyReviewQuietDriftSummary? = nil
     ) {
         self.sourceDay = sourceDay
         self.sessions = sessions
@@ -255,6 +276,7 @@ public struct DailyReviewSnapshot: Equatable, Sendable {
         self.completedTasks = completedTasks
         self.plannedTasks = plannedTasks
         self.coachingInteractions = coachingInteractions
+        self.quietDrift = quietDrift
     }
 
     public var observedMinutes: Int { totals.reduce(0) { $0 + $1.minutes } }

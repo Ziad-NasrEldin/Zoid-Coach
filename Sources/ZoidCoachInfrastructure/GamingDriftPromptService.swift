@@ -175,6 +175,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         let level = policy.gaming.coachingLevel
         let isBelowDailyPromptCap = try promptCount(decisionKeyPrefix: prefix) < policy.gaming.dailyPromptCap
         guard isFiveMinuteFollowUp || isBelowDailyPromptCap else {
+            try recordQuietDrift(localDay: localDay, session: session, at: date)
             return .suppressed(.dailyLimitReached)
         }
         if !isFiveMinuteFollowUp,
@@ -243,6 +244,38 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             expiresAt: date.addingTimeInterval(30 * 60)
         ))
         return .queued(result.episode, wasInserted: result.wasInserted)
+    }
+
+    private func recordQuietDrift(localDay: String, session: GamingSession, at date: Date) throws {
+        var statement: OpaquePointer?
+        let sql = """
+        INSERT INTO quiet_drift_episodes (
+            local_day,
+            session_started_epoch,
+            latest_observed_epoch,
+            application,
+            observed_minutes,
+            recorded_at_utc,
+            updated_at_utc
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(local_day, session_started_epoch) DO UPDATE SET
+            latest_observed_epoch = MAX(quiet_drift_episodes.latest_observed_epoch, excluded.latest_observed_epoch),
+            application = excluded.application,
+            observed_minutes = MAX(quiet_drift_episodes.observed_minutes, excluded.observed_minutes),
+            updated_at_utc = excluded.updated_at_utc;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        let timestamp = formatter.string(from: date)
+        bind(localDay, statement, 1)
+        sqlite3_bind_int64(statement, 2, session.startedAtEpoch)
+        sqlite3_bind_int64(statement, 3, session.latestAtEpoch)
+        bind(String(session.application.prefix(240)), statement, 4)
+        sqlite3_bind_int(statement, 5, Int32(session.minutes))
+        bind(timestamp, statement, 6)
+        bind(timestamp, statement, 7)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw databaseError() }
     }
 
     private func hasActiveTask() throws -> Bool {

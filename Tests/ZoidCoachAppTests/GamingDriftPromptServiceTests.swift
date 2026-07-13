@@ -456,6 +456,15 @@ func configuredCooldownAndDailyPromptLimitApplyAcrossSeparateSessions() throws {
         policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
     )
     #expect(third == .suppressed(.dailyLimitReached), "Unexpected third result: \(third)")
+    #expect(try fixture.quietDriftEpisodeCount() == 1)
+    #expect(try fixture.quietDriftObservedMinutes() == 10)
+    fixture.advance(minutes: 1)
+    try fixture.insertGaming(minutes: 1)
+    #expect(try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) == .suppressed(.dailyLimitReached))
+    #expect(try fixture.quietDriftEpisodeCount() == 1)
+    #expect(try fixture.quietDriftObservedMinutes() == 11)
     #expect(try fixture.promptStore.unresolved().isEmpty)
 }
 
@@ -887,6 +896,14 @@ private final class GamingPromptFixture: @unchecked Sendable {
 
     func behaviorRecordCount() throws -> Int {
         try scalar("SELECT COUNT(*) FROM behavior_records;")
+    }
+
+    func quietDriftEpisodeCount() throws -> Int {
+        try scalar("SELECT COUNT(*) FROM quiet_drift_episodes;")
+    }
+
+    func quietDriftObservedMinutes() throws -> Int {
+        try scalar("SELECT COALESCE(MAX(observed_minutes), 0) FROM quiet_drift_episodes;")
     }
 
     func priorityTaskIsIncomplete() throws -> Bool {

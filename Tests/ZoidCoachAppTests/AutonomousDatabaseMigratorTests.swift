@@ -20,6 +20,7 @@ func cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() throws {
     #expect(try tableExists(databaseURL, "domain_events"))
     #expect(try tableExists(databaseURL, "action_commands"))
     #expect(try tableExists(databaseURL, "prompt_episodes"))
+    #expect(try tableExists(databaseURL, "quiet_drift_episodes"))
     #expect(try tableExists(databaseURL, "processing_checkpoints"))
     #expect(try columnExists(databaseURL, table: "source_tasks", column: "source_kind"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "estimate_is_uncertain"))
@@ -29,6 +30,23 @@ func cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() throws {
     #expect(throws: (any Error).self) {
         try execute(databaseURL, "INSERT INTO source_tasks(source_id, title, updated_at, source_kind) VALUES ('invalid-kind', 'Invalid', '2026-01-01T00:00:00Z', 'unknown');")
     }
+}
+
+@Test
+func migration39AddsRestartSafeQuietDriftLedger() throws {
+    let databaseURL = temporaryDatabaseURL("v39-quiet-drift")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (38, '2026-07-13T00:00:00Z');
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.appliedVersions == [39])
+    #expect(try tableExists(databaseURL, "quiet_drift_episodes"))
+    try execute(databaseURL, "INSERT INTO quiet_drift_episodes(local_day, session_started_epoch, latest_observed_epoch, application, observed_minutes, recorded_at_utc, updated_at_utc) VALUES ('2026-07-13', 100, 700, 'Steam', 11, '2026-07-13T10:00:00Z', '2026-07-13T10:00:00Z');")
+    #expect(try scalarInt(databaseURL, "SELECT observed_minutes FROM quiet_drift_episodes WHERE local_day = '2026-07-13';") == 11)
 }
 
 @Test
