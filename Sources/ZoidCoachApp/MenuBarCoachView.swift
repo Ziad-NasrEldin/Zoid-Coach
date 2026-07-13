@@ -209,7 +209,7 @@ struct MenuBarCoachView: View {
                         .foregroundStyle(pauseController.isPaused ? Sumi.seal : Sumi.ink)
                     Text(pauseController.isPaused
                          ? "Behavior prompts and automatic actions are paused. Task tracking and Today stay available."
-                         : "Zoid 666 may offer evidence-based coaching while your workday is active.")
+                         : pauseController.runningDetail)
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.muted)
                         .fixedSize(horizontal: false, vertical: true)
@@ -227,7 +227,7 @@ struct MenuBarCoachView: View {
                     size: .compact
                 ))
                 .disabled(pauseController.isLoading || pauseController.isSaving)
-                .accessibilityLabel(pauseController.isPaused ? "Resume coaching" : "Pause coaching indefinitely")
+                .accessibilityLabel(pauseController.isPaused ? "Resume coaching" : pauseController.pauseActionAccessibilityLabel)
                 .accessibilityIdentifier(pauseController.isPaused ? "menu-bar.coaching.resume" : "menu-bar.coaching.pause")
             }
 
