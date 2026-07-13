@@ -264,6 +264,10 @@ private struct TodayCommandView: View {
             AutomaticActionLedger()
             MacPermissionHealthLedger()
 
+            if model.remindersContinuityState.isOutage {
+                RemindersContinuityBanner(createLocalTask: createLocalTask)
+            }
+
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Text("FULL INVENTORY / UNPLANNED TASKS")
@@ -360,6 +364,44 @@ private struct TodayCommandView: View {
                 if leftIndex != rightIndex { return leftIndex < rightIndex }
                 return lhs.listName.localizedCaseInsensitiveCompare(rhs.listName) == .orderedAscending
             }
+    }
+}
+
+private struct RemindersContinuityBanner: View {
+    @EnvironmentObject private var model: AppModel
+    let createLocalTask: () -> Void
+
+    var body: some View {
+        let state = model.remindersContinuityState
+        VStack(alignment: .leading, spacing: 10) {
+            Text(state.title)
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.sealDeep)
+            Text(state.detail)
+                .font(Sumi.body(13))
+                .foregroundStyle(Sumi.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 12) {
+                Button("NEW LOCAL TASK") {
+                    createLocalTask()
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .accent, size: .compact))
+                .accessibilityIdentifier("reminders-continuity-create-local-task")
+                Button("OPEN SOURCE HEALTH") {
+                    model.selectedSection = .diagnostics
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                .accessibilityIdentifier("reminders-continuity-source-health")
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Sumi.sealWash)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reminders-continuity-banner")
     }
 }
 
