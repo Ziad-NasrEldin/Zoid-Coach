@@ -1,10 +1,11 @@
+import CryptoKit
 import Foundation
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
 @MainActor
 final class ActiveOfflineWorkEntryController: ObservableObject {
-    typealias SaveAction = (_ sourceDay: String, _ taskID: String, _ startedAt: Date, _ durationMinutes: Int, _ note: String?) throws -> Void
+    typealias SaveAction = (_ id: String, _ sourceDay: String, _ taskID: String, _ startedAt: Date, _ durationMinutes: Int, _ note: String?) throws -> Void
 
     static let minimumMinutes = 5
     static let maximumMinutes = 240
@@ -36,7 +37,7 @@ final class ActiveOfflineWorkEntryController: ObservableObject {
         self.calendar = calendar
         self.now = now
         self.saveAction = saveAction
-        self.startedAt = startedAt ?? now()
+        self.startedAt = startedAt ?? now().addingTimeInterval(-15 * 60)
     }
 
     convenience init(
@@ -52,9 +53,9 @@ final class ActiveOfflineWorkEntryController: ObservableObject {
             calendar.timeZone = timeZone
             let store = try DailyReviewStore(databaseURL: runtimeEnvironment.databaseURL, timeZone: timeZone)
             self.init(taskID: taskID, taskTitle: taskTitle, calendar: calendar) {
-                sourceDay, taskID, startedAt, durationMinutes, note in
+                id, sourceDay, taskID, startedAt, durationMinutes, note in
                 _ = try store.saveOfflineWork(
-                    id: nil,
+                    id: id,
                     sourceDay: sourceDay,
                     taskID: taskID,
                     startedAt: startedAt,
@@ -64,7 +65,7 @@ final class ActiveOfflineWorkEntryController: ObservableObject {
             }
         } catch {
             let setupError = error
-            self.init(taskID: taskID, taskTitle: taskTitle) { _, _, _, _, _ in
+            self.init(taskID: taskID, taskTitle: taskTitle) { _, _, _, _, _, _ in
                 throw setupError
             }
         }
@@ -75,6 +76,7 @@ final class ActiveOfflineWorkEntryController: ObservableObject {
             && successMessage == nil
             && (Self.minimumMinutes ... Self.maximumMinutes).contains(durationMinutes)
             && startedAt <= now()
+            && recordedEnd <= now()
     }
 
     @discardableResult
@@ -88,11 +90,16 @@ final class ActiveOfflineWorkEntryController: ObservableObject {
             errorMessage = "Start time cannot be in the future."
             return false
         }
+        guard recordedEnd <= now() else {
+            errorMessage = "The duration extends into the future. Choose an earlier start time or a shorter duration."
+            return false
+        }
 
         isSaving = true
         defer { isSaving = false }
         do {
             try saveAction(
+                entryID,
                 sourceDay(for: startedAt),
                 taskID,
                 startedAt,
@@ -100,7 +107,7 @@ final class ActiveOfflineWorkEntryController: ObservableObject {
                 normalizedNote
             )
             errorMessage = nil
-            successMessage = "Recorded (durationMinutes) minutes away from the Mac for \(taskTitle). It will count as actual task time and remain separate from Screenwatch evidence."
+            successMessage = "Recorded \(durationMinutes) minutes away from the Mac for \(taskTitle). It will count as actual task time and remain separate from Screenwatch evidence."
             return true
         } catch {
             errorMessage = "Away-from-Mac work was not saved. \(error.localizedDescription)"
@@ -111,6 +118,17 @@ final class ActiveOfflineWorkEntryController: ObservableObject {
     private var normalizedNote: String? {
         let value = note.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
+    }
+
+    private var recordedEnd: Date {
+        startedAt.addingTimeInterval(TimeInterval(durationMinutes * 60))
+    }
+
+    private var entryID: String {
+        let startedAtMilliseconds = Int64((startedAt.timeIntervalSince1970 * 1_000).rounded())
+        let input = Data("\(taskID)\u{1F}\(startedAtMilliseconds)\u{1F}\(durationMinutes)".utf8)
+        let digest = SHA256.hash(data: input).map { String(format: "%02x", $0) }.joined()
+        return "active-offline-\(digest)"
     }
 
     private func sourceDay(for date: Date) -> String {
