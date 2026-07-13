@@ -94,6 +94,7 @@ final class AppModel: ObservableObject {
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
     private var sourceChecksInFlight: Set<SourceID> = []
+    private var planningCalendarRevision: CalendarPlanAvailabilityRevision?
 
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
@@ -869,24 +870,28 @@ final class AppModel: ObservableObject {
     }
 
     func scheduleDailyPlan() {
-        guard canIssueExternalActions,
-              !isSchedulingDailyPlan,
-              planningCapacityState.canApprove
-        else {
-            if !canIssueExternalActions {
-                calendarScheduleError = externalActionUnavailableMessage
-            } else {
-                switch planningCapacityState.readiness {
-                case .empty:
-                    calendarScheduleError = "Draft a daily plan before reserving Calendar blocks."
-                case let .missingEstimates(count):
-                    calendarScheduleError = "Estimate the remaining \(count) task\(count == 1 ? "" : "s") before accepting this plan."
-                case let .overloaded(overByMinutes):
-                    calendarScheduleError = "Reduce the plan by at least \(overByMinutes) minutes before accepting it."
-                case .realistic:
-                    calendarScheduleError = nil
-                }
-            }
+        guard !isSchedulingDailyPlan else { return }
+        guard canIssueExternalActions else {
+            calendarScheduleError = externalActionUnavailableMessage
+            return
+        }
+
+        refreshPlanningCapacity()
+        switch calendarPlanApproval.preflight(against: planningCalendarRevision) {
+        case .unavailable:
+            calendarPlanApproval.writeState = .reviewing
+            calendarScheduleError = "Calendar availability could not be checked. Nothing was written. Review updated availability or open Source Health to repair Calendar access."
+            return
+        case .changed:
+            calendarPlanApproval.writeState = .reviewing
+            calendarScheduleError = "Calendar availability changed since you reviewed this plan. Nothing was written. Review updated availability before confirming."
+            return
+        case .current:
+            break
+        }
+
+        guard planningCapacityState.canApprove else {
+            setCalendarPlanReadinessError()
             return
         }
 
@@ -916,8 +921,9 @@ final class AppModel: ObservableObject {
     }
 
     func requestCalendarPlanApproval() {
+        refreshPlanningCapacity()
         guard planningCapacityState.canApprove else {
-            scheduleDailyPlan()
+            setCalendarPlanReadinessError()
             return
         }
         calendarScheduleError = nil
@@ -930,8 +936,22 @@ final class AppModel: ObservableObject {
             titlesByReminderID: titlesByReminderID,
             availableMinutes: planningCapacityState.availableMinutes,
             fixedCommitmentMinutes: planningFixedCommitmentMinutes,
-            usesCalendarAvailability: planningCapacityUsesCalendar
+            usesCalendarAvailability: planningCapacityUsesCalendar,
+            availabilityRevision: planningCalendarRevision
         )
+    }
+
+    private func setCalendarPlanReadinessError() {
+        switch planningCapacityState.readiness {
+        case .empty:
+            calendarScheduleError = "Draft a daily plan before reserving Calendar blocks."
+        case let .missingEstimates(count):
+            calendarScheduleError = "Estimate the remaining \(count) task\(count == 1 ? "" : "s") before accepting this plan."
+        case let .overloaded(overByMinutes):
+            calendarScheduleError = "Current Calendar availability leaves this plan over capacity by \(overByMinutes) minutes. Review updated availability and revise the plan before confirming."
+        case .realistic:
+            calendarScheduleError = nil
+        }
     }
 
     func dismissCalendarPlanApproval() {
@@ -1294,6 +1314,13 @@ final class AppModel: ObservableObject {
         else {
             planningFixedCommitmentMinutes = 0
             planningCapacityUsesCalendar = false
+            planningCalendarRevision = nil
+            return
+        }
+        guard calendarService.selectionAvailability == .available else {
+            planningFixedCommitmentMinutes = 0
+            planningCapacityUsesCalendar = false
+            planningCalendarRevision = nil
             return
         }
         do {
@@ -1306,9 +1333,15 @@ final class AppModel: ObservableObject {
                 visibleCalendarIdentifiers: visibleCalendarIDs
             )
             planningCapacityUsesCalendar = true
+            planningCalendarRevision = CalendarPlanAvailabilityRevision(
+                workIntervals: workIntervals,
+                visibleCalendarIdentifiers: visibleCalendarIDs,
+                commitments: commitments
+            )
         } catch {
             planningFixedCommitmentMinutes = 0
             planningCapacityUsesCalendar = false
+            planningCalendarRevision = nil
         }
     }
 

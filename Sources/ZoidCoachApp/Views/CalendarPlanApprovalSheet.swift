@@ -127,11 +127,21 @@ struct CalendarPlanApprovalSheet: View {
                         .font(Sumi.body(13))
                         .foregroundStyle(Sumi.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                    Button("OPEN SOURCE HEALTH") {
-                        model.selectedSection = .diagnostics
-                        model.dismissCalendarPlanApproval()
+                    HStack {
+                        Button("REVIEW UPDATED AVAILABILITY") {
+                            model.requestCalendarPlanApproval()
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: .accent, size: .compact))
+                        .accessibilityHint("Reads Calendar availability again and replaces this preview without changing the current plan.")
+                        .accessibilityIdentifier("calendar-plan-review-updated-availability")
+
+                        Button("OPEN SOURCE HEALTH") {
+                            model.selectedSection = .diagnostics
+                            model.dismissCalendarPlanApproval()
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                        .accessibilityIdentifier("calendar-plan-open-source-health")
                     }
-                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                 }
                 .padding(18)
                 .frame(maxWidth: .infinity, alignment: .leading)
