@@ -103,9 +103,9 @@
       "section_title": "First launch",
       "item_index": 5,
       "wording": "Understand that Zoid 666 is a coach rather than a replacement task manager.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10018,10 +10018,12 @@
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Both controls persist through versioned policy and settings tests pass, including two-controller conflict recovery that preserves the current winner, rebases independent edits, and avoids duplicate policy versions. A visible signed-app save and relaunch check remains.",
+      "evidence_paths": [
+        ".audit/runs/settings-workdays/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "d6b1e4fcf60349e41993155a54645635d337d31c",
+      "last_verified_build": "zoid-coach-d6b1e4fcf60349e41993155a54645635d337d31c-clean",
+      "audit_note": "The signed Settings flow visibly presented Work starts and Work ends alongside explicit weekday controls, saved Tuesday as the only working day through policy version 2, restored the exact selection after app and helper restart, and disabled the final selected day. The running agent immediately rescheduled Daily Review to Tuesday and the restarted Monday dashboard exposed zero configured work capacity, while 33 focused Settings tests cover time persistence, multi-window preservation, deliberate normalization, and conflict recovery (`SettingsPolicyDraft.swift`; `SettingsView.swift`; `.audit/runs/settings-workdays/verifier/REPORT.md`).",
       "tracker_line": 625
     },
     {
