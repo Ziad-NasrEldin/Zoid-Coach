@@ -53,11 +53,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
-### Intentional gaming override - active candidate
+### Intentional gaming override - candidate
 
 - Owns `ZC-036-001`, `ZC-036-002`, `ZC-036-003`, `ZC-036-007`, and `ZC-036-008`.
 - Owns only `GamingDriftPromptService.swift`, its focused tests, candidate evidence, and this backlog entry.
 - Notification permission, notification repair, Today fallback, tracker, registry, Lavish, runtime, and root remain outside this lane.
+- Continue intentionally now creates a restart-safe response-derived override for the configured coaching cooldown.
+- A work observation ends the override early, while expiry permits a new eligible decision for the same continuing gaming session.
+- Focused `GamingDriftPromptServiceTests` pass and candidate evidence is recorded in `.audit/runs/intentional-gaming-override/candidate/REPORT.md`.
 
 ### Background-agent lifecycle and Login Items repair - `57a7f54`
 
