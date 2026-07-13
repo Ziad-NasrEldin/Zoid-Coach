@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "0590755351fffbe07d52a3130c3d25fe90a78e6f26fe39d242880149bba8239c",
+  "tracker_sha256": "4cb5b55f2a52cb5d8c2eb8816f969e6bb615490b30127c2d35676c35a6d93a02",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5036,8 +5036,8 @@
       "item_index": 8,
       "wording": "Start a break.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5048,7 +5048,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Break sessions are absent from both the model and menu.",
+      "audit_note": "The menu now exposes `BREAK 15` only for the active task, sends the canonical durable break pause, shows the same live accepted-break countdown, changes Resume to End Break, and preserves task identity and tracked time. Focused controller, agent, persistence, restart, and accepted-break suites pass, while the capped signed harness could not open the macOS status-item popover for the final click journey (`MenuBarCoachView.swift`; `MenuBarCoachState.swift`; `.audit/runs/menu-bar-break-end-day/verifier/REPORT.md`).",
       "tracker_line": 347
     },
     {
@@ -5080,8 +5080,8 @@
       "item_index": 10,
       "wording": "End the workday.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5092,7 +5092,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No end-workday command is wired.",
+      "audit_note": "The active menu task now exposes a destructive confirmation that explains tracked-time preservation, supports cancellation without mutation, records the durable end-of-day pause reason, and remains resumable. Confirmation rechecks that the same task is still active and truthfully refuses stale confirmation. Focused and canonical-agent restart proof pass, while the status-item click and signed restart remain (`MenuBarCoachView.swift`; `MenuBarCoachTests.swift`; `.audit/runs/menu-bar-break-end-day/verifier/REPORT.md`).",
       "tracker_line": 349
     },
     {
