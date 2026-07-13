@@ -143,6 +143,39 @@ public struct AutomationPause: Codable, Equatable, Sendable {
     }
 }
 
+public enum CoachingPauseDuration: String, Codable, CaseIterable, Hashable, Sendable {
+    case oneHour
+    case untilTomorrow
+    case indefinitely
+
+    public var label: String {
+        switch self {
+        case .oneHour: "1 hour"
+        case .untilTomorrow: "Until tomorrow"
+        case .indefinitely: "Indefinitely"
+        }
+    }
+
+    public var selectionDescription: String {
+        switch self {
+        case .oneHour: "a one-hour pause"
+        case .untilTomorrow: "a pause until tomorrow"
+        case .indefinitely: "an indefinite pause"
+        }
+    }
+
+    public func automationPause(from date: Date, timeZone: TimeZone) -> AutomationPause {
+        switch self {
+        case .oneHour:
+            .pausedForOneHour(from: date)
+        case .untilTomorrow:
+            .pausedUntilTomorrow(from: date, timeZone: timeZone)
+        case .indefinitely:
+            .pausedIndefinitely
+        }
+    }
+}
+
 public struct SchedulePolicy: Codable, Equatable, Sendable {
     public let timeZoneIdentifier: String
     public let workWindows: [WeeklyWorkWindow]
@@ -150,6 +183,11 @@ public struct SchedulePolicy: Codable, Equatable, Sendable {
     public let nightlyPlanningTime: LocalTime
     public let morningConfirmationTime: LocalTime
     public let planningCapacityPercent: Int
+    public let defaultCoachingPauseDuration: CoachingPauseDuration?
+
+    public var effectiveDefaultCoachingPauseDuration: CoachingPauseDuration {
+        defaultCoachingPauseDuration ?? .indefinitely
+    }
 
     public init(
         timeZoneIdentifier: String,
@@ -157,7 +195,8 @@ public struct SchedulePolicy: Codable, Equatable, Sendable {
         quietHours: DailyTimeWindow,
         nightlyPlanningTime: LocalTime,
         morningConfirmationTime: LocalTime,
-        planningCapacityPercent: Int
+        planningCapacityPercent: Int,
+        defaultCoachingPauseDuration: CoachingPauseDuration? = .indefinitely
     ) {
         self.timeZoneIdentifier = timeZoneIdentifier
         self.workWindows = workWindows
@@ -165,6 +204,7 @@ public struct SchedulePolicy: Codable, Equatable, Sendable {
         self.nightlyPlanningTime = nightlyPlanningTime
         self.morningConfirmationTime = morningConfirmationTime
         self.planningCapacityPercent = planningCapacityPercent
+        self.defaultCoachingPauseDuration = defaultCoachingPauseDuration
     }
 }
 

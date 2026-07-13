@@ -44,6 +44,7 @@ enum MenuBarCoachingPauseError: LocalizedError {
 @MainActor
 final class MenuBarCoachingPauseController: ObservableObject {
     @Published private(set) var pause: AutomationPause = .running
+    @Published private(set) var defaultPauseDuration: CoachingPauseDuration = .indefinitely
     @Published private(set) var policyVersion: Int?
     @Published private(set) var isLoading = false
     @Published private(set) var isSaving = false
@@ -52,18 +53,28 @@ final class MenuBarCoachingPauseController: ObservableObject {
 
     private let client: any MenuBarCoachingPauseClient
     private let makeRequestID: @Sendable () -> String
+    private let now: @Sendable () -> Date
 
     init(
         client: any MenuBarCoachingPauseClient = LiveMenuBarCoachingPauseClient(runtimeEnvironment: .current()),
         makeRequestID: @escaping @Sendable () -> String = {
             "system-policy-v1:menu-bar-coaching-pause:\(UUID().uuidString.lowercased())"
-        }
+        },
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.client = client
         self.makeRequestID = makeRequestID
+        self.now = now
     }
 
     var isPaused: Bool { pause.isPaused }
+    var pauseActionAccessibilityLabel: String {
+        "Pause coaching \(pausePhrase(for: defaultPauseDuration))"
+    }
+
+    var runningDetail: String {
+        "Zoid 666 may offer evidence-based coaching while your workday is active. Quick Pause is set to \(defaultPauseDuration.selectionDescription)."
+    }
 
     func refresh() async {
         guard !isLoading, !isSaving else { return }
@@ -88,7 +99,11 @@ final class MenuBarCoachingPauseController: ObservableObject {
         do {
             let current = try await client.loadCurrentPolicy()
             install(current)
-            let nextPause: AutomationPause = paused ? .pausedIndefinitely : .running
+            let duration = current.policy.schedule.effectiveDefaultCoachingPauseDuration
+            let timeZone = TimeZone(identifier: current.policy.schedule.timeZoneIdentifier) ?? .current
+            let nextPause = paused
+                ? duration.automationPause(from: now(), timeZone: timeZone)
+                : .running
             let policy = current.policy.replacingAutomationPause(nextPause)
             let origin = PolicyMutationOrigin.system(component: "menu-bar-coaching-pause")
             let request = PolicyMutationRequest(
@@ -113,7 +128,7 @@ final class MenuBarCoachingPauseController: ObservableObject {
             pause = nextPause
             policyVersion = receipt.resultingVersion
             statusMessage = paused
-                ? "Coaching paused. Task tracking and Today remain available."
+                ? "Coaching paused \(pausePhrase(for: duration)). Task tracking and Today remain available."
                 : "Coaching resumed. New interventions may appear when evidence supports them."
         } catch {
             errorMessage = error.localizedDescription
@@ -125,6 +140,15 @@ final class MenuBarCoachingPauseController: ObservableObject {
 
     private func install(_ current: VersionedUserPolicy) {
         pause = current.policy.automationPause
+        defaultPauseDuration = current.policy.schedule.effectiveDefaultCoachingPauseDuration
         policyVersion = current.version
+    }
+
+    private func pausePhrase(for duration: CoachingPauseDuration) -> String {
+        switch duration {
+        case .oneHour: "for one hour"
+        case .untilTomorrow: "until tomorrow"
+        case .indefinitely: "indefinitely"
+        }
     }
 }
