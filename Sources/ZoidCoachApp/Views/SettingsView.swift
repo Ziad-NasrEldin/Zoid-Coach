@@ -494,22 +494,51 @@ struct SettingsView: View {
     }
 
     private var automationSection: some View {
-        SettingsCard(title: "AUTOMATION", detail: "A pause takes effect through the shared policy store before the next autonomous action.") {
-            HStack(spacing: 12) {
-                Button(controller.draft.isPaused ? "RESUME AUTOMATION" : "PAUSE AUTOMATION") {
-                    controller.setPaused(!controller.draft.isPaused)
-                }
-                .buttonStyle(SumiActionButtonStyle(role: controller.draft.isPaused ? .primary : .quiet, size: .standard))
-                .accessibilityLabel(controller.draft.isPaused ? "Resume all automation" : "Pause all automation")
+        SettingsCard(title: "COACHING PAUSE", detail: "Pause prompts and autonomous actions while task and behavior tracking continue.") {
+            TimelineView(.periodic(from: .now, by: 30)) { _ in
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(coachingPauseStatus)
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(controller.draft.isPaused ? Sumi.seal : Sumi.okay)
+                        .padding(.horizontal, 8)
+                        .frame(height: 28)
+                        .background(controller.draft.isPaused ? Sumi.sealWash : Sumi.mist)
+                        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+                        .accessibilityIdentifier("settings.coaching-pause.status")
 
-                Text(controller.draft.isPaused ? "PAUSED" : "RUNNING")
-                    .font(Sumi.label(9))
-                    .sumiLabelTracking()
-                    .foregroundStyle(controller.draft.isPaused ? Sumi.seal : Sumi.okay)
-                    .padding(.horizontal, 8)
-                    .frame(height: 28)
-                    .background(controller.draft.isPaused ? Sumi.sealWash : Sumi.mist)
-                    .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+                    HStack(spacing: 8) {
+                        if controller.draft.isPaused {
+                            Button("RESUME NOW") {
+                                controller.setPaused(false)
+                            }
+                            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                            .accessibilityLabel("Resume coaching now")
+                            .accessibilityIdentifier("settings.coaching-pause.resume")
+                        } else {
+                            Button("PAUSE 1 HOUR") {
+                                controller.pauseForOneHour()
+                            }
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                            .accessibilityLabel("Pause coaching for one hour")
+                            .accessibilityIdentifier("settings.coaching-pause.one-hour")
+
+                            Button("UNTIL TOMORROW") {
+                                controller.pauseUntilTomorrow()
+                            }
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                            .accessibilityLabel("Pause coaching until tomorrow")
+                            .accessibilityIdentifier("settings.coaching-pause.until-tomorrow")
+
+                            Button("INDEFINITELY") {
+                                controller.setPaused(true)
+                            }
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                            .accessibilityLabel("Pause coaching indefinitely")
+                            .accessibilityIdentifier("settings.coaching-pause.indefinitely")
+                        }
+                    }
+                }
             }
 
             SumiChoiceRail(
@@ -601,6 +630,19 @@ struct SettingsView: View {
                     .accessibilityHint("Restores the previous settings as a new policy version")
             }
         }
+    }
+
+    private var coachingPauseStatus: String {
+        guard controller.draft.isPaused else { return "RUNNING" }
+        guard let resumesAt = controller.draft.automationPause.resumesAtUTC else {
+            return "PAUSED INDEFINITELY"
+        }
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.timeZone = controller.policyTimeZone
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return "PAUSED UNTIL \(formatter.string(from: resumesAt).uppercased())"
     }
 
     private var gamingAllowanceExplanation: String {

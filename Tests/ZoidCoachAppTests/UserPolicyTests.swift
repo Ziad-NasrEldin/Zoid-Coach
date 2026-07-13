@@ -339,3 +339,44 @@ func reminderListFilteringPreservesOpaqueIDsAndExcludesUnknownListsAfterConfigur
         listID: { $0.listID }
     ).map(\.id) == tasks.map(\.id))
 }
+
+@Test
+func timedAutomationPauseHonorsExactBoundaryAndLegacyCodingShape() throws {
+    let startedAt = try #require(ISO8601DateFormatter().date(from: "2026-07-13T10:00:00Z"))
+    let pause = AutomationPause.pausedForOneHour(from: startedAt)
+
+    #expect(pause.isActive(at: startedAt.addingTimeInterval(59 * 60 + 59)))
+    #expect(!pause.isActive(at: startedAt.addingTimeInterval(60 * 60)))
+    #expect(pause.resumesAtUTC == startedAt.addingTimeInterval(60 * 60))
+
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .iso8601
+    let encoded = try encoder.encode(pause)
+    let json = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    #expect(json["isPaused"] as? Bool == true)
+    #expect(json["resumesAtUTC"] != nil)
+    #expect(json["pauseRequested"] == nil)
+
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    #expect(try decoder.decode(AutomationPause.self, from: encoded) == pause)
+    #expect(try decoder.decode(AutomationPause.self, from: Data("{\"isPaused\":true}".utf8)) == .pausedIndefinitely)
+    #expect(try decoder.decode(AutomationPause.self, from: Data("{\"isPaused\":false}".utf8)) == .running)
+
+    let wallClockNow = Date()
+    #expect(AutomationPause(isPaused: true, resumesAtUTC: wallClockNow.addingTimeInterval(60)).isPaused)
+    #expect(!AutomationPause(isPaused: true, resumesAtUTC: wallClockNow.addingTimeInterval(-1)).isPaused)
+}
+
+@Test
+func untilTomorrowPauseUsesNextLocalMidnightAcrossTimeZones() throws {
+    let startedAt = try #require(ISO8601DateFormatter().date(from: "2026-07-13T20:30:00Z"))
+    let timeZone = try #require(TimeZone(identifier: "Africa/Cairo"))
+    let expectedBoundary = try #require(ISO8601DateFormatter().date(from: "2026-07-13T21:00:00Z"))
+
+    let pause = AutomationPause.pausedUntilTomorrow(from: startedAt, timeZone: timeZone)
+
+    #expect(pause.resumesAtUTC == expectedBoundary)
+    #expect(pause.isActive(at: expectedBoundary.addingTimeInterval(-1)))
+    #expect(!pause.isActive(at: expectedBoundary))
+}

@@ -4,7 +4,7 @@ import ZoidCoachInfrastructure
 
 struct SettingsPolicyDraft: Equatable {
     var operatingMode: OperatingMode
-    var isPaused: Bool
+    var automationPause: AutomationPause
     var workStart: LocalTime
     var workEnd: LocalTime
     var quietStart: LocalTime
@@ -46,7 +46,7 @@ struct SettingsPolicyDraft: Equatable {
 
     init(policy: UserPolicy) {
         operatingMode = policy.operatingMode
-        isPaused = policy.automationPause.isPaused
+        automationPause = policy.automationPause
         workStart = policy.schedule.workWindows.first?.start ?? LocalTime(hour: 9, minute: 0)
         workEnd = policy.schedule.workWindows.first?.end ?? LocalTime(hour: 18, minute: 0)
         quietStart = policy.schedule.quietHours.start
@@ -86,6 +86,11 @@ struct SettingsPolicyDraft: Equatable {
         gamingDailyPromptCap = policy.gaming.dailyPromptCap
         gamingPromptCooldownMinutes = policy.gaming.promptCooldownMinutes
         gamingBudgetEnabled = policy.gaming.budgetEnabled
+    }
+
+    var isPaused: Bool {
+        get { automationPause.isPaused }
+        set { automationPause = newValue ? .pausedIndefinitely : .running }
     }
 
     func classification(for application: String) -> AppClassificationChoice {
@@ -205,7 +210,7 @@ struct SettingsPolicyDraft: Equatable {
 
         return UserPolicy(
             operatingMode: operatingMode,
-            automationPause: isPaused ? .pausedIndefinitely : .running,
+            automationPause: automationPause,
             schedule: SchedulePolicy(
                 timeZoneIdentifier: original.schedule.timeZoneIdentifier,
                 workWindows: workWindows,
