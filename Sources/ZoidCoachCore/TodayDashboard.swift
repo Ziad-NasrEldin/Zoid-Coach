@@ -648,3 +648,16 @@ public struct GamingStatusCalculator: Sendable {
         )
     }
 }
+
+public enum TodayReminderEligibility {
+    public static func isVisible(
+        dueDate: Date?,
+        referenceDate: Date,
+        calendar: Calendar = .current
+    ) -> Bool {
+        guard let dueDate else { return true }
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: referenceDate))
+        guard let tomorrow else { return false }
+        return dueDate < tomorrow
+    }
+}
