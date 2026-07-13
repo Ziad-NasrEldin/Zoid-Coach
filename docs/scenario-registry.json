@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "c1e35722968e1cf28215202cb0ca3cf88beb9742d2175f1d53d1bf71875ecf58",
+  "tracker_sha256": "8d8a8c6cb95a64c1fb75b65064eb9d2714558e3328f05a3319961f2841d2356e",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -613,10 +613,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/screenshot-analysis-consent/candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The persisted choice is implemented in onboarding and Settings with policy tests, but the visible run has not reached and saved that preference (`OnboardingRootView.swift`; `SettingsPolicyDraftTests.swift`).",
+      "audit_note": "Fresh signed onboarding proved the default-Off control, explicit-On state, ambiguous-only explanation, and fail-closed policy-before-advance behavior. The verifier fixed the startup bootstrap race and Screenwatch mutation allowlist with focused tests, but the final allowlist fix has not yet been repackaged to prove that Continue durably writes the choice, advances, and restores it after relaunch (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `PolicyStoreTests.swift`; `.audit/runs/screenshot-analysis-consent/candidate/REPORT.md`).",
       "tracker_line": 86
     },
     {
@@ -10443,10 +10445,12 @@
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/screenshot-analysis-consent/candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A persisted Screenwatch screenshot-analysis toggle exists, participates in field-level conflict recovery, and has persistence coverage. Live agent behavior after toggling was not verified.",
+      "audit_note": "Onboarding and Settings expose the persisted ambiguous-only toggle, focused tests cover bootstrap adoption and Screenwatch policy mutation, and signed onboarding visibly rendered both Off and On states. A fresh signed package still must prove save-and-relaunch persistence after the final allowlist fix, then verify the running agent stops creating analysis evidence after the user turns the setting Off (`OnboardingCoordinatorTests.swift`; `PolicyStoreTests.swift`; `.audit/runs/screenshot-analysis-consent/candidate/REPORT.md`).",
       "tracker_line": 651
     },
     {
