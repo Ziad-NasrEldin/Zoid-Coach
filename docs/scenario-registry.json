@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "b854e567c5fa0c4f635c60470b02d6217cbbbd57aae375f839db967db91fbe6c",
+  "tracker_sha256": "53addff08e7bc5254e51a418114bc812dbfcdfb3c4857b0ceea6e26f9233f9a2",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9166,8 +9166,8 @@
       "item_index": 15,
       "wording": "Receive a complete factual review without AI.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9178,7 +9178,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Rules-only planning exists, but no factual daily-review generator exists.",
+      "audit_note": "With the persisted provider set to Disabled, Daily Review now identifies its local factual boundary, states the exact observed-session count, keeps missing time unobserved, and preserves correction, hypothesis rejection, and confirmation without model setup. Focused local-store and restart tests pass; the capped signed interaction timed out before completion (`RulesOnlyReviewState.swift`; `DailyReviewView.swift`; `.audit/runs/rules-only-review/verifier/REPORT.md`).",
       "tracker_line": 586
     },
     {
@@ -10459,7 +10459,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Disabled-AI/local-only mode preserves deterministic planning and task controls, but daily/weekly reviews, coaching, and many Release 1 scenarios are missing.",
+      "audit_note": "Disabled-AI/local-only mode now preserves deterministic planning, task controls, gaming coaching, weekly review, and factual Daily Review correction and confirmation. Several remaining Release 1 scenarios and the complete installed offline journey are still incomplete (`RulesOnlyReviewState.swift`; `.audit/runs/rules-only-review/verifier/REPORT.md`).",
       "tracker_line": 658
     },
     {

@@ -583,7 +583,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] See intentional gaming overrides. **Status: Not implemented.** Overrides are not stored.
 - [ ] See estimate-versus-actual comparisons. **Status: Barely started.** Estimate-learning aggregates store estimate/actual samples, but no user review display exists.
 - [ ] Understand when incomplete data makes a total less precise. **Status: Touches remaining.** The signed review paired its limited-coverage warning with `about` values, source status, last-check evidence, unreliable idle, and explicit language that rounded categories are not a complete account of the day (`DailySourceCoverage.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).
-- [ ] Receive a complete factual review without AI. **Status: Not implemented.** Rules-only planning exists, but no factual daily-review generator exists.
+- [ ] Receive a complete factual review without AI. **Status: Touches remaining.** With the persisted provider set to Disabled, Daily Review now identifies its local factual boundary, states the exact observed-session count, keeps missing time unobserved, and preserves correction, hypothesis rejection, and confirmation without model setup. Focused local-store and restart tests pass; the capped signed interaction timed out before completion (`RulesOnlyReviewState.swift`; `DailyReviewView.swift`; `.audit/runs/rules-only-review/verifier/REPORT.md`).
 
 ## 42. Facts, hypotheses, and review corrections
 
@@ -655,7 +655,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 46. AI settings and behavior
 
-- [ ] Use rules-only mode with all Release 1 functionality available. **Status: Partially implemented.** Disabled-AI/local-only mode preserves deterministic planning and task controls, but daily/weekly reviews, coaching, and many Release 1 scenarios are missing.
+- [ ] Use rules-only mode with all Release 1 functionality available. **Status: Partially implemented.** Disabled-AI/local-only mode now preserves deterministic planning, task controls, gaming coaching, weekly review, and factual Daily Review correction and confirmation. Several remaining Release 1 scenarios and the complete installed offline journey are still incomplete (`RulesOnlyReviewState.swift`; `.audit/runs/rules-only-review/verifier/REPORT.md`).
 - [ ] See that remote AI is off until explicitly configured. **Status: Touches remaining.** Defaults select Disabled and Local only, remote evidence is disabled for local providers, and policy plus conflict tests preserve a newer remote-evidence winner. The installed settings state and an offline relaunch were not verified end to end.
 - [ ] Choose a future approved provider and model. **Status: Touches remaining.** Settings exposes Disabled, local Ollama, and Codex CLI according to capability gates, plus model/reasoning selection. Provider, model, and reasoning choices now participate in field-level conflict recovery, but actual provider execution was not exercised end to end.
 - [ ] Choose local or remote processing when supported. **Status: Touches remaining.** Provider and Remote Evidence controls distinguish local-only, redacted, and explicit private-content modes, preserve concurrent winners, and now preview the actual automatic-planning boundary before save. Installed provider selection and real request inspection remain (`RemoteEvidencePreview.swift`; `SettingsView.swift`; `.audit/runs/ai-boundary-controls/verifier/REPORT.md`).
