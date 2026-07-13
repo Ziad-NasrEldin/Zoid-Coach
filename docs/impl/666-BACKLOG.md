@@ -98,6 +98,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - The signed unplanned task disappeared from Today after completion and relaunch, so the explicit reason was not usable and signed cross-task continuity remains unproven.
 - `ZC-021-002` advances from Not implemented to Partially implemented with evidence in `.audit/runs/external-reminder-completion/verifier/REPORT.md`.
 
+### AI request budgets - candidate
+
+- Owns `ZC-046-006`.
+- Adds persisted daily and monthly general AI request limits to Settings with stable accessibility identifiers and explicit zero-limit behavior.
+- Enforces both UTC daily and calendar-month boundaries through one provider-independent budget and atomically reserves each allowed request before audited planning or structured generation begins.
+- Keeps deterministic planning available when a request limit is reached.
+- Focused Settings, ledger, and provider tests pass; candidate evidence is recorded in `.audit/runs/ai-request-budgets/candidate/REPORT.md`.
+
 ### Settings notification delivery test - candidate
 
 - Owns `ZC-044-012`.

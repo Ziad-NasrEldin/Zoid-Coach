@@ -4,6 +4,7 @@ import ZoidCoachCore
 
 public final class ModelRunStore: @unchecked Sendable {
     private let database: OpaquePointer
+    private let reservationLock = NSRecursiveLock()
     private let formatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -81,11 +82,69 @@ public final class ModelRunStore: @unchecked Sendable {
         return Int(sqlite3_column_int(statement, 0))
     }
 
-    public func canStartRequest(provider: String, dailyBudget: Int, now: Date, calendar: Calendar = Calendar(identifier: .gregorian)) throws -> Bool {
-        guard dailyBudget > 0 else { return false }
+    public func requestCount(since: Date) throws -> Int {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "SELECT COUNT(*) FROM model_runs WHERE started_at_utc >= ?;", -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw ModelRunStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(formatter.string(from: since), statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW else { throw ModelRunStoreError.read }
+        return Int(sqlite3_column_int(statement, 0))
+    }
+
+    public func canStartRequest(
+        provider: String,
+        dailyBudget: Int,
+        monthlyBudget: Int = .max,
+        now: Date,
+        calendar: Calendar = Calendar(identifier: .gregorian)
+    ) throws -> Bool {
+        guard dailyBudget > 0, monthlyBudget > 0 else { return false }
         var calendar = calendar
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        return try requestCount(provider: provider, since: calendar.startOfDay(for: now)) < dailyBudget
+        let startOfDay = calendar.startOfDay(for: now)
+        guard try requestCount(since: startOfDay) < dailyBudget else { return false }
+        let monthComponents = calendar.dateComponents([.year, .month], from: now)
+        guard let startOfMonth = calendar.date(from: monthComponents) else { throw ModelRunStoreError.read }
+        return try requestCount(since: startOfMonth) < monthlyBudget
+    }
+
+    public func reserveRequest(
+        _ pendingRun: ModelRun,
+        dailyBudget: Int,
+        monthlyBudget: Int,
+        now: Date,
+        calendar: Calendar = Calendar(identifier: .gregorian)
+    ) throws -> Bool {
+        reservationLock.lock()
+        defer { reservationLock.unlock() }
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
+            throw ModelRunStoreError.write
+        }
+        var committed = false
+        defer {
+            if !committed { _ = sqlite3_exec(database, "ROLLBACK;", nil, nil, nil) }
+        }
+        guard try canStartRequest(
+            provider: pendingRun.provider,
+            dailyBudget: dailyBudget,
+            monthlyBudget: monthlyBudget,
+            now: now,
+            calendar: calendar
+        ) else {
+            guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+                throw ModelRunStoreError.write
+            }
+            committed = true
+            return false
+        }
+        try record(pendingRun)
+        guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+            throw ModelRunStoreError.write
+        }
+        committed = true
+        return true
     }
 
     private func decode(_ statement: OpaquePointer) -> ModelRun? {

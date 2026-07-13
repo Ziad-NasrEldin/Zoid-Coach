@@ -271,6 +271,8 @@ struct ZoidCoachAgentMain {
                 let execution = await actionExecutor.executeNext()
                 try? Self.finalizeMeetingEffect(execution, outbox: actionOutbox, archive: archive)
             }
+            let planningModelRuns = try ModelRunStore(databaseURL: configuration.databaseURL)
+            let planningModelGate = StructuredGenerationConcurrencyGate()
             let reminderPlanner = AgentReminderPlanner(
                 fixtureAdapter: qaFixtureAdapter,
                 planStore: planStore,
@@ -278,22 +280,37 @@ struct ZoidCoachAgentMain {
                 taskHistoryStore: taskHistoryStore,
                 learningStore: learningStore,
                 advisorProvider: {
-                    if configuration.useLocalAI {
-                        return OllamaPlanningAdvisor()
-                    }
                     let privacy = (try? policyStore.current()?.policy.privacy) ?? initialPolicy.privacy
-                    switch privacy.aiProvider {
+                    let selection = configuration.useLocalAI ? AIProviderSelection.localOllama : privacy.aiProvider
+                    let advisor: (any PlanningAdvising)?
+                    let providerID: String
+                    let modelID: String
+                    switch selection {
                     case .localOllama:
-                        return OllamaPlanningAdvisor()
+                        advisor = OllamaPlanningAdvisor()
+                        providerID = "ollama"
+                        modelID = "local-default"
                     case .codexCLI:
-                        return CodexCLIPlanningAdvisor(
+                        advisor = CodexCLIPlanningAdvisor(
                             remoteEvidencePolicy: privacy.remoteEvidencePolicy,
                             modelID: privacy.effectiveCodexCLIModelID,
                             reasoningEffort: privacy.effectiveCodexCLIReasoningEffort
                         )
+                        providerID = "codex-cli"
+                        modelID = privacy.effectiveCodexCLIModelID
                     case .disabled, .appleOnDevice, .remoteOpenAI:
                         return nil
                     }
+                    guard let advisor else { return nil }
+                    return AuditedPlanningAdvisor(
+                        advisor: advisor,
+                        providerID: providerID,
+                        modelID: modelID,
+                        store: planningModelRuns,
+                        gate: planningModelGate,
+                        dailyRequestBudget: privacy.effectiveAIDailyRequestBudget,
+                        monthlyRequestBudget: privacy.effectiveAIMonthlyRequestBudget
+                    )
                 },
                 reminderListPolicyProvider: {
                     try policyStore.current()?.policy.reminderLists ?? .legacyAllLists
