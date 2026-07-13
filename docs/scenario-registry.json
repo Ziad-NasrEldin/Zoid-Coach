@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "548d5fbf368afc84ccbf04ef9db3fecea2b5e766c4db99ce8078f27ec13427c9",
+  "tracker_sha256": "7641163f59f785029c6006bf645d9dd557d09c2c815f512828b9c713fecfd690",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3427,8 +3427,8 @@
       "item_index": 2,
       "wording": "Start a task from the menu bar.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3439,7 +3439,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The only menu-bar extra is Zoid Voice and it contains no active-task or task-start menu (`ZoidCoachApp.swift:51-55`).",
+      "audit_note": "The menu-bar recommendation now exposes a task-specific Start action that fetches the latest snapshot before mutation, rejects stale, active, or paused state, prevents overlapping activation, requires the exact task to return active, preserves the last confirmed state on failure, and refreshes Today after the attempt. Fourteen focused menu tests pass, including canonical-agent persistence, and the signed installed app created the exact ready recommendation used for acceptance. The separate SwiftUI MenuBarExtra remained outside the available Computer Use accessibility tree despite direct SystemUIServer and keyboard-focus attempts, so the current, stale, double-click, helper-failure, exact single-interval, and restart journeys remain unclicked in the signed UI (`MenuBarCoachView.swift`; `.audit/runs/menu-bar-start-task/verifier/REPORT.md`).",
       "tracker_line": 253
     },
     {
