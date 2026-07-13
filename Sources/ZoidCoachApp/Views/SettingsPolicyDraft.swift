@@ -5,6 +5,7 @@ import ZoidCoachInfrastructure
 struct SettingsPolicyDraft: Equatable {
     var operatingMode: OperatingMode
     var automationPause: AutomationPause
+    var timeZoneIdentifier: String
     var workStart: LocalTime
     var workEnd: LocalTime
     var quietStart: LocalTime
@@ -47,6 +48,7 @@ struct SettingsPolicyDraft: Equatable {
     init(policy: UserPolicy) {
         operatingMode = policy.operatingMode
         automationPause = policy.automationPause
+        timeZoneIdentifier = policy.schedule.timeZoneIdentifier
         workStart = policy.schedule.workWindows.first?.start ?? LocalTime(hour: 9, minute: 0)
         workEnd = policy.schedule.workWindows.first?.end ?? LocalTime(hour: 18, minute: 0)
         quietStart = policy.schedule.quietHours.start
@@ -212,7 +214,7 @@ struct SettingsPolicyDraft: Equatable {
             operatingMode: operatingMode,
             automationPause: automationPause,
             schedule: SchedulePolicy(
-                timeZoneIdentifier: original.schedule.timeZoneIdentifier,
+                timeZoneIdentifier: timeZoneIdentifier,
                 workWindows: workWindows,
                 quietHours: DailyTimeWindow(start: quietStart, end: quietEnd),
                 nightlyPlanningTime: nightlyPlanningTime,
