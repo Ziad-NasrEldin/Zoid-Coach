@@ -26,7 +26,6 @@ public enum GamingDriftPromptResult: Equatable, Sendable {
 }
 
 public final class GamingDriftPromptService: @unchecked Sendable {
-    private static let intentionalOverrideMinutes = 45
 
     private struct GamingSession {
         let startedAtEpoch: Int64
@@ -111,7 +110,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             decisionKeyPrefix: decisionKeyPrefix,
             localDay: localDay,
             at: date,
-            durationMinutes: Self.intentionalOverrideMinutes
+            durationMinutes: policy.gaming.intentionalOverrideMinutes
         )
         guard override != .active else { return .suppressed(.intentionalOverrideActive) }
 

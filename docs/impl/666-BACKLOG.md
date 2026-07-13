@@ -53,11 +53,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
-### Intentional override duration policy - active candidate
+### Intentional override duration policy - candidate
 
 - Owns `ZC-029-013`, `ZC-036-003`, and `ZC-036-008`.
 - Owns only the GamingPolicy field and validation, Gaming Allowance Settings controls and conflicts, gaming-drift override timing, focused tests, and candidate evidence.
 - Today task eligibility, root, runtime, tracker, registry, and Lavish remain outside this lane.
+- The persisted duration now replaces the prior fixed 45-minute suppression while preserving 45 minutes for legacy policy decoding.
+- Focused Settings conflict/round-trip and gaming-drift restart/expiry tests pass.
+- Evidence is recorded in `.audit/runs/intentional-override-policy/candidate/REPORT.md`.
 
 ### Notification permission and Today fallback recovery - `0d6ec2d`
 

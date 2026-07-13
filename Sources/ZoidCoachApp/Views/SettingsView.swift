@@ -550,6 +550,14 @@ struct SettingsView: View {
                     valueLabel: { "\($0) MIN" }
                 )
                 .accessibilityIdentifier("settings.gaming.priority-reward")
+                SumiStepper(
+                    "CONTINUE INTENTIONALLY FOR",
+                    value: $controller.draft.gamingIntentionalOverrideMinutes,
+                    in: 5...1_440,
+                    step: 5,
+                    valueLabel: { "\($0) MIN" }
+                )
+                .accessibilityIdentifier("settings.gaming.intentional-override")
                 Text(gamingAllowanceExplanation)
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
@@ -569,13 +577,14 @@ struct SettingsView: View {
     private var gamingAllowanceExplanation: String {
         let base = controller.draft.gamingDailyBudgetMinutes
         let reward = controller.draft.gamingPriorityTaskRewardMinutes
+        let override = controller.draft.gamingIntentionalOverrideMinutes
         if base == 0, reward == 0 {
-            return "No gaming minutes are available during work windows. Gaming is still observed factually, and coaching remains non-punitive."
+            return "No gaming minutes are available during work windows. Gaming is still observed factually, coaching remains non-punitive, and Continue intentionally pauses equivalent prompts for \(override) minutes."
         }
         if reward == 0 {
-            return "Up to \(base) minutes are available each day. Completing the priority objective does not add more time."
+            return "Up to \(base) minutes are available each day. Completing the priority objective does not add more time. Continue intentionally pauses equivalent prompts for \(override) minutes."
         }
-        return "Start with \(base) minutes each day. Completing the priority objective unlocks \(reward) additional minutes once; used gaming time is never erased."
+        return "Start with \(base) minutes each day. Completing the priority objective unlocks \(reward) additional minutes once; used gaming time is never erased. Continue intentionally pauses equivalent prompts for \(override) minutes."
     }
 
     private var scheduleSection: some View {

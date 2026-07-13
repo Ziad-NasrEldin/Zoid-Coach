@@ -59,6 +59,7 @@ enum SettingsPolicyConflictResolver {
         apply(\.coachingLevel, label: "Coaching level")
         apply(\.gamingDailyBudgetMinutes, label: "Gaming daily budget")
         apply(\.gamingPriorityTaskRewardMinutes, label: "Gaming priority reward")
+        apply(\.gamingIntentionalOverrideMinutes, label: "Intentional gaming override")
         apply(\.isPaused, label: "Automation pause")
         apply(\.workStart, label: "Workday window")
         apply(\.workEnd, label: "Workday window")
