@@ -85,6 +85,7 @@ final class AppModel: ObservableObject {
     private let policyStore: PolicyStore?
     private let reminderListPolicyLoader: @Sendable () throws -> ReminderListPolicy
     private let todayDashboardXPCClient: TodayDashboardXPCClient
+    private let calendarPlanApprovalReceiptStore: CalendarPlanApprovalReceiptStore
     private let synchronizeReminderSnapshots: @Sendable ([AgentReminderSnapshot]) async throws -> Void
     private var dailyPlanPersistenceTask: Task<Void, Never>?
     private var dailyPlanPersistenceRevision = 0
@@ -105,6 +106,7 @@ final class AppModel: ObservableObject {
         meetingEvidenceCipherFactory: AppMeetingEvidenceCipherFactory = .live,
         agentLaunchService: AgentLaunchService? = nil,
         eventStore: EventStore? = nil,
+        calendarPlanApprovalReceiptStore: CalendarPlanApprovalReceiptStore? = nil,
         reminderListPolicyLoader: (@Sendable () throws -> ReminderListPolicy)? = nil,
         synchronizeReminderSnapshots: (@Sendable ([AgentReminderSnapshot]) async throws -> Void)? = nil,
         retryReminderCompletion: (@Sendable (String) async throws -> Void)? = nil,
@@ -167,6 +169,8 @@ final class AppModel: ObservableObject {
         }
         self.agentLaunchService = resolvedAgentLaunchService
         self.eventStore = eventStore ?? EventStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
+        self.calendarPlanApprovalReceiptStore = calendarPlanApprovalReceiptStore
+            ?? CalendarPlanApprovalReceiptStore(defaults: runtimeEnvironment.makeUserDefaults())
         self.meetingEvidenceCipherFactory = {
             try meetingEvidenceCipherFactory.makeCipher(for: runtimeEnvironment)
         }
@@ -183,6 +187,9 @@ final class AppModel: ObservableObject {
             }
             return try resolvedPolicyStore.current()?.policy.reminderLists
                 ?? .legacyAllLists
+        }
+        if let receipt = self.calendarPlanApprovalReceiptStore.load() {
+            calendarPlanApproval.restore(receipt)
         }
         Task {
             updateSource(resolvedAgentLaunchService.enableAndInspect())
@@ -475,6 +482,7 @@ final class AppModel: ObservableObject {
         do {
             actionAudit = try await todayDashboardXPCClient.fetchActionAudit()
             actionAuditError = nil
+            reconcileCalendarPlanApproval()
         } catch {
             actionAuditError = "The automatic action ledger is unavailable. Check Agent source health and retry."
         }
@@ -895,6 +903,7 @@ final class AppModel: ObservableObject {
                     return
                 }
                 calendarPlanApproval.queued(commandIDs: receipt.commandIDs)
+                persistCalendarPlanApprovalReceipt()
                 lastActionMessage = receipt.message
                 await refreshActionAudit()
                 reconcileCalendarPlanApproval()
@@ -930,6 +939,10 @@ final class AppModel: ObservableObject {
         calendarPlanApproval.dismiss()
     }
 
+    func showCalendarPlanApprovalReceipt() {
+        calendarPlanApproval.presentReceipt()
+    }
+
     func recheckCalendarPlanWrite() {
         Task {
             await refreshActionAudit()
@@ -938,7 +951,20 @@ final class AppModel: ObservableObject {
     }
 
     private func reconcileCalendarPlanApproval() {
+        let previousReceipt = calendarPlanApproval.receipt
         calendarPlanApproval.reconcile(with: actionAudit)
+        if calendarPlanApproval.receipt != previousReceipt {
+            persistCalendarPlanApprovalReceipt()
+        }
+    }
+
+    private func persistCalendarPlanApprovalReceipt() {
+        guard let receipt = calendarPlanApproval.receipt else { return }
+        do {
+            try calendarPlanApprovalReceiptStore.save(receipt)
+        } catch {
+            persistenceMessage = "The Calendar approval was applied, but its local receipt could not be saved."
+        }
     }
 
     func addMeetingCandidateToCalendar(_ candidate: StoredMeetingCandidate) {

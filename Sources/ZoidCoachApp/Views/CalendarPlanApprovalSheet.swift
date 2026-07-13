@@ -36,11 +36,45 @@ struct CalendarPlanApprovalSheet: View {
             case .idle:
                 EmptyView()
             }
+            if showsRestoredReceipt, let receipt = model.calendarPlanApproval.receipt {
+                receiptDetails(receipt)
+            }
         }
         .frame(width: 560)
         .background(Sumi.paper)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("calendar-plan-approval-sheet")
+    }
+
+    private var showsRestoredReceipt: Bool {
+        switch model.calendarPlanApproval.writeState {
+        case .pending, .applied, .failed:
+            true
+        case .idle, .reviewing, .queueing:
+            false
+        }
+    }
+
+    private func receiptDetails(_ receipt: CalendarPlanApprovalReceipt) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("APPROVED \(receipt.approvedAt.formatted(date: .abbreviated, time: .shortened))")
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+            ForEach(receipt.items) { item in
+                HStack {
+                    Text("\(item.rank). \(item.title)\(item.isMainObjective ? " · MAIN" : "")")
+                    Spacer()
+                    Text("\(item.estimateMinutes)m")
+                }
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.ink)
+            }
+        }
+        .padding(18)
+        .background(Sumi.wash)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("calendar-plan-approval-receipt-details")
     }
 
     private var header: some View {
