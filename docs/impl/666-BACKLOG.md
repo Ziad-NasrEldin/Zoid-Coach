@@ -112,6 +112,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - The capped signed run consumed the isolated fixture completion but canonical `source_tasks` did not update before relaunch, so no externally ended row existed on which to accept the new UI copy.
 - `ZC-021-002` remains Partially implemented with unchanged counts, and the conservative runtime evidence is recorded in `.audit/runs/external-reminder-completion/reason-ui-verifier/REPORT.md`.
 
+### AI request budgets - candidate
+
+- Owns `ZC-046-006`.
+- Adds persisted daily and monthly general AI request limits to Settings with stable accessibility identifiers and explicit zero-limit behavior.
+- Enforces both UTC daily and calendar-month boundaries through one provider-independent budget and atomically reserves each allowed request before audited planning or structured generation begins.
+- Keeps deterministic planning available when a request limit is reached.
+- Focused Settings, ledger, and provider tests pass; candidate evidence is recorded in `.audit/runs/ai-request-budgets/candidate/REPORT.md`.
+
 ### Settings notification delivery test - candidate
 
 - Owns `ZC-044-012`.

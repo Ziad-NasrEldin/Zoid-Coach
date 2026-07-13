@@ -32,6 +32,8 @@ struct SettingsPolicyDraft: Equatable {
     var codexCLIModel: CodexCLIModel
     var codexCLICustomModelID: String
     var codexCLIReasoningEffort: CodexCLIReasoningEffort
+    var aiDailyRequestBudget: Int
+    var aiMonthlyRequestBudget: Int
     var wakeEligible: Bool
     var wakeStart: LocalTime
     var wakeEnd: LocalTime
@@ -88,6 +90,8 @@ struct SettingsPolicyDraft: Equatable {
         codexCLIModel = policy.privacy.effectiveCodexCLIModel
         codexCLICustomModelID = policy.privacy.codexCLICustomModelID ?? ""
         codexCLIReasoningEffort = policy.privacy.effectiveCodexCLIReasoningEffort
+        aiDailyRequestBudget = policy.privacy.effectiveAIDailyRequestBudget
+        aiMonthlyRequestBudget = policy.privacy.effectiveAIMonthlyRequestBudget
         wakeEligible = policy.wake.isEligible
         wakeStart = policy.wake.window.start
         wakeEnd = policy.wake.window.end
@@ -276,7 +280,9 @@ struct SettingsPolicyDraft: Equatable {
                 reviewRetentionDays: reviewRetentionDays,
                 codexCLIModel: codexCLIModel,
                 codexCLICustomModelID: codexCLICustomModelID,
-                codexCLIReasoningEffort: codexCLIReasoningEffort
+                codexCLIReasoningEffort: codexCLIReasoningEffort,
+                aiDailyRequestBudget: aiDailyRequestBudget,
+                aiMonthlyRequestBudget: aiMonthlyRequestBudget
             ),
             wake: WakePolicyConfiguration(
                 isEligible: wakeEligible,

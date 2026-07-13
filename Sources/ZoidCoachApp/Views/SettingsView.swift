@@ -1072,6 +1072,30 @@ struct SettingsView: View {
                         .foregroundStyle(Sumi.muted)
                 }
             }
+            VStack(alignment: .leading, spacing: 10) {
+                SumiControlLabel("REQUEST BUDGETS")
+                SumiStepper(
+                    "DAILY REQUEST LIMIT",
+                    value: $controller.draft.aiDailyRequestBudget,
+                    in: 0...10_000,
+                    step: 10,
+                    valueLabel: { $0 == 0 ? "AI REQUESTS OFF" : "\($0) REQUESTS" }
+                )
+                .accessibilityIdentifier("settings.ai.daily-request-budget")
+                SumiStepper(
+                    "MONTHLY REQUEST LIMIT",
+                    value: $controller.draft.aiMonthlyRequestBudget,
+                    in: 0...100_000,
+                    step: 100,
+                    valueLabel: { $0 == 0 ? "AI REQUESTS OFF" : "\($0) REQUESTS" }
+                )
+                .accessibilityIdentifier("settings.ai.monthly-request-budget")
+                Text("The agent stops general AI requests when either limit is reached. Zero disables general AI requests without disabling local planning, tracking, coaching rules, or reviews.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.ai.request-budget.explanation")
+            }
             Button("CLEAR AI CACHE AND REQUEST HISTORY") {
                 presentConfirmation(.deleteAIMetadata)
             }
