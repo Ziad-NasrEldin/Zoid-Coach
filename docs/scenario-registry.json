@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "fff670b470d8d267bd33050413588b042d1a1314908797da7afe5d9720fee24e",
+  "tracker_sha256": "36cca485eff590124efb872f99527f281266a3ef2661d7360368541ccdcb4a03",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8912,9 +8912,9 @@
       "section_title": "Understanding the daily review",
       "item_index": 1,
       "wording": "See whether the main objective was completed.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8922,10 +8922,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Main-objective and task-completion data exist in daily-plan/task stores, but there is no daily review aggregator or UI.",
+      "evidence_paths": [
+        ".audit/runs/daily-review-plan-outcomes/040a58fb9dbc96617dd9b303bf034fce55e1329a/evidence.json"
+      ],
+      "last_verified_commit": "040a58fb9dbc96617dd9b303bf034fce55e1329a",
+      "last_verified_build": "zoid-coach-040a58fb9dbc96617dd9b303bf034fce55e1329a-clean",
+      "audit_note": "The signed installed Daily Review showed completed, unfinished, and not-designated main-objective states for three selected policy-local days, named the exact objective, excluded another day's completion, and reproduced the completed state after app relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-plan-outcomes/verifier/REPORT.md`).",
       "tracker_line": 572
     },
     {
@@ -8934,9 +8936,9 @@
       "section_title": "Understanding the daily review",
       "item_index": 2,
       "wording": "See how many priority tasks were completed.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8944,10 +8946,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Task states and priorities exist, but no review count is computed or displayed.",
+      "evidence_paths": [
+        ".audit/runs/daily-review-plan-outcomes/040a58fb9dbc96617dd9b303bf034fce55e1329a/evidence.json"
+      ],
+      "last_verified_commit": "040a58fb9dbc96617dd9b303bf034fce55e1329a",
+      "last_verified_build": "zoid-coach-040a58fb9dbc96617dd9b303bf034fce55e1329a-clean",
+      "audit_note": "The signed review showed one of two non-optional priorities completed, omitted a completed optional task, kept a priority completed the next day open for the selected day, exposed explicit zero-count and no-plan states, and reproduced the same count after relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-plan-outcomes/verifier/REPORT.md`).",
       "tracker_line": 573
     },
     {
@@ -9177,8 +9181,8 @@
       "item_index": 13,
       "wording": "See estimate-versus-actual comparisons.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9189,7 +9193,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Estimate-learning aggregates store estimate/actual samples, but no user review display exists.",
+      "audit_note": "Daily Review now shows each recorded priority estimate beside its selected-day completion state, and estimate-learning aggregates retain estimate/actual samples, but the task-level actual duration and direct comparison are not yet presented together (`DailyReviewView.swift`; `.audit/runs/daily-review-plan-outcomes/verifier/REPORT.md`).",
       "tracker_line": 584
     },
     {

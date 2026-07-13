@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "run_id": "daily-review-plan-outcomes/040a58fb9dbc96617dd9b303bf034fce55e1329a",
+  "verified_commit": "040a58fb9dbc96617dd9b303bf034fce55e1329a",
+  "build_identity": "zoid-coach-040a58fb9dbc96617dd9b303bf034fce55e1329a-clean",
+  "fixture": "/private/tmp/zoid-666-daily-review-outcomes-qa/Application Support/Zoid 666/zoid-coach.sqlite",
+  "qa_root": "/private/tmp/zoid-666-daily-review-outcomes-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "02ef6c18495ed3a7854b934901e19a3f7d9f3c4b700adcdcff935a5398941f7a",
+  "scenario_ids": [
+    "ZC-041-001",
+    "ZC-041-002"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T06:37:00Z",
+  "completed_at": "2026-07-13T06:41:00Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "0d8921adeb0bc57ee746df0e72f0b44160b6a23a6f56ce79c91dddad109339e4"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "main_objective_selected_day_states",
+      "result": "passed",
+      "detail": "The signed review showed completed, unfinished, and not-designated main-objective states for three selected policy-local days."
+    },
+    {
+      "name": "priority_count_excludes_optional_and_cross_day",
+      "result": "passed",
+      "detail": "The signed review showed one of two priorities, excluded the completed optional task, and kept a next-day completion open for the selected day."
+    },
+    {
+      "name": "no_plan_and_relaunch",
+      "result": "passed",
+      "detail": "The signed review exposed explicit no-plan copy and reproduced the selected-day outcome after app relaunch."
+    }
+  ],
+  "commands": [
+    "swift test --filter DailyReviewTests",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-daily-review-outcomes-qa Scripts/install-signed-qa-runtime.sh"
+  ]
+}
