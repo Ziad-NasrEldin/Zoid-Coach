@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import ZoidCoachApp
 import ZoidCoachCore
+import ZoidCoachInfrastructure
 
 @Test func menuBarStateDistinguishesNeutralAttentionActiveAndPaused() {
     #expect(MenuBarCoachState(snapshot: nil).tone == .neutral)
@@ -24,11 +25,35 @@ import ZoidCoachCore
     #expect(activeState.tone == .active)
     #expect(activeState.primaryTask?.title == "Write proposal")
     #expect(activeState.taskStatus == "Active · 12 min tracked")
+    #expect(activeState.canStartBreak)
+    #expect(activeState.canEndWorkday)
 
     let paused = menuSnapshot(rows: [menuTask(id: "paused", title: "Review budget", state: .paused, pauseReason: .doneForNow)])
     let pausedState = MenuBarCoachState(snapshot: paused)
     #expect(pausedState.tone == .paused)
     #expect(pausedState.taskStatus == "Paused because you are done for now")
+    #expect(!pausedState.canStartBreak)
+    #expect(!pausedState.canEndWorkday)
+}
+
+@Test func menuBarExplainsEndOfWorkdayWithoutLosingThePausedTask() {
+    let ended = menuSnapshot(rows: [
+        menuTask(
+            id: "ended",
+            title: "Finish proposal",
+            state: .paused,
+            elapsedMinutes: 38,
+            pauseReason: .endingWorkday
+        )
+    ])
+
+    let state = MenuBarCoachState(snapshot: ended)
+
+    #expect(state.tone == .paused)
+    #expect(state.workdayHasEnded)
+    #expect(state.primaryTask?.title == "Finish proposal")
+    #expect(state.primaryTask?.elapsedMinutes == 38)
+    #expect(state.taskStatus == "Workday ended · Tracked time is saved")
 }
 
 @Test func menuBarChoosesExplicitRecommendationBeforeFallbackReadyTask() {
@@ -87,6 +112,110 @@ import ZoidCoachCore
     #expect(commands.map(\.1) == ["task", "task"])
 }
 
+@MainActor
+@Test func menuBarControllerRunsBreakResumeAndConfirmedEndWorkdayJourney() async {
+    let startedAt = Date(timeIntervalSince1970: 1_800_000_000)
+    let active = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Task", state: .active, elapsedMinutes: 12)],
+        activeTask: .init(taskID: "task", startedAt: startedAt, elapsedMinutes: 12)
+    )
+    let onBreak = menuSnapshot(rows: [
+        menuTask(
+            id: "task",
+            title: "Task",
+            state: .paused,
+            elapsedMinutes: 12,
+            pauseReason: .break,
+            acceptedBreak: AcceptedBreakSnapshot(startedAt: startedAt)
+        )
+    ])
+    let resumed = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Task", state: .active, elapsedMinutes: 12)],
+        activeTask: .init(taskID: "task", startedAt: startedAt, elapsedMinutes: 12)
+    )
+    let ended = menuSnapshot(rows: [
+        menuTask(id: "task", title: "Task", state: .paused, elapsedMinutes: 12, pauseReason: .endingWorkday)
+    ])
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(active),
+        applyResults: [.success(onBreak), .success(resumed), .success(ended)]
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.refresh()
+    await controller.apply(.pauseForBreak, taskID: "task")
+    #expect(controller.state.pausedTask?.acceptedBreak != nil)
+    #expect(controller.state.taskStatus(at: startedAt) == "Accepted break · 15 min left")
+
+    await controller.apply(.resume, taskID: "task")
+    #expect(controller.state.activeTask?.taskID == "task")
+
+    await controller.apply(.pauseForEndOfDay, taskID: "task")
+    #expect(controller.state.workdayHasEnded)
+    #expect(controller.state.taskStatus == "Workday ended · Tracked time is saved")
+
+    let commands = await client.commands
+    #expect(commands.map(\.0) == [.pauseForBreak, .resume, .pauseForEndOfDay])
+    #expect(commands.allSatisfy { $0.1 == "task" })
+}
+
+@MainActor
+@Test func menuBarBreakAndEndWorkdayPersistThroughTheCanonicalAgent() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-menu-workday-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let now = Date()
+    let reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "focus", title: "Ship the review", dueDate: now, priority: 9)
+    ])
+    let plans = try AutonomousPlanStore(databaseURL: databaseURL)
+    try plans.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [
+                PlannedTask(
+                    taskID: "focus",
+                    title: "Ship the review",
+                    rank: 1,
+                    estimateMinutes: 45,
+                    reason: "Main objective",
+                    score: 100
+                )
+            ],
+            mainObjectiveTaskID: "focus",
+            plannedFocusMinutes: 45,
+            availableFocusMinutes: 120
+        ),
+        for: now
+    )
+    let client = AgentMenuBarTodayClient(
+        agent: try TodayDashboardAgent(databaseURL: databaseURL),
+        now: now
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.refresh()
+    await controller.apply(.start, taskID: "focus")
+    await controller.apply(.pauseForBreak, taskID: "focus")
+    #expect(controller.state.pausedTask?.acceptedBreak != nil)
+
+    await controller.apply(.resume, taskID: "focus")
+    await controller.apply(.pauseForEndOfDay, taskID: "focus")
+    #expect(controller.state.workdayHasEnded)
+    #expect(controller.state.primaryTask?.title == "Ship the review")
+
+    let restored = try TodayDashboardAgent(databaseURL: databaseURL)
+        .snapshot(now: now.addingTimeInterval(300))
+    let restoredTask = try #require(restored.taskRows.first { $0.taskID == "focus" })
+    #expect(restoredTask.state == .paused)
+    #expect(restoredTask.latestPauseReason == .endingWorkday)
+    #expect(restoredTask.acceptedBreak == nil)
+}
+
 private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
     let fetchResult: Result<TodaySnapshot, Error>
     var applyResults: [Result<TodaySnapshot, Error>]
@@ -106,6 +235,25 @@ private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
     }
 }
 
+private actor AgentMenuBarTodayClient: MenuBarTodayClient {
+    let agent: TodayDashboardAgent
+    var now: Date
+
+    init(agent: TodayDashboardAgent, now: Date) {
+        self.agent = agent
+        self.now = now
+    }
+
+    func fetchTodaySnapshot() throws -> TodaySnapshot {
+        try agent.snapshot(now: now)
+    }
+
+    func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
+        now = now.addingTimeInterval(60)
+        return try agent.apply(command, taskID: taskID, now: now)
+    }
+}
+
 private enum MenuBarClientError: Error { case failed }
 
 private func menuTask(
@@ -114,6 +262,7 @@ private func menuTask(
     state: TaskExecutionState,
     elapsedMinutes: Int = 0,
     pauseReason: TaskPauseReason? = nil,
+    acceptedBreak: AcceptedBreakSnapshot? = nil,
     isOptional: Bool = false
 ) -> TodayTaskRow {
     TodayTaskRow(
@@ -125,6 +274,7 @@ private func menuTask(
         state: state,
         elapsedMinutes: elapsedMinutes,
         latestPauseReason: pauseReason,
+        acceptedBreak: acceptedBreak,
         isOptional: isOptional
     )
 }
