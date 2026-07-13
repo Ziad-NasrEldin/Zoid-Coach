@@ -8,8 +8,8 @@ This candidate implements `ZC-049-003` without changing the tracker, registry, L
 
 - Behavior coaching requires a Screenwatch observation no older than three minutes before evaluating gaming drift.
 - Missing or stale Screenwatch evidence returns the existing limited-coverage suppression state before any prompt can be queued.
-- Stale evidence creates no unresolved dashboard or notification decision.
-- Fresh Screenwatch evidence restores prompt eligibility automatically, so the outage does not permanently disable coaching.
+- Stale evidence creates no unresolved dashboard or notification decision and dismisses any unresolved gaming-drift prompt that became stale after it was queued.
+- Fresh Screenwatch evidence restores prompt eligibility automatically in the same persisted service, and repeated evaluation stays exactly once.
 - Existing policy, baseline, pause, work-window, accepted-break, end-workday, correction, and exactly-once prompt gates remain intact.
 
 ## Verification
