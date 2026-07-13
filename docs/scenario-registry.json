@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "0b9f58d1779504f403d1d48b60e4a1650d41dacb8a8fa52445790d2981ba83db",
+  "tracker_sha256": "4db769e5677372d24518e3d0e98934dee18352bcbd07dfefd542c4a95b50ede0",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3480,8 +3480,8 @@
       "item_index": 5,
       "wording": "Start a task with a keyboard shortcut.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3492,7 +3492,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No task-start keyboard shortcut or Commands entry exists; only modal cancel shortcuts are defined.",
+      "audit_note": "The signed Task menu named the exact Ready recommendation, displayed the Command-Option-S binding, started it through the same menu command exactly once, then disabled Start while the task was active. Focused tests cover the shortcut state and canonical command path, but the automation driver did not deliver the physical Command-Option-S chord, so direct keystroke activation remains (`TaskKeyboardCommands.swift`; `.audit/runs/task-keyboard-controls/verifier/REPORT.md`).",
       "tracker_line": 256
     },
     {
@@ -3967,9 +3967,9 @@
       "section_title": "Active-task controls",
       "item_index": 6,
       "wording": "Pause the task.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3977,10 +3977,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/task-keyboard-controls/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The focus card and active task row both expose a labelled pause menu with four understandable reasons, serialize the command, persist the pause episode, and refresh the snapshot. The installed menu click-through remains because the Mac was locked (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStoreTests`).",
+      "audit_note": "The signed Task menu changed from Pause Current Task: Keyboard Focus Task to a paused Today state with the neutral Done for now reason. The durable pause closed the first 21-second activity interval, opened one pause event, preserved elapsed work, and kept Start disabled (`TaskKeyboardCommands.swift`; `TaskExecutionStore.swift`; `.audit/runs/task-keyboard-controls/verifier/REPORT.md`).",
       "tracker_line": 284
     },
     {
@@ -3989,9 +3991,9 @@
       "section_title": "Active-task controls",
       "item_index": 7,
       "wording": "Resume the task.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3999,10 +4001,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/task-keyboard-controls/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Paused focus and task-row surfaces expose Resume, close the open pause episode, preserve prior elapsed time, and show explicit confirmation. Store-restart and agent-restart journeys pass, but installed UI acceptance remains (`AppModel.swift`; `TaskExecutionStoreTests`; `TodayDashboardAgentTests`).",
+      "audit_note": "The signed paused Task menu exposed Resume Paused Task: Keyboard Focus Task, resumed the same task, closed the pause event, opened exactly one new active interval, and restored the same single active task after application relaunch. Focused agent-restart and atomic single-active tests also passed (`TaskKeyboardCommands.swift`; `TaskExecutionStore.swift`; `.audit/runs/task-keyboard-controls/verifier/REPORT.md`).",
       "tracker_line": 285
     },
     {
