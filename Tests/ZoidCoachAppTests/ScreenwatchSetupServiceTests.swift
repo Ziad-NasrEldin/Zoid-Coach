@@ -19,6 +19,9 @@ func screenwatchSetupFindsAHealthyDefaultStreamWithoutExposingContent() async th
     #expect(status.source == .defaultLocation)
     #expect(status.repair == .none)
     #expect(status.validRecordCount == 1)
+    #expect(status.sourcePath?.hasSuffix("/Home/screenwatch/days") == true)
+    #expect(status.sourcePath?.hasPrefix("/") == true)
+    #expect(status.lastValidRecordAt == fixture.now)
     #expect(!fixture.visibleText(status).contains(secret))
     #expect(!fixture.visibleText(status).contains(fixture.root.path))
 }
@@ -35,6 +38,8 @@ func screenwatchSetupReportsAMissingDefaultAsExplicitDegradedMode() async throws
     #expect(status.continuation == .degraded)
     #expect(status.repair == .chooseFolder)
     #expect(status.validRecordCount == 0)
+    #expect(status.sourcePath == nil)
+    #expect(status.lastValidRecordAt == nil)
 }
 
 @Test

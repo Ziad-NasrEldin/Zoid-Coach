@@ -2,6 +2,51 @@ import Foundation
 import Testing
 @testable import ZoidCoachApp
 
+@Test
+func screenwatchRecordEvidenceShowsExactFolderAndLocalizedAbsoluteTime() throws {
+    let status = ScreenwatchSetupStatus(
+        source: .alternateFolder,
+        health: .healthy,
+        continuation: .ready,
+        repair: .none,
+        summary: "Current local records are available",
+        evidence: "Schema-valid local records were found.",
+        validRecordCount: 12,
+        sourcePath: "/Users/test/Library/Application Support/Screenwatch/days",
+        lastValidRecordAt: Date(timeIntervalSince1970: 1_800_000_000)
+    )
+
+    let utc = try #require(TimeZone(secondsFromGMT: 0))
+    let evidence = try #require(ScreenwatchRecordEvidence(
+        status: status,
+        locale: Locale(identifier: "en_US_POSIX"),
+        timeZone: utc
+    ))
+
+    #expect(evidence.sourcePath == "/Users/test/Library/Application Support/Screenwatch/days")
+    #expect(evidence.lastValidRecordText == "Jan 15, 2027 at 8:00:00\u{202F}AM")
+    #expect(evidence.accessibilitySummary.contains("Last valid record: Jan 15, 2027 at 8:00:00\u{202F}AM"))
+}
+
+@Test
+func screenwatchRecordEvidenceNamesMissingRecordWithoutInventingTime() throws {
+    let status = ScreenwatchSetupStatus(
+        source: .defaultLocation,
+        health: .missing,
+        continuation: .degraded,
+        repair: .recheck,
+        summary: "No log exists for today",
+        evidence: "The folder is available.",
+        validRecordCount: 0,
+        sourcePath: "/Users/test/.screenwatch/days"
+    )
+
+    let evidence = try #require(ScreenwatchRecordEvidence(status: status))
+
+    #expect(evidence.lastValidRecordText == nil)
+    #expect(evidence.accessibilitySummary == "Screenwatch folder: /Users/test/.screenwatch/days. No valid record is available yet.")
+}
+
 @MainActor
 @Test
 func screenwatchConnectionMovesFromInvalidDefaultToHealthyAlternateAndBack() async {
