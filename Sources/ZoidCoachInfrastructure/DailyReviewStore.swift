@@ -178,11 +178,19 @@ public final class DailyReviewStore: @unchecked Sendable {
                 )
             }
             guard observedSeconds > 0 else { return .recoveryStarted }
-            let selectedTaskMatched = selectedTaskID.map { taskID in
-                observedWork.contains { $0.taskID == taskID }
-            } ?? false
+            let selectedTaskSeconds = selectedTaskID.map { taskID in
+                observedWork.filter { $0.taskID == taskID }.reduce(TimeInterval.zero) { total, session in
+                    total + max(
+                        0,
+                        min(session.end, followThroughEnd)
+                            .timeIntervalSince(max(session.start, respondedAt))
+                    )
+                }
+            } ?? 0
+            let selectedTaskMatched = selectedTaskSeconds > 0
+            let reportedSeconds = selectedTaskMatched ? selectedTaskSeconds : observedSeconds
             return .returnedToWork(
-                observedMinutes: max(1, Int((observedSeconds / 60).rounded(.up))),
+                observedMinutes: max(1, Int((reportedSeconds / 60).rounded(.up))),
                 selectedTaskMatched: selectedTaskMatched
             )
         case .startBreak:

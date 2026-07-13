@@ -541,7 +541,7 @@ struct DailyReviewView: View {
         }
         let intentionalChoices = interactions.count { $0.outcome == .intentionalChoice }
         return HStack(spacing: 0) {
-            coachingMetric("OBSERVED RETURNS", observedReturns)
+            coachingMetric("OBSERVED FOLLOW-THROUGH", observedReturns)
             coachingMetric("RECOVERY STARTS", recoveryStarts)
             coachingMetric("INTENTIONAL CHOICES", intentionalChoices)
         }
@@ -581,9 +581,16 @@ struct DailyReviewView: View {
         case .recoveryStarted:
             return "RECOVERY STARTED · LATER WORK NOT OBSERVED"
         case let .returnedToWork(observedMinutes, selectedTaskMatched):
-            return selectedTaskMatched
-                ? "RETURN TO SELECTED TASK OBSERVED · \(observedMinutes) MIN WITHIN 30 MIN"
-                : "RETURN TO WORK OBSERVED · \(observedMinutes) MIN WITHIN 30 MIN · TASK ALIGNMENT NOT PROVEN"
+            let action = interaction.responseAction.flatMap(PromptActionKind.init(rawValue:))
+            let describesReturn = action == .returnToActiveTask
+            if selectedTaskMatched {
+                return describesReturn
+                    ? "RETURN TO SELECTED TASK OBSERVED · \(observedMinutes) MIN WITHIN 30 MIN"
+                    : "SELECTED TASK START OBSERVED · \(observedMinutes) MIN WITHIN 30 MIN"
+            }
+            return describesReturn
+                ? "RETURN TO WORK OBSERVED · \(observedMinutes) MIN WITHIN 30 MIN · TASK ALIGNMENT NOT PROVEN"
+                : "WORK START OBSERVED · \(observedMinutes) MIN WITHIN 30 MIN · TASK ALIGNMENT NOT PROVEN"
         case .acceptedBreak:
             return "ACCEPTED BREAK STARTED · NOT COUNTED AS DRIFT"
         case .intentionalChoice:
