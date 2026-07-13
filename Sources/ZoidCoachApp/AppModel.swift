@@ -881,7 +881,7 @@ final class AppModel: ObservableObject {
         return RemindersContinuityState(
             isOutage: reminderHealth != .healthy && reminderHealth != .checking,
             plannedTaskCount: rows.count,
-            plannedEstimateMinutes: rows.reduce(0) { $0 + $1.estimateMinutes },
+            plannedEstimateMinutes: planningCapacityState.plannedMinutes,
             hasActiveSession: todaySnapshot?.activeTask != nil
         )
     }

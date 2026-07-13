@@ -436,6 +436,15 @@ struct TodayDashboardCommandOverview: View {
         if row.state == .paused, let reason = row.latestPauseReason {
             return reason.userFacingLabel.uppercased()
         }
+        if let entry = planEntry(for: row) {
+            if entry.estimateIsUncertain {
+                return "ACTIVE COMMITMENT · UNKNOWN · ~\(PlanningCapacityState.unknownEstimatePlaceholderMinutes) MIN PLACEHOLDER"
+            }
+            guard let estimateMinutes = entry.estimateMinutes else {
+                return "ACTIVE COMMITMENT · ESTIMATE NEEDED"
+            }
+            return "ACTIVE COMMITMENT · \(estimateMinutes) MIN ESTIMATE"
+        }
         return "ACTIVE COMMITMENT · \(row.estimateMinutes) MIN ESTIMATE"
     }
 
