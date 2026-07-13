@@ -539,3 +539,15 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Signed Settings proved exact path, localized absolute latest-valid time, invalid-later preservation, no-record truthfulness, native accessibility and pixels, and both relaunch states.
 - `ZC-048-002` advances from Partially implemented to Fully implemented.
 - Verifier evidence is recorded in `.audit/runs/screenwatch-path-last-record/verifier/REPORT.md`.
+
+### Time-zone local plan-day confirmation - candidate
+
+- Owns `ZC-053-010`.
+- Inspects the durable plan for the current policy-local day before saving a changed policy time zone.
+- Pauses the existing conflict-safe Settings save only when the same instant maps to another local day and the source day has planned tasks.
+- Presents a native confirmation naming the task count, source day and time zone, and destination day and time zone.
+- Cancel leaves the draft and every other unsaved edit available for review, while Confirm resumes the normal audited agent policy mutation.
+- Same-day changes and changes with no source-day plan save directly, and an unavailable plan inspection fails closed with a visible unsaved status.
+- Five focused controller and real-SQLite inspection tests plus the broader Settings policy test group pass.
+- Candidate evidence is recorded in `.audit/runs/time-zone-plan-move-confirmation/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after an independent signed Settings confirmation, Cancel, Confirm, relaunch, and durable plan-day visibility verification.

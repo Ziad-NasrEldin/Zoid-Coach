@@ -26,6 +26,7 @@ final class SettingsPolicyController: ObservableObject {
     @Published private(set) var isSaving = false
     @Published private(set) var reminderListDiscovery: OnboardingReminderListDiscovery = .idle
     @Published private(set) var saveConflict: SettingsPolicySaveConflict?
+    @Published private(set) var timeZonePlanMoveConfirmation: TimeZonePlanMoveWarning?
 
     private let store: PolicyStore?
     private let savePolicyThroughAgent: @Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt
@@ -33,12 +34,15 @@ final class SettingsPolicyController: ObservableObject {
     private let discoverReminderLists: @MainActor () async -> ReminderListLoad
     private var onReminderListPolicySaved: @MainActor @Sendable () -> Void
     private var reminderListLoadGeneration = UUID()
+    private let inspectTimeZonePlanMove: @Sendable (String, String, Date) throws -> TimeZonePlanMoveWarning?
+    private var confirmedTimeZonePlanMove: TimeZonePlanMoveWarning?
 
     init(
         databaseURL: URL? = nil,
         runtimeEnvironment: RuntimeEnvironment = .current(),
         savePolicyThroughAgent: (@Sendable (PolicyMutationRequest) async throws -> AgentMutationReceipt)? = nil,
         discoverReminderLists: (@MainActor () async -> ReminderListLoad)? = nil,
+        inspectTimeZonePlanMove: (@Sendable (String, String, Date) throws -> TimeZonePlanMoveWarning?)? = nil,
         onReminderListPolicySaved: @escaping @MainActor @Sendable () -> Void = {}
     ) {
         self.onReminderListPolicySaved = onReminderListPolicySaved
@@ -68,6 +72,14 @@ final class SettingsPolicyController: ObservableObject {
             databaseURL: databaseURL ?? runtimeEnvironment.databaseURL,
             readOnly: true
         )
+        let resolvedDatabaseURL = databaseURL ?? runtimeEnvironment.databaseURL
+        self.inspectTimeZonePlanMove = inspectTimeZonePlanMove ?? { source, destination, date in
+            try TimeZonePlanMoveInspector(databaseURL: resolvedDatabaseURL).warning(
+                from: source,
+                to: destination,
+                at: date
+            )
+        }
         let current = try? store?.current()
         let policy = current?.policy ?? UserPolicy.defaults()
         persistedPolicy = policy
@@ -122,10 +134,29 @@ final class SettingsPolicyController: ObservableObject {
     }
 
     @discardableResult
-    func save() -> Task<Void, Never>? {
+    func save(now: Date = Date()) -> Task<Void, Never>? {
         guard store != nil else { return nil }
-        isSaving = true
         let policy = draft.policy(preserving: persistedPolicy)
+        do {
+            if let warning = try inspectTimeZonePlanMove(
+                persistedPolicy.schedule.timeZoneIdentifier,
+                policy.schedule.timeZoneIdentifier,
+                now
+            ), confirmedTimeZonePlanMove != warning {
+                timeZonePlanMoveConfirmation = warning
+                confirmedTimeZonePlanMove = nil
+                statusMessage = "Confirm the local-day change before these settings are saved."
+                return nil
+            }
+        } catch {
+            timeZonePlanMoveConfirmation = nil
+            confirmedTimeZonePlanMove = nil
+            statusMessage = "Settings were not saved: \(error.localizedDescription)"
+            return nil
+        }
+        timeZonePlanMoveConfirmation = nil
+        confirmedTimeZonePlanMove = nil
+        isSaving = true
         return Task {
             do {
                 try await persist(policy, conflictDraft: draft)
@@ -136,6 +167,20 @@ final class SettingsPolicyController: ObservableObject {
             }
             isSaving = false
         }
+    }
+
+    @discardableResult
+    func confirmTimeZonePlanMove() -> Task<Void, Never>? {
+        guard let warning = timeZonePlanMoveConfirmation else { return nil }
+        confirmedTimeZonePlanMove = warning
+        timeZonePlanMoveConfirmation = nil
+        return save(now: warning.referenceDate)
+    }
+
+    func cancelTimeZonePlanMove() {
+        timeZonePlanMoveConfirmation = nil
+        confirmedTimeZonePlanMove = nil
+        statusMessage = "The time-zone change was not saved. Your edits remain available to review."
     }
 
     func keepCurrentWinningValues() {
