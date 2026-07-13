@@ -640,6 +640,18 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         return identifier
     }
 
+    public func cancelNotifications(withPrefix prefix: String, keeping identifier: String? = nil) throws {
+        try mutate(
+            subsystem: "notifications",
+            operation: "cancel-prefix",
+            targetID: prefix
+        ) { state in
+            state.notifications.removeAll {
+                $0.id.hasPrefix(prefix) && $0.id != identifier
+            }
+        }
+    }
+
     private func mutate<T>(
         subsystem: String,
         operation: String,
