@@ -96,6 +96,11 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                     promptID: episode.id,
                     deliveryDate: effectiveDeliveryDate
                 ))
+                try await removeSupersededPromptNotifications(
+                    category: category,
+                    keepingRequestIdentifier: requestIdentifier,
+                    keepingPromptID: episode.id
+                )
                 _ = try fixtureAdapter.deliverDueNotifications()
                 try await processFixtureActions()
                 recordDelivery(
@@ -151,6 +156,11 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             center.removePendingNotificationRequests(withIdentifiers: [requestIdentifier])
             center.removeDeliveredNotifications(withIdentifiers: [requestIdentifier])
             try await center.add(request)
+            try await removeSupersededPromptNotifications(
+                category: category,
+                keepingRequestIdentifier: requestIdentifier,
+                keepingPromptID: episode.id
+            )
             recordDelivery(
                 requestIdentifier: requestIdentifier,
                 episode: episode,
@@ -255,6 +265,45 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             scheduledFor: deliveryDate
         )
         return true
+    }
+
+    private func removeSupersededPromptNotifications(
+        category: PromptNotificationCategory,
+        keepingRequestIdentifier: String,
+        keepingPromptID: String
+    ) async throws {
+        let relevance = PromptNotificationRelevance(category: category)
+        if let fixtureAdapter {
+            let identifiers: Set<String> = Set(try fixtureAdapter.snapshot().notifications.compactMap { notification in
+                guard notification.desired.promptID != keepingPromptID,
+                      let existingCategory = PromptNotificationCategory(rawValue: notification.desired.category),
+                      relevance.includes(existingCategory)
+                else { return nil }
+                return notification.id
+            })
+            try fixtureAdapter.cancelNotifications(withIdentifiers: identifiers)
+            return
+        }
+
+        guard let center else { return }
+        let categoryIdentifiers = Set(relevance.categories.map {
+            notificationIdentity.promptCategoryIdentifier($0.rawValue)
+        })
+        let pending = await center.pendingNotificationRequests()
+        let delivered = await center.deliveredNotifications()
+        center.removePendingNotificationRequests(withIdentifiers: pending.compactMap { request in
+            guard request.identifier != keepingRequestIdentifier,
+                  categoryIdentifiers.contains(request.content.categoryIdentifier)
+            else { return nil }
+            return request.identifier
+        })
+        center.removeDeliveredNotifications(withIdentifiers: delivered.compactMap { notification in
+            let request = notification.request
+            guard request.identifier != keepingRequestIdentifier,
+                  categoryIdentifiers.contains(request.content.categoryIdentifier)
+            else { return nil }
+            return request.identifier
+        })
     }
 
     public func cancelAcceptedBreakEnds(taskID: String) async {
