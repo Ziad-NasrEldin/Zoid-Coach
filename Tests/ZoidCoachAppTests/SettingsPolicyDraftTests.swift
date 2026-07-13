@@ -233,6 +233,7 @@ func settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() {
     draft.nightlyPlanningTime = LocalTime(hour: 21, minute: 45)
     draft.morningConfirmationTime = LocalTime(hour: 7, minute: 15)
     draft.dailyReviewTime = LocalTime(hour: 19, minute: 30)
+    draft.workWeekdays = [.monday, .wednesday, .saturday]
     draft.visibleCalendarIdentifiers = "work, personal"
     draft.schedulingCalendarIdentifier = "work"
     draft.aiProvider = .localOllama
@@ -247,11 +248,142 @@ func settingsDraftRoundTripsPolicyAndNormalizesLocalOnlyEvidence() {
     #expect(policy.schedule.nightlyPlanningTime == LocalTime(hour: 21, minute: 45))
     #expect(policy.schedule.morningConfirmationTime == LocalTime(hour: 7, minute: 15))
     #expect(policy.schedule.dailyReviewTime == LocalTime(hour: 19, minute: 30))
+    #expect(policy.schedule.workWindows == [WeeklyWorkWindow(
+        weekdays: [.monday, .wednesday, .saturday],
+        start: LocalTime(hour: 9, minute: 0),
+        end: LocalTime(hour: 18, minute: 0)
+    )])
     #expect(policy.calendar.visibleCalendarIdentifiers == ["work", "personal"])
     #expect(policy.calendar.schedulingCalendarIdentifier == "work")
     #expect(policy.privacy.remoteEvidencePolicy == .localOnly)
     #expect(policy.privacy.rawScreenshotRetentionDays == 7)
     #expect(policy.validationViolations().isEmpty)
+}
+
+@Test
+func settingsDraftRequiresOneWorkdayAndKeepsSelectionSorted() {
+    var draft = SettingsPolicyDraft(policy: .defaults(timeZoneIdentifier: "UTC"))
+    draft.workWeekdays = [.monday]
+
+    draft.toggleWorkWeekday(.monday)
+    #expect(draft.workWeekdays == [.monday])
+
+    draft.toggleWorkWeekday(.saturday)
+    draft.toggleWorkWeekday(.sunday)
+    #expect(draft.workWeekdays == [.sunday, .monday, .saturday])
+
+    draft.toggleWorkWeekday(.monday)
+    #expect(draft.workWeekdays == [.sunday, .saturday])
+}
+
+@Test
+func settingsDraftPreservesMultipleWorkWindowDayGroupsUntilSelectionChanges() {
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    let original = UserPolicy(
+        operatingMode: defaults.operatingMode,
+        automationPause: defaults.automationPause,
+        schedule: SchedulePolicy(
+            timeZoneIdentifier: "UTC",
+            workWindows: [
+                WeeklyWorkWindow(
+                    weekdays: [.monday, .tuesday],
+                    start: LocalTime(hour: 9, minute: 0),
+                    end: LocalTime(hour: 17, minute: 0)
+                ),
+                WeeklyWorkWindow(
+                    weekdays: [.saturday],
+                    start: LocalTime(hour: 10, minute: 0),
+                    end: LocalTime(hour: 14, minute: 0)
+                )
+            ],
+            quietHours: defaults.schedule.quietHours,
+            nightlyPlanningTime: defaults.schedule.nightlyPlanningTime,
+            morningConfirmationTime: defaults.schedule.morningConfirmationTime,
+            dailyReviewTime: defaults.schedule.dailyReviewTime,
+            planningCapacityPercent: defaults.schedule.planningCapacityPercent
+        ),
+        calendar: defaults.calendar,
+        privacy: defaults.privacy,
+        wake: defaults.wake,
+        behavior: defaults.behavior,
+        capture: defaults.capture,
+        gaming: defaults.gaming,
+        reminderLists: defaults.reminderLists
+    )
+    var draft = SettingsPolicyDraft(policy: original)
+    draft.workStart = LocalTime(hour: 8, minute: 30)
+    draft.workEnd = LocalTime(hour: 16, minute: 30)
+
+    let unchangedDays = draft.policy(preserving: original)
+    #expect(unchangedDays.schedule.workWindows.map(\.weekdays) == [[.monday, .tuesday], [.saturday]])
+    #expect(unchangedDays.schedule.workWindows.allSatisfy {
+        $0.start == LocalTime(hour: 8, minute: 30) && $0.end == LocalTime(hour: 16, minute: 30)
+    })
+
+    draft.toggleWorkWeekday(.wednesday)
+    let changedDays = draft.policy(preserving: original)
+    #expect(changedDays.schedule.workWindows == [WeeklyWorkWindow(
+        weekdays: [.monday, .tuesday, .wednesday, .saturday],
+        start: LocalTime(hour: 8, minute: 30),
+        end: LocalTime(hour: 16, minute: 30)
+    )])
+}
+
+@Test
+func settingsConflictResolverTreatsWorkingDaysAsAnIndependentPolicyChoice() {
+    let base = SettingsPolicyDraft(policy: .defaults(timeZoneIdentifier: "UTC"))
+    var mine = base
+    mine.workWeekdays = [.monday, .tuesday, .wednesday]
+    var current = base
+    current.capacityPercent = 85
+
+    let independent = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+    #expect(independent.safeDraft.workWeekdays == mine.workWeekdays)
+    #expect(independent.safeDraft.capacityPercent == 85)
+    #expect(independent.overlappingChanges.isEmpty)
+
+    current.workWeekdays = [.friday, .saturday]
+    let overlap = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+    #expect(overlap.safeDraft.workWeekdays == [.friday, .saturday])
+    #expect(overlap.retryDraft.workWeekdays == mine.workWeekdays)
+    #expect(overlap.overlappingChanges == ["Working days"])
+}
+
+@Test
+func savedWorkingDaysDriveTheNextScheduledReviewWithoutAnAppRestart() throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-settings-workdays-runtime-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let now = try #require(ISO8601DateFormatter().date(from: "2026-07-13T10:00:00Z"))
+    let store = try PolicyStore(databaseURL: databaseURL, now: { now })
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    _ = try store.saveSystemMaintenancePolicy(original)
+    var draft = SettingsPolicyDraft(policy: original)
+    draft.workWeekdays = [.tuesday]
+    let savedPolicy = draft.policy(preserving: original)
+    _ = try store.saveMutation(PolicyMutationRequest(
+        requestID: "settings-policy-v1:settings-workdays-runtime",
+        expectedVersion: 1,
+        policy: savedPolicy,
+        origin: .settings
+    ))
+    let currentValue = try store.current()
+    let current = try #require(currentValue)
+    let outbox = try ActionOutboxStore(databaseURL: databaseURL, now: { now })
+
+    let resultValue = try ReviewReminderService(outbox: outbox).reconcile(
+        policy: current.policy,
+        policyVersion: current.version,
+        now: now
+    )
+    let result = try #require(resultValue)
+
+    #expect(current.policy.schedule.workWindows.first?.weekdays == [.tuesday])
+    #expect(result.daily.command.entityID == "daily-review:2026-07-14")
 }
 
 @Test

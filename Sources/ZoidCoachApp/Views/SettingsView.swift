@@ -795,6 +795,31 @@ struct SettingsView: View {
                 LocalTimeField(title: "Quiet starts", time: $controller.draft.quietStart)
                 LocalTimeField(title: "Quiet ends", time: $controller.draft.quietEnd)
             }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("WORKING DAYS")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.sealDeep)
+                HStack(spacing: 6) {
+                    ForEach(Weekday.allCases, id: \.rawValue) { weekday in
+                        let isSelected = controller.draft.workWeekdays.contains(weekday)
+                        Button(Self.shortWeekday(weekday)) {
+                            controller.draft.toggleWorkWeekday(weekday)
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: isSelected ? .primary : .quiet, size: .compact))
+                        .accessibilityLabel("\(Self.longWeekday(weekday)) work day")
+                        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                        .accessibilityHint(isSelected && controller.draft.workWeekdays.count == 1 ? "At least one working day is required" : "Toggles this working day")
+                        .accessibilityIdentifier("settings.schedule.weekday.\(weekday.rawValue)")
+                        .disabled(isSelected && controller.draft.workWeekdays.count == 1)
+                    }
+                }
+                Text("Planning, scheduled reviews, and work-window coaching use only the selected days. At least one day stays selected.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.schedule.weekdays.detail")
+            }
             HStack(spacing: 18) {
                 LocalTimeField(title: "Nightly planning", time: $controller.draft.nightlyPlanningTime)
                 LocalTimeField(title: "Morning confirmation", time: $controller.draft.morningConfirmationTime)
@@ -827,6 +852,14 @@ struct SettingsView: View {
             return "\(timeZone.identifier) · \(offset) · matches this Mac. Existing historical timestamps remain the same instant."
         }
         return "\(timeZone.identifier) · \(offset) · this Mac currently uses \(TimeZone.current.identifier). Existing historical timestamps remain the same instant."
+    }
+
+    private static func shortWeekday(_ weekday: Weekday) -> String {
+        Calendar.current.shortWeekdaySymbols[weekday.rawValue - 1].uppercased()
+    }
+
+    private static func longWeekday(_ weekday: Weekday) -> String {
+        Calendar.current.weekdaySymbols[weekday.rawValue - 1]
     }
 
     private var appClassificationSection: some View {

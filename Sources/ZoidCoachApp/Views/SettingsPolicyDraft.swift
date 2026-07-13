@@ -8,6 +8,7 @@ struct SettingsPolicyDraft: Equatable {
     var timeZoneIdentifier: String
     var workStart: LocalTime
     var workEnd: LocalTime
+    var workWeekdays: [Weekday]
     var quietStart: LocalTime
     var quietEnd: LocalTime
     var nightlyPlanningTime: LocalTime
@@ -56,6 +57,7 @@ struct SettingsPolicyDraft: Equatable {
         timeZoneIdentifier = policy.schedule.timeZoneIdentifier
         workStart = policy.schedule.workWindows.first?.start ?? LocalTime(hour: 9, minute: 0)
         workEnd = policy.schedule.workWindows.first?.end ?? LocalTime(hour: 18, minute: 0)
+        workWeekdays = Array(Set(policy.schedule.workWindows.flatMap(\.weekdays))).sorted()
         quietStart = policy.schedule.quietHours.start
         quietEnd = policy.schedule.quietHours.end
         nightlyPlanningTime = policy.schedule.nightlyPlanningTime
@@ -103,6 +105,16 @@ struct SettingsPolicyDraft: Equatable {
     var isPaused: Bool {
         get { automationPause.isPaused }
         set { automationPause = newValue ? .pausedIndefinitely : .running }
+    }
+
+    mutating func toggleWorkWeekday(_ weekday: Weekday) {
+        if workWeekdays.contains(weekday) {
+            guard workWeekdays.count > 1 else { return }
+            workWeekdays.removeAll { $0 == weekday }
+        } else {
+            workWeekdays.append(weekday)
+            workWeekdays.sort()
+        }
     }
 
     func classification(for application: String) -> AppClassificationChoice {
@@ -216,8 +228,14 @@ struct SettingsPolicyDraft: Equatable {
         let selectedProvider = AIProviderCapabilities.production[aiProvider].isSelectable ? aiProvider : .disabled
         let identifiers = visibleCalendarIdentifierList
         let schedulingID = schedulingCalendarIdentifierValue
-        let workWindows = original.schedule.workWindows.map {
-            WeeklyWorkWindow(weekdays: $0.weekdays, start: workStart, end: workEnd)
+        let originalWeekdays = Array(Set(original.schedule.workWindows.flatMap(\.weekdays))).sorted()
+        let workWindows: [WeeklyWorkWindow]
+        if workWeekdays == originalWeekdays, original.schedule.workWindows.isEmpty == false {
+            workWindows = original.schedule.workWindows.map {
+                WeeklyWorkWindow(weekdays: $0.weekdays, start: workStart, end: workEnd)
+            }
+        } else {
+            workWindows = [WeeklyWorkWindow(weekdays: workWeekdays, start: workStart, end: workEnd)]
         }
 
         return UserPolicy(

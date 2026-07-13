@@ -69,6 +69,7 @@ enum SettingsPolicyConflictResolver {
         apply(\.timeZoneIdentifier, label: "Time zone")
         apply(\.workStart, label: "Workday window")
         apply(\.workEnd, label: "Workday window")
+        apply(\.workWeekdays, label: "Working days")
         apply(\.quietStart, label: "Quiet hours")
         apply(\.quietEnd, label: "Quiet hours")
         apply(\.nightlyPlanningTime, label: "Planning times")
