@@ -119,7 +119,8 @@ struct MenuBarCoachView: View {
         .task {
             async let todayRefresh: Void = controller.refresh()
             async let pauseRefresh: Void = pauseController.refresh()
-            _ = await (todayRefresh, pauseRefresh)
+            async let fallbackRefresh: Void = appModel.refreshMenuBarPromptFallback()
+            _ = await (todayRefresh, pauseRefresh, fallbackRefresh)
             await appModel.refreshTodaySnapshot()
         }
         .accessibilityElement(children: .contain)
