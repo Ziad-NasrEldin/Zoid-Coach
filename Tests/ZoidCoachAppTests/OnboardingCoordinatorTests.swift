@@ -572,16 +572,46 @@ func classificationAndScheduleAreAppliedBeforeAdvancing() async throws {
     #expect(policyRecorder.policy.behavior.choice(for: app.name) == .work)
 
     coordinator.workStartHour = 8
+    coordinator.workStartMinute = 30
     coordinator.workEndHour = 17
+    coordinator.workEndMinute = 15
     coordinator.quietStartHour = 21
+    coordinator.quietStartMinute = 45
     coordinator.quietEndHour = 6
+    coordinator.quietEndMinute = 30
     try await coordinator.continueFromCurrentStep()
-    #expect(policyRecorder.policy.schedule.workWindows.first?.start == LocalTime(hour: 8, minute: 0))
-    #expect(policyRecorder.policy.schedule.workWindows.first?.end == LocalTime(hour: 17, minute: 0))
+    #expect(policyRecorder.policy.schedule.workWindows.first?.start == LocalTime(hour: 8, minute: 30))
+    #expect(policyRecorder.policy.schedule.workWindows.first?.end == LocalTime(hour: 17, minute: 15))
     #expect(policyRecorder.policy.schedule.quietHours == DailyTimeWindow(
-        start: LocalTime(hour: 21, minute: 0),
-        end: LocalTime(hour: 6, minute: 0)
+        start: LocalTime(hour: 21, minute: 45),
+        end: LocalTime(hour: 6, minute: 30)
     ))
+}
+
+@MainActor
+@Test
+func onboardingScheduleRejectsEmptyOrOvernightWorkAndAcceptsOvernightQuietHours() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.schedule))
+    let policyRecorder = PolicyRecorder()
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(policyRecorder: policyRecorder)
+    )
+
+    coordinator.workStartHour = 9
+    coordinator.workEndHour = 9
+    #expect(!coordinator.canContinue)
+    #expect(coordinator.scheduleValidationMessage?.contains("cannot be the same") == true)
+
+    coordinator.workEndHour = 8
+    #expect(!coordinator.canContinue)
+    #expect(coordinator.scheduleValidationMessage?.contains("cannot cross midnight") == true)
+
+    coordinator.workEndHour = 17
+    coordinator.quietStartHour = 22
+    coordinator.quietEndHour = 6
+    #expect(coordinator.canContinue)
+    #expect(coordinator.scheduleValidationMessage == nil)
 }
 
 @MainActor

@@ -35,9 +35,13 @@ final class OnboardingCoordinator: ObservableObject {
     @Published private(set) var inventoryMessage = "Applications have not been scanned yet."
     @Published var classifications: [String: AppClassificationChoice] = [:]
     @Published var workStartHour = 9
+    @Published var workStartMinute = 0
     @Published var workEndHour = 18
+    @Published var workEndMinute = 0
     @Published var quietStartHour = 22
+    @Published var quietStartMinute = 0
     @Published var quietEndHour = 7
+    @Published var quietEndMinute = 0
     @Published var gamingPolicy = OnboardingGamingPolicy.balanced
     @Published private(set) var deliveryResult: OnboardingDeliveryResult?
     @Published private(set) var testPrompt: PromptEpisode?
@@ -86,9 +90,13 @@ final class OnboardingCoordinator: ObservableObject {
                 originalPolicy = policy
                 policyDraft = SettingsPolicyDraft(policy: policy)
                 workStartHour = policyDraft.workStart.hour
+                workStartMinute = policyDraft.workStart.minute
                 workEndHour = policyDraft.workEnd.hour
+                workEndMinute = policyDraft.workEnd.minute
                 quietStartHour = policyDraft.quietStart.hour
+                quietStartMinute = policyDraft.quietStart.minute
                 quietEndHour = policyDraft.quietEnd.hour
+                quietEndMinute = policyDraft.quietEnd.minute
                 gamingPolicy = OnboardingGamingPolicy(policy: policy.gaming)
                 for decision in progress.reminderListDecisions {
                     policyDraft.setReminderListDecision(
@@ -464,9 +472,28 @@ final class OnboardingCoordinator: ObservableObject {
         case .firstDailyPlan:
             return firstDailyPlanResult?.state == .prepared
                 && firstDailyPlanResult?.items.isEmpty == false
+        case .schedule:
+            return scheduleValidationMessage == nil
         default:
             return true
         }
+    }
+
+    var scheduleValidationMessage: String? {
+        let workStart = LocalTime(hour: workStartHour, minute: workStartMinute)
+        let workEnd = LocalTime(hour: workEndHour, minute: workEndMinute)
+        if workStart == workEnd {
+            return "Work start and end cannot be the same. Choose a real daytime window."
+        }
+        if workStart > workEnd {
+            return "Work hours cannot cross midnight. Choose an end time later than the start time."
+        }
+        let quietStart = LocalTime(hour: quietStartHour, minute: quietStartMinute)
+        let quietEnd = LocalTime(hour: quietEndHour, minute: quietEndMinute)
+        if quietStart == quietEnd {
+            return "Quiet start and end cannot be the same. Overnight quiet hours are supported."
+        }
+        return nil
     }
 
     private var reminderListSelectionIsValid: Bool {
@@ -545,10 +572,13 @@ final class OnboardingCoordinator: ObservableObject {
         case .activityClassification:
             policy = policyDraft.policy(preserving: originalPolicy)
         case .schedule:
-            policyDraft.workStart = LocalTime(hour: workStartHour, minute: 0)
-            policyDraft.workEnd = LocalTime(hour: workEndHour, minute: 0)
-            policyDraft.quietStart = LocalTime(hour: quietStartHour, minute: 0)
-            policyDraft.quietEnd = LocalTime(hour: quietEndHour, minute: 0)
+            guard scheduleValidationMessage == nil else {
+                throw OnboardingDependencyError.invalidScheduleBoundaries
+            }
+            policyDraft.workStart = LocalTime(hour: workStartHour, minute: workStartMinute)
+            policyDraft.workEnd = LocalTime(hour: workEndHour, minute: workEndMinute)
+            policyDraft.quietStart = LocalTime(hour: quietStartHour, minute: quietStartMinute)
+            policyDraft.quietEnd = LocalTime(hour: quietEndHour, minute: quietEndMinute)
             policy = policyDraft.policy(preserving: originalPolicy)
         case .gamingPolicy:
             policy = originalPolicy.replacingGamingPolicy(gamingPolicy.policy)
