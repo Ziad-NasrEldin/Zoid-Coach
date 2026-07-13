@@ -11,6 +11,60 @@ struct CalendarPlanApprovalItem: Codable, Equatable, Identifiable, Sendable {
     var id: String { reminderID }
 }
 
+struct CalendarPlanAvailabilityRevision: Equatable, Sendable {
+    struct Commitment: Equatable, Sendable {
+        let id: String
+        let start: Date
+        let end: Date
+        let calendarIdentifier: String
+    }
+
+    let workIntervals: [CalendarInterval]
+    let visibleCalendarIdentifiers: [String]
+    let commitments: [Commitment]
+
+    init(
+        workIntervals: [CalendarInterval],
+        visibleCalendarIdentifiers: Set<String>,
+        commitments: [CalendarCommitment]
+    ) {
+        self.workIntervals = workIntervals.sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.end < $1.end
+        }
+        self.visibleCalendarIdentifiers = visibleCalendarIdentifiers.sorted()
+        self.commitments = commitments
+            .filter { commitment in
+                !commitment.isZoidOwned
+                    && workIntervals.contains {
+                        commitment.end > $0.start && commitment.start < $0.end
+                    }
+            }
+            .map {
+                Commitment(
+                    id: $0.id,
+                    start: $0.start,
+                    end: $0.end,
+                    calendarIdentifier: $0.calendarIdentifier
+                )
+            }
+            .sorted {
+                if $0.start != $1.start { return $0.start < $1.start }
+                if $0.end != $1.end { return $0.end < $1.end }
+                if $0.calendarIdentifier != $1.calendarIdentifier {
+                    return $0.calendarIdentifier < $1.calendarIdentifier
+                }
+                return $0.id < $1.id
+            }
+    }
+}
+
+enum CalendarPlanAvailabilityPreflight: Equatable, Sendable {
+    case current
+    case changed
+    case unavailable
+}
+
 enum CalendarPlanWriteState: Equatable, Sendable {
     case idle
     case reviewing
@@ -57,6 +111,7 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
     var writeState: CalendarPlanWriteState = .idle
     private(set) var receipt: CalendarPlanApprovalReceipt?
     private var presentationIsOpen = false
+    private var reviewedAvailabilityRevision: CalendarPlanAvailabilityRevision?
 
     var isPresented: Bool { presentationIsOpen }
     var plannedMinutes: Int { items.reduce(0) { $0 + $1.estimateMinutes } }
@@ -67,7 +122,8 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
         titlesByReminderID: [String: String],
         availableMinutes: Int,
         fixedCommitmentMinutes: Int,
-        usesCalendarAvailability: Bool
+        usesCalendarAvailability: Bool,
+        availabilityRevision: CalendarPlanAvailabilityRevision? = nil
     ) {
         items = entries.compactMap { entry in
             guard let estimate = entry.estimateMinutes else { return nil }
@@ -82,8 +138,17 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
         self.availableMinutes = availableMinutes
         self.fixedCommitmentMinutes = fixedCommitmentMinutes
         self.usesCalendarAvailability = usesCalendarAvailability
+        reviewedAvailabilityRevision = availabilityRevision
         writeState = .reviewing
         presentationIsOpen = true
+    }
+
+    func preflight(
+        against currentRevision: CalendarPlanAvailabilityRevision?
+    ) -> CalendarPlanAvailabilityPreflight {
+        guard let currentRevision else { return .unavailable }
+        guard let reviewedAvailabilityRevision else { return .unavailable }
+        return reviewedAvailabilityRevision == currentRevision ? .current : .changed
     }
 
     mutating func queued(commandIDs: [String], approvedAt: Date = Date()) {
@@ -146,6 +211,7 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
         availableMinutes = receipt.availableMinutes
         fixedCommitmentMinutes = receipt.fixedCommitmentMinutes
         usesCalendarAvailability = receipt.usesCalendarAvailability
+        reviewedAvailabilityRevision = nil
         presentationIsOpen = false
         switch receipt.outcome {
         case .pending:
