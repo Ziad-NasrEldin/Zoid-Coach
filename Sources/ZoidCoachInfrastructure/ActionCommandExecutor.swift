@@ -226,7 +226,6 @@ public struct ActionCommandExecutor: Sendable {
             guard !desired.promptID.isEmpty, !desired.title.isEmpty else {
                 throw ActionSourceError.invalidDesiredState
             }
-            if try await notifications.pending(identifier: desired.promptID) { return desired.promptID }
             return try await notifications.schedule(desired)
 
         default:
