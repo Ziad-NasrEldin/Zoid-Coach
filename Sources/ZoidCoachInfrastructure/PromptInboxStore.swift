@@ -640,6 +640,94 @@ private struct StoredPromptEnvelope: Codable {
     let payload: [String: String]
     let presentedAt: Date?
     let resolvedAt: Date?
+
+    private enum CodingKeys: String, CodingKey {
+        case decisionKey
+        case actions
+        case payload
+        case presentedAt
+        case resolvedAt
+    }
+
+    init(
+        decisionKey: String,
+        actions: [PromptAction],
+        payload: [String: String],
+        presentedAt: Date?,
+        resolvedAt: Date?
+    ) {
+        self.decisionKey = decisionKey
+        self.actions = actions
+        self.payload = payload
+        self.presentedAt = presentedAt
+        self.resolvedAt = resolvedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        decisionKey = try container.decode(String.self, forKey: .decisionKey)
+        if let canonical = try? container.decode([PromptAction].self, forKey: .actions) {
+            actions = canonical
+        } else {
+            actions = try container.decode([LegacyStoredPromptAction].self, forKey: .actions).map(\.promptAction)
+        }
+        payload = try container.decode([String: String].self, forKey: .payload)
+        presentedAt = try container.decodeIfPresent(Date.self, forKey: .presentedAt)
+        resolvedAt = try container.decodeIfPresent(Date.self, forKey: .resolvedAt)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(decisionKey, forKey: .decisionKey)
+        try container.encode(actions, forKey: .actions)
+        try container.encode(payload, forKey: .payload)
+        try container.encodeIfPresent(presentedAt, forKey: .presentedAt)
+        try container.encodeIfPresent(resolvedAt, forKey: .resolvedAt)
+    }
+}
+
+private struct LegacyStoredPromptAction: Decodable {
+    let promptAction: PromptAction
+
+    private enum CodingKeys: String, CodingKey {
+        case kind
+        case title
+        case role
+        case requiresConfirmation
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let requiresConfirmation: Bool
+        if let canonical = try? container.decode(Bool.self, forKey: .requiresConfirmation) {
+            requiresConfirmation = canonical
+        } else if let legacy = try? container.decode(Int.self, forKey: .requiresConfirmation) {
+            guard legacy == 0 || legacy == 1 else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .requiresConfirmation,
+                    in: container,
+                    debugDescription: "Legacy confirmation flags must be 0 or 1."
+                )
+            }
+            requiresConfirmation = legacy == 1
+        } else if !container.contains(.requiresConfirmation) {
+            requiresConfirmation = false
+        } else {
+            throw DecodingError.typeMismatch(
+                Bool.self,
+                DecodingError.Context(
+                    codingPath: container.codingPath + [CodingKeys.requiresConfirmation],
+                    debugDescription: "Confirmation must be a Boolean or legacy 0/1 integer."
+                )
+            )
+        }
+        promptAction = PromptAction(
+            kind: try container.decode(PromptActionKind.self, forKey: .kind),
+            title: try container.decode(String.self, forKey: .title),
+            role: try container.decode(PromptActionRole.self, forKey: .role),
+            requiresConfirmation: requiresConfirmation
+        )
+    }
 }
 
 public enum PromptInboxStoreError: LocalizedError, Equatable {
