@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "31f38c4eb9e65a422fb56a809d9643c62fadd142d915eaf18efc82ebed154043",
+  "tracker_sha256": "a8f063fb9be8f6e04e9e8b55e639f4719367f868c1ca9e9e6f082a9f9eaaadf1",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7970,8 +7970,8 @@
       "item_index": 1,
       "wording": "Choose to continue gaming intentionally.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7982,7 +7982,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`PromptActionKind.continueIntentionally` exists, but no generated prompt or visible button uses it.",
+      "audit_note": "Accountability gaming prompts now expose `Continue intentionally`, persist the factual response, and resolve the prompt atomically. Focused tests and the signed QA package pass, but the installed notification interaction was not completed in the capped acceptance run (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/intentional-gaming-override/verifier/REPORT.md`).",
       "tracker_line": 517
     },
     {
@@ -7992,8 +7992,8 @@
       "item_index": 2,
       "wording": "See the current prompt close immediately.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8004,7 +8004,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Generic prompt responses close a prompt atomically, but the intentional-gaming prompt is never created and the action has no effect router.",
+      "audit_note": "Responding with `continue_intentionally` resolves the episode and removes it from the unresolved inbox in the persisted store. The installed visible close transition still needs UI automation proof (`GamingDriftPromptServiceTests.swift`; `.audit/runs/intentional-gaming-override/verifier/REPORT.md`).",
       "tracker_line": 518
     },
     {
@@ -8014,8 +8014,8 @@
       "item_index": 3,
       "wording": "Avoid another equivalent prompt during the override window.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8026,7 +8026,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No intentional-override window is persisted or checked.",
+      "audit_note": "A persisted intentional response now suppresses equivalent gaming coaching for 45 minutes across service restart, while leaving the daily cap active. Signed-package verification passed, but installed runtime suppression was not completed in the capped acceptance run (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/intentional-gaming-override/verifier/REPORT.md`).",
       "tracker_line": 519
     },
     {
@@ -8102,8 +8102,8 @@
       "item_index": 7,
       "wording": "Return to work before the override ends.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8114,7 +8114,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Work observations can be tracked, but there is no override lifecycle to end early.",
+      "audit_note": "Two continuous minutes of correction-aware aligned work now end the intentional override early and permit coaching to resume if a later qualifying gaming session develops. Installed end-to-end transition proof remains (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/intentional-gaming-override/verifier/REPORT.md`).",
       "tracker_line": 523
     },
     {
@@ -8124,8 +8124,8 @@
       "item_index": 8,
       "wording": "Receive normal coaching again after the override expires if conditions still apply.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8136,7 +8136,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Neither override expiry nor normal behavior coaching is implemented.",
+      "audit_note": "After 45 minutes, a still-qualifying gaming session receives a new persisted decision key and can prompt again without being incorrectly blocked by the generic coaching cooldown. Focused restart tests pass; installed expiry and reprompt proof remains (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/intentional-gaming-override/verifier/REPORT.md`).",
       "tracker_line": 524
     },
     {
