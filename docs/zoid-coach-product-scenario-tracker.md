@@ -827,13 +827,13 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Approve a plan with at least one incomplete priority task. **Status: Partially implemented.** Planned blocks and incomplete tasks exist, but the exact approved priority-plan state is not exposed.
 - [ ] Start gaming during the work window before unlock conditions are satisfied. **Status: Blocked from verification.** This requires a live behavioral session and cannot establish completion while downstream intervention behavior is missing.
 - [ ] Receive one accountability prompt after the threshold. **Status: Barely started.** Prompt infrastructure exists, but no verified ten-minute gaming trigger delivered the specified prompt.
-- [ ] Understand the observed gaming time and unfinished task. **Status: Barely started.** Gaming budget and task state are visible separately, but the combined accountability message is not proven.
+- [ ] Understand the observed gaming time and unfinished task. **Status: Touches remaining.** The signed Daily Review visibly decoded one behavior prompt into `12 MIN IN STEAM` and the unfinished proposal with stable accessibility evidence, and relaunch preserved it. A real gaming threshold was not triggered in the installed run, so the complete source-to-review journey remains (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).
 - [ ] Start a 20-minute sprint from the prompt. **Status: Not implemented.** No 20-minute sprint action appears in the installed prompt or task controls.
 - [ ] See gaming stop accumulating when the context changes. **Status: Partially implemented.** Behavior sessions can close on context changes, but the installed UI did not show a full gaming-to-work transition.
 - [ ] See the selected task become active everywhere. **Status: Partially implemented.** The Today surface updates active commitment, but the menu bar lacks equivalent task state.
 - [ ] Work in an aligned context for at least ten minutes. **Status: Partially implemented.** Aligned work can be inferred in domain logic, but the user cannot verify the recovery window end to end.
-- [ ] See the intervention counted as a recovery. **Status: Not implemented.** No user-visible recovery metric or review exists.
-- [ ] See the journey described factually in the daily review. **Status: Not implemented.** Daily reviews are absent.
+- [ ] See the intervention counted as a recovery. **Status: Touches remaining.** The signed review counted one observed follow-through and two recovery starts, required corrected selected-task work within 30 minutes, excluded unrelated work from the task-specific minutes, and truthfully kept an applied response with no later work at `RECOVERY STARTED`. The actual gaming prompt-to-work action was seeded rather than performed live (`DailyReviewStore.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).
+- [ ] See the journey described factually in the daily review. **Status: Touches remaining.** The signed review combined observed gaming, unfinished-task context, selected-task start evidence, no-work follow-through, action surface, and unanswered state without inferring success, and reproduced the result after relaunch. A complete naturally triggered gaming journey remains (`DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).
 
 ## 60. Complete intentional-gaming journey
 
@@ -844,7 +844,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Continue gaming without repeated equivalent prompts during the cooldown. **Status: Not implemented.** The required override state does not exist in the user flow.
 - [ ] See gaming budget or debt update according to policy. **Status: Partially implemented.** A durable gaming ledger and live budget exist, but override/debt response integration is not complete.
 - [ ] Return to work voluntarily. **Status: Partially implemented.** A user can start a task, but the transition is not connected to an intentional-gaming episode.
-- [ ] See the choice recorded without shame in the review. **Status: Not implemented.** Neither the choice nor daily review exists.
+- [ ] See the choice recorded without shame in the review. **Status: Touches remaining.** The signed review visibly recorded Continue intentionally as `INTENTIONAL CHOICE RECORDED · NO JUDGMENT`, counted it separately from recovery, and preserved it after relaunch. Choosing the action from a naturally triggered gaming prompt and observing its cooldown remain outstanding (`DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).
 
 ## 61. Complete ambiguous-work journey
 

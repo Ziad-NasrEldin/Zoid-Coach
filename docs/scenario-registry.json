@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "75fae7a6545a4b628ddf7393610ae7495e6e8de18906030feefbbe519fee49da",
+  "tracker_sha256": "fdd399ed8142cde4ff2af7f37fa4595bce306e285e2db03a9570bb0e7fa88a0c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -13453,8 +13453,8 @@
       "item_index": 4,
       "wording": "Understand the observed gaming time and unfinished task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13465,7 +13465,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Gaming budget and task state are visible separately, but the combined accountability message is not proven.",
+      "audit_note": "The signed Daily Review visibly decoded one behavior prompt into `12 MIN IN STEAM` and the unfinished proposal with stable accessibility evidence, and relaunch preserved it. A real gaming threshold was not triggered in the installed run, so the complete source-to-review journey remains (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).",
       "tracker_line": 830
     },
     {
@@ -13563,8 +13563,8 @@
       "item_index": 9,
       "wording": "See the intervention counted as a recovery.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13575,7 +13575,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No user-visible recovery metric or review exists.",
+      "audit_note": "The signed review counted one observed follow-through and two recovery starts, required corrected selected-task work within 30 minutes, excluded unrelated work from the task-specific minutes, and truthfully kept an applied response with no later work at `RECOVERY STARTED`. The actual gaming prompt-to-work action was seeded rather than performed live (`DailyReviewStore.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).",
       "tracker_line": 835
     },
     {
@@ -13585,8 +13585,8 @@
       "item_index": 10,
       "wording": "See the journey described factually in the daily review.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13597,7 +13597,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Daily reviews are absent.",
+      "audit_note": "The signed review combined observed gaming, unfinished-task context, selected-task start evidence, no-work follow-through, action surface, and unanswered state without inferring success, and reproduced the result after relaunch. A complete naturally triggered gaming journey remains (`DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).",
       "tracker_line": 836
     },
     {
@@ -13761,8 +13761,8 @@
       "item_index": 8,
       "wording": "See the choice recorded without shame in the review.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13773,7 +13773,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Neither the choice nor daily review exists.",
+      "audit_note": "The signed review visibly recorded Continue intentionally as `INTENTIONAL CHOICE RECORDED · NO JUDGMENT`, counted it separately from recovery, and preserved it after relaunch. Choosing the action from a naturally triggered gaming prompt and observing its cooldown remain outstanding (`DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).",
       "tracker_line": 847
     },
     {
