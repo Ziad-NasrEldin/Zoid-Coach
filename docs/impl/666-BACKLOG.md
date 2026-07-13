@@ -53,6 +53,12 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Intentional override duration policy - active candidate
+
+- Owns `ZC-029-013`, `ZC-036-003`, and `ZC-036-008`.
+- Owns only the GamingPolicy field and validation, Gaming Allowance Settings controls and conflicts, gaming-drift override timing, focused tests, and candidate evidence.
+- Today task eligibility, root, runtime, tracker, registry, and Lavish remain outside this lane.
+
 ### Notification permission and Today fallback recovery - `0d6ec2d`
 
 - Adds automatic authorization recheck after returning from System Settings without repeating the permission request.
