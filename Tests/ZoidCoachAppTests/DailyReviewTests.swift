@@ -527,6 +527,29 @@ func hypothesisDecisionAndConfirmationAreDurableAndCorrectionReopensReview() thr
 }
 
 @Test
+func unfinishedReviewSurvivesRestartAndDisappearsOnlyAfterConfirmation() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Cursor", classification: .work)
+
+    let session = try fixture.store.load(sourceDay: fixture.sourceDay).sessions[0]
+    try fixture.store.correct(session, to: .distracting, taskID: nil, from: nil)
+
+    let beforeRestartResult = try fixture.store.mostRecentUnfinishedReview()
+    let beforeRestart = try #require(beforeRestartResult)
+    #expect(beforeRestart.sourceDay == fixture.sourceDay)
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let afterRestartResult = try reopened.mostRecentUnfinishedReview()
+    let afterRestart = try #require(afterRestartResult)
+    #expect(afterRestart.sourceDay == fixture.sourceDay)
+    #expect(try reopened.load(sourceDay: fixture.sourceDay).sessions[0].classification == .distracting)
+
+    try reopened.confirm(sourceDay: fixture.sourceDay)
+    #expect(try reopened.mostRecentUnfinishedReview() == nil)
+}
+
+@Test
 func offlineWorkPersistsAcrossRestartAndRemainsSeparateFromObservedCoverage() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }

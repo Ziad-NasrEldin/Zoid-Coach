@@ -240,6 +240,16 @@ public struct DailyReviewQuietDriftSummary: Equatable, Sendable {
     }
 }
 
+public struct UnfinishedDailyReview: Equatable, Sendable {
+    public let sourceDay: String
+    public let lastEditedAt: Date
+
+    public init(sourceDay: String, lastEditedAt: Date) {
+        self.sourceDay = sourceDay
+        self.lastEditedAt = lastEditedAt
+    }
+}
+
 public struct DailyReviewSnapshot: Equatable, Sendable {
     public let sourceDay: String
     public let sessions: [DailyReviewSession]
