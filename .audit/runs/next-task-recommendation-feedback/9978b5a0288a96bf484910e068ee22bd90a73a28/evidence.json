@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "run_id": "next-task-recommendation-feedback/9978b5a0288a96bf484910e068ee22bd90a73a28",
+  "verified_commit": "9978b5a0288a96bf484910e068ee22bd90a73a28",
+  "build_identity": "zoid-coach-9978b5a0288a96bf484910e068ee22bd90a73a28-clean",
+  "fixture": "/private/tmp/zoid-666-next-task-feedback-qa/OS Fixtures/state.json",
+  "qa_root": "/private/tmp/zoid-666-next-task-feedback-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "881b5d418e1f4b2abe4ac2a662cdfd17e2e61ffa18e459e222a68049da83dbc8",
+  "scenario_ids": [
+    "ZC-015-006"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T09:59:00Z",
+  "completed_at": "2026-07-13T10:04:00Z",
+  "artifacts": [
+    {
+      "path": "SUMMARY.md",
+      "sha256": "16b4b12e101fdb950f4f2490b31198980ba1b0a7472f329e55a35947b9a801d7"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "signed_not_now_selects_alternate",
+      "result": "passed",
+      "detail": "The signed Today action saved Not Now, showed exact confirmation copy, and changed the recommendation to another ready task."
+    },
+    {
+      "name": "signed_not_now_survives_restarts",
+      "result": "passed",
+      "detail": "The alternate recommendation remained selected after both app and helper restart inside the suppression window."
+    },
+    {
+      "name": "not_now_expiry_and_idempotency",
+      "result": "passed",
+      "detail": "Focused tests prove thirty-minute expiry, durable event recovery, idempotent replay, and conflicting replay rejection."
+    }
+  ],
+  "commands": [
+    "swift test --filter RecommendationFeedbackTests|TodayDashboardAgentTests",
+    "swift test --filter unplannedTaskStartIsVisiblePersistsAndNeverInventsAPlanViolation|promptInboxRejectsMoreThanThreeSecondaryActionsOnEverySurface",
+    "swift build -c release --product ZoidCoach",
+    "CONFIGURATION=release ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-next-task-feedback-qa Scripts/package-app.sh"
+  ]
+}

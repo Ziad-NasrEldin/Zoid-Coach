@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "cfeedb28074cf3831fc0b1ed4a583d5121e6106af3339cb5740b2408b686bb23",
+  "tracker_sha256": "d930f38195a1411ce6ffac7ac8231c2bcba6551b1edf4ef875074e3e433a481e",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3223,9 +3223,9 @@
       "section_title": "Receiving a next-task recommendation",
       "item_index": 6,
       "wording": "Choose `Not now`.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3233,10 +3233,13 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The recommendation card has no Not now feedback action.",
+      "evidence_paths": [
+        ".audit/runs/next-task-recommendation-feedback/9978b5a0288a96bf484910e068ee22bd90a73a28/evidence.json",
+        ".audit/runs/next-task-recommendation-feedback/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "9978b5a0288a96bf484910e068ee22bd90a73a28",
+      "last_verified_build": "zoid-coach-9978b5a0288a96bf484910e068ee22bd90a73a28-clean",
+      "audit_note": "The signed Today card visibly offered the accessible Not Now action beside the recommended task, saved it through the live agent, showed exact 30-minute confirmation copy, selected a different ready task, and retained that alternate through both app and helper restart. Focused tests prove the original task becomes eligible again after thirty minutes (`RecommendationFeedbackStore.swift`; `.audit/runs/next-task-recommendation-feedback/verifier/REPORT.md`).",
       "tracker_line": 241
     },
     {
@@ -3246,8 +3249,8 @@
       "item_index": 7,
       "wording": "Say the recommendation has the wrong priority.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3258,7 +3261,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No wrong-priority feedback control or persisted signal exists.",
+      "audit_note": "Today now exposes a stable Wrong Priority action that durably suppresses the task for the policy-local day and selects an alternate across restart in focused tests. The signed app visibly exposed its label and hint, and a stopped-helper attempt truthfully retained the recommendation with Source Health recovery copy, while successful signed activation and next-day release remain (`RecommendationFeedbackStore.swift`; `.audit/runs/next-task-recommendation-feedback/verifier/REPORT.md`).",
       "tracker_line": 242
     },
     {
@@ -3268,8 +3271,8 @@
       "item_index": 8,
       "wording": "Say the task is too large.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3280,7 +3283,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No too-large feedback action exists.",
+      "audit_note": "Today now exposes a stable Too Large action that records the exact feedback without inventing a split or changing the task, estimate, plan, or completion state, and focused tests prove same-day alternate selection plus next-day release. The signed app visibly exposed the control and explanatory hint, while successful signed activation remains (`RecommendationFeedbackStore.swift`; `.audit/runs/next-task-recommendation-feedback/verifier/REPORT.md`).",
       "tracker_line": 243
     },
     {
