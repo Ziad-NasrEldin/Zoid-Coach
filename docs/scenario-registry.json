@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "b576c04f5d93b6c8a2b8b678083d49da633abaeaa80c2d3b8e3ac847e32863f0",
+  "tracker_sha256": "31f38c4eb9e65a422fb56a809d9643c62fadd142d915eaf18efc82ebed154043",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -662,7 +662,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The fresh installed signed-QA run visibly reported healthy notification access, accepted Request Notification Access, scheduled the canonical prompt, and processed its action through the running agent, while a real macOS authorization reset and Notification Center click remain before full qualification (`NotificationService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
+      "audit_note": "The fresh installed signed-QA run visibly reported healthy notification access, accepted Request Notification Access, scheduled the canonical prompt, and processed its action through the running agent. The recovery controller now refreshes authorization automatically after returning from System Settings, while a real macOS authorization reset and Notification Center click remain before full qualification (`NotificationService.swift`; `NotificationDeliveryHealthView.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`; `.audit/runs/notification-permission-recovery/0d6ec2d/REPORT.md`).",
       "tracker_line": 91
     },
     {
@@ -708,7 +708,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A fresh installed signed-QA denial journey visibly reported Attention without touching production Notification Center, continued through every remaining preference step, and completed the canonical Today fallback, while an actual macOS authorization-panel denial remains before full qualification (`OnboardingCoordinator.swift`; `OnboardingTestPromptService.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
+      "audit_note": "The rebased installed signed-QA app visibly reported Attention under denied authorization, explained that every important action remains available in Today, disabled the repeated permission request, and enabled Continue without touching production Notification Center. A later background-agent timeout blocked this verifier before the complete fallback journey, and an actual macOS authorization-panel denial remains before full qualification (`OnboardingCoordinator.swift`; `OnboardingTestPromptService.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`; `.audit/runs/notification-permission-recovery/0d6ec2d/REPORT.md`).",
       "tracker_line": 93
     },
     {
@@ -11486,7 +11486,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Production Settings now opens the notification pane and instructs the user to return and refresh, while signed QA deliberately offers a fixture-only repair instruction and never opens production System Settings. Denied-to-granted control and repair tests pass, but the rebuilt signed repair transition was not rerun after the isolation fix (`NotificationDeliveryHealthView.swift`; `notification-delivery-acceptance.py`; `.audit/runs/notification-delivery-health/verifier/REPORT.md`).",
+      "audit_note": "Production Settings opens the notification pane, gives an exact manual fallback when opening fails, and automatically rechecks authorization when the app returns to the foreground. Signed QA deliberately keeps repair fixture-only and never opens production System Settings. Denied-to-granted controller and persistence tests pass, but the signed repair transition remained blocked behind a later onboarding agent timeout (`NotificationDeliveryHealthView.swift`; `notification-delivery-acceptance.py`; `.audit/runs/notification-delivery-health/verifier/REPORT.md`; `.audit/runs/notification-permission-recovery/0d6ec2d/REPORT.md`).",
       "tracker_line": 717
     },
     {
@@ -11554,7 +11554,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Prompt response plus pending effect is transactional, token-bound, idempotent, and concurrency tested; notification-process interruption itself lacks a live E2E test.",
+      "audit_note": "Prompt response plus pending effect is transactional, token-bound, idempotent, and concurrency tested. The denied-to-repaired deterministic journey now replays response processing after interruption and applies the response exactly once across the durable store, while a killed signed notification process remains unproven (`NotificationPermissionRecoveryTests.swift`; `.audit/runs/notification-permission-recovery/0d6ec2d/REPORT.md`).",
       "tracker_line": 720
     },
     {
@@ -11600,7 +11600,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Stable request identifiers replace the existing request, the ledger explicitly marks the later attempt as a replacement, and deterministic integration proves two schedules leave one fixture notification. Behavior-coaching episodes and a real Notification Center stacking inspection remain unavailable (`PromptNotificationCoordinator.swift`; `QAFixtureOSCompositionTests.swift`; `.audit/runs/notification-delivery-health/acceptance-mapping.json`).",
+      "audit_note": "Stable request identifiers replace the existing request, the ledger explicitly marks the later attempt as a replacement, and the denied-to-repaired persistence journey proves repeated scheduling leaves one latest fixture notification before an exactly-once response. Behavior-coaching episodes and a real Notification Center stacking inspection remain unavailable (`PromptNotificationCoordinator.swift`; `NotificationPermissionRecoveryTests.swift`; `.audit/runs/notification-delivery-health/acceptance-mapping.json`; `.audit/runs/notification-permission-recovery/0d6ec2d/REPORT.md`).",
       "tracker_line": 722
     },
     {
