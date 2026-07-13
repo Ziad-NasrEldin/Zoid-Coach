@@ -93,6 +93,7 @@ struct MenuBarCoachView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             coachHeader
+            notificationFallbackSection
             coachingPauseSection
 
             Divider().overlay(Sumi.rule)
@@ -147,15 +148,26 @@ struct MenuBarCoachView: View {
     private var menuState: MenuBarCoachState {
         MenuBarCoachState(
             snapshot: controller.snapshot,
-            coachingIsPaused: pauseController.isPaused
+            coachingIsPaused: pauseController.isPaused,
+            unresolvedPromptCount: appModel.promptEpisodes.count,
+            notificationsUnavailable: notificationsUnavailable
         )
+    }
+
+    private var notificationsUnavailable: Bool {
+        guard let notifications = appModel.sources.first(where: { $0.id == .notifications }) else {
+            return false
+        }
+        return notifications.state == .attention
+            || notifications.state == .notConnected
+            || notifications.state == .unavailable
     }
 
     private var coachHeader: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: menuState.tone.symbol)
+            Image(systemName: menuState.menuBarSymbol)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(menuState.tone == .attention ? Sumi.seal : Sumi.ink)
+                .foregroundStyle(menuState.notificationFallbackIsActive || menuState.tone == .attention ? Sumi.seal : Sumi.ink)
                 .frame(width: 24, height: 24)
                 .accessibilityHidden(true)
 
@@ -182,6 +194,7 @@ struct MenuBarCoachView: View {
         }
         .padding(14)
         .accessibilityElement(children: .contain)
+        .accessibilityLabel(menuState.menuBarLabel)
         .accessibilityIdentifier("menu-bar.status")
     }
 
@@ -361,6 +374,39 @@ struct MenuBarCoachView: View {
             if let window = NSApp.windows.first(where: { $0.canBecomeKey && $0.level == .normal }) {
                 window.makeKeyAndOrderFront(nil)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var notificationFallbackSection: some View {
+        if let detail = menuState.notificationFallbackDetail {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "exclamationmark.bubble.fill")
+                        .foregroundStyle(Sumi.seal)
+                        .accessibilityHidden(true)
+                    Text(menuState.unresolvedPromptCount == 1 ? "DECISION WAITING" : "DECISIONS WAITING")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                }
+
+                Text(detail)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button(menuState.unresolvedPromptCount == 1 ? "OPEN DECISION IN TODAY" : "OPEN DECISIONS IN TODAY") {
+                    open(.today)
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
+                .accessibilityIdentifier("menu-bar.prompt-fallback.open-today")
+            }
+            .padding(14)
+            .background(Sumi.sealWash)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("menu-bar.prompt-fallback")
+
+            Divider().overlay(Sumi.rule)
         }
     }
 
