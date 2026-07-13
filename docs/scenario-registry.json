@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "a8f063fb9be8f6e04e9e8b55e639f4719367f868c1ca9e9e6f082a9f9eaaadf1",
+  "tracker_sha256": "8e4ab1f6196754b3a9af23da883c053a1c17af29d33f39e07321ab67299fe240",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1527,19 +1527,21 @@
       "section_title": "Building the daily plan",
       "item_index": 5,
       "wording": "See the estimated focused-work total.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Individual estimates and planner totals exist, but no total focused-work value is shown in the plan UI.",
+      "evidence_paths": [
+        ".audit/runs/plan-preview-metrics/dde796c98241e04e424b5b7e92faa610a4c18eec/evidence.json"
+      ],
+      "last_verified_commit": "dde796c98241e04e424b5b7e92faa610a4c18eec",
+      "last_verified_build": "zoid-coach-dde796c98241e04e424b5b7e92faa610a4c18eec-clean",
+      "audit_note": "The installed signed proposal showed 75 focused minutes for 45-minute and 30-minute committed tasks, then updated in place to 60 minutes after the verifier shortened one task to 15 minutes. The complete spoken value and stable accessibility identifier remained present (`PlanningCapacityState.swift`; `DashboardView.swift`; `.audit/runs/plan-preview-metrics/verifier/REPORT.md`).",
       "tracker_line": 143
     },
     {
@@ -1548,19 +1550,21 @@
       "section_title": "Building the daily plan",
       "item_index": 6,
       "wording": "See the planned buffer time.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Capacity planning reserves headroom in core logic, but the proposed-plan surface never displays buffer minutes or percentage.",
+      "evidence_paths": [
+        ".audit/runs/plan-preview-metrics/dde796c98241e04e424b5b7e92faa610a4c18eec/evidence.json"
+      ],
+      "last_verified_commit": "dde796c98241e04e424b5b7e92faa610a4c18eec",
+      "last_verified_build": "zoid-coach-dde796c98241e04e424b5b7e92faa610a4c18eec-clean",
+      "audit_note": "The installed signed capacity panel showed 303 buffer minutes from 378 available minus 75 focused minutes, then recalculated in place to 318 after the task update. Overloaded calculations separately expose exact overage rather than a misleading zero buffer (`PlanningCapacityState.swift`; `DashboardView.swift`; `.audit/runs/plan-preview-metrics/verifier/REPORT.md`).",
       "tracker_line": 144
     },
     {
