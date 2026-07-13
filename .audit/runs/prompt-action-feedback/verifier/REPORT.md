@@ -22,7 +22,10 @@ Replay and restart tests retain one response and one applied effect.
 - One release build passed.
 - `git diff --check` passed.
 
-## Signed acceptance pending
+## Signed acceptance boundary
 
-The serialized signed runtime remains owned by the source-repair verifier.
-A later capped run should race the same action token from Today and notification, confirm one response and one effect, and inspect truthful resolved state after app and helper restart.
+The one permitted package/install attempt exited with status 1 and no diagnostic output before creating an installed app or registering a QA helper.
+No retry was performed under the package-once and UI cap.
+
+The installed Today and notification same-token race, notification stale-state behavior, and app/helper restart therefore remain unverified.
+Both mapped tracker scenarios remain conservative.

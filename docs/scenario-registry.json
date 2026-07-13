@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "39e3716abf041b1c226084b58ddd12f14f57d810abb362aa7866a27b79af9d84",
+  "tracker_sha256": "6e4620b5239e5b4d02a37b041261659cf370789dd56a7d1425cb5b1c941038b9",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8450,7 +8450,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The shared store is atomic, but there is no demonstrated notification withdrawal or menu-bar synchronization after a dashboard response.",
+      "audit_note": "Today now shows prompt-specific Applying feedback and refreshes from the durable response, while an older notification consumes the same stored decision if used. Delivered-notification withdrawal and menu-bar synchronization are still absent, so the UI copy explicitly avoids promising immediate cross-surface refresh (`PromptActionPresentation.swift`; `TodayPromptInboxLedger.swift`; `.audit/runs/prompt-action-feedback/verifier/REPORT.md`).",
       "tracker_line": 544
     },
     {
@@ -8472,7 +8472,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Prompt tokens are idempotent and bounded-sprint duplicate starts preserve the original deadline, while duplicate open-ended continuation is also idempotent; a simultaneous installed multi-surface click remains (`PromptInboxStore`; `TaskExecutionStoreTests`).",
+      "audit_note": "Today disables every prompt action during one in-flight write and shows Applying only on the selected row. Deterministic tokens, response idempotency, conflicting-token rejection, and exactly-once effects persist across restart in focused tests; the simultaneous installed Today-notification race remains (`PromptInboxStore`; `PromptActionPresentation.swift`; `.audit/runs/prompt-action-feedback/verifier/REPORT.md`).",
       "tracker_line": 545
     },
     {
