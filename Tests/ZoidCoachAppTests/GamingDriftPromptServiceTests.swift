@@ -313,10 +313,10 @@ func resolvedGamingPromptStillDeduplicatesAndEnforcesCooldownAfterRestart() thro
 
     _ = try fixture.promptStore.respond(
         promptID: episode.id,
-        action: .fiveMoreMinutes,
+        action: .startWorkSprint,
         actionToken: PromptResponseToken.make(
             promptID: episode.id,
-            action: .fiveMoreMinutes
+            action: .startWorkSprint
         ),
         surface: .dashboard
     )
@@ -342,6 +342,71 @@ func resolvedGamingPromptStillDeduplicatesAndEnforcesCooldownAfterRestart() thro
         gamingStatus: fixture.gamingStatus,
         baselineStatus: fixture.baseline()
     ) == .suppressed(.cooldownActive))
+}
+
+@Test
+func fiveMoreMinutesSurvivesRestartAndProducesExactlyOneFollowUpAfterFiveMinutes() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(level: .gentle, dailyPromptCap: 1, promptCooldownMinutes: 35)
+    guard case let .queued(episode, _) = try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected the initial gentle prompt")
+        return
+    }
+    #expect(episode.actions.contains { $0.kind == .fiveMoreMinutes && $0.title == "Five more minutes" })
+
+    _ = try fixture.promptStore.respond(
+        promptID: episode.id,
+        action: .fiveMoreMinutes,
+        actionToken: PromptResponseToken.make(promptID: episode.id, action: .fiveMoreMinutes),
+        surface: .dashboard
+    )
+    fixture.advance(minutes: 4)
+    try fixture.insertGaming(minutes: 4)
+    let reopenedStore = try PromptInboxStore(
+        databaseURL: fixture.databaseURL,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+    let restartedService = try GamingDriftPromptService(
+        databaseURL: fixture.databaseURL,
+        promptStore: reopenedStore,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+    #expect(try restartedService.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.fiveMinuteSnoozeActive))
+
+    fixture.advance(minutes: 1)
+    try fixture.insertGaming(minutes: 1)
+    guard case let .queued(followUp, wasInserted) = try restartedService.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected one follow-up when the five-minute snooze ended")
+        return
+    }
+    #expect(wasInserted)
+    #expect(followUp.title == "Your five minutes are up")
+    #expect(followUp.summary.contains("The five minutes you chose have ended"))
+    #expect(followUp.payload["followUpForPromptID"] == episode.id)
+    #expect(followUp.payload["snoozeDurationMinutes"] == "5")
+    #expect(!followUp.actions.contains { $0.kind == .fiveMoreMinutes })
+    #expect(followUp.actions.first?.kind == .returnToActiveTask)
+    #expect(try restartedService.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.sessionAlreadyHandled))
+    #expect(try reopenedStore.unresolved().map(\.id) == [followUp.id])
 }
 
 @Test

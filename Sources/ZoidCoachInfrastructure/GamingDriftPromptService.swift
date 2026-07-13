@@ -22,6 +22,7 @@ public enum GamingDriftSuppressionReason: String, Equatable, Sendable {
     case sessionAlreadyHandled
     case dailyLimitReached
     case cooldownActive
+    case fiveMinuteSnoozeActive
 }
 
 public enum GamingDriftPromptResult: Equatable, Sendable {
@@ -48,6 +49,12 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         case active
         case ended(responseEpoch: Int64)
         case expired(responseEpoch: Int64)
+    }
+
+    private enum FiveMinuteSnoozeState: Equatable {
+        case none
+        case active(responseEpoch: Int64)
+        case elapsed(responseEpoch: Int64, promptID: String)
     }
 
     private let database: OpaquePointer
@@ -125,6 +132,11 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         }
 
         let decisionKeyPrefix = "gaming-drift:\(localDay):"
+        let baseDecisionKey = "\(decisionKeyPrefix)\(session.startedAtEpoch)"
+        let snooze = try fiveMinuteSnoozeState(decisionKey: baseDecisionKey, at: date)
+        if case .active = snooze {
+            return .suppressed(.fiveMinuteSnoozeActive)
+        }
         let override = try intentionalOverrideState(
             decisionKeyPrefix: decisionKeyPrefix,
             localDay: localDay,
@@ -133,20 +145,28 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         )
         guard override != .active else { return .suppressed(.intentionalOverrideActive) }
 
-        let baseDecisionKey = "\(decisionKeyPrefix)\(session.startedAtEpoch)"
         let decisionKey: String
-        switch override {
-        case let .ended(responseEpoch), let .expired(responseEpoch):
-            decisionKey = "\(baseDecisionKey):after-intentional:\(responseEpoch)"
+        let isFiveMinuteFollowUp: Bool
+        switch snooze {
+        case let .elapsed(responseEpoch, _):
+            decisionKey = "\(baseDecisionKey):after-five-more:\(responseEpoch)"
+            isFiveMinuteFollowUp = true
         case .none, .active:
-            decisionKey = baseDecisionKey
+            isFiveMinuteFollowUp = false
+            switch override {
+            case let .ended(responseEpoch), let .expired(responseEpoch):
+                decisionKey = "\(baseDecisionKey):after-intentional:\(responseEpoch)"
+            case .none, .active:
+                decisionKey = baseDecisionKey
+            }
         }
         if try hasPrompt(decisionKey: decisionKey) {
             return .suppressed(.sessionAlreadyHandled)
         }
         let prefix = decisionKeyPrefix
         let level = policy.gaming.coachingLevel
-        guard try promptCount(decisionKeyPrefix: prefix) < policy.gaming.dailyPromptCap else {
+        let isBelowDailyPromptCap = try promptCount(decisionKeyPrefix: prefix) < policy.gaming.dailyPromptCap
+        guard isFiveMinuteFollowUp || isBelowDailyPromptCap else {
             return .suppressed(.dailyLimitReached)
         }
         let completedIntentionalOverride: Bool
@@ -154,18 +174,25 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         case .ended, .expired: completedIntentionalOverride = true
         case .none, .active: completedIntentionalOverride = false
         }
-        if !completedIntentionalOverride,
+        if !isFiveMinuteFollowUp,
+           !completedIntentionalOverride,
            let latestCreatedAt = try latestPromptCreatedAt(decisionKeyPrefix: prefix),
            date.timeIntervalSince(latestCreatedAt) < TimeInterval(policy.gaming.promptCooldownMinutes * 60) {
             return .suppressed(.cooldownActive)
         }
 
-        let title = level == .gentle ? "Ready for an easy return?" : "Is this gaming intentional?"
-        let summary = "Observed \(session.minutes) minutes in \(session.application) while \(task.title) remains unfinished. This is an observation, not a judgment."
+        let title = isFiveMinuteFollowUp
+            ? "Your five minutes are up"
+            : (level == .gentle ? "Ready for an easy return?" : "Is this gaming intentional?")
+        let summary = isFiveMinuteFollowUp
+            ? "The five minutes you chose have ended, and \(task.title) is still waiting. Ready to return?"
+            : "Observed \(session.minutes) minutes in \(session.application) while \(task.title) remains unfinished. This is an observation, not a judgment."
         var actions = [PromptAction(kind: .returnToActiveTask, title: "Return to \(task.title)", role: .primary)]
         if level == .gentle {
             actions.append(PromptAction(kind: .startShortSprint, title: "Start a 10-minute recovery sprint"))
-            actions.append(PromptAction(kind: .fiveMoreMinutes, title: "Five more minutes"))
+            if !isFiveMinuteFollowUp {
+                actions.append(PromptAction(kind: .fiveMoreMinutes, title: "Five more minutes"))
+            }
         } else {
             actions.append(PromptAction(kind: .startWorkSprint, title: "Start a 20-minute work sprint"))
         }
@@ -173,22 +200,27 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             actions.append(PromptAction(kind: .startBreak, title: "Take a break"))
         }
         actions.append(PromptAction(kind: .continueIntentionally, title: "Continue intentionally"))
+        var payload = [
+            "localDay": localDay,
+            "taskID": task.id,
+            "taskTitle": task.title,
+            "application": session.application,
+            "observedGamingMinutes": String(session.minutes),
+            "sessionStartedAtEpoch": String(session.startedAtEpoch),
+            "coachingLevel": level.rawValue,
+            "allowsDismissal": "true"
+        ]
+        if case let .elapsed(_, promptID) = snooze {
+            payload["followUpForPromptID"] = promptID
+            payload["snoozeDurationMinutes"] = "5"
+        }
         let result = try prompts.enqueue(PromptDraft(
             decisionKey: decisionKey,
             type: PromptNotificationCategory.gamingDrift.rawValue,
             title: title,
             summary: summary,
             actions: actions,
-            payload: [
-                "localDay": localDay,
-                "taskID": task.id,
-                "taskTitle": task.title,
-                "application": session.application,
-                "observedGamingMinutes": String(session.minutes),
-            "sessionStartedAtEpoch": String(session.startedAtEpoch),
-            "coachingLevel": level.rawValue,
-            "allowsDismissal": "true"
-        ],
+            payload: payload,
             expiresAt: date.addingTimeInterval(30 * 60)
         ))
         return .queued(result.episode, wasInserted: result.wasInserted)
@@ -336,6 +368,38 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             return .expired(responseEpoch: responseEpoch)
         }
         return .active
+    }
+
+    private func fiveMinuteSnoozeState(
+        decisionKey: String,
+        at date: Date
+    ) throws -> FiveMinuteSnoozeState {
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT response.responded_at_utc, episode.id
+        FROM prompt_responses response
+        JOIN prompt_episodes episode ON episode.id = response.prompt_id
+        WHERE response.response = ?
+          AND (episode.decision_key = ? OR episode.decision_key LIKE ?)
+        ORDER BY response.responded_at_utc DESC, response.id DESC
+        LIMIT 1;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        bind(PromptActionKind.fiveMoreMinutes.rawValue, statement, 1)
+        bind(decisionKey, statement, 2)
+        bind("resolved:%:" + decisionKey, statement, 3)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let raw = text(statement, 0),
+              let respondedAt = formatter.date(from: raw),
+              let promptID = text(statement, 1) else { return .none }
+
+        let responseEpoch = Int64(respondedAt.timeIntervalSince1970)
+        if date.timeIntervalSince(respondedAt) < 5 * 60 {
+            return .active(responseEpoch: responseEpoch)
+        }
+        return .elapsed(responseEpoch: responseEpoch, promptID: promptID)
     }
 
     private func hasAlignedWorkForTwoMinutes(localDay: String, after epoch: Int64) throws -> Bool {
