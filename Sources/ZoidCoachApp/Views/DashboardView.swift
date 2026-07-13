@@ -1169,6 +1169,23 @@ private struct DailyPlanLedger: View {
                     .foregroundStyle(Sumi.muted)
                     .contentTransition(.numericText())
             }
+
+            HStack(spacing: 18) {
+                planMetric(
+                    label: "FOCUSED WORK",
+                    value: "\(state.plannedMinutes) MIN",
+                    accessibilityValue: "\(state.plannedMinutes) minutes of focused work planned",
+                    identifier: "planning-capacity-focused-work"
+                )
+                planMetric(
+                    label: state.overCapacityMinutes > 0 ? "OVER CAPACITY" : "PLANNED BUFFER",
+                    value: "\(state.overCapacityMinutes > 0 ? state.overCapacityMinutes : state.remainingBufferMinutes) MIN",
+                    accessibilityValue: state.overCapacityMinutes > 0
+                        ? "Plan exceeds focus capacity by \(state.overCapacityMinutes) minutes"
+                        : "\(state.remainingBufferMinutes) minutes remain unplanned as buffer",
+                    identifier: "planning-capacity-buffer"
+                )
+            }
             .padding(.horizontal, 28)
             .padding(.vertical, 10)
             .background(Sumi.ink)
@@ -1326,6 +1343,28 @@ private struct PlanningCapacityPanel: View {
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("planning-capacity-panel")
+    }
+
+    private func planMetric(
+        label: String,
+        value: String,
+        accessibilityValue: String,
+        identifier: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+            Text(value)
+                .font(Sumi.display(20))
+                .foregroundStyle(Sumi.ink)
+                .contentTransition(.numericText())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityValue)
+        .accessibilityIdentifier(identifier)
     }
 
     private var explanation: String {
