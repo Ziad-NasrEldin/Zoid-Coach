@@ -81,6 +81,10 @@ final class SettingsPolicyController: ObservableObject {
 
     var isReadOnly: Bool { store == nil }
 
+    var policyTimeZone: TimeZone {
+        TimeZone(identifier: persistedPolicy.schedule.timeZoneIdentifier) ?? .current
+    }
+
     var hasUnsavedChanges: Bool {
         draft.policy(preserving: persistedPolicy) != persistedPolicy
     }
@@ -152,18 +156,33 @@ final class SettingsPolicyController: ObservableObject {
 
     @discardableResult
     func setPaused(_ paused: Bool) -> Task<Void, Never>? {
+        setAutomationPause(paused ? .pausedIndefinitely : .running)
+    }
+
+    @discardableResult
+    func pauseForOneHour(now: Date = Date()) -> Task<Void, Never>? {
+        setAutomationPause(.pausedForOneHour(from: now))
+    }
+
+    @discardableResult
+    func pauseUntilTomorrow(now: Date = Date()) -> Task<Void, Never>? {
+        setAutomationPause(.pausedUntilTomorrow(from: now, timeZone: policyTimeZone))
+    }
+
+    @discardableResult
+    private func setAutomationPause(_ pause: AutomationPause) -> Task<Void, Never>? {
         guard store != nil else { return nil }
         var pendingDraft = draft
-        pendingDraft.isPaused = paused
+        pendingDraft.automationPause = pause
         var pauseOnlyDraft = SettingsPolicyDraft(policy: persistedPolicy)
-        pauseOnlyDraft.isPaused = paused
+        pauseOnlyDraft.automationPause = pause
         isSaving = true
         let policy = pauseOnlyDraft.policy(preserving: persistedPolicy)
         return Task {
             do {
                 try await persist(policy, restoring: pendingDraft)
             } catch {
-                statusMessage = "Automation was not \(paused ? "paused" : "resumed"): \(error.localizedDescription)"
+                statusMessage = "The coaching pause was not updated: \(error.localizedDescription)"
             }
             isSaving = false
         }

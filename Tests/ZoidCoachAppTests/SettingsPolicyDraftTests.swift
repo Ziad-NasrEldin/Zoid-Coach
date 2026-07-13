@@ -425,6 +425,65 @@ func savedAppClassificationLoadsInANewSettingsController() async throws {
     #expect(reopened.draft.classification(for: "Steam") == .gaming)
 }
 
+@Test
+func settingsDraftPreservesAnExactTimedPauseBoundary() throws {
+    let boundary = try #require(ISO8601DateFormatter().date(from: "2099-07-13T11:00:00Z"))
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+        .replacingAutomationPause(AutomationPause(isPaused: true, resumesAtUTC: boundary))
+
+    let draft = SettingsPolicyDraft(policy: original)
+    let roundTripped = draft.policy(preserving: original)
+
+    #expect(draft.isPaused)
+    #expect(draft.automationPause.resumesAtUTC == boundary)
+    #expect(roundTripped.automationPause == original.automationPause)
+}
+
+@MainActor
+@Test
+func timedPauseChoicesPersistImmediatelyAndResumeWithoutSavingOtherEdits() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-timed-pause-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.save(.defaults(timeZoneIdentifier: "Africa/Cairo"))
+    let controller = SettingsPolicyController(databaseURL: databaseURL) { request in
+        let saved = try store.saveMutation(request)
+        return AgentMutationReceipt(
+            accepted: true,
+            message: "saved",
+            policyVersion: saved.resultingVersion,
+            policyMutationReceipt: saved
+        )
+    }
+    controller.draft.capacityPercent = 95
+    let oneHourStart = try #require(ISO8601DateFormatter().date(from: "2026-07-13T10:00:00Z"))
+
+    await controller.pauseForOneHour(now: oneHourStart)?.value
+
+    var persisted = try #require(store.current()?.policy)
+    #expect(persisted.automationPause.resumesAtUTC == oneHourStart.addingTimeInterval(60 * 60))
+    #expect(controller.draft.capacityPercent == 95)
+    #expect(persisted.schedule.planningCapacityPercent == 70)
+
+    let evening = try #require(ISO8601DateFormatter().date(from: "2026-07-13T20:30:00Z"))
+    let localMidnight = try #require(ISO8601DateFormatter().date(from: "2026-07-13T21:00:00Z"))
+    await controller.pauseUntilTomorrow(now: evening)?.value
+
+    persisted = try #require(store.current()?.policy)
+    #expect(persisted.automationPause.resumesAtUTC == localMidnight)
+
+    await controller.setPaused(false)?.value
+
+    persisted = try #require(store.current()?.policy)
+    #expect(persisted.automationPause == .running)
+    #expect(controller.draft.capacityPercent == 95)
+}
+
 @MainActor
 @Test
 func staleSettingsWindowCannotOverwriteANewerPolicyVersion() async throws {

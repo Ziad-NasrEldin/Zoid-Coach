@@ -93,16 +93,54 @@ public struct WeeklyWorkWindow: Codable, Equatable, Sendable {
 }
 
 public struct AutomationPause: Codable, Equatable, Sendable {
-    public let isPaused: Bool
+    private let pauseRequested: Bool
     public let resumesAtUTC: Date?
 
     public init(isPaused: Bool, resumesAtUTC: Date? = nil) {
-        self.isPaused = isPaused
+        pauseRequested = isPaused
         self.resumesAtUTC = resumesAtUTC
+    }
+
+    public var isPaused: Bool { isActive(at: Date()) }
+    public var isRequested: Bool { pauseRequested }
+
+    public func isActive(at date: Date) -> Bool {
+        guard pauseRequested else { return false }
+        return resumesAtUTC.map { date < $0 } ?? true
+    }
+
+    public static func pausedForOneHour(from date: Date) -> AutomationPause {
+        AutomationPause(isPaused: true, resumesAtUTC: date.addingTimeInterval(60 * 60))
+    }
+
+    public static func pausedUntilTomorrow(from date: Date, timeZone: TimeZone) -> AutomationPause {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let startOfToday = calendar.startOfDay(for: date)
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: startOfToday)
+            ?? date.addingTimeInterval(24 * 60 * 60)
+        return AutomationPause(isPaused: true, resumesAtUTC: startOfTomorrow)
     }
 
     public static let running = AutomationPause(isPaused: false)
     public static let pausedIndefinitely = AutomationPause(isPaused: true)
+
+    private enum CodingKeys: String, CodingKey {
+        case isPaused
+        case resumesAtUTC
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        pauseRequested = try container.decode(Bool.self, forKey: .isPaused)
+        resumesAtUTC = try container.decodeIfPresent(Date.self, forKey: .resumesAtUTC)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(pauseRequested, forKey: .isPaused)
+        try container.encodeIfPresent(resumesAtUTC, forKey: .resumesAtUTC)
+    }
 }
 
 public struct SchedulePolicy: Codable, Equatable, Sendable {
@@ -620,7 +658,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         if schemaVersion != Self.schemaVersion {
             violations.append(.init(code: .unsupportedSchemaVersion, field: "schemaVersion"))
         }
-        if automationPause.isPaused == false, automationPause.resumesAtUTC != nil {
+        if automationPause.isRequested == false, automationPause.resumesAtUTC != nil {
             violations.append(.init(code: .resumeDateWhileRunning, field: "automationPause.resumesAtUTC"))
         }
         if TimeZone(identifier: schedule.timeZoneIdentifier) == nil {
