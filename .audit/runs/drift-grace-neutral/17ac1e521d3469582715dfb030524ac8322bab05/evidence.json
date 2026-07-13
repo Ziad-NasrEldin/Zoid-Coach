@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "run_id": "drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05",
+  "verified_commit": "17ac1e521d3469582715dfb030524ac8322bab05",
+  "build_identity": "zoid-coach-17ac1e521d3469582715dfb030524ac8322bab05-clean",
+  "fixture": "drift-grace-neutral",
+  "qa_root": "/private/tmp/zoid-666-drift-grace-neutral-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "9aabaac8ac482a5091f1f245597e9ae6bd368de70a3dea7541f937c952048042",
+  "scenario_ids": [
+    "ZC-027-001",
+    "ZC-027-004",
+    "ZC-027-007"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T04:33:04.482106+00:00",
+  "completed_at": "2026-07-13T04:33:35Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "dadb0a1db27f3efadc78b70e4f2e80a28efc271c313cc36348286adf0001e35f"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "A new task received a three-minute no-prompt grace period without task mutation",
+      "result": "passed"
+    },
+    {
+      "name": "Signed System Settings activity stayed neutral with no prompt or task mutation",
+      "result": "passed"
+    },
+    {
+      "name": "Neutral matching is bounded and does not suppress OpenTTD, Open World, or Gmail Notifier",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "swift test --filter newTaskAndIdleReturnReceiveExplicitGraceWhileSustainedGamingBypassesIt|neutralSupportingActivitySuppressesCoachingWithoutMutatingTheActiveTask|gamingDriftRequiresTenFreshCertainMinutesAndAnExhaustedAllowance|gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession",
+    "swift test --filter newTaskAndIdleReturnReceiveExplicitGraceWhileSustainedGamingBypassesIt|neutralSupportingActivitySuppressesCoachingWithoutMutatingTheActiveTask",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-drift-grace-neutral-qa Scripts/install-signed-qa-runtime.sh"
+  ]
+}

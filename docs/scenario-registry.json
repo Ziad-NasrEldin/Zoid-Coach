@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "949f54398d9d5475ff4b19b9f44525bddcb4bb6bebc407bdf7de5b63d23c34ee",
+  "tracker_sha256": "e1f1feee25c1e5636320d3a663d226b8b7b080d16f07b1b82b2d9f2b749e95ba",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5847,9 +5847,9 @@
       "section_title": "Grace periods and neutral activity",
       "item_index": 1,
       "wording": "Switch applications during the first three minutes after starting a task without receiving a normal drift warning.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5858,10 +5858,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No task-start grace-period or drift detector exists.",
+      "evidence_paths": [
+        ".audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json"
+      ],
+      "last_verified_commit": "17ac1e521d3469582715dfb030524ac8322bab05",
+      "last_verified_build": "zoid-coach-17ac1e521d3469582715dfb030524ac8322bab05-clean",
+      "audit_note": "The installed signed helper evaluated a durable active priority task started 150 seconds earlier plus a new two-minute gaming session, created no prompt, and left the task and its open activity interval unchanged. Deterministic integration asserts the explicit `taskStartGrace` reason before the normal threshold (`GamingDriftPromptService.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json`).",
       "tracker_line": 394
     },
     {
@@ -5871,8 +5873,8 @@
       "item_index": 2,
       "wording": "Receive protection during the first minute after waking, unlocking, or returning from idle.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5884,7 +5886,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No wake/unlock grace policy exists for behavior coaching.",
+      "audit_note": "Deterministic integration returns `returnFromIdleGrace` for both a real idle classification and a telemetry gap, and the signed idle-to-gaming seed created no prompt or task mutation within one minute. Explicit macOS wake and unlock signals are not yet modeled (`GamingDriftPromptService.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/REPORT.md`).",
       "tracker_line": 395
     },
     {
@@ -5894,8 +5896,8 @@
       "item_index": 3,
       "wording": "Allow high-confidence gaming to bypass the task-start grace period when other trigger conditions are met.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5907,7 +5909,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no grace policy or gaming drift trigger engine.",
+      "audit_note": "Deterministic integration queues accountability for a certain ten-minute session that began before the active task, and the signed seed truthfully reached ten used minutes with zero allowance. Its installed prompt did not appear before the capped run ended, so signed bypass delivery remains (`GamingDriftPromptServiceTests.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/REPORT.md`).",
       "tracker_line": 396
     },
     {
@@ -5916,9 +5918,9 @@
       "section_title": "Grace periods and neutral activity",
       "item_index": 4,
       "wording": "Use System Settings briefly without having the task marked misaligned.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5927,10 +5929,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Neutral-supporting activity and task alignment are not modeled.",
+      "evidence_paths": [
+        ".audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json"
+      ],
+      "last_verified_commit": "17ac1e521d3469582715dfb030524ac8322bab05",
+      "last_verified_build": "zoid-coach-17ac1e521d3469582715dfb030524ac8322bab05-clean",
+      "audit_note": "The installed signed helper evaluated current System Settings activity after sustained gaming, created no prompt, and preserved one active task plus one open activity interval. Focused coverage asserts the explicit neutral-supporting result (`GamingDriftPromptService.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json`).",
       "tracker_line": 397
     },
     {
@@ -5940,8 +5944,8 @@
       "item_index": 5,
       "wording": "Use a password manager briefly without having the task marked misaligned.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5953,7 +5957,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Neutral-supporting activity and task alignment are not modeled.",
+      "audit_note": "Bounded 1Password, Bitwarden, and Keychain Access matching suppresses coaching without mutating the active task in deterministic integration, while the signed timebox completed only the System Settings representative (`GamingDriftPromptService.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/REPORT.md`).",
       "tracker_line": 398
     },
     {
@@ -5963,8 +5967,8 @@
       "item_index": 6,
       "wording": "Use file dialogs, downloads, or short communication checks as neutral supporting activity.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5976,7 +5980,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The classifier works from application name only and has no neutral-supporting state.",
+      "audit_note": "Deterministic integration covers Finder/downloads, explicit file-dialog titles, local file URLs, Slack, Messages, Mail, Teams, and Zoom with no prompt or task mutation. Negative coverage keeps OpenTTD, Open World, and Gmail Notifier non-neutral; signed representatives beyond System Settings remain (`GamingDriftPromptService.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/REPORT.md`).",
       "tracker_line": 399
     },
     {
@@ -5985,9 +5989,9 @@
       "section_title": "Grace periods and neutral activity",
       "item_index": 7,
       "wording": "Avoid having neutral activity automatically pause the task.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5996,10 +6000,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No behavior currently auto-pauses tasks at all, so the harmful behavior does not occur, but the intended neutral-activity policy is absent.",
+      "evidence_paths": [
+        ".audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json"
+      ],
+      "last_verified_commit": "17ac1e521d3469582715dfb030524ac8322bab05",
+      "last_verified_build": "zoid-coach-17ac1e521d3469582715dfb030524ac8322bab05-clean",
+      "audit_note": "Neutral evaluation is read-only. The installed System Settings journey left the task active with its activity interval open, while deterministic representatives assert zero prompts and unchanged active-task count (`GamingDriftPromptService.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json`).",
       "tracker_line": 400
     },
     {
