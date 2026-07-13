@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "af60abbef911678dddb86588049f87dfcbdc09080c9908a7f1002e79d5911a83",
+  "tracker_sha256": "06ff1dc106ed98ea14e2e72031c74da25968d216443609d13298507dc78c80d2",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1197,7 +1197,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "All incomplete reminders are fetched and due dates render, so due-today items appear, but the installed list was not populated during runtime verification (`RemindersService.swift:90-126`; `DashboardView.swift:774-776`).",
+      "audit_note": "Agent and app fallback now apply the policy timezone and include every incomplete Reminder before the next local midnight, including a focused 23:30 case, while the installed seeded queue remains unverified (`TodayReminderEligibility`; `TodayDashboardAgentTests.swift`; `.audit/runs/today-task-eligibility/candidate/REPORT.md`).",
       "tracker_line": 124
     },
     {
@@ -1218,7 +1218,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Overdue reminders are included and active-plan rows label them Overdue, but there is no dedicated overdue grouping and live data was not exercised (`TodayTaskRowView`, `DashboardView.swift:682-688`).",
+      "audit_note": "The canonical agent and fallback eligibility rule retain overdue tasks and focused coverage proves the exact queue alongside today, undated, and future cases, while installed seeded visibility remains (`TodayReminderEligibility`; `TodayDashboardAgentTests.swift`; `.audit/runs/today-task-eligibility/candidate/REPORT.md`).",
       "tracker_line": 125
     },
     {
@@ -1281,7 +1281,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Undated incomplete reminders are fetched and can be added to the plan, but the installed flow was not exercised (`RemindersService.swift:90-126`; `InboxReminderTaskRow`).",
+      "audit_note": "Undated tasks explicitly pass the shared eligibility rule and remain in the canonical and fallback available queues; the installed row remains unverified (`TodayReminderEligibility`; `TodayDashboardAgentTests.swift`; `.audit/runs/today-task-eligibility/candidate/REPORT.md`).",
       "tracker_line": 128
     },
     {
@@ -1291,8 +1291,8 @@
       "item_index": 6,
       "wording": "Avoid seeing future tasks that were not selected for today.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1302,7 +1302,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The full inventory intentionally contains all incomplete reminders, including future-dated tasks, because fetch predicates have no date boundary (`RemindersService.swift:93-97`).",
+      "audit_note": "Unselected tasks at or after the next policy-local midnight are excluded from both the canonical agent queue and app fallback, while a selected future task remains in planned rows. Focused UTC and Africa/Cairo boundary proof passes; the installed five-row queue and restart traversal remain (`TodayReminderEligibility`; `TodayDashboardAgent.swift`; `DashboardView.swift`; `.audit/runs/today-task-eligibility/candidate/REPORT.md`).",
       "tracker_line": 129
     },
     {
