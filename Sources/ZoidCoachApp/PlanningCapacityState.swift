@@ -49,6 +49,14 @@ struct PlanningCapacityState: Equatable, Sendable {
     var canApprove: Bool {
         readiness == .realistic
     }
+
+    var remainingBufferMinutes: Int {
+        max(0, availableMinutes - plannedMinutes)
+    }
+
+    var overCapacityMinutes: Int {
+        max(0, plannedMinutes - availableMinutes)
+    }
 }
 
 struct PlanningCapacityCalculator: Sendable {

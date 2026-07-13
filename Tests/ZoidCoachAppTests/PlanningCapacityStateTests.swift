@@ -12,6 +12,8 @@ func capacityStateExplainsMissingEstimatesBeforeClaimingAPlanIsRealistic() {
 
     #expect(state.plannedMinutes == 30)
     #expect(state.availableMinutes == 120)
+    #expect(state.remainingBufferMinutes == 90)
+    #expect(state.overCapacityMinutes == 0)
     #expect(state.readiness == .missingEstimates(count: 1))
     #expect(!state.canApprove)
     #expect(state.suggestedReminderID == nil)
@@ -35,6 +37,8 @@ func capacityExcludesOptionalAndFutureDeferredTasksWithoutHidingCommittedWork() 
     let state = PlanningCapacityState(entries: entries, availableMinutes: 60, referenceDate: now)
 
     #expect(state.plannedMinutes == 45)
+    #expect(state.remainingBufferMinutes == 15)
+    #expect(state.overCapacityMinutes == 0)
     #expect(state.readiness == .realistic)
     #expect(state.canApprove)
 }
@@ -51,6 +55,8 @@ func capacityStateReportsExactOverageAndSuggestsLowestRankedTask() {
     )
 
     #expect(state.plannedMinutes == 135)
+    #expect(state.remainingBufferMinutes == 0)
+    #expect(state.overCapacityMinutes == 45)
     #expect(state.readiness == .overloaded(overByMinutes: 45))
     #expect(state.suggestedReminderID == "optional")
     #expect(!state.canApprove)
@@ -72,9 +78,12 @@ func capacityStateRecalculatesToRealisticAfterEstimateOrPlanReduction() {
     )
 
     #expect(overloaded.readiness == .overloaded(overByMinutes: 15))
+    #expect(overloaded.overCapacityMinutes == 15)
     #expect(shortened.readiness == .realistic)
+    #expect(shortened.remainingBufferMinutes == 0)
     #expect(shortened.canApprove)
     #expect(reduced.readiness == .realistic)
+    #expect(reduced.remainingBufferMinutes == 30)
     #expect(reduced.canApprove)
 }
 
