@@ -439,6 +439,7 @@ struct DailyReviewView: View {
                     .foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("reviews.coaching.empty")
             } else {
+                coachingOutcomeSummary(snapshot.coachingInteractions)
                 VStack(spacing: 0) {
                     ForEach(snapshot.coachingInteractions) { interaction in
                         VStack(alignment: .leading, spacing: 5) {
@@ -458,10 +459,23 @@ struct DailyReviewView: View {
                                 .font(Sumi.body(11))
                                 .foregroundStyle(Sumi.muted)
                                 .lineLimit(3)
-                            Text(coachingResponseSummary(interaction))
+                            if let evidence = coachingEvidenceSummary(interaction) {
+                                Text(evidence)
+                                    .font(Sumi.body(11))
+                                    .foregroundStyle(Sumi.ink)
+                                    .accessibilityIdentifier("reviews.coaching.evidence.\(interaction.promptID)")
+                            }
+                            Text(coachingOutcomeSummary(interaction))
                                 .font(Sumi.label(8))
                                 .sumiLabelTracking()
                                 .foregroundStyle(interaction.effectWasApplied == false ? Sumi.seal : Sumi.okay)
+                                .accessibilityIdentifier("reviews.coaching.outcome.\(interaction.promptID)")
+                            if let response = coachingResponseMetadata(interaction) {
+                                Text(response)
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.muted)
+                            }
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -514,13 +528,78 @@ struct DailyReviewView: View {
         .accessibilityIdentifier(identifier)
     }
 
-    private func coachingResponseSummary(_ interaction: DailyReviewCoachingInteraction) -> String {
-        guard let action = interaction.responseAction else { return "NO RESPONSE RECORDED" }
+    private func coachingOutcomeSummary(
+        _ interactions: [DailyReviewCoachingInteraction]
+    ) -> some View {
+        let observedReturns = interactions.count {
+            if case .returnedToWork = $0.outcome { return true }
+            return false
+        }
+        let recoveryStarts = interactions.count {
+            if case .returnedToWork = $0.outcome { return true }
+            return $0.outcome == .recoveryStarted
+        }
+        let intentionalChoices = interactions.count { $0.outcome == .intentionalChoice }
+        return HStack(spacing: 0) {
+            coachingMetric("OBSERVED RETURNS", observedReturns)
+            coachingMetric("RECOVERY STARTS", recoveryStarts)
+            coachingMetric("INTENTIONAL CHOICES", intentionalChoices)
+        }
+        .background(Sumi.paper)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("reviews.coaching.outcomes")
+    }
+
+    private func coachingMetric(_ title: String, _ value: Int) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("\(value)")
+                .font(Sumi.display(18))
+            Text(title)
+                .font(Sumi.label(7))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+    }
+
+    private func coachingEvidenceSummary(_ interaction: DailyReviewCoachingInteraction) -> String? {
+        guard interaction.promptType == "GAMING_DRIFT" else { return nil }
+        let observed = interaction.observedGamingMinutes.map { "OBSERVED \($0) MIN" } ?? "OBSERVED GAMING"
+        let application = interaction.observedApplication.map { " IN \($0.uppercased())" } ?? ""
+        let task = interaction.unfinishedTaskTitle.map { " · UNFINISHED \($0.uppercased())" } ?? ""
+        return observed + application + task
+    }
+
+    private func coachingOutcomeSummary(_ interaction: DailyReviewCoachingInteraction) -> String {
+        switch interaction.outcome {
+        case .unanswered:
+            return "NO RESPONSE RECORDED"
+        case .effectPending:
+            return "CHOICE RECORDED · EFFECT NOT YET CONFIRMED"
+        case .recoveryStarted:
+            return "RECOVERY STARTED · LATER WORK NOT OBSERVED"
+        case let .returnedToWork(observedMinutes, selectedTaskMatched):
+            return selectedTaskMatched
+                ? "RETURN TO SELECTED TASK OBSERVED · \(observedMinutes) MIN WITHIN 30 MIN"
+                : "RETURN TO WORK OBSERVED · \(observedMinutes) MIN WITHIN 30 MIN · TASK ALIGNMENT NOT PROVEN"
+        case .acceptedBreak:
+            return "ACCEPTED BREAK STARTED · NOT COUNTED AS DRIFT"
+        case .intentionalChoice:
+            return "INTENTIONAL CHOICE RECORDED · NO JUDGMENT"
+        case .extensionRecorded:
+            return "FIVE-MINUTE EXTENSION RECORDED"
+        case .responseRecorded:
+            return "CHOICE APPLIED"
+        }
+    }
+
+    private func coachingResponseMetadata(_ interaction: DailyReviewCoachingInteraction) -> String? {
+        guard let action = interaction.responseAction else { return nil }
         let label = action.replacingOccurrences(of: "_", with: " ").uppercased()
         let surface = interaction.responseSurface?.uppercased() ?? "UNKNOWN SURFACE"
-        return interaction.effectWasApplied == true
-            ? "\(label) · APPLIED VIA \(surface)"
-            : "\(label) · RECORDED VIA \(surface) · EFFECT PENDING"
+        return "\(label) · \(interaction.effectWasApplied == true ? "APPLIED" : "RECORDED") VIA \(surface)"
     }
 
     private func planOutcomes(_ snapshot: DailyReviewSnapshot) -> some View {
