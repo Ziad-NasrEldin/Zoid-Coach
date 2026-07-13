@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "6de4727a8000b813b9cd10595cdd59a9fbcac391175b628ba9d8f701c990ca78",
+  "tracker_sha256": "d76b1088688eeeff054dbc01ad37d842df4c1b836f614457b813dbdaa2f3343c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -103,9 +103,9 @@
       "section_title": "First launch",
       "item_index": 5,
       "wording": "Understand that Zoid 666 is a coach rather than a replacement task manager.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -113,11 +113,11 @@
       ],
       "affected_capability": "onboarding_and_source_setup",
       "evidence_paths": [
-        ".audit/runs/daily-review-deferral/verifier/REPORT.md"
+        ".audit/runs/onboarding-system-of-record-copy/5d56b32fb44a3bbb8e64e40282a92328d1de93b7/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "First launch consistently presents Zoid 666 as a coach grounded in Reminders, but it still does not state as directly as it should that Reminders remains the task system of record.",
+      "last_verified_commit": "5d56b32fb44a3bbb8e64e40282a92328d1de93b7",
+      "last_verified_build": "zoid-coach-5d56b32fb44a3bbb8e64e40282a92328d1de93b7-clean",
+      "audit_note": "A truly fresh signed-QA Welcome screen visibly and accessibly states that Zoid 666 is a coach, not a replacement task manager, names Apple Reminders as the system of record for connected tasks, tells users what remains in Reminders versus Today, and retains the non-punitive boundary. Native Continue advanced to Local Privacy, persisted the exact order, and signed relaunch restored step 2 without replaying Welcome (`Sources/ZoidCoachApp/OnboardingWelcomeCopy.swift`; `Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingWelcomeCopyTests.swift`; `.audit/runs/onboarding-system-of-record-copy/verifier/REPORT.md`).",
       "tracker_line": 58
     },
     {

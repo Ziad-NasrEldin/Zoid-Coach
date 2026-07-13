@@ -160,6 +160,11 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Preserves the non-punitive product boundary and exposes the complete positioning through one stable accessibility element.
 - Four focused copy, accessibility, onboarding-order, and restart tests plus the release build pass.
 - Candidate evidence and the signed verifier plan are recorded in `.audit/runs/onboarding-system-of-record-copy/candidate/REPORT.md`.
+- Independent verification passes the exact four focused tests and one QA release package.
+- A truly fresh signed root exposes the complete positioning visibly and through the stable Welcome accessibility element without clipping or overflow.
+- Native Continue persists Welcome completion and advances to Local Privacy, while signed relaunch restores step 2 with the same flow identity and order.
+- `ZC-001-005` advances from Touches remaining to Fully implemented.
+- Verifier evidence is recorded in `.audit/runs/onboarding-system-of-record-copy/verifier/REPORT.md`.
 
 ### Settings notification delivery test - candidate
 

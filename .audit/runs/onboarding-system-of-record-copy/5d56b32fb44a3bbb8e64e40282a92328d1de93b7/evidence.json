@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "run_id": "onboarding-system-of-record-copy-5d56b32",
+  "verified_commit": "5d56b32fb44a3bbb8e64e40282a92328d1de93b7",
+  "build_identity": "zoid-coach-5d56b32fb44a3bbb8e64e40282a92328d1de93b7-clean",
+  "status": "passed",
+  "completed_at": "2026-07-13T22:10:00Z",
+  "scenario_ids": [
+    "ZC-001-005"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "assertions": [
+    {
+      "name": "Fresh signed Welcome visibly and accessibly states the complete coach and Apple Reminders system-of-record boundary",
+      "result": "passed"
+    },
+    {
+      "name": "Native Continue and signed relaunch preserve onboarding order and persistence",
+      "result": "passed"
+    },
+    {
+      "name": "Native pixel inspection found no clipping overlap or overflow",
+      "result": "passed"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "AX-PROOF.txt",
+      "sha256": "8f273884bb800fcc6843abdd9c784ef6c8535c7c3436d82f970e6d127e14008f"
+    }
+  ]
+}
