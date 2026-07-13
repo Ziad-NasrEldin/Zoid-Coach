@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "6e4620b5239e5b4d02a37b041261659cf370789dd56a7d1425cb5b1c941038b9",
+  "tracker_sha256": "1821fabf24feb3ea93ffaf37612836009f0332bf0ab6262a8a163718a6cae172",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -891,7 +891,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed run visibly reviewed and saved the default 09:00-18:00 work window through the conflict-safe policy boundary. A visible non-default time selection remains before the configuration interaction is fully proven (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
+      "audit_note": "Onboarding now exposes separate hour and minute controls, preserves exact existing non-quarter values, supports daytime or overnight work, rejects only an equal empty window, and defensively blocks invalid persistence. Focused proof saved 08:30-17:15 exactly, while a signed non-default picker and relaunch journey remains (`OnboardingCoordinator.swift`; `OnboardingRootView.swift`; `.audit/runs/onboarding-schedule-boundaries/verifier/REPORT.md`).",
       "tracker_line": 104
     },
     {
@@ -912,7 +912,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed run visibly reviewed and saved the overnight 23:00-07:00 quiet window. A visible non-default picker selection remains before full qualification (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
+      "audit_note": "Onboarding now exposes exact quiet-hour minutes, preserves legacy values, supports overnight boundaries, rejects an equal empty window, and shows accessible validation state before Continue. Focused proof saved 21:45-06:30 exactly, while the signed picker, relaunch, and delivery-boundary journey remains (`OnboardingCoordinator.swift`; `OnboardingRootView.swift`; `.audit/runs/onboarding-schedule-boundaries/verifier/REPORT.md`).",
       "tracker_line": 105
     },
     {

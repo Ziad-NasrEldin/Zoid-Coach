@@ -23,6 +23,10 @@ The verifier added the surgical `return VStack` fix and preserved it in this int
 - One release build passed.
 - `git diff --check` passed.
 
-## Signed acceptance pending
+## Signed acceptance boundary
 
-The signed quarter-hour edit, invalid-state, relaunch, and runtime-boundary journey remains pending the package step.
+The single package/install attempt exited without creating an installed app, registering a QA helper, mutating the shared runtime, or emitting diagnostic output.
+No retry was performed under the package-once and UI cap.
+
+The signed quarter-hour edit, invalid-state, relaunch, and runtime-boundary journey remains unverified.
+Both mapped tracker scenarios remain conservative.
