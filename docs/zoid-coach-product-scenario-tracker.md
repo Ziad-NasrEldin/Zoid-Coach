@@ -621,7 +621,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 44. General settings
 
-- [ ] Enable or disable launch at login. **Status: Not implemented.** The app auto-registers the bundled agent on launch; `disableAndInspect` exists in the service but no settings control calls it.
+- [ ] Enable or disable launch at login. **Status: Touches remaining.** The installed signed Background Agent window visibly separated Enabled registration from Healthy and stale Attention runtime states, kept Disable available during a stale heartbeat, and presented truthful impact and local-data preservation copy. Focused relaunch proof prevents a user-disabled helper from silently re-registering and preserves byte-identical local data, but the installed Disable and Enable actions were not activated because the required action-time confirmation was not available (`AgentLaunchService.swift`; `AgentLifecycleController.swift`; `.audit/runs/launch-at-login-control/verifier/REPORT.md`).
 - [ ] Set workday start and end times. **Status: Touches remaining.** Both controls persist through versioned policy and settings tests pass, including two-controller conflict recovery that preserves the current winner, rebases independent edits, and avoids duplicate policy versions. A visible signed-app save and relaunch check remains.
 - [ ] Set planning and review times. **Status: Partially implemented.** Nightly planning and morning confirmation are configurable and now participate in field-level conflict recovery, but review time is absent.
 - [ ] Use manual workday start and end without fixed hours. **Status: Not implemented.** No manual-workday mode or start/end controls exist.
