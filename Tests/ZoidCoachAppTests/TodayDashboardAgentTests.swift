@@ -31,6 +31,90 @@ func agentSnapshotCarriesRequiredDashboardFieldsAndCommandsRefreshIt() throws {
 }
 
 @Test
+func blockingMainObjectiveDurablyPromotesNextUsableTask() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-blocked-replan-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let now = Date(timeIntervalSince1970: 1_750_000_000)
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "main", title: "Submit proposal", dueDate: now, priority: 9),
+        ReminderSourceSnapshot(id: "next", title: "Prepare supporting notes", dueDate: now, priority: 5),
+        ReminderSourceSnapshot(id: "later", title: "Archive research", dueDate: nil, priority: 1)
+    ])
+    let plans = try AutonomousPlanStore(databaseURL: url)
+    try plans.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [
+                PlannedTask(taskID: "main", title: "Submit proposal", rank: 1, estimateMinutes: 30, reason: "Main", score: 100),
+                PlannedTask(taskID: "next", title: "Prepare supporting notes", rank: 2, estimateMinutes: 25, reason: "Next", score: 80),
+                PlannedTask(taskID: "later", title: "Archive research", rank: 3, estimateMinutes: 15, reason: "Later", score: 40)
+            ],
+            mainObjectiveTaskID: "main",
+            plannedFocusMinutes: 70,
+            availableFocusMinutes: 90
+        ),
+        for: now
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url)
+    _ = try agent.apply(.start, taskID: "main", now: now)
+    let replanned = try agent.apply(
+        .block,
+        taskID: "main",
+        blockedReason: "Waiting for the client to approve the source material.",
+        now: now.addingTimeInterval(60)
+    )
+
+    #expect(replanned.mainObjective == "Prepare supporting notes")
+    #expect(replanned.taskRows.first(where: { $0.taskID == "main" })?.state == .blocked)
+    #expect(replanned.taskRows.first(where: { $0.taskID == "main" })?.blockedReason == "Waiting for the client to approve the source material.")
+    #expect(replanned.taskRows.first(where: { $0.taskID == "next" })?.isMainObjective == true)
+    #expect(replanned.recommendation.taskID == "next")
+
+    let restarted = try TodayDashboardAgent(databaseURL: url).snapshot(now: now.addingTimeInterval(120))
+    #expect(restarted.mainObjective == "Prepare supporting notes")
+    #expect(restarted.taskRows.first(where: { $0.taskID == "main" })?.blockedReason == "Waiting for the client to approve the source material.")
+    #expect(try plans.restoreLatestRevision(for: now))
+    #expect(try plans.loadDailyPlan(for: now).first(where: { $0.reminderID == "main" })?.isMainObjective == true)
+}
+
+@Test
+func blockingMainObjectiveWithoutUsableReplacementKeepsPlanHonest() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-blocked-no-replacement-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let now = Date(timeIntervalSince1970: 1_750_000_000)
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([ReminderSourceSnapshot(id: "only", title: "Only task", dueDate: now, priority: 9)])
+    let plans = try AutonomousPlanStore(databaseURL: url)
+    try plans.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: "only", title: "Only task", rank: 1, estimateMinutes: 30, reason: "Only", score: 100)],
+            mainObjectiveTaskID: "only",
+            plannedFocusMinutes: 30,
+            availableFocusMinutes: 60
+        ),
+        for: now
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url)
+    _ = try agent.apply(.start, taskID: "only", now: now)
+    let blocked = try agent.apply(
+        .block,
+        taskID: "only",
+        blockedReason: "Waiting for an external dependency.",
+        now: now.addingTimeInterval(30)
+    )
+
+    #expect(blocked.mainObjective == "Only task")
+    #expect(blocked.taskRows.first?.state == .blocked)
+    #expect(try plans.loadDailyPlan(for: now).filter(\.isMainObjective).map(\.reminderID) == ["only"])
+}
+
+@Test
 func unplannedTaskStartIsVisiblePersistsAndNeverInventsAPlanViolation() throws {
     let url = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-666-unplanned-start-\(UUID().uuidString).sqlite")
