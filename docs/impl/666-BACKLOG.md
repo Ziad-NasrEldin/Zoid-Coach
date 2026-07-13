@@ -132,6 +132,11 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Preserves the canonical Pause, Break, Complete, Resume, End Break, Start, and End Workday command boundaries.
 - Five focused state, accessibility, and lifecycle tests plus the release build pass.
 - Candidate evidence and the signed verifier plan are recorded in `.audit/runs/compact-active-task/candidate/REPORT.md`.
+- Independent verification fixed duplicate VoiceOver title and timing announcements, added one stable compact-summary accessibility node, and tightened deadline proof.
+- The rebased five-test group and one QA release package pass on authoritative base `dc83239`.
+- Signed ready-state proof established one active task and one open interval, and native AX exposed the real status item as `A task is active`.
+- AXPress failed and the single native frame click opened Notification Center, so compact-popover pixels and controls remain unverified.
+- `ZC-037-006` advances from Not implemented to Touches remaining with evidence in `.audit/runs/compact-active-task/verifier/REPORT.md`.
 
 ### Settings notification delivery test - candidate
 
