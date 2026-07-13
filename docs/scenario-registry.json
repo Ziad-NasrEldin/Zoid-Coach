@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "8d8a8c6cb95a64c1fb75b65064eb9d2714558e3328f05a3319961f2841d2356e",
+  "tracker_sha256": "0b9f58d1779504f403d1d48b60e4a1650d41dacb8a8fa52445790d2981ba83db",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10415,19 +10415,21 @@
       "section_title": "Coaching and classification settings",
       "item_index": 11,
       "wording": "Review unknown sessions.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/unknown-session-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Unknown time can appear in totals, but there is no session review queue.",
+      "audit_note": "The signed Reviews surface exposed two Unknown sessions in chronological order with an exact 2-session, 3-minute summary, neutral evidence language, privacy-safe app/time/count details, separate classified activity, and an explicit no-pending-confirmation empty state after classification (`UnknownSessionReviewState`; `DailyReviewView.swift`; `.audit/runs/unknown-session-review/verifier/REPORT.md`).",
       "tracker_line": 650
     },
     {
@@ -10716,8 +10718,8 @@
       "item_index": 10,
       "wording": "See ambiguous activity remain unknown when AI fails.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10727,7 +10729,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Unknown classification and structured-provider failure states exist, but no end-user AI-failure journey proves ambiguous sessions remain visibly unknown.",
+      "audit_note": "The signed queue kept an insufficient-evidence Preview session visibly Unknown without creating a correction or rule, and that state survived relaunch. A fresh provider-failure transition that creates the Unknown observation remains to connect the existing AI failure seam to this installed review surface (`UnknownSessionReviewState`; `.audit/runs/unknown-session-review/verifier/REPORT.md`).",
       "tracker_line": 667
     },
     {
@@ -13856,9 +13858,9 @@
       "section_title": "Complete ambiguous-work journey",
       "item_index": 4,
       "wording": "See the session remain unknown or request confirmation when evidence is insufficient.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13866,10 +13868,12 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/unknown-session-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No unknown-session confirmation UI is present.",
+      "audit_note": "The signed queue explained that evidence was insufficient, invited confirmation only when recognized, kept Preview Unknown with its classification action disabled until the user made a choice, and restored that pending session unchanged after relaunch (`DailyReviewView.swift`; `.audit/runs/unknown-session-review/verifier/REPORT.md`).",
       "tracker_line": 854
     },
     {
@@ -13900,9 +13904,9 @@
       "section_title": "Complete ambiguous-work journey",
       "item_index": 6,
       "wording": "Correct the session if Zoid 666 is wrong.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13910,10 +13914,12 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/unknown-session-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No behavior-session correction interface exists.",
+      "audit_note": "In the signed queue, Safari changed from Unknown to Work through Apply Classification, immediately left the pending queue, moved into Classified Activity Sessions, recalculated Work and Unknown totals, and remained Work after relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/unknown-session-review/verifier/REPORT.md`).",
       "tracker_line": 856
     },
     {
@@ -13922,9 +13928,9 @@
       "section_title": "Complete ambiguous-work journey",
       "item_index": 7,
       "wording": "Save an appropriately scoped rule if the same context will recur.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13932,10 +13938,12 @@
         "ui_automation"
       ],
       "affected_capability": "end_to_end_acceptance",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/unknown-session-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings expose application categories, not a correction-to-rule scope preview and save flow.",
+      "audit_note": "The signed Safari correction accepted the Research task attachment, previewed that only new Safari observations would become Work while history stayed unchanged, saved one active Safari-to-Work rule, and restored the task attachment and rule after relaunch. Idle and Unknown selections visibly disabled future-rule creation, while focused tests also rejected unsafe rules at the durable store boundary (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/unknown-session-review/verifier/REPORT.md`).",
       "tracker_line": 857
     },
     {
@@ -13945,8 +13953,8 @@
       "item_index": 8,
       "wording": "See future matching activity handled according to the correction.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -13957,7 +13965,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The prerequisite correction and learned-rule flow is absent.",
+      "audit_note": "The scoped Safari-to-Work future rule was saved, visibly active, and persisted after relaunch, with focused store coverage for rule persistence and safety. A fresh later Safari observation was not ingested through the running agent before the signed UI cap, so live future-match application remains (`DailyReviewStore.swift`; `ScreenwatchArchive.swift`; `.audit/runs/unknown-session-review/verifier/REPORT.md`).",
       "tracker_line": 858
     },
     {
