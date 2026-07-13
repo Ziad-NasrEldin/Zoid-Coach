@@ -100,6 +100,45 @@ func completingPausedTaskRetainsTimeAndEndsItsPauseEpisode() throws {
 }
 
 @Test
+func backwardClockChangeNeverPersistsOrDisplaysNegativeTaskTime() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-clock-backward-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+
+    do {
+        let store = try TaskExecutionStore(databaseURL: url)
+        try store.apply(.start, taskID: "task", at: start)
+        #expect(try store.activeTask(now: start.addingTimeInterval(-3_600))?.elapsedMinutes == 0)
+        try store.apply(.pauseDoneForNow, taskID: "task", at: start.addingTimeInterval(-3_600))
+    }
+
+    let reopened = try TaskExecutionStore(databaseURL: url)
+    let restored = try reopened.snapshot(for: ["task"], now: start.addingTimeInterval(60))["task"]
+    #expect(restored?.elapsedMinutes == 0)
+    #expect(restored?.state == .paused)
+}
+
+@Test
+func forwardClockJumpCapsOneContinuousIntervalAtOneDayAcrossRestart() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-clock-forward-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let start = Date(timeIntervalSince1970: 1_700_000_000)
+    let jumpedForward = start.addingTimeInterval(7 * 24 * 60 * 60)
+
+    do {
+        let store = try TaskExecutionStore(databaseURL: url)
+        try store.apply(.start, taskID: "task", at: start)
+        #expect(try store.activeTask(now: jumpedForward)?.elapsedMinutes == 1_440)
+        try store.apply(.pauseDoneForNow, taskID: "task", at: jumpedForward)
+    }
+
+    let reopened = try TaskExecutionStore(databaseURL: url)
+    let restored = try reopened.snapshot(for: ["task"], now: jumpedForward)["task"]
+    #expect(restored?.elapsedMinutes == 1_440)
+    #expect(restored?.state == .paused)
+}
+
+@Test
 func boundedSprintCountsDownWithoutResettingOnDuplicateStart() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-sprint-idempotent-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: url) }

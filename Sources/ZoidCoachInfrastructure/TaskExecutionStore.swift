@@ -23,6 +23,8 @@ public struct TaskExecutionSnapshot: Equatable, Sendable {
 }
 
 public final class TaskExecutionStore: @unchecked Sendable {
+    private static let maximumContinuousIntervalSeconds: TimeInterval = 24 * 60 * 60
+
     private let database: OpaquePointer
     private let formatter = ISO8601DateFormatter()
 
@@ -371,14 +373,18 @@ public final class TaskExecutionStore: @unchecked Sendable {
     }
 
     private func closeOpenInterval(taskID: String? = nil, at date: Date) throws {
-        let sql = taskID == nil ? "UPDATE task_activity_intervals SET ended_at = ? WHERE ended_at IS NULL;" : "UPDATE task_activity_intervals SET ended_at = ? WHERE task_id = ? AND ended_at IS NULL;"
+        let normalizedEnd = "CASE WHEN started_at > ? THEN started_at ELSE ? END"
+        let sql = taskID == nil
+            ? "UPDATE task_activity_intervals SET ended_at = \(normalizedEnd) WHERE ended_at IS NULL;"
+            : "UPDATE task_activity_intervals SET ended_at = \(normalizedEnd) WHERE task_id = ? AND ended_at IS NULL;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.write }
         defer { sqlite3_finalize(statement) }
         bind(formatter.string(from: date), statement, 1)
-        if let taskID { bind(taskID, statement, 2) }
+        bind(formatter.string(from: date), statement, 2)
+        if let taskID { bind(taskID, statement, 3) }
         guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
-    }
+}
 
     private func recordPause(taskID: String, reason: TaskPauseReason, at date: Date) throws {
         try closeOpenPause(taskID: taskID, at: date)
@@ -440,8 +446,9 @@ public final class TaskExecutionStore: @unchecked Sendable {
         var seconds: TimeInterval = 0
         while sqlite3_step(statement) == SQLITE_ROW, let start = sqlite3_column_text(statement, 0), let startedAt = formatter.date(from: String(cString: start)) {
             let endedAt = sqlite3_column_type(statement, 1) == SQLITE_NULL ? now : sqlite3_column_text(statement, 1).flatMap { formatter.date(from: String(cString: $0)) } ?? now
-            seconds += max(0, endedAt.timeIntervalSince(startedAt))
-        }
+            let intervalSeconds = max(0, endedAt.timeIntervalSince(startedAt))
+            seconds += min(Self.maximumContinuousIntervalSeconds, intervalSeconds)
+}
         return Int(seconds / 60)
     }
 
