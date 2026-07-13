@@ -53,6 +53,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Accepted break lifecycle - conservative verifier
+
+- Owns `ZC-028-001`, `ZC-028-002`, `ZC-028-004`, `ZC-028-005`, `ZC-028-006`, `ZC-028-007`, `ZC-028-008`, and `ZC-028-009`.
+- Focused persistence, restart, Today agent, menu status, and drift-suppression proof passed, and a static menu countdown was fixed with a one-second timeline refresh.
+- Release packaging, signing, QA identity, local-task creation, task start, durable break pause, and signed task resume passed.
+- Installed countdown, menu-bar traversal, reminder delivery and cancellation, early end, and restored coaching eligibility remain unproven after the QA helper disappeared during the capped signed run.
+- Conservative evidence is recorded in `.audit/runs/accepted-break-lifecycle/verifier/REPORT.md`; no scenario was marked fully implemented.
+
 ### Intentional override duration policy - candidate
 
 - Owns `ZC-029-013`, `ZC-036-003`, and `ZC-036-008`.

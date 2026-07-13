@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "b884f0377a9722cc48f471fa74309b59b6473994a1d06f5440d5ae225658e900",
+  "tracker_sha256": "949f54398d9d5475ff4b19b9f44525bddcb4bb6bebc407bdf7de5b63d23c34ee",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -6009,8 +6009,8 @@
       "item_index": 1,
       "wording": "Start an accepted break from the dashboard.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6022,7 +6022,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No dashboard break control or break state exists.",
+      "audit_note": "Today now exposes Take a break for the active task and the signed app persisted a durable `break` pause, while the installed countdown state did not appear reliably after the QA helper replacement and remains unproven (`DashboardView.swift`; `TaskExecutionStore.swift`; `.audit/runs/accepted-break-lifecycle/verifier/REPORT.md`).",
       "tracker_line": 404
     },
     {
@@ -6032,8 +6032,8 @@
       "item_index": 2,
       "wording": "Start an accepted break from the menu bar.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6045,7 +6045,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The menu bar extra is voice-only.",
+      "audit_note": "The menu bar now exposes `BREAK 15` and routes the same durable pause command, but the capped signed run could not reach the menu-bar branch after the QA helper disappeared (`MenuBarCoachView.swift`; `.audit/runs/accepted-break-lifecycle/verifier/REPORT.md`).",
       "tracker_line": 405
     },
     {
@@ -6080,8 +6080,8 @@
       "item_index": 4,
       "wording": "Choose or understand the expected break duration.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6093,7 +6093,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Break duration is not modeled.",
+      "audit_note": "The accepted-break snapshot models a fixed 15-minute duration and Today and the menu bar contain explicit countdown copy, but the countdown was not visible in the capped signed run (`TodayDashboard.swift`; `DashboardView.swift`; `MenuBarCoachState.swift`; `.audit/runs/accepted-break-lifecycle/verifier/REPORT.md`).",
       "tracker_line": 407
     },
     {
@@ -6126,8 +6126,8 @@
       "item_index": 6,
       "wording": "Receive a break-end reminder.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6139,7 +6139,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No break timer or notification exists.",
+      "audit_note": "A replacement-safe local notification is scheduled from the remaining persisted duration and cancelled on resume, while installed delivery and cancellation remain unproven because the QA helper disappeared during the capped run (`NotificationService.swift`; `AppModel.swift`; `.audit/runs/accepted-break-lifecycle/verifier/REPORT.md`).",
       "tracker_line": 409
     },
     {
@@ -6149,8 +6149,8 @@
       "item_index": 7,
       "wording": "End the break early.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6162,7 +6162,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No break state exists to end.",
+      "audit_note": "Today and the menu bar route End Break Early through the durable resume command, but the installed control was not reached after the countdown state failed to appear (`DashboardView.swift`; `MenuBarCoachView.swift`; `.audit/runs/accepted-break-lifecycle/verifier/REPORT.md`).",
       "tracker_line": 410
     },
     {
@@ -6172,8 +6172,8 @@
       "item_index": 8,
       "wording": "Resume work after the break.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6185,7 +6185,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No break-to-task transition exists.",
+      "audit_note": "Store, agent, and focused restart tests prove the same task resumes with its break pause closed, and the signed app preserved and resumed the task across app and helper restart; the installed countdown branch remains incomplete (`TaskExecutionStore.swift`; `TodayDashboardAgent.swift`; `.audit/runs/accepted-break-lifecycle/verifier/REPORT.md`).",
       "tracker_line": 411
     },
     {
@@ -6195,8 +6195,8 @@
       "item_index": 9,
       "wording": "See break activity without having it described as failure or drift.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6208,7 +6208,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Break activity and drift interpretation are absent.",
+      "audit_note": "Today and menu copy explicitly call the interval an accepted break rather than drift or failure, but the installed accepted-break presentation did not appear reliably in the capped run (`DashboardView.swift`; `MenuBarCoachState.swift`; `.audit/runs/accepted-break-lifecycle/verifier/REPORT.md`).",
       "tracker_line": 412
     },
     {
