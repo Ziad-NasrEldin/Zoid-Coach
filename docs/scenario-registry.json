@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "8a9abbca324ff9fb609c50b6973a6c47b22e57a5d6a7f93acda062c07c4599a9",
+  "tracker_sha256": "b1c28041927a5660b3445058bebbe6274f1da93a9cee17b2e0e7302be99d7b70",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7705,8 +7705,8 @@
       "item_index": 11,
       "wording": "Mark the task blocked.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7717,7 +7717,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`markBlocked` exists as a prompt action and `.block` exists in task execution, but no router connects them and no block reason is captured.",
+      "audit_note": "The prompt now has a reviewed blocker-reason sheet, 3-to-240-character validation, ordered local task blocking before prompt resolution, failure-safe retry copy, replacement-main promotion, and focused rule coverage. A signed build loaded a six-action `GAMING_DRIFT` decision for an active main task, but the prompt card exposed an empty action collection and rendered no action buttons, so an end user could not reach `Mark blocked`; the full invalid-reason, Cancel, successful block, replacement, answered-history, relaunch, and unavailable-agent journey remains blocked on that UI defect (`AppModel.swift`; `PromptTaskBlockState.swift`; `TodayPromptInboxLedger.swift`; `GamingDriftPromptService.swift`; `.audit/runs/prompt-task-block/verifier/REPORT.md`).",
       "tracker_line": 494
     },
     {
