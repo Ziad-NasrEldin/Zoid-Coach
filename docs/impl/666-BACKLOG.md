@@ -572,3 +572,12 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - The broader outbox test group and the release build pass.
 - Candidate evidence is recorded in `.audit/runs/database-lock-retry/candidate/REPORT.md`.
 - The authoritative tracker remains owned by the root integrator and must only advance after independent installed-app verification that holds the QA database lock, submits a visible user mutation, releases the lock, and confirms the mutation and restart persistence.
+
+### Temporary local database lock recovery - verifier blocked
+
+- Keeps `ZC-052-005` at Partially implemented.
+- Focused temporary-lock, persistent-lock, non-lock failure, broader outbox tests, and one signed QA package pass.
+- The signed task-completion action still fails before ActionOutboxStore because upstream task and history writes use the same locked database without the bounded recovery boundary.
+- Signed Calendar approval persisted four distinct commands exactly once after release but falsely reported that nothing was written.
+- The next lane must retry the complete user mutation transaction and reconcile the visible Calendar receipt with durable enqueue state.
+- Verifier evidence is recorded in `.audit/runs/database-lock-retry/verifier/REPORT.md`.
