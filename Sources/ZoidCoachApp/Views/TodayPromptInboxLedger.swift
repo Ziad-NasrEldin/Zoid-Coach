@@ -10,6 +10,7 @@ struct TodayPromptInboxLedger: View {
     @State private var blockRequest: PromptTaskBlockRequest?
     @State private var blockReason = ""
     @State private var blockError: String?
+    @FocusState private var blockReasonIsFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -130,6 +131,7 @@ struct TodayPromptInboxLedger: View {
             pendingPromptID: model.pendingPromptID,
             replayed: entry.isReplay
         )
+        let actions = PromptActionReachabilityLayout(actions: entry.episode.actions)
         return VStack(alignment: .leading, spacing: 8) {
             promptHeading(entry, state: presentation.stateLabel)
             Text(entry.episode.summary).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
@@ -143,12 +145,29 @@ struct TodayPromptInboxLedger: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("today.prompt.\(entry.id).applying")
             }
+            if !actions.taskChangeActions.isEmpty {
+                Text("CHANGE THE TASK")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("today.prompt.\(entry.id).task-change-label")
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ForEach(actions.taskChangeActions) { action in
+                        promptActionButton(action, episode: entry.episode, presentation: presentation)
+                    }
+                }
+                .accessibilityIdentifier("today.prompt.\(entry.id).task-change-actions")
+            }
+            if !actions.recoveryActions.isEmpty {
+                Text("RECOVERY OPTIONS")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("today.prompt.\(entry.id).recovery-label")
+            }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 8)], alignment: .leading, spacing: 8) {
-                ForEach(entry.episode.actions) { action in
-                    Button(action.title.uppercased()) { choose(action, for: entry.episode) }
-                        .buttonStyle(SumiActionButtonStyle(role: actionRole(action.role), size: .compact))
-                        .disabled(presentation.actionsDisabled)
-                        .accessibilityIdentifier("today.prompt.\(entry.id).action.\(action.kind.rawValue)")
+                ForEach(actions.recoveryActions) { action in
+                    promptActionButton(action, episode: entry.episode, presentation: presentation)
                 }
                 if entry.episode.allowsDismissal {
                     Button("DISMISS") { model.dismissPrompt(entry.episode) }
@@ -159,6 +178,20 @@ struct TodayPromptInboxLedger: View {
             }
         }
         .promptRow(identifier: "today.prompt.\(entry.id).waiting")
+    }
+
+    private func promptActionButton(
+        _ action: PromptAction,
+        episode: PromptEpisode,
+        presentation: PromptActionPresentation
+    ) -> some View {
+        Button(action.title.uppercased()) { choose(action, for: episode) }
+            .buttonStyle(SumiActionButtonStyle(role: actionRole(action.role), size: .compact))
+            .disabled(presentation.actionsDisabled)
+            .accessibilityHint(action.kind == .markBlocked
+                ? "Opens a reason sheet. The coaching decision stays waiting until the blocker is saved."
+                : "")
+            .accessibilityIdentifier("today.prompt.\(episode.id).action.\(action.kind.rawValue)")
     }
 
     private func snoozedRow(_ entry: PromptInboxTimelineEntry) -> some View {
@@ -310,13 +343,22 @@ struct TodayPromptInboxLedger: View {
                 .frame(height: 104)
                 .padding(8)
                 .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                .focused($blockReasonIsFocused)
                 .accessibilityLabel("What is blocking this task")
+                .accessibilityHint("Enter between 3 and 240 characters.")
                 .accessibilityIdentifier("today.prompt.block.reason")
-            Text("\(blockReason.count) / \(PromptTaskBlockReasonState.maximumLength)")
-                .font(Sumi.label(8))
-                .sumiLabelTracking()
-                .foregroundStyle(blockReason.count > PromptTaskBlockReasonState.maximumLength ? Sumi.sealDeep : Sumi.muted)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            HStack {
+                Text("3-240 CHARACTERS REQUIRED")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("today.prompt.block.requirement")
+                Spacer()
+                Text("\(blockReason.count) / \(PromptTaskBlockReasonState.maximumLength)")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(blockReason.count > PromptTaskBlockReasonState.maximumLength ? Sumi.sealDeep : Sumi.muted)
+            }
             if let blockError {
                 Text(blockError)
                     .font(Sumi.body(12))
@@ -327,6 +369,7 @@ struct TodayPromptInboxLedger: View {
             HStack {
                 Button("CANCEL") { blockRequest = nil }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .accessibilityIdentifier("today.prompt.block.cancel")
                 Spacer()
                 Button(model.pendingPromptID == request.episode.id ? "SAVING" : "SAVE BLOCKER") {
                     switch PromptTaskBlockReasonState().validated(blockReason) {
@@ -351,6 +394,7 @@ struct TodayPromptInboxLedger: View {
         .frame(width: 440)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.prompt.block.sheet")
+        .task { blockReasonIsFocused = true }
     }
 
     private func actionRole(_ role: PromptActionRole) -> SumiActionRole {

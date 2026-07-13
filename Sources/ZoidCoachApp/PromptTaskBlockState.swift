@@ -45,6 +45,20 @@ struct PromptTaskBlockReasonState: Equatable, Sendable {
     }
 }
 
+struct PromptActionReachabilityLayout: Equatable, Sendable {
+    let taskChangeActions: [PromptAction]
+    let recoveryActions: [PromptAction]
+
+    init(actions: [PromptAction]) {
+        taskChangeActions = actions.filter(Self.isTaskChange)
+        recoveryActions = actions.filter { !Self.isTaskChange($0) }
+    }
+
+    private static func isTaskChange(_ action: PromptAction) -> Bool {
+        action.kind == .rescheduleTask || action.kind == .markBlocked
+    }
+}
+
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
 }
