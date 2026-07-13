@@ -128,6 +128,7 @@ struct ZoidCoachApplication: App {
         .defaultSize(width: 1180, height: 760)
         .commands {
             CommandGroup(replacing: .newItem) { }
+            TaskKeyboardCommands(model: model, isAvailable: onboarding.route == .today)
             AgentLifecycleCommands()
         }
 
