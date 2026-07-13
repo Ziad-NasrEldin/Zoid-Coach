@@ -5,13 +5,15 @@ public struct AgentPlanSchedulingResult: Equatable, Sendable {
     public let scheduledBlockCount: Int
     public let unscheduledTaskIDs: [String]
     public let reminderMutationCount: Int
+    public let taskStartReminderCount: Int
     public let obsoleteBlockDeletionCount: Int
     public let commandIDs: [String]
 
-    public init(scheduledBlockCount: Int, unscheduledTaskIDs: [String], reminderMutationCount: Int, obsoleteBlockDeletionCount: Int, commandIDs: [String] = []) {
+    public init(scheduledBlockCount: Int, unscheduledTaskIDs: [String], reminderMutationCount: Int, taskStartReminderCount: Int = 0, obsoleteBlockDeletionCount: Int, commandIDs: [String] = []) {
         self.scheduledBlockCount = scheduledBlockCount
         self.unscheduledTaskIDs = unscheduledTaskIDs
         self.reminderMutationCount = reminderMutationCount
+        self.taskStartReminderCount = taskStartReminderCount
         self.obsoleteBlockDeletionCount = obsoleteBlockDeletionCount
         self.commandIDs = commandIDs
     }
@@ -124,6 +126,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
         }
 
         var blockCount = 0
+        var taskStartReminders = 0
         for block in schedule.blocks {
             guard let task = reminderByID[block.taskID] else { continue }
             let token = ownershipToken(dayKey: dayKey, taskID: block.taskID)
@@ -143,6 +146,24 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             )
             if result.wasInserted { blockCount += 1 }
             commandIDs.append(result.command.id)
+
+            let reminderID = "task-start:\(dayKey):\(block.taskID)"
+            let notificationResult = try outbox.enqueue(
+                type: .scheduleNotification,
+                entityID: block.taskID,
+                desiredState: .notification(NotificationDesiredState(
+                    category: "TASK_START",
+                    title: "Planned task ready",
+                    body: "\(task.title) is scheduled to start now. Open Today to begin it or revise the plan.",
+                    promptID: reminderID,
+                    deliveryDate: block.start
+                )),
+                planVersion: policyVersion,
+                supersedingPending: true,
+                origin: origin
+            )
+            if notificationResult.wasInserted { taskStartReminders += 1 }
+            commandIDs.append(notificationResult.command.id)
         }
 
         var reminderMutations = 0
@@ -177,6 +198,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             scheduledBlockCount: blockCount,
             unscheduledTaskIDs: schedule.unscheduledTaskIDs,
             reminderMutationCount: reminderMutations,
+            taskStartReminderCount: taskStartReminders,
             obsoleteBlockDeletionCount: deletions,
             commandIDs: Array(Set(commandIDs)).sorted()
         )

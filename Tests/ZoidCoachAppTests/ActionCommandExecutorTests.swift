@@ -28,6 +28,38 @@ func trippedDatabaseBreakerStopsExternalActionsBeforeClaimingOutboxWork() async 
 }
 
 @Test
+func taskStartNotificationReplacesAnExistingPendingRequestWithTheCurrentPlanTime() async throws {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let desired = NotificationDesiredState(
+        category: "TASK_START",
+        title: "Planned task ready",
+        body: "Write proposal is scheduled to start now. Open Today to begin it or revise the plan.",
+        promptID: "task-start:2027-01-15:proposal",
+        deliveryDate: now.addingTimeInterval(3_600)
+    )
+    let outbox = FakeActionCommandQueue(commands: [makeCommand(
+        type: .scheduleNotification,
+        entityID: "proposal",
+        desiredState: .notification(desired),
+        date: now
+    )])
+    let notifications = FakeNotificationSource(pendingIdentifiers: [desired.promptID])
+    let executor = ActionCommandExecutor(
+        outbox: outbox,
+        tasks: FakeTaskSource(),
+        calendar: FakeCalendarSource(),
+        notifications: notifications,
+        now: { now }
+    )
+
+    let result = await executor.executeNext()
+
+    #expect(result == .succeeded(commandID: "command-1", platformIdentifier: desired.promptID))
+    #expect(await notifications.scheduled == [desired])
+    #expect(await outbox.successes == ["command-1"])
+}
+
+@Test
 func databaseBreakerTripsWhenExternalEffectSucceedsButOutboxFinalizationFails() async throws {
     let date = Date(timeIntervalSince1970: 1_700_000_000)
     let task = SourceTask(id: "reminder-1", title: "One", listIdentifier: "work", priority: 0, dueDate: nil, notes: nil, isCompleted: false)
@@ -532,6 +564,25 @@ private actor FakeCalendarSource: CalendarSource {
             commitments.append(created)
             return created
         }
+    }
+}
+
+private actor FakeNotificationSource: NotificationSource {
+    private var pendingIdentifiers: Set<String>
+    private(set) var scheduled: [NotificationDesiredState] = []
+
+    init(pendingIdentifiers: Set<String> = []) {
+        self.pendingIdentifiers = pendingIdentifiers
+    }
+
+    func pending(identifier: String) -> Bool {
+        pendingIdentifiers.contains(identifier)
+    }
+
+    func schedule(_ desired: NotificationDesiredState) -> String {
+        scheduled.append(desired)
+        pendingIdentifiers.insert(desired.promptID)
+        return desired.promptID
     }
 }
 
