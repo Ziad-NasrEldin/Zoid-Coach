@@ -350,6 +350,10 @@ private struct TodayCommandView: View {
         }
         return model.reminderTasks.filter { task in
             !model.dailyPlan.contains { $0.reminderID == task.id }
+                && TodayReminderEligibility.isVisible(
+                    dueDate: task.dueDate,
+                    referenceDate: Date()
+                )
         }
     }
 
