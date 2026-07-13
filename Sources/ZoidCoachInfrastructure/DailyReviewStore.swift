@@ -327,11 +327,46 @@ public final class DailyReviewStore: @unchecked Sendable {
 
     @discardableResult
     public func resetClassificationRules() throws -> Int {
-        let activeRules = try classificationRules()
-        for rule in activeRules {
-            try removeClassificationRule(normalizedApplication: rule.normalizedApplication)
+        lock.lock()
+        defer { lock.unlock() }
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
+            throw databaseError(.write)
         }
-        return activeRules.count
+        var shouldCommit = false
+        defer {
+            if !shouldCommit {
+                _ = sqlite3_exec(database, "ROLLBACK;", nil, nil, nil)
+            }
+        }
+        let removalDate = now()
+        try execute(
+            """
+            INSERT INTO app_classification_correction_rules(
+                normalized_app, display_app, classification, state, source_day,
+                source_session_start_epoch, effective_from_epoch, created_at_utc
+            )
+            SELECT rule.normalized_app, rule.display_app, NULL, 'removed', NULL, NULL, ?, ?
+            FROM app_classification_correction_rules rule
+            WHERE rule.state = 'active'
+              AND NOT EXISTS (
+                  SELECT 1 FROM app_classification_correction_rules newer
+                  WHERE newer.normalized_app = rule.normalized_app
+                    AND (newer.effective_from_epoch > rule.effective_from_epoch
+                      OR (newer.effective_from_epoch = rule.effective_from_epoch
+                        AND newer.id > rule.id))
+              );
+            """,
+            bindings: [
+                .integer(Int64(removalDate.timeIntervalSince1970)),
+                .text(Self.timestamp(removalDate))
+            ]
+        )
+        let removed = Int(sqlite3_changes(database))
+        guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+            throw databaseError(.write)
+        }
+        shouldCommit = true
+        return removed
     }
 
     public func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws {
