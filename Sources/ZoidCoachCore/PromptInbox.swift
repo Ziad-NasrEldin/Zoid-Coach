@@ -285,11 +285,11 @@ public enum BehaviorPromptPresentationPolicy {
 
     public static func issues(for draft: PromptDraft) -> [BehaviorPromptPresentationIssue] {
         var issues: [BehaviorPromptPresentationIssue] = []
-        if draft.actions.filter({ $0.role == .secondary }).count > maximumSecondaryActions {
-            issues.append(.tooManySecondaryActions)
-        }
         guard draft.payload["behaviorPromptContractVersion"] == contractVersion else {
             return issues
+        }
+        if draft.actions.filter({ $0.role == .secondary }).count > maximumSecondaryActions {
+            issues.append(.tooManySecondaryActions)
         }
 
         let copy = ([draft.title, draft.summary] + draft.actions.map(\.title))

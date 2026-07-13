@@ -284,7 +284,13 @@ func promptInboxRejectsMoreThanThreeSecondaryActionsOnEverySurface() throws {
         type: "GAMING_DRIFT",
         title: "Choose a next step",
         summary: "The current session contains 10 observed minutes in Steam. This shows activity, not why it happened or what you intended.",
-        actions: actions
+        actions: actions,
+        payload: [
+            "behaviorPromptContractVersion": BehaviorPromptPresentationPolicy.contractVersion,
+            "observedGamingMinutes": "10",
+            "evidenceStartedAtEpoch": "1000",
+            "evidenceLatestAtEpoch": "1540"
+        ]
     )
 
     #expect(BehaviorPromptPresentationPolicy.issues(for: draft) == [.tooManySecondaryActions])
