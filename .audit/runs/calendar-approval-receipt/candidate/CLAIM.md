@@ -13,6 +13,7 @@ This isolated lane starts from authoritative commit `7e61bef` and pulls the high
 - `Sources/ZoidCoachApp/CalendarPlanApprovalState.swift`
 - `Sources/ZoidCoachApp/CalendarPlanApprovalReceiptStore.swift`
 - `Sources/ZoidCoachApp/AppModel.swift`
+- `Sources/ZoidCoachApp/Views/DashboardView.swift`
 - `Sources/ZoidCoachApp/Views/CalendarPlanApprovalSheet.swift`
 - Focused Calendar approval receipt tests.
 - Candidate evidence under `.audit/runs/calendar-approval-receipt/candidate/`.
