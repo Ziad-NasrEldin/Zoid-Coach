@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "6f617601e778299fd8e404e9fd9c855032dadc1b7104bb1f2543038af7e6a967",
+  "tracker_sha256": "b854e567c5fa0c4f635c60470b02d6217cbbbd57aae375f839db967db91fbe6c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -6052,9 +6052,9 @@
       "section_title": "Taking breaks",
       "item_index": 3,
       "wording": "Start an accepted break from a coach prompt.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6063,10 +6063,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "`PromptActionKind.startBreak` exists, but no coaching prompt generator or response effect implements it.",
+      "evidence_paths": [
+        ".audit/runs/prompt-accepted-break/0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846/evidence.json"
+      ],
+      "last_verified_commit": "0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846",
+      "last_verified_build": "zoid-coach-0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846-clean",
+      "audit_note": "The installed signed gaming prompt exposed Take a break only while a task was actively tracking. Choosing it closed the active interval, visibly changed Today to `PAUSED FOR A BREAK` with neutral copy, recorded one durable break pause and one response, survived app/helper restart, and resumed cleanly (`PromptResponseEffectRouter.swift`; `GamingDriftPromptService.swift`; `.audit/runs/prompt-accepted-break/0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846/evidence.json`).",
       "tracker_line": 406
     },
     {
@@ -6099,8 +6101,8 @@
       "item_index": 5,
       "wording": "Avoid receiving drift prompts during an accepted break.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6112,7 +6114,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Neither accepted breaks nor drift prompts are implemented.",
+      "audit_note": "The gaming-drift producer consumes the same durable open break pause and deterministically returns `acceptedBreak`; the installed signed app preserved that pause across app/helper restart and closed it on Resume. A live eligible gaming session during the break was not generated, so installed no-prompt timing remains (`GamingDriftPromptService.swift`; `.audit/runs/prompt-accepted-break/verifier/REPORT.md`).",
       "tracker_line": 408
     },
     {

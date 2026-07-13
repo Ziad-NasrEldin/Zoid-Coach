@@ -403,9 +403,9 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 - [ ] Start an accepted break from the dashboard. **Status: Not implemented.** No dashboard break control or break state exists.
 - [ ] Start an accepted break from the menu bar. **Status: Not implemented.** The menu bar extra is voice-only.
-- [ ] Start an accepted break from a coach prompt. **Status: Barely started.** `PromptActionKind.startBreak` exists, but no coaching prompt generator or response effect implements it.
+- [x] Start an accepted break from a coach prompt. **Status: Fully implemented.** The installed signed gaming prompt exposed Take a break only while a task was actively tracking. Choosing it closed the active interval, visibly changed Today to `PAUSED FOR A BREAK` with neutral copy, recorded one durable break pause and one response, survived app/helper restart, and resumed cleanly (`PromptResponseEffectRouter.swift`; `GamingDriftPromptService.swift`; `.audit/runs/prompt-accepted-break/0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846/evidence.json`).
 - [ ] Choose or understand the expected break duration. **Status: Not implemented.** Break duration is not modeled.
-- [ ] Avoid receiving drift prompts during an accepted break. **Status: Not implemented.** Neither accepted breaks nor drift prompts are implemented.
+- [ ] Avoid receiving drift prompts during an accepted break. **Status: Touches remaining.** The gaming-drift producer consumes the same durable open break pause and deterministically returns `acceptedBreak`; the installed signed app preserved that pause across app/helper restart and closed it on Resume. A live eligible gaming session during the break was not generated, so installed no-prompt timing remains (`GamingDriftPromptService.swift`; `.audit/runs/prompt-accepted-break/verifier/REPORT.md`).
 - [ ] Receive a break-end reminder. **Status: Not implemented.** No break timer or notification exists.
 - [ ] End the break early. **Status: Not implemented.** No break state exists to end.
 - [ ] Resume work after the break. **Status: Not implemented.** No break-to-task transition exists.
