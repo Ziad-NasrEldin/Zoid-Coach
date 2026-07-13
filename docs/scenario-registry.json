@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "20c2c57e664124d0d3b6edffce8bf0eb2cbec0b84a916bd95ecee97bab7ab84c",
+  "tracker_sha256": "3f7a905e3b2f0ac3a1dff1fbcbb40c65197f3d9a815e4ca2e6f9ac8f9808c7ff",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11659,7 +11659,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Production Settings opens the notification pane, gives an exact manual fallback when opening fails, and automatically rechecks authorization when the app returns to the foreground. Signed QA deliberately keeps repair fixture-only and never opens production System Settings. Denied-to-granted controller and persistence tests pass, but the signed repair transition remained blocked behind a later onboarding agent timeout (`NotificationDeliveryHealthView.swift`; `notification-delivery-acceptance.py`; `.audit/runs/notification-delivery-health/verifier/REPORT.md`; `.audit/runs/notification-permission-recovery/0d6ec2d/REPORT.md`).",
+      "audit_note": "Production Settings opens the notification pane, preserves the exact `System Settings > Notifications > Zoid 666 > Allow notifications` fallback, and rechecks authorization only after a real repair attempt. Signed QA visibly showed revoked access and a fixture-only Apply QA Repair action without opening production System Settings, while seven focused return tests passed. The actual signed foreground return then cleared the pending repair message instead of showing the still-denied breadcrumb and Today fallback, so denied, granted, unrelated-foreground, and relaunch acceptance remains incomplete (`NotificationDeliveryHealthView.swift`; `NotificationDeliveryHealthTests.swift`; `.audit/runs/notification-permission-return-ux/verifier/REPORT.md`).",
       "tracker_line": 717
     },
     {

@@ -551,3 +551,13 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Signed Settings proved exact path, localized absolute latest-valid time, invalid-later preservation, no-record truthfulness, native accessibility and pixels, and both relaunch states.
 - `ZC-048-002` advances from Partially implemented to Fully implemented.
 - Verifier evidence is recorded in `.audit/runs/screenwatch-path-last-record/verifier/REPORT.md`.
+
+### Notification permission return - verifier blocked
+
+- Owns `ZC-050-002` and keeps it at Touches remaining.
+- Added the exact manual Notification Settings breadcrumb and a fixture-only signed QA repair round trip that never opens production System Settings.
+- Seven focused controller tests and one release QA package pass.
+- The signed denied surface and Apply QA Repair action are visible and truthful.
+- Actual foreground return clears the pending repair message instead of showing the still-denied breadcrumb and Today fallback.
+- Fix pending-return retention across the signed foreground lifecycle, then verify denied, granted, unrelated-foreground, and relaunch states before promotion.
+- Verifier evidence is recorded in `.audit/runs/notification-permission-return-ux/verifier/REPORT.md`.
