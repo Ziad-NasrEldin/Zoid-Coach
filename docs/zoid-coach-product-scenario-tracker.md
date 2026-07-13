@@ -14,10 +14,10 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 174
+- **Fully implemented:** 175
 - **Touches remaining:** 298
 - **Frontend only left:** 3
-- **Partially implemented:** 101
+- **Partially implemented:** 100
 - **Barely started:** 8
 - **Not implemented:** 55
 - **Blocked from verification:** 27
@@ -689,7 +689,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 ## 48. Source health and diagnostics
 
 - [x] See Reminders permission and last successful sync. **Status: Fully implemented.** Settings visibly shows Ready to Connect, Connected, Access Needed, and Refresh Failed beside the last confirmed sync timestamp. The installed signed-QA journey proved that a successful refresh persisted the timestamp across restart, a failed refresh retained it, and a recovered retry advanced it (`RemindersConnectionController.swift`; `RemindersConnectionView.swift`; `.audit/runs/reminders-recovery/verifier/REPORT.md`).
-- [ ] See Screenwatch path and time of the last valid record. **Status: Partially implemented.** Missing-state evidence shows the path and healthy/stale state shows relative age, but the UI does not show the absolute last-record time together with the path.
+- [x] See Screenwatch path and time of the last valid record. **Status: Fully implemented.** Signed Settings visibly and accessibly showed the canonical selectable Screenwatch days-folder path and a locale-aware absolute latest schema-valid record time from a real isolated JSONL source. A later invalid line preserved the earlier valid timestamp under truthful incompatible-format health, relaunch recomputed the same evidence, and removing the log produced a truthful no-valid-record state that persisted across another relaunch (`Sources/ZoidCoachApp/Services/ScreenwatchSetupService.swift`; `Sources/ZoidCoachApp/Views/ScreenwatchConnectionView.swift`; `Sources/ZoidCoachApp/Views/ScreenwatchRecordEvidence.swift`; `.audit/runs/screenwatch-path-last-record/5866ba0627ae99e9307922e58da639dcb314c71c/evidence.json`).
 - [ ] See whether Screenwatch is waiting, healthy, stale, missing, denied, incompatible, or failing to parse. **Status: Touches remaining.** The dedicated card now distinguishes all requested states with readable labels and focused tests cover each mapping. The signed installed run visibly proved Waiting, Stale, and Healthy, while denied, incompatible, and parse-failure states remain to be walked (`ScreenwatchConnectionView.swift`; `ScreenwatchConnectionControllerTests.swift`; `.audit/runs/screenwatch-recovery-ux/verifier/REPORT.md`).
 - [ ] See notification authorization and the last delivery result. **Status: Touches remaining.** The local delivery ledger and Settings Signals card now present the newest truthful result as Today fallback, accepted by macOS, delivered in QA, or delivery failed, without copying notification content. Focused restart, retention, redaction, and ordering tests pass, and the signed card visibly rendered its empty state; a populated signed restart remained blocked before the delivery-test step (`NotificationDeliveryLedger.swift`; `NotificationDeliveryHealthView.swift`; `.audit/runs/notification-delivery-health/verifier/REPORT.md`).
 - [x] See local database health, size, and last migration. **Status: Fully implemented.** Source Health performs a read-only integrity check and displays the canonical database filename, aggregate database/WAL/SHM size, exact current and expected schema versions, latest migration time, and a clear healthy, attention, or not-ready state. The signed-QA app visibly changed from Not Ready to Healthy after the runtime created storage, Refresh exposed a 660 KB schema 29-of-29 store, and restart preserved the healthy state with the same migration time (`.audit/runs/local-system-diagnostics/candidate/REPORT.md`).

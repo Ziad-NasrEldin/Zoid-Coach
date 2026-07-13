@@ -518,3 +518,8 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Sixteen focused service, controller, and presentation tests pass, and the release build passes.
 - Candidate evidence is recorded in `.audit/runs/screenwatch-path-last-record/candidate/REPORT.md`.
 - The authoritative tracker remains owned by the root integrator and must only advance after an independent signed Source Health verification with a controlled current or stale Screenwatch fixture and relaunch.
+- Independent verification fixed invalid-trailing-line handling so latest valid evidence remains available under truthful incompatible-format health.
+- The focused Screenwatch test group and one QA release package pass.
+- Signed Settings proved exact path, localized absolute latest-valid time, invalid-later preservation, no-record truthfulness, native accessibility and pixels, and both relaunch states.
+- `ZC-048-002` advances from Partially implemented to Fully implemented.
+- Verifier evidence is recorded in `.audit/runs/screenwatch-path-last-record/verifier/REPORT.md`.
