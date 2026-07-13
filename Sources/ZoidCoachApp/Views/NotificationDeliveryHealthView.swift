@@ -107,15 +107,16 @@ final class NotificationDeliveryHealthController: ObservableObject {
         if health?.state == .healthy {
             statusMessage = "Notifications are enabled. Timely prompts can use Notification Center, and every unresolved choice also remains available in Today."
         } else {
-            statusMessage = "Notifications are still off. In System Settings, choose Notifications, choose Zoid 666, and turn on Allow notifications. You can continue responding through Today meanwhile."
+            statusMessage = "Notifications are still off. Open System Settings > Notifications > Zoid 666 > Allow notifications. You can continue responding through Today meanwhile."
         }
     }
 
     @discardableResult
     func openSystemSettings() -> Bool {
         guard service.usesSystemSettingsRepair else {
-            statusMessage = "Apply the prepared QA permission control, relaunch, then refresh. No production System Settings page was opened."
-            return false
+            awaitingSystemSettingsReturn = true
+            statusMessage = "Apply the prepared QA notification permission control, then return to Zoid 666. Permission is checked automatically, Today remains available, and no production System Settings page is opened."
+            return true
         }
         let addresses = [
             "x-apple.systempreferences:com.apple.Notifications-Settings.extension",
@@ -128,7 +129,7 @@ final class NotificationDeliveryHealthController: ObservableObject {
                 return true
             }
         }
-        statusMessage = "Open System Settings, choose Notifications, then choose Zoid 666."
+        statusMessage = "Open System Settings > Notifications > Zoid 666 > Allow notifications."
         return false
     }
 
