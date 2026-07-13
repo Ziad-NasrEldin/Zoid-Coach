@@ -38,6 +38,7 @@ final class OnboardingCoordinator: ObservableObject {
     @Published var workStartMinute = 0
     @Published var workEndHour = 18
     @Published var workEndMinute = 0
+    @Published var selectedWorkWeekdays: [Weekday] = [.sunday, .monday, .tuesday, .wednesday, .thursday]
     @Published var quietStartHour = 22
     @Published var quietStartMinute = 0
     @Published var quietEndHour = 7
@@ -93,6 +94,7 @@ final class OnboardingCoordinator: ObservableObject {
                 workStartMinute = policyDraft.workStart.minute
                 workEndHour = policyDraft.workEnd.hour
                 workEndMinute = policyDraft.workEnd.minute
+                selectedWorkWeekdays = policy.schedule.workWindows.first?.weekdays.sorted() ?? Weekday.allCases
                 quietStartHour = policyDraft.quietStart.hour
                 quietStartMinute = policyDraft.quietStart.minute
                 quietEndHour = policyDraft.quietEnd.hour
@@ -480,6 +482,9 @@ final class OnboardingCoordinator: ObservableObject {
     }
 
     var scheduleValidationMessage: String? {
+        if selectedWorkWeekdays.isEmpty {
+            return "Choose at least one work day."
+        }
         let workStart = LocalTime(hour: workStartHour, minute: workStartMinute)
         let workEnd = LocalTime(hour: workEndHour, minute: workEndMinute)
         if workStart == workEnd {
@@ -491,6 +496,21 @@ final class OnboardingCoordinator: ObservableObject {
             return "Quiet start and end cannot be the same. Overnight quiet hours are supported."
         }
         return nil
+    }
+
+    func toggleWorkWeekday(_ weekday: Weekday) {
+        if let index = selectedWorkWeekdays.firstIndex(of: weekday) {
+            selectedWorkWeekdays.remove(at: index)
+        } else {
+            selectedWorkWeekdays.append(weekday)
+            selectedWorkWeekdays.sort()
+        }
+    }
+
+    var scheduleSummary: String {
+        let workMode = LocalTime(hour: workEndHour, minute: workEndMinute) < LocalTime(hour: workStartHour, minute: workStartMinute) ? "overnight" : "same-day"
+        let quietMode = LocalTime(hour: quietEndHour, minute: quietEndMinute) < LocalTime(hour: quietStartHour, minute: quietStartMinute) ? "overnight" : "same-day"
+        return "Work applies on \(selectedWorkWeekdays.count) selected day\(selectedWorkWeekdays.count == 1 ? "" : "s") and is \(workMode). Quiet hours are \(quietMode). Times use \(TimeZone.current.identifier)."
     }
 
     private var reminderListSelectionIsValid: Bool {
@@ -576,7 +596,30 @@ final class OnboardingCoordinator: ObservableObject {
             policyDraft.workEnd = LocalTime(hour: workEndHour, minute: workEndMinute)
             policyDraft.quietStart = LocalTime(hour: quietStartHour, minute: quietStartMinute)
             policyDraft.quietEnd = LocalTime(hour: quietEndHour, minute: quietEndMinute)
-            policy = policyDraft.policy(preserving: originalPolicy)
+            let draftedPolicy = policyDraft.policy(preserving: originalPolicy)
+            policy = UserPolicy(
+                operatingMode: draftedPolicy.operatingMode,
+                automationPause: draftedPolicy.automationPause,
+                schedule: SchedulePolicy(
+                    timeZoneIdentifier: draftedPolicy.schedule.timeZoneIdentifier,
+                    workWindows: [WeeklyWorkWindow(
+                        weekdays: selectedWorkWeekdays.sorted(),
+                        start: policyDraft.workStart,
+                        end: policyDraft.workEnd
+                    )],
+                    quietHours: draftedPolicy.schedule.quietHours,
+                    nightlyPlanningTime: draftedPolicy.schedule.nightlyPlanningTime,
+                    morningConfirmationTime: draftedPolicy.schedule.morningConfirmationTime,
+                    planningCapacityPercent: draftedPolicy.schedule.planningCapacityPercent
+                ),
+                calendar: draftedPolicy.calendar,
+                privacy: draftedPolicy.privacy,
+                wake: draftedPolicy.wake,
+                behavior: draftedPolicy.behavior,
+                capture: draftedPolicy.capture,
+                gaming: draftedPolicy.gaming,
+                reminderLists: draftedPolicy.reminderLists
+            )
         case .gamingPolicy:
             policy = originalPolicy.replacingGamingPolicy(gamingPolicy.policy)
         case .coachingMode:
