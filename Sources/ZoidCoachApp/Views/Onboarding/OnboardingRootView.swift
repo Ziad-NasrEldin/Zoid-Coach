@@ -109,10 +109,12 @@ struct OnboardingRootView: View {
             case .welcome:
                 OnboardingEditorialStep(
                     eyebrow: "WELCOME",
-                    title: "A quieter way to begin the work that matters.",
-                    bodyText: "Zoid 666 connects your intended work in Reminders with what actually happens on this Mac. It helps you choose a realistic next action, notice drift, and recover without shame.",
-                    note: "Today keeps your plan, source status, and unanswered coaching choices in one place. Nothing is blocked or punished by default."
+                    title: OnboardingWelcomeCopy.title,
+                    bodyText: OnboardingWelcomeCopy.body,
+                    note: OnboardingWelcomeCopy.note
                 )
+                .accessibilityLabel(OnboardingWelcomeCopy.accessibilitySummary)
+                .accessibilityIdentifier("onboarding.welcome.positioning")
             case .localPrivacy:
                 OnboardingEditorialStep(
                     eyebrow: "LOCAL TRUTH",

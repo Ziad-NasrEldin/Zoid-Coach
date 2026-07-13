@@ -138,6 +138,15 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - AXPress failed and the single native frame click opened Notification Center, so compact-popover pixels and controls remain unverified.
 - `ZC-037-006` advances from Not implemented to Touches remaining with evidence in `.audit/runs/compact-active-task/verifier/REPORT.md`.
 
+### Onboarding system-of-record positioning - candidate
+
+- Owns `ZC-001-005`.
+- States directly on the first welcome screen that Zoid 666 is a coach, not a replacement task manager.
+- Names Apple Reminders as the system of record for connected tasks and tells users which work remains in Reminders versus Today.
+- Preserves the non-punitive product boundary and exposes the complete positioning through one stable accessibility element.
+- Four focused copy, accessibility, onboarding-order, and restart tests plus the release build pass.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/onboarding-system-of-record-copy/candidate/REPORT.md`.
+
 ### Settings notification delivery test - candidate
 
 - Owns `ZC-044-012`.
