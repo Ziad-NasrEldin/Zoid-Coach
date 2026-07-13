@@ -318,12 +318,12 @@ func resolvedGamingPromptStillDeduplicatesAndEnforcesCooldownAfterRestart() thro
 }
 
 @Test
-func coachingLevelEnforcesCooldownAndDailyPromptLimitAcrossSeparateSessions() throws {
+func configuredCooldownAndDailyPromptLimitApplyAcrossSeparateSessions() throws {
     let fixture = try GamingPromptFixture()
     defer { fixture.remove() }
     try fixture.insertPriorityTask()
     try fixture.insertGaming(minutes: 10)
-    let policy = fixture.policy(level: .accountability)
+    let policy = fixture.policy(level: .accountability, dailyPromptCap: 2, promptCooldownMinutes: 35)
     guard case .queued = try fixture.service.produce(
         policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
     ) else {
@@ -337,7 +337,7 @@ func coachingLevelEnforcesCooldownAndDailyPromptLimitAcrossSeparateSessions() th
         policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
     ) == .suppressed(.cooldownActive))
 
-    fixture.advance(minutes: 31)
+    fixture.advance(minutes: 6)
     try fixture.insertGaming(minutes: 10)
     guard case .queued = try fixture.service.produce(
         policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
@@ -345,20 +345,12 @@ func coachingLevelEnforcesCooldownAndDailyPromptLimitAcrossSeparateSessions() th
         Issue.record("Expected second accountability prompt after cooldown")
         return
     }
-    fixture.advance(minutes: 61)
+    fixture.advance(minutes: 36)
     try fixture.insertGaming(minutes: 10)
-    guard case .queued = try fixture.service.produce(
-        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
-    ) else {
-        Issue.record("Expected third accountability prompt")
-        return
-    }
-    fixture.advance(minutes: 61)
-    try fixture.insertGaming(minutes: 10)
-    let fourth = try fixture.service.produce(
+    let third = try fixture.service.produce(
         policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
     )
-    #expect(fourth == .suppressed(.dailyLimitReached), "Unexpected fourth result: \(fourth)")
+    #expect(third == .suppressed(.dailyLimitReached), "Unexpected third result: \(third)")
     #expect(try fixture.promptStore.unresolved().isEmpty)
 }
 
@@ -368,6 +360,15 @@ func legacyGamingPolicyDefaultsToGentleCoaching() throws {
     let decoded = try JSONDecoder().decode(GamingPolicy.self, from: data)
     #expect(decoded.coachingLevel == .gentle)
     #expect(decoded.intentionalOverrideMinutes == 45)
+    #expect(decoded.dailyPromptCap == 1)
+    #expect(decoded.promptCooldownMinutes == 180)
+
+    let legacyAccountability = try JSONDecoder().decode(
+        GamingPolicy.self,
+        from: Data(#"{"version":1,"dailyBudgetMinutes":60,"priorityTaskRewardMinutes":15,"coachingLevel":"accountability"}"#.utf8)
+    )
+    #expect(legacyAccountability.dailyPromptCap == 3)
+    #expect(legacyAccountability.promptCooldownMinutes == 60)
 
     let clampedMinimum = GamingPolicy(intentionalOverrideMinutes: 0)
     #expect(clampedMinimum.intentionalOverrideMinutes == 5)
@@ -445,7 +446,9 @@ private final class GamingPromptFixture: @unchecked Sendable {
         paused: Bool = false,
         workStart: LocalTime = LocalTime(hour: 8, minute: 0),
         level: CoachingLevel = .gentle,
-        intentionalOverrideMinutes: Int = 45
+        intentionalOverrideMinutes: Int = 45,
+        dailyPromptCap: Int? = nil,
+        promptCooldownMinutes: Int? = nil
     ) -> UserPolicy {
         let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
         return UserPolicy(
@@ -472,7 +475,9 @@ private final class GamingPromptFixture: @unchecked Sendable {
                 dailyBudgetMinutes: 0,
                 priorityTaskRewardMinutes: 0,
                 coachingLevel: level,
-                intentionalOverrideMinutes: intentionalOverrideMinutes
+                intentionalOverrideMinutes: intentionalOverrideMinutes,
+                dailyPromptCap: dailyPromptCap,
+                promptCooldownMinutes: promptCooldownMinutes
             ),
             reminderLists: defaults.reminderLists
         )
