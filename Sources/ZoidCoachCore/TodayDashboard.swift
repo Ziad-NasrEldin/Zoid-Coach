@@ -101,6 +101,7 @@ public enum TaskPauseReason: String, Codable, CaseIterable, Sendable {
     case `break`
     case switchingTasks
     case externalInterruption
+    case reminderDeleted
     case doneForNow
     case endingWorkday
     case blocked
@@ -111,6 +112,7 @@ public enum TaskPauseReason: String, Codable, CaseIterable, Sendable {
         case .break: "Paused for a break"
         case .switchingTasks: "Paused while switching tasks"
         case .externalInterruption: "Paused for an external interruption"
+        case .reminderDeleted: "Paused because the Apple Reminder was deleted"
         case .doneForNow: "Paused because you are done for now"
         case .endingWorkday: "Paused at the end of the workday"
         case .blocked: "Paused because the task is blocked"
