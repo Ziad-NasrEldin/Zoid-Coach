@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "run_id": "dashboard-end-workday/848dd365f1f2c751f64f8cecdb5fef748f2b8702",
+  "verified_commit": "848dd365f1f2c751f64f8cecdb5fef748f2b8702",
+  "build_identity": "zoid-coach-848dd365f1f2c751f64f8cecdb5fef748f2b8702-clean",
+  "fixture": "/private/tmp/zoid-666-today-end-workday-qa/OS Fixtures/state.json",
+  "qa_root": "/private/tmp/zoid-666-today-end-workday-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "4707c2417a314cf9fd7acc66e7a792b6bbb0f727f3010377d2030438838dcea2",
+  "scenario_ids": [
+    "ZC-013-010"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T12:48:00.383925+00:00",
+  "completed_at": "2026-07-13T12:48:39Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "5cb58b7fabda40002d76cc57c0f1544636d8138e30d45c959271223d8c1de973"
+    }
+  ],
+  "assertions": [
+    "No end-workday action is exposed without an active task.",
+    "The active-task action and confirmation name the task and explain preserved time and non-completion.",
+    "Cancel, stale confirmation, and helper failure remain on Today without an unconfirmed navigation or second mutation.",
+    "Confirmed success pauses the exact task for endingWorkday and opens Reviews.",
+    "Reviews and restart proof retain elapsed time, unfinished state, and resumability."
+  ],
+  "commands": [
+    "swift test --filter DashboardEndWorkdayFlowTests",
+    "swift test --filter EndWorkdayReviewControllerTests|TodayDashboardAgentTests",
+    "CONFIGURATION=release ZOID_COACH_PACKAGE_MODE=qa Scripts/package-app.sh",
+    "CONFIGURATION=release Scripts/install-signed-qa-runtime.sh",
+    "Computer Use signed no-active, active, cancel, stale, helper-failure, success, Reviews, and restart journey"
+  ]
+}
