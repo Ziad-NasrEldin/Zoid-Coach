@@ -40,6 +40,8 @@ struct CalendarPlanApprovalStateTests {
             audit("reminder", .succeeded)
         ])
         #expect(state.writeState == .applied(commandCount: 2))
+        #expect(state.receipt?.outcome == .applied)
+        #expect(state.receipt?.commandCount == 2)
     }
 
     @Test("terminal failure is never presented as a Calendar confirmation")
@@ -71,6 +73,41 @@ struct CalendarPlanApprovalStateTests {
         var state = CalendarPlanApprovalState()
         state.queued(commandIDs: ["calendar", "calendar"])
         #expect(state.writeState == .pending(commandIDs: ["calendar"]))
+    }
+
+    @Test("durable receipt restores without reopening the approval modal")
+    func durableReceiptRestoresWithoutRepeatingApproval() throws {
+        let suite = "calendar-plan-receipt-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = CalendarPlanApprovalReceiptStore(defaults: defaults)
+        let approvedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        var original = CalendarPlanApprovalState()
+        original.begin(
+            entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 45)],
+            titlesByReminderID: ["main": "Write proposal"],
+            availableMinutes: 120,
+            fixedCommitmentMinutes: 30,
+            usesCalendarAvailability: true
+        )
+        original.queued(commandIDs: ["calendar", "reminder"], approvedAt: approvedAt)
+        let receipt = try #require(original.receipt)
+        try store.save(receipt)
+
+        var restored = CalendarPlanApprovalState()
+        restored.restore(try #require(store.load()))
+
+        #expect(!restored.isPresented)
+        #expect(restored.items.map(\.title) == ["Write proposal"])
+        #expect(restored.writeState == .pending(commandIDs: ["calendar", "reminder"]))
+        #expect(restored.receipt?.approvedAt == approvedAt)
+        #expect(restored.receipt?.summary.contains("2 Calendar changes are still pending") == true)
+
+        restored.presentReceipt()
+        #expect(restored.isPresented)
+        restored.dismiss()
+        #expect(!restored.isPresented)
+        #expect(restored.receipt != nil)
     }
 
     private func audit(_ id: String, _ state: ActionCommandState) -> ActionAuditEntry {
