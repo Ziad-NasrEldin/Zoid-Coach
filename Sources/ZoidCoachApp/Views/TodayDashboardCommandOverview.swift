@@ -138,6 +138,10 @@ struct TodayDashboardCommandOverview: View {
                     )
                     .padding(.top, 14)
                 }
+                if row.state == .active, let context = snapshot.activeTaskContext {
+                    ActiveTaskContextPanel(assessment: context)
+                        .padding(.top, 14)
+                }
                 if let sprint = row.sprint {
                     SprintCommitmentPanel(sprint: sprint, taskID: row.taskID)
                         .padding(.top, 14)
@@ -602,6 +606,43 @@ struct TodayDashboardCommandOverview: View {
         .disabled(model.isAnyTaskCommandPending)
         .accessibilityIdentifier("today.sprint.start.\(row.taskID)")
         .accessibilityHint("Choose a time boundary. The task will stay incomplete when the sprint ends.")
+    }
+}
+
+private struct ActiveTaskContextPanel: View {
+    let assessment: ActiveTaskContextAssessment
+
+    private var symbolName: String {
+        switch assessment.state {
+        case .aligned: "checkmark.circle"
+        case .uncertain: "questionmark.circle"
+        case .mismatched: "arrow.triangle.branch"
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: symbolName)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Sumi.seal)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(assessment.state.title.uppercased())
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.ink)
+                Text(assessment.explanation)
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Sumi.paper)
+        .overlay { Rectangle().stroke(Sumi.paleRule, lineWidth: 1) }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("today.focus.context-assessment")
     }
 }
 
