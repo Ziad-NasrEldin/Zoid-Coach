@@ -121,7 +121,7 @@ import ZoidCoachInfrastructure
     await controller.applicationDidBecomeActive()
 
     #expect(controller.health == denied)
-    #expect(controller.statusMessage == "Notifications are still off. In System Settings, choose Notifications, choose Zoid 666, and turn on Allow notifications. You can continue responding through Today meanwhile.")
+    #expect(controller.statusMessage == "Notifications are still off. Open System Settings > Notifications > Zoid 666 > Allow notifications. You can continue responding through Today meanwhile.")
     #expect(service.inspectCount == 2)
     #expect(service.requestCount == 0)
 }
@@ -166,20 +166,65 @@ import ZoidCoachInfrastructure
     await controller.refresh()
 
     #expect(!controller.openSystemSettings())
-    #expect(controller.statusMessage == "Open System Settings, choose Notifications, then choose Zoid 666.")
+    #expect(controller.statusMessage == "Open System Settings > Notifications > Zoid 666 > Allow notifications.")
+}
+
+@MainActor
+@Test func qaRepairRoundTripUsesFixtureWithoutOpeningProductionSettings() async {
+    let denied = SourceHealth(
+        id: .notifications,
+        title: "QA Notifications",
+        eyebrow: "Escalation",
+        state: .attention,
+        detail: "Notifications are off",
+        evidence: "Today remains available",
+        actionTitle: "Apply QA Repair"
+    )
+    let granted = SourceHealth(
+        id: .notifications,
+        title: "QA Notifications",
+        eyebrow: "Escalation",
+        state: .healthy,
+        detail: "Notifications are available",
+        evidence: "Fixture access is granted",
+        actionTitle: "Inspect"
+    )
+    let service = RecordingNotificationDeliveryHealthService(
+        health: denied,
+        records: [],
+        usesSystemSettingsRepair: false
+    )
+    let controller = NotificationDeliveryHealthController(service: service)
+
+    await controller.refresh()
+    #expect(controller.openSystemSettings())
+    await controller.applicationDidBecomeActive()
+    #expect(controller.statusMessage?.contains("System Settings > Notifications > Zoid 666 > Allow notifications") == true)
+    #expect(service.requestCount == 0)
+
+    service.health = granted
+    #expect(controller.openSystemSettings())
+    await controller.applicationDidBecomeActive()
+    #expect(controller.statusMessage?.hasPrefix("Notifications are enabled.") == true)
+    #expect(service.requestCount == 0)
 }
 
 @MainActor
 private final class RecordingNotificationDeliveryHealthService: NotificationDeliveryHealthServicing {
-    let usesSystemSettingsRepair = true
+    let usesSystemSettingsRepair: Bool
     var health: SourceHealth
     let records: [NotificationDeliveryRecord]
     private(set) var inspectCount = 0
     private(set) var requestCount = 0
 
-    init(health: SourceHealth, records: [NotificationDeliveryRecord]) {
+    init(
+        health: SourceHealth,
+        records: [NotificationDeliveryRecord],
+        usesSystemSettingsRepair: Bool = true
+    ) {
         self.health = health
         self.records = records
+        self.usesSystemSettingsRepair = usesSystemSettingsRepair
     }
 
     func inspect() async -> SourceHealth {
