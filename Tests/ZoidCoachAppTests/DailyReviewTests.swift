@@ -622,8 +622,9 @@ func dailyReviewControllerExplainsDeferralAndRestoresTheReviewOnResume() throws 
     controller.load()
     controller.deferUntilTomorrow()
 
-    #expect(controller.snapshot?.deferredUntil == current.addingTimeInterval(86_400))
-    #expect(controller.successMessage?.contains("All local evidence and corrections remain available") == true)
+    let tomorrow = current.addingTimeInterval(86_400)
+    #expect(controller.snapshot?.deferredUntil == tomorrow)
+    #expect(controller.successMessage == "Review delayed until \(tomorrow.formatted(date: .abbreviated, time: .shortened)). All local evidence and corrections remain available.")
     #expect(controller.unfinishedReview == nil)
 
     controller.resumeDeferredReview()
