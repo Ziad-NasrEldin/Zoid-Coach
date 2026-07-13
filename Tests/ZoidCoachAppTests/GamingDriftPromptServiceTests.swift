@@ -174,33 +174,89 @@ func gamingDriftHonorsPauseWorkWindowBreakEndDayAndIncompleteWorkGates() throws 
 
 @Test
 func gamingDriftSuppressesPromptsWhenScreenwatchBecomesStaleAndRecoversWithFreshEvidence() throws {
-    let stale = try GamingPromptFixture()
-    defer { stale.remove() }
-    try stale.insertPriorityTask()
-    try stale.insertGaming(minutes: 10)
-    stale.advance(minutes: 4)
-
-    #expect(try stale.service.produce(
-        policy: stale.policy(),
-        gamingStatus: stale.gamingStatus,
-        baselineStatus: stale.baseline()
+    let missing = try GamingPromptFixture()
+    defer { missing.remove() }
+    try missing.insertPriorityTask()
+    #expect(try missing.service.produce(
+        policy: missing.policy(),
+        gamingStatus: missing.gamingStatus,
+        baselineStatus: missing.baseline()
     ) == .suppressed(.limitedCoverage))
-    #expect(try stale.promptStore.unresolved().isEmpty)
+    #expect(try missing.promptStore.unresolved().isEmpty)
 
-    let recovered = try GamingPromptFixture()
-    defer { recovered.remove() }
-    try recovered.insertPriorityTask()
-    try recovered.insertGaming(minutes: 10)
+    let lifecycle = try GamingPromptFixture()
+    defer { lifecycle.remove() }
+    try lifecycle.insertPriorityTask()
+    try lifecycle.insertGaming(minutes: 10)
+    lifecycle.advance(minutes: 15)
+    #expect(try lifecycle.service.produce(
+        policy: lifecycle.policy(),
+        gamingStatus: lifecycle.gamingStatus,
+        baselineStatus: lifecycle.baseline()
+    ) == .suppressed(.limitedCoverage))
+    #expect(try lifecycle.promptStore.unresolved().isEmpty)
 
-    guard case .queued = try recovered.service.produce(
-        policy: recovered.policy(),
-        gamingStatus: recovered.gamingStatus,
-        baselineStatus: recovered.baseline()
+    try lifecycle.insertGaming(minutes: 10)
+    guard case .queued = try lifecycle.service.produce(
+        policy: lifecycle.policy(),
+        gamingStatus: lifecycle.gamingStatus,
+        baselineStatus: lifecycle.baseline()
     ) else {
         Issue.record("Expected fresh Screenwatch evidence to restore behavior prompt eligibility")
         return
     }
-    #expect(try recovered.promptStore.unresolved().count == 1)
+    #expect(try lifecycle.promptStore.unresolved().count == 1)
+    #expect(try lifecycle.service.produce(
+        policy: lifecycle.policy(),
+        gamingStatus: lifecycle.gamingStatus,
+        baselineStatus: lifecycle.baseline()
+    ) == .suppressed(.sessionAlreadyHandled))
+    #expect(try lifecycle.promptStore.unresolved().count == 1)
+
+    lifecycle.advance(minutes: 15)
+    #expect(try lifecycle.service.produce(
+        policy: lifecycle.policy(),
+        gamingStatus: lifecycle.gamingStatus,
+        baselineStatus: lifecycle.baseline()
+    ) == .suppressed(.limitedCoverage))
+    let reopened = try PromptInboxStore(databaseURL: lifecycle.databaseURL, now: { lifecycle.clock.now })
+    #expect(try reopened.unresolved().isEmpty)
+
+    let exactBoundary = try GamingPromptFixture()
+    defer { exactBoundary.remove() }
+    try exactBoundary.insertPriorityTask()
+    try exactBoundary.insertGaming(minutes: 10)
+    exactBoundary.advance(minutes: 2)
+    guard case .queued = try exactBoundary.service.produce(
+        policy: exactBoundary.policy(),
+        gamingStatus: exactBoundary.gamingStatus,
+        baselineStatus: exactBoundary.baseline()
+    ) else {
+        Issue.record("Expected a 180-second-old observation to remain eligible")
+        return
+    }
+
+    let beyondBoundary = try GamingPromptFixture()
+    defer { beyondBoundary.remove() }
+    try beyondBoundary.insertPriorityTask()
+    try beyondBoundary.insertGaming(minutes: 10)
+    beyondBoundary.clock.now = beyondBoundary.clock.now.addingTimeInterval(121)
+    #expect(try beyondBoundary.service.produce(
+        policy: beyondBoundary.policy(),
+        gamingStatus: beyondBoundary.gamingStatus,
+        baselineStatus: beyondBoundary.baseline()
+    ) == .suppressed(.limitedCoverage))
+
+    let futureDated = try GamingPromptFixture()
+    defer { futureDated.remove() }
+    try futureDated.insertPriorityTask()
+    try futureDated.insertGaming(minutes: 10)
+    futureDated.clock.now = futureDated.clock.now.addingTimeInterval(-120)
+    #expect(try futureDated.service.produce(
+        policy: futureDated.policy(),
+        gamingStatus: futureDated.gamingStatus,
+        baselineStatus: futureDated.baseline()
+    ) == .suppressed(.limitedCoverage))
 }
 
 @Test

@@ -112,9 +112,17 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         case .endingWorkday: return .suppressed(.workdayClosed)
         default: break
         }
-        guard !gamingStatus.confidenceIsLimited else { return .suppressed(.limitedCoverage) }
-        guard let observation = try latestObservation(localDay: localDay),
-              date.timeIntervalSince1970 - Double(observation.epoch) <= 180 else {
+        guard !gamingStatus.confidenceIsLimited else {
+            try dismissUnresolvedGamingDriftPrompts()
+            return .suppressed(.limitedCoverage)
+        }
+        guard let observation = try latestObservation(localDay: localDay) else {
+            try dismissUnresolvedGamingDriftPrompts()
+            return .suppressed(.limitedCoverage)
+        }
+        let observationAge = date.timeIntervalSince1970 - Double(observation.epoch)
+        guard (0 ... 180).contains(observationAge) else {
+            try dismissUnresolvedGamingDriftPrompts()
             return .suppressed(.limitedCoverage)
         }
         if observation.isNeutralSupporting {
@@ -380,6 +388,13 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             windowTitle: text(statement, 2) ?? "",
             url: text(statement, 3) ?? ""
         )
+    }
+
+    private func dismissUnresolvedGamingDriftPrompts() throws {
+        for episode in try prompts.unresolved()
+            where episode.type == PromptNotificationCategory.gamingDrift.rawValue {
+            try prompts.dismiss(promptID: episode.id)
+        }
     }
 
     private func isWithinReturnFromIdleGrace(
