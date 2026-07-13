@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "8669c39c41eddd9312de807b8907ae65906ee6d6a1d70544935b71b403c2d935",
+  "tracker_sha256": "35bbb64f2938cba7b011a285a49805b2a300bd5e980c2701357e7fb83148e50a",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -6535,9 +6535,9 @@
       "section_title": "Gaming budget use",
       "item_index": 1,
       "wording": "See available, earned, used, locked, and debt minutes.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6545,10 +6545,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/gaming-budget-transparency/verifier/REPORT.md",
+        ".audit/runs/gaming-budget-transparency/verifier/signed-ui-observed-vs-meaningful.jpeg"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The live dashboard shows only unlocked remaining minutes and a next-unlock reason. The model has budget and used minutes, but no earned, locked, or debt breakdown and the UI does not render used.",
+      "audit_note": "Signed installed Today shows the complete base, earned, used, locked, remaining, and same-day overage ledger after app and helper restart; focused proof covers non-zero earned and overage states (`TodayDashboard.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/gaming-budget-transparency/verifier/REPORT.md`).",
       "tracker_line": 433
     },
     {
@@ -6567,10 +6570,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/gaming-budget-transparency/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The live dashboard shows `Finish one priority task to unlock a one-time reward.` The condition is fixed rather than user configured.",
+      "audit_note": "Signed installed Today shows `Finish one priority task to unlock a one-time reward.` beside the complete allowance ledger after restart, but the condition remains fixed rather than user configured (`.audit/runs/gaming-budget-transparency/verifier/REPORT.md`).",
       "tracker_line": 434
     },
     {
@@ -6589,10 +6594,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/gaming-budget-transparency/verifier/REPORT.md",
+        ".audit/runs/gaming-budget-transparency/verifier/signed-ui-observed-vs-meaningful.jpeg"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Screenwatch observations classified as gaming feed `GamingStatus.usedMinutes`, and unit tests verify it. The live UI only indirectly shows remaining allowance, and no confidence threshold beyond app classification exists.",
+      "audit_note": "A signed isolated journey shows Steam at four raw observed minutes while three meaningful minutes consume the allowance and persist after app and helper restart; confidence policy remains limited to app classification and source coverage (`TodayDashboard.swift`; `.audit/runs/gaming-budget-transparency/verifier/signed-ui-observed-vs-meaningful.jpeg`).",
       "tracker_line": 435
     },
     {
@@ -6601,9 +6609,9 @@
       "section_title": "Gaming budget use",
       "item_index": 4,
       "wording": "Avoid counting a brief game-launcher transition as meaningful gaming.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6611,10 +6619,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/gaming-budget-transparency/verifier/REPORT.md",
+        ".audit/runs/gaming-budget-transparency/verifier/signed-ui-observed-vs-meaningful.jpeg"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Every contiguous classified observation up to the sessionizer cap contributes time; there is no minimum-session threshold.",
+      "audit_note": "A signed installed journey separates a one-minute launcher visit from a later three-minute session, keeps all four minutes visible as observed use, and charges only three minutes to the allowance after app and helper restart (`TodayDashboard.swift`; `.audit/runs/gaming-budget-transparency/verifier/REPORT.md`).",
       "tracker_line": 436
     },
     {
@@ -6633,10 +6644,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/gaming-budget-transparency/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Completing the main objective records a fixed priority reward, but selected conditions are not configurable and live source completion was not tested.",
+      "audit_note": "Completing the main objective still records the fixed priority reward and focused proof exposes earned versus locked minutes, but configurable conditions and a signed source-completion journey remain (`.audit/runs/gaming-budget-transparency/verifier/REPORT.md`).",
       "tracker_line": 437
     },
     {

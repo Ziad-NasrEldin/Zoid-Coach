@@ -53,6 +53,15 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Gaming budget transparency - verified
+
+- Owns `ZC-030-001` through `ZC-030-005`.
+- Preserves raw observed gaming while using only continuous sessions of at least two minutes for allowance consumption.
+- Shows one shared base, earned, used, locked, remaining, and same-day overage ledger with a direct explanation of brief-session handling.
+- Focused Today tests, legacy decoding, release packaging, signing validation, exact installed-app launch, separated-session observation, and app/helper restart proof passed.
+- `ZC-030-001` and `ZC-030-004` are fully implemented; the remaining scenarios retain conservative statuses for fixed policy, confidence, or configured-condition gaps.
+- Evidence is recorded in `.audit/runs/gaming-budget-transparency/verifier/REPORT.md`.
+
 ### Accepted break lifecycle - conservative verifier
 
 - Owns `ZC-028-001`, `ZC-028-002`, `ZC-028-004`, `ZC-028-005`, `ZC-028-006`, `ZC-028-007`, `ZC-028-008`, and `ZC-028-009`.
