@@ -10,6 +10,7 @@ struct SettingsView: View {
     @EnvironmentObject private var voiceModel: VoiceConversationModel
     @StateObject private var controller = SettingsPolicyController()
     @StateObject private var endWorkdayController = EndWorkdayReviewController()
+    @StateObject private var notificationTestController = SettingsNotificationDeliveryTestController()
     @State private var actionAudit: [ActionAuditEntry] = []
     @State private var actionAuditError: String?
     @State private var deleteRangeStart = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
@@ -286,7 +287,38 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("settings.notifications.prompt-delivery.detail")
 
+            Button(notificationTestController.buttonTitle) {
+                notificationTestController.sendTest()
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+            .disabled(notificationTestController.isRunning)
+            .accessibilityHint("Sends one local delivery check. Unresolved coaching choices always remain available in Today.")
+            .accessibilityIdentifier("settings.notifications.send-test")
+
+            if let result = notificationTestController.result {
+                Text(notificationTestResultTitle(result.state))
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(result.state == .failed ? Sumi.sealDeep : Sumi.ink)
+                    .accessibilityIdentifier("settings.notifications.send-test.status")
+                Text(result.message)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.notifications.send-test.detail")
+            }
+
             NotificationDeliveryHealthView()
+        }
+    }
+
+    private func notificationTestResultTitle(_ state: OnboardingDeliveryResult.State) -> String {
+        switch state {
+        case .delivered: "TEST DELIVERED"
+        case .scheduled: "TEST SCHEDULED"
+        case .unavailable: "TEST UNAVAILABLE - USE TODAY"
+        case .failed: "TEST FAILED - USE TODAY"
+        case .todayFallback: "AVAILABLE IN TODAY"
         }
     }
 
