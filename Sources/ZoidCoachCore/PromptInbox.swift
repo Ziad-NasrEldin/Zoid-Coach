@@ -47,6 +47,7 @@ public struct PromptEpisodeStateMachine: Sendable {
 public enum PromptActionKind: String, Codable, CaseIterable, Sendable {
     case startRecommendedTask = "start_recommended_task"
     case startShortSprint = "start_short_sprint"
+    case startWorkSprint = "start_work_sprint"
     case returnToActiveTask = "return_to_active_task"
     case fiveMoreMinutes = "five_more_minutes"
     case startBreak = "start_break"
