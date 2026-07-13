@@ -75,6 +75,7 @@ enum SettingsPolicyConflictResolver {
         apply(\.visibleCalendarIdentifiers, label: "Visible calendars")
         apply(\.schedulingCalendarIdentifier, label: "Scheduling calendar")
         apply(\.screenshotAnalysisEnabled, label: "Screenshot analysis")
+        apply(\.notificationPromptsEnabled, label: "Notification prompts")
         apply(\.aiProvider, label: "AI provider")
         apply(\.remoteEvidencePolicy, label: "Remote evidence")
         apply(\.rawScreenshotRetentionDays, label: "Data retention")

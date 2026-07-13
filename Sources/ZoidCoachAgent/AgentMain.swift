@@ -184,12 +184,16 @@ struct ZoidCoachAgentMain {
                     schedule: policy.schedule
                 )
             }
+            let promptNotificationsEnabled: @Sendable () -> Bool = {
+                (try? policyStore.current()?.policy.privacy.effectiveNotificationPromptsEnabled) ?? true
+            }
             if let qaFixtureAdapter {
                 notificationCoordinator = PromptNotificationCoordinator(
                     promptStore: promptStore,
                     fixtureAdapter: qaFixtureAdapter,
                     runtimeEnvironment: runtimeResolution.environment,
-                    deliveryBoundary: quietHoursBoundary
+                    deliveryBoundary: quietHoursBoundary,
+                    promptNotificationsEnabled: promptNotificationsEnabled
                 ) { result in
                     _ = try? promptEffectRouter.apply(result)
                 }
@@ -197,7 +201,8 @@ struct ZoidCoachAgentMain {
                 notificationCoordinator = PromptNotificationCoordinator(
                     promptStore: promptStore,
                     runtimeEnvironment: runtimeResolution.environment,
-                    deliveryBoundary: quietHoursBoundary
+                    deliveryBoundary: quietHoursBoundary,
+                    promptNotificationsEnabled: promptNotificationsEnabled
                 ) { result in
                     _ = try? promptEffectRouter.apply(result)
                 }
@@ -540,6 +545,7 @@ struct ZoidCoachAgentMain {
                 var lastMaintenanceAttempt: Date?
                 var lastDaytimeSourceCheck: Date?
                 var lastReviewReminderCheck: Date?
+                var lastPromptNotificationsEnabled: Bool?
                 var lastCalendarSignature: String?
                 var lastBaselineReconciliationDay = try? checkpointStore.checkpoint(
                     sourceID: "baseline-observation-reconciliation"
@@ -548,6 +554,11 @@ struct ZoidCoachAgentMain {
                     do {
                     let versionedPolicy = try policyStore.current() ?? initialVersionedPolicy
                     let policy = versionedPolicy.policy
+                    let promptNotificationsEnabled = policy.privacy.effectiveNotificationPromptsEnabled
+                    if lastPromptNotificationsEnabled != promptNotificationsEnabled {
+                        try await notificationCoordinator.reconcilePromptNotificationPreference()
+                        lastPromptNotificationsEnabled = promptNotificationsEnabled
+                    }
                     let resourceConstrained = Self.isResourceConstrained
                     if policy.operatingMode != .fullyAutomatic {
                         _ = try actionOutbox.cancelPendingAutomaticPlanCommands()
