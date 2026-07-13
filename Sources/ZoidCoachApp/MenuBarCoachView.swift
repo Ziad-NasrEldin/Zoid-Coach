@@ -49,6 +49,38 @@ final class MenuBarCoachController: ObservableObject {
         }
     }
 
+    func startRecommendedTaskIfStillReady(taskID: String) async {
+        guard !isApplying else { return }
+        isApplying = true
+        defer { isApplying = false }
+        do {
+            let latest = try await client.fetchTodaySnapshot()
+            snapshot = latest
+            let latestState = MenuBarCoachState(snapshot: latest)
+            guard latestState.activeTask == nil,
+                  latestState.pausedTask == nil,
+                  latestState.recommendedTask?.taskID == taskID
+            else {
+                errorMessage = "The recommended task changed before Start. Nothing was started. Review the current menu state and try again."
+                return
+            }
+
+            let updated = try await client.apply(.start, taskID: taskID)
+            let updatedState = MenuBarCoachState(snapshot: updated)
+            guard updatedState.activeTask?.taskID == taskID,
+                  updated.taskRows.first(where: { $0.taskID == taskID })?.state == .active
+            else {
+                errorMessage = "The background agent did not confirm that the task started. Refresh before trying again."
+                return
+            }
+
+            snapshot = updated
+            errorMessage = nil
+        } catch {
+            errorMessage = "The task was not started. The last confirmed state is still shown."
+        }
+    }
+
     func endWorkdayIfStillActive(taskID: String) async {
         guard !isApplying else { return }
         isApplying = true
@@ -285,8 +317,10 @@ struct MenuBarCoachView: View {
                         }
                     } else {
                         taskButton("START", identifier: "menu-bar.task.start") {
-                            await apply(.start, taskID: task.taskID)
+                            await startRecommendedTask(taskID: task.taskID)
                         }
+                        .accessibilityLabel("Start \(task.title)")
+                        .accessibilityHint("Rechecks that this is still the recommended ready task before starting it.")
                     }
                     taskButton("OPEN TODAY", role: .quiet, identifier: "menu-bar.open-today") {
                         open(.today)
@@ -360,6 +394,11 @@ struct MenuBarCoachView: View {
         await controller.apply(command, taskID: taskID)
         await appModel.refreshTodaySnapshot()
         await appModel.reconcileAcceptedBreakReminder(taskID: taskID)
+    }
+
+    private func startRecommendedTask(taskID: String) async {
+        await controller.startRecommendedTaskIfStillReady(taskID: taskID)
+        await appModel.refreshTodaySnapshot()
     }
 
     private func refreshAll() async {
