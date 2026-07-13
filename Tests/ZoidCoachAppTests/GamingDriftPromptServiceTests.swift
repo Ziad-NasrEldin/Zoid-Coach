@@ -475,6 +475,150 @@ func gamingObservationModeNeverProducesABehaviorPrompt() throws {
 }
 
 @Test
+func planningAndSourcePromptsDoNotConsumeTheBehaviorInterventionCap() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    for index in 0..<8 {
+        _ = try fixture.promptStore.enqueue(PromptDraft(
+            decisionKey: "non-behavior-\(index)",
+            type: index.isMultiple(of: 2) ? "PLAN_READY" : "SOURCE_WARNING",
+            title: "Planning or source update",
+            summary: "This prompt is not a behavior intervention.",
+            actions: [PromptAction(kind: .acceptPlan, title: "Review")]
+        ))
+    }
+    try fixture.insertGaming(minutes: 10)
+
+    guard case .queued = try fixture.service.produce(
+        policy: fixture.policy(level: .gentle, dailyPromptCap: 1, promptCooldownMinutes: 5),
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected a behavior prompt despite unrelated planning and source prompts")
+        return
+    }
+}
+
+@Test
+func gentleResponsePausesNewBehaviorInterventionsForExactlyFifteenMinutes() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(level: .gentle, dailyPromptCap: 6, promptCooldownMinutes: 5)
+    guard case let .queued(first, _) = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected the initial gentle prompt")
+        return
+    }
+    _ = try fixture.promptStore.respond(
+        promptID: first.id,
+        action: .returnToActiveTask,
+        actionToken: PromptResponseToken.make(promptID: first.id, action: .returnToActiveTask),
+        surface: .dashboard
+    )
+
+    fixture.advance(minutes: 14)
+    try fixture.insertGaming(minutes: 10)
+    let beforeGentleBoundary = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    )
+    #expect(beforeGentleBoundary == .suppressed(.responsePauseActive), "Unexpected result: \(beforeGentleBoundary)")
+
+    fixture.advance(minutes: 1)
+    let afterGentleBoundary = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    )
+    guard case .queued = afterGentleBoundary else {
+        Issue.record("Expected a new gentle prompt after the exact fifteen-minute pause, got \(afterGentleBoundary)")
+        return
+    }
+}
+
+@Test
+func accountabilityResponsePausesNewBehaviorInterventionsForExactlyTwentyMinutes() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(level: .accountability, dailyPromptCap: 6, promptCooldownMinutes: 5)
+    guard case let .queued(first, _) = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected the initial accountability prompt")
+        return
+    }
+    _ = try fixture.promptStore.respond(
+        promptID: first.id,
+        action: .startWorkSprint,
+        actionToken: PromptResponseToken.make(promptID: first.id, action: .startWorkSprint),
+        surface: .dashboard
+    )
+
+    fixture.advance(minutes: 19)
+    try fixture.insertGaming(minutes: 10)
+    let beforeAccountabilityBoundary = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    )
+    #expect(beforeAccountabilityBoundary == .suppressed(.responsePauseActive), "Unexpected result: \(beforeAccountabilityBoundary)")
+
+    fixture.advance(minutes: 1)
+    let afterAccountabilityBoundary = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    )
+    guard case .queued = afterAccountabilityBoundary else {
+        Issue.record("Expected a new accountability prompt after the exact twenty-minute pause, got \(afterAccountabilityBoundary)")
+        return
+    }
+}
+
+@Test
+func fiveMinuteFollowUpOffersEndDayAndSuppressesFurtherPromptsAfterSelection() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(level: .gentle, dailyPromptCap: 6, promptCooldownMinutes: 5)
+    guard case let .queued(first, _) = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected the initial gentle prompt")
+        return
+    }
+    _ = try fixture.promptStore.respond(
+        promptID: first.id,
+        action: .fiveMoreMinutes,
+        actionToken: PromptResponseToken.make(promptID: first.id, action: .fiveMoreMinutes),
+        surface: .dashboard
+    )
+
+    fixture.advance(minutes: 5)
+    try fixture.insertGaming(minutes: 5)
+    guard case let .queued(followUp, _) = try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected the five-minute follow-up")
+        return
+    }
+    #expect(followUp.actions.contains { $0.kind == .endWorkday && $0.title == "I am done today" })
+    #expect(followUp.actions.filter { $0.role == .secondary }.count <= 3)
+    _ = try fixture.promptStore.respond(
+        promptID: followUp.id,
+        action: .endWorkday,
+        actionToken: PromptResponseToken.make(promptID: followUp.id, action: .endWorkday),
+        surface: .dashboard
+    )
+
+    fixture.advance(minutes: 60)
+    try fixture.insertGaming(minutes: 10)
+    #expect(try fixture.service.produce(
+        policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
+    ) == .suppressed(.workdayClosed))
+}
+
+@Test
 func legacyGamingPolicyDefaultsToGentleCoaching() throws {
     let data = Data(#"{"version":1,"dailyBudgetMinutes":60,"priorityTaskRewardMinutes":15}"#.utf8)
     let decoded = try JSONDecoder().decode(GamingPolicy.self, from: data)
