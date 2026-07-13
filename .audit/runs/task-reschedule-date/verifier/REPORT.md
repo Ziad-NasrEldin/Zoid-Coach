@@ -22,4 +22,7 @@ The verifier corrected the sheet copy to state that the date is a local deferral
 ## Acceptance boundary
 
 This batch provides confirmed local deferral, not full future-plan scheduling or Apple Reminder rescheduling.
-The signed cancel, confirmation, capacity, Reminder-boundary, and restart journey remains pending the package step.
+The single package/install attempt exited without creating an installed app, registering a QA helper, mutating the shared runtime, or emitting diagnostic output.
+No retry was performed under the package-once and UI cap.
+
+The signed cancel, confirmation, capacity, Reminder-boundary, and restart journey remains unverified.

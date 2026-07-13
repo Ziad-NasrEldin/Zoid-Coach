@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "601365c4c7d6ee6bc3ad33dc3b0107ed7b8c49b994fe106a924f34c896dcb501",
+  "tracker_sha256": "a5a94ed5ed5c209dd538ef7fcd2cf5dbb5546ac5e5fe54a32d536bd5751213c6",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4470,8 +4470,8 @@
       "item_index": 8,
       "wording": "Reschedule a task only after confirming the new date.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4482,7 +4482,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`.reschedule` has no date payload, confirmation sheet, date picker, or source action.",
+      "audit_note": "The Today task menu now opens a reviewed, task-named sheet, Cancel leaves the plan untouched, future dates normalize to local midnight, and Confirm durably defers the task out of today's capacity without changing its Apple Reminder due date. This does not automatically add the task to a future plan, and the signed installed cancel/confirm/restart journey remains (`TaskRescheduleState.swift`; `DashboardView.swift`; `.audit/runs/task-reschedule-date/verifier/REPORT.md`).",
       "tracker_line": 313
     },
     {
@@ -7590,7 +7590,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`rescheduleTask` exists as a prompt action and local execution state, but no date confirmation, Reminder mutation, or response effect exists.",
+      "audit_note": "Today task controls now support a confirmed local future deferral, but the coaching prompt action `rescheduleTask` still has no routed date-selection effect and no Apple Reminder mutation. The signed installed local-deferral journey also remains (`TaskRescheduleState.swift`; `PromptResponseEffectRouter.swift`; `.audit/runs/task-reschedule-date/verifier/REPORT.md`).",
       "tracker_line": 493
     },
     {
