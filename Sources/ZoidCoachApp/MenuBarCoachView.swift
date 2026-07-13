@@ -139,10 +139,12 @@ struct MenuBarCoachView: View {
                     .foregroundStyle(Sumi.ink)
                     .lineLimit(2)
                     .accessibilityIdentifier("menu-bar.task.title")
-                Text(controller.state.taskStatus)
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.muted)
-                    .accessibilityIdentifier("menu-bar.task.status")
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(controller.state.taskStatus(at: context.date))
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .accessibilityIdentifier("menu-bar.task.status")
+                }
 
                 HStack(spacing: 8) {
                     if controller.state.activeTask != nil {
