@@ -176,18 +176,27 @@ struct ZoidCoachAgentMain {
                 screenwatchSource: activeScreenwatchSource()
             )
             let notificationCoordinator: PromptNotificationCoordinator
+            let quietHoursBoundary: @Sendable (Date) -> Date = { proposedDate in
+                guard let policy = try? policyStore.current()?.policy else { return proposedDate }
+                return QuietHoursDeliveryBoundary.nextAllowedDelivery(
+                    for: proposedDate,
+                    schedule: policy.schedule
+                )
+            }
             if let qaFixtureAdapter {
                 notificationCoordinator = PromptNotificationCoordinator(
                     promptStore: promptStore,
                     fixtureAdapter: qaFixtureAdapter,
-                    runtimeEnvironment: runtimeResolution.environment
+                    runtimeEnvironment: runtimeResolution.environment,
+                    deliveryBoundary: quietHoursBoundary
                 ) { result in
                     _ = try? promptEffectRouter.apply(result)
                 }
             } else {
                 notificationCoordinator = PromptNotificationCoordinator(
                     promptStore: promptStore,
-                    runtimeEnvironment: runtimeResolution.environment
+                    runtimeEnvironment: runtimeResolution.environment,
+                    deliveryBoundary: quietHoursBoundary
                 ) { result in
                     _ = try? promptEffectRouter.apply(result)
                 }

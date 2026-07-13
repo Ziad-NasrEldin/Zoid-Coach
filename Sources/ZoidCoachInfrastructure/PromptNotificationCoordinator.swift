@@ -21,12 +21,14 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
     private let notificationIdentity: RuntimeNotificationIdentity
     private let deliveryLedger: NotificationDeliveryLedger?
     private let fixtureAdapter: DeterministicOSFixtureAdapters?
+    private let deliveryBoundary: @Sendable (Date) -> Date
     private let onResponse: @Sendable (PromptResponseResult) async -> Void
 
     public init(
         promptStore: PromptInboxStore,
         center: UNUserNotificationCenter = .current(),
         runtimeEnvironment: RuntimeEnvironment = .production(),
+        deliveryBoundary: @escaping @Sendable (Date) -> Date = { $0 },
         onResponse: @escaping @Sendable (PromptResponseResult) async -> Void = { _ in }
     ) {
         self.promptStore = promptStore
@@ -34,6 +36,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         fixtureAdapter = nil
         notificationIdentity = runtimeEnvironment.identity.notification
         deliveryLedger = try? NotificationDeliveryLedger(databaseURL: runtimeEnvironment.databaseURL)
+        self.deliveryBoundary = deliveryBoundary
         self.onResponse = onResponse
         super.init()
     }
@@ -42,6 +45,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         promptStore: PromptInboxStore,
         fixtureAdapter: DeterministicOSFixtureAdapters,
         runtimeEnvironment: RuntimeEnvironment,
+        deliveryBoundary: @escaping @Sendable (Date) -> Date = { $0 },
         onResponse: @escaping @Sendable (PromptResponseResult) async -> Void = { _ in }
     ) {
         self.promptStore = promptStore
@@ -49,6 +53,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         self.fixtureAdapter = fixtureAdapter
         notificationIdentity = runtimeEnvironment.identity.notification
         deliveryLedger = try? NotificationDeliveryLedger(databaseURL: runtimeEnvironment.databaseURL)
+        self.deliveryBoundary = deliveryBoundary
         self.onResponse = onResponse
         super.init()
     }
@@ -62,6 +67,9 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
     @discardableResult
     public func schedule(_ episode: PromptEpisode, deliveryDate: Date? = nil) async throws -> Bool {
         guard let category = PromptNotificationCategory.forPromptType(episode.type) else { return false }
+        let now = Date()
+        let boundedDeliveryDate = deliveryBoundary(deliveryDate ?? now)
+        let effectiveDeliveryDate = boundedDeliveryDate > now ? boundedDeliveryDate : nil
         let requestIdentifier = notificationIdentity.promptRequestPrefix + episode.id
         if let fixtureAdapter {
             do {
@@ -71,7 +79,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                         episode: episode,
                         category: category,
                         outcome: .authorizationUnavailable,
-                        scheduledFor: deliveryDate
+                        scheduledFor: effectiveDeliveryDate
                     )
                     return false
                 }
@@ -80,7 +88,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                     title: episode.title,
                     body: episode.summary,
                     promptID: episode.id,
-                    deliveryDate: deliveryDate
+                    deliveryDate: effectiveDeliveryDate
                 ))
                 _ = try fixtureAdapter.deliverDueNotifications()
                 try await processFixtureActions()
@@ -89,7 +97,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                     episode: episode,
                     category: category,
                     outcome: .deliveredByFixture,
-                    scheduledFor: deliveryDate
+                    scheduledFor: effectiveDeliveryDate
                 )
                 return true
             } catch {
@@ -98,7 +106,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                     episode: episode,
                     category: category,
                     outcome: .schedulingFailed,
-                    scheduledFor: deliveryDate,
+                    scheduledFor: effectiveDeliveryDate,
                     error: error
                 )
                 throw error
@@ -112,7 +120,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                 episode: episode,
                 category: category,
                 outcome: .authorizationUnavailable,
-                scheduledFor: deliveryDate
+                scheduledFor: effectiveDeliveryDate
             )
             return false
         }
@@ -123,8 +131,8 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         content.sound = .default
         content.userInfo = ["promptID": episode.id]
         let trigger: UNNotificationTrigger?
-        if let deliveryDate, deliveryDate > Date() {
-            trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, deliveryDate.timeIntervalSinceNow), repeats: false)
+        if let effectiveDeliveryDate {
+            trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, effectiveDeliveryDate.timeIntervalSinceNow), repeats: false)
         } else {
             trigger = nil
         }
@@ -142,7 +150,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                 episode: episode,
                 category: category,
                 outcome: .acceptedBySystem,
-                scheduledFor: deliveryDate
+                scheduledFor: effectiveDeliveryDate
             )
             return true
         } catch {
@@ -151,7 +159,7 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                 episode: episode,
                 category: category,
                 outcome: .schedulingFailed,
-                scheduledFor: deliveryDate,
+                scheduledFor: effectiveDeliveryDate,
                 error: error
             )
             throw error
