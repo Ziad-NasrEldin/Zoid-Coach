@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "e1e7d9d9b3f50d902e57c7c789aad158aff8c55c4716e658d97d1c5bae5b0f5c",
+  "tracker_sha256": "b553114cd210f2a6564511a7ffa13d0756eb7f3d9fc4ddb135eb72aec1c33aff",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4319,8 +4319,8 @@
       "item_index": 10,
       "wording": "Replan after an important task becomes blocked.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4328,10 +4328,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/blocked-task-replan/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The app can redraft a whole plan, but there is no blocked-task flow that leads into contextual replanning.",
+      "audit_note": "Blocking the main objective now transactionally saves an undo revision, promotes the next usable planned task in plan order, refreshes the main objective and recommendation, persists across agent reconstruction, and keeps the plan honest when no replacement exists. Focused promotion, restart, undo, and no-candidate tests plus release signing passed, and the signed app visibly reached an active main task with a named ready replacement and both blocker entry points. Computer Use lost the app window when activating the blocker control, so blocker submission, visible promotion, undo, restart, and no-candidate installed acceptance remain (`AutonomousPlanStore.swift`; `TodayDashboardAgent.swift`; `AppModel.swift`; `TodayDashboardAgentTests.swift`; `.audit/runs/blocked-task-replan/verifier/REPORT.md`).",
       "tracker_line": 302
     },
     {
