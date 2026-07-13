@@ -367,6 +367,17 @@ func legacyGamingPolicyDefaultsToGentleCoaching() throws {
     let data = Data(#"{"version":1,"dailyBudgetMinutes":60,"priorityTaskRewardMinutes":15}"#.utf8)
     let decoded = try JSONDecoder().decode(GamingPolicy.self, from: data)
     #expect(decoded.coachingLevel == .gentle)
+    #expect(decoded.intentionalOverrideMinutes == 45)
+
+    let clampedMinimum = GamingPolicy(intentionalOverrideMinutes: 0)
+    #expect(clampedMinimum.intentionalOverrideMinutes == 5)
+
+    let excessive = UserPolicy.defaults(timeZoneIdentifier: "UTC").replacingGamingPolicy(
+        GamingPolicy(intentionalOverrideMinutes: 1_441)
+    )
+    #expect(excessive.validationViolations().contains {
+        $0.field == "gaming.intentionalOverrideMinutes"
+    })
 }
 
 private final class GamingPromptFixture: @unchecked Sendable {
