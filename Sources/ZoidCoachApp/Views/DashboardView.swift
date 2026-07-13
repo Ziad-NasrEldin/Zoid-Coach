@@ -1545,7 +1545,8 @@ private struct PlannedReminderRow: View {
 
                 TimeBlockSelector(
                     selectedMinutes: entry.estimateMinutes,
-                    taskTitle: task.title
+                    taskTitle: task.title,
+                    taskID: entry.reminderID
                 ) { minutes in
                     model.setEstimate(minutes, for: entry)
                 }
@@ -1800,6 +1801,7 @@ private struct TimeBlockSelector: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let selectedMinutes: Int?
     let taskTitle: String
+    let taskID: String
     let select: (Int) -> Void
 
     private let durations = [15, 30, 45, 60, 90]
@@ -1856,22 +1858,25 @@ private struct TimeBlockSelector: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 78)
                     .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
-                    .accessibilityIdentifier("task-estimate-custom-input")
+                    .accessibilityIdentifier("task-estimate-custom-input-\(taskID)")
                     .onSubmit(saveCustomEstimate)
                 Button("SAVE", action: saveCustomEstimate)
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("task-estimate-custom-save")
+                    .accessibilityIdentifier("task-estimate-custom-save-\(taskID)")
                 Button("CANCEL") {
                     isEnteringCustom = false
+                    isChanging = false
                     customError = nil
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("task-estimate-custom-cancel-\(taskID)")
                 if let customError {
                     Text(customError)
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.sealDeep)
                         .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("task-estimate-custom-error")
+                        .accessibilityIdentifier("task-estimate-custom-error-\(taskID)")
                 }
             } else {
                 ForEach(durations, id: \.self) { minutes in
@@ -1895,7 +1900,7 @@ private struct TimeBlockSelector: View {
                 }
                 .buttonStyle(TimeSlotButtonStyle())
                 .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
-                .accessibilityIdentifier("task-estimate-custom")
+                .accessibilityIdentifier("task-estimate-custom-\(taskID)")
             }
             Spacer()
         }
