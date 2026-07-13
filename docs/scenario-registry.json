@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "ddaf411d97d92d0e31dafe6d6894de64235d654234236e02bf13db8199f98339",
+  "tracker_sha256": "85e209b6e616f07e58ad2d48d62819fba9764eb22f9b8b5da7581386f87f35d1",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8457,8 +8457,8 @@
       "item_index": 2,
       "wording": "See a menu bar badge if notifications are unavailable.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8469,7 +8469,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No prompt badge exists in `MenuBarExtra` or another menu-bar surface.",
+      "audit_note": "`MenuBarExtra` now switches to `exclamationmark.bubble.fill`, exposes the exact waiting-decision count, and offers direct fallback copy plus Today navigation when notification health is unavailable and unresolved prompts exist. Focused state tests passed and the signed app proved durable zero, one, and two-decision Today states, resolution clearing, notification repair, and restart recovery. macOS did not expose the actual status item through app accessibility, and SystemUIServer inspection timed out, so the signed badge, label, copy, and Today button still require one addressable menu-bar acceptance run (`MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `ZoidCoachApp.swift`; `.audit/runs/menu-bar-prompt-fallback/verifier/REPORT.md`).",
       "tracker_line": 541
     },
     {
@@ -8601,7 +8601,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Today task controls do not depend on notification authorization and are covered by task-store/dashboard tests; the live denied-permission journey was not run.",
+      "audit_note": "The signed isolated app retained local task creation, estimate selection, start, bounded sprint, begin focus, defer, block, remove, and recommendation controls while notification delivery was unavailable. Focused menu state coverage also keeps active-task controls in the fallback menu. The actual status-item controls remain unclickable through macOS accessibility, so one signed menu-bar acceptance run is still required (`MenuBarCoachView.swift`; `MenuBarCoachStateTests`; `.audit/runs/menu-bar-prompt-fallback/verifier/REPORT.md`).",
       "tracker_line": 547
     },
     {
