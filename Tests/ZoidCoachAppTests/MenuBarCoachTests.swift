@@ -34,6 +34,77 @@ import ZoidCoachInfrastructure
     #expect(pausedState.taskStatus == "Paused because you are done for now")
     #expect(!pausedState.canStartBreak)
     #expect(!pausedState.canEndWorkday)
+
+    let coachingPausedState = MenuBarCoachState(snapshot: active, coachingIsPaused: true)
+    #expect(coachingPausedState.tone == .coachingPaused)
+    #expect(coachingPausedState.tone.label == "Coaching is paused")
+    #expect(coachingPausedState.primaryTask?.title == "Write proposal")
+}
+
+@MainActor
+@Test func menuBarCoachingPauseRefreshesAndPersistsOnlyThePauseSetting() async throws {
+    let initial = VersionedUserPolicy(
+        version: 7,
+        policy: .defaults(timeZoneIdentifier: "Africa/Cairo"),
+        createdAtUTC: Date(timeIntervalSince1970: 1_800_000_000),
+        isActive: true
+    )
+    let client = RecordingMenuBarCoachingPauseClient(current: initial)
+    let controller = MenuBarCoachingPauseController(
+        client: client,
+        makeRequestID: { "system-policy-v1:menu-bar-coaching-pause:test-pause" }
+    )
+
+    await controller.refresh()
+    #expect(!controller.isPaused)
+    #expect(controller.policyVersion == 7)
+
+    await controller.setPaused(true)
+
+    #expect(controller.isPaused)
+    #expect(controller.policyVersion == 8)
+    #expect(controller.errorMessage == nil)
+    #expect(controller.statusMessage?.contains("Task tracking and Today remain available") == true)
+
+    let pauseRequest = try #require(await client.requests.first)
+    #expect(pauseRequest.requestID == "system-policy-v1:menu-bar-coaching-pause:test-pause")
+    #expect(pauseRequest.expectedVersion == 7)
+    #expect(pauseRequest.origin == .system(component: "menu-bar-coaching-pause"))
+    #expect(pauseRequest.policy.automationPause.isRequested)
+    #expect(
+        pauseRequest.policy.replacingAutomationPause(initial.policy.automationPause)
+            == initial.policy
+    )
+
+    await controller.setPaused(false)
+
+    #expect(!controller.isPaused)
+    #expect(controller.policyVersion == 9)
+    #expect(controller.statusMessage?.contains("Coaching resumed") == true)
+    let requests = await client.requests
+    #expect(requests.count == 2)
+    #expect(requests[1].expectedVersion == 8)
+    #expect(!requests[1].policy.automationPause.isRequested)
+}
+
+@MainActor
+@Test func menuBarCoachingPauseRejectsAnUnconfirmedMutation() async {
+    let initial = VersionedUserPolicy(
+        version: 3,
+        policy: .defaults(timeZoneIdentifier: "UTC"),
+        createdAtUTC: Date(timeIntervalSince1970: 1_800_000_000),
+        isActive: true
+    )
+    let client = RecordingMenuBarCoachingPauseClient(current: initial, returnsInvalidReceipt: true)
+    let controller = MenuBarCoachingPauseController(client: client)
+
+    await controller.refresh()
+    await controller.setPaused(true)
+
+    #expect(!controller.isPaused)
+    #expect(controller.policyVersion == 3)
+    #expect(controller.statusMessage == nil)
+    #expect(controller.errorMessage?.contains("did not confirm") == true)
 }
 
 @Test func menuBarExplainsEndOfWorkdayWithoutLosingThePausedTask() {
@@ -253,6 +324,48 @@ private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
         commands.append((command, taskID))
         guard !applyResults.isEmpty else { throw MenuBarClientError.failed }
         return try applyResults.removeFirst().get()
+    }
+}
+
+private actor RecordingMenuBarCoachingPauseClient: MenuBarCoachingPauseClient {
+    var current: VersionedUserPolicy
+    let returnsInvalidReceipt: Bool
+    private(set) var requests: [PolicyMutationRequest] = []
+
+    init(current: VersionedUserPolicy, returnsInvalidReceipt: Bool = false) {
+        self.current = current
+        self.returnsInvalidReceipt = returnsInvalidReceipt
+    }
+
+    func loadCurrentPolicy() -> VersionedUserPolicy { current }
+
+    func savePolicyMutation(_ request: PolicyMutationRequest) throws -> AgentMutationReceipt {
+        requests.append(request)
+        if returnsInvalidReceipt {
+            return AgentMutationReceipt(accepted: true, message: "Missing durable receipt")
+        }
+
+        let resultingVersion = current.version + 1
+        let receipt = PolicyMutationReceipt(
+            requestID: request.requestID,
+            payloadDigest: try PolicyMutationRequest.canonicalPayloadDigest(for: request.policy),
+            expectedVersion: request.expectedVersion,
+            resultingVersion: resultingVersion,
+            origin: request.origin,
+            replayed: false
+        )
+        current = VersionedUserPolicy(
+            version: resultingVersion,
+            policy: request.policy,
+            createdAtUTC: Date(timeIntervalSince1970: TimeInterval(resultingVersion)),
+            isActive: true
+        )
+        return AgentMutationReceipt(
+            accepted: true,
+            message: "Saved",
+            policyVersion: resultingVersion,
+            policyMutationReceipt: receipt
+        )
     }
 }
 
