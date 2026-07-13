@@ -28,7 +28,8 @@ public struct TimeZonePlanMoveWarning: Equatable, Sendable {
 
     public var confirmationMessage: String {
         let taskLabel = taskCount == 1 ? "1 planned task" : "\(taskCount) planned tasks"
-        return "\(taskLabel) currently belong to \(sourceDayKey) in \(sourceTimeZoneIdentifier). In \(destinationTimeZoneIdentifier), this instant is \(destinationDayKey). Saving changes which local plan day Zoid 666 treats as current."
+        let verb = taskCount == 1 ? "belongs" : "belong"
+        return "\(taskLabel) currently \(verb) to \(sourceDayKey) in \(sourceTimeZoneIdentifier). In \(destinationTimeZoneIdentifier), this instant is \(destinationDayKey). Saving changes which local plan day Zoid 666 treats as current."
     }
 }
 
