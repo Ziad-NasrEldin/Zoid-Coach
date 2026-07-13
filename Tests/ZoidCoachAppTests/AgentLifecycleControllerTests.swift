@@ -6,6 +6,7 @@ import Testing
 @Test
 func agentLifecycleControllerExposesApprovalRecoveryAndReturnsHealthy() {
     let service = StubAgentLifecycleService(
+        registrationStatus: .requiresApproval,
         inspected: agentHealth(.attention, detail: "Approval required"),
         enabled: agentHealth(.healthy, detail: "Agent is running"),
         disabled: agentHealth(.notConnected, detail: "Agent is disabled")
@@ -19,7 +20,8 @@ func agentLifecycleControllerExposesApprovalRecoveryAndReturnsHealthy() {
     #expect(controller.health.state == .attention)
     #expect(!controller.canEnable)
     #expect(controller.canRepair)
-    #expect(!controller.canDisable)
+    #expect(controller.canDisable)
+    #expect(controller.launchAtLoginDescription == "Waiting for approval")
 
     controller.repair()
 
@@ -35,6 +37,7 @@ func agentLifecycleControllerExposesApprovalRecoveryAndReturnsHealthy() {
 @Test
 func agentLifecycleControllerDisablesWithoutDeletingForegroundState() {
     let service = StubAgentLifecycleService(
+        registrationStatus: .enabled,
         inspected: agentHealth(.healthy, detail: "Agent is running"),
         enabled: agentHealth(.healthy, detail: "Agent is running"),
         disabled: agentHealth(.notConnected, detail: "Background work is disabled")
@@ -49,12 +52,37 @@ func agentLifecycleControllerDisablesWithoutDeletingForegroundState() {
     #expect(controller.canEnable)
     #expect(!controller.canRepair)
     #expect(!controller.canDisable)
+    #expect(controller.launchAtLoginDescription == "Disabled")
+}
+
+@MainActor
+@Test
+func agentLifecycleControllerCanDisableARegisteredAgentWithAStaleHeartbeat() {
+    let service = StubAgentLifecycleService(
+        registrationStatus: .enabled,
+        inspected: agentHealth(.attention, detail: "Agent has not checked in"),
+        enabled: agentHealth(.healthy, detail: "Agent is running"),
+        disabled: agentHealth(.notConnected, detail: "Background work is disabled")
+    )
+    let controller = AgentLifecycleController(service: service)
+
+    #expect(controller.health.state == .attention)
+    #expect(controller.launchAtLoginDescription == "Enabled")
+    #expect(controller.canDisable)
+
+    controller.disable()
+
+    #expect(service.disableCalls == 1)
+    #expect(controller.launchAtLoginDescription == "Disabled")
+    #expect(controller.canEnable)
+    #expect(!controller.canDisable)
 }
 
 @MainActor
 @Test
 func agentLifecycleControllerRefreshesARecoveredProcess() {
     let service = StubAgentLifecycleService(
+        registrationStatus: .enabled,
         inspected: agentHealth(.attention, detail: "Agent stopped"),
         enabled: agentHealth(.healthy, detail: "Agent is running"),
         disabled: agentHealth(.notConnected, detail: "Agent is disabled")
@@ -73,6 +101,7 @@ func agentLifecycleControllerRefreshesARecoveredProcess() {
 @Test
 func agentLifecycleControllerReportsLoginItemsOpenFailureWithManualPath() {
     let service = StubAgentLifecycleService(
+        registrationStatus: .requiresApproval,
         inspected: agentHealth(.attention, detail: "Approval required"),
         enabled: agentHealth(.healthy, detail: "Agent is running"),
         disabled: agentHealth(.notConnected, detail: "Agent is disabled")
@@ -95,6 +124,7 @@ func agentLifecycleControllerReportsLoginItemsOpenFailureWithManualPath() {
 
 @MainActor
 private final class StubAgentLifecycleService: AgentLifecycleServicing {
+    var registrationStatus: AgentRegistrationStatus
     var inspected: SourceHealth
     let enabled: SourceHealth
     let disabled: SourceHealth
@@ -103,7 +133,13 @@ private final class StubAgentLifecycleService: AgentLifecycleServicing {
     private(set) var repairCalls = 0
     private(set) var disableCalls = 0
 
-    init(inspected: SourceHealth, enabled: SourceHealth, disabled: SourceHealth) {
+    init(
+        registrationStatus: AgentRegistrationStatus,
+        inspected: SourceHealth,
+        enabled: SourceHealth,
+        disabled: SourceHealth
+    ) {
+        self.registrationStatus = registrationStatus
         self.inspected = inspected
         self.enabled = enabled
         self.disabled = disabled
@@ -114,18 +150,25 @@ private final class StubAgentLifecycleService: AgentLifecycleServicing {
         return inspected
     }
 
+    func launchAtLoginStatus() -> AgentRegistrationStatus {
+        registrationStatus
+    }
+
     func enableAndInspect() -> SourceHealth {
         enableCalls += 1
+        registrationStatus = .enabled
         return enabled
     }
 
     func repairAndInspect() -> SourceHealth {
         repairCalls += 1
+        registrationStatus = .enabled
         return enabled
     }
 
     func disableAndInspect() -> SourceHealth {
         disableCalls += 1
+        registrationStatus = .notRegistered
         return disabled
     }
 }

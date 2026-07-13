@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 protocol AgentLifecycleServicing: AnyObject {
     func inspect() -> SourceHealth
+    func launchAtLoginStatus() -> AgentRegistrationStatus
     func enableAndInspect() -> SourceHealth
     func repairAndInspect() -> SourceHealth
     func disableAndInspect() -> SourceHealth
@@ -32,6 +33,7 @@ final class AgentLifecycleController: ObservableObject {
     }
 
     @Published private(set) var health: SourceHealth
+    @Published private(set) var launchAtLoginStatus: AgentRegistrationStatus
     @Published private(set) var operation: Operation = .idle
     @Published private(set) var lastCheckedAt: Date
     @Published private(set) var loginItemsOpenFailure: String?
@@ -50,11 +52,12 @@ final class AgentLifecycleController: ObservableObject {
         self.now = now
         self.openURL = openURL
         health = resolvedService.inspect()
+        launchAtLoginStatus = resolvedService.launchAtLoginStatus()
         lastCheckedAt = now()
     }
 
     var canEnable: Bool {
-        operation == .idle && health.state == .notConnected
+        operation == .idle && launchAtLoginStatus == .notRegistered
     }
 
     var canRepair: Bool {
@@ -62,7 +65,18 @@ final class AgentLifecycleController: ObservableObject {
     }
 
     var canDisable: Bool {
-        operation == .idle && health.state == .healthy
+        operation == .idle
+            && (launchAtLoginStatus == .enabled || launchAtLoginStatus == .requiresApproval)
+    }
+
+    var launchAtLoginDescription: String {
+        switch launchAtLoginStatus {
+        case .enabled: "Enabled"
+        case .requiresApproval: "Waiting for approval"
+        case .notRegistered: "Disabled"
+        case .notFound: "Unavailable"
+        case .unknown: "Unknown"
+        }
     }
 
     func refresh() {
@@ -103,6 +117,7 @@ final class AgentLifecycleController: ObservableObject {
         guard operation == .idle else { return }
         operation = nextOperation
         health = action(service)
+        launchAtLoginStatus = service.launchAtLoginStatus()
         lastCheckedAt = now()
         operation = .idle
     }
