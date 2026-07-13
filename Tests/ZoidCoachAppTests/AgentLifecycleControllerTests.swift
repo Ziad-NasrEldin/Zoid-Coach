@@ -22,6 +22,7 @@ func agentLifecycleControllerExposesApprovalRecoveryAndReturnsHealthy() {
     #expect(controller.canRepair)
     #expect(controller.canDisable)
     #expect(controller.launchAtLoginDescription == "Waiting for approval")
+    #expect(controller.recoveryGuidance?.contains("waiting for approval") == true)
 
     controller.repair()
 
@@ -53,6 +54,7 @@ func agentLifecycleControllerDisablesWithoutDeletingForegroundState() {
     #expect(!controller.canRepair)
     #expect(!controller.canDisable)
     #expect(controller.launchAtLoginDescription == "Disabled")
+    #expect(controller.recoveryGuidance == nil)
 }
 
 @MainActor
@@ -69,11 +71,13 @@ func agentLifecycleControllerCanDisableARegisteredAgentWithAStaleHeartbeat() {
     #expect(controller.health.state == .attention)
     #expect(controller.launchAtLoginDescription == "Enabled")
     #expect(controller.canDisable)
+    #expect(controller.recoveryGuidance?.contains("helper is not checking in") == true)
 
     controller.disable()
 
     #expect(service.disableCalls == 1)
     #expect(controller.launchAtLoginDescription == "Disabled")
+    #expect(controller.recoveryGuidance == nil)
     #expect(controller.canEnable)
     #expect(!controller.canDisable)
 }
