@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "2501452a6aacbeada8644e14415a0dd01f77333b19f19eae27916e542285ec31",
+  "tracker_sha256": "bf2126ecbff576ba44a4a8f1785207cd8dd7f3b072b1165b3cac49c99cf666a2",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5479,8 +5479,8 @@
       "item_index": 3,
       "wording": "See browsers, Discord, Slack, Notion, YouTube, and Preview treated according to context rather than permanently judged.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5489,10 +5489,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/contextual-app-classification/verification/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Discord is always gaming, Slack always work, YouTube always distracting, and browsers/Notion/Preview generally unknown unless globally overridden. No task or window context classifier exists.",
+      "audit_note": "Screenwatch now classifies context-sensitive apps from local title and URL signals after durable correction rules and explicit application policy, while ambiguous context remains Unknown. Focused ingestion tests cover Safari documentation, YouTube tutorials and Shorts, Discord project and gaming contexts, Notion roadmaps, Preview proposals, ambiguous Slack, policy precedence, and SQLite reopen persistence. In the installed signed-QA app, the exact mixed fixture produced visible Work, Gaming, Distraction, and Unknown totals, preserved them after app and helper relaunch, and exposed the privacy-safe Review path without titles or URLs. One finishing touch remains: visibly create an explicit rule, ingest later contradictory context, relaunch the helper and app, and confirm that the user rule still wins (`ContextualAppClassification.swift`; `ScreenwatchArchive.swift`; `ScreenwatchArchiveTests.swift`; `.audit/runs/contextual-app-classification/verification/REPORT.md`).",
       "tracker_line": 370
     },
     {

@@ -8,18 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-14 against branch `codex/full-system` through failed-upgrade recovery verification commit `6d35b8112ce37ca6daeba7ad751b0e418bac1c51`, the exact 666-scenario registry, and capped native macOS accessibility and pixel testing.
+Updated on 2026-07-14 against branch `codex/full-system` through contextual application classification verification commit `1377547`, the exact 666-scenario registry, and capped native macOS accessibility and pixel testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
 - **Fully implemented:** 176
-- **Touches remaining:** 297
+- **Touches remaining:** 298
 - **Frontend only left:** 3
 - **Partially implemented:** 100
 - **Barely started:** 8
-- **Not implemented:** 55
+- **Not implemented:** 54
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -367,7 +367,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 - [x] See known work applications classified according to configured rules. **Status: Fully implemented.** The signed-QA Settings ledger discovered 131 installed, observed, and saved applications, exposed distinct Auto, Work, Communication, and Gaming choices, persisted an explicit rule through the agent, and restored that exact normalized rule after relaunch. Runtime tests prove that Work and Communication rules count as work while Communication remains visibly distinct (`AppClassificationLedger.swift`; `UserPolicyTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).
 - [x] See known games classified as gaming. **Status: Fully implemented.** The signed-QA ledger exposes Gaming for every discovered application, the visible verifier applied Gaming individually and through a confirmed filtered bulk action, and runtime tests prove configured Gaming overrides classification and budget accounting (`AppClassificationLedger.swift`; `TodayDashboardTests.swift`; `.audit/runs/app-classification-management/candidate/REPORT.md`).
-- [ ] See browsers, Discord, Slack, Notion, YouTube, and Preview treated according to context rather than permanently judged. **Status: Not implemented.** Discord is always gaming, Slack always work, YouTube always distracting, and browsers/Notion/Preview generally unknown unless globally overridden. No task or window context classifier exists.
+- [ ] See browsers, Discord, Slack, Notion, YouTube, and Preview treated according to context rather than permanently judged. **Status: Touches remaining.** Screenwatch now classifies context-sensitive apps from local title and URL signals after durable correction rules and explicit application policy, while ambiguous context remains Unknown. Focused ingestion tests cover Safari documentation, YouTube tutorials and Shorts, Discord project and gaming contexts, Notion roadmaps, Preview proposals, ambiguous Slack, policy precedence, and SQLite reopen persistence. In the installed signed-QA app, the exact mixed fixture produced visible Work, Gaming, Distraction, and Unknown totals, preserved them after app and helper relaunch, and exposed the privacy-safe Review path without titles or URLs. One finishing touch remains: visibly create an explicit rule, ingest later contradictory context, relaunch the helper and app, and confirm that the user rule still wins (`ContextualAppClassification.swift`; `ScreenwatchArchive.swift`; `ScreenwatchArchiveTests.swift`; `.audit/runs/contextual-app-classification/verification/REPORT.md`).
 - [ ] See uncertain activity remain unknown. **Status: Touches remaining.** Unmatched applications are classified `unknown` and shown as `Unclassified`; this behavior is implemented and tested at the classifier/sessionizer level.
 - [ ] Avoid a strong drift warning based only on uncertain activity. **Status: Barely started.** Unknown classification exists, but drift warning generation does not.
 - [ ] Be asked for confirmation when ambiguity materially affects coaching. **Status: Not implemented.** No ambiguity-confirmation prompt generator exists.
