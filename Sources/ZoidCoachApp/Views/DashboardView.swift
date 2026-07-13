@@ -1804,6 +1804,9 @@ private struct TimeBlockSelector: View {
 
     private let durations = [15, 30, 45, 60, 90]
     @State private var isChanging = false
+    @State private var isEnteringCustom = false
+    @State private var customMinutes = ""
+    @State private var customError: String?
 
     var body: some View {
         HStack(spacing: 7) {
@@ -1848,6 +1851,28 @@ private struct TimeBlockSelector: View {
                 .contentShape(Rectangle())
                 .accessibilityLabel("Change \(taskTitle) estimate from \(durationLabel(selectedMinutes))")
                 .help("Change time estimate")
+            } else if isEnteringCustom {
+                TextField("Minutes", text: $customMinutes)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 78)
+                    .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
+                    .accessibilityIdentifier("task-estimate-custom-input")
+                    .onSubmit(saveCustomEstimate)
+                Button("SAVE", action: saveCustomEstimate)
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
+                    .accessibilityIdentifier("task-estimate-custom-save")
+                Button("CANCEL") {
+                    isEnteringCustom = false
+                    customError = nil
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                if let customError {
+                    Text(customError)
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("task-estimate-custom-error")
+                }
             } else {
                 ForEach(durations, id: \.self) { minutes in
                     Button {
@@ -1863,11 +1888,32 @@ private struct TimeBlockSelector: View {
                     .buttonStyle(TimeSlotButtonStyle())
                     .accessibilityLabel("Set \(taskTitle) estimate to \(durationLabel(minutes))")
                 }
+                Button("CUSTOM") {
+                    customMinutes = selectedMinutes.map(String.init) ?? ""
+                    customError = nil
+                    isEnteringCustom = true
+                }
+                .buttonStyle(TimeSlotButtonStyle())
+                .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
+                .accessibilityIdentifier("task-estimate-custom")
             }
             Spacer()
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: selectedMinutes)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isChanging)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isEnteringCustom)
+    }
+
+    private func saveCustomEstimate() {
+        switch TaskEstimateInput.parse(customMinutes) {
+        case let .success(minutes):
+            select(minutes)
+            isChanging = false
+            isEnteringCustom = false
+            customError = nil
+        case let .failure(error):
+            customError = error.message
+        }
     }
 
     private func durationLabel(_ minutes: Int) -> String {
