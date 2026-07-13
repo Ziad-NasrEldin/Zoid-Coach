@@ -529,6 +529,33 @@ struct SettingsView: View {
                 .foregroundStyle(Sumi.muted)
                 .accessibilityIdentifier("settings.coaching-level.explanation")
 
+            VStack(alignment: .leading, spacing: 12) {
+                Text("GAMING ALLOWANCE")
+                    .font(Sumi.label(10))
+                    .sumiLabelTracking()
+                SumiStepper(
+                    "BASE AVAILABLE EACH DAY",
+                    value: $controller.draft.gamingDailyBudgetMinutes,
+                    in: 0...1_440,
+                    step: 5,
+                    valueLabel: { "\($0) MIN" }
+                )
+                .accessibilityIdentifier("settings.gaming.daily-budget")
+                SumiStepper(
+                    "UNLOCK AFTER PRIORITY COMPLETION",
+                    value: $controller.draft.gamingPriorityTaskRewardMinutes,
+                    in: 0...1_440,
+                    step: 5,
+                    valueLabel: { "\($0) MIN" }
+                )
+                .accessibilityIdentifier("settings.gaming.priority-reward")
+                Text(gamingAllowanceExplanation)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.gaming.allowance-explanation")
+            }
+
             if let version = controller.previousPolicyVersion {
                 Button("ROLL BACK TO POLICY V\(version)") { presentConfirmation(.restorePolicy) }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
@@ -536,6 +563,18 @@ struct SettingsView: View {
                     .accessibilityHint("Restores the previous settings as a new policy version")
             }
         }
+    }
+
+    private var gamingAllowanceExplanation: String {
+        let base = controller.draft.gamingDailyBudgetMinutes
+        let reward = controller.draft.gamingPriorityTaskRewardMinutes
+        if base == 0, reward == 0 {
+            return "No gaming minutes are available during work windows. Gaming is still observed factually, and coaching remains non-punitive."
+        }
+        if reward == 0 {
+            return "Up to \(base) minutes are available each day. Completing the priority objective does not add more time."
+        }
+        return "Start with \(base) minutes each day. Completing the priority objective unlocks \(reward) additional minutes once; used gaming time is never erased."
     }
 
     private var scheduleSection: some View {
