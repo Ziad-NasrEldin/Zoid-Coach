@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "run_id": "planned-task-start-reminders/0b857b9fd456b76ae69a2bc951d1fdac4f34d35d",
+  "verified_commit": "0b857b9fd456b76ae69a2bc951d1fdac4f34d35d",
+  "build_identity": "zoid-coach-0b857b9fd456b76ae69a2bc951d1fdac4f34d35d-clean",
+  "fixture": "/private/tmp/zoid-666-planned-task-start-reminder-qa/OS Fixtures/state.json",
+  "qa_root": "/private/tmp/zoid-666-planned-task-start-reminder-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "b8f11ce0e9ed87652ad15b7eadc06b0c72cfa84ac8f060b93f4ccc9ffc262feb",
+  "scenario_ids": [
+    "ZC-054-002"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T05:42:12.614774+00:00",
+  "completed_at": "2026-07-13T05:43:07Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "c18649e6fe221490d07363898a52be5d859398b0ed6a79f8149fab095fbac8d1"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "accepted_focus_blocks_schedule_exact_start_reminders",
+      "result": "passed",
+      "detail": "The signed accepted plan produced one stable TASK_START request at 09:00 and one at 09:40 for its two committed blocks."
+    },
+    {
+      "name": "optional_task_is_excluded",
+      "result": "passed",
+      "detail": "The accepted-plan traversal produced no task-start request for its optional task."
+    },
+    {
+      "name": "replan_replaces_time_and_copy_under_stable_identifier",
+      "result": "passed",
+      "detail": "The second request retained its stable ID while moving to 10:10 and adopting the revised task copy."
+    },
+    {
+      "name": "restart_preserves_two_current_requests",
+      "result": "passed",
+      "detail": "App and helper restart retained exactly the two current TASK_START requests."
+    }
+  ],
+  "commands": [
+    "swift test --filter AgentPlanSchedulerTests|ActionCommandExecutorTests",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-planned-task-start-reminder-qa Scripts/install-signed-qa-runtime.sh"
+  ]
+}

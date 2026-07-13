@@ -759,7 +759,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 ## 54. Quiet hours and scheduling
 
 - [ ] Receive morning planning at the configured time. **Status: Partially implemented.** The agent runs scheduled and missed-run planning, but current settings center on nightly planning and no complete morning invitation flow was proven.
-- [ ] Receive planned task-start reminders. **Status: Barely started.** Scheduled calendar blocks exist, but a dedicated user-facing task-start reminder journey is not present.
+- [x] Receive planned task-start reminders. **Status: Fully implemented.** The signed app accepted a two-block plan and scheduled exactly one `TASK_START` request at each block start, while the optional task produced none. Replanning retained the stable day-and-task identifier, replaced the second request's 09:40 time with 10:10 and revised its task copy, and app/helper restart preserved exactly two requests (`AgentPlanScheduler.swift`; `ActionCommandExecutor.swift`; `.audit/runs/planned-task-start-reminders/0b857b9fd456b76ae69a2bc951d1fdac4f34d35d/REPORT.md`).
 - [ ] Receive break-end reminders. **Status: Not implemented.** No break model, break scheduler, or break-end notification UI was found.
 - [ ] Receive the end-of-day review reminder. **Status: Not implemented.** No functional daily review system or review scheduling surface is present.
 - [ ] Receive the weekly review reminder. **Status: Not implemented.** No functional weekly review generation or reminder exists.
