@@ -808,30 +808,68 @@ final class AppModel: ObservableObject {
     }
 
     func rescheduleTask(_ taskID: String, until date: Date) {
+        Task { _ = await performTaskReschedule(taskID, until: date) }
+    }
+
+    @MainActor
+    func rescheduleTaskFromPrompt(_ episode: PromptEpisode, until date: Date) async -> Bool {
+        guard pendingPromptID == nil,
+              let request = PromptTaskRescheduleRequest(episode: episode)
+        else { return false }
+        pendingPromptID = episode.id
+        promptInboxError = nil
+        defer { pendingPromptID = nil }
+
+        guard await performTaskReschedule(request.taskID, until: date) else {
+            promptInboxError = "The task was not rescheduled, so this decision is still waiting. Review the current plan and try again."
+            await refreshPromptInbox()
+            return false
+        }
+        let command = PromptResponseCommand(
+            promptID: episode.id,
+            action: .rescheduleTask,
+            actionToken: PromptResponseToken.make(promptID: episode.id, action: .rescheduleTask),
+            surface: .dashboard
+        )
+        do {
+            _ = try await todayDashboardXPCClient.respondToPrompt(command)
+            await refreshPromptInbox()
+            await refreshTodaySnapshot()
+            return true
+        } catch {
+            await refreshPromptInbox()
+            promptInboxError = "The new date is saved, but the decision could not be closed. Retry Reschedule to reconcile it safely."
+            return false
+        }
+    }
+
+    @MainActor
+    private func performTaskReschedule(_ taskID: String, until date: Date) async -> Bool {
         guard let entry = dailyPlan.first(where: { $0.reminderID == taskID }) else {
             persistenceMessage = "This task is no longer in today's plan. Refresh before rescheduling it."
-            return
+            return false
         }
-        guard let planPersistence = deferTask(entry, until: date) else { return }
-        Task {
-            guard await planPersistence.value else { return }
-            guard !taskID.hasPrefix("local:") else {
-                persistenceMessage = "The local planning date is saved. No Apple Reminders sync is needed for this local task."
-                return
+        guard let planPersistence = deferTask(entry, until: date),
+              await planPersistence.value
+        else { return false }
+        guard !taskID.hasPrefix("local:") else {
+            persistenceMessage = "The local planning date is saved. No Apple Reminders sync is needed for this local task."
+            return true
+        }
+        do {
+            let receipt = try await todayDashboardXPCClient.apply(
+                .rescheduleReminder(reminderID: taskID, dueDate: date)
+            )
+            guard receipt.accepted, receipt.commandIDs.count == 1 else {
+                throw AppModelPersistenceError.rejected
             }
-            do {
-                let receipt = try await todayDashboardXPCClient.apply(
-                    .rescheduleReminder(reminderID: taskID, dueDate: date)
-                )
-                guard receipt.accepted, receipt.commandIDs.count == 1 else {
-                    throw AppModelPersistenceError.rejected
-                }
-                persistenceMessage = "The new planning date is saved locally. Apple Reminders sync is pending."
-                await refreshActionAudit()
-                await monitorReminderRescheduleSync(taskID: taskID, dueDate: date)
-            } catch {
-                persistenceMessage = "The new planning date remains selected locally, but Apple Reminders sync could not be queued. Check Reminders access and try again."
-            }
+            persistenceMessage = "The new planning date is saved locally. Apple Reminders sync is pending."
+            await refreshActionAudit()
+            Task { await monitorReminderRescheduleSync(taskID: taskID, dueDate: date) }
+            return true
+        } catch {
+            persistenceMessage = "The new planning date remains selected locally, but Apple Reminders sync could not be queued. Check Reminders access and try again."
+            return false
         }
     }
 
