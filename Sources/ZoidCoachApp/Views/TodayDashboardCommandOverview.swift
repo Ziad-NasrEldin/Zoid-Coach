@@ -148,8 +148,10 @@ struct TodayDashboardCommandOverview: View {
                 if let entry = planEntry(for: row) {
                     TodayEstimateStrip(
                         selectedMinutes: entry.estimateMinutes,
+                        isUnknown: entry.estimateIsUncertain,
                         taskTitle: row.title,
-                        setEstimate: { model.setEstimate($0, for: entry) }
+                        setEstimate: { model.setEstimate($0, for: entry) },
+                        setUnknown: { model.setEstimateUnknown(for: entry) }
                     )
                     .padding(.top, 14)
                 }
@@ -342,6 +344,11 @@ struct TodayDashboardCommandOverview: View {
                     setEstimate: { minutes in
                         if let entry = planEntry(for: row) {
                             model.setEstimate(minutes, for: entry)
+                        }
+                    },
+                    setUnknown: {
+                        if let entry = planEntry(for: row) {
+                            model.setEstimateUnknown(for: entry)
                         }
                     },
                     moveUp: { planEntry(for: row).map { model.moveDailyPlanEntry($0, by: -1) } },
@@ -958,6 +965,7 @@ private struct TodayPlanTaskRow: View {
     let applyCommand: () -> Void
     let makeMain: () -> Void
     let setEstimate: (Int) -> Void
+    let setUnknown: () -> Void
     let moveUp: () -> Void
     let moveDown: () -> Void
     let toggleOptional: () -> Void
@@ -1015,8 +1023,10 @@ private struct TodayPlanTaskRow: View {
                     }
                     TodayEstimateStrip(
                         selectedMinutes: entry.estimateMinutes,
+                        isUnknown: entry.estimateIsUncertain,
                         taskTitle: row.title,
-                        setEstimate: setEstimate
+                        setEstimate: setEstimate,
+                        setUnknown: setUnknown
                     )
                     HStack(spacing: 14) {
                         Button("MOVE UP", action: moveUp)
@@ -1070,6 +1080,9 @@ private struct TodayPlanTaskRow: View {
 
     private var estimateSummary: String {
         if let entry {
+            if entry.estimateIsUncertain {
+                return "Unknown · ~\(PlanningCapacityState.unknownEstimatePlaceholderMinutes)m placeholder"
+            }
             return entry.estimateMinutes.map { "\($0)m" } ?? "Estimate needed"
         }
         return "\(row.estimateMinutes)m"
@@ -1092,8 +1105,10 @@ private struct TodayPlanTaskRow: View {
 private struct TodayEstimateStrip: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let selectedMinutes: Int?
+    let isUnknown: Bool
     let taskTitle: String
     let setEstimate: (Int) -> Void
+    let setUnknown: () -> Void
     private let options = [15, 30, 45, 60, 90]
 
     var body: some View {
@@ -1115,6 +1130,17 @@ private struct TodayEstimateStrip: View {
                     .accessibilityLabel("Set \(taskTitle) estimate to \(minutes) minutes")
                     .accessibilityValue(selectedMinutes == minutes ? "Selected" : "Not selected")
             }
+            Button("UNKNOWN", action: setUnknown)
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(isUnknown ? Sumi.paper : Sumi.ink)
+                .padding(.horizontal, 6)
+                .frame(height: 24)
+                .background(isUnknown ? Sumi.seal : Sumi.paper)
+                .overlay { Rectangle().stroke(isUnknown ? Sumi.seal : Sumi.rule, lineWidth: 1) }
+                .buttonStyle(TodayCommandPressStyle())
+                .accessibilityLabel("Set \(taskTitle) estimate to unknown and use a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder")
+                .accessibilityValue(isUnknown ? "Selected" : "Not selected")
             if let selectedMinutes {
                 Text("\(selectedMinutes) MIN SELECTED")
                     .font(Sumi.label(7))
@@ -1122,6 +1148,12 @@ private struct TodayEstimateStrip: View {
                     .foregroundStyle(Sumi.seal)
                     .contentTransition(.numericText())
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            } else if isUnknown {
+                Text("~\(PlanningCapacityState.unknownEstimatePlaceholderMinutes) MIN PLACEHOLDER · UNCERTAIN")
+                    .font(Sumi.label(7))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                    .accessibilityIdentifier("today-estimate-unknown-placeholder")
             }
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: selectedMinutes)

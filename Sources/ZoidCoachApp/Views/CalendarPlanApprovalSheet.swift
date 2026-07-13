@@ -65,7 +65,7 @@ struct CalendarPlanApprovalSheet: View {
                 HStack {
                     Text("\(item.rank). \(item.title)\(item.isMainObjective ? " · MAIN" : "")")
                     Spacer()
-                    Text("\(item.estimateMinutes)m")
+                    Text(item.estimateIsUncertain == true ? "~\(item.estimateMinutes)m placeholder" : "\(item.estimateMinutes)m")
                 }
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.ink)
@@ -170,10 +170,20 @@ struct CalendarPlanApprovalSheet: View {
                                 }
                             }
                             Spacer()
-                            Text("\(item.estimateMinutes) MIN")
-                                .font(Sumi.label(9))
-                                .sumiLabelTracking()
-                                .foregroundStyle(Sumi.muted)
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(item.estimateIsUncertain == true ? "~\(item.estimateMinutes) MIN" : "\(item.estimateMinutes) MIN")
+                                    .font(Sumi.label(9))
+                                    .sumiLabelTracking()
+                                if item.estimateIsUncertain == true {
+                                    Text("UNCERTAIN PLACEHOLDER")
+                                        .font(Sumi.label(7))
+                                        .sumiLabelTracking()
+                                }
+                            }
+                            .foregroundStyle(item.estimateIsUncertain == true ? Sumi.seal : Sumi.muted)
+                            .accessibilityLabel(item.estimateIsUncertain == true
+                                ? "Unknown estimate using a conservative \(item.estimateMinutes) minute placeholder"
+                                : "\(item.estimateMinutes) minute estimate")
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 12)

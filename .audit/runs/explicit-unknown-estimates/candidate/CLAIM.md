@@ -2,6 +2,7 @@
 
 - Authoritative baseline: `6cf2cd779cc6181d1b665c41db8df9ea63d31e90`.
 - Branch: `codex/explicit-unknown-estimates`.
+- Migration reservation: authoritative `6cf2cd7` declares current migration 37 and ends at migration 37, so this lane exclusively claims additive migration 38.
 
 ## Scenarios
 
