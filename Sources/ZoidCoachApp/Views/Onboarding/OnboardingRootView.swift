@@ -503,27 +503,49 @@ struct OnboardingRootView: View {
                 bodyText: "Work hours guide planning capacity. Quiet hours prevent coaching delivery. Overnight quiet windows are supported.",
                 note: "These are starting boundaries, not surveillance rules. You can adjust them any time in Settings."
             )
-            hourPicker("WORK START", value: $coordinator.workStartHour, id: "work-start")
-            hourPicker("WORK END", value: $coordinator.workEndHour, id: "work-end")
+            timePicker("WORK START", hour: $coordinator.workStartHour, minute: $coordinator.workStartMinute, id: "work-start")
+            timePicker("WORK END", hour: $coordinator.workEndHour, minute: $coordinator.workEndMinute, id: "work-end")
             Rectangle().fill(Sumi.paleRule).frame(height: 1)
-            hourPicker("QUIET START", value: $coordinator.quietStartHour, id: "quiet-start")
-            hourPicker("QUIET END", value: $coordinator.quietEndHour, id: "quiet-end")
+            timePicker("QUIET START", hour: $coordinator.quietStartHour, minute: $coordinator.quietStartMinute, id: "quiet-start")
+            timePicker("QUIET END", hour: $coordinator.quietEndHour, minute: $coordinator.quietEndMinute, id: "quiet-end")
+            if let message = coordinator.scheduleValidationMessage {
+                Text(message)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("onboarding.schedule.validation")
+            } else {
+                Text("Work boundaries are valid. Quiet hours may cross midnight.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.okay)
+                    .accessibilityIdentifier("onboarding.schedule.validation")
+            }
         }
     }
 
-    private func hourPicker(_ title: String, value: Binding<Int>, id: String) -> some View {
+    private func timePicker(_ title: String, hour: Binding<Int>, minute: Binding<Int>, id: String) -> some View {
         HStack {
             Text(title).font(Sumi.label()).tracking(1.2)
             Spacer()
-            Picker(title, selection: value) {
+            Picker("\(title) hour", selection: hour) {
                 ForEach(0..<24, id: \.self) { hour in
-                    Text(String(format: "%02d:00", hour)).tag(hour)
+                    Text(String(format: "%02d", hour)).tag(hour)
                 }
             }
             .labelsHidden()
-            .frame(width: 120)
-            .accessibilityLabel(title.capitalized)
-            .accessibilityIdentifier("onboarding.schedule.\(id)")
+            .frame(width: 72)
+            .accessibilityLabel("\(title.capitalized) hour")
+            .accessibilityIdentifier("onboarding.schedule.\(id).hour")
+            Text(":").font(Sumi.body(14))
+            Picker("\(title) minute", selection: minute) {
+                ForEach([0, 15, 30, 45], id: \.self) { minute in
+                    Text(String(format: "%02d", minute)).tag(minute)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 72)
+            .accessibilityLabel("\(title.capitalized) minute")
+            .accessibilityIdentifier("onboarding.schedule.\(id).minute")
         }
     }
 

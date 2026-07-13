@@ -46,6 +46,7 @@ enum OnboardingDependencyError: LocalizedError {
     case gamingPolicyPersistenceUnavailable
     case firstDailyPlanUnavailable
     case invalidPolicyMutationReceipt
+    case invalidScheduleBoundaries
     case reminderListSelectionRequired
     case testPromptUnavailable
 
@@ -57,6 +58,8 @@ enum OnboardingDependencyError: LocalizedError {
             "A visible first daily plan has not been prepared. Setup was not marked complete."
         case .invalidPolicyMutationReceipt:
             "The agent did not return a durable policy receipt. Setup was not advanced."
+        case .invalidScheduleBoundaries:
+            "Choose a valid daytime work window and non-empty quiet hours before continuing."
         case .reminderListSelectionRequired:
             "Choose Include or Exclude for every discovered Reminder list before continuing."
         case .testPromptUnavailable:
