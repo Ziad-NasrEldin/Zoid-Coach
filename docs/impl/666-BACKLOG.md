@@ -561,3 +561,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Actual foreground return clears the pending repair message instead of showing the still-denied breadcrumb and Today fallback.
 - Fix pending-return retention across the signed foreground lifecycle, then verify denied, granted, unrelated-foreground, and relaunch states before promotion.
 - Verifier evidence is recorded in `.audit/runs/notification-permission-return-ux/verifier/REPORT.md`.
+
+### Temporary local database lock recovery - candidate
+
+- Owns `ZC-052-005`.
+- Retries only SQLite busy and locked results at the action-outbox immediate write-transaction boundary after the connection busy timeout expires.
+- Uses a bounded default retry schedule so a short competing local write no longer discards the user's queued action, while a persistent lock still fails closed instead of waiting forever.
+- Keeps non-lock database failures immediate and preserves the existing atomic transaction and idempotency behavior.
+- Two focused tests use a real second SQLite connection to prove successful durable insertion after a temporary exclusive lock and bounded failure while an exclusive lock persists.
+- The broader outbox test group and the release build pass.
+- Candidate evidence is recorded in `.audit/runs/database-lock-retry/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after independent installed-app verification that holds the QA database lock, submits a visible user mutation, releases the lock, and confirms the mutation and restart persistence.
