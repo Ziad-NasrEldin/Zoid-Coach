@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "run_id": "daily-review-highlights/d46af5253c18850ef34a5e583a8189bc3a0d6b74",
+  "verified_commit": "d46af5253c18850ef34a5e583a8189bc3a0d6b74",
+  "build_identity": "zoid-coach-d46af5253c18850ef34a5e583a8189bc3a0d6b74-clean",
+  "fixture": "/private/tmp/zoid-666-daily-review-highlights-qa/Application Support/Zoid 666/zoid-coach.sqlite",
+  "qa_root": "/private/tmp/zoid-666-daily-review-highlights-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "45ad394e1d520440b1ac2fa7d0a002545edd1648ee3af253f6f6dbce76d0c767",
+  "scenario_ids": ["ZC-041-009", "ZC-041-010", "ZC-041-011"],
+  "required_proof_classes": ["installed_app_e2e", "ui_automation", "unit_rule"],
+  "status": "passed",
+  "started_at": "2026-07-13T06:57:00Z",
+  "completed_at": "2026-07-13T07:01:00Z",
+  "artifacts": [
+    {"path": "REPORT.md", "sha256": "3f19f1dcf8ac6663040967090d627261b9798a604625a906675b8dc4c23df30e"}
+  ],
+  "assertions": [
+    {"name": "correction_aware_exact_tie_work_highlight", "result": "passed", "detail": "Corrected YouTube won a true five-minute tie over later Xcode and persisted after relaunch."},
+    {"name": "largest_corrected_drift_and_empty_state", "result": "passed", "detail": "Steam won over shorter Safari, while the prior day exposed explicit not-observed states."},
+    {"name": "filtered_coaching_response_states", "result": "passed", "detail": "Applied, pending, and unanswered behavior prompts were visible; PLAN_READY was absent; relaunch preserved the history."}
+  ],
+  "commands": [
+    "swift test --filter DailyReviewTests",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-daily-review-highlights-qa Scripts/install-signed-qa-runtime.sh"
+  ]
+}

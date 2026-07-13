@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "36cca485eff590124efb872f99527f281266a3ef2661d7360368541ccdcb4a03",
+  "tracker_sha256": "95698949fdd774858a1226a4022a4c729dcdc8e22e2a0a2fc3260e6452ecd126",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9092,9 +9092,9 @@
       "section_title": "Understanding the daily review",
       "item_index": 9,
       "wording": "See the best work block.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9102,10 +9102,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No best-block calculation or review presentation was found.",
+      "evidence_paths": [
+        ".audit/runs/daily-review-highlights/d46af5253c18850ef34a5e583a8189bc3a0d6b74/evidence.json"
+      ],
+      "last_verified_commit": "d46af5253c18850ef34a5e583a8189bc3a0d6b74",
+      "last_verified_build": "zoid-coach-d46af5253c18850ef34a5e583a8189bc3a0d6b74-clean",
+      "audit_note": "The signed review showed the longest corrected observed work session with app, duration, classification, and policy-local time; a corrected earlier YouTube block won a true five-minute tie over later Xcode, the empty state was explicit, and relaunch preserved the result (`DailyReview.swift`; `DailyReviewStore.swift`; `.audit/runs/daily-review-highlights/verifier/REPORT.md`).",
       "tracker_line": 580
     },
     {
@@ -9114,9 +9116,9 @@
       "section_title": "Understanding the daily review",
       "item_index": 10,
       "wording": "See the largest drift episode.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9124,10 +9126,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No drift-episode review calculation exists.",
+      "evidence_paths": [
+        ".audit/runs/daily-review-highlights/d46af5253c18850ef34a5e583a8189bc3a0d6b74/evidence.json"
+      ],
+      "last_verified_commit": "d46af5253c18850ef34a5e583a8189bc3a0d6b74",
+      "last_verified_build": "zoid-coach-d46af5253c18850ef34a5e583a8189bc3a0d6b74-clean",
+      "audit_note": "The signed review selected a three-minute Steam gaming episode over a two-minute Safari distraction, exposed factual corrected-observation copy and local time, showed an explicit not-observed state on an empty day, and preserved the result after relaunch (`DailyReview.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-highlights/verifier/REPORT.md`).",
       "tracker_line": 581
     },
     {
@@ -9136,9 +9140,9 @@
       "section_title": "Understanding the daily review",
       "item_index": 11,
       "wording": "See coaching prompts and responses.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9146,10 +9150,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Prompt records exist for plans/meetings, but no review presentation and no behavior coaching records exist.",
+      "evidence_paths": [
+        ".audit/runs/daily-review-highlights/d46af5253c18850ef34a5e583a8189bc3a0d6b74/evidence.json"
+      ],
+      "last_verified_commit": "d46af5253c18850ef34a5e583a8189bc3a0d6b74",
+      "last_verified_build": "zoid-coach-d46af5253c18850ef34a5e583a8189bc3a0d6b74-clean",
+      "audit_note": "The signed review showed applied, effect-pending, and unanswered behavior-coaching states with action, surface, and policy-local time, excluded an unrelated planning prompt, exposed a factual empty state, and reproduced the filtered history after relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-highlights/verifier/REPORT.md`).",
       "tracker_line": 582
     },
     {
