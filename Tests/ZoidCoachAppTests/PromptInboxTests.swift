@@ -248,7 +248,7 @@ func promptInboxRefusesToDismissAMandatoryDecision() throws {
     #expect(throws: PromptInboxStoreError.dismissalNotAllowed) {
         try store.dismiss(promptID: mandatory.id)
     }
-    #expect(try store.episode(promptID: mandatory.id)?.state == .detected)
+    #expect(try store.episode(promptID: mandatory.id)?.state == .queued)
 }
 
 private func promptDraft(decisionKey: String, expiresAt: Date? = nil) -> PromptDraft {

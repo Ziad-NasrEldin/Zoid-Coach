@@ -408,7 +408,8 @@ func fiveMoreMinutesSurvivesRestartAndProducesExactlyOneFollowUpAfterFiveMinutes
     }
     #expect(wasInserted)
     #expect(followUp.title == "Your five minutes are up")
-    #expect(followUp.summary.contains("The five minutes you chose have ended"))
+    #expect(followUp.summary.contains("The five-minute extension has ended"))
+    #expect(followUp.summary.contains("15 observed minutes in Steam"))
     #expect(followUp.payload["followUpForPromptID"] == episode.id)
     #expect(followUp.payload["snoozeDurationMinutes"] == "5")
     #expect(!followUp.actions.contains { $0.kind == .fiveMoreMinutes })
