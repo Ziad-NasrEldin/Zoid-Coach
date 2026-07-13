@@ -49,19 +49,24 @@ public final class AgentOwnedStateStore: @unchecked Sendable {
 
         let reminderIDs = items.map { $0.reminderID.trimmingCharacters(in: .whitespacesAndNewlines) }
         let ranks = items.map(\.rank)
+        let actionableItems = items.filter {
+            $0.isOptional != true && !($0.deferredUntil.map { $0 > now } ?? false)
+        }
+        let mainObjectives = items.filter(\.isMainObjective)
         guard reminderIDs.allSatisfy({ !$0.isEmpty }),
               Set(reminderIDs).count == items.count,
               Set(ranks) == Set(1...items.count),
-              items.filter(\.isMainObjective).count == 1,
+              mainObjectives.count == (actionableItems.isEmpty ? 0 : 1),
               items.allSatisfy({ $0.estimateMinutes.map { $0 > 0 } ?? true }),
               items.allSatisfy({ !($0.estimateIsUncertain == true && $0.estimateMinutes != nil) }),
               items.allSatisfy({ item in
                   guard let reason = item.blockedReason else { return true }
                   return (3...240).contains(reason.trimmingCharacters(in: .whitespacesAndNewlines).count)
               }),
-              let mainObjective = items.first(where: \.isMainObjective),
-              mainObjective.isOptional != true,
-              !(mainObjective.deferredUntil.map { $0 > now } ?? false)
+              mainObjectives.allSatisfy({ mainObjective in
+                  mainObjective.isOptional != true
+                      && !(mainObjective.deferredUntil.map { $0 > now } ?? false)
+              })
         else { throw AgentOwnedStateStoreError.invalidDailyPlan }
     }
 
