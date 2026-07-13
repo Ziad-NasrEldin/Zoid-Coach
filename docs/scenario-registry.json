@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "7eb83bff8f53c2b1a6a3e38dbe94af1bf010b7d05757e60e296505c510d514d4",
+  "tracker_sha256": "d8f7663c0b75f0409f933a774e5e3605bdd8f057eafc3d0886009c1dd270e8b4",
   "scenario_count": 666,
   "scenarios": [
     {
