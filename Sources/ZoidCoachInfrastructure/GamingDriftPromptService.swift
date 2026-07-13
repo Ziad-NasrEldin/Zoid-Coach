@@ -232,16 +232,21 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             let normalizedApp = app.lowercased()
             let normalizedTitle = windowTitle.lowercased()
             let normalizedURL = url.lowercased()
-            let neutralApps = [
+            let neutralAppNames = [
                 "system settings", "system preferences", "1password", "bitwarden", "keychain access",
-                "finder", "slack", "messages", "mail", "microsoft teams", "zoom"
+                "finder", "slack", "messages", "mail", "microsoft teams", "zoom", "zoom.us"
             ]
-            if neutralApps.contains(where: { normalizedApp.contains($0) }) { return true }
-            let isFileDialog = normalizedTitle == "open"
-                || normalizedTitle.hasPrefix("open ")
-                || normalizedTitle == "save"
-                || normalizedTitle.hasPrefix("save ")
-                || normalizedTitle.contains("choose a file")
+            let isNeutralApp = neutralAppNames.contains { neutralName in
+                normalizedApp == neutralName
+                    || normalizedApp.hasPrefix("\(neutralName) ")
+                    || normalizedApp.hasPrefix("\(neutralName) -")
+            }
+            if isNeutralApp { return true }
+            let fileDialogTitles = [
+                "open", "open file", "open document", "save", "save as", "save file",
+                "choose a file", "choose file", "choose folder"
+            ]
+            let isFileDialog = fileDialogTitles.contains(normalizedTitle)
             return isFileDialog || normalizedURL.hasPrefix("file://")
         }
     }
