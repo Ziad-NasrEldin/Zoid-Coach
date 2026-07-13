@@ -348,6 +348,20 @@ public final class AgentMutationRouter: @unchecked Sendable {
         }
     }
 
+    public func retryFailedActions(commandIDs: [String]) throws -> [ActionAuditEntry] {
+        let identifiers = Array(Set(commandIDs)).sorted()
+        guard !identifiers.isEmpty else { throw AgentMutationRouterError.invalidCommand }
+        for identifier in identifiers {
+            guard let command = try outbox.command(commandID: identifier),
+                  command.state == .terminalFailure || command.state == .retryableFailure
+            else { throw AgentMutationRouterError.invalidCommand }
+        }
+        for identifier in identifiers {
+            try outbox.retryFailed(commandID: identifier)
+        }
+        return try recentActionAudit()
+    }
+
     private func activePolicyVersion() -> Int {
         (try? policyStore.current()?.version) ?? 1
     }

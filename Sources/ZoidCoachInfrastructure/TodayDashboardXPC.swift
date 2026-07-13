@@ -105,6 +105,7 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
     func fetchOnboardingTestPrompt(_ flowID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func applyAgentMutation(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void)
     func fetchActionAudit(withReply reply: @escaping (Data?, String?) -> Void)
+    func retryFailedActions(_ commandIDs: [String], withReply reply: @escaping (Data?, String?) -> Void)
     func fetchVoiceContext(withReply reply: @escaping (Data?, String?) -> Void)
     func invokeVoiceTool(_ invocation: Data, withReply reply: @escaping (Data?, String?) -> Void)
     func resolveVoiceApproval(_ approvalID: String, approved: Bool, withReply reply: @escaping (Data?, String?) -> Void)
@@ -384,6 +385,12 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
         catch { reply(nil, error.localizedDescription) }
     }
 
+    func retryFailedActions(_ commandIDs: [String], withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let mutationRouter else { reply(nil, "The agent mutation router is unavailable."); return }
+        do { reply(try encoder.encode(mutationRouter.retryFailedActions(commandIDs: commandIDs)), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
     func fetchVoiceContext(withReply reply: @escaping (Data?, String?) -> Void) {
         guard let voiceController else { reply(nil, "The voice controller is unavailable."); return }
         let replyBox = XPCReplyBox(reply)
@@ -606,6 +613,10 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
 
     public func fetchActionAudit() async throws -> [ActionAuditEntry] {
         try await callData { proxy, reply in proxy.fetchActionAudit(withReply: reply) }
+    }
+
+    public func retryFailedActions(commandIDs: [String]) async throws -> [ActionAuditEntry] {
+        try await callData { proxy, reply in proxy.retryFailedActions(commandIDs, withReply: reply) }
     }
 
     public func fetchVoiceContext() async throws -> ChiefOfStaffContextPacket {

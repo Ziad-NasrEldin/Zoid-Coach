@@ -214,8 +214,14 @@ struct CalendarPlanApprovalSheet: View {
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                 Spacer()
-                Button("RECHECK", action: model.recheckCalendarPlanWrite)
-                    .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
+                if case .failed = model.calendarPlanApproval.writeState {
+                    Button("RETRY FAILED CHANGES", action: model.retryCalendarPlanWrite)
+                        .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
+                        .accessibilityIdentifier("calendar-plan-approval.retry-failed")
+                } else {
+                    Button("RECHECK", action: model.recheckCalendarPlanWrite)
+                        .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
+                }
                 Button("DONE", action: model.dismissCalendarPlanApproval)
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
             }
