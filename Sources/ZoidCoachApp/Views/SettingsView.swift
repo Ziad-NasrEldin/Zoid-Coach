@@ -534,6 +534,15 @@ struct SettingsView: View {
                 Text("GAMING ALLOWANCE")
                     .font(Sumi.label(10))
                     .sumiLabelTracking()
+                Toggle("Apply a gaming budget and coaching prompts", isOn: $controller.draft.gamingBudgetEnabled)
+                    .toggleStyle(.switch)
+                    .accessibilityIdentifier("settings.gaming.budget-enabled")
+                if !controller.draft.gamingBudgetEnabled {
+                    Text("Observation only records factual gaming minutes. It applies no allowance, unlock, debt, or behavior prompt.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .accessibilityIdentifier("settings.gaming.observation-only")
+                }
                 SumiStepper(
                     "BASE AVAILABLE EACH DAY",
                     value: $controller.draft.gamingDailyBudgetMinutes,
@@ -542,6 +551,7 @@ struct SettingsView: View {
                     valueLabel: { "\($0) MIN" }
                 )
                 .accessibilityIdentifier("settings.gaming.daily-budget")
+                .disabled(!controller.draft.gamingBudgetEnabled)
                 SumiStepper(
                     "UNLOCK AFTER PRIORITY COMPLETION",
                     value: $controller.draft.gamingPriorityTaskRewardMinutes,
@@ -550,6 +560,7 @@ struct SettingsView: View {
                     valueLabel: { "\($0) MIN" }
                 )
                 .accessibilityIdentifier("settings.gaming.priority-reward")
+                .disabled(!controller.draft.gamingBudgetEnabled)
                 SumiStepper(
                     "CONTINUE INTENTIONALLY FOR",
                     value: $controller.draft.gamingIntentionalOverrideMinutes,
@@ -558,6 +569,7 @@ struct SettingsView: View {
                     valueLabel: { "\($0) MIN" }
                 )
                 .accessibilityIdentifier("settings.gaming.intentional-override")
+                .disabled(!controller.draft.gamingBudgetEnabled)
                 SumiStepper(
                     "DAILY COACHING PROMPT CAP",
                     value: $controller.draft.gamingDailyPromptCap,
@@ -565,6 +577,7 @@ struct SettingsView: View {
                     valueLabel: { "\($0) PROMPT\($0 == 1 ? "" : "S")" }
                 )
                 .accessibilityIdentifier("settings.gaming.daily-prompt-cap")
+                .disabled(!controller.draft.gamingBudgetEnabled)
                 SumiStepper(
                     "BETWEEN SEPARATE PROMPTS",
                     value: $controller.draft.gamingPromptCooldownMinutes,
@@ -573,6 +586,7 @@ struct SettingsView: View {
                     valueLabel: { "\($0) MIN" }
                 )
                 .accessibilityIdentifier("settings.gaming.prompt-cooldown")
+                .disabled(!controller.draft.gamingBudgetEnabled)
                 Text(gamingAllowanceExplanation)
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
@@ -590,6 +604,9 @@ struct SettingsView: View {
     }
 
     private var gamingAllowanceExplanation: String {
+        guard controller.draft.gamingBudgetEnabled else {
+            return "Gaming remains visible as factual used time. No limit, unlock condition, or coaching prompt is applied."
+        }
         let base = controller.draft.gamingDailyBudgetMinutes
         let reward = controller.draft.gamingPriorityTaskRewardMinutes
         let override = controller.draft.gamingIntentionalOverrideMinutes

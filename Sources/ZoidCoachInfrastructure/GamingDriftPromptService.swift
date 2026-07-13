@@ -5,6 +5,7 @@ import ZoidCoachCore
 public enum GamingDriftSuppressionReason: String, Equatable, Sendable {
     case observingBaseline
     case coachingDisabled
+    case gamingBudgetDisabled
     case automationPaused
     case outsideWorkWindow
     case acceptedBreak
@@ -83,6 +84,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         let localDay = Self.localDay(date, timeZone: timeZone)
 
         guard policy.operatingMode != .observe else { return .suppressed(.coachingDisabled) }
+        guard policy.gaming.budgetEnabled else { return .suppressed(.gamingBudgetDisabled) }
         guard !policy.automationPause.isPaused else { return .suppressed(.automationPaused) }
         guard !baselineStatus.suppressesBehaviorPrompts else {
             return .suppressed(.observingBaseline)

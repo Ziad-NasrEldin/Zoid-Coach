@@ -234,10 +234,12 @@ struct TodayDashboardCommandOverview: View {
                     .frame(maxWidth: .infinity)
                 HStack(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("GAMING BUDGET")
+                        Text(snapshot.gaming.budgetEnabled ? "GAMING BUDGET" : "GAMING OBSERVED")
                             .font(Sumi.label(8))
                             .sumiLabelTracking()
-                        Text("\(snapshot.gaming.unlockedRemainingMinutes)m")
+                        Text(snapshot.gaming.budgetEnabled
+                             ? "\(snapshot.gaming.unlockedRemainingMinutes)m"
+                             : "\(snapshot.gaming.usedMinutes)m")
                             .font(Sumi.display(19))
                     }
                     Spacer()
