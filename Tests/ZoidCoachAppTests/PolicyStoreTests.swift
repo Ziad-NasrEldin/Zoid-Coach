@@ -154,6 +154,26 @@ func newVersionFourMutationIsRejectedAfterSchemaFive() throws {
 }
 
 @Test
+func policyMutationAcceptsScreenwatchConsentFromOnboarding() throws {
+    let databaseURL = temporaryPolicyDatabaseURL()
+    defer { removePolicyDatabaseFiles(at: databaseURL) }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    let candidate = policy(mode: .assist)
+    let digest = try PolicyMutationRequest.canonicalPayloadDigest(for: candidate)
+    let request = PolicyMutationRequest(
+        requestID: "onboarding-policy-v1:flow:screenwatch:3:\(digest)",
+        expectedVersion: 0,
+        policy: candidate,
+        origin: .onboarding(flowID: "flow", step: .screenwatch, progressRevision: 3)
+    )
+
+    let receipt = try store.saveMutation(request)
+
+    #expect(receipt.resultingVersion == 1)
+    #expect(try store.current()?.policy == candidate)
+}
+
+@Test
 func policyMutationRejectsMalformedAndUnboundRequestsWithoutWriting() throws {
     let databaseURL = temporaryPolicyDatabaseURL()
     defer { removePolicyDatabaseFiles(at: databaseURL) }
