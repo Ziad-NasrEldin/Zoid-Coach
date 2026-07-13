@@ -365,23 +365,29 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
     public let priorityTaskRewardMinutes: Int
     public let coachingLevel: CoachingLevel
     public let intentionalOverrideMinutes: Int
+    public let dailyPromptCap: Int
+    public let promptCooldownMinutes: Int
 
     public init(
         version: Int = 1,
         dailyBudgetMinutes: Int = 60,
         priorityTaskRewardMinutes: Int = 15,
         coachingLevel: CoachingLevel = .gentle,
-        intentionalOverrideMinutes: Int = 45
+        intentionalOverrideMinutes: Int = 45,
+        dailyPromptCap: Int? = nil,
+        promptCooldownMinutes: Int? = nil
     ) {
         self.version = version
         self.dailyBudgetMinutes = max(0, dailyBudgetMinutes)
         self.priorityTaskRewardMinutes = max(0, priorityTaskRewardMinutes)
         self.coachingLevel = coachingLevel
         self.intentionalOverrideMinutes = max(5, intentionalOverrideMinutes)
+        self.dailyPromptCap = max(1, dailyPromptCap ?? coachingLevel.maximumDailyPrompts)
+        self.promptCooldownMinutes = max(5, promptCooldownMinutes ?? coachingLevel.cooldownMinutes)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes
+        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes, dailyPromptCap, promptCooldownMinutes
     }
 
     public init(from decoder: Decoder) throws {
@@ -391,7 +397,9 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
             dailyBudgetMinutes: try container.decodeIfPresent(Int.self, forKey: .dailyBudgetMinutes) ?? 60,
             priorityTaskRewardMinutes: try container.decodeIfPresent(Int.self, forKey: .priorityTaskRewardMinutes) ?? 15,
             coachingLevel: try container.decodeIfPresent(CoachingLevel.self, forKey: .coachingLevel) ?? .gentle,
-            intentionalOverrideMinutes: try container.decodeIfPresent(Int.self, forKey: .intentionalOverrideMinutes) ?? 45
+            intentionalOverrideMinutes: try container.decodeIfPresent(Int.self, forKey: .intentionalOverrideMinutes) ?? 45,
+            dailyPromptCap: try container.decodeIfPresent(Int.self, forKey: .dailyPromptCap),
+            promptCooldownMinutes: try container.decodeIfPresent(Int.self, forKey: .promptCooldownMinutes)
         )
     }
 }

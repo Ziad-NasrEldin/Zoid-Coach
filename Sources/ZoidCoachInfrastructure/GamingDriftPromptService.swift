@@ -127,7 +127,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         }
         let prefix = decisionKeyPrefix
         let level = policy.gaming.coachingLevel
-        guard try promptCount(decisionKeyPrefix: prefix) < level.maximumDailyPrompts else {
+        guard try promptCount(decisionKeyPrefix: prefix) < policy.gaming.dailyPromptCap else {
             return .suppressed(.dailyLimitReached)
         }
         let completedIntentionalOverride: Bool
@@ -137,7 +137,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         }
         if !completedIntentionalOverride,
            let latestCreatedAt = try latestPromptCreatedAt(decisionKeyPrefix: prefix),
-           date.timeIntervalSince(latestCreatedAt) < TimeInterval(level.cooldownMinutes * 60) {
+           date.timeIntervalSince(latestCreatedAt) < TimeInterval(policy.gaming.promptCooldownMinutes * 60) {
             return .suppressed(.cooldownActive)
         }
 
