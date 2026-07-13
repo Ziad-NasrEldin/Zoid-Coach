@@ -403,7 +403,7 @@ struct TodayDashboardCommandOverview: View {
                 .foregroundStyle(Sumi.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 13)
-            Text(snapshot.recommendation.sentence)
+            Text(recommendationSentence)
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
                 .padding(.top, 8)
@@ -415,7 +415,7 @@ struct TodayDashboardCommandOverview: View {
                 .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
             if let row = recommendedRow {
                 if row.state == .ready,
-                   let sprintMinutes = snapshot.recommendation.suggestedSprintMinutes {
+                   let sprintMinutes = recommendedSprintMinutes {
                     Button("START \(sprintMinutes)-MINUTE SPRINT") {
                         model.startSprint(taskID: row.taskID, durationMinutes: sprintMinutes)
                     }
@@ -486,6 +486,26 @@ struct TodayDashboardCommandOverview: View {
             return task
         }
         return activeRow
+    }
+
+    private var recommendedSprintMinutes: Int? {
+        guard let row = recommendedRow else { return nil }
+        return RecommendationSprintPresentation.durationMinutes(
+            estimateMinutes: row.estimateMinutes,
+            availableMinutes: model.planningCapacityState.availableMinutes
+        )
+    }
+
+    private var recommendationSentence: String {
+        guard let row = recommendedRow,
+              let sprintMinutes = recommendedSprintMinutes else {
+            return snapshot.recommendation.sentence
+        }
+        return RecommendationSprintPresentation.sentence(
+            taskTitle: row.title,
+            sprintMinutes: sprintMinutes,
+            availableMinutes: model.planningCapacityState.availableMinutes
+        )
     }
 
     private var primaryFocusRow: TodayTaskRow? {
