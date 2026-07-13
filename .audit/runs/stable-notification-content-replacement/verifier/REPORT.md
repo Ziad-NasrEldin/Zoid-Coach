@@ -6,6 +6,12 @@ Keep ZC-054-009 at **Touches remaining**.
 The candidate closes the stable and privacy-safe request-identity implementation gap, but the installed application still lacks a safe visible control that creates two different unresolved prompt episodes for one logical decision with changed content.
 Actual Notification Center replacement and response routing through the newest episode therefore remain unproved end to end.
 
+## Integration identity
+
+The verified implementation object is `9167a91e21ba80be3ee06c2a992b8289d16736cb`.
+The complete isolated verification tip is `3aa7098c8430b1c094ccce636528b438b3f675d3`.
+These exact objects supersede an earlier handoff message that expanded the correct short verification SHA to an incorrect full hash before integration began.
+
 ## Verified implementation
 
 Prompt notification request identifiers now use the runtime-specific prompt namespace followed by `decision.` and the first 128 bits of the logical decision key's SHA-256 digest.
@@ -55,4 +61,3 @@ Until that installed-app proof exists, implementation and deterministic integrat
 - `Sources/ZoidCoachInfrastructure/PromptNotificationCoordinator.swift`
 - `Tests/ZoidCoachAppTests/PromptNotificationCoordinatorTests.swift`
 - `.audit/runs/stable-notification-content-replacement/verifier/REPORT.md`
-

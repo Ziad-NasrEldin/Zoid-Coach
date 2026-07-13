@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "bf2126ecbff576ba44a4a8f1785207cd8dd7f3b072b1165b3cac49c99cf666a2",
+  "tracker_sha256": "f7381cad28273ee33b90356673d896da43cc8abb22eb16364801bc0b2861920a",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12570,10 +12570,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/stable-notification-content-replacement/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A focused end-to-end fixture test reschedules the same prompt identity with a new title and summary, proves only one notification remains with the updated content, and records the replacement attempt. The product has no safe signed control for changing an unresolved prompt's content on demand, so visible qualification remains outstanding (`QAFixtureOSCompositionTests.swift`; `.audit/runs/notification-delivery-health/acceptance-mapping.json`).",
+      "audit_note": "Prompt notifications now use a privacy-safe stable SHA-256 identity for the logical decision, and focused golden-vector tests prove that a new episode for the same decision replaces its predecessor while distinct decisions remain distinct without exposing the raw decision key or episode identifier. A persisted cross-coordinator QA journey retains exactly one notification with the newest title, body, and prompt identifier, then proves cancellation survives relaunch; all 40 notification tests, the release build, and signed package, install, and helper validation passed. The installed app still has no safe visible control for producing two changed episodes for one decision, so actual Notification Center one-card replacement, newest-action routing, and relaunch non-resurrection remain outstanding (`PromptNotificationCoordinator.swift`; `PromptNotificationCoordinatorTests.swift`; `.audit/runs/stable-notification-content-replacement/verifier/REPORT.md`).",
       "tracker_line": 769
     },
     {
