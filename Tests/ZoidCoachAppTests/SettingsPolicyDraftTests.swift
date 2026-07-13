@@ -5,6 +5,27 @@ import Testing
 @testable import ZoidCoachInfrastructure
 
 @Test
+func settingsScreenwatchIngestionPauseRoundTripsAndMergesIndependently() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var mine = SettingsPolicyDraft(policy: original)
+    mine.screenwatchIngestionEnabled = false
+    let saved = mine.policy(preserving: original)
+
+    #expect(!saved.capture.ingestionEnabled)
+    #expect(!SettingsPolicyDraft(policy: saved).screenwatchIngestionEnabled)
+
+    let base = SettingsPolicyDraft(policy: original)
+    var current = base
+    current.capacityPercent = 55
+    let merged = SettingsPolicyConflictResolver.resolve(base: base, mine: mine, current: current)
+
+    #expect(!merged.safeDraft.screenwatchIngestionEnabled)
+    #expect(merged.safeDraft.capacityPercent == 55)
+    #expect(merged.concurrentChanges == ["Planning capacity"])
+    #expect(merged.overlappingChanges.isEmpty)
+}
+
+@Test
 func settingsRoundTripsConfiguredCoachingLevelAndGamingAllowance() {
     let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
     var draft = SettingsPolicyDraft(policy: original)
