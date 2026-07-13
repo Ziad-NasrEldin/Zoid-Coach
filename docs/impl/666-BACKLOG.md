@@ -492,3 +492,13 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Signed fixture latest-per-group state, Today preservation, exactly-once older response, and app plus helper relaunch durability passed.
 - Real Notification Center remains the conservative proof gap because signed QA mode intentionally uses the isolated fixture adapter.
 - Verification evidence is recorded in `.audit/runs/latest-relevant-notification/verifier/REPORT.md`.
+
+### Context-sensitive application classification - candidate
+
+- Owns `ZC-025-003`.
+- Stops permanently treating browsers, Discord, Slack, Notion, YouTube, and Preview as work, gaming, or distraction from the application name alone.
+- Uses only local window-title and URL evidence to recognize clear work, research, communication, gaming, or distracting contexts and otherwise retains `unknown` for user review.
+- Keeps explicit user policy and review-correction rules authoritative over contextual inference.
+- The complete Screenwatch archive test group passes, including focused mixed-context ingestion, persisted classifications, explicit-policy precedence, and restart-safe reads, and the release build passes.
+- Candidate evidence is recorded in `.audit/runs/contextual-app-classification/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after an independent signed mixed-context Screenwatch ingestion and visible totals or review verification.

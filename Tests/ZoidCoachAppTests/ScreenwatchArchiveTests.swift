@@ -116,6 +116,60 @@ func delayedScreenwatchIngestionFreezesThePolicyEffectiveAtEachObservation() thr
 }
 
 @Test
+func contextSensitiveApplicationsUseLocalWindowAndURLMeaningInsteadOfPermanentLabels() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("screenwatch-context-\(UUID().uuidString)", isDirectory: true)
+    let day = root.appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid-coach.sqlite")
+    let log = """
+    {"t":"09-00-00","epoch":1783663200,"app":"Safari","window":"Swift concurrency documentation","url":"https://developer.apple.com/documentation/swift","img":false}
+    {"t":"09-00-05","epoch":1783663205,"app":"YouTube","window":"Swift concurrency documentation tutorial","url":"https://youtube.com/watch?v=work","img":false}
+    {"t":"09-00-10","epoch":1783663210,"app":"YouTube","window":"Shorts - YouTube","url":"https://youtube.com/shorts/fun","img":false}
+    {"t":"09-00-15","epoch":1783663215,"app":"Discord","window":"Zoid Coach project","url":"","img":false}
+    {"t":"09-00-20","epoch":1783663220,"app":"Discord","window":"Minecraft server","url":"","img":false}
+    {"t":"09-00-25","epoch":1783663225,"app":"Notion","window":"Product roadmap","url":"https://notion.so/work","img":false}
+    {"t":"09-00-30","epoch":1783663230,"app":"Preview","window":"Client proposal.pdf","url":"","img":false}
+    {"t":"09-00-35","epoch":1783663235,"app":"Slack","window":"General","url":"","img":false}
+
+    """
+    try Data(log.utf8).write(to: day.appendingPathComponent("log.jsonl"))
+    let archive = try ScreenwatchArchive(databaseURL: databaseURL)
+    let date = Date(timeIntervalSince1970: 1_783_663_240)
+
+    _ = try archive.ingestToday(from: root, now: date)
+
+    #expect(try archive.behaviorObservations(for: date).map(\.classification) == [
+        .work, .work, .distracting, .work, .gaming, .work, .work, .unknown,
+    ])
+}
+
+@Test
+func explicitApplicationPolicyOverridesContextualEvidence() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("screenwatch-context-policy-\(UUID().uuidString)", isDirectory: true)
+    let day = root.appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid-coach.sqlite")
+    let policyStore = try PolicyStore(
+        databaseURL: databaseURL,
+        now: { Date(timeIntervalSince1970: 1_783_663_190) }
+    )
+    _ = try policyStore.save(archivePolicy(work: [], gaming: ["Slack"]))
+    let log = """
+    {"t":"09-00-00","epoch":1783663200,"app":"Slack","window":"Engineering project workspace","url":"","img":false}
+
+    """
+    try Data(log.utf8).write(to: day.appendingPathComponent("log.jsonl"))
+    let archive = try ScreenwatchArchive(databaseURL: databaseURL)
+    let date = Date(timeIntervalSince1970: 1_783_663_210)
+
+    _ = try archive.ingestToday(from: root, now: date)
+
+    #expect(try archive.behaviorObservations(for: date).map(\.classification) == [.gaming])
+}
+
+@Test
 func reviewCorrectionRuleClassifiesOnlyFutureScreenwatchObservationsAndRemovalRestoresPolicy() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
     let day = root.appendingPathComponent("2026-07-10", isDirectory: true)
