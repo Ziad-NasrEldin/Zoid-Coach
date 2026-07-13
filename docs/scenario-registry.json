@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "f2db4f491ab9b69bbae4cd6c540409a0ad64f89207cc8b07939d55f76ce51800",
+  "tracker_sha256": "7bbc4f624ea79590f05d4701f37fcf0b4e6cdbb55c0bf396c26ec2e88c6043c7",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4677,8 +4677,8 @@
       "item_index": 5,
       "wording": "See an active task pause when its Reminder is deleted externally.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4689,7 +4689,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Deleted snapshots cause the row to be omitted; no deletion reconciliation pauses the open execution interval.",
+      "audit_note": "The canonical agent now detects a previously visible active Apple Reminder that disappears, closes its interval, pauses its bounded sprint exactly once, retains the row with `Paused because the Apple Reminder was deleted`, preserves stopped elapsed time across refresh and restart, keeps the next row usable, and removes the orphan after completion. Focused end-to-end agent tests and release packaging pass, while signed QA visibly proved a Healthy connected fixture with both target and remaining Reminders but reached the runtime cap during onboarding before the external deletion and Today-state journey (`TodayDashboardAgent.swift`; `TaskExecutionStore.swift`; `.audit/runs/deleted-reminder-active-task/verifier/REPORT.md`).",
       "tracker_line": 323
     },
     {
@@ -7717,8 +7717,8 @@
       "evidence_paths": [
         ".audit/runs/prompt-blocker-reachability/verifier/REPORT.md"
       ],
-      "last_verified_commit": "e7030f585f1c67db9654ead7d4532837bba5f4bf",
-      "last_verified_build": "zoid-coach-e7030f585f1c67db9654ead7d4532837bba5f4bf-clean",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The signed constrained Today window restored the exact six-action numeric-flag `GAMING_DRIFT` envelope and rendered `CHANGE THE TASK` before `RECOVERY OPTIONS`, but the task-change accessibility collection still had no button children, so `Mark blocked` remained unreachable without coordinate guessing. Focused partition and reason-boundary tests plus the signed release package pass. The reason sheet, two-character rejection, Cancel, successful block, replacement-main promotion, answered history, relaunch, and unavailable-agent journeys remain (`TodayPromptInboxLedger.swift`; `PromptTaskBlockState.swift`; `.audit/runs/prompt-blocker-reachability/verifier/REPORT.md`).",
       "tracker_line": 494
     },
