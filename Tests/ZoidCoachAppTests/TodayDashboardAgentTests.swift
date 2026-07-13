@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import Testing
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
@@ -28,6 +29,67 @@ func agentSnapshotCarriesRequiredDashboardFieldsAndCommandsRefreshIt() throws {
     #expect(after.activeTaskContext?.state == .uncertain)
     #expect(after.activeTaskContext?.explanation.contains("will not guess") == true)
     #expect(after.taskRows.first?.state == .active)
+}
+
+@Test
+func agentSnapshotShowsOnlyObservedAlignmentFromTheCurrentActiveSession() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-active-time-comparison-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let activeSince = Date(timeIntervalSince1970: 1_750_000_000)
+    let now = activeSince.addingTimeInterval(180)
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "focus", title: "Write proposal", dueDate: now, priority: 9)
+    ])
+    let plans = try AutonomousPlanStore(databaseURL: url)
+    try plans.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [
+                PlannedTask(taskID: "focus", title: "Write proposal", rank: 1, estimateMinutes: 30, reason: "Main", score: 100)
+            ],
+            mainObjectiveTaskID: "focus",
+            plannedFocusMinutes: 30,
+            availableFocusMinutes: 60
+        ),
+        for: activeSince
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url)
+    _ = try agent.apply(.start, taskID: "focus", now: activeSince)
+
+    var database: OpaquePointer?
+    try #require(sqlite3_open(url.path, &database) == SQLITE_OK)
+    defer { sqlite3_close(database) }
+    let records = [
+        (activeSince.addingTimeInterval(-60), "Xcode", "work"),
+        (activeSince, "Steam", "gaming"),
+        (activeSince.addingTimeInterval(60), "Xcode", "work"),
+        (activeSince.addingTimeInterval(120), "Terminal", "work")
+    ]
+    for (observedAt, application, classification) in records {
+        let sql = """
+        INSERT INTO behavior_records(
+            source_day, epoch, time_label, app_name, window_title, url,
+            has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version
+        ) VALUES (
+            '2025-06-15', \(Int(observedAt.timeIntervalSince1970)), '00-00-00',
+            '\(application)', '', '', 0, NULL, '2025-06-15T00:00:00Z', '\(classification)', 1
+        );
+        """
+        try #require(sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK)
+    }
+
+    let snapshot = try agent.snapshot(now: now)
+    let comparison = try #require(snapshot.taskRows.first?.activeTimeComparison)
+
+    #expect(comparison.elapsedMinutes == 3)
+    #expect(comparison.observedAlignedMinutes == 2)
+    #expect(comparison.observedSessionMinutes == 3)
+    #expect(comparison.evidenceExplanation.contains("signal, not proof"))
 }
 
 @Test

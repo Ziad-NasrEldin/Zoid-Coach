@@ -162,6 +162,48 @@ public struct LearnedEstimateSuggestion: Equatable, Codable, Sendable {
     public var hasLimitedEvidence: Bool { confidence < 0.75 }
 }
 
+public struct ActiveTaskTimeComparison: Equatable, Codable, Sendable {
+    public let elapsedMinutes: Int
+    public let observedAlignedMinutes: Int
+    public let observedSessionMinutes: Int
+    public let coverageIsLimited: Bool
+    public let evidenceExplanation: String
+
+    public init(
+        elapsedMinutes: Int,
+        activeSince: Date,
+        observations: [BehaviorObservation],
+        now: Date
+    ) {
+        let sessionObservations = observations.filter {
+            $0.observedAt >= activeSince && $0.observedAt <= now
+        }
+        let evidence = BehaviorSessionizer().summarize(observations: sessionObservations, now: now)
+        let summary = evidence.summary
+        let observedSessionMinutes = summary.workMinutes
+            + summary.gamingMinutes
+            + summary.distractingMinutes
+            + summary.idleMinutes
+            + summary.unknownMinutes
+
+        self.elapsedMinutes = max(0, elapsedMinutes)
+        self.observedAlignedMinutes = summary.workMinutes
+        self.observedSessionMinutes = observedSessionMinutes
+        self.coverageIsLimited = evidence.coverage.isLimited
+        if sessionObservations.isEmpty {
+            self.evidenceExplanation = "No Screenwatch time is available for this active session. Elapsed time remains the reliable task timer."
+        } else if evidence.coverage.isLimited {
+            self.evidenceExplanation = "\(evidence.coverage.explanation) Aligned time is only work-classified Screenwatch time from this active session, not proof that it matched this task."
+        } else {
+            self.evidenceExplanation = "Aligned time is work-classified Screenwatch time from this active session. It is a signal, not proof that the activity matched this task."
+        }
+    }
+
+    public var accessibilitySummary: String {
+        "Task elapsed \(elapsedMinutes) minutes. Observed aligned \(observedAlignedMinutes) minutes. \(evidenceExplanation)"
+    }
+}
+
 public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let taskID: String
     public let title: String
@@ -170,6 +212,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let urgency: TaskUrgency
     public let state: TaskExecutionState
     public let elapsedMinutes: Int
+    public let activeTimeComparison: ActiveTaskTimeComparison?
     public let latestPauseReason: TaskPauseReason?
     public let acceptedBreak: AcceptedBreakSnapshot?
     public let sprint: SprintSnapshot?
@@ -188,6 +231,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         urgency: TaskUrgency,
         state: TaskExecutionState,
         elapsedMinutes: Int = 0,
+        activeTimeComparison: ActiveTaskTimeComparison? = nil,
         latestPauseReason: TaskPauseReason? = nil,
         acceptedBreak: AcceptedBreakSnapshot? = nil,
         sprint: SprintSnapshot? = nil,
@@ -205,6 +249,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         self.urgency = urgency
         self.state = state
         self.elapsedMinutes = max(0, elapsedMinutes)
+        self.activeTimeComparison = activeTimeComparison
         self.latestPauseReason = latestPauseReason
         self.acceptedBreak = acceptedBreak
         self.sprint = sprint
