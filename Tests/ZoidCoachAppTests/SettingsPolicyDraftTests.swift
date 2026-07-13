@@ -513,6 +513,115 @@ func policyRollbackRestoresPreviousSettingsAsANewVersion() async throws {
     #expect(try store.current()?.policy.schedule.planningCapacityPercent == first.schedule.planningCapacityPercent)
 }
 
+@MainActor
+@Test
+func timeZonePlanDayMoveRequiresExplicitConfirmationBeforeSaving() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-time-zone-confirmation-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.save(.defaults(timeZoneIdentifier: "UTC"))
+    let referenceDate = try #require(ISO8601DateFormatter().date(from: "2026-07-14T00:30:00Z"))
+    let warning = TimeZonePlanMoveWarning(
+        sourceTimeZoneIdentifier: "UTC",
+        destinationTimeZoneIdentifier: "America/Los_Angeles",
+        sourceDayKey: "2026-07-14",
+        destinationDayKey: "2026-07-13",
+        taskCount: 2,
+        referenceDate: referenceDate
+    )
+    let controller = SettingsPolicyController(
+        databaseURL: databaseURL,
+        savePolicyThroughAgent: { request in
+            let saved = try store.saveMutation(request)
+            return AgentMutationReceipt(
+                accepted: true,
+                message: "saved",
+                policyVersion: saved.resultingVersion,
+                policyMutationReceipt: saved
+            )
+        },
+        inspectTimeZonePlanMove: { _, _, _ in warning }
+    )
+    controller.draft.timeZoneIdentifier = "America/Los_Angeles"
+
+    #expect(controller.save(now: referenceDate) == nil)
+    #expect(controller.timeZonePlanMoveConfirmation == warning)
+    #expect(try store.current()?.version == 1)
+    controller.cancelTimeZonePlanMove()
+    #expect(controller.draft.timeZoneIdentifier == "America/Los_Angeles")
+    #expect(try store.current()?.policy.schedule.timeZoneIdentifier == "UTC")
+
+    #expect(controller.save(now: referenceDate) == nil)
+    await controller.confirmTimeZonePlanMove()?.value
+
+    #expect(controller.timeZonePlanMoveConfirmation == nil)
+    #expect(try store.current()?.version == 2)
+    #expect(try store.current()?.policy.schedule.timeZoneIdentifier == "America/Los_Angeles")
+}
+
+@MainActor
+@Test
+func timeZoneChangeSavesDirectlyWhenNoPlanMovesLocalDay() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-time-zone-no-plan-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.save(.defaults(timeZoneIdentifier: "UTC"))
+    let controller = SettingsPolicyController(
+        databaseURL: databaseURL,
+        savePolicyThroughAgent: { request in
+            let saved = try store.saveMutation(request)
+            return AgentMutationReceipt(
+                accepted: true,
+                message: "saved",
+                policyVersion: saved.resultingVersion,
+                policyMutationReceipt: saved
+            )
+        },
+        inspectTimeZonePlanMove: { _, _, _ in nil }
+    )
+    controller.draft.timeZoneIdentifier = "Europe/London"
+
+    await controller.save()?.value
+
+    #expect(controller.timeZonePlanMoveConfirmation == nil)
+    #expect(try store.current()?.policy.schedule.timeZoneIdentifier == "Europe/London")
+}
+
+@MainActor
+@Test
+func timeZoneChangeFailsClosedWhenTheCurrentPlanCannotBeInspected() throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-time-zone-inspection-error-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.save(.defaults(timeZoneIdentifier: "UTC"))
+    let controller = SettingsPolicyController(
+        databaseURL: databaseURL,
+        savePolicyThroughAgent: { _ in throw TimeZonePlanMoveInspectorError.inspectPlan },
+        inspectTimeZonePlanMove: { _, _, _ in throw TimeZonePlanMoveInspectorError.inspectPlan }
+    )
+    controller.draft.timeZoneIdentifier = "America/Los_Angeles"
+
+    #expect(controller.save() == nil)
+    #expect(try store.current()?.version == 1)
+    #expect(controller.statusMessage?.contains("not saved") == true)
+    #expect(controller.statusMessage?.contains("could not be checked") == true)
+}
+
 @Test
 func settingsDraftKeepsWakeDisabledByDefault() {
     let policy = SettingsPolicyDraft(policy: .defaults()).policy(preserving: .defaults())
