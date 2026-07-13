@@ -63,7 +63,9 @@ import ZoidCoachInfrastructure
     #expect(state.compactTaskFacts.contains("Main objective"))
     #expect(state.compactTaskFacts.contains("45 min estimate"))
     #expect(state.compactTaskFacts.contains("High urgency"))
-    #expect(state.compactTaskFacts.contains(where: { $0.hasPrefix("Due ") }))
+    #expect(state.compactTaskFacts.contains(
+        "Due \(dueDate.formatted(.dateTime.month(.abbreviated).day().hour().minute()))"
+    ))
     let summary = try #require(state.compactTaskAccessibilitySummary(at: dueDate))
     #expect(summary.contains("Prepare launch brief"))
     #expect(summary.contains("Active"))
