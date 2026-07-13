@@ -6,7 +6,7 @@ import ZoidCoachCore
 /// behavior is preserved.
 struct TodayDashboardCommandOverview: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     let snapshot: TodaySnapshot
     @State private var isUsagePresented = false
     @State private var isBehaviorEvidencePresented = false
@@ -783,7 +783,7 @@ private struct SprintCommitmentPanel: View {
 }
 
 private struct AppUsagePopover: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     let behavior: BehaviorSummary
     @Binding var selectorActive: Bool
     @State private var selectedCategory: AppUsageCategory = .all
@@ -1067,7 +1067,7 @@ private struct UsagePanelIconButton: View {
 }
 
 private struct TodayPlanTaskRow: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     let row: TodayTaskRow
     let entry: DailyPlanEntry?
     let planCount: Int
@@ -1214,7 +1214,7 @@ private struct TodayPlanTaskRow: View {
 }
 
 private struct TodayEstimateStrip: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     let selectedMinutes: Int?
     let isUnknown: Bool
     let taskTitle: String

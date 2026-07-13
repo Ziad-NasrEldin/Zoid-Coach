@@ -1,6 +1,25 @@
 import AppKit
 import SwiftUI
 
+private struct SumiReduceMotionOverrideKey: EnvironmentKey {
+    static let defaultValue: Bool? = nil
+}
+
+extension EnvironmentValues {
+    var sumiReduceMotionOverride: Bool? {
+        get { self[SumiReduceMotionOverrideKey.self] }
+        set { self[SumiReduceMotionOverrideKey.self] = newValue }
+    }
+}
+
+@propertyWrapper
+struct SumiReduceMotion: DynamicProperty {
+    @Environment(\.accessibilityReduceMotion) private var systemValue
+    @Environment(\.sumiReduceMotionOverride) private var overrideValue
+
+    var wrappedValue: Bool { overrideValue ?? systemValue }
+}
+
 struct SumiMotionPolicy: Equatable, Sendable {
     let animatesStateChanges: Bool
     let allowsSpatialMotion: Bool
@@ -239,7 +258,7 @@ enum SumiControlSize {
 
 struct SumiActionButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     @State private var isHovering = false
 
     let role: SumiActionRole
@@ -300,7 +319,7 @@ struct SumiActionButtonStyle: ButtonStyle {
 }
 
 struct SumiPressButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -392,7 +411,7 @@ enum SumiSelectorSize {
 }
 
 struct SumiSelectorLabel: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     let title: String
     let systemImage: String?
     let size: SumiSelectorSize
@@ -446,7 +465,7 @@ struct SumiSelectorLabel: View {
 /// Native macOS `Menu` and `.menu` pickers ignore the app's visual language,
 /// so every selection menu should be composed from this primitive instead.
 struct SumiDropdown<Label: View, Content: View>: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
 
     let minimumMenuWidth: CGFloat
     @ViewBuilder let label: () -> Label
@@ -873,7 +892,7 @@ struct SumiConfirmationSheet: View {
 }
 
 struct SumiModalOverlay<Content: View>: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @SumiReduceMotion private var reduceMotion
     let dismiss: () -> Void
     @ViewBuilder let content: Content
 
