@@ -140,12 +140,12 @@ func gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() throws {
     }
     #expect(try deduped.service.produce(
         policy: deduped.policy(), gamingStatus: deduped.gamingStatus, baselineStatus: deduped.baseline()
-    ) == .suppressed(.intentionalOverrideActive))
+    ) == .suppressed(.sessionAlreadyHandled))
     #expect(try deduped.promptStore.unresolved().count == 1)
 }
 
 @Test
-func intentionalGamingOverrideEndsOnWorkAndExpiresAcrossRestart() throws {
+func intentionalGamingOverrideRequiresTwoMinutesOfWorkBeforeEarlyReprompt() throws {
     let fixture = try GamingPromptFixture()
     defer { fixture.remove() }
     try fixture.insertPriorityTask()
@@ -169,6 +169,13 @@ func intentionalGamingOverrideEndsOnWorkAndExpiresAcrossRestart() throws {
         ),
         surface: .dashboard
     )
+    let responses = try fixture.promptStore.responses(promptID: episode.id)
+    #expect(responses.count == 1)
+    #expect(responses[0].action == .continueIntentionally)
+    #expect(responses[0].surface == .dashboard)
+    #expect(try fixture.promptStore.unresolved().isEmpty)
+    let behaviorCount = try fixture.behaviorRecordCount()
+    #expect(try fixture.priorityTaskIsIncomplete())
     #expect(try fixture.service.produce(
         policy: policy,
         gamingStatus: fixture.gamingStatus,
@@ -177,13 +184,58 @@ func intentionalGamingOverrideEndsOnWorkAndExpiresAcrossRestart() throws {
 
     fixture.advance(minutes: 5)
     try fixture.insertWork(minutes: 1)
+    fixture.advance(minutes: 11)
+    try fixture.insertGaming(minutes: 10)
     #expect(try fixture.service.produce(
         policy: policy,
         gamingStatus: fixture.gamingStatus,
         baselineStatus: fixture.baseline()
-    ) == .suppressed(.noGamingSession))
+    ) == .suppressed(.intentionalOverrideActive))
 
-    fixture.advance(minutes: 56)
+    fixture.advance(minutes: 5)
+    try fixture.insertWork(minutes: 2)
+    fixture.advance(minutes: 11)
+    try fixture.insertGaming(minutes: 10)
+    guard case let .queued(reprompt, wasInserted) = try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected normal coaching after two minutes of aligned work")
+        return
+    }
+    #expect(wasInserted)
+    #expect(reprompt.id != episode.id)
+    #expect(try fixture.behaviorRecordCount() > behaviorCount)
+    #expect(try fixture.priorityTaskIsIncomplete())
+}
+
+@Test
+func intentionalGamingOverrideExpiresAtFortyFiveMinutesAcrossRestart() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(level: .accountability)
+    guard case let .queued(episode, _) = try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected the initial accountability prompt")
+        return
+    }
+    _ = try fixture.promptStore.respond(
+        promptID: episode.id,
+        action: .continueIntentionally,
+        actionToken: PromptResponseToken.make(
+            promptID: episode.id,
+            action: .continueIntentionally
+        ),
+        surface: .dashboard
+    )
+
+    fixture.advance(minutes: 30)
     try fixture.insertGaming(minutes: 10)
     let reopenedStore = try PromptInboxStore(
         databaseURL: fixture.databaseURL,
@@ -194,6 +246,14 @@ func intentionalGamingOverrideEndsOnWorkAndExpiresAcrossRestart() throws {
         promptStore: reopenedStore,
         now: { [clock = fixture.clock] in clock.now }
     )
+    #expect(try restartedService.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.intentionalOverrideActive))
+
+    fixture.advance(minutes: 16)
+    try fixture.insertGaming(minutes: 10)
     guard case let .queued(reprompt, wasInserted) = try restartedService.produce(
         policy: policy,
         gamingStatus: fixture.gamingStatus,
@@ -205,6 +265,7 @@ func intentionalGamingOverrideEndsOnWorkAndExpiresAcrossRestart() throws {
     #expect(wasInserted)
     #expect(reprompt.id != episode.id)
     #expect(reprompt.actions.contains { $0.kind == .continueIntentionally })
+    #expect(try fixture.priorityTaskIsIncomplete())
 }
 
 @Test
@@ -225,10 +286,10 @@ func resolvedGamingPromptStillDeduplicatesAndEnforcesCooldownAfterRestart() thro
 
     _ = try fixture.promptStore.respond(
         promptID: episode.id,
-        action: .continueIntentionally,
+        action: .fiveMoreMinutes,
         actionToken: PromptResponseToken.make(
             promptID: episode.id,
-            action: .continueIntentionally
+            action: .fiveMoreMinutes
         ),
         surface: .dashboard
     )
@@ -425,6 +486,14 @@ private final class GamingPromptFixture: @unchecked Sendable {
         }
     }
 
+    func behaviorRecordCount() throws -> Int {
+        try scalar("SELECT COUNT(*) FROM behavior_records;")
+    }
+
+    func priorityTaskIsIncomplete() throws -> Bool {
+        try scalar("SELECT COUNT(*) FROM source_tasks WHERE source_id = 'priority-1' AND is_completed = 0;") == 1
+    }
+
     func correctCurrentSession(to classification: BehaviorClassification) throws {
         let end = Int64(clock.now.timeIntervalSince1970)
         let start = end - 10 * 60
@@ -448,5 +517,23 @@ private final class GamingPromptFixture: @unchecked Sendable {
         guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
             throw GamingDriftPromptServiceError.database(String(cString: sqlite3_errmsg(database)))
         }
+    }
+
+    private func scalar(_ sql: String) throws -> Int {
+        var database: OpaquePointer?
+        guard sqlite3_open(databaseURL.path, &database) == SQLITE_OK, let database else {
+            throw GamingDriftPromptServiceError.openDatabase
+        }
+        defer { sqlite3_close(database) }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else {
+            throw GamingDriftPromptServiceError.database(String(cString: sqlite3_errmsg(database)))
+        }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else {
+            throw GamingDriftPromptServiceError.database(String(cString: sqlite3_errmsg(database)))
+        }
+        return Int(sqlite3_column_int64(statement, 0))
     }
 }

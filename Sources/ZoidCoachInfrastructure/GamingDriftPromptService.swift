@@ -26,6 +26,8 @@ public enum GamingDriftPromptResult: Equatable, Sendable {
 }
 
 public final class GamingDriftPromptService: @unchecked Sendable {
+    private static let intentionalOverrideMinutes = 45
+
     private struct GamingSession {
         let startedAtEpoch: Int64
         let latestAtEpoch: Int64
@@ -109,7 +111,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             decisionKeyPrefix: decisionKeyPrefix,
             localDay: localDay,
             at: date,
-            durationMinutes: policy.gaming.coachingLevel.cooldownMinutes
+            durationMinutes: Self.intentionalOverrideMinutes
         )
         guard override != .active else { return .suppressed(.intentionalOverrideActive) }
 
@@ -129,7 +131,13 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         guard try promptCount(decisionKeyPrefix: prefix) < level.maximumDailyPrompts else {
             return .suppressed(.dailyLimitReached)
         }
-        if let latestCreatedAt = try latestPromptCreatedAt(decisionKeyPrefix: prefix),
+        let completedIntentionalOverride: Bool
+        switch override {
+        case .ended, .expired: completedIntentionalOverride = true
+        case .none, .active: completedIntentionalOverride = false
+        }
+        if !completedIntentionalOverride,
+           let latestCreatedAt = try latestPromptCreatedAt(decisionKeyPrefix: prefix),
            date.timeIntervalSince(latestCreatedAt) < TimeInterval(level.cooldownMinutes * 60) {
             return .suppressed(.cooldownActive)
         }
@@ -189,7 +197,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
               let respondedAt = formatter.date(from: raw) else { return .none }
 
         let responseEpoch = Int64(respondedAt.timeIntervalSince1970)
-        if try hasNonGamingObservation(localDay: localDay, after: responseEpoch) {
+        if try hasAlignedWorkForTwoMinutes(localDay: localDay, after: responseEpoch) {
             return .ended(responseEpoch: responseEpoch)
         }
         if date.timeIntervalSince(respondedAt) >= TimeInterval(durationMinutes * 60) {
@@ -198,31 +206,50 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         return .active
     }
 
-    private func hasNonGamingObservation(localDay: String, after epoch: Int64) throws -> Bool {
+    private func hasAlignedWorkForTwoMinutes(localDay: String, after epoch: Int64) throws -> Bool {
         var statement: OpaquePointer?
         let sql = """
-        SELECT 1
+        SELECT behavior.epoch,
+               COALESCE(
+                   (SELECT correction.classification
+                    FROM daily_review_corrections correction
+                    WHERE correction.source_day = behavior.source_day
+                      AND behavior.epoch >= correction.start_epoch
+                      AND behavior.epoch < correction.end_epoch
+                    ORDER BY correction.created_at_utc DESC, correction.rowid DESC LIMIT 1),
+                   behavior.classification
+               )
         FROM behavior_records behavior
         WHERE behavior.source_day = ?
           AND behavior.epoch > ?
-          AND COALESCE(
-                (SELECT correction.classification
-                 FROM daily_review_corrections correction
-                 WHERE correction.source_day = behavior.source_day
-                   AND behavior.epoch >= correction.start_epoch
-                   AND behavior.epoch < correction.end_epoch
-                 ORDER BY correction.created_at_utc DESC, correction.rowid DESC LIMIT 1),
-                behavior.classification
-              ) != ?
-        LIMIT 1;
+        ORDER BY behavior.epoch ASC;
         """
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement else { throw databaseError() }
         defer { sqlite3_finalize(statement) }
         bind(localDay, statement, 1)
         sqlite3_bind_int64(statement, 2, epoch)
-        bind(BehaviorClassification.gaming.rawValue, statement, 3)
-        return sqlite3_step(statement) == SQLITE_ROW
+        var workStartedAt: Int64?
+        var previousEpoch: Int64?
+        while sqlite3_step(statement) == SQLITE_ROW {
+            let observedEpoch = sqlite3_column_int64(statement, 0)
+            let classification = text(statement, 1)
+            guard classification == BehaviorClassification.work.rawValue else {
+                workStartedAt = nil
+                previousEpoch = nil
+                continue
+            }
+            if previousEpoch.map({ observedEpoch - $0 > 180 }) == true {
+                workStartedAt = observedEpoch
+            } else if workStartedAt == nil {
+                workStartedAt = observedEpoch
+            }
+            previousEpoch = observedEpoch
+            if let workStartedAt, observedEpoch - workStartedAt + 60 >= 120 {
+                return true
+            }
+        }
+        return false
     }
 
     private func currentGamingSession(localDay: String, now: Date) throws -> GamingSession? {
