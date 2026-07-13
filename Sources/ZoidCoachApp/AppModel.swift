@@ -335,6 +335,11 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func refreshMenuBarPromptFallback() async {
+        updateSource(await notificationService.inspect())
+        await refreshPromptInbox()
+    }
+
     func applyTaskCommand(_ command: TaskActivityCommand, taskID: String) {
         guard pendingTaskCommandIDs.isEmpty else { return }
         pendingTaskCommandIDs.insert(taskID)
