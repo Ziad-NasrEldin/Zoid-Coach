@@ -41,13 +41,29 @@ public final class TodayDashboardAgent: @unchecked Sendable {
 
     public func snapshot(now: Date = Date()) throws -> TodaySnapshot {
         let previousSnapshot = try snapshots.load(for: now)
-        if let active = try execution.activeTask(now: now),
-           try reminders.sourceKind(forID: active.taskID) == nil,
-           previousSnapshot?.taskRows.contains(where: { $0.taskID == active.taskID }) == true {
+        let activeBeforeSourceRefresh = try execution.activeTask(now: now)
+        let activeSourceKind = try activeBeforeSourceRefresh.flatMap { try reminders.sourceKind(forID: $0.taskID) }
+        if let active = activeBeforeSourceRefresh,
+           activeSourceKind == nil,
+            previousSnapshot?.taskRows.contains(where: { $0.taskID == active.taskID }) == true {
             try execution.pauseForDeletedReminder(taskID: active.taskID, at: now)
         }
-        let plan = try plans.loadDailyPlan(for: now)
         let reminderSnapshots = try reminders.loadIncomplete()
+        if let active = activeBeforeSourceRefresh,
+           activeSourceKind == .reminders,
+           reminderSnapshots.contains(where: { $0.id == active.taskID }) == false,
+           previousSnapshot?.taskRows.contains(where: { $0.taskID == active.taskID }) == true {
+            let previousRow = previousSnapshot?.taskRows.first(where: { $0.taskID == active.taskID })
+            try execution.apply(.complete, taskID: active.taskID, at: now)
+            try taskHistory.record(
+                taskID: active.taskID,
+                state: .completed,
+                title: previousRow?.title,
+                sourceKind: .reminders,
+                at: now
+            )
+        }
+        let plan = try plans.loadDailyPlan(for: now)
         let reminderByID = Dictionary(uniqueKeysWithValues: reminderSnapshots.map { ($0.id, $0) })
         let executionByID = try execution.snapshot(for: reminderSnapshots.map(\.id), now: now)
         let behaviorObservations = try archive.behaviorObservations(for: now)
@@ -131,12 +147,17 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         if let previousSnapshot {
             for previousRow in previousSnapshot.taskRows where !rows.contains(where: { $0.taskID == previousRow.taskID }) {
                 guard reminderByID[previousRow.taskID] == nil,
-                      try reminders.sourceKind(forID: previousRow.taskID) == nil,
-                      let current = try execution.snapshot(for: [previousRow.taskID], now: now)[previousRow.taskID],
-                      current.state == .paused,
-                      current.latestPauseReason == .reminderDeleted
+                      let current = try execution.snapshot(for: [previousRow.taskID], now: now)[previousRow.taskID]
                 else { continue }
-                rows.append(deletedReminderRow(from: previousRow, execution: current))
+                let sourceKind = try reminders.sourceKind(forID: previousRow.taskID)
+                if sourceKind == .reminders,
+                   current.state == .completed {
+                    rows.append(externallyCompletedReminderRow(from: previousRow, execution: current))
+                } else if sourceKind == nil,
+                          current.state == .paused,
+                          current.latestPauseReason == .reminderDeleted {
+                    rows.append(deletedReminderRow(from: previousRow, execution: current))
+                }
             }
         }
         let timeZoneIdentifier = (try? userPolicyStore.current()?.policy.schedule.timeZoneIdentifier) ?? TimeZone.current.identifier
@@ -239,6 +260,29 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             state: .paused,
             elapsedMinutes: current.elapsedMinutes,
             latestPauseReason: .reminderDeleted,
+            sprint: current.sprint,
+            isMainObjective: previous.isMainObjective,
+            isLocked: previous.isLocked,
+            isOptional: previous.isOptional ?? false,
+            blockedReason: previous.blockedReason,
+            deferredUntil: previous.deferredUntil,
+            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
+        )
+    }
+
+    private func externallyCompletedReminderRow(
+        from previous: TodayTaskRow,
+        execution current: TaskExecutionSnapshot
+    ) -> TodayTaskRow {
+        TodayTaskRow(
+            taskID: previous.taskID,
+            title: previous.title,
+            estimateMinutes: previous.estimateMinutes,
+            dueDate: previous.dueDate,
+            urgency: previous.urgency,
+            state: .completed,
+            elapsedMinutes: current.elapsedMinutes,
+            completionReason: .appleReminderCompleted,
             sprint: current.sprint,
             isMainObjective: previous.isMainObjective,
             isLocked: previous.isLocked,

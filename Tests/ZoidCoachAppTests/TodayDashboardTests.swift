@@ -3,6 +3,14 @@ import Testing
 @testable import ZoidCoachCore
 
 @Test
+func externalReminderCompletionReasonIsExplicitForTheUser() {
+    #expect(
+        TaskCompletionReason.appleReminderCompleted.userFacingLabel
+            == "Ended because the Apple Reminder was completed"
+    )
+}
+
+@Test
 func activeTaskTimeComparisonSeparatesElapsedTimeFromObservedAlignment() {
     let now = Date(timeIntervalSince1970: 1_750_000_000)
     let activeSince = now.addingTimeInterval(-180)

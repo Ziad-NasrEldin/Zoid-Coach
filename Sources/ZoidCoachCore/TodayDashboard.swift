@@ -120,6 +120,16 @@ public enum TaskPauseReason: String, Codable, CaseIterable, Sendable {
     }
 }
 
+public enum TaskCompletionReason: String, Codable, Sendable {
+    case appleReminderCompleted
+
+    public var userFacingLabel: String {
+        switch self {
+        case .appleReminderCompleted: "Ended because the Apple Reminder was completed"
+        }
+    }
+}
+
 public struct AcceptedBreakSnapshot: Equatable, Codable, Sendable {
     public static let defaultDurationMinutes = 15
 
@@ -215,6 +225,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let state: TaskExecutionState
     public let elapsedMinutes: Int
     public let activeTimeComparison: ActiveTaskTimeComparison?
+    public let completionReason: TaskCompletionReason?
     public let latestPauseReason: TaskPauseReason?
     public let acceptedBreak: AcceptedBreakSnapshot?
     public let sprint: SprintSnapshot?
@@ -234,6 +245,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         state: TaskExecutionState,
         elapsedMinutes: Int = 0,
         activeTimeComparison: ActiveTaskTimeComparison? = nil,
+        completionReason: TaskCompletionReason? = nil,
         latestPauseReason: TaskPauseReason? = nil,
         acceptedBreak: AcceptedBreakSnapshot? = nil,
         sprint: SprintSnapshot? = nil,
@@ -252,6 +264,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         self.state = state
         self.elapsedMinutes = max(0, elapsedMinutes)
         self.activeTimeComparison = activeTimeComparison
+        self.completionReason = completionReason
         self.latestPauseReason = latestPauseReason
         self.acceptedBreak = acceptedBreak
         self.sprint = sprint
