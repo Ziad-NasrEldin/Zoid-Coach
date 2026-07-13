@@ -9,6 +9,7 @@ struct TodayDashboardCommandOverview: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let snapshot: TodaySnapshot
     @State private var isUsagePresented = false
+    @State private var isBehaviorEvidencePresented = false
     @State private var isPointerOverUsageAnchor = false
     @State private var isPointerOverUsagePanel = false
     @State private var isUsageSelectorActive = false
@@ -93,6 +94,10 @@ struct TodayDashboardCommandOverview: View {
                 blockReasonTask = nil
                 model.markTaskBlocked(taskID: row.taskID, reason: blockReason)
             }
+        }
+        .sheet(isPresented: $isBehaviorEvidencePresented) {
+            BehaviorEvidenceSheet(snapshot: snapshot)
+                .environmentObject(model)
         }
     }
 
@@ -232,6 +237,14 @@ struct TodayDashboardCommandOverview: View {
                     .foregroundStyle(Sumi.muted)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
+                Button("VIEW ALL ACTIVITY") {
+                    isBehaviorEvidencePresented = true
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+                .accessibilityHint("Shows separate behavior totals, uncertainty, source limits, and correction actions.")
+                .accessibilityIdentifier("today.behavior-evidence.open")
                 HStack(alignment: .bottom) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(snapshot.gaming.budgetEnabled ? "GAMING BUDGET" : "GAMING OBSERVED")
