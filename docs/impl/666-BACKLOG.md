@@ -72,7 +72,7 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - The fixture is ready for isolated signed scenarios that do not test onboarding itself.
 - Historical failure evidence remains in `.audit/runs/qa-ready-state-fixture/verifier/REPORT.md`; passing repair evidence is recorded in `.audit/runs/qa-ready-state-fixture/repair-verifier/REPORT.md`.
 
-### External Apple Reminder completion - candidate
+### External Apple Reminder completion - partially verified
 
 - Owns `ZC-021-002`.
 - Ends the canonical active task interval when its synchronized Apple Reminder becomes completed.
@@ -82,6 +82,9 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Leaves the remaining planned task available.
 - Two focused domain and persistence-backed agent tests pass, and the release build passes.
 - Candidate evidence and the signed verifier plan are recorded in `.audit/runs/external-reminder-completion/candidate/REPORT.md`.
+- Focused tests and one release package passed, and signed persistence proved the interval and sprint ended once with one completion history entry and no redundant command.
+- The signed unplanned task disappeared from Today after completion and relaunch, so the explicit reason was not usable and signed cross-task continuity remains unproven.
+- `ZC-021-002` advances from Not implemented to Partially implemented with evidence in `.audit/runs/external-reminder-completion/verifier/REPORT.md`.
 
 ### Settings notification delivery test - candidate
 

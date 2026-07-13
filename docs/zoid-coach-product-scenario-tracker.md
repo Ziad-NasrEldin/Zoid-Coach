@@ -17,9 +17,9 @@ Only scenarios proven completely usable end to end are checked.
 - **Fully implemented:** 172
 - **Touches remaining:** 291
 - **Frontend only left:** 4
-- **Partially implemented:** 102
+- **Partially implemented:** 103
 - **Barely started:** 9
-- **Not implemented:** 61
+- **Not implemented:** 60
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -317,7 +317,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 ## 21. Changes made in Apple Reminders
 
 - [ ] See an externally completed Reminder update in Zoid 666. **Status: Partially implemented.** The agent periodically refreshes Reminder snapshots and Today rows are derived from incomplete snapshots, so the task should disappear after refresh. No live external-change E2E test or completed-history presentation was found.
-- [ ] See an active externally completed task end with an understandable reason. **Status: Not implemented.** A missing Reminder drops out of the snapshot; there is no explicit external-completion reason or session closure explanation.
+- [ ] See an active externally completed task end with an understandable reason. **Status: Partially implemented.** Focused tests prove a synchronized Apple Reminder completion ends the active interval and sprint once, records one source-completion history entry without a redundant command, preserves an explicit reason for planned rows, and leaves another planned task available. In the signed ready-state journey, the unplanned active row disappeared after external completion and relaunch, so the user could not see `Ended because the Apple Reminder was completed`; signed cross-task continuity also remains unproven (`TodayDashboardAgent.swift`; `TodayDashboard.swift`; `.audit/runs/external-reminder-completion/verifier/REPORT.md`).
 - [ ] See title, notes, list, due date, or priority changes made in Reminders appear after sync. **Status: Partially implemented.** Reminder snapshots carry these source fields and refresh periodically, but Today rows expose only title, due date, and priority-derived urgency. Notes are not displayed, and no live sync test was performed.
 - [ ] Keep local estimates and coaching history when source-owned fields change. **Status: Partially implemented.** Estimates live in the local plan by Reminder ID and task history is local, which should survive source field changes, but a live external-field change and restart sequence was not verified.
 - [ ] See an active task pause when its Reminder is deleted externally. **Status: Touches remaining.** The canonical agent now detects a previously visible active Apple Reminder that disappears, closes its interval, pauses its bounded sprint exactly once, retains the row with `Paused because the Apple Reminder was deleted`, preserves stopped elapsed time across refresh and restart, keeps the next row usable, and removes the orphan after completion. Focused end-to-end agent tests and release packaging pass, while signed QA visibly proved a Healthy connected fixture with both target and remaining Reminders but reached the runtime cap during onboarding before the external deletion and Today-state journey (`TodayDashboardAgent.swift`; `TaskExecutionStore.swift`; `.audit/runs/deleted-reminder-active-task/verifier/REPORT.md`).
