@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "run_id": "plan-preview-metrics/dde796c98241e04e424b5b7e92faa610a4c18eec",
+  "verified_commit": "dde796c98241e04e424b5b7e92faa610a4c18eec",
+  "build_identity": "zoid-coach-dde796c98241e04e424b5b7e92faa610a4c18eec-clean",
+  "scenario_ids": ["ZC-008-005", "ZC-008-006"],
+  "required_proof_classes": ["installed_app_e2e", "ui_automation"],
+  "status": "passed",
+  "completed_at": "2026-07-13T01:42:00Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "386a3f76861be33f29dda0d827825b9806d16af52c549fcabc1cc81f80982220"
+    }
+  ],
+  "assertions": [
+    {"name": "Installed proposal showed exact focused-work and buffer metrics", "result": "passed"},
+    {"name": "One visible estimate change recalculated both metrics in place", "result": "passed"},
+    {"name": "Stable accessibility identifiers exposed complete spoken values", "result": "passed"}
+  ]
+}

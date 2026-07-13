@@ -29,8 +29,12 @@ Each metric is one accessibility element rather than reading its label and value
 - One release build passed.
 - `git diff --check` passed.
 
-## Signed verifier plan
+## Signed acceptance
 
-After the shared signed-QA lease is released, open a deterministic first-plan proposal with known focused minutes and available capacity.
-Confirm both accessible metrics, shorten or remove one proposed task, and verify both values update in place without leaving the proposal.
-Keep both mapped scenarios conservative until that installed click-through completes.
+The installed signed QA app loaded a deterministic two-task proposal with 45 and 30 committed minutes.
+The panel visibly and accessibly reported 75 focused minutes, 378 available minutes, and 303 buffer minutes.
+The verifier shortened Review budget from 30 to 15 minutes through the visible estimate control.
+Without leaving Today, the panel updated to 60 focused minutes and 318 buffer minutes.
+The stable accessibility identifiers and full spoken values remained present after the update.
+
+Both mapped scenarios are fully usable end to end.
