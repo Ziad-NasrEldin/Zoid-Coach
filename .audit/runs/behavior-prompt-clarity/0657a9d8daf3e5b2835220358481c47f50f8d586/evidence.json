@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "run_id": "behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586",
+  "verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+  "build_identity": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
+  "fixture": "/private/tmp/zoid-666-behavior-prompt-clarity-qa/OS Fixtures/state.json",
+  "qa_root": "/private/tmp/zoid-666-behavior-prompt-clarity-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "c84461fcb9f1edce24d8ccf3b6bc42de1d011964deb713eed1c5042677c2acf0",
+  "scenario_ids": [
+    "ZC-033-006",
+    "ZC-033-007",
+    "ZC-033-008",
+    "ZC-033-009",
+    "ZC-033-010"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T09:14:00Z",
+  "completed_at": "2026-07-13T09:22:00Z",
+  "artifacts": [
+    {
+      "path": "SUMMARY.md",
+      "sha256": "3634d57b1801005d132d9e6793314dc74251afc0642ebda1cfa152db99d4a380"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "invalid_prompt_contracts_are_rejected",
+      "result": "passed",
+      "detail": "Focused tests rejected excess secondary actions, mismatched elapsed evidence, missing uncertainty, coercive language, and asserted intent before persistence."
+    },
+    {
+      "name": "signed_prompt_is_clear_and_restart_safe",
+      "result": "passed",
+      "detail": "The signed Today prompt restored once after relaunch with exact minutes, application, task, uncertainty boundary, one primary action, and three secondary actions."
+    },
+    {
+      "name": "signed_primary_action_routes_once",
+      "result": "passed",
+      "detail": "Return to the named task activated Ship client proposal and created one answered history row without duplicating the prompt."
+    },
+    {
+      "name": "limited_coverage_suppresses_intervention",
+      "result": "passed",
+      "detail": "The live agent stayed silent under missing Screenwatch coverage while Today and Source Health explained the uncertainty and manual fallback."
+    }
+  ],
+  "commands": [
+    "swift test --filter PromptInbox|GamingDrift",
+    "swift test --filter gamingDriftStaysQuietUntilBaselineCompletesThenQueuesEvidenceFirstPrompt|promptInboxRejectsMoreThanThreeSecondaryActionsOnEverySurface|behaviorPromptContractRejectsUnreliableCoerciveOrIntentAssertingCopy|promptInboxRefusesToDismissAMandatoryDecision|fiveMoreMinutesSurvivesRestartAndProducesExactlyOneFollowUpAfterFiveMinutes",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-behavior-prompt-clarity-qa Scripts/package-app.sh"
+  ]
+}

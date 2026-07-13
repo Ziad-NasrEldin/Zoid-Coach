@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "6780670d866a88069b16accaade5586b3987bf49f449523d1acfd5e8bacd5893",
+  "tracker_sha256": "43672d7bef4cf98de05db839cb3fdbb97846f24d58e5988169c5978874511e75",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7290,9 +7290,9 @@
       "section_title": "Receiving a coaching prompt",
       "item_index": 6,
       "wording": "See no more than three secondary actions.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7300,10 +7300,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The generic prompt UI renders every supplied action with no secondary-action cap.",
+      "evidence_paths": [
+        ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
+        ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
+      "audit_note": "The prompt store rejects every draft with more than three secondary actions before persistence, focused tests cover the rejection, and the installed signed Today prompt visibly presented one primary action and exactly three secondary actions (`BehaviorPromptPresentationPolicy`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 475
     },
     {
@@ -7312,9 +7315,9 @@
       "section_title": "Receiving a coaching prompt",
       "item_index": 7,
       "wording": "See reliable elapsed time when included.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7322,10 +7325,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Coaching prompts are absent and active elapsed time is not displayed elsewhere.",
+      "evidence_paths": [
+        ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
+        ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
+      "audit_note": "Gaming prompts derive their displayed minutes from the first and latest canonical observations, reject mismatched evidence before persistence, and the installed signed Today prompt visibly reported the same exact ten observed Steam minutes after restart (`GamingDriftPromptService.swift`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 476
     },
     {
@@ -7334,9 +7340,9 @@
       "section_title": "Receiving a coaching prompt",
       "item_index": 8,
       "wording": "See uncertainty acknowledged when context is ambiguous.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7344,10 +7350,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No ambiguity-aware coaching prompt builder exists.",
+      "evidence_paths": [
+        ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
+        ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
+      "audit_note": "Contracted prompts must state that observed activity does not establish why it happened or what the user intended, limited coverage suppresses generation, and the installed signed Source Health and Today surfaces visibly explained the missing Screenwatch evidence and safe manual fallback (`BehaviorPromptPresentationPolicy`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 477
     },
     {
@@ -7356,9 +7365,9 @@
       "section_title": "Receiving a coaching prompt",
       "item_index": 9,
       "wording": "Avoid guilt, insults, moral labels, disappointment, or exaggerated claims.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7366,10 +7375,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Existing plan/meeting copy is neutral, but there is no coaching copy pipeline to verify against this requirement.",
+      "evidence_paths": [
+        ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
+        ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
+      "audit_note": "Contracted prompts containing the defined coercive phrase classes are rejected before persistence, while the signed prompt used factual activity, application, elapsed-time, and unfinished-task copy and remained neutral through response history (`BehaviorPromptPresentationPolicy`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 478
     },
     {
@@ -7378,9 +7390,9 @@
       "section_title": "Receiving a coaching prompt",
       "item_index": 10,
       "wording": "Avoid being told what the user's intent must be.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7388,10 +7400,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Existing copy does not assert intent, but the intended coaching prompts do not exist.",
+      "evidence_paths": [
+        ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
+        ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
+      "audit_note": "Contracted prompts reject asserted-intent phrases and require an explicit uncertainty boundary, while the signed prompt asked whether gaming was intentional and explicitly said the observations did not establish intent (`BehaviorPromptPresentationPolicy`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 479
     },
     {
