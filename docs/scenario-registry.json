@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "43672d7bef4cf98de05db839cb3fdbb97846f24d58e5988169c5978874511e75",
+  "tracker_sha256": "dc0fa895831eca09cbf1cae6cbf1887fdc2926f538168cc6e23580d525d1752a",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -2331,9 +2331,9 @@
       "section_title": "Adding task estimates",
       "item_index": 8,
       "wording": "Select `Unknown` when an estimate cannot be made confidently.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2341,10 +2341,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/explicit-unknown-estimates/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No Unknown option exists in either selector.",
+      "audit_note": "The installed signed app exposed accessible Unknown controls on both Today task representations, persisted the explicit choice across app and helper relaunch, and cleared it when 30 minutes was selected (`AppModel.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/explicit-unknown-estimates/verifier/REPORT.md`).",
       "tracker_line": 188
     },
     {
@@ -2353,9 +2355,9 @@
       "section_title": "Adding task estimates",
       "item_index": 9,
       "wording": "See the conservative placeholder assigned to an unknown estimate.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2363,10 +2365,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/explicit-unknown-estimates/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Core planner candidates require positive integer estimates, but the UI and data model have no explicit unknown estimate state.",
+      "audit_note": "Selecting Unknown changed capacity from zero to exactly 45 planned minutes, showed an approximately 45-minute placeholder in Today and Calendar approval, and retained the placeholder in the durable approval receipt after relaunch (`PlanningCapacityState.swift`; `CalendarPlanApprovalState.swift`; `.audit/runs/explicit-unknown-estimates/verifier/REPORT.md`).",
       "tracker_line": 189
     },
     {
@@ -2375,9 +2379,9 @@
       "section_title": "Adding task estimates",
       "item_index": 10,
       "wording": "Understand that the placeholder is uncertain.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2385,10 +2389,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/explicit-unknown-estimates/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No unknown placeholder or uncertainty copy is rendered.",
+      "audit_note": "Today rendered `UNKNOWN`, `PLACEHOLDER`, and `UNCERTAIN`, while Calendar approval visibly labeled the same task `UNCERTAIN PLACEHOLDER` rather than presenting 45 minutes as a confident estimate (`CalendarPlanApprovalSheet.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/explicit-unknown-estimates/verifier/REPORT.md`).",
       "tracker_line": 190
     },
     {
@@ -2419,9 +2425,9 @@
       "section_title": "Adding task estimates",
       "item_index": 12,
       "wording": "See that every priority task needs an estimate or explicit `Unknown` choice before approval.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2429,10 +2435,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/explicit-unknown-estimates/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Empty plans say estimates are required, but `ACCEPT BLOCKS` is disabled only for an empty plan and AppModel does not validate every estimate (`DashboardView.swift:944-952`; `AppModel.swift:305-330`).",
+      "audit_note": "The untouched missing task showed `ESTIMATE NEEDED`, zero planned minutes, one remaining estimate, and disabled approval; explicit Unknown enabled approval only after contributing its transparent 45-minute placeholder (`PlanningCapacityState.swift`; `DashboardView.swift`; `.audit/runs/explicit-unknown-estimates/verifier/REPORT.md`).",
       "tracker_line": 192
     },
     {

@@ -40,15 +40,18 @@ The signed output is `.build/app-qa/Zoid 666 QA.app` inside this verifier worktr
 
 ## Capped signed acceptance flow
 
-The installed acceptance flow remains intentionally deferred until the prompt-clarity runtime lease is released.
-The verifier will use one capped journey with one committed priority task and sufficient capacity.
+The signed installed run used `/private/tmp/zoid-666-explicit-unknown-apps/Zoid 666 QA E2E.app` with isolated state at `/private/tmp/zoid-666-explicit-unknown-qa`.
+The exact embedded QA helper was registered, enabled, and running from the installed application.
 
-1. Confirm the untouched task has no estimate and Calendar approval is blocked with missing-estimate guidance.
-2. Choose `UNKNOWN` through the visible control and confirm the task shows Unknown, uncertain, and an approximately 45-minute placeholder.
-3. Confirm planned capacity increases by exactly 45 minutes and approval becomes available only while the plan fits.
-4. Open Calendar approval and confirm the same task remains visibly uncertain rather than showing a confident 45-minute estimate.
-5. Approve and confirm the durable receipt retains the uncertainty label.
-6. Relaunch the app and helper and confirm the explicit Unknown state, placeholder, and approval semantics persist.
-7. Replace Unknown with a numeric estimate and confirm the uncertainty marker disappears, capacity uses the numeric value, and the cleared state persists after another relaunch.
+1. An untouched committed task with nil minutes showed `ESTIMATE NEEDED`, zero planned minutes, one remaining estimate, and a disabled approval button.
+2. The run found and fixed one real blocker where the active-commitment header and Reminders continuity banner silently presented the missing estimate as 45 minutes.
+3. The corrected signed app showed `ACTIVE COMMITMENT · ESTIMATE NEEDED` and zero estimated minutes for the same untouched task.
+4. Choosing the visible `UNKNOWN` control selected it on both Today representations and rendered `~45 MIN PLACEHOLDER · UNCERTAIN`.
+5. Capacity changed from zero to exactly 45 planned minutes and approval became available because the plan fit within 378 available minutes.
+6. Calendar approval showed `Investigate production issue`, `~45 MIN`, and `UNCERTAIN PLACEHOLDER` before any write.
+7. With the deterministic QA Calendar healthy, confirmation created a durable receipt that listed `Investigate production issue · MAIN ~45m placeholder`.
+8. App and helper relaunch restored the selected Unknown controls, 45-minute capacity placeholder, and last approval receipt.
+9. Selecting 30 minutes cleared both Unknown selections, removed all uncertainty copy, changed the header to `30 MIN ESTIMATE`, and changed capacity to 30 planned minutes.
 
-The verifier has not touched the installed runtime, tracker, registry, or Lavish artifact while another verifier owns that lease.
+The signed run also proved the environment-safe refusal path before Calendar permission was granted.
+No Calendar write occurred until source health was healthy and the reviewed preview was confirmed.
