@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "e162d882c0c170d5ab8ceec6aa52b8effe0563416dbd64659f9ca1c9c3883236",
+  "tracker_sha256": "9036dd24ad45d5b1bedc7b7fc7fc6fff18a8c35c7f9fce3fbbb4a6c43334900f",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -275,12 +275,10 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        ".audit/runs/completed-task-history/3578132/REPORT.md"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed signed-QA run exercised the granted path, refreshed healthy fixture state, discovered exact stable list identifiers, saved list choices, and continued. A real EventKit authorization prompt still requires a user-controlled macOS permission reset before this can qualify as fully implemented (`OnboardingCoordinator.swift`; `QAFixtureOSCompositionTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
+      "audit_note": "The signed QA app restored the exact Reminders step after restart, consumed an isolated denied-to-granted fixture transition, displayed healthy permission state, disabled repeated Request Access, and entered list selection, while a real EventKit authorization prompt still requires a user-controlled macOS reset (`OnboardingCoordinator.swift`; `QAFixtureOSCompositionTests.swift`; `.audit/runs/reminders-permission-recovery/verifier/REPORT.md`).",
       "tracker_line": 68
     },
     {
@@ -299,12 +297,10 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        ".audit/runs/completed-task-history/3578132/REPORT.md"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Denied-state consequence copy, repair, and local-only continuation are implemented and deterministically tested, but the visible run exercised deliberate deferral rather than a real macOS denial (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`).",
+      "audit_note": "The installed signed app visibly showed denied fixture status, no production Reminders access, disabled repeated Request Access after the explicit request, enabled Continue, and then explained that Apple tasks stay unavailable while local tasks and setup remain usable (`OnboardingRootView.swift`; `.audit/runs/reminders-permission-recovery/verifier/REPORT.md`).",
       "tracker_line": 69
     },
     {
@@ -323,12 +319,10 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [
-        ".audit/runs/completed-task-history/3578132/REPORT.md"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The explicit Not Now path was clicked in the signed-QA app and the denied path passes deterministic QA, but an actual macOS denial followed by continuation has not yet been visibly exercised (`OnboardingCoordinator.swift`; `OnboardingCoordinatorTests.swift`).",
+      "audit_note": "The signed app enabled Continue after denial and visibly switched to an explicit local-only state without another prompt, while the actual Continue transition following a real macOS denial remains user-controlled (`OnboardingCoordinator.swift`; `.audit/runs/reminders-permission-recovery/verifier/REPORT.md`).",
       "tracker_line": 70
     },
     {
@@ -350,7 +344,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Onboarding now exposes the Reminders privacy repair destination and tests cover the command, but the native System Settings handoff was not clicked in the visible run (`OnboardingDependencies.swift:176-189`; `OnboardingCoordinatorTests.swift`).",
+      "audit_note": "Production opens the Reminders privacy destination and reports success or a manual fallback path, with focused injection proof, while the signed QA click was timeboxed before a stable System Settings capture (`RemindersConnectionController.swift`; `OnboardingDependencies.swift`; `.audit/runs/reminders-permission-recovery/verifier/REPORT.md`).",
       "tracker_line": 71
     },
     {
@@ -372,7 +366,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Recheck and foreground-safe inspection update onboarding health and list discovery, with deterministic tests covering transitions; the real System Settings round trip remains unperformed (`OnboardingCoordinator.swift`; `OnboardingCoordinatorTests.swift`).",
+      "audit_note": "Foreground activation now performs inspection without another authorization request, focused tests prove denied-to-healthy recovery, and the signed restart visibly restored Healthy with deterministic fixture evidence, while the foreground screenshot itself remained unstable (`OnboardingCoordinator.swift`; `RemindersConnectionController.swift`; `.audit/runs/reminders-permission-recovery/verifier/REPORT.md`).",
       "tracker_line": 72
     },
     {
@@ -382,8 +376,8 @@
       "item_index": 7,
       "wording": "Avoid seeing the same permission dialog repeatedly after declining it.",
       "checkbox_state": "unchecked",
-      "audit_status": "Blocked from verification",
-      "delivery_status": "blocked_from_verification",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -394,7 +388,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "EventKit and macOS authorization handling support the behavior, but the independent `a068d27` verifier could not run the packaged deny-and-retry UI flow without mutating real permission state (`.audit/runs/baseline/a068d27/REPORT.md`).",
+      "audit_note": "The installed denied state disabled Request Access, Recheck used inspection only, local-only deferral explicitly preserved a single opt-in Request Access path, and focused counters prove foreground checks never call the permission request again, while real EventKit denial remains user-controlled (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/reminders-permission-recovery/verifier/REPORT.md`).",
       "tracker_line": 73
     },
     {
@@ -3850,8 +3844,8 @@
       "evidence_paths": [
         ".audit/runs/task-estimate-progress/verifier/REPORT.md"
       ],
-      "last_verified_commit": "49fe140",
-      "last_verified_build": "Zoid 666 QA Build 8",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The signed installed Today journey visibly started `Verify estimate progress`, showed its title with tracked minutes and a stable accessibility summary, paused it for a break, relaunched the app, and recovered the same canonical paused state. Active rows advance minute by minute while paused rows remain stable (`TaskEstimateProgressView.swift`; `TaskEstimateProgressTests.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).",
       "tracker_line": 279
     },
@@ -3896,8 +3890,8 @@
       "evidence_paths": [
         ".audit/runs/task-estimate-progress/verifier/REPORT.md"
       ],
-      "last_verified_commit": "49fe140",
-      "last_verified_build": "Zoid 666 QA Build 8",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "Active and paused focus and task-row surfaces show tracked minutes, the estimate, bounded progress, remaining or over-estimate copy, and one complete accessibility summary. The signed installed journey visibly moved from `0 minutes tracked of 5 estimated, not started` to the persisted paused state `7 minutes tracked of 5 estimated, 2 min over estimate`, while seven focused tests cover every boundary and restart recovery (`TaskEstimateProgress.swift`; `TaskEstimateProgressView.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).",
       "tracker_line": 281
     },
@@ -8226,8 +8220,8 @@
       "evidence_paths": [
         ".audit/runs/task-estimate-progress/verifier/REPORT.md"
       ],
-      "last_verified_commit": "49fe140",
-      "last_verified_build": "Zoid 666 QA Build 8",
+      "last_verified_commit": null,
+      "last_verified_build": null,
       "audit_note": "The signed installed Today dashboard visibly presented the same canonical 5-minute estimate and factual tracked progress in active, paused, relaunched, and over-estimate states, with stable accessibility identifiers on the primary focus and detailed-row surfaces (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).",
       "tracker_line": 531
     },
