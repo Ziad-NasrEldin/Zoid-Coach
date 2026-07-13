@@ -173,6 +173,37 @@ func gamingDriftHonorsPauseWorkWindowBreakEndDayAndIncompleteWorkGates() throws 
 }
 
 @Test
+func gamingDriftSuppressesPromptsWhenScreenwatchBecomesStaleAndRecoversWithFreshEvidence() throws {
+    let stale = try GamingPromptFixture()
+    defer { stale.remove() }
+    try stale.insertPriorityTask()
+    try stale.insertGaming(minutes: 10)
+    stale.advance(minutes: 4)
+
+    #expect(try stale.service.produce(
+        policy: stale.policy(),
+        gamingStatus: stale.gamingStatus,
+        baselineStatus: stale.baseline()
+    ) == .suppressed(.limitedCoverage))
+    #expect(try stale.promptStore.unresolved().isEmpty)
+
+    let recovered = try GamingPromptFixture()
+    defer { recovered.remove() }
+    try recovered.insertPriorityTask()
+    try recovered.insertGaming(minutes: 10)
+
+    guard case .queued = try recovered.service.produce(
+        policy: recovered.policy(),
+        gamingStatus: recovered.gamingStatus,
+        baselineStatus: recovered.baseline()
+    ) else {
+        Issue.record("Expected fresh Screenwatch evidence to restore behavior prompt eligibility")
+        return
+    }
+    #expect(try recovered.promptStore.unresolved().count == 1)
+}
+
+@Test
 func gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() throws {
     let corrected = try GamingPromptFixture()
     defer { corrected.remove() }
