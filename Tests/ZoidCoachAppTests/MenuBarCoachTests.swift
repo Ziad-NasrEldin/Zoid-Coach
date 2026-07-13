@@ -41,6 +41,43 @@ import ZoidCoachInfrastructure
     #expect(coachingPausedState.primaryTask?.title == "Write proposal")
 }
 
+@Test func unavailableNotificationsExposeAStableDecisionBadgeWithoutRemovingTaskControls() {
+    let active = menuSnapshot(
+        rows: [menuTask(id: "active", title: "Write proposal", state: .active)],
+        activeTask: .init(taskID: "active", startedAt: nil, elapsedMinutes: 8)
+    )
+
+    let fallback = MenuBarCoachState(
+        snapshot: active,
+        unresolvedPromptCount: 2,
+        notificationsUnavailable: true
+    )
+
+    #expect(fallback.tone == .active)
+    #expect(fallback.menuBarSymbol == "exclamationmark.bubble.fill")
+    #expect(fallback.menuBarLabel == "2 decisions are waiting in Today")
+    #expect(fallback.notificationFallbackDetail == "Notifications are unavailable. 2 decisions waiting in Today. Task controls remain available here.")
+    #expect(fallback.activeTask?.taskID == "active")
+    #expect(fallback.canStartBreak)
+    #expect(fallback.canEndWorkday)
+
+    let healthyDelivery = MenuBarCoachState(
+        snapshot: active,
+        unresolvedPromptCount: 2,
+        notificationsUnavailable: false
+    )
+    #expect(healthyDelivery.menuBarSymbol == MenuBarCoachTone.active.symbol)
+    #expect(healthyDelivery.notificationFallbackDetail == nil)
+
+    let noDecision = MenuBarCoachState(
+        snapshot: active,
+        unresolvedPromptCount: 0,
+        notificationsUnavailable: true
+    )
+    #expect(noDecision.menuBarSymbol == MenuBarCoachTone.active.symbol)
+    #expect(noDecision.notificationFallbackDetail == nil)
+}
+
 @MainActor
 @Test func menuBarCoachingPauseRefreshesAndPersistsOnlyThePauseSetting() async throws {
     let initial = VersionedUserPolicy(
