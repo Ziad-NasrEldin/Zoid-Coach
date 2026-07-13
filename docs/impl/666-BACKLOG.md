@@ -34,7 +34,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 16 | Complete meeting-aware planning and calendar boundaries | ready | Unowned | Calendar grant, denial, changes, overlap, cancellation, and offline states produce usable plans and repair paths |
 | 17 | Complete app-classification management in Settings | ready | Unowned | User can search, classify, bulk-edit, reset, and verify runtime use of work, gaming, communication, and automatic categories |
 | 18 | Complete Settings policy mutation conflict UX | verify | Settings conflict lane at `87f326f` | Concurrent edits never silently overwrite; the user sees the winning state and can retry safely without duplicates |
-| 19 | Complete background-agent lifecycle and Login Items repair | active | Agent lifecycle lane `codex/agent-lifecycle-recovery` | `ZC-048-007` through `ZC-048-009` and `ZC-057-008`: live helper state, impact, direct Login Items repair, crash/update recovery, disable continuity, and bounded resource evidence |
+| 19 | Complete background-agent lifecycle and Login Items repair | verify | Agent lifecycle candidate at `57a7f54` | `ZC-048-007` through `ZC-048-009` and `ZC-057-008`: live heartbeat, impact, Login Items repair, force-restart, disable continuity, and read-only proof passed in `.audit/runs/agent-lifecycle-recovery/57a7f54/REPORT.md` |
 | 20 | Complete privacy, export, deletion, and local-data controls | verify | Lane C at `f4085ed` | User can inspect stored-data classes, export supported data, delete safely, understand retention, and verify no silent cloud dependency |
 | 21 | Complete daily behavior review and correction | verify | Lane D at `7b96623` | User can review grouped activity sessions, correct or split classifications, attach work to a task, reject unsupported explanations, confirm the review, and see durable corrected totals after restart |
 | 22 | Complete away-from-Mac work recording and correction | verify | Offline-work lane at `55fcca3` | Reviews supports add, edit, delete, restart-safe persistence, actual-time inclusion, explicit separation from Screenwatch coverage, and honest missing-telemetry copy; active-task entry remains a separate follow-up |
@@ -52,6 +52,17 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Background-agent lifecycle and Login Items repair - `57a7f54`
+
+- Distinguishes an enabled ServiceManagement registration from a fresh canonical runtime heartbeat.
+- Shows missing, stale, and running helper states with direct repair and honest local-data impact.
+- Forced repair unregisters and registers an enabled-but-stale installed helper instead of returning the unchanged registration state.
+- The visible lifecycle window refreshes every five seconds while open and retains the exact manual Login Items path.
+- Heartbeat inspection is read-only, never creates a missing database, never migrates, and caps lock waiting at 250 milliseconds.
+- Focused service and controller tests pass, including a filesystem-backed canonical-checkpoint fixture.
+- Evidence is recorded in `.audit/runs/agent-lifecycle-recovery/57a7f54/REPORT.md`.
+- A fresh verifier owns signed-QA lifecycle traversal, bounded resource sampling, tracker and registry integration, and Lavish refresh.
 
 ### Evidence-gated weekly review and next-week experiment - candidate
 
