@@ -127,6 +127,19 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
         presentationIsOpen = true
     }
 
+    mutating func retryFailedCommands() -> [String] {
+        guard case let .failed(commandIDs) = writeState else { return [] }
+        writeState = .pending(commandIDs: commandIDs)
+        updateReceipt(outcome: .pending, commandIDs: commandIDs, commandCount: commandIDs.count)
+        return commandIDs.sorted()
+    }
+
+    mutating func retryRequestFailed(commandIDs: [String]) {
+        let identifiers = Set(commandIDs)
+        writeState = .failed(commandIDs: identifiers)
+        updateReceipt(outcome: .failed, commandIDs: identifiers, commandCount: identifiers.count)
+    }
+
     mutating func restore(_ receipt: CalendarPlanApprovalReceipt) {
         self.receipt = receipt
         items = receipt.items

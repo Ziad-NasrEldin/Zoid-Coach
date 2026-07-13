@@ -950,6 +950,23 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func retryCalendarPlanWrite() {
+        let commandIDs = calendarPlanApproval.retryFailedCommands()
+        guard !commandIDs.isEmpty else { return }
+        persistCalendarPlanApprovalReceipt()
+        Task {
+            do {
+                actionAudit = try await todayDashboardXPCClient.retryFailedActions(commandIDs: commandIDs)
+                actionAuditError = nil
+                reconcileCalendarPlanApproval()
+            } catch {
+                calendarPlanApproval.retryRequestFailed(commandIDs: commandIDs)
+                persistCalendarPlanApprovalReceipt()
+                calendarScheduleError = "The exact failed Calendar changes could not be retried. Repair Source Health and try again."
+            }
+        }
+    }
+
     private func reconcileCalendarPlanApproval() {
         let previousReceipt = calendarPlanApproval.receipt
         calendarPlanApproval.reconcile(with: actionAudit)
