@@ -8,14 +8,16 @@ public struct TaskExecutionSnapshot: Equatable, Sendable {
     public let elapsedMinutes: Int
     public let activeSince: Date?
     public let latestPauseReason: TaskPauseReason?
+    public let acceptedBreak: AcceptedBreakSnapshot?
     public let sprint: SprintSnapshot?
 
-    public init(taskID: String, state: TaskExecutionState, elapsedMinutes: Int, activeSince: Date?, latestPauseReason: TaskPauseReason? = nil, sprint: SprintSnapshot? = nil) {
+    public init(taskID: String, state: TaskExecutionState, elapsedMinutes: Int, activeSince: Date?, latestPauseReason: TaskPauseReason? = nil, acceptedBreak: AcceptedBreakSnapshot? = nil, sprint: SprintSnapshot? = nil) {
         self.taskID = taskID
         self.state = state
         self.elapsedMinutes = elapsedMinutes
         self.activeSince = activeSince
         self.latestPauseReason = latestPauseReason
+        self.acceptedBreak = acceptedBreak
         self.sprint = sprint
     }
 }
@@ -119,7 +121,11 @@ public final class TaskExecutionStore: @unchecked Sendable {
         return Dictionary(uniqueKeysWithValues: taskIDs.map { taskID in
             let state = states[taskID] ?? .ready
             let elapsed = (try? elapsedMinutes(taskID: taskID, now: now)) ?? 0
-            return (taskID, TaskExecutionSnapshot(taskID: taskID, state: state, elapsedMinutes: elapsed, activeSince: open?.taskID == taskID ? open?.startedAt : nil, latestPauseReason: try? latestPauseReason(taskID: taskID), sprint: try? sprintSnapshot(taskID: taskID, now: now)))
+            let pause = try? latestPause(taskID: taskID)
+            let acceptedBreak = pause?.reason == .break && pause?.resumedAt == nil
+                ? pause.map { AcceptedBreakSnapshot(startedAt: $0.pausedAt) }
+                : nil
+            return (taskID, TaskExecutionSnapshot(taskID: taskID, state: state, elapsedMinutes: elapsed, activeSince: open?.taskID == taskID ? open?.startedAt : nil, latestPauseReason: pause?.reason, acceptedBreak: acceptedBreak, sprint: try? sprintSnapshot(taskID: taskID, now: now)))
         })
     }
 
@@ -391,6 +397,21 @@ public final class TaskExecutionStore: @unchecked Sendable {
         bind(taskID, statement, 1)
         guard sqlite3_step(statement) == SQLITE_ROW, let value = sqlite3_column_text(statement, 0) else { return nil }
         return TaskPauseReason(rawValue: String(cString: value))
+    }
+
+    private func latestPause(taskID: String) throws -> (reason: TaskPauseReason, pausedAt: Date, resumedAt: Date?)? {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "SELECT reason, paused_at, resumed_at FROM task_pause_events WHERE task_id = ? ORDER BY paused_at DESC, id DESC LIMIT 1;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let reasonText = sqlite3_column_text(statement, 0),
+              let pausedText = sqlite3_column_text(statement, 1),
+              let reason = TaskPauseReason(rawValue: String(cString: reasonText)),
+              let pausedAt = formatter.date(from: String(cString: pausedText))
+        else { return nil }
+        let resumedAt = sqlite3_column_text(statement, 2).flatMap { formatter.date(from: String(cString: $0)) }
+        return (reason, pausedAt, resumedAt)
     }
 
     private func openInterval() throws -> (taskID: String, startedAt: Date)? {

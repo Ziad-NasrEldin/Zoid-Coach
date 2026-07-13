@@ -118,6 +118,26 @@ public enum TaskPauseReason: String, Codable, CaseIterable, Sendable {
     }
 }
 
+public struct AcceptedBreakSnapshot: Equatable, Codable, Sendable {
+    public static let defaultDurationMinutes = 15
+
+    public let startedAt: Date
+    public let durationMinutes: Int
+
+    public init(startedAt: Date, durationMinutes: Int = defaultDurationMinutes) {
+        self.startedAt = startedAt
+        self.durationMinutes = max(1, durationMinutes)
+    }
+
+    public func remainingSeconds(at date: Date) -> Int {
+        max(0, durationMinutes * 60 - Int(max(0, date.timeIntervalSince(startedAt))))
+    }
+
+    public func hasEnded(at date: Date) -> Bool {
+        remainingSeconds(at: date) == 0
+    }
+}
+
 public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let taskID: String
     public let title: String
@@ -127,6 +147,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let state: TaskExecutionState
     public let elapsedMinutes: Int
     public let latestPauseReason: TaskPauseReason?
+    public let acceptedBreak: AcceptedBreakSnapshot?
     public let sprint: SprintSnapshot?
     public let isMainObjective: Bool
     public let isLocked: Bool
@@ -143,6 +164,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         state: TaskExecutionState,
         elapsedMinutes: Int = 0,
         latestPauseReason: TaskPauseReason? = nil,
+        acceptedBreak: AcceptedBreakSnapshot? = nil,
         sprint: SprintSnapshot? = nil,
         isMainObjective: Bool = false,
         isLocked: Bool = false,
@@ -158,6 +180,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         self.state = state
         self.elapsedMinutes = max(0, elapsedMinutes)
         self.latestPauseReason = latestPauseReason
+        self.acceptedBreak = acceptedBreak
         self.sprint = sprint
         self.isMainObjective = isMainObjective
         self.isLocked = isLocked

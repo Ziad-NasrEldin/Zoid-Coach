@@ -149,8 +149,11 @@ struct MenuBarCoachView: View {
                         taskButton("PAUSE", identifier: "menu-bar.task.pause") {
                             await apply(.pauseDoneForNow, taskID: task.taskID)
                         }
+                        taskButton("BREAK 15", role: .quiet, identifier: "menu-bar.task.break") {
+                            await apply(.pauseForBreak, taskID: task.taskID)
+                        }
                     } else if controller.state.pausedTask != nil {
-                        taskButton("RESUME", identifier: "menu-bar.task.resume") {
+                        taskButton(task.acceptedBreak == nil ? "RESUME" : "END BREAK", identifier: "menu-bar.task.resume") {
                             await apply(.resume, taskID: task.taskID)
                         }
                     } else {
@@ -220,6 +223,7 @@ struct MenuBarCoachView: View {
     private func apply(_ command: TaskActivityCommand, taskID: String) async {
         await controller.apply(command, taskID: taskID)
         await appModel.refreshTodaySnapshot()
+        await appModel.reconcileAcceptedBreakReminder(taskID: taskID)
     }
 
     private func refreshAll() async {
