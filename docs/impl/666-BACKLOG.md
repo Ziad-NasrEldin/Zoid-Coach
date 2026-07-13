@@ -58,6 +58,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Deterministic QA ready state - candidate
+
+- Prepares a strict isolated QA root with valid completed onboarding, existing-schema OS fixture control, and configurable Screenwatch data.
+- Supports explicit granted and deferred Reminders, Screenwatch, and notification decisions without real OS mutation.
+- Adds native AX `--expect-today` plus optional pixel evidence so signed runs can begin at Today instead of spending their cap on onboarding.
+- Three focused schema/state tests, Python compilation, native probe typecheck, release build, and diff checks pass.
+- Candidate evidence is recorded in `.audit/runs/qa-ready-state-fixture/candidate/REPORT.md`; fresh signed direct-launch verification remains.
+
 ### Settings notification delivery test - candidate
 
 - Owns `ZC-044-012`.
