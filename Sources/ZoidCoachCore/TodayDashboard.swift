@@ -277,6 +277,11 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     }
 
     public var id: String { taskID }
+
+    public func userFacingStateLabel(defaultLabel: String) -> String {
+        guard state == .completed, let completionReason else { return defaultLabel }
+        return completionReason.userFacingLabel
+    }
 }
 
 public enum BehaviorClassification: String, Codable, CaseIterable, Sendable {
