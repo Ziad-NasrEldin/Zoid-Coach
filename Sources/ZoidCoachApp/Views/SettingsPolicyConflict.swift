@@ -101,6 +101,7 @@ enum SettingsPolicyConflictResolver {
         apply(\.behaviorPolicy, label: "Application classifications")
         apply(\.captureMode, label: "Capture mode")
         apply(\.captureDisplayIDs, label: "Capture displays")
+        apply(\.screenwatchIngestionEnabled, label: "Screenwatch ingestion")
         apply(\.reminderListPolicy, label: "Reminder lists")
 
         return SettingsPolicyMergeResult(

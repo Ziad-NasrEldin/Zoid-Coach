@@ -1150,6 +1150,18 @@ struct SettingsView: View {
             detail: "Legacy Screenwatch remains the production source until parity is explicitly passed. Native capture uses a five-second metadata cadence and skips images after 90 seconds idle."
         ) {
             VStack(alignment: .leading, spacing: 8) {
+                Toggle("INGEST NEW SCREENWATCH ACTIVITY", isOn: $controller.draft.screenwatchIngestionEnabled)
+                    .toggleStyle(SumiToggleStyle())
+                    .accessibilityIdentifier("settings.screenwatch.ingestion-enabled")
+                Text(controller.draft.screenwatchIngestionEnabled
+                    ? "ON · New Screenwatch records can update behavior evidence. Existing Zoid 666 history and source-owned files remain unchanged."
+                    : "PAUSED · No new Screenwatch records will be imported. Existing Zoid 666 history and all Screenwatch source files are kept, and you can resume without restarting.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(controller.draft.screenwatchIngestionEnabled ? Sumi.muted : Sumi.seal)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
                 SumiControlLabel("CAPTURE MODE")
                 HStack(spacing: 8) {
                     captureModeButton(.legacy, title: "LEGACY")
