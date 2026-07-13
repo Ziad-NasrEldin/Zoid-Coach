@@ -56,6 +56,16 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Reduced-motion state feedback - candidate
+
+- Owns `ZC-055-011` and `ZC-056-010`.
+- Adds one testable Sumi motion policy for standard and macOS Reduce Motion modes.
+- Removes spatial scaling, sliding, popping, and reorder movement from all 29 owned Today and shared-control motion sites when Reduce Motion is enabled.
+- Preserves immediate labels, colors, counts, selections, focus order, and actions so state feedback is never lost.
+- Standard mode retains the existing restrained 150-to-220-millisecond ease-out transitions.
+- Four focused Sumi theme and motion tests pass, and the focused build compiles both owned Today surfaces.
+- Candidate evidence and the verifier plan are recorded in `.audit/runs/reduced-motion-feedback/candidate/REPORT.md`.
+
 ### Configurable behavior grace controls - candidate
 
 - Owns `ZC-027-001`, `ZC-027-002`, `ZC-027-003`, and `ZC-045-006`.
