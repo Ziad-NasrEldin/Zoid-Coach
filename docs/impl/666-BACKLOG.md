@@ -58,7 +58,7 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
-### Deterministic QA ready state - NOT READY, runtime blocker
+### Deterministic QA ready state - repair candidate, fresh runtime verification required
 
 - Prepares a strict isolated QA root with valid completed onboarding, existing-schema OS fixture control, and configurable Screenwatch data.
 - Supports explicit granted and deferred Reminders, Screenwatch, and notification decisions without real OS mutation.
@@ -66,6 +66,8 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Three focused schema/state tests, Python compilation, native probe typecheck, release build, and diff checks pass.
 - Candidate evidence is recorded in `.audit/runs/qa-ready-state-fixture/candidate/REPORT.md`.
 - Independent signed verification installed the exact packaged app and helper against the preserved prepared root, but the fixture request remained at `os-fixture-request.processing.json`, the fixture state stayed empty, and native AX reported `Today did not appear`.
+- Root-cause repair aligns the example notification ID with its nested prompt ID, adds strict pre-replacement validation for that invariant, and proves the exact generated processing artifact is consumed through an independent helper process with canonical state and snapshot output.
+- Focused tests, Python compilation, probe typecheck, and release build pass for the repair candidate without production fixture-consumption changes.
 - Do not use this fixture for waiting scenario verification until the installed app and helper consume the seed exactly once and `--expect-today` passes after launch and relaunch.
 - Conservative failure evidence and the malformed-root safety pass are recorded in `.audit/runs/qa-ready-state-fixture/verifier/REPORT.md`.
 ### Settings notification delivery test - candidate
