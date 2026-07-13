@@ -402,6 +402,43 @@ struct TodayDashboardCommandOverview: View {
                 Button(commandLabel(for: row)) { applyPrimaryCommand(to: row) }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .padding(.top, 14)
+                if row.state == .ready,
+                   snapshot.recommendation.taskID == row.taskID {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("RECOMMEND SOMETHING ELSE")
+                            .font(Sumi.label(7))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.muted)
+                        feedbackButton("NOT NOW", kind: .notNow, row: row)
+                        feedbackButton("WRONG PRIORITY", kind: .wrongPriority, row: row)
+                        feedbackButton("TOO LARGE", kind: .tooLarge, row: row)
+                    }
+                    .padding(.top, 12)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("today.recommendation.feedback")
+                }
+            }
+            if model.pendingRecommendationFeedbackTaskID != nil {
+                ProgressView("Saving feedback")
+                    .controlSize(.small)
+                    .padding(.top, 8)
+                    .accessibilityIdentifier("today.recommendation.feedback.progress")
+            }
+            if let message = model.recommendationFeedbackMessage {
+                Text(message)
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+                    .accessibilityIdentifier("today.recommendation.feedback.status")
+            }
+            if let error = model.recommendationFeedbackError {
+                Text(error)
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+                    .accessibilityIdentifier("today.recommendation.feedback.error")
             }
         }
         .padding(24)
@@ -419,7 +456,7 @@ struct TodayDashboardCommandOverview: View {
            let task = snapshot.taskRows.first(where: { $0.taskID == recommendationID }) {
             return task
         }
-        return activeRow ?? snapshot.taskRows.first(where: { $0.state == .ready })
+        return activeRow
     }
 
     private var primaryFocusRow: TodayTaskRow? {
@@ -496,6 +533,24 @@ struct TodayDashboardCommandOverview: View {
         case .ready: return "BEGIN FOCUS"
         case .blocked, .completed, .rescheduled: return "VIEW PLAN"
         }
+    }
+
+    private func feedbackButton(
+        _ title: String,
+        kind: RecommendationFeedbackKind,
+        row: TodayTaskRow
+    ) -> some View {
+        Button(title) {
+            model.recordRecommendationFeedback(
+                kind,
+                taskID: row.taskID,
+                recommendationSentence: snapshot.recommendation.sentence
+            )
+        }
+        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+        .disabled(model.pendingRecommendationFeedbackTaskID != nil)
+        .accessibilityHint(kind.confirmationMessage)
+        .accessibilityIdentifier("today.recommendation.feedback.\(kind.rawValue)")
     }
 
     private func applyPrimaryCommand(to row: TodayTaskRow) {
