@@ -258,7 +258,7 @@ final class DailyReviewController: ObservableObject {
             try service.deferReview(sourceDay: sourceDay, until: tomorrow)
             try refreshSnapshotAndResumeState()
             errorMessage = nil
-            successMessage = "Review delayed until (tomorrow.formatted(date: .abbreviated, time: .shortened)). All local evidence and corrections remain available."
+            successMessage = "Review delayed until \(tomorrow.formatted(date: .abbreviated, time: .shortened)). All local evidence and corrections remain available."
         } catch {
             errorMessage = error.localizedDescription
         }
