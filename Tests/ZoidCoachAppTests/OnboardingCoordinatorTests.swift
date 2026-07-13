@@ -146,6 +146,10 @@ func deferredRemindersRemainDeferredAcrossForegroundChecksWithoutPrompting() asy
     #expect(inspectCount == 1)
     #expect(requestCount == 0)
     #expect(coordinator.canContinue)
+
+    await coordinator.requestAccess(for: .reminders)
+    #expect(requestCount == 1)
+    #expect(coordinator.progress.remindersAccess == .denied)
 }
 
 @MainActor
