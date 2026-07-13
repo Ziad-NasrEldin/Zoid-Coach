@@ -11,7 +11,7 @@ struct PromptActionPresentation: Equatable, Sendable {
         actionsDisabled = pendingPromptID != nil
         if isApplying {
             stateLabel = "APPLYING"
-            progressMessage = "Saving this choice once, then refreshing every surface from the durable result."
+            progressMessage = "Saving this choice once. Today will refresh from the durable result, and another surface cannot apply it twice."
         } else {
             stateLabel = replayed ? "RETURNED" : "WAITING"
             progressMessage = nil
