@@ -7681,8 +7681,8 @@
       "item_index": 10,
       "wording": "Reschedule the task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7690,10 +7690,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Today task controls now support a confirmed local future deferral, but the coaching prompt action `rescheduleTask` still has no routed date-selection effect and no Apple Reminder mutation. The signed installed local-deferral journey also remains (`TaskRescheduleState.swift`; `PromptResponseEffectRouter.swift`; `.audit/runs/task-reschedule-date/verifier/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/prompt-task-reschedule/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "75abc4269c0b4cb2dd571762658c74aaa66ee1ba",
+      "last_verified_build": "zoid-coach-218cd1c3a227b8eda96ce854bd565d141558136d-clean",
+      "audit_note": "A generated signed coaching prompt exposes an accessible future-date sheet, safe Cancel, ordered local and Apple Reminder mutation, and single prompt resolution. Signed acceptance found and fixed fully deferred-plan validation and automatic planner overwrite defects; one fresh signed relaunch on the final retention fix remains (`AppModel.swift`; `AgentOwnedStateStore.swift`; `AutonomousPlanStore.swift`; `.audit/runs/prompt-task-reschedule/verifier/REPORT.md`).",
       "tracker_line": 493
     },
     {
