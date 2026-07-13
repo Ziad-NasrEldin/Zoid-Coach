@@ -375,6 +375,67 @@ func recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() throws {
     #expect(try scalarText(backupURL, "PRAGMA integrity_check;") == "ok")
 }
 
+@Test
+func failedUpgradeRestoresReadablePreUpgradeDataAndAHealthyRestartCanContinue() throws {
+    let databaseURL = temporaryDatabaseURL("failed-upgrade-recovery")
+    let fixedNow = try #require(ISO8601DateFormatter().date(from: "2026-07-14T00:00:00Z"))
+    let backupURL = databaseURL.deletingPathExtension()
+        .appendingPathExtension("backup-20260714-000000.sqlite")
+    defer {
+        removeDatabaseFiles(at: databaseURL)
+        removeDatabaseFiles(at: backupURL)
+    }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (1, '2026-01-01T00:00:00Z');
+    CREATE TABLE source_checkpoints (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_id TEXT NOT NULL,
+        state TEXT NOT NULL,
+        detail TEXT NOT NULL,
+        evidence TEXT NOT NULL,
+        checked_at TEXT NOT NULL
+    );
+    INSERT INTO source_checkpoints(source_id, state, detail, evidence, checked_at)
+    VALUES ('screenwatch', 'healthy', 'readable-before-upgrade', '{}', '2026-07-13T23:00:00Z');
+    """)
+    let failing = AutonomousDatabaseMigrator(
+        databaseURL: databaseURL,
+        now: { fixedNow },
+        beforeApplyingMigration: { version in
+            if version == 3 { throw InjectedMigrationFailure() }
+        }
+    )
+
+    #expect(throws: AutonomousDatabaseMigrationError.upgradeRolledBack(3)) {
+        try failing.migrate()
+    }
+
+    #expect(FileManager.default.fileExists(atPath: backupURL.path))
+    #expect(try scalarInt(backupURL, "SELECT MAX(version) FROM schema_migrations;") == 1)
+    #expect(try scalarText(backupURL, "SELECT detail FROM source_checkpoints WHERE source_id = 'screenwatch';") == "readable-before-upgrade")
+    #expect(try scalarText(backupURL, "PRAGMA integrity_check;") == "ok")
+    #expect(try scalarInt(databaseURL, "SELECT MAX(version) FROM schema_migrations;") == 1)
+    #expect(try !tableExists(databaseURL, "daily_plan_entries"))
+    #expect(try scalarText(databaseURL, "SELECT detail FROM source_checkpoints WHERE source_id = 'screenwatch';") == "readable-before-upgrade")
+    #expect(try scalarText(databaseURL, "PRAGMA integrity_check;") == "ok")
+
+    let healthyRestart = try AutonomousDatabaseMigrator(
+        databaseURL: databaseURL,
+        now: { fixedNow.addingTimeInterval(1) }
+    ).migrate()
+
+    #expect(healthyRestart.currentVersion >= 3)
+    #expect(try tableExists(databaseURL, "daily_plan_entries"))
+    #expect(try scalarText(databaseURL, "SELECT detail FROM source_checkpoints WHERE source_id = 'screenwatch';") == "readable-before-upgrade")
+    #expect(try scalarText(databaseURL, "PRAGMA integrity_check;") == "ok")
+    if let healthyBackupURL = healthyRestart.backupURL {
+        removeDatabaseFiles(at: healthyBackupURL)
+    }
+}
+
+private struct InjectedMigrationFailure: Error {}
+
 private func temporaryDatabaseURL(_ label: String) -> URL {
     FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-\(label)-\(UUID().uuidString).sqlite")
 }

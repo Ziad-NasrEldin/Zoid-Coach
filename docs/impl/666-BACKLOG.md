@@ -561,3 +561,15 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Actual foreground return clears the pending repair message instead of showing the still-denied breadcrumb and Today fallback.
 - Fix pending-return retention across the signed foreground lifecycle, then verify denied, granted, unrelated-foreground, and relaunch states before promotion.
 - Verifier evidence is recorded in `.audit/runs/notification-permission-return-ux/verifier/REPORT.md`.
+
+### Failed database upgrade recovery - candidate
+
+- Owns `ZC-052-006`.
+- Creates a consistent SQLite snapshot before applying any pending schema migration to an existing local database, including non-destructive upgrades.
+- If a migration fails after earlier pending versions were applied, restores the complete pre-upgrade snapshot through SQLite's backup API before returning the failure.
+- Verifies the restored schema version and full database integrity before reporting that previous data was recovered.
+- Keeps the recovery snapshot on disk and returns explicit guidance to restart with the previous app version or install a corrected update.
+- A focused real-SQLite test proves an injected mid-upgrade failure restores the exact prior schema boundary and readable user row, then proves a healthy restart completes migration without losing that row.
+- The focused failed-upgrade test and the existing committed-WAL backup test pass.
+- Candidate evidence is recorded in `.audit/runs/failed-upgrade-recovery/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after an independent isolated installed-app bad-upgrade, prior-version restart, readable-data, corrected-upgrade, and relaunch verification.

@@ -22,6 +22,7 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
     private let databaseURL: URL
     private let fileManager: FileManager
     private let now: @Sendable () -> Date
+    private let beforeApplyingMigration: @Sendable (Int) throws -> Void
 
     public init(
         databaseURL: URL = ZoidCoachStorage.databaseURL(),
@@ -31,11 +32,25 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
         self.databaseURL = databaseURL
         self.fileManager = fileManager
         self.now = now
+        beforeApplyingMigration = { _ in }
+    }
+
+    init(
+        databaseURL: URL,
+        fileManager: FileManager = .default,
+        now: @escaping @Sendable () -> Date = Date.init,
+        beforeApplyingMigration: @escaping @Sendable (Int) throws -> Void
+    ) {
+        self.databaseURL = databaseURL
+        self.fileManager = fileManager
+        self.now = now
+        self.beforeApplyingMigration = beforeApplyingMigration
     }
 
     @discardableResult
     public func migrate() throws -> AutonomousMigrationResult {
         try fileManager.createDirectory(at: databaseURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let databaseExistedBeforeOpen = fileManager.fileExists(atPath: databaseURL.path)
         var database: OpaquePointer?
         guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
               let database
@@ -49,13 +64,31 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
         let previousVersion = try maximumAppliedVersion(database)
         let pending = Self.migrations.filter { $0.version > previousVersion }
         var backupURL: URL?
-        if pending.contains(where: \.isDestructive), fileManager.fileExists(atPath: databaseURL.path) {
+        if databaseExistedBeforeOpen, !pending.isEmpty {
             backupURL = try createBackup(from: database)
         }
 
         var applied: [Int] = []
         for migration in pending {
-            try apply(migration, database: database)
+            do {
+                try beforeApplyingMigration(migration.version)
+                try apply(migration, database: database)
+            } catch {
+                guard let backupURL else { throw error }
+                do {
+                    try restoreBackup(
+                        from: backupURL,
+                        to: database,
+                        expectedVersion: previousVersion
+                    )
+                } catch {
+                    throw AutonomousDatabaseMigrationError.recovery(
+                        migration.version,
+                        error.localizedDescription
+                    )
+                }
+                throw AutonomousDatabaseMigrationError.upgradeRolledBack(migration.version)
+            }
             applied.append(migration.version)
         }
         return AutonomousMigrationResult(
@@ -199,6 +232,50 @@ public final class AutonomousDatabaseMigrator: @unchecked Sendable {
             throw AutonomousDatabaseMigrationError.backup(errorMessage(destination))
         }
         return backupURL
+    }
+
+    private func restoreBackup(
+        from backupURL: URL,
+        to destination: OpaquePointer,
+        expectedVersion: Int
+    ) throws {
+        var source: OpaquePointer?
+        guard sqlite3_open_v2(
+            backupURL.path,
+            &source,
+            SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX,
+            nil
+        ) == SQLITE_OK, let source else {
+            if let source { sqlite3_close(source) }
+            throw AutonomousDatabaseMigrationError.backup("Could not open the pre-upgrade snapshot.")
+        }
+        defer { sqlite3_close(source) }
+        guard let operation = sqlite3_backup_init(destination, "main", source, "main") else {
+            throw AutonomousDatabaseMigrationError.backup(errorMessage(destination))
+        }
+        let stepResult = sqlite3_backup_step(operation, -1)
+        let finishResult = sqlite3_backup_finish(operation)
+        guard stepResult == SQLITE_DONE, finishResult == SQLITE_OK else {
+            throw AutonomousDatabaseMigrationError.backup(errorMessage(destination))
+        }
+        guard try maximumAppliedVersion(destination) == expectedVersion,
+              try integrityCheck(destination) == "ok"
+        else {
+            throw AutonomousDatabaseMigrationError.backup("The restored database did not pass version and integrity checks.")
+        }
+        _ = sqlite3_wal_checkpoint_v2(destination, nil, SQLITE_CHECKPOINT_TRUNCATE, nil, nil)
+    }
+
+    private func integrityCheck(_ database: OpaquePointer) throws -> String {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "PRAGMA integrity_check;", -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw AutonomousDatabaseMigrationError.backup(errorMessage(database)) }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let result = sqlite3_column_text(statement, 0)
+        else { throw AutonomousDatabaseMigrationError.backup(errorMessage(database)) }
+        return String(cString: result)
     }
 
     private func bind(_ value: String, _ statement: OpaquePointer, _ index: Int32) {
@@ -1058,7 +1135,7 @@ private extension AutonomousDatabaseMigrator {
     ]
 }
 
-public enum AutonomousDatabaseMigrationError: LocalizedError {
+public enum AutonomousDatabaseMigrationError: LocalizedError, Equatable {
     case openDatabase
     case prepareSchema(String)
     case readVersion
@@ -1067,6 +1144,8 @@ public enum AutonomousDatabaseMigrationError: LocalizedError {
     case statement(String)
     case inspectTable(String)
     case backup(String)
+    case upgradeRolledBack(Int)
+    case recovery(Int, String)
 
     public var errorDescription: String? {
         switch self {
@@ -1078,6 +1157,10 @@ public enum AutonomousDatabaseMigrationError: LocalizedError {
         case let .statement(message): "A migration statement failed: \(message)"
         case let .inspectTable(table): "Could not inspect table \(table) before migration."
         case let .backup(message): "Could not create a database backup: \(message)"
+        case let .upgradeRolledBack(version):
+            "Database upgrade migration \(version) failed. Zoid 666 restored the previous readable data. Restart with the previous app version or install a corrected update."
+        case let .recovery(version, message):
+            "Database upgrade migration \(version) failed, and the previous data could not be restored safely: \(message)"
         }
     }
 }
