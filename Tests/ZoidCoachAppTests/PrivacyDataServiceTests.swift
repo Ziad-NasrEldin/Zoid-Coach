@@ -180,6 +180,59 @@ func targetedPrivacyDeletionSeparatesBehaviorAIAndLearningRecords() throws {
 }
 
 @Test
+func deleteReviewsAndLearnedRulesClearsEveryReviewAndLearningStoreButPreservesSourceEvidence() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-review-delete-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("coach.sqlite")
+    try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+    var database: OpaquePointer?
+    #expect(sqlite3_open(databaseURL.path, &database) == SQLITE_OK)
+    let setup = """
+    INSERT INTO behavior_records (source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification)
+    VALUES ('2026-07-12', 1000, '10:00', 'Safari', 'Private research', '', 0, NULL, '2026-07-12T10:00:00Z', 'unknown');
+    INSERT INTO task_execution_states (task_id, state, updated_at)
+    VALUES ('task', 'completed', '2026-07-12T11:00:00Z');
+    INSERT INTO daily_review_corrections (id, source_day, start_epoch, end_epoch, classification, task_id, created_at_utc)
+    VALUES ('correction', '2026-07-12', 1000, 1060, 'work', 'task', '2026-07-12T11:00:00Z');
+    INSERT INTO daily_reviews (source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, personal_note)
+    VALUES ('2026-07-12', 'accepted', '2026-07-12T18:00:00Z', '2026-07-12T18:00:00Z', 'Private note');
+    INSERT INTO weekly_review_experiments (id, review_week_start, title, instruction, measurement, state, tracking_week_start, updated_at_utc)
+    VALUES ('experiment', '2026-07-06', 'Try focus', 'Work in one block', 'Minutes aligned', 'accepted', '2026-07-13', '2026-07-12T18:00:00Z');
+    INSERT INTO app_classification_correction_rules (normalized_app, display_app, classification, state, source_day, source_session_start_epoch, effective_from_epoch, created_at_utc)
+    VALUES ('safari', 'Safari', 'work', 'active', '2026-07-12', 1000, 1000, '2026-07-12T18:00:00Z');
+    INSERT INTO learning_samples (id, sample_type, context_key, actual_value, timezone_identifier, evidence_id, occurred_at_utc)
+    VALUES ('sample', 'estimate', 'task', 30, 'UTC', 'evidence', '2026-07-12T18:00:00Z');
+    INSERT INTO learning_aggregates (aggregate_type, aggregate_key, sample_count, median_value, confidence, policy_version, updated_at_utc)
+    VALUES ('estimate', 'task', 1, 30, 0.5, 1, '2026-07-12T18:00:00Z');
+    INSERT INTO planner_trust_cycles (local_day, plan_version, item_count, stayed_within_capacity, external_writes_suppressed, observed_at_utc)
+    VALUES ('2026-07-12', 1, 1, 1, 0, '2026-07-12T18:00:00Z');
+    """
+    #expect(sqlite3_exec(database, setup, nil, nil, nil) == SQLITE_OK)
+    sqlite3_close(database)
+
+    let service = try PrivacyDataService(databaseURL: databaseURL)
+    #expect(try service.deleteReviewsAndLearnedRules() == 7)
+
+    for table in [
+        "daily_review_corrections",
+        "daily_reviews",
+        "weekly_review_experiments",
+        "app_classification_correction_rules",
+        "learning_samples",
+        "learning_aggregates",
+        "planner_trust_cycles",
+    ] {
+        #expect(try privacyRowCount(databaseURL: databaseURL, table: table) == 0)
+    }
+    #expect(try privacyRowCount(databaseURL: databaseURL, table: "behavior_records") == 1)
+    #expect(try privacyRowCount(databaseURL: databaseURL, table: "task_execution_states") == 1)
+
+    let reopened = try PrivacyDataService(databaseURL: databaseURL)
+    #expect(try reopened.deleteReviewsAndLearnedRules() == 0)
+}
+
+@Test
 func userCanInspectAndDeleteExactlyOneDerivedBehaviorSession() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-session-delete-\(UUID().uuidString)", isDirectory: true)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -222,4 +275,33 @@ func deleteAllUserDataLeavesMigratedEmptyDatabaseReadyForRestart() throws {
     #expect(try service.deleteAllUserData() >= 1)
     #expect(try service.storedDataInventory().dataClasses.allSatisfy { $0.recordCount == 0 })
     #expect(try TaskExecutionStore(databaseURL: databaseURL).snapshot(for: ["task"])["task"]?.state == .ready)
+}
+
+private func privacyRowCount(databaseURL: URL, table: String) throws -> Int {
+    var database: OpaquePointer?
+    guard sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
+          let database else {
+        throw CocoaError(.fileReadUnknown)
+    }
+    defer { sqlite3_close(database) }
+    let allowed = Set([
+        "daily_review_corrections",
+        "daily_reviews",
+        "weekly_review_experiments",
+        "app_classification_correction_rules",
+        "learning_samples",
+        "learning_aggregates",
+        "planner_trust_cycles",
+        "behavior_records",
+        "task_execution_states",
+    ])
+    guard allowed.contains(table) else { throw CocoaError(.validationMissingMandatoryProperty) }
+    var statement: OpaquePointer?
+    guard sqlite3_prepare_v2(database, "SELECT COUNT(*) FROM \(table);", -1, &statement, nil) == SQLITE_OK,
+          let statement else {
+        throw CocoaError(.fileReadUnknown)
+    }
+    defer { sqlite3_finalize(statement) }
+    guard sqlite3_step(statement) == SQLITE_ROW else { throw CocoaError(.fileReadUnknown) }
+    return Int(sqlite3_column_int64(statement, 0))
 }
