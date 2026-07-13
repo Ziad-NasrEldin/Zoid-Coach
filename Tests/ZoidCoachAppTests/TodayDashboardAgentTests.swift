@@ -64,6 +64,42 @@ func unplannedTaskStartIsVisiblePersistsAndNeverInventsAPlanViolation() throws {
 }
 
 @Test
+func todayQueueIncludesOverdueTodayAndUndatedButExcludesUnselectedFutureTasks() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-today-eligibility-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    let now = calendar.date(from: DateComponents(year: 2026, month: 7, day: 13, hour: 12))!
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "overdue", title: "Overdue", dueDate: calendar.date(byAdding: .day, value: -1, to: now), priority: 1),
+        ReminderSourceSnapshot(id: "today", title: "Today", dueDate: calendar.date(bySettingHour: 23, minute: 30, second: 0, of: now), priority: 1),
+        ReminderSourceSnapshot(id: "undated", title: "Undated", dueDate: nil, priority: 1),
+        ReminderSourceSnapshot(id: "future", title: "Future", dueDate: calendar.date(byAdding: .day, value: 1, to: now), priority: 1),
+        ReminderSourceSnapshot(id: "planned-future", title: "Selected future", dueDate: calendar.date(byAdding: .day, value: 2, to: now), priority: 1),
+    ])
+    let policies = try PolicyStore(databaseURL: url)
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    _ = try policies.saveSystemMaintenancePolicy(defaults)
+    let plans = try AutonomousPlanStore(databaseURL: url)
+    try plans.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: "planned-future", title: "Selected future", rank: 1, estimateMinutes: 30, reason: "Selected", score: 1)],
+            mainObjectiveTaskID: "planned-future",
+            plannedFocusMinutes: 30,
+            availableFocusMinutes: 60
+        ),
+        for: now
+    )
+
+    let snapshot = try TodayDashboardAgent(databaseURL: url).snapshot(now: now)
+    #expect(Set(snapshot.unplannedReminders?.map(\.reminderID) ?? []) == Set(["overdue", "today", "undated"]))
+    #expect(snapshot.taskRows.contains(where: { $0.taskID == "planned-future" }))
+    #expect(snapshot.unplannedReminders?.contains(where: { $0.reminderID == "future" }) == false)
+}
+
+@Test
 func gamingRewardLedgerAppliesOnlyOncePerDayAndPolicy() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-gaming-ledger-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: url) }
