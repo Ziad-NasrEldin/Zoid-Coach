@@ -274,7 +274,7 @@ func intentionalGamingOverrideUsesConfiguredDurationAcrossRestart() throws {
     ) == .suppressed(.intentionalOverrideActive))
 
     fixture.advance(minutes: 6)
-    try fixture.insertGaming(minutes: 10)
+    try fixture.insertGaming(minutes: 6)
     guard case let .queued(reprompt, wasInserted) = try restartedService.produce(
         policy: policy,
         gamingStatus: fixture.gamingStatus,
@@ -359,7 +359,7 @@ func configuredCooldownAndDailyPromptLimitApplyAcrossSeparateSessions() throws {
     ) == .suppressed(.cooldownActive))
 
     fixture.advance(minutes: 6)
-    try fixture.insertGaming(minutes: 10)
+    try fixture.insertGaming(minutes: 6)
     guard case .queued = try fixture.service.produce(
         policy: policy, gamingStatus: fixture.gamingStatus, baselineStatus: fixture.baseline()
     ) else {
