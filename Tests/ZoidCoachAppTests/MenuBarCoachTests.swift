@@ -42,6 +42,52 @@ import ZoidCoachInfrastructure
     #expect(coachingPausedState.primaryTask?.title == "Write proposal")
 }
 
+@Test func compactActiveTaskKeepsEssentialStateVisibleAndAccessible() throws {
+    let dueDate = Date(timeIntervalSince1970: 1_800_003_600)
+    let row = menuTask(
+        id: "focus",
+        title: "Prepare launch brief",
+        state: .active,
+        elapsedMinutes: 12,
+        estimateMinutes: 45,
+        dueDate: dueDate,
+        urgency: .high,
+        isMainObjective: true
+    )
+    let snapshot = menuSnapshot(
+        rows: [row],
+        activeTask: .init(taskID: row.taskID, startedAt: nil, elapsedMinutes: 12)
+    )
+    let state = MenuBarCoachState(snapshot: snapshot)
+
+    #expect(state.compactTaskFacts.contains("Main objective"))
+    #expect(state.compactTaskFacts.contains("45 min estimate"))
+    #expect(state.compactTaskFacts.contains("High urgency"))
+    #expect(state.compactTaskFacts.contains(where: { $0.hasPrefix("Due ") }))
+    let summary = try #require(state.compactTaskAccessibilitySummary(at: dueDate))
+    #expect(summary.contains("Prepare launch brief"))
+    #expect(summary.contains("Active"))
+    #expect(summary.contains("12 min tracked"))
+    #expect(summary.contains("Main objective"))
+}
+
+@Test func compactTaskFactsExposeLockedAndBlockedStateWithoutInventingIt() {
+    let blocked = TodayTaskRow(
+        taskID: "blocked",
+        title: "Waiting for approval",
+        estimateMinutes: 20,
+        dueDate: nil,
+        urgency: .medium,
+        state: .paused,
+        isLocked: true,
+        blockedReason: "Client approval"
+    )
+    let state = MenuBarCoachState(snapshot: menuSnapshot(rows: [blocked]))
+
+    #expect(state.compactTaskFacts.contains("Locked"))
+    #expect(state.compactTaskFacts.contains("Blocked: Client approval"))
+}
+
 @Test func unavailableNotificationsExposeAStableDecisionBadgeWithoutRemovingTaskControls() {
     let active = menuSnapshot(
         rows: [menuTask(id: "active", title: "Write proposal", state: .active)],
@@ -568,19 +614,24 @@ private func menuTask(
     pauseReason: TaskPauseReason? = nil,
     acceptedBreak: AcceptedBreakSnapshot? = nil,
     sprint: SprintSnapshot? = nil,
-    isOptional: Bool = false
+    isOptional: Bool = false,
+    estimateMinutes: Int = 30,
+    dueDate: Date? = nil,
+    urgency: TaskUrgency = .medium,
+    isMainObjective: Bool = false
 ) -> TodayTaskRow {
     TodayTaskRow(
         taskID: id,
         title: title,
-        estimateMinutes: 30,
-        dueDate: nil,
-        urgency: .medium,
+        estimateMinutes: estimateMinutes,
+        dueDate: dueDate,
+        urgency: urgency,
         state: state,
         elapsedMinutes: elapsedMinutes,
         latestPauseReason: pauseReason,
         acceptedBreak: acceptedBreak,
         sprint: sprint,
+        isMainObjective: isMainObjective,
         isOptional: isOptional
     )
 }
