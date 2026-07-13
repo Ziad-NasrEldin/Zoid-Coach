@@ -372,27 +372,10 @@ struct DailyReviewView: View {
             .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
             .accessibilityIdentifier("reviews.empty")
         } else {
+            let sessionReview = UnknownSessionReviewState(sessions: snapshot.sessions)
             totals(snapshot.totals)
-            VStack(alignment: .leading, spacing: 12) {
-                Text("ACTIVITY SESSIONS")
-                    .font(Sumi.label())
-                    .sumiLabelTracking()
-                ForEach(snapshot.sessions) { session in
-                    DailyReviewSessionRow(
-                        session: session,
-                        activeRule: controller.classificationRule(for: session.application),
-                        removeRule: controller.removeClassificationRule
-                    ) { classification, taskID, split, applyToFuture in
-                        controller.correct(
-                            session: session,
-                            classification: classification,
-                            taskID: taskID,
-                            splitAtMidpoint: split,
-                            applyToFuture: applyToFuture
-                        )
-                    }
-                }
-            }
+            unknownSessionReview(sessionReview)
+            classifiedSessionReview(sessionReview)
         }
         CompletedTaskHistorySection(entries: snapshot.completedTasks)
         OfflineWorkSection(
@@ -403,6 +386,87 @@ struct DailyReviewView: View {
         )
         hypothesis(snapshot)
         confirmation(snapshot)
+    }
+
+    @ViewBuilder
+    private func unknownSessionReview(_ state: UnknownSessionReviewState) -> some View {
+        if state.hasPending {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("UNKNOWN SESSIONS NEED REVIEW")
+                        .font(Sumi.label())
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Spacer()
+                    Text("\(state.pending.count) SESSION\(state.pending.count == 1 ? "" : "S") · \(state.pendingMinutes) MIN")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                        .accessibilityIdentifier("reviews.unknown-sessions.count")
+                }
+                Text("Zoid 666 did not have enough evidence to classify this activity. Unknown time is not counted as distraction or treated as a plan violation. Correct only what you recognize; leaving a session Unknown is a valid choice.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                ForEach(state.pending) { session in
+                    sessionRow(session)
+                }
+            }
+            .padding(16)
+            .background(Sumi.sealWash)
+            .overlay(Rectangle().stroke(Sumi.seal, lineWidth: 1))
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("reviews.unknown-sessions")
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("NO UNKNOWN SESSIONS")
+                    .font(Sumi.label())
+                    .sumiLabelTracking()
+                Text("Every observed session for this day has a classification. No confirmation is waiting.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+            }
+            .padding(14)
+            .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("reviews.unknown-sessions.empty")
+        }
+    }
+
+    private func classifiedSessionReview(_ state: UnknownSessionReviewState) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("CLASSIFIED ACTIVITY SESSIONS")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            if state.classified.isEmpty {
+                Text("No classified sessions are available yet. Unknown sessions stay in the review queue above.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("reviews.classified-sessions.empty")
+            } else {
+                ForEach(state.classified) { session in
+                    sessionRow(session)
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reviews.classified-sessions")
+    }
+
+    private func sessionRow(_ session: DailyReviewSession) -> some View {
+        DailyReviewSessionRow(
+            session: session,
+            activeRule: controller.classificationRule(for: session.application),
+            removeRule: controller.removeClassificationRule
+        ) { classification, taskID, split, applyToFuture in
+            controller.correct(
+                session: session,
+                classification: classification,
+                taskID: taskID,
+                splitAtMidpoint: split,
+                applyToFuture: applyToFuture
+            )
+        }
     }
 
     private func behavioralHighlights(_ snapshot: DailyReviewSnapshot) -> some View {
@@ -1077,6 +1141,20 @@ private struct DailyReviewSessionRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if session.classification == .unknown {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("EVIDENCE INSUFFICIENT · CONFIRM IF YOU KNOW")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Text("This session remains Unknown until you classify it. Its app name and time range are shown without captured titles, URLs, screenshots, or a guessed explanation.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("reviews.session.\(session.id).unknown-explanation")
+            }
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(session.application).font(Sumi.body(15))
@@ -1136,7 +1214,7 @@ private struct DailyReviewSessionRow: View {
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
             }
-            Button("APPLY CORRECTION") {
+            Button(session.classification == .unknown ? "APPLY CLASSIFICATION" : "APPLY CORRECTION") {
                 apply(classification, taskID.isEmpty ? nil : taskID, splitAtMidpoint, applyToFuture)
             }
                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
