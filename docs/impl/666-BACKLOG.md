@@ -108,6 +108,9 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - A narrow reason-UI candidate now makes externally completed rows prefer the persisted Apple Reminder completion reason over generic `Completed` copy while preserving ordinary local completion copy.
 - Five focused UI, domain, persistence, and deletion-ordering tests plus the release build pass.
 - Candidate evidence and the independent installed-app verification boundary are recorded in `.audit/runs/external-reminder-completion/reason-ui-candidate/REPORT.md`.
+- Independent verification passed all five focused tests and one QA release package.
+- The capped signed run consumed the isolated fixture completion but canonical `source_tasks` did not update before relaunch, so no externally ended row existed on which to accept the new UI copy.
+- `ZC-021-002` remains Partially implemented with unchanged counts, and the conservative runtime evidence is recorded in `.audit/runs/external-reminder-completion/reason-ui-verifier/REPORT.md`.
 
 ### Settings notification delivery test - candidate
 
