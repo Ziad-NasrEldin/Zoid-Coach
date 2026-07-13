@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "run_id": "coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+  "verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+  "build_identity": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
+  "fixture": "/private/tmp/zoid-666-coaching-response-actions-qa/OS Fixtures/state.json",
+  "qa_root": "/private/tmp/zoid-666-coaching-response-actions-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "f31862dbe6763a5a09243c7b99fafaf6d85b031b329a4a0b6dcf56a8d3bfae01",
+  "scenario_ids": [
+    "ZC-034-001",
+    "ZC-034-003",
+    "ZC-034-009",
+    "ZC-034-012",
+    "ZC-034-014"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T05:16:20.775371+00:00",
+  "completed_at": "2026-07-13T05:18:13Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "cb572c0d3bae879cda2566f6e0e6c0083379b1ff12059e3bee7015305fe20195"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "signed_recommended_start",
+      "result": "passed",
+      "detail": "Today started the named task and displayed it as the active commitment."
+    },
+    {
+      "name": "signed_exact_twenty_minute_sprint",
+      "result": "passed",
+      "detail": "Today visibly displayed exactly 20 minutes remaining and SQLite persisted one 20-minute sprint."
+    },
+    {
+      "name": "signed_live_active_pause_and_end_workday",
+      "result": "passed",
+      "detail": "Stale payloads did not override the live active task; pause preserved the sprint and end-workday recorded endingWorkday."
+    },
+    {
+      "name": "exactly_once_across_surfaces_and_restart",
+      "result": "passed",
+      "detail": "Focused cross-surface replay produced no duplicate, and signed restart retained unchanged response and mutation counts."
+    }
+  ],
+  "commands": [
+    "swift test --filter coachingTaskActionsApplyExactDurationsAndNeverReplay|gamingDriftOffersBreakOnlyWhenATaskIsActivelyTracking|gamingDriftStaysQuietUntilBaselineCompletesThenQueuesEvidenceFirstPrompt",
+    "swift build -c release",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-coaching-response-actions-qa Scripts/install-signed-qa-runtime.sh"
+  ]
+}

@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "35bbb64f2938cba7b011a285a49805b2a300bd5e980c2701357e7fb83148e50a",
+  "tracker_sha256": "0590755351fffbe07d52a3130c3d25fe90a78e6f26fe39d242880149bba8239c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7406,9 +7406,9 @@
       "section_title": "Responding to coaching",
       "item_index": 1,
       "wording": "Start the recommended task.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7416,10 +7416,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The action enum and generic prompt button exist, but `PromptResponseEffectRouter` has no effect for `startRecommendedTask`; clicking would only resolve the prompt.",
+      "evidence_paths": [
+        ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
+      ],
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
+      "audit_note": "The signed Today decision started its named task, exposed it as the active commitment, and retained one closed interval after the later end-workday response and helper restart (`PromptResponseEffectRouter.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 484
     },
     {
@@ -7429,8 +7431,8 @@
       "item_index": 2,
       "wording": "Start a 10-minute recovery sprint.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7441,7 +7443,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`startShortSprint` exists as one undifferentiated enum value, but no 10-minute session or routed task effect exists.",
+      "audit_note": "The shared response router starts an exact restart-safe 10-minute bounded sprint, and the focused cross-surface journey proves its duration and exactly-once mutation. Selecting the 10-minute action in the signed app remains (`PromptResponseEffectRouter.swift`; `PromptResponseEffectRouterTests.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 485
     },
     {
@@ -7450,9 +7452,9 @@
       "section_title": "Responding to coaching",
       "item_index": 3,
       "wording": "Start a 20-minute work sprint.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7460,10 +7462,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "There is no distinct 20-minute action, duration payload, timer, or execution effect.",
+      "evidence_paths": [
+        ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
+      ],
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
+      "audit_note": "The signed Today decision started the named task with an exact visible 20-minute countdown, persisted one bounded sprint row, and retained its paused state across app and helper restart (`PromptResponseEffectRouter.swift`; `TaskExecutionStore.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 486
     },
     {
@@ -7473,8 +7477,8 @@
       "item_index": 4,
       "wording": "Return to the current active task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7485,7 +7489,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`returnToActiveTask` exists as an enum, but no response effect resumes or foregrounds the task.",
+      "audit_note": "The focused response journey resumes a paused 20-minute sprint without replacing its duration and rejects notification-surface replay after the dashboard response. Selecting Resume in the signed app remains (`PromptResponseEffectRouter.swift`; `PromptResponseEffectRouterTests.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 487
     },
     {
@@ -7582,9 +7586,9 @@
       "section_title": "Responding to coaching",
       "item_index": 9,
       "wording": "Pause the task.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7592,10 +7596,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "`pauseTask` exists as a prompt action and task pause exists separately, but the response router does not connect them.",
+      "evidence_paths": [
+        ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
+      ],
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
+      "audit_note": "The signed Today response carried deliberately stale prompt context yet paused the actual live task, closed its only interval, preserved its 20-minute sprint as paused, and remained singular after restart (`PromptResponseEffectRouter.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 492
     },
     {
@@ -7648,9 +7654,9 @@
       "section_title": "Responding to coaching",
       "item_index": 12,
       "wording": "End the workday.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7658,10 +7664,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "`endWorkday` exists as an enum only; no day-closure effect exists.",
+      "evidence_paths": [
+        ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
+      ],
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
+      "audit_note": "The signed Today response paused the actual live task despite a different stale payload, recorded the durable `endingWorkday` reason, closed the interval, and restored with no active commitment after restart (`PromptResponseEffectRouter.swift`; `TaskExecutionStore.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 495
     },
     {
@@ -7692,9 +7700,9 @@
       "section_title": "Responding to coaching",
       "item_index": 14,
       "wording": "Avoid having the same action happen twice after clicking more than once.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7702,10 +7710,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "`PromptInboxTests` and `PromptResponseEffectRouterTests` prove idempotent response tokens and exactly-once meeting effects across repeated delivery. Coaching actions have no effects to protect yet, and no live double-click UI test was performed.",
+      "evidence_paths": [
+        ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
+      ],
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
+      "audit_note": "The focused coaching journey replays every response token from the notification surface after a dashboard response and produces no second mutation. The signed run then retained exactly four responses, four applied effects, two intervals, one sprint, and two pauses across app and helper restart, with all four decisions shown once in history (`PromptInboxStore.swift`; `PromptResponseEffectRouterTests.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 497
     },
     {
