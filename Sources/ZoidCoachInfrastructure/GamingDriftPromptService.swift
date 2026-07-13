@@ -162,11 +162,14 @@ public final class GamingDriftPromptService: @unchecked Sendable {
 
         let title = level == .gentle ? "Ready for an easy return?" : "Is this gaming intentional?"
         let summary = "Observed \(session.minutes) minutes in \(session.application) while \(task.title) remains unfinished. This is an observation, not a judgment."
-        var actions = [
-            PromptAction(kind: .returnToActiveTask, title: "Return to \(task.title)", role: .primary),
-            PromptAction(kind: .fiveMoreMinutes, title: "Five more minutes")
-        ]
-        if try hasActiveTask() {
+        var actions = [PromptAction(kind: .returnToActiveTask, title: "Return to \(task.title)", role: .primary)]
+        if level == .gentle {
+            actions.append(PromptAction(kind: .startShortSprint, title: "Start a 10-minute recovery sprint"))
+            actions.append(PromptAction(kind: .fiveMoreMinutes, title: "Five more minutes"))
+        } else {
+            actions.append(PromptAction(kind: .startWorkSprint, title: "Start a 20-minute work sprint"))
+        }
+        if level == .accountability, try hasActiveTask() {
             actions.append(PromptAction(kind: .startBreak, title: "Take a break"))
         }
         actions.append(PromptAction(kind: .continueIntentionally, title: "Continue intentionally"))
