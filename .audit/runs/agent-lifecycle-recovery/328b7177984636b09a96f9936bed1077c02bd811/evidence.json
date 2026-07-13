@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "run_id": "agent-lifecycle-recovery/328b7177984636b09a96f9936bed1077c02bd811",
+  "verified_commit": "328b7177984636b09a96f9936bed1077c02bd811",
+  "build_identity": "zoid-coach-328b7177984636b09a96f9936bed1077c02bd811-clean",
+  "scenario_ids": ["ZC-048-007"],
+  "required_proof_classes": ["installed_app_e2e", "integration", "ui_automation"],
+  "status": "passed",
+  "completed_at": "2026-07-13T01:05:00Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "145cee2805f5c20479a936eff0f5c3d1f3f8947eb1ae5e537fc3ba487b44e9e3"
+    }
+  ],
+  "assertions": [
+    {"name": "Installed UI distinguished current, missing, and stale helper heartbeats", "result": "passed"},
+    {"name": "Repair, disable, re-enable, and restart returned truthful visible states", "result": "passed"}
+  ]
+}

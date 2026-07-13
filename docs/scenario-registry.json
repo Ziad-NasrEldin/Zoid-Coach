@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "c9825a2e8426cd0a04716fbd8ce7fbe612ddb4671e6ed7fa9f254e4ace84f34a",
+  "tracker_sha256": "b576c04f5d93b6c8a2b8b678083d49da633abaeaa80c2d3b8e3ac847e32863f0",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11161,9 +11161,9 @@
       "section_title": "Source health and diagnostics",
       "item_index": 7,
       "wording": "See whether the background helper is running.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11171,10 +11171,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Source Health reports `SMAppService` registration status rather than verified process liveness; the signed repeat-install acceptance run independently proved first install, same-path and changed-path replacement, uninstall/reinstall, exact running-helper ownership, and production isolation (`.audit/runs/signed-qa-repeat-install/10cc1da/REPORT.md`), but the user-facing row still cannot distinguish an enabled registration from a live helper process.",
+      "evidence_paths": [
+        ".audit/runs/agent-lifecycle-recovery/328b7177984636b09a96f9936bed1077c02bd811/evidence.json"
+      ],
+      "last_verified_commit": "328b7177984636b09a96f9936bed1077c02bd811",
+      "last_verified_build": "zoid-coach-328b7177984636b09a96f9936bed1077c02bd811-clean",
+      "audit_note": "The installed signed Background Agent window distinguished current, missing, and five-minute-stale runtime heartbeats instead of trusting registration alone. Repair, disable, re-enable, and launchd restart recovery all returned truthful visible states (`AgentLaunchService.swift`; `AgentLifecycleView.swift`; `.audit/runs/agent-lifecycle-recovery/verifier/REPORT.md`).",
       "tracker_line": 697
     },
     {
@@ -11196,7 +11198,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Source rows include detail/evidence and Today shows limited Screenwatch coverage, but several states do not explain all downstream feature impacts.",
+      "audit_note": "The Background Agent window now explains missing and stale check-ins, what Disable stops, what local data remains, and how Repair behaves. Several non-agent source states still do not explain every downstream feature impact (`AgentLifecycleView.swift`; `.audit/runs/agent-lifecycle-recovery/verifier/REPORT.md`).",
       "tracker_line": 698
     },
     {
@@ -11206,8 +11208,8 @@
       "item_index": 9,
       "wording": "Open a direct repair action when one is available.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11218,7 +11220,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Source rows offer Connect/Retry/Refresh and capture permissions open System Settings; a denied notification Retry only requests authorization again instead of opening the correct settings pane.",
+      "audit_note": "The installed stale-agent state exposed Repair Registration, forced a real unregister/register cycle, launched a new helper PID, and returned to Healthy without deleting local data. Notification denial still lacks its correct direct settings route (`AgentLaunchService.swift`; `.audit/runs/agent-lifecycle-recovery/verifier/REPORT.md`).",
       "tracker_line": 699
     },
     {
@@ -13030,7 +13032,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "launchd reports the helper running from the canonical store, but no sustained CPU, memory, energy, or handle-growth measurement was performed.",
+      "audit_note": "A bounded signed restart sample observed 0.0-2.5% startup CPU, 23,616 KB resident memory after initialization, 19 open handles, and no SQLite file growth. Sustained energy and long-duration handle or memory measurements remain (`.audit/runs/agent-lifecycle-recovery/verifier/REPORT.md`).",
       "tracker_line": 808
     },
     {
