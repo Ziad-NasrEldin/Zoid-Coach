@@ -8,19 +8,19 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-12 against branch `codex/full-system` through weekly-review tip `2e20227` plus the independently verified background-agent lifecycle batch, 42 passing registry and evidence tests, focused Swift coverage, a passing signed-QA package gate, deterministic operating-system fixtures, the exact 666-scenario registry, and visible macOS accessibility click-through testing.
+Updated on 2026-07-13 against branch `codex/full-system` through integrated tip `49fe140`, focused task-progress coverage, a passing signed-QA package and helper gate, deterministic operating-system fixtures, the exact 666-scenario registry, and visible macOS accessibility click-through testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 68
-- **Touches remaining:** 165
-- **Frontend only left:** 22
-- **Partially implemented:** 132
-- **Barely started:** 45
-- **Not implemented:** 202
-- **Blocked from verification:** 32
+- **Fully implemented:** 98
+- **Touches remaining:** 228
+- **Frontend only left:** 15
+- **Partially implemented:** 110
+- **Barely started:** 32
+- **Not implemented:** 153
+- **Blocked from verification:** 30
 - **Total:** 666
 
 ### Status meanings
@@ -276,9 +276,9 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 18. Active-task controls
 
-- [ ] See the active task title and elapsed time. **Status: Touches remaining.** The focus card now presents the active task title with `MIN TRACKED`, while detailed task rows include tracked minutes and the latest pause reason. Persistence and agent reconstruction tests pass, but the installed clock progression remains unverified because the Mac was locked (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStoreTests`).
+- [x] See the active task title and elapsed time. **Status: Fully implemented.** The signed installed Today journey visibly started `Verify estimate progress`, showed its title with tracked minutes and a stable accessibility summary, paused it for a break, relaunched the app, and recovered the same canonical paused state. Active rows advance minute by minute while paused rows remain stable (`TaskEstimateProgressView.swift`; `TaskEstimateProgressTests.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).
 - [ ] See sprint time remaining when applicable. **Status: Touches remaining.** The signed installed active-task card visibly showed a live remaining-time countdown with a dedicated accessibility status container; relaunch and expiry states remain to be walked (`.audit/runs/bounded-sprints/verifier/REPORT.md`).
-- [ ] See progress against the estimate when meaningful. **Status: Not implemented.** The UI renders the estimate and the execution store tracks elapsed minutes, but no view calculates or presents elapsed-versus-estimate progress.
+- [x] See progress against the estimate when meaningful. **Status: Fully implemented.** Active and paused focus and task-row surfaces show tracked minutes, the estimate, bounded progress, remaining or over-estimate copy, and one complete accessibility summary. The signed installed journey visibly moved from `0 minutes tracked of 5 estimated, not started` to the persisted paused state `7 minutes tracked of 5 estimated, 2 min over estimate`, while seven focused tests cover every boundary and restart recovery (`TaskEstimateProgress.swift`; `TaskEstimateProgressView.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).
 - [ ] See whether the current computer context appears aligned, uncertain, or mismatched. **Status: Not implemented.** Behavior classification and telemetry coverage exist, but there is no task-context alignment state or active-task alignment UI.
 - [ ] Read neutral alignment language rather than judgmental productivity labels. **Status: Barely started.** Existing copy is generally neutral, but no alignment result is generated or displayed, so the intended scenario cannot be exercised.
 - [ ] Pause the task. **Status: Touches remaining.** The focus card and active task row both expose a labelled pause menu with four understandable reasons, serialize the command, persist the pause episode, and refresh the snapshot. The installed menu click-through remains because the Mac was locked (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStoreTests`).
@@ -528,7 +528,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] See the active task in the Today dashboard. **Status: Touches remaining.** `TodayDashboardCommandOverview` selects `snapshot.activeTask` and the installed app visibly renders the current active commitment, but this audit did not start a controlled task and prove the full persisted transition.
 - [ ] See elapsed time for an open-ended task. **Status: Frontend only left.** `TodayTaskRow.elapsedMinutes` and `TaskExecutionStore.elapsedMinutes` are implemented and tested, but the current Today UI never renders elapsed minutes.
 - [ ] See remaining time for a sprint. **Status: Touches remaining.** The signed installed Today dashboard visibly rendered the active bounded-sprint countdown and the active task stayed available with pause and complete controls; the full persisted lifecycle remains (`.audit/runs/bounded-sprints/verifier/REPORT.md`).
-- [ ] See estimate or meaningful progress where appropriate. **Status: Partially implemented.** Estimates are editable and visible, and elapsed minutes are stored, but progress/elapsed information is not presented to the user.
+- [x] See estimate or meaningful progress where appropriate. **Status: Fully implemented.** The signed installed Today dashboard visibly presented the same canonical 5-minute estimate and factual tracked progress in active, paused, relaunched, and over-estimate states, with stable accessibility identifiers on the primary focus and detailed-row surfaces (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).
 - [ ] See the dashboard update when pausing, resuming, switching, or completing a task. **Status: Touches remaining.** All commands are wired through `AppModel.applyTaskCommand`, snapshot refreshes, and passing tests cover transitions and switching, but a complete installed-app lifecycle journey was not performed.
 - [ ] Use the compact active-task view without losing essential task state. **Status: Not implemented.** The menu-bar surface is only `Zoid Voice`; there is no compact active-task view.
 - [ ] Open the full dashboard for totals, gaming budget, coaching state, and primary actions. **Status: Partially implemented.** The full Today dashboard shows behavior totals, gaming budget, and task actions, but behavior-coaching state and intervention controls are absent.

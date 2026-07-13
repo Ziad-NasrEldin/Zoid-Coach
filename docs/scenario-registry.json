@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "554831da01d591b97f94a665cc40bcd690c901c11a8889e56471af35d7331be8",
+  "tracker_sha256": "e162d882c0c170d5ab8ceec6aa52b8effe0563416dbd64659f9ca1c9c3883236",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3837,9 +3837,9 @@
       "section_title": "Active-task controls",
       "item_index": 1,
       "wording": "See the active task title and elapsed time.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3847,10 +3847,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The focus card now presents the active task title with `MIN TRACKED`, while detailed task rows include tracked minutes and the latest pause reason. Persistence and agent reconstruction tests pass, but the installed clock progression remains unverified because the Mac was locked (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `TaskExecutionStoreTests`).",
+      "evidence_paths": [
+        ".audit/runs/task-estimate-progress/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "49fe140",
+      "last_verified_build": "Zoid 666 QA Build 8",
+      "audit_note": "The signed installed Today journey visibly started `Verify estimate progress`, showed its title with tracked minutes and a stable accessibility summary, paused it for a break, relaunched the app, and recovered the same canonical paused state. Active rows advance minute by minute while paused rows remain stable (`TaskEstimateProgressView.swift`; `TaskEstimateProgressTests.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).",
       "tracker_line": 279
     },
     {
@@ -3881,9 +3883,9 @@
       "section_title": "Active-task controls",
       "item_index": 3,
       "wording": "See progress against the estimate when meaningful.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3891,10 +3893,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The UI renders the estimate and the execution store tracks elapsed minutes, but no view calculates or presents elapsed-versus-estimate progress.",
+      "evidence_paths": [
+        ".audit/runs/task-estimate-progress/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "49fe140",
+      "last_verified_build": "Zoid 666 QA Build 8",
+      "audit_note": "Active and paused focus and task-row surfaces show tracked minutes, the estimate, bounded progress, remaining or over-estimate copy, and one complete accessibility summary. The signed installed journey visibly moved from `0 minutes tracked of 5 estimated, not started` to the persisted paused state `7 minutes tracked of 5 estimated, 2 min over estimate`, while seven focused tests cover every boundary and restart recovery (`TaskEstimateProgress.swift`; `TaskEstimateProgressView.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).",
       "tracker_line": 281
     },
     {
@@ -8209,9 +8213,9 @@
       "section_title": "Dashboard active-task status",
       "item_index": 4,
       "wording": "See estimate or meaningful progress where appropriate.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8219,10 +8223,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Estimates are editable and visible, and elapsed minutes are stored, but progress/elapsed information is not presented to the user.",
+      "evidence_paths": [
+        ".audit/runs/task-estimate-progress/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "49fe140",
+      "last_verified_build": "Zoid 666 QA Build 8",
+      "audit_note": "The signed installed Today dashboard visibly presented the same canonical 5-minute estimate and factual tracked progress in active, paused, relaunched, and over-estimate states, with stable accessibility identifiers on the primary focus and detailed-row surfaces (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).",
       "tracker_line": 531
     },
     {
