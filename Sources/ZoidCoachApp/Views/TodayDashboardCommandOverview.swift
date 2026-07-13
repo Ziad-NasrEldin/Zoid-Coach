@@ -221,7 +221,7 @@ struct TodayDashboardCommandOverview: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
                 .scaleEffect(isUsagePresented && !reduceMotion ? 1.035 : 1)
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isUsagePresented)
+                .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isUsagePresented)
                 .focused($isUsageFocused)
                 .onChange(of: isUsageFocused) { _, isFocused in
                     if isFocused { presentUsage() } else { scheduleUsageDismissal() }
@@ -377,7 +377,7 @@ struct TodayDashboardCommandOverview: View {
         .frame(maxWidth: .infinity, minHeight: 228, alignment: .topLeading)
         .background(Sumi.paper)
         .overlay(alignment: .trailing) { Rectangle().fill(Sumi.rule).frame(width: 1) }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: model.dailyPlan)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.22), value: model.dailyPlan)
     }
 
     private var nextDecision: some View {
@@ -821,7 +821,10 @@ private struct AppUsagePopover: View {
                     isActive: $selectorActive
                 )
                 .padding(.vertical, 10)
-                .transition(.opacity.combined(with: .offset(y: -5)))
+                .transition(SumiMotion.transition(
+                    reduceMotion: reduceMotion,
+                    normal: .opacity.combined(with: .offset(y: -5))
+                ))
             }
 
             usageList
@@ -840,8 +843,8 @@ private struct AppUsagePopover: View {
         .background(Sumi.paper)
         .overlay { Rectangle().stroke(Sumi.ink, lineWidth: 1) }
         .overlay(alignment: .top) { Rectangle().fill(Sumi.seal).frame(height: 2) }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: selectedCategory)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: presentationMode)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedCategory)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: presentationMode)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Observed usage since midnight")
     }
@@ -860,7 +863,10 @@ private struct AppUsagePopover: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(displayedItems) { item in
                         usageRow(item)
-                            .transition(.opacity.combined(with: .offset(x: 7)))
+                            .transition(SumiMotion.transition(
+                                reduceMotion: reduceMotion,
+                                normal: .opacity.combined(with: .offset(x: 7))
+                            ))
                     }
                 }
                 .id("\(presentationMode.rawValue)-\(selectedCategory.rawValue)")
@@ -1174,7 +1180,7 @@ private struct TodayPlanTaskRow: View {
         .padding(.horizontal, 12)
         .background(isRecommended ? Sumi.sealWash : Sumi.paper)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: entry)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: entry)
         .sheet(isPresented: $isBlockReasonPresented) {
             TaskBlockReasonSheet(taskTitle: row.title, reason: $blockReason) {
                 markBlocked(blockReason)
@@ -1252,7 +1258,10 @@ private struct TodayEstimateStrip: View {
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
                     .contentTransition(.numericText())
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .transition(SumiMotion.transition(
+                        reduceMotion: reduceMotion,
+                        normal: .opacity.combined(with: .scale(scale: 0.96))
+                    ))
             } else if isUnknown {
                 Text("~\(PlanningCapacityState.unknownEstimatePlaceholderMinutes) MIN PLACEHOLDER · UNCERTAIN")
                     .font(Sumi.label(7))
@@ -1261,7 +1270,7 @@ private struct TodayEstimateStrip: View {
                     .accessibilityIdentifier("today-estimate-unknown-placeholder")
             }
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: selectedMinutes)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedMinutes)
     }
 }
 
