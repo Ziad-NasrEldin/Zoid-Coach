@@ -113,6 +113,9 @@ struct CalendarPlanApprovalReceipt: Codable, Equatable, Sendable {
         case .pending:
             return "Approved \(taskCount) task\(taskCount == 1 ? "" : "s"). \(commandIDs.count) Calendar change\(commandIDs.count == 1 ? " is" : "s are") still pending."
         case .applied:
+            if !usesCalendarAvailability, commandCount == 0 {
+                return "Plan approved locally. No Calendar or Reminder changes were requested."
+            }
             return "Approved plan confirmed. \(commandCount) Calendar change\(commandCount == 1 ? "" : "s") applied."
         case .failed:
             return "Approved plan kept locally. \(commandIDs.count) Calendar change\(commandIDs.count == 1 ? " needs" : "s need") repair."
@@ -184,6 +187,26 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
             commandCount: identifiers.isEmpty ? 0 : identifiers.count,
             approvedAt: approvedAt
         )
+    }
+
+    @discardableResult
+    mutating func acceptLocally(approvedAt: Date = Date()) -> Bool {
+        guard case .reviewing = writeState,
+              !usesCalendarAvailability,
+              !items.isEmpty
+        else { return false }
+        writeState = .applied(commandCount: 0)
+        receipt = CalendarPlanApprovalReceipt(
+            items: items,
+            availableMinutes: availableMinutes,
+            fixedCommitmentMinutes: fixedCommitmentMinutes,
+            usesCalendarAvailability: false,
+            commandIDs: [],
+            outcome: .applied,
+            commandCount: 0,
+            approvedAt: approvedAt
+        )
+        return true
     }
 
     mutating func reconcile(with audit: [ActionAuditEntry]) {

@@ -94,6 +94,54 @@ struct CalendarPlanApprovalStateTests {
         #expect(state.items.map(\.title) == ["Write proposal"])
     }
 
+    @Test("Calendar-unavailable review can be approved locally without write identities")
+    func unavailableReviewAcceptsLocalPlan() throws {
+        let approvedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 60)],
+            titlesByReminderID: ["main": "Write proposal"],
+            availableMinutes: 240,
+            fixedCommitmentMinutes: 0,
+            usesCalendarAvailability: false
+        )
+
+        let accepted = state.acceptLocally(approvedAt: approvedAt)
+        #expect(accepted)
+        #expect(state.writeState == .applied(commandCount: 0))
+        let receipt = try #require(state.receipt)
+        #expect(receipt.items.map(\.title) == ["Write proposal"])
+        #expect(receipt.commandIDs.isEmpty)
+        #expect(receipt.commandCount == 0)
+        #expect(!receipt.usesCalendarAvailability)
+        #expect(receipt.approvedAt == approvedAt)
+        #expect(receipt.summary == "Plan approved locally. No Calendar or Reminder changes were requested.")
+
+        var restored = CalendarPlanApprovalState()
+        restored.restore(receipt)
+        #expect(restored.writeState == .applied(commandCount: 0))
+        #expect(restored.items.map(\.title) == ["Write proposal"])
+        #expect(!restored.isPresented)
+    }
+
+    @Test("local approval is refused when Calendar-backed write review is available")
+    func availableReviewCannotMasqueradeAsLocalOnly() {
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 60)],
+            titlesByReminderID: ["main": "Write proposal"],
+            availableMinutes: 180,
+            fixedCommitmentMinutes: 30,
+            usesCalendarAvailability: true,
+            availabilityRevision: revision(commitments: [commitment(id: "meeting")])
+        )
+
+        let accepted = state.acceptLocally()
+        #expect(!accepted)
+        #expect(state.writeState == .reviewing)
+        #expect(state.receipt == nil)
+    }
+
     @Test("write receipt stays pending until every exact command succeeds")
     func pendingThenApplied() {
         var state = CalendarPlanApprovalState()

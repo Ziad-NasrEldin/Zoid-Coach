@@ -19,11 +19,9 @@ struct CalendarPlanApprovalSheet: View {
                 )
             case let .applied(commandCount):
                 resultPanel(
-                    eyebrow: "CALENDAR CONFIRMED",
-                    title: "Today is reserved",
-                    detail: commandCount == 0
-                        ? "The accepted plan already matched the configured Calendar and Reminders. No duplicate changes were created."
-                        : "The local agent confirmed \(commandCount) Calendar and Reminder change\(commandCount == 1 ? "" : "s"). Your approved day is now durable.",
+                    eyebrow: isLocalOnlyReceipt ? "LOCAL PLAN READY" : "CALENDAR CONFIRMED",
+                    title: isLocalOnlyReceipt ? "Continue with your local plan" : "Today is reserved",
+                    detail: appliedDetail(commandCount: commandCount),
                     symbol: "checkmark.circle.fill"
                 )
             case let .failed(commandIDs):
@@ -110,7 +108,7 @@ struct CalendarPlanApprovalSheet: View {
 
             Text(model.calendarPlanApproval.usesCalendarAvailability
                  ? "Existing Calendar commitments are already excluded. Exact work-block times are selected inside your configured work windows when you confirm."
-                 : "Calendar availability could not be read, so this preview uses configured work windows only. Repair Calendar access before confirming if you need conflict-aware placement.")
+                 : "Calendar availability could not be read, so this preview uses configured work windows only. You can use the plan locally without Calendar or Reminder writes, or repair Calendar access first for conflict-aware placement.")
                 .font(Sumi.body(12))
                 .foregroundStyle(model.calendarPlanApproval.usesCalendarAvailability ? Sumi.muted : Sumi.sealDeep)
                 .padding(18)
@@ -199,16 +197,38 @@ struct CalendarPlanApprovalSheet: View {
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .disabled(model.isSchedulingDailyPlan)
                 Spacer()
-                Button(model.isSchedulingDailyPlan ? "QUEUING" : "CONFIRM AND WRITE") {
-                    model.scheduleDailyPlan()
+                if model.calendarPlanApproval.usesCalendarAvailability {
+                    Button(model.isSchedulingDailyPlan ? "QUEUING" : "CONFIRM AND WRITE") {
+                        model.scheduleDailyPlan()
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                    .disabled(model.isSchedulingDailyPlan)
+                    .accessibilityHint("Queues only the reviewed work blocks and related Reminder updates through the local agent.")
+                    .accessibilityIdentifier("calendar-plan-confirm-write")
+                } else {
+                    Button("USE PLAN LOCALLY") { model.acceptCalendarPlanLocally() }
+                        .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                        .accessibilityHint("Approves the reviewed plan without requesting any Calendar or Reminder changes.")
+                        .accessibilityIdentifier("calendar-plan-use-locally")
                 }
-                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
-                .disabled(model.isSchedulingDailyPlan)
-                .accessibilityHint("Queues only the reviewed work blocks and related Reminder updates through the local agent.")
-                .accessibilityIdentifier("calendar-plan-confirm-write")
             }
             .padding(20)
         }
+    }
+
+    private var isLocalOnlyReceipt: Bool {
+        model.calendarPlanApproval.receipt?.usesCalendarAvailability == false
+            && model.calendarPlanApproval.receipt?.commandCount == 0
+    }
+
+    private func appliedDetail(commandCount: Int) -> String {
+        if isLocalOnlyReceipt {
+            return "The reviewed plan remains on this Mac and is ready to use. No Calendar blocks or Reminder changes were requested. Repair Calendar access later if you want conflict-aware placement."
+        }
+        if commandCount == 0 {
+            return "The accepted plan already matched the configured Calendar and Reminders. No duplicate changes were created."
+        }
+        return "The local agent confirmed \(commandCount) Calendar and Reminder change\(commandCount == 1 ? "" : "s"). Your approved day is now durable."
     }
 
     private func resultPanel(eyebrow: String, title: String, detail: String, symbol: String) -> some View {
