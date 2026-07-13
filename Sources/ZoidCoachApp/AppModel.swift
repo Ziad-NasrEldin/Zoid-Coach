@@ -193,7 +193,7 @@ final class AppModel: ObservableObject {
             calendarPlanApproval.restore(receipt)
         }
         Task {
-            updateSource(resolvedAgentLaunchService.enableAndInspect())
+            updateSource(resolvedAgentLaunchService.reconcileAtLaunchAndInspect())
             await refreshAllSources()
             await refreshReminderTasks()
             await reloadDailyPlan()

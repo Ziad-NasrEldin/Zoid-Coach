@@ -138,6 +138,59 @@ struct AgentLaunchServiceTests {
 
     @MainActor
     @Test
+    func explicitDisableSurvivesForegroundRelaunchAndPreservesLocalData() throws {
+        let suiteName = "zoid-launch-choice-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zoid-launch-choice-data-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let localDataURL = root.appendingPathComponent("zoid-coach.sqlite")
+        let localData = Data("local plans, reviews, and history".utf8)
+        try localData.write(to: localDataURL)
+
+        let registration = RecordingAgentServiceRegistration(status: .enabled)
+        let bundleURL = URL(fileURLWithPath: "/Users/test/Applications/Zoid 666.app")
+        let firstLaunch = AgentLaunchService(
+            service: registration,
+            userDefaults: defaults,
+            bundleURL: bundleURL,
+            buildVersion: "8",
+            heartbeat: { Date() }
+        )
+
+        #expect(firstLaunch.disableAndInspect().state == .notConnected)
+        #expect(registration.unregisterCount == 1)
+
+        let relaunched = AgentLaunchService(
+            service: registration,
+            userDefaults: defaults,
+            bundleURL: bundleURL,
+            buildVersion: "8",
+            heartbeat: { Date() }
+        )
+        #expect(relaunched.reconcileAtLaunchAndInspect().state == .notConnected)
+        #expect(registration.registerCount == 0)
+        #expect(try Data(contentsOf: localDataURL) == localData)
+
+        #expect(relaunched.enableAndInspect().state == .healthy)
+        #expect(registration.registerCount == 1)
+
+        let enabledRelaunch = AgentLaunchService(
+            service: registration,
+            userDefaults: defaults,
+            bundleURL: bundleURL,
+            buildVersion: "8",
+            heartbeat: { Date() }
+        )
+        #expect(enabledRelaunch.reconcileAtLaunchAndInspect().state == .healthy)
+        #expect(registration.registerCount == 1)
+        #expect(try Data(contentsOf: localDataURL) == localData)
+    }
+
+    @MainActor
+    @Test
     func forcedRepairReregistersEvenWhenRegistrationLooksEnabled() {
         let registration = RecordingAgentServiceRegistration(status: .enabled)
         let service = AgentLaunchService(
