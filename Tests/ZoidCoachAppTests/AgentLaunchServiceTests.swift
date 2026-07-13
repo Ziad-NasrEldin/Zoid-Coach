@@ -106,11 +106,34 @@ struct AgentLaunchServiceTests {
         )
 
         #expect(missing.inspect().state == .attention)
+        #expect(missing.launchAtLoginStatus() == .enabled)
         #expect(missing.inspect().detail.contains("has not checked in"))
         #expect(stale.inspect().state == .attention)
         #expect(stale.inspect().evidence.contains("5 minutes ago"))
         #expect(running.inspect().state == .healthy)
         #expect(running.inspect().detail == "Background agent is running")
+    }
+
+    @MainActor
+    @Test
+    func launchAtLoginStatusRemainsEnabledWhenHeartbeatIsStaleAndCanBeDisabled() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let registration = RecordingAgentServiceRegistration(status: .enabled)
+        let service = AgentLaunchService(
+            service: registration,
+            bundleURL: URL(fileURLWithPath: "/Users/test/Applications/Zoid 666.app"),
+            now: { now },
+            heartbeat: { now.addingTimeInterval(-300) }
+        )
+
+        #expect(service.inspect().state == .attention)
+        #expect(service.launchAtLoginStatus() == .enabled)
+
+        let disabled = service.disableAndInspect()
+
+        #expect(disabled.state == .notConnected)
+        #expect(service.launchAtLoginStatus() == .notRegistered)
+        #expect(registration.unregisterCount == 1)
     }
 
     @MainActor
