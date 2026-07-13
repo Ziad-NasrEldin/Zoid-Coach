@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "run_id": "screenwatch-path-last-record-5866ba0",
+  "verified_commit": "5866ba0627ae99e9307922e58da639dcb314c71c",
+  "build_identity": "zoid-coach-5866ba0627ae99e9307922e58da639dcb314c71c-clean",
+  "status": "passed",
+  "completed_at": "2026-07-13T22:37:00Z",
+  "scenario_ids": [
+    "ZC-048-002"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "ui_automation"
+  ],
+  "assertions": [
+    {
+      "name": "Signed Settings shows canonical Screenwatch path and localized absolute latest valid record time",
+      "result": "passed"
+    },
+    {
+      "name": "Invalid later JSONL record does not replace or erase earlier valid evidence",
+      "result": "passed"
+    },
+    {
+      "name": "No-record state and both relaunch recomputations remain truthful",
+      "result": "passed"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "AX-PROOF.txt",
+      "sha256": "a3305167309ec44b70e51bed6b334b777c7aa3ab64735a471ac8e9e28858f211"
+    }
+  ]
+}
