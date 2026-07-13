@@ -970,7 +970,7 @@ private struct TodayTaskRowView: View {
                     .foregroundStyle(Sumi.seal)
                 Text(row.title)
                     .font(Sumi.display(24))
-                Text("Choose the next local planning date. This moves the task out of today's capacity, but it does not change the Apple Reminder due date.")
+                Text("Choose a future local deferral date. This removes the task from today's capacity, but it does not automatically add a future plan or change the Apple Reminder due date.")
                     .font(Sumi.body(13))
                     .foregroundStyle(Sumi.muted)
                     .fixedSize(horizontal: false, vertical: true)
