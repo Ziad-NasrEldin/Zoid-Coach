@@ -712,6 +712,14 @@ final class AppModel: ObservableObject {
         deferTask(entry, until: tomorrow)
     }
 
+    func rescheduleTask(_ taskID: String, until date: Date) {
+        guard let entry = dailyPlan.first(where: { $0.reminderID == taskID }) else {
+            persistenceMessage = "This task is no longer in today's plan. Refresh before rescheduling it."
+            return
+        }
+        deferTask(entry, until: date)
+    }
+
     func clearTaskDeferral(_ entry: DailyPlanEntry) {
         guard !isLoadingDailyPlan else { return }
         dailyPlan = dailyPlan.map {

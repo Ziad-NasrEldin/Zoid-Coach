@@ -837,6 +837,9 @@ private struct TodayTaskRowView: View {
     @State private var isSwitchConfirmationPresented = false
     @State private var isBlockReasonPresented = false
     @State private var blockReason = ""
+    @State private var isReschedulePresented = false
+    @State private var rescheduleDate = TaskRescheduleState().selectedDate
+    @State private var rescheduleError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -894,7 +897,10 @@ private struct TodayTaskRowView: View {
                 }
                 SumiDropdownDivider()
                 SumiDropdownOption("Reschedule task", systemImage: "calendar.badge.clock") {
-                    model.applyTaskCommand(.reschedule, taskID: row.taskID)
+                    let state = TaskRescheduleState()
+                    rescheduleDate = state.selectedDate
+                    rescheduleError = nil
+                    isReschedulePresented = true
                     dismiss()
                 }
             }
@@ -955,6 +961,54 @@ private struct TodayTaskRowView: View {
                 model.markTaskBlocked(entry, reason: blockReason)
                 isBlockReasonPresented = false
             }
+        }
+        .sheet(isPresented: $isReschedulePresented) {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("RESCHEDULE TASK")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Text(row.title)
+                    .font(Sumi.display(24))
+                Text("Choose the next local planning date. This moves the task out of today's capacity, but it does not change the Apple Reminder due date.")
+                    .font(Sumi.body(13))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                DatePicker(
+                    "New planning date",
+                    selection: $rescheduleDate,
+                    in: TaskRescheduleState().earliestDate...,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .accessibilityIdentifier("today.task.\(row.taskID).reschedule-date")
+                if let rescheduleError {
+                    Text(rescheduleError)
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .accessibilityIdentifier("today.task.\(row.taskID).reschedule-error")
+                }
+                HStack {
+                    Button("CANCEL") { isReschedulePresented = false }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    Spacer()
+                    Button("CONFIRM NEW DATE") {
+                        switch TaskRescheduleState().validated(rescheduleDate) {
+                        case let .success(date):
+                            model.rescheduleTask(row.taskID, until: date)
+                            isReschedulePresented = false
+                        case let .failure(error):
+                            rescheduleError = error.message
+                        }
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                    .accessibilityIdentifier("today.task.\(row.taskID).reschedule-confirm")
+                }
+            }
+            .padding(24)
+            .frame(width: 440)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("today.task.\(row.taskID).reschedule-sheet")
         }
     }
 
