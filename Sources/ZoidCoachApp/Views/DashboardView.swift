@@ -188,6 +188,25 @@ private struct TodayCommandView: View {
                 .accessibilityHint(model.planningCapacityState.canApprove ? "The plan fits today's focus capacity." : "Resolve the plan capacity warning first.")
                 .accessibilityIdentifier("planning-capacity-accept")
 
+                if let receipt = model.calendarPlanApproval.receipt {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("LAST PLAN APPROVAL")
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.muted)
+                        Text(receipt.summary)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.ink)
+                        Button("REVIEW RECEIPT") {
+                            model.showCalendarPlanApprovalReceipt()
+                        }
+                        .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                        .accessibilityIdentifier("calendar-plan-approval-receipt")
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("calendar-plan-approval-receipt-summary")
+                }
+
                 Button {
                     model.refreshReminderTasks()
                 } label: {
