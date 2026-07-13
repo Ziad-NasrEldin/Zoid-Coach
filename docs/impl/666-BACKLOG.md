@@ -464,3 +464,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Signed fixture latest-per-group state, Today preservation, exactly-once older response, and app plus helper relaunch durability passed.
 - Real Notification Center remains the conservative proof gap because signed QA mode intentionally uses the isolated fixture adapter.
 - Verification evidence is recorded in `.audit/runs/latest-relevant-notification/verifier/REPORT.md`.
+
+### Screenwatch source path and last valid record - candidate
+
+- Owns `ZC-048-002`.
+- Carries the canonical Screenwatch days-folder path and latest schema-valid record instant from the privacy-safe source inspection into Source Health.
+- Shows the exact selectable folder path and a locale-aware absolute date and time together for healthy and stale sources instead of exposing only relative age.
+- Shows an explicit no-valid-record state without inventing a timestamp when a resolved folder has no valid record.
+- Adds stable accessibility identifiers and a combined VoiceOver summary while retaining separate, navigable source evidence.
+- Sixteen focused service, controller, and presentation tests pass, and the release build passes.
+- Candidate evidence is recorded in `.audit/runs/screenwatch-path-last-record/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after an independent signed Source Health verification with a controlled current or stale Screenwatch fixture and relaunch.

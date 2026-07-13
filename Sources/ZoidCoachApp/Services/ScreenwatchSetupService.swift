@@ -39,6 +39,30 @@ struct ScreenwatchSetupStatus: Equatable, Sendable {
     let summary: String
     let evidence: String
     let validRecordCount: Int
+    let sourcePath: String?
+    let lastValidRecordAt: Date?
+
+    init(
+        source: ScreenwatchSetupSource,
+        health: ScreenwatchSetupHealth,
+        continuation: ScreenwatchSetupContinuation,
+        repair: ScreenwatchSetupRepair,
+        summary: String,
+        evidence: String,
+        validRecordCount: Int,
+        sourcePath: String? = nil,
+        lastValidRecordAt: Date? = nil
+    ) {
+        self.source = source
+        self.health = health
+        self.continuation = continuation
+        self.repair = repair
+        self.summary = summary
+        self.evidence = evidence
+        self.validRecordCount = validRecordCount
+        self.sourcePath = sourcePath
+        self.lastValidRecordAt = lastValidRecordAt
+    }
 }
 
 enum ScreenwatchSetupServiceError: LocalizedError, Equatable, Sendable {
@@ -161,7 +185,8 @@ actor ScreenwatchSetupService: ScreenwatchSetupServicing {
                 repair: .recheck,
                 summary: "No Screenwatch telemetry was found for today yet.",
                 evidence: "The selected local source is available, but today's log is missing.",
-                validRecordCount: 0
+                validRecordCount: 0,
+                sourcePath: lease.rootURL.path
             )
         } catch ScreenwatchSourceResolutionError.unsafePath,
                 ScreenwatchSourceResolutionError.notDirectory,
@@ -184,8 +209,9 @@ actor ScreenwatchSetupService: ScreenwatchSetupServicing {
                 continuation: .unavailable,
                 repair: source == .defaultLocation ? .chooseFolder : .reauthorizeFolder,
                 summary: "Screenwatch telemetry could not be read safely.",
-                evidence: "Access failed without displaying captured content or file locations.",
-                validRecordCount: 0
+                evidence: "Access failed without displaying captured titles, URLs, or screenshots.",
+                validRecordCount: 0,
+                sourcePath: lease.rootURL.path
             )
         }
         do {
@@ -200,9 +226,11 @@ actor ScreenwatchSetupService: ScreenwatchSetupServicing {
                     repair: .recheck,
                     summary: "Screenwatch telemetry does not match the expected schema.",
                     evidence: "Validation failed without displaying captured titles or URLs.",
-                    validRecordCount: validation.validRecordCount
+                    validRecordCount: validation.validRecordCount,
+                    sourcePath: lease.rootURL.path
                 )
             }
+            let lastValidRecordAt = Date(timeIntervalSince1970: TimeInterval(latestEpoch))
             let age = max(0, now.timeIntervalSince1970 - TimeInterval(latestEpoch))
             if age > staleThreshold {
                 return ScreenwatchSetupStatus(
@@ -212,7 +240,9 @@ actor ScreenwatchSetupService: ScreenwatchSetupServicing {
                     repair: .recheck,
                     summary: "Screenwatch telemetry is connected but not current.",
                     evidence: "Schema-valid local records were found.",
-                    validRecordCount: validation.validRecordCount
+                    validRecordCount: validation.validRecordCount,
+                    sourcePath: lease.rootURL.path,
+                    lastValidRecordAt: lastValidRecordAt
                 )
             }
             return ScreenwatchSetupStatus(
@@ -222,7 +252,9 @@ actor ScreenwatchSetupService: ScreenwatchSetupServicing {
                 repair: .none,
                 summary: "Screenwatch telemetry is connected and current.",
                 evidence: "Schema-valid local records were found.",
-                validRecordCount: validation.validRecordCount
+                validRecordCount: validation.validRecordCount,
+                sourcePath: lease.rootURL.path,
+                lastValidRecordAt: lastValidRecordAt
             )
         } catch {
             return ScreenwatchSetupStatus(
@@ -231,8 +263,9 @@ actor ScreenwatchSetupService: ScreenwatchSetupServicing {
                 continuation: .unavailable,
                 repair: source == .defaultLocation ? .chooseFolder : .reauthorizeFolder,
                 summary: "Screenwatch telemetry could not be read safely.",
-                evidence: "Access failed without displaying captured content or file locations.",
-                validRecordCount: 0
+                evidence: "Access failed without displaying captured titles, URLs, or screenshots.",
+                validRecordCount: 0,
+                sourcePath: lease.rootURL.path
             )
         }
     }

@@ -129,12 +129,34 @@ struct ScreenwatchConnectionView: View {
             Text(status.evidence)
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
+            if let recordEvidence = ScreenwatchRecordEvidence(status: status) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("SOURCE FOLDER")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                    Text(recordEvidence.sourcePath)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(Sumi.ink)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("settings.screenwatch.source-path")
+                    Text("LAST VALID RECORD")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                    Text(recordEvidence.lastValidRecordText ?? "No valid record available yet")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.ink)
+                        .accessibilityIdentifier("settings.screenwatch.last-valid-record")
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(recordEvidence.accessibilitySummary)
+                .accessibilityIdentifier("settings.screenwatch.record-evidence")
+            }
             Text(repairGuidance(status))
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
         }
         .fixedSize(horizontal: false, vertical: true)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings.screenwatch.status")
     }
 
