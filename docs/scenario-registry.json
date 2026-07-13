@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "061e61c0f624971f1d1fa0ae2dd2660b5018da9dad0862b969c1613b2746f4a7",
+  "tracker_sha256": "559fca73c4ca626b8b3172413e4b2a71e41ee03e9a973411dc87c9ae54940066",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11216,9 +11216,9 @@
       "section_title": "Source health and diagnostics",
       "item_index": 2,
       "wording": "See Screenwatch path and time of the last valid record.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11227,11 +11227,11 @@
       ],
       "affected_capability": "resilience_and_diagnostics",
       "evidence_paths": [
-        ".audit/runs/unfinished-review-resume/verifier/REPORT.md"
+        ".audit/runs/screenwatch-path-last-record/5866ba0627ae99e9307922e58da639dcb314c71c/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Missing-state evidence shows the path and healthy/stale state shows relative age, but the UI does not show the absolute last-record time together with the path.",
+      "last_verified_commit": "5866ba0627ae99e9307922e58da639dcb314c71c",
+      "last_verified_build": "zoid-coach-5866ba0627ae99e9307922e58da639dcb314c71c-clean",
+      "audit_note": "Signed Settings visibly and accessibly showed the canonical selectable Screenwatch days-folder path and a locale-aware absolute latest schema-valid record time from a real isolated JSONL source. A later invalid line preserved the earlier valid timestamp under truthful incompatible-format health, relaunch recomputed the same evidence, and removing the log produced a truthful no-valid-record state that persisted across another relaunch (`Sources/ZoidCoachApp/Services/ScreenwatchSetupService.swift`; `Sources/ZoidCoachApp/Views/ScreenwatchConnectionView.swift`; `Sources/ZoidCoachApp/Views/ScreenwatchRecordEvidence.swift`; `.audit/runs/screenwatch-path-last-record/5866ba0627ae99e9307922e58da639dcb314c71c/evidence.json`).",
       "tracker_line": 692
     },
     {
