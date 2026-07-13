@@ -807,6 +807,16 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func isReminderEligibleForToday(_ dueDate: Date?, referenceDate: Date = Date()) -> Bool {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: currentPolicy().schedule.timeZoneIdentifier) ?? .current
+        return TodayReminderEligibility.isVisible(
+            dueDate: dueDate,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+    }
+
     var remindersContinuityState: RemindersContinuityState {
         let reminderHealth = sources.first(where: { $0.id == .reminders })?.state ?? .notConnected
         let rows = todaySnapshot?.taskRows ?? []
