@@ -51,6 +51,21 @@ func settingsRoundTripsConfiguredCoachingLevelAndGamingAllowance() {
 }
 
 @Test
+func settingsRoundTripsGamingObservationModeWithoutDiscardingConfiguredValues() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    var draft = SettingsPolicyDraft(policy: original)
+    draft.gamingBudgetEnabled = false
+    draft.gamingDailyBudgetMinutes = 95
+    draft.gamingPriorityTaskRewardMinutes = 25
+
+    let saved = draft.policy(preserving: original)
+    #expect(!saved.gaming.budgetEnabled)
+    #expect(saved.gaming.dailyBudgetMinutes == 95)
+    #expect(saved.gaming.priorityTaskRewardMinutes == 25)
+    #expect(!SettingsPolicyDraft(policy: saved).gamingBudgetEnabled)
+}
+
+@Test
 func settingsConflictResolverPreservesConcurrentCoachingLevelChoice() {
     let base = SettingsPolicyDraft(policy: .defaults(timeZoneIdentifier: "UTC"))
     var mine = base
