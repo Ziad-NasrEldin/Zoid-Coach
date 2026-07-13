@@ -1483,13 +1483,19 @@ struct SettingsView: View {
                 .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
             Button("DELETE AI REQUEST METADATA") { presentConfirmation(.deleteAIMetadata) }
                 .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
-            Button("DELETE REVIEWS AND LEARNED RULES") { presentConfirmation(.deleteLearning) }
+            Button(ReviewLearningDeletionDisclosure.confirmButtonTitle) { presentConfirmation(.deleteLearning) }
                 .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
+                .accessibilityHint("Opens a confirmation listing every review and learning record that will be deleted and the raw facts that remain.")
+                .accessibilityIdentifier("settings.data.delete-reviews-learning")
             Button("DELETE ALL ZOID 666 DATA") { presentConfirmation(.deleteAllData) }
                 .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .large))
                 .accessibilityIdentifier("settings.data.delete-all")
             if let dataStatusMessage {
-                Text(dataStatusMessage).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
+                Text(dataStatusMessage)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.data.deletion-status")
             }
             if let message = controller.statusMessage {
                 Text(message)
@@ -1667,9 +1673,9 @@ struct SettingsView: View {
             )
         case .deleteLearning:
             presentDataDeletionConfirmation(
-                title: "Delete reviews and learned rules?",
-                message: "Local estimate-learning samples, aggregates, and planner trust history will be deleted. Future recommendations will begin learning again from defaults.",
-                confirmTitle: "DELETE LEARNED DATA",
+                title: ReviewLearningDeletionDisclosure.confirmationTitle,
+                message: ReviewLearningDeletionDisclosure.confirmationMessage,
+                confirmTitle: ReviewLearningDeletionDisclosure.confirmButtonTitle,
                 command: .deleteReviewsAndLearnedRules
             )
         case .deleteAllData:

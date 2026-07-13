@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import ZoidCoachCore
 
 private let privacySQLiteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
@@ -74,7 +75,12 @@ public final class PrivacyDataService: @unchecked Sendable {
             ("behavior", "Behavior evidence", "Local activity summaries, extracted facts, and app-owned screenshot indexes. Source screenshots are never owned or deleted by Zoid 666.", ["behavior_records", "screenshot_analyses", "screenshot_artifacts", "extracted_facts"]),
             ("prompts", "Prompts and responses", "Local coaching prompts, responses, and their durable effects.", ["prompt_episodes", "prompt_responses", "prompt_response_effects"]),
             ("meetings", "Meeting suggestions", "Locally extracted meeting candidates and encrypted supporting evidence.", ["meeting_candidates", "meeting_evidence"]),
-            ("learning", "Learned estimates and rules", "Local estimate samples, aggregates, and planner trust history.", ["learning_samples", "learning_aggregates", "planner_trust_cycles"]),
+            (
+                "learning",
+                ReviewLearningDeletionDisclosure.inventoryTitle,
+                ReviewLearningDeletionDisclosure.inventoryDetail,
+                ["daily_review_corrections", "daily_reviews", "weekly_review_experiments", "app_classification_correction_rules", "learning_samples", "learning_aggregates", "planner_trust_cycles"]
+            ),
             ("voice", "Voice conversations", "Local voice sessions, turns, confirmed memory facts, approvals, and tool history.", ["voice_sessions", "conversation_turns", "conversation_memory_facts", "voice_tool_invocations", "voice_approval_requests"]),
             ("ai", "AI request metadata", "Local provider run metadata, cache records, Codex jobs, and transmission receipts. Credentials are stored separately in Keychain.", ["model_runs", "codex_jobs", "screen_context_transmissions"]),
             ("settings", "Settings and diagnostics", "Versioned local policy, source checkpoints, notification delivery results, action audit, and saved Today snapshots.", ["policy_versions", "settings", "source_checkpoints", "processing_checkpoints", "notification_delivery_events", "action_commands", "action_attempts", "today_snapshots"])

@@ -493,6 +493,18 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Real Notification Center remains the conservative proof gap because signed QA mode intentionally uses the isolated fixture adapter.
 - Verification evidence is recorded in `.audit/runs/latest-relevant-notification/verifier/REPORT.md`.
 
+### Review and learning deletion disclosure - candidate
+
+- Completes the remaining ZC-047-012 usability disclosure gap without changing the atomic deletion scope.
+- Uses one canonical disclosure for the inventory, destructive confirmation, button label, positive-count success state, and repeat-zero success state.
+- Names daily and weekly reviews, personal notes, corrections, weekly experiments, learned app-classification rules, learning samples and aggregates, and planner trust cycles everywhere the user decides or verifies the deletion.
+- States before and after confirmation that raw behavior records and task facts remain, and states that Cancel changes nothing.
+- Expands the Learning inventory count to cover every one of the seven tables deleted by the command.
+- Adds stable accessibility identifiers and a descriptive accessibility hint for the destructive entry point and result status.
+- Focused disclosure and inventory tests, the full Privacy Data Service test group, release build, and diff check pass.
+- Candidate evidence is recorded in `.audit/runs/delete-reviews-learned-rules/disclosure-candidate/REPORT.md`.
+- Independent signed Settings cancel, confirm, refreshed inventory, repeat-zero, preserved-facts, and relaunch verification remain before final tracker promotion.
+
 ### Delete reviews and learned rules - candidate
 
 - Owns `ZC-047-012`.
