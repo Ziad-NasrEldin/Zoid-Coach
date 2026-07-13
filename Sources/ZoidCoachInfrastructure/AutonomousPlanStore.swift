@@ -143,7 +143,13 @@ public final class AutonomousPlanStore: @unchecked Sendable {
         let dayKey = dayKey(for: day)
         let previous = try loadDailyPlan(for: day)
         let visible = previous.filter { usableTaskIDs.contains($0.reminderID) }
-        if visible.count == previous.count, !visible.isEmpty, visible.filter(\.isMainObjective).count == 1 {
+        let mainObjectives = visible.filter(\.isMainObjective)
+        let isIntentionallyInactive = mainObjectives.isEmpty && visible.allSatisfy {
+            $0.isOptional == true || ($0.deferredUntil.map { $0 > Date() } ?? false)
+        }
+        if visible.count == previous.count,
+           !visible.isEmpty,
+           mainObjectives.count == 1 || isIntentionallyInactive {
             guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
                 throw AutonomousPlanStoreError.transaction
             }

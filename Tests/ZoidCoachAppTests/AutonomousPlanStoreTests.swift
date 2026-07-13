@@ -104,6 +104,39 @@ func atomicPlanInstallRetainsAUsableVisiblePlanWithoutDuplicateIntentOrRevision(
 }
 
 @Test
+func atomicPlanInstallRetainsAnIntentionallyFullyDeferredPlan() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("atomic-plan-deferred-\(UUID().uuidString).sqlite")
+    defer { for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) } }
+    let day = Date()
+    let deferredUntil = day.addingTimeInterval(24 * 60 * 60)
+    try AgentOwnedStateStore(databaseURL: url).replaceDailyPlan([
+        AgentPlanItem(
+            reminderID: "deferred",
+            rank: 1,
+            isMainObjective: false,
+            estimateMinutes: 30,
+            selectionReason: "Deferred from coaching",
+            selectionScore: 100,
+            deferredUntil: deferredUntil
+        )
+    ], day: day, now: day)
+    let store = try AutonomousPlanStore(databaseURL: url)
+
+    let result = try store.installDailyPlanIfNoUsablePlan(
+        testProposal(id: "replacement"),
+        for: day,
+        usableTaskIDs: ["deferred", "replacement"]
+    )
+
+    guard case let .retained(entries) = result else {
+        Issue.record("Expected the intentionally deferred plan to remain durable")
+        return
+    }
+    #expect(entries.map(\.reminderID) == ["deferred"])
+    #expect(try store.loadDailyPlan(for: day).first?.deferredUntil != nil)
+}
+
+@Test
 func atomicPlanInstallRepairsAnOrphanAndPreservesItAsOneRevision() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("atomic-plan-repair-\(UUID().uuidString).sqlite")
     defer { for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) } }
