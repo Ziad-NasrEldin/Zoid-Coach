@@ -56,6 +56,7 @@ import ZoidCoachInfrastructure
     let controller = NotificationDeliveryHealthController(service: service)
 
     await controller.requestAccess()
+    await controller.requestAccess()
 
     #expect(controller.health == denied)
     #expect(controller.statusMessage?.contains("Today") == true)
@@ -63,9 +64,69 @@ import ZoidCoachInfrastructure
 }
 
 @MainActor
+@Test func returningFromNotificationSettingsRechecksWithoutRequestingAgain() async {
+    let denied = SourceHealth(
+        id: .notifications,
+        title: "macOS Notifications",
+        eyebrow: "Escalation",
+        state: .attention,
+        detail: "Notifications are off",
+        evidence: "Today remains available",
+        actionTitle: "Open Settings"
+    )
+    let granted = SourceHealth(
+        id: .notifications,
+        title: "macOS Notifications",
+        eyebrow: "Escalation",
+        state: .healthy,
+        detail: "Notifications are available",
+        evidence: "Delivery is enabled",
+        actionTitle: "Inspect"
+    )
+    let service = RecordingNotificationDeliveryHealthService(health: denied, records: [])
+    var opened: URL?
+    let controller = NotificationDeliveryHealthController(service: service, openURL: {
+        opened = $0
+        return true
+    })
+    await controller.refresh()
+    #expect(controller.openSystemSettings())
+    #expect(opened?.absoluteString.contains("Notifications") == true)
+
+    service.health = granted
+    await controller.applicationDidBecomeActive()
+
+    #expect(controller.health == granted)
+    #expect(service.inspectCount == 2)
+    #expect(service.requestCount == 0)
+}
+
+@MainActor
+@Test func notificationSettingsFailureLeavesExactManualRecoveryPath() async {
+    let denied = SourceHealth(
+        id: .notifications,
+        title: "macOS Notifications",
+        eyebrow: "Escalation",
+        state: .attention,
+        detail: "Notifications are off",
+        evidence: "Today remains available",
+        actionTitle: "Open Settings"
+    )
+    let service = RecordingNotificationDeliveryHealthService(health: denied, records: [])
+    let controller = NotificationDeliveryHealthController(
+        service: service,
+        openURL: { _ in false }
+    )
+    await controller.refresh()
+
+    #expect(!controller.openSystemSettings())
+    #expect(controller.statusMessage == "Open System Settings, choose Notifications, then choose Zoid 666.")
+}
+
+@MainActor
 private final class RecordingNotificationDeliveryHealthService: NotificationDeliveryHealthServicing {
     let usesSystemSettingsRepair = true
-    let health: SourceHealth
+    var health: SourceHealth
     let records: [NotificationDeliveryRecord]
     private(set) var inspectCount = 0
     private(set) var requestCount = 0
