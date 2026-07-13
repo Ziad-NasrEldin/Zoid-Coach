@@ -139,9 +139,13 @@ func contextSensitiveApplicationsUseLocalWindowAndURLMeaningInsteadOfPermanentLa
 
     _ = try archive.ingestToday(from: root, now: date)
 
-    #expect(try archive.behaviorObservations(for: date).map(\.classification) == [
+    let expectedClassifications: [BehaviorClassification] = [
         .work, .work, .distracting, .work, .gaming, .work, .work, .unknown,
-    ])
+    ]
+    #expect(try archive.behaviorObservations(for: date).map(\.classification) == expectedClassifications)
+
+    let reopenedArchive = try ScreenwatchArchive(databaseURL: databaseURL)
+    #expect(try reopenedArchive.behaviorObservations(for: date).map(\.classification) == expectedClassifications)
 }
 
 @Test
