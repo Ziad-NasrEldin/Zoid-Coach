@@ -54,14 +54,14 @@ final class DashboardEndWorkdayFlow: ObservableObject {
                   task.state == .paused,
                   task.latestPauseReason == .endingWorkday
             else {
-                statusMessage = "The background agent did not confirm the end of the workday. The active task is unchanged."
+                statusMessage = "The background agent did not confirm the end-of-workday result. Review the refreshed Today state before trying again."
                 return false
             }
 
             statusMessage = "Workday ended. Opening today's review. Tracked time was preserved and the task was not marked complete."
             return true
         } catch {
-            statusMessage = "The workday could not be ended. The active task is unchanged. Check Agent source health and try again."
+            statusMessage = "Zoid 666 could not confirm the end-of-workday result. Review the refreshed Today state and check Agent source health before trying again."
             return false
         }
     }
