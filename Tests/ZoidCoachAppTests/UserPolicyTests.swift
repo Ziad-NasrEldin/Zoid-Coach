@@ -297,6 +297,22 @@ func capturePolicyNormalizesDisplayIDsAndRoundTripsThroughRuntimeConfiguration()
 }
 
 @Test
+func capturePolicyDefaultsLegacyDocumentsToEnabledIngestionAndRoundTripsAPause() throws {
+    let legacy = try JSONDecoder().decode(
+        CapturePolicy.self,
+        from: Data(#"{"mode":"legacy","configuredDisplayIDs":[2,1,2]}"#.utf8)
+    )
+    let paused = CapturePolicy(mode: .native, configuredDisplayIDs: [4], ingestionEnabled: false)
+    let decodedPaused = try JSONDecoder().decode(CapturePolicy.self, from: JSONEncoder().encode(paused))
+
+    #expect(legacy.ingestionEnabled)
+    #expect(legacy.configuredDisplayIDs == [1, 2])
+    #expect(!decodedPaused.ingestionEnabled)
+    #expect(decodedPaused.mode == .native)
+    #expect(decodedPaused.configuredDisplayIDs == [4])
+}
+
+@Test
 func reminderListPolicyUsesStableIdentifiersAndExcludesNewListsAfterConfiguration() throws {
     let policy = ReminderListPolicy(
         isConfigured: true,
