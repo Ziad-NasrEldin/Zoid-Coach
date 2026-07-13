@@ -1207,8 +1207,9 @@ private struct TodayTaskRowView: View {
     }
 
     private var taskDetail: String {
-        let stateLabel = completionSync.statusLabel(localExecutionIsCompleted: row.state == .completed)
+        let defaultStateLabel = completionSync.statusLabel(localExecutionIsCompleted: row.state == .completed)
             ?? row.state.rawValue.capitalized
+        let stateLabel = row.userFacingStateLabel(defaultLabel: defaultStateLabel)
         var parts = ["\(row.estimateMinutes)m", relativeDeadline(row.dueDate), "\(row.urgency.rawValue.capitalized) urgency", stateLabel]
         if row.elapsedMinutes > 0 { parts.append("\(row.elapsedMinutes)m tracked") }
         if let reason = row.latestPauseReason {
