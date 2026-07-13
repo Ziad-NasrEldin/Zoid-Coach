@@ -225,6 +225,20 @@ public final class LearningAggregateStore: @unchecked Sendable {
         )
     }
 
+    public func estimateEvidenceSamples(for context: EstimateLearningContext) throws -> [EstimateLearningSample] {
+        lock.lock()
+        defer { lock.unlock() }
+        let samples: [EstimateSamplePayload] = try samplePayloads(
+            type: .estimate,
+            contextKey: Self.contextKey(context),
+            as: EstimateSamplePayload.self
+        )
+        return samples.map(\.sample).sorted {
+            if $0.completedAt != $1.completedAt { return $0.completedAt > $1.completedAt }
+            return $0.id < $1.id
+        }
+    }
+
     public func preferredWorkWindowAggregate(
         timeZoneIdentifier: String
     ) throws -> StoredWorkWindowLearningAggregate? {
