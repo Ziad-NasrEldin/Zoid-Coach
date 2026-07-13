@@ -22,6 +22,7 @@ public enum GamingDriftSuppressionReason: String, Equatable, Sendable {
     case sessionAlreadyHandled
     case dailyLimitReached
     case cooldownActive
+    case responsePauseActive
     case fiveMinuteSnoozeActive
 }
 
@@ -42,6 +43,10 @@ public final class GamingDriftPromptService: @unchecked Sendable {
     private struct PriorityTask {
         let id: String
         let title: String
+    }
+
+    private struct StoredBehaviorPromptEnvelope: Decodable {
+        let payload: [String: String]
     }
 
     private enum IntentionalOverrideState: Equatable {
@@ -133,6 +138,9 @@ public final class GamingDriftPromptService: @unchecked Sendable {
 
         let decisionKeyPrefix = "gaming-drift:\(localDay):"
         let baseDecisionKey = "\(decisionKeyPrefix)\(session.startedAtEpoch)"
+        if try hasEndedWorkdayResponse(decisionKeyPrefix: decisionKeyPrefix) {
+            return .suppressed(.workdayClosed)
+        }
         let snooze = try fiveMinuteSnoozeState(decisionKey: baseDecisionKey, at: date)
         if case .active = snooze {
             return .suppressed(.fiveMinuteSnoozeActive)
@@ -169,6 +177,10 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         guard isFiveMinuteFollowUp || isBelowDailyPromptCap else {
             return .suppressed(.dailyLimitReached)
         }
+        if !isFiveMinuteFollowUp,
+           try hasActiveResponsePause(decisionKeyPrefix: prefix, at: date) {
+            return .suppressed(.responsePauseActive)
+        }
         let completedIntentionalOverride: Bool
         switch override {
         case .ended, .expired: completedIntentionalOverride = true
@@ -200,6 +212,9 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             actions.append(PromptAction(kind: .startBreak, title: "Take a break"))
         }
         actions.append(PromptAction(kind: .continueIntentionally, title: "Continue intentionally"))
+        if isFiveMinuteFollowUp {
+            actions.append(PromptAction(kind: .endWorkday, title: "I am done today"))
+        }
         var payload = [
             "localDay": localDay,
             "taskID": task.id,
@@ -588,6 +603,67 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         guard sqlite3_step(statement) == SQLITE_ROW,
               let raw = text(statement, 0) else { return nil }
         return formatter.date(from: raw)
+    }
+
+    private func hasActiveResponsePause(decisionKeyPrefix: String, at date: Date) throws -> Bool {
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT response.responded_at_utc, response.response, episode.payload_json
+        FROM prompt_responses response
+        JOIN prompt_episodes episode ON episode.id = response.prompt_id
+        WHERE episode.prompt_type = ?
+          AND (episode.decision_key LIKE ? OR episode.decision_key LIKE ?)
+        ORDER BY response.responded_at_utc DESC, response.id DESC
+        LIMIT 1;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        bind(PromptNotificationCategory.gamingDrift.rawValue, statement, 1)
+        bind(decisionKeyPrefix + "%", statement, 2)
+        bind("resolved:%:" + decisionKeyPrefix + "%", statement, 3)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let rawDate = text(statement, 0),
+              let respondedAt = formatter.date(from: rawDate),
+              let rawAction = text(statement, 1),
+              let action = PromptActionKind(rawValue: rawAction),
+              let rawPayload = text(statement, 2),
+              let envelope = try? JSONDecoder().decode(
+                  StoredBehaviorPromptEnvelope.self,
+                  from: Data(rawPayload.utf8)
+              )
+        else { return false }
+
+        switch action {
+        case .fiveMoreMinutes, .continueIntentionally, .endWorkday:
+            return false
+        default:
+            break
+        }
+        let level = envelope.payload["coachingLevel"].flatMap(CoachingLevel.init(rawValue:)) ?? .gentle
+        let pauseMinutes = level == .gentle ? 15 : 20
+        return date.timeIntervalSince(respondedAt) < TimeInterval(pauseMinutes * 60)
+    }
+
+    private func hasEndedWorkdayResponse(decisionKeyPrefix: String) throws -> Bool {
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT 1
+        FROM prompt_responses response
+        JOIN prompt_episodes episode ON episode.id = response.prompt_id
+        WHERE response.response = ?
+          AND episode.prompt_type = ?
+          AND (episode.decision_key LIKE ? OR episode.decision_key LIKE ?)
+        LIMIT 1;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError() }
+        defer { sqlite3_finalize(statement) }
+        bind(PromptActionKind.endWorkday.rawValue, statement, 1)
+        bind(PromptNotificationCategory.gamingDrift.rawValue, statement, 2)
+        bind(decisionKeyPrefix + "%", statement, 3)
+        bind("resolved:%:" + decisionKeyPrefix + "%", statement, 4)
+        return sqlite3_step(statement) == SQLITE_ROW
     }
 
     private func tableExists(_ name: String) throws -> Bool {
