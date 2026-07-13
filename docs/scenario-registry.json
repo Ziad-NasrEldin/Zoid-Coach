@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "7641163f59f785029c6006bf645d9dd557d09c2c815f512828b9c713fecfd690",
+  "tracker_sha256": "10049856b7ca0c7427bfe253400d4419e0eb22ac80650e7c50785d58a9d0730e",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4529,8 +4529,8 @@
       "item_index": 9,
       "wording": "See a clear pending-sync warning if rescheduling fails.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4541,7 +4541,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Rescheduling is only a local task execution state and task-history record.",
+      "audit_note": "Confirmed rescheduling now durably saves the local future date before it queues one explicit Apple Reminders due-date command, supersedes obsolete pending dates, skips source mutation for local-only tasks, and exposes task-specific Pending, Retrying, Rejected, Unavailable, and Confirmed ledger states without claiming success before the write. Three focused sync tests and 29 affected regressions pass, the release QA package passed signing and helper coherence, and the verifier-fixed ordering prevents an external write when local plan persistence fails. The capped signed run stopped because the handed-off deterministic fixture used unsupported control encoding and the installed app truthfully showed QA fixture startup failure before any cancel, confirm, rejection, repair, or restart journey could be exercised (`ReminderRescheduleSyncState.swift`; `AppModel.swift`; `.audit/runs/reminder-reschedule-sync/verifier/REPORT.md`).",
       "tracker_line": 314
     },
     {
