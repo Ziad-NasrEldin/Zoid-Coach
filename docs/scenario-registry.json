@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "b553114cd210f2a6564511a7ffa13d0756eb7f3d9fc4ddb135eb72aec1c33aff",
+  "tracker_sha256": "ec0db1bced79bd42d0ca661b2358c441546b2d1820e0e470ab0dbf2766147da3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10370,8 +10370,8 @@
       "item_index": 7,
       "wording": "Change the default coaching-pause duration.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10381,7 +10381,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Only an indefinite pause exists.",
+      "audit_note": "Settings now exposes a persisted Quick Pause default of 1 Hour, Until Tomorrow, or Indefinitely, preserves the legacy indefinite behavior, and resolves Until Tomorrow at the next midnight in the policy time zone. The signed installed UI saved each default, observed an exact one-hour pause boundary, observed an exact Africa/Cairo midnight boundary, and preserved the selected midnight boundary across helper and app restart before saving back to Indefinitely. Focused tests prove the menu-bar controller reloads the latest policy, applies every duration, automatically resumes timed pauses, and preserves unrelated concurrent edits, but the signed run did not directly click the menu-bar Quick Pause action, wait through an automatic boundary, or perform the concurrent-edit journey (`MenuBarCoachingPauseController.swift`; `.audit/runs/default-coaching-pause/verifier/REPORT.md`).",
       "tracker_line": 646
     },
     {
