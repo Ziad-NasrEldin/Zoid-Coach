@@ -106,6 +106,27 @@ struct MenuBarCoachState: Equatable {
         activeTask.flatMap { ActiveCommitmentPresentation(task: $0) }
     }
 
+    var compactTaskFacts: [String] {
+        guard let task = primaryTask else { return [] }
+        var facts: [String] = []
+        if task.isMainObjective { facts.append("Main objective") }
+        facts.append("\(task.estimateMinutes) min estimate")
+        facts.append("\(task.urgency.rawValue.capitalized) urgency")
+        if let dueDate = task.dueDate {
+            facts.append("Due \(dueDate.formatted(.dateTime.month(.abbreviated).day().hour().minute()))")
+        }
+        if task.isLocked { facts.append("Locked") }
+        if let blockedReason = task.blockedReason {
+            facts.append("Blocked: \(blockedReason)")
+        }
+        return facts
+    }
+
+    func compactTaskAccessibilitySummary(at date: Date) -> String? {
+        guard let task = primaryTask else { return nil }
+        return ([task.title, taskStatus(at: date)] + compactTaskFacts).joined(separator: ". ")
+    }
+
     var taskStatus: String { taskStatus(at: Date()) }
 
     func taskStatus(at date: Date) -> String {
