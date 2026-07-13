@@ -811,11 +811,16 @@ struct SettingsView: View {
                 .background(Sumi.paper)
                 .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
                 .accessibilityIdentifier("settings.ai.preview.payload")
-            Text("NEVER INCLUDED · \(preview.excluded.joined(separator: ", "))")
+            Text("NOT INCLUDED IN AUTOMATIC PLANNING · \(preview.excluded.joined(separator: ", "))")
                 .font(Sumi.label(9))
                 .foregroundStyle(Sumi.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("settings.ai.preview.exclusions")
+            Text("Screen images use a separate voice action only when you explicitly ask for visual context; every transmission is recorded locally.")
+                .font(Sumi.body(10))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("settings.ai.preview.voice-boundary")
         }
         .padding(12)
         .background(Sumi.mist)
