@@ -10,6 +10,7 @@ func promptEpisodeStateMachineEnforcesTheDocumentedLifecycle() throws {
     #expect(try stateMachine.transition(from: .detected, on: .queue) == .queued)
     #expect(try stateMachine.transition(from: .queued, on: .present) == .presented)
     #expect(try stateMachine.transition(from: .presented, on: .respond) == .responded)
+    #expect(try stateMachine.transition(from: .queued, on: .dismiss) == .dismissed)
     #expect(throws: PromptStateMachineError.invalidTransition(from: .responded, event: .present)) {
         try stateMachine.transition(from: .responded, on: .present)
     }
@@ -161,6 +162,73 @@ func promptInboxRejectsATokenBoundToAnotherAction() throws {
     }
     #expect(try store.episode(promptID: episode.id)?.state == .queued)
     #expect(try store.responses(promptID: episode.id).isEmpty)
+}
+
+@Test
+func promptInboxTimelineSeparatesWaitingSnoozedAndRecentChoicesAcrossRestart() throws {
+    let url = temporaryPromptInboxURL("timeline-restart")
+    defer { removePromptInboxDatabase(url) }
+    let clock = PromptInboxTestClock(Date(timeIntervalSince1970: 1_700_000_000))
+    let ids = PromptInboxIDSequence(["prompt-1", "prompt-2", "response-1", "prompt-3"])
+    let store = try PromptInboxStore(databaseURL: url, now: { clock.now }, makeID: { ids.next() })
+    let first = try store.enqueue(promptDraft(decisionKey: "drift:same")).episode
+    let snoozeUntil = clock.now.addingTimeInterval(300)
+    let snoozed = try store.enqueue(PromptDraft(
+        decisionKey: "planning:snoozed",
+        type: "PLAN_READY",
+        title: "Plan when ready",
+        summary: "This choice will return later.",
+        actions: [PromptAction(kind: .reviewPlan, title: "Review")],
+        payload: ["notBefore": ISO8601DateFormatter().string(from: snoozeUntil)]
+    )).episode
+    _ = try store.respond(
+        promptID: first.id,
+        action: .ignore,
+        actionToken: PromptResponseToken.make(promptID: first.id, action: .ignore),
+        surface: .dashboard
+    )
+    let replay = try store.enqueue(promptDraft(decisionKey: "drift:same")).episode
+
+    let reopened = try PromptInboxStore(databaseURL: url, now: { clock.now })
+    let restored = try reopened.timeline()
+    #expect(restored.awaitingResponse.map(\.episode.id) == [replay.id])
+    #expect(restored.awaitingResponse.first?.occurrence == 2)
+    #expect(restored.awaitingResponse.first?.isReplay == true)
+    #expect(restored.snoozed.map(\.episode.id) == [snoozed.id])
+    #expect(restored.snoozed.first?.availableAt == snoozeUntil)
+    #expect(restored.recent.map(\.episode.id) == [first.id])
+    #expect(restored.recent.first?.response?.action == .ignore)
+
+    clock.advance(by: 301)
+    let returned = try reopened.timeline()
+    #expect(Set(returned.awaitingResponse.map(\.episode.id)) == Set([replay.id, snoozed.id]))
+    #expect(returned.snoozed.isEmpty)
+
+    _ = try reopened.dismiss(promptID: replay.id)
+    let dismissed = try reopened.timeline()
+    #expect(dismissed.recent.first?.episode.id == replay.id)
+    #expect(dismissed.recent.first?.episode.state == .dismissed)
+}
+
+@Test
+func promptInboxTimelineExpiresDueEpisodesAndRejectsInvalidHistoryLimits() throws {
+    let url = temporaryPromptInboxURL("timeline-expiry")
+    defer { removePromptInboxDatabase(url) }
+    let clock = PromptInboxTestClock(Date(timeIntervalSince1970: 1_700_000_000))
+    let store = try PromptInboxStore(databaseURL: url, now: { clock.now })
+    let episode = try store.enqueue(promptDraft(
+        decisionKey: "expiring",
+        expiresAt: clock.now.addingTimeInterval(30)
+    )).episode
+
+    clock.advance(by: 31)
+    let timeline = try store.timeline(recentLimit: 1)
+    #expect(timeline.awaitingResponse.isEmpty)
+    #expect(timeline.recent.map(\.episode.id) == [episode.id])
+    #expect(timeline.recent.first?.episode.state == .timedOut)
+    #expect(throws: PromptInboxStoreError.invalidLimit) {
+        try store.timeline(recentLimit: -1)
+    }
 }
 
 private func promptDraft(decisionKey: String, expiresAt: Date? = nil) -> PromptDraft {

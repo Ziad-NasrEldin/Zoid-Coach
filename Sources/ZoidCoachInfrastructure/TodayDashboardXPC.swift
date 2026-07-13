@@ -98,7 +98,9 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
     func startUnplannedTask(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func skipPlanning(withReply reply: @escaping (Data?, String?) -> Void)
     func fetchPromptInbox(withReply reply: @escaping (Data?, String?) -> Void)
+    func fetchPromptInboxTimeline(withReply reply: @escaping (Data?, String?) -> Void)
     func respondToPrompt(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void)
+    func dismissPrompt(_ promptID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func createOnboardingTestPrompt(_ flowID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func fetchOnboardingTestPrompt(_ flowID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func applyAgentMutation(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void)
@@ -290,6 +292,12 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
         catch { reply(nil, error.localizedDescription) }
     }
 
+    func fetchPromptInboxTimeline(withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let promptStore else { reply(try? encoder.encode(PromptInboxTimeline.empty), nil); return }
+        do { reply(try encoder.encode(promptStore.timeline()), nil) }
+        catch { reply(nil, error.localizedDescription) }
+    }
+
     func respondToPrompt(_ command: Data, withReply reply: @escaping (Data?, String?) -> Void) {
         guard let promptStore else { reply(nil, "The prompt inbox is unavailable."); return }
         do {
@@ -306,6 +314,12 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
             }
             reply(try encoder.encode(result.episode), nil)
         } catch { reply(nil, error.localizedDescription) }
+    }
+
+    func dismissPrompt(_ promptID: String, withReply reply: @escaping (Data?, String?) -> Void) {
+        guard let promptStore else { reply(nil, "The prompt inbox is unavailable."); return }
+        do { reply(try encoder.encode(promptStore.dismiss(promptID: promptID)), nil) }
+        catch { reply(nil, error.localizedDescription) }
     }
 
     func createOnboardingTestPrompt(
@@ -550,11 +564,19 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         try await callData { proxy, reply in proxy.fetchPromptInbox(withReply: reply) }
     }
 
+    public func fetchPromptInboxTimeline() async throws -> PromptInboxTimeline {
+        try await callData { proxy, reply in proxy.fetchPromptInboxTimeline(withReply: reply) }
+    }
+
     public func respondToPrompt(_ command: PromptResponseCommand) async throws -> PromptEpisode {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(command)
         return try await callData { proxy, reply in proxy.respondToPrompt(data, withReply: reply) }
+    }
+
+    public func dismissPrompt(_ promptID: String) async throws -> PromptEpisode {
+        try await callData { proxy, reply in proxy.dismissPrompt(promptID, withReply: reply) }
     }
 
     public func createOnboardingTestPrompt(flowID: String) async throws -> OnboardingTestPromptResult {

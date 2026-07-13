@@ -37,7 +37,7 @@ public struct PromptEpisodeStateMachine: Sendable {
         case (.detected, .queue): .queued
         case (.queued, .present): .presented
         case (.presented, .respond): .responded
-        case (.presented, .dismiss): .dismissed
+        case (.detected, .dismiss), (.queued, .dismiss), (.presented, .dismiss): .dismissed
         case (.detected, .expire), (.queued, .expire), (.presented, .expire): .timedOut
         default: throw PromptStateMachineError.invalidTransition(from: state, event: event)
         }
@@ -158,6 +158,47 @@ public struct PromptEpisode: Identifiable, Equatable, Codable, Sendable {
             resolvedAt: nextState.isUnresolved ? nil : date
         )
     }
+}
+
+public struct PromptInboxTimelineEntry: Identifiable, Equatable, Codable, Sendable {
+    public let episode: PromptEpisode
+    public let response: PromptResponse?
+    public let availableAt: Date?
+    public let occurrence: Int
+
+    public init(
+        episode: PromptEpisode,
+        response: PromptResponse? = nil,
+        availableAt: Date? = nil,
+        occurrence: Int = 1
+    ) {
+        self.episode = episode
+        self.response = response
+        self.availableAt = availableAt
+        self.occurrence = max(1, occurrence)
+    }
+
+    public var id: String { episode.id }
+    public var isReplay: Bool { occurrence > 1 }
+}
+
+public struct PromptInboxTimeline: Equatable, Codable, Sendable {
+    public let awaitingResponse: [PromptInboxTimelineEntry]
+    public let snoozed: [PromptInboxTimelineEntry]
+    public let recent: [PromptInboxTimelineEntry]
+
+    public init(
+        awaitingResponse: [PromptInboxTimelineEntry] = [],
+        snoozed: [PromptInboxTimelineEntry] = [],
+        recent: [PromptInboxTimelineEntry] = []
+    ) {
+        self.awaitingResponse = awaitingResponse
+        self.snoozed = snoozed
+        self.recent = recent
+    }
+
+    public static let empty = PromptInboxTimeline()
+    public var isEmpty: Bool { awaitingResponse.isEmpty && snoozed.isEmpty && recent.isEmpty }
 }
 
 public struct PromptResponse: Identifiable, Equatable, Codable, Sendable {
