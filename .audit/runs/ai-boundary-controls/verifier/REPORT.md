@@ -21,6 +21,10 @@ It does not delete Keychain credentials or non-AI local product data.
 - One release build passed.
 - `git diff --check` passed.
 
-## Signed acceptance pending
+## Signed acceptance boundary
 
-The signed three-policy preview and seeded scoped-deletion journey remains pending the package step.
+The single signed package/install attempt exited without creating an installed app, registering a QA helper, mutating the shared runtime, or emitting diagnostic output.
+No retry was performed under the package-once and UI timebox.
+
+The installed three-policy preview and seeded scoped-deletion journey therefore remains unverified.
+Tracker statuses remain conservative.

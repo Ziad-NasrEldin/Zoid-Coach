@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "5104f022f515b9d10e4f958ce622ce044ed932ba93d5db7528304443aa8c44a5",
+  "tracker_sha256": "cbdb6a41c30dca3ca39058fe9c3b5a65d23912de448fe78c5c35acf516a6cb82",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10509,8 +10509,8 @@
       "item_index": 4,
       "wording": "Choose local or remote processing when supported.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10520,7 +10520,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Provider and Remote Evidence controls distinguish local-only, redacted, and private modes and preserve current winners during concurrent Settings saves. The wording is evidence policy rather than a simple processing-location choice, and no request preview is supplied.",
+      "audit_note": "Provider and Remote Evidence controls distinguish local-only, redacted, and explicit private-content modes, preserve concurrent winners, and now preview the actual automatic-planning boundary before save. Installed provider selection and real request inspection remain (`RemoteEvidencePreview.swift`; `SettingsView.swift`; `.audit/runs/ai-boundary-controls/verifier/REPORT.md`).",
       "tracker_line": 661
     },
     {
@@ -10530,8 +10530,8 @@
       "item_index": 5,
       "wording": "Preview a representative redacted payload before enabling remote AI.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10541,7 +10541,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Explanatory copy exists, but no payload preview exists.",
+      "audit_note": "Settings now shows a fixed example matching the real encoded planning fields, anonymizes task and application labels in redacted mode, reveals the private-content difference, and scopes exclusions truthfully from separately requested voice images. The signed installed three-policy inspection remains (`RemoteEvidencePreview.swift`; `CodexCLIPlanningAdvisor.swift`; `.audit/runs/ai-boundary-controls/verifier/REPORT.md`).",
       "tracker_line": 662
     },
     {
@@ -10572,8 +10572,8 @@
       "item_index": 7,
       "wording": "Clear the AI cache.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10583,7 +10583,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Model runs can be queried as cache entries, but there is no clear-cache command or UI.",
+      "audit_note": "Intelligence Settings now exposes Clear AI Cache and Request History with destructive confirmation through the authenticated agent command. The deletion is limited to model runs, Codex jobs, and transmission receipts while preserving Keychain credentials and non-AI data; seeded installed proof remains (`PrivacyDataService.swift`; `SettingsView.swift`; `.audit/runs/ai-boundary-controls/verifier/REPORT.md`).",
       "tracker_line": 664
     },
     {
