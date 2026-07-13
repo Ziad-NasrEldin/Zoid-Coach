@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "run_id": "calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf",
+  "verified_commit": "2f8b7156f6c5c22c80363c5eb611f433dc72bbbf",
+  "build_identity": "zoid-coach-2f8b7156f6c5c22c80363c5eb611f433dc72bbbf-clean",
+  "fixture": "/private/tmp/zoid-666-calendar-freshness-qa/OS Fixtures/state.json",
+  "qa_root": "/private/tmp/zoid-666-calendar-freshness-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "45ad394e1d520440b1ac2fa7d0a002545edd1648ee3af253f6f6dbce76d0c767",
+  "scenario_ids": [
+    "ZC-008-017",
+    "ZC-009-007",
+    "ZC-009-008"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T07:05:00Z",
+  "completed_at": "2026-07-13T07:12:00Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "1985c2470a1cea2a8ad94d9a921d6bf34bfb0dd43f887a61b1a19c4ec84f009a"
+    },
+    {
+      "path": "04-relaunch-receipt.png",
+      "sha256": "b6949ba0d6c2cb5909211ad0cd73548697c2a7f76e0c3b971487f3b969a85147"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "cancelled_commitment_refuses_without_mutation",
+      "result": "passed",
+      "detail": "Cancelling the reviewed external commitment produced explicit nothing-written UI, zero commands, zero schedule requests, and the unchanged one-row 30-minute plan."
+    },
+    {
+      "name": "review_refreshes_to_current_availability",
+      "result": "passed",
+      "detail": "Review Updated Availability replaced 336 available and 60 busy minutes with the current 378 available and zero busy minutes while retaining the reviewed task."
+    },
+    {
+      "name": "denied_calendar_refuses_and_repairs",
+      "result": "passed",
+      "detail": "Denied Calendar permission produced explicit nothing-written UI, no commands, an unchanged plan, and Source Health attention with exact impact and repair guidance."
+    },
+    {
+      "name": "current_approval_applies_exact_writes",
+      "result": "passed",
+      "detail": "The restored current approval produced four succeeded command rows covering the Calendar block, notification, Reminder priority, and Reminder due date."
+    },
+    {
+      "name": "receipt_restores_only_after_success",
+      "result": "passed",
+      "detail": "The single post-success relaunch restored the same plan and the applied four-change receipt; neither refusal branch created a command or applied receipt."
+    },
+    {
+      "name": "calendar_freshness_rules",
+      "result": "passed",
+      "detail": "CalendarPlanApprovalStateTests passed 11 tests after the one-time rebase onto the authoritative root."
+    }
+  ],
+  "commands": [
+    "swift test --filter CalendarPlanApprovalStateTests",
+    "ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-calendar-freshness-qa ZOID_COACH_QA_INSTALL_ROOT=/private/tmp/zoid-666-calendar-freshness-apps Scripts/install-signed-qa-runtime.sh"
+  ]
+}

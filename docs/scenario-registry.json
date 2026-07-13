@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "95698949fdd774858a1226a4022a4c729dcdc8e22e2a0a2fc3260e6452ecd126",
+  "tracker_sha256": "75fae7a6545a4b628ddf7393610ae7495e6e8de18906030feefbbe519fee49da",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1795,19 +1795,21 @@
       "section_title": "Building the daily plan",
       "item_index": 17,
       "wording": "Approve the proposed plan.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The installed signed-QA app requires a dedicated review sheet before writing and visibly showed the exact task, main objective, estimate, capacity, and fallback state. Confirmation against the disconnected isolated Calendar fixture truthfully refused with `NOTHING WAS WRITTEN`, retained the reviewed plan, exposed Source Health repair, and created no commands; exact pending-to-applied Calendar confirmation remains outstanding (`CalendarPlanApprovalSheet.swift`; `CalendarPlanApprovalState.swift`; `.audit/runs/calendar-approval-receipt/verifier/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json"
+      ],
+      "last_verified_commit": "2f8b7156f6c5c22c80363c5eb611f433dc72bbbf",
+      "last_verified_build": "zoid-coach-2f8b7156f6c5c22c80363c5eb611f433dc72bbbf-clean",
+      "audit_note": "The installed signed-QA journey reviewed the exact task and capacity, refused both a cancelled commitment and denied Calendar access with `NOTHING WAS WRITTEN`, preserved the plan with zero commands, refreshed to current availability, applied four exact Calendar and Reminder commands after repair, and restored the confirmed receipt after relaunch (`.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json`; `.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/REPORT.md`).",
       "tracker_line": 155
     },
     {
@@ -1969,9 +1971,9 @@
       "section_title": "Planning an unrealistic workload",
       "item_index": 7,
       "wording": "Approve a realistic revised plan.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -1979,10 +1981,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Acceptance is disabled for empty, missing-estimate, and overloaded plans and enabled only for a realistic revision, with exact recovery copy and focused tests; the signed accept-and-relaunch mutation remains outstanding (`AppModel.swift`; `DashboardView.swift`; `PlanningCapacityStateTests.swift`).",
+      "evidence_paths": [
+        ".audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json"
+      ],
+      "last_verified_commit": "2f8b7156f6c5c22c80363c5eb611f433dc72bbbf",
+      "last_verified_build": "zoid-coach-2f8b7156f6c5c22c80363c5eb611f433dc72bbbf-clean",
+      "audit_note": "The installed signed-QA journey created and reviewed a 30-minute plan against current Calendar capacity, refreshed the approval after availability changed, applied all four exact commands after Calendar repair, and restored the confirmed plan and receipt after relaunch (`.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json`; `.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/REPORT.md`).",
       "tracker_line": 166
     },
     {
@@ -1991,9 +1995,9 @@
       "section_title": "Planning an unrealistic workload",
       "item_index": 8,
       "wording": "Avoid receiving a vague warning with no useful next action.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2001,10 +2005,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Missing estimates name their count, overload names the exact minutes and a specific reduction, and Calendar failure explicitly identifies configured-work-window fallback, while the complete populated signed journey remains unproven (`DashboardView.swift`; `.audit/runs/planning-capacity/capacity-warning/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json"
+      ],
+      "last_verified_commit": "2f8b7156f6c5c22c80363c5eb611f433dc72bbbf",
+      "last_verified_build": "zoid-coach-2f8b7156f6c5c22c80363c5eb611f433dc72bbbf-clean",
+      "audit_note": "The installed approval named the cancelled-commitment and unavailable-Calendar failures, guaranteed that nothing was written, offered direct availability refresh and Source Health actions, and reached visible Calendar impact and repair guidance while preserving the plan (`.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json`; `.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/REPORT.md`).",
       "tracker_line": 167
     },
     {
