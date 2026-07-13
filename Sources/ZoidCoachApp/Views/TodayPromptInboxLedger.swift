@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import ZoidCoachCore
 
@@ -15,6 +16,15 @@ struct TodayPromptInboxLedger: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
+            if let status = model.promptInboxStatus {
+                Text(status)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.ink)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.softPaper)
+                    .accessibilityIdentifier("today.prompt.action-status")
+            }
             if let error = model.promptInboxError {
                 HStack(spacing: 12) {
                     Text(error)
@@ -72,6 +82,17 @@ struct TodayPromptInboxLedger: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.prompt-inbox")
+        .onChange(of: model.promptInboxStatus) { _, status in
+            guard let status, let application = NSApp else { return }
+            NSAccessibility.post(
+                element: application,
+                notification: .announcementRequested,
+                userInfo: [
+                    .announcement: status,
+                    .priority: NSAccessibilityPriorityLevel.high.rawValue
+                ]
+            )
+        }
         .confirmationDialog(
             confirmation?.action.title ?? "Confirm this choice",
             isPresented: Binding(

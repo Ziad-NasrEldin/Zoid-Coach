@@ -63,6 +63,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var promptEpisodes: [PromptEpisode] = []
     @Published private(set) var promptInboxTimeline: PromptInboxTimeline = .empty
     @Published private(set) var promptInboxError: String?
+    @Published private(set) var promptInboxStatus: String?
     @Published private(set) var pendingPromptID: String?
     @Published private(set) var actionAudit: [ActionAuditEntry] = []
     @Published private(set) var actionAuditError: String?
@@ -514,6 +515,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshPromptInbox() async {
+        promptInboxStatus = nil
         do {
             let timeline = try await todayDashboardXPCClient.fetchPromptInboxTimeline()
             promptInboxTimeline = timeline
@@ -583,12 +585,18 @@ final class AppModel: ObservableObject {
         )
         pendingPromptID = episode.id
         promptInboxError = nil
+        promptInboxStatus = nil
         Task {
             defer { pendingPromptID = nil }
             do {
                 _ = try await todayDashboardXPCClient.respondToPrompt(command)
                 await refreshPromptInbox()
                 await refreshTodaySnapshot()
+                promptInboxStatus = DashboardPromptActionOutcome.successMessage(
+                    for: episode,
+                    action: action,
+                    activeTaskID: todaySnapshot?.activeTask?.taskID
+                )
                 if action == .editMeeting {
                     reloadMeetingCandidates()
                     selectedSection = .today
@@ -604,6 +612,7 @@ final class AppModel: ObservableObject {
         guard pendingPromptID == nil else { return }
         pendingPromptID = episode.id
         promptInboxError = nil
+        promptInboxStatus = nil
         Task {
             defer { pendingPromptID = nil }
             do {
