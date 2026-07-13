@@ -555,6 +555,7 @@ struct ZoidCoachAgentMain {
                     let versionedPolicy = try policyStore.current() ?? initialVersionedPolicy
                     let policy = versionedPolicy.policy
                     let promptNotificationsEnabled = policy.privacy.effectiveNotificationPromptsEnabled
+                    let screenwatchIngestion = ScreenwatchIngestionControl(policy: policy.capture)
                     if lastPromptNotificationsEnabled != promptNotificationsEnabled {
                         try await notificationCoordinator.reconcilePromptNotificationPreference()
                         lastPromptNotificationsEnabled = promptNotificationsEnabled
@@ -569,15 +570,23 @@ struct ZoidCoachAgentMain {
                         planningInvitations,
                         notifications: notificationCoordinator
                     )
-                    if !resourceConstrained,
+                    if screenwatchIngestion.permitsNewRecords,
+                       !resourceConstrained,
                        lastMaintenanceAttempt.map({ Date().timeIntervalSince($0) >= 6 * 60 * 60 }) ?? true {
                         _ = try? maintenanceService?.run(policy: policy, now: Date(), mode: .apply)
                         lastMaintenanceAttempt = Date()
                     }
                     let result: ScreenwatchIngestionResult
                     do {
-                        result = try archive.ingestToday(from: try activeScreenwatchSource(), now: Date())
-                        try? checkpointStore.recordSuccess(sourceID: "screenwatch-canonical-source", at: Date())
+                        let ingestion = try screenwatchIngestion.run(
+                            disabledValue: ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0)
+                        ) {
+                            try archive.ingestToday(from: try activeScreenwatchSource(), now: Date())
+                        }
+                        result = ingestion.value
+                        if ingestion.performed {
+                            try? checkpointStore.recordSuccess(sourceID: "screenwatch-canonical-source", at: Date())
+                        }
                     } catch {
                         try? checkpointStore.recordFailure(
                             sourceID: "screenwatch-canonical-source",
@@ -808,10 +817,18 @@ struct ZoidCoachAgentMain {
                     }
                 }
             } else {
+                let screenwatchIngestion = ScreenwatchIngestionControl(policy: initialPolicy.capture)
                 let result: ScreenwatchIngestionResult
                 do {
-                    result = try archive.ingestToday(from: try activeScreenwatchSource(), now: Date())
-                    try? checkpointStore.recordSuccess(sourceID: "screenwatch-canonical-source", at: Date())
+                    let ingestion = try screenwatchIngestion.run(
+                        disabledValue: ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0)
+                    ) {
+                        try archive.ingestToday(from: try activeScreenwatchSource(), now: Date())
+                    }
+                    result = ingestion.value
+                    if ingestion.performed {
+                        try? checkpointStore.recordSuccess(sourceID: "screenwatch-canonical-source", at: Date())
+                    }
                 } catch {
                     try? checkpointStore.recordFailure(
                         sourceID: "screenwatch-canonical-source",

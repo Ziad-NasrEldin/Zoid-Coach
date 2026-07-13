@@ -430,13 +430,41 @@ public enum CaptureMode: String, Codable, CaseIterable, Sendable {
 public struct CapturePolicy: Codable, Equatable, Sendable {
     public let mode: CaptureMode
     public let configuredDisplayIDs: [UInt32]
+    public let ingestionEnabled: Bool
 
-    public init(mode: CaptureMode = .legacy, configuredDisplayIDs: [UInt32] = []) {
+    public init(
+        mode: CaptureMode = .legacy,
+        configuredDisplayIDs: [UInt32] = [],
+        ingestionEnabled: Bool = true
+    ) {
         self.mode = mode
         self.configuredDisplayIDs = Array(Set(configuredDisplayIDs)).sorted()
+        self.ingestionEnabled = ingestionEnabled
     }
 
     public static let legacy = CapturePolicy()
+
+    private enum CodingKeys: String, CodingKey {
+        case mode
+        case configuredDisplayIDs
+        case ingestionEnabled
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            mode: try container.decodeIfPresent(CaptureMode.self, forKey: .mode) ?? .legacy,
+            configuredDisplayIDs: try container.decodeIfPresent([UInt32].self, forKey: .configuredDisplayIDs) ?? [],
+            ingestionEnabled: try container.decodeIfPresent(Bool.self, forKey: .ingestionEnabled) ?? true
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(mode, forKey: .mode)
+        try container.encode(configuredDisplayIDs, forKey: .configuredDisplayIDs)
+        try container.encode(ingestionEnabled, forKey: .ingestionEnabled)
+    }
 }
 
 public struct ReminderListDecision: Codable, Equatable, Sendable {

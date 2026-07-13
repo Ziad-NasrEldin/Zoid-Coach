@@ -40,6 +40,7 @@ struct SettingsPolicyDraft: Equatable {
     var behaviorPolicy: BehaviorPolicy
     var captureMode: CaptureMode
     var captureDisplayIDs: [UInt32]
+    var screenwatchIngestionEnabled: Bool
     var reminderListPolicy: ReminderListPolicy
     var coachingLevel: CoachingLevel
     var gamingDailyBudgetMinutes: Int
@@ -90,6 +91,7 @@ struct SettingsPolicyDraft: Equatable {
         behaviorPolicy = policy.behavior
         captureMode = policy.capture.mode
         captureDisplayIDs = policy.capture.configuredDisplayIDs
+        screenwatchIngestionEnabled = policy.capture.ingestionEnabled
         reminderListPolicy = policy.reminderLists
         coachingLevel = policy.gaming.coachingLevel
         gamingDailyBudgetMinutes = policy.gaming.dailyBudgetMinutes
@@ -278,7 +280,11 @@ struct SettingsPolicyDraft: Equatable {
                 quietWeekdays: wakeQuietWeekdays
             ),
             behavior: behaviorPolicy,
-            capture: CapturePolicy(mode: captureMode, configuredDisplayIDs: captureDisplayIDs),
+            capture: CapturePolicy(
+                mode: captureMode,
+                configuredDisplayIDs: captureDisplayIDs,
+                ingestionEnabled: screenwatchIngestionEnabled
+            ),
             gaming: GamingPolicy(
                 version: original.gaming.version,
                 dailyBudgetMinutes: gamingDailyBudgetMinutes,
