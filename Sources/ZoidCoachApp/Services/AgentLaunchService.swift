@@ -1,5 +1,6 @@
 import Foundation
 import ServiceManagement
+import SQLite3
 import ZoidCoachCore
 
 enum AgentRegistrationStatus: Equatable {
@@ -59,6 +60,9 @@ final class AgentLaunchService {
     private let isControlDisabled: Bool
     private let bundleURL: URL
     private let buildVersion: String
+    private let now: () -> Date
+    private let heartbeat: () -> Date?
+    private let heartbeatFreshness: TimeInterval
 
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
@@ -67,12 +71,20 @@ final class AgentLaunchService {
         bundleURL: URL = Bundle.main.bundleURL,
         buildVersion: String = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleVersion"
-        ) as? String ?? "unknown"
+        ) as? String ?? "unknown",
+        now: @escaping () -> Date = Date.init,
+        heartbeat: (() -> Date?)? = nil,
+        heartbeatFreshness: TimeInterval = 120
     ) {
         plistName = runtimeEnvironment.identity.launchAgentPlistName
         userDefaults = runtimeEnvironment.makeUserDefaults()
         self.bundleURL = bundleURL
         self.buildVersion = buildVersion
+        self.now = now
+        self.heartbeat = heartbeat ?? {
+            Self.readAgentHeartbeat(databaseURL: runtimeEnvironment.databaseURL)
+        }
+        self.heartbeatFreshness = max(5, heartbeatFreshness)
         if case .qa = runtimeEnvironment.mode, runtimeEnvironment.packageMode != .qa {
             isControlDisabled = true
             self.service = service
@@ -105,15 +117,7 @@ final class AgentLaunchService {
 
         switch service.status {
         case .enabled:
-            return SourceHealth(
-                id: .agent,
-                title: "Zoid 666 Agent",
-                eyebrow: "Autonomy",
-                state: .healthy,
-                detail: "Background planning agent is enabled",
-                evidence: "It continues while the main app is closed and the Mac is awake",
-                actionTitle: "Inspect"
-            )
+            return enabledHealth()
         case .requiresApproval:
             return SourceHealth(
                 id: .agent,
@@ -158,6 +162,14 @@ final class AgentLaunchService {
     }
 
     func enableAndInspect() -> SourceHealth {
+        enableAndInspect(forceRepair: false)
+    }
+
+    func repairAndInspect() -> SourceHealth {
+        enableAndInspect(forceRepair: true)
+    }
+
+    private func enableAndInspect(forceRepair: Bool) -> SourceHealth {
         guard !isControlDisabled else { return isolatedQAHealth }
         guard isBundled else { return inspect() }
         guard let service else { return unavailableProductionServiceHealth }
@@ -171,7 +183,8 @@ final class AgentLaunchService {
                 build: buildVersion,
                 bundleURL: bundleURL
             )
-            if service.status == .enabled,
+            if !forceRepair,
+               service.status == .enabled,
                userDefaults.string(forKey: registrationFingerprintKey) == fingerprint {
                 return inspect()
             }
@@ -243,6 +256,67 @@ final class AgentLaunchService {
 
     private var isBundled: Bool {
         bundleURL.pathExtension == "app"
+    }
+
+    private func enabledHealth() -> SourceHealth {
+        guard let heartbeatAt = heartbeat() else {
+            return SourceHealth(
+                id: .agent,
+                title: "Zoid 666 Agent",
+                eyebrow: "Autonomy",
+                state: .attention,
+                detail: "Background agent is enabled but has not checked in yet",
+                evidence: "The registration exists, but no runtime heartbeat is available. Check again shortly or repair the registration.",
+                actionTitle: "Repair"
+            )
+        }
+        let age = max(0, now().timeIntervalSince(heartbeatAt))
+        guard age <= heartbeatFreshness else {
+            let minutes = max(1, Int(age / 60))
+            return SourceHealth(
+                id: .agent,
+                title: "Zoid 666 Agent",
+                eyebrow: "Autonomy",
+                state: .attention,
+                detail: "Background agent is enabled but is not currently checking in",
+                evidence: "The last local heartbeat was \(minutes) minute\(minutes == 1 ? "" : "s") ago. Repair restarts the installed registration without deleting local data.",
+                actionTitle: "Repair"
+            )
+        }
+        return SourceHealth(
+            id: .agent,
+            title: "Zoid 666 Agent",
+            eyebrow: "Autonomy",
+            state: .healthy,
+            detail: "Background agent is running",
+            evidence: "A current local runtime heartbeat confirms the helper, not only its Login Items registration.",
+            actionTitle: "Inspect"
+        )
+    }
+
+    nonisolated static func readAgentHeartbeat(databaseURL: URL) -> Date? {
+        guard FileManager.default.fileExists(atPath: databaseURL.path) else { return nil }
+        var database: OpaquePointer?
+        guard sqlite3_open_v2(
+            databaseURL.path,
+            &database,
+            SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX,
+            nil
+        ) == SQLITE_OK, let database else { return nil }
+        defer { sqlite3_close(database) }
+        sqlite3_busy_timeout(database, 250)
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT last_success_at_utc FROM processing_checkpoints WHERE source_id = 'agent-runtime' LIMIT 1;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else { return nil }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let pointer = sqlite3_column_text(statement, 0) else { return nil }
+        return ISO8601DateFormatter().date(from: String(cString: pointer))
     }
 
     nonisolated static func registrationFingerprint(build: String, bundleURL: URL) -> String {

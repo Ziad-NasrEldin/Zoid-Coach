@@ -17,7 +17,12 @@ struct AgentLifecycleView: View {
         }
         .background(Sumi.paper)
         .navigationTitle("Background Agent")
-        .onAppear { controller.refresh() }
+        .task {
+            while !Task.isCancelled {
+                controller.refresh()
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
         .alert("Disable the background agent?", isPresented: $confirmsDisable) {
             Button("Cancel", role: .cancel) {}
             Button("Disable", role: .destructive) { controller.disable() }
@@ -104,6 +109,8 @@ struct AgentLifecycleView: View {
             behaviorRow("Enabled", "The signed local helper can run after login and recover after it exits.")
             behaviorRow("Disabled", "Only background work stops. Existing local data and the foreground app remain available.")
             behaviorRow("Repair", "Reconciles this installed build with macOS without deleting plans or history.")
+            behaviorRow("Runtime proof", "A fresh local heartbeat confirms the helper is actually running; registration alone is never shown as healthy.")
+            behaviorRow("Resource policy", "The helper uses bounded polling, backs off when the Mac is resource constrained, and stores no duplicate screenshot files.")
         }
         .padding(20)
         .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))

@@ -5,6 +5,7 @@ import Foundation
 protocol AgentLifecycleServicing: AnyObject {
     func inspect() -> SourceHealth
     func enableAndInspect() -> SourceHealth
+    func repairAndInspect() -> SourceHealth
     func disableAndInspect() -> SourceHealth
 }
 
@@ -73,7 +74,7 @@ final class AgentLifecycleController: ObservableObject {
     }
 
     func repair() {
-        perform(.repairing) { $0.enableAndInspect() }
+        perform(.repairing) { $0.repairAndInspect() }
     }
 
     func disable() {
