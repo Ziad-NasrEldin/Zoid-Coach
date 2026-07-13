@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "run_id": "behavior-grace-controls/da20828655cb53f5a7ee0e7093c57f985a183c80",
+  "verified_commit": "da20828655cb53f5a7ee0e7093c57f985a183c80",
+  "build_identity": "zoid-coach-da20828655cb53f5a7ee0e7093c57f985a183c80-clean",
+  "fixture": "behavior-grace-controls",
+  "qa_root": "/private/tmp/zoid-grace-controls-qa-runtime",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "04f429099351cc99220d7611df1e88f1d062b17a4e4f96c1def017e26d645c0c",
+  "scenario_ids": [
+    "ZC-045-006"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T13:34:00Z",
+  "completed_at": "2026-07-13T13:47:48Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "bac57b7d56148d2c23ccd7bd55b42d62589c4279fcdd29fa273520908c4e0420"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "The signed Settings UI saved and reopened 12-minute and four-minute grace values",
+      "result": "passed"
+    },
+    {
+      "name": "The saved grace values survived app and helper restart",
+      "result": "passed"
+    },
+    {
+      "name": "The signed runtime preserved prompt, task, interval, and behavior state inside the task-start grace boundary",
+      "result": "passed"
+    },
+    {
+      "name": "The signed UI saved a shorter task-start grace without restarting the helper",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "swift test --filter UserPolicyTests|SettingsPolicyDraftTests|GamingDriftPromptServiceTests",
+    "CONFIGURATION=release ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-grace-controls-qa-runtime ./Scripts/package-app.sh",
+    "CONFIGURATION=release ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-grace-controls-qa-runtime ZOID_COACH_QA_INSTALL_ROOT=/private/tmp/zoid-grace-controls-install ./Scripts/install-signed-qa-runtime.sh",
+    "ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-grace-controls-qa-runtime ZOID_COACH_QA_INSTALL_ROOT=/private/tmp/zoid-grace-controls-install ./Scripts/uninstall-signed-qa-runtime.sh"
+  ]
+}

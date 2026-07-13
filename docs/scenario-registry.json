@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "10049856b7ca0c7427bfe253400d4419e0eb22ac80650e7c50785d58a9d0730e",
+  "tracker_sha256": "b54d827dc6c122acbd402a0c48218e38d8ed2059affe4218164c731aee4bd758",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9959,7 +9959,7 @@
       ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The installed signed app visibly showed `TRACKING 2/7 DAYS · START 2026-07-11` after acceptance and again after relaunch, proving durable next-week progress from the stable prior-week review (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
+      "audit_note": "The installed signed app visibly showed `TRACKING 2/7 DAYS \u00b7 START 2026-07-11` after acceptance and again after relaunch, proving durable next-week progress from the stable prior-week review (`WeeklyReviewStore.swift`; `.audit/runs/weekly-review/verifier/REPORT.md`).",
       "tracker_line": 620
     },
     {
@@ -10350,19 +10350,21 @@
       "section_title": "Coaching and classification settings",
       "item_index": 6,
       "wording": "Change the task-start grace period.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No grace-period setting exists.",
+      "evidence_paths": [
+        ".audit/runs/behavior-grace-controls/signed-acceptance/da20828655cb53f5a7ee0e7093c57f985a183c80/evidence.json"
+      ],
+      "last_verified_commit": "da20828655cb53f5a7ee0e7093c57f985a183c80",
+      "last_verified_build": "zoid-coach-da20828655cb53f5a7ee0e7093c57f985a183c80-clean",
+      "audit_note": "The installed signed Settings UI exposed explicit task-start and return-from-idle grace controls with stable accessibility descriptions, saved 12 and four minutes through the running agent as policy V2, restored both values after closing Settings and after restarting the app and helper, then saved a shorter 10-minute task-start grace as policy V3 without restarting the helper. An isolated signed-runtime seed inside the 12-minute task boundary created no prompt or quiet-drift record and preserved one active task, one open activity interval, and all ten behavior observations; focused policy, draft, conflict, legacy, bounds, and decision tests passed 67 of 67 (`SettingsView.swift`; `GamingDriftPromptService.swift`; `.audit/runs/behavior-grace-controls/signed-acceptance/da20828655cb53f5a7ee0e7093c57f985a183c80/evidence.json`).",
       "tracker_line": 645
     },
     {
@@ -13833,7 +13835,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The signed review visibly recorded Continue intentionally as `INTENTIONAL CHOICE RECORDED · NO JUDGMENT`, counted it separately from recovery, and preserved it after relaunch. Choosing the action from a naturally triggered gaming prompt and observing its cooldown remain outstanding (`DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).",
+      "audit_note": "The signed review visibly recorded Continue intentionally as `INTENTIONAL CHOICE RECORDED \u00b7 NO JUDGMENT`, counted it separately from recovery, and preserved it after relaunch. Choosing the action from a naturally triggered gaming prompt and observing its cooldown remain outstanding (`DailyReviewView.swift`; `.audit/runs/recovery-followthrough-review/verifier/REPORT.md`).",
       "tracker_line": 847
     },
     {

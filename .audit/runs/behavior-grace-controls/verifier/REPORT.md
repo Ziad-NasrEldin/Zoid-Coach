@@ -4,15 +4,22 @@
 
 Candidate `7d17dbc` was independently replayed and then rebased once onto authoritative root `9fad08e` as verifier commit `62a5760`.
 The candidate is accepted for integration with no verifier code fixes.
-Installed end-to-end acceptance remains intentionally pending because the reschedule-sync verifier owns the signed QA runtime and tracker lease.
+Installed end-to-end acceptance fully qualifies `ZC-045-006` and adds signed suppression evidence without over-claiming the remaining wake, unlock, idle, or sustained-bypass scenarios.
 
 ## Focused verification
 
 - The focused User Policy, Settings Policy Draft, and Gaming Drift Prompt Service groups passed 67 of 67 tests.
 - The release build passed once.
 - One clean release-configured signed QA package passed package structure, deep signing, designated requirement, LaunchAgent, Mach-service, embedded QA runtime identity, and clean-commit coherence checks.
-- The signed package is at `.build/app-qa/Zoid 666 QA.app` and embeds isolated root `/private/tmp/zoid-grace-controls-qa-runtime`.
-- The package was not installed and no shared runtime, tracker, registry, or Lavish files were touched.
+- The signed package was installed at `/private/tmp/zoid-grace-controls-install/Zoid 666 QA E2E.app` with isolated root `/private/tmp/zoid-grace-controls-qa-runtime`.
+- The installed Settings UI visibly exposed the legacy three-minute task-start grace and one-minute return-from-idle grace with stable accessibility identifiers and explanations.
+- The UI saved 12-minute and four-minute grace values through the running agent as policy V2.
+- Closing and reopening Settings restored both exact values.
+- Restarting the app and helper changed the helper PID from 35702 to 39543 and restored policy V2 with both exact values.
+- The signed isolated runtime evaluated a fresh ten-observation gaming fixture inside the 12-minute task boundary and retained zero prompts, zero quiet-drift records, one active task, one open task interval, and all ten behavior records.
+- The UI then shortened task-start grace to ten minutes through the running agent as policy V3 without restarting the helper.
+- The helper PID remained 46242 across the live-shortened recheck and the runtime checkpoint advanced, but no prompt was enqueued.
+- The capped run therefore does not claim installed proof for the shorter-boundary prompt, return-from-idle boundary, or sustained pre-task bypass.
 
 ## Semantic audit
 
@@ -27,20 +34,16 @@ Installed end-to-end acceptance remains intentionally pending because the resche
 - Both grace suppressions return before prompt enqueueing, behavior-record creation, or task mutation.
 - Focused tests explicitly retain one active task and an empty prompt inbox for the new suppression paths.
 
-## Capped installed acceptance plan
+## Remaining installed acceptance
 
-The next verifier with the signed runtime lease should perform one capped installed run.
+The next verifier should target only the remaining behavior decisions.
 
-1. Install the already verified clean QA package under its isolated runtime root.
-2. Open Settings, save task-start grace at 12 minutes and return-from-idle grace at four minutes, close Settings, reopen it, and confirm both values and their accessibility descriptions persist.
-3. Start a task, seed an otherwise eligible fresh gaming session inside the 12-minute boundary, and confirm `taskStartGrace` with no prompt, no behavior record, and no task mutation.
-4. Shorten task-start grace below the elapsed duration without restarting the helper and confirm the next eligible decision uses the new value.
-5. Seed a reliable idle or telemetry-gap return inside the four-minute boundary and confirm `returnFromIdleGrace` with no prompt or task mutation.
-6. Seed a ten-minute high-confidence gaming session that began before the active task and confirm exactly one eligible prompt.
-7. Restart the app and helper, reopen Settings, and confirm the saved 12-minute and four-minute values remain durable and still govern the next decisions.
-8. Update the tracker, registry, and Lavish audit only after this installed evidence passes, then uninstall the isolated runtime and release the lease.
+1. Diagnose why the otherwise eligible policy V3 fixture did not enqueue after the confirmed agent loop.
+2. Prove a reliable idle or telemetry-gap return inside the saved four-minute boundary without prompt or task mutation.
+3. Prove a ten-minute high-confidence gaming session that began before the active task creates exactly one eligible prompt.
+4. Keep `ZC-027-002` and `ZC-027-003` conservatively unchecked until those installed decisions pass.
 
 ## Integration boundary
 
-This verifier report is the only source change made on the verifier branch.
-The parent integrator should cherry-pick the candidate and this report after the predecessor verifier finishes and releases shared ownership.
+The tracker, registry, and Lavish audit record only the fully qualified Settings scenario.
+The parent integrator should integrate the rebased chain after cleanup.
