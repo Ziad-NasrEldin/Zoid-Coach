@@ -10,6 +10,7 @@ This isolated lane starts from authoritative commit `a3d1815cd182e59e72ccb325ded
 ## Owned files
 
 - Scheduled-review action origin only in `Sources/ZoidCoachCore/ActionCommand.swift`.
+- Observe-mode exemption only for scheduled review notifications in `Sources/ZoidCoachInfrastructure/ActionOutboxStore.swift`.
 - `Sources/ZoidCoachInfrastructure/ReviewReminderService.swift`.
 - Review-reminder composition and reconciliation only in `Sources/ZoidCoachAgent/AgentMain.swift`.
 - `Tests/ZoidCoachAppTests/ReviewReminderServiceTests.swift`.
@@ -24,3 +25,5 @@ Daily reminders use the end of the next configured workday.
 Weekly reminders use the end of the final configured workday in the ISO week.
 
 Both reminders use the existing quiet-hours boundary and durable action outbox so restart and repeated agent cycles do not duplicate delivery.
+
+Scheduled review notifications remain available in observation mode because they summarize evidence and do not mutate external task or Calendar state.
