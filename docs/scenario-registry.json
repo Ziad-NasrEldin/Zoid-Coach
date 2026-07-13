@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "559fca73c4ca626b8b3172413e4b2a71e41ee03e9a973411dc87c9ae54940066",
+  "tracker_sha256": "20c2c57e664124d0d3b6edffce8bf0eb2cbec0b84a916bd95ecee97bab7ab84c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11102,9 +11102,9 @@
       "section_title": "Privacy and data controls",
       "item_index": 12,
       "wording": "Delete reviews and learned rules.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11113,11 +11113,11 @@
       ],
       "affected_capability": "privacy_and_data_control",
       "evidence_paths": [
-        ".audit/runs/delete-reviews-learned-rules/verifier/REPORT.md"
+        ".audit/runs/delete-reviews-learned-rules/73d56ca7199fd873bfb7501595ad33080ddc7b81/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The confirmation-backed command now atomically deletes daily review corrections and decisions, weekly experiments, learned app-classification rules, learning samples and aggregates, and planner trust cycles while preserving raw behavior and task facts. Full service tests pass, and a signed Settings journey proved Cancel preservation, seven-row deletion, empty refreshed Reviews and learning inventory, relaunch durability, and repeat idempotence. The confirmation and result copy still disclose only samples, aggregates, and planner trust, omitting reviews, notes, corrections, experiments, and app rules, so informed end-user deletion remains incomplete (`Sources/ZoidCoachInfrastructure/PrivacyDataService.swift`; `Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift`; `.audit/runs/delete-reviews-learned-rules/verifier/REPORT.md`).",
+      "last_verified_commit": "73d56ca7199fd873bfb7501595ad33080ddc7b81",
+      "last_verified_build": "zoid-coach-73d56ca7199fd873bfb7501595ad33080ddc7b81-clean",
+      "audit_note": "Signed Settings now names every deleted category and preserved raw fact in the seven-record inventory, confirmation, positive result, and repeat-zero result. Native Cancel preserved all seven targets plus raw behavior and task state; Confirm atomically removed all seven targets while preserving both raw facts; refreshed inventory showed zero; repeat remained idempotent; and signed relaunch retained the exact zero-one-one state. Focused disclosure tests and the full privacy service group pass (`Sources/ZoidCoachCore/ReviewLearningDeletionDisclosure.swift`; `Sources/ZoidCoachInfrastructure/PrivacyDataService.swift`; `Sources/ZoidCoachInfrastructure/AgentMutationRouter.swift`; `Sources/ZoidCoachApp/Views/SettingsView.swift`; `.audit/runs/delete-reviews-learned-rules/73d56ca7199fd873bfb7501595ad33080ddc7b81/evidence.json`).",
       "tracker_line": 684
     },
     {
