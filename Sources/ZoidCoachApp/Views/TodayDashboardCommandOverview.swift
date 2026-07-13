@@ -414,9 +414,23 @@ struct TodayDashboardCommandOverview: View {
                 .padding(.top, 10)
                 .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
             if let row = recommendedRow {
-                Button(commandLabel(for: row)) { applyPrimaryCommand(to: row) }
-                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                if row.state == .ready,
+                   let sprintMinutes = snapshot.recommendation.suggestedSprintMinutes {
+                    Button("START \(sprintMinutes)-MINUTE SPRINT") {
+                        model.startSprint(taskID: row.taskID, durationMinutes: sprintMinutes)
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                    .disabled(model.isAnyTaskCommandPending)
                     .padding(.top, 14)
+                    .accessibilityLabel("Start a \(sprintMinutes)-minute sprint for \(row.title)")
+                    .accessibilityHint("Starts a bounded sprint that fits the available time. The task stays incomplete when the sprint ends.")
+                    .accessibilityIdentifier("today.recommendation.start-sprint")
+                } else {
+                    Button(commandLabel(for: row)) { applyPrimaryCommand(to: row) }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                        .disabled(model.isAnyTaskCommandPending)
+                        .padding(.top, 14)
+                }
                 if row.state == .ready,
                    snapshot.recommendation.taskID == row.taskID {
                     VStack(alignment: .leading, spacing: 6) {

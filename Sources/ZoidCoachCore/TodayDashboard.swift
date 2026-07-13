@@ -450,6 +450,7 @@ public enum RecommendationReasonCode: String, Codable, Sendable {
     case dueToday
     case highUrgency
     case shortFit
+    case boundedSprint
     case mainObjective
     case userLocked
     case limitedCoverage
@@ -460,12 +461,20 @@ public struct NextTaskRecommendation: Equatable, Codable, Sendable {
     public let sentence: String
     public let reasons: [RecommendationReasonCode]
     public let coverageUncertainty: String?
+    public let suggestedSprintMinutes: Int?
 
-    public init(taskID: String?, sentence: String, reasons: [RecommendationReasonCode], coverageUncertainty: String? = nil) {
+    public init(
+        taskID: String?,
+        sentence: String,
+        reasons: [RecommendationReasonCode],
+        coverageUncertainty: String? = nil,
+        suggestedSprintMinutes: Int? = nil
+    ) {
         self.taskID = taskID
         self.sentence = sentence
         self.reasons = reasons
         self.coverageUncertainty = coverageUncertainty
+        self.suggestedSprintMinutes = suggestedSprintMinutes
     }
 }
 
@@ -797,11 +806,28 @@ public struct NextTaskRecommender: Sendable {
         }
         if task.urgency == .high { reasons.append(.highUrgency) }
         if task.estimateMinutes <= availableMinutes { reasons.append(.shortFit) }
+        let suggestedSprintMinutes = task.estimateMinutes > availableMinutes && availableMinutes > 0
+            ? min(25, availableMinutes)
+            : nil
+        if suggestedSprintMinutes != nil { reasons.append(.boundedSprint) }
         if task.isMainObjective { reasons.append(.mainObjective) }
         if task.isLocked { reasons.append(.userLocked) }
         if coverage.isLimited { reasons.append(.limitedCoverage) }
-        let detail = reasons.contains(.overdue) ? "It is overdue." : reasons.contains(.dueToday) ? "It is due today." : task.estimateMinutes <= availableMinutes ? "It fits the time you have." : "It is your highest ready priority."
-        return NextTaskRecommendation(taskID: task.taskID, sentence: "Start \"\(task.title)\" now. \(detail)", reasons: reasons, coverageUncertainty: coverage.isLimited ? coverage.explanation : nil)
+        let sentence: String
+        if let suggestedSprintMinutes {
+            let availableLabel = "\(availableMinutes) minute\(availableMinutes == 1 ? "" : "s")"
+            sentence = "Start \"\(task.title)\" with a \(suggestedSprintMinutes)-minute sprint. It is larger than the \(availableLabel) available, and the task will stay incomplete when the sprint ends."
+        } else {
+            let detail = reasons.contains(.overdue) ? "It is overdue." : reasons.contains(.dueToday) ? "It is due today." : task.estimateMinutes <= availableMinutes ? "It fits the time you have." : "It is your highest ready priority."
+            sentence = "Start \"\(task.title)\" now. \(detail)"
+        }
+        return NextTaskRecommendation(
+            taskID: task.taskID,
+            sentence: sentence,
+            reasons: reasons,
+            coverageUncertainty: coverage.isLimited ? coverage.explanation : nil,
+            suggestedSprintMinutes: suggestedSprintMinutes
+        )
     }
 
     private func score(_ task: TodayTaskRow, referenceDate: Date, availableMinutes: Int, calendar: Calendar) -> Int {
