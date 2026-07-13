@@ -1,6 +1,7 @@
 import Foundation
 import SQLite3
 import Testing
+@testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
 
 private let privacySQLiteTransientForTests = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
@@ -212,6 +213,12 @@ func deleteReviewsAndLearnedRulesClearsEveryReviewAndLearningStoreButPreservesSo
     sqlite3_close(database)
 
     let service = try PrivacyDataService(databaseURL: databaseURL)
+    let learningInventory = try #require(
+        service.storedDataInventory().dataClasses.first(where: { $0.id == "learning" })
+    )
+    #expect(learningInventory.title == ReviewLearningDeletionDisclosure.inventoryTitle)
+    #expect(learningInventory.detail == ReviewLearningDeletionDisclosure.inventoryDetail)
+    #expect(learningInventory.recordCount == 7)
     #expect(try service.deleteReviewsAndLearnedRules() == 7)
 
     for table in [
@@ -229,6 +236,7 @@ func deleteReviewsAndLearnedRulesClearsEveryReviewAndLearningStoreButPreservesSo
     #expect(try privacyRowCount(databaseURL: databaseURL, table: "task_execution_states") == 1)
 
     let reopened = try PrivacyDataService(databaseURL: databaseURL)
+    #expect(try reopened.storedDataInventory().dataClasses.first(where: { $0.id == "learning" })?.recordCount == 0)
     #expect(try reopened.deleteReviewsAndLearnedRules() == 0)
 }
 
