@@ -178,7 +178,10 @@ do {
     let initialState = try windowState(initialWindow)
     let initialNodes = contentNodeCount(in: initialWindow)
     if expectToday {
-        guard waitForText("ZOID 666 - TODAY", in: initialWindow, timeout: 5) != nil else {
+        guard waitForText("TODAY / INBOX", in: initialWindow, timeout: 5) != nil else {
+            if let screenshotPath {
+                try? captureWindow(pid: pid, at: screenshotPath)
+            }
             throw ProbeError.inaccessible("Today did not appear")
         }
         guard !initialState.minimized,

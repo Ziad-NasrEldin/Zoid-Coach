@@ -47,7 +47,7 @@ PID="$(pgrep -f "$APP/Contents/MacOS/ZoidCoachQA" | head -1)"
   --screenshot /private/tmp/zoid-666-ready-state-today.png
 ```
 
-`--expect-today` uses native Accessibility to require `ZOID 666 - TODAY`, a non-minimized 1180 by 760 window, and at least five content nodes.
+`--expect-today` uses native Accessibility to require the current `TODAY / INBOX` heading, a non-minimized 1180 by 760 window, and at least five content nodes.
 The optional screenshot provides pixel evidence.
 Do not use System Events descendant counts as a SwiftUI visibility oracle.
 
