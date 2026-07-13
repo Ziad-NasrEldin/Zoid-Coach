@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "4f3185fc5c355f0ee757334090a9f18be39eb2e8aa53ceaee78d2f7403ebeaaa",
+  "tracker_sha256": "62e25dffa94a5d7b2d58922979d6ce62772d9896176a0136d520d57028a56031",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -6147,7 +6147,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A replacement-safe local notification is scheduled from the remaining persisted duration and cancelled on resume, while installed delivery and cancellation remain unproven because the QA helper disappeared during the capped run (`NotificationService.swift`; `AppModel.swift`; `.audit/runs/accepted-break-lifecycle/verifier/REPORT.md`).",
+      "audit_note": "The running agent now reconciles durable accepted breaks into one replacement-safe `BREAK_END` reminder with stable identity, exact 15-minute boundary, immediate missed-boundary scheduling, named neutral copy, durable one-shot ledger gating, restart-safe replay, and cancellation on resume. Focused lifecycle, coordinator, and reminder suites plus release and signed packaging pass, while installed scheduling and cancellation remain unproven because the signed QA app did not consume its fixture-permission control request within the capped run (`AcceptedBreakReminderService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/agent-break-end-reminders/verifier/REPORT.md`).",
       "tracker_line": 409
     },
     {
@@ -12295,8 +12295,8 @@
       "item_index": 3,
       "wording": "Receive break-end reminders.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12307,7 +12307,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No break model, break scheduler, or break-end notification UI was found.",
+      "audit_note": "The agent now schedules one durable, replacement-safe reminder for each accepted break, preserves stable identity across helper replay, delivers immediately after a missed boundary, cancels on early resume, and prevents a cleared delivery from being recreated through the persistent delivery ledger. Focused tests, release build, and signed packaging pass, but installed schedule, restart, cancellation, missed-boundary, and replay states remain unproven because the signed QA control seed was not consumed within the capped run (`AcceptedBreakReminderService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/agent-break-end-reminders/verifier/REPORT.md`).",
       "tracker_line": 763
     },
     {
