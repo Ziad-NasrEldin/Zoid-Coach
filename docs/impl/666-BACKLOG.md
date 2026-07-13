@@ -502,3 +502,8 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - The complete Privacy Data Service test group and a focused seven-store deletion plus restart test pass, and the release build passes.
 - Candidate evidence is recorded in `.audit/runs/delete-reviews-learned-rules/candidate/REPORT.md`.
 - The authoritative tracker remains owned by the root integrator and must only advance after an independent signed Settings confirmation, visible result refresh, review-empty state, learned-rule-empty state, and relaunch verification.
+- Independent verification passes the full nine-test Privacy Data Service group, the focused seven-store proof, and one QA release package.
+- Signed Settings Cancel preserved all seven targets and both raw facts, while Confirm removed all targets atomically and preserved behavior and task facts.
+- Reviews and learned inventory refreshed empty, relaunch preserved deletion, and repeat confirmation stayed idempotent at zero.
+- `ZC-047-012` advances from Partially implemented to Touches remaining because confirmation and result copy omit reviews, notes, corrections, experiments, and learned app rules from the disclosed deletion scope.
+- Verifier evidence is recorded in `.audit/runs/delete-reviews-learned-rules/verifier/REPORT.md`.
