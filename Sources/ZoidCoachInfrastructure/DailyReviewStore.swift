@@ -14,10 +14,12 @@ public final class DailyReviewStore: @unchecked Sendable {
     private let taskHistory: TaskHistoryStore
     private let lock = NSLock()
     private let now: @Sendable () -> Date
+    private let timeZone: TimeZone
 
     public init(
         databaseURL: URL = ZoidCoachStorage.databaseURL(),
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = Date.init,
+        timeZone: TimeZone = .current
     ) throws {
         try AutonomousDatabaseMigrator(databaseURL: databaseURL, now: now).migrate()
         taskHistory = try TaskHistoryStore(databaseURL: databaseURL)
@@ -32,6 +34,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         }
         database = handle
         self.now = now
+        self.timeZone = timeZone
         sqlite3_busy_timeout(database, 5_000)
     }
 
@@ -47,6 +50,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         let state = try readReviewState(sourceDay: sourceDay)
         let offlineWork = try readOfflineWork(sourceDay: sourceDay)
         let completedTasks = try completedTasks(sourceDay: sourceDay)
+        let plannedTasks = try plannedTasks(sourceDay: sourceDay, completedTasks: completedTasks)
         return DailyReviewSnapshot(
             sourceDay: sourceDay,
             sessions: sessions,
@@ -55,18 +59,60 @@ public final class DailyReviewStore: @unchecked Sendable {
             hypothesisState: state.hypothesisState,
             confirmedAt: state.confirmedAt,
             offlineWork: offlineWork,
-            completedTasks: completedTasks
+            completedTasks: completedTasks,
+            plannedTasks: plannedTasks
         )
+    }
+
+    private func plannedTasks(
+        sourceDay: String,
+        completedTasks: [CompletedTaskHistoryEntry]
+    ) throws -> [DailyReviewPlannedTaskOutcome] {
+        let completedByID = Dictionary(completedTasks.map { ($0.taskID, $0) }, uniquingKeysWith: { first, _ in first })
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT plan.reminder_id,
+               COALESCE(NULLIF(source.title, ''), plan.reminder_id),
+               plan.is_main_objective,
+               plan.estimate_minutes
+        FROM daily_plan_entries plan
+        LEFT JOIN source_tasks source ON source.source_id = plan.reminder_id
+        WHERE plan.day_key = ?
+          AND COALESCE(plan.is_optional, 0) = 0
+        ORDER BY plan.is_main_objective DESC, plan.rank ASC, plan.reminder_id ASC;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError(.read) }
+        defer { sqlite3_finalize(statement) }
+        bind(sourceDay, statement, 1)
+        var outcomes: [DailyReviewPlannedTaskOutcome] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let taskID = text(statement, 0) else { continue }
+            let sourceTitle = text(statement, 1) ?? taskID
+            let completed = completedByID[taskID]
+            outcomes.append(DailyReviewPlannedTaskOutcome(
+                taskID: taskID,
+                title: completed?.title ?? sourceTitle,
+                isMainObjective: sqlite3_column_int(statement, 2) != 0,
+                estimatedMinutes: sqlite3_column_type(statement, 3) == SQLITE_NULL
+                    ? nil
+                    : Int(sqlite3_column_int64(statement, 3)),
+                isCompleted: completed != nil
+            ))
+        }
+        return outcomes
     }
 
     private func completedTasks(sourceDay: String) throws -> [CompletedTaskHistoryEntry] {
         let formatter = DateFormatter()
         formatter.calendar = .current
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
+        formatter.timeZone = timeZone
         formatter.dateFormat = "yyyy-MM-dd"
         guard let date = formatter.date(from: sourceDay) else { return [] }
-        return try taskHistory.completedEntries(for: date, calendar: formatter.calendar)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return try taskHistory.completedEntries(for: date, calendar: calendar)
     }
 
     @discardableResult
