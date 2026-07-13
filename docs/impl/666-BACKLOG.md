@@ -124,6 +124,15 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - No safe installed deterministic provider-budget probe exists, so the live provider-switch invocation remains the final acceptance touch.
 - `ZC-046-006` advances from Frontend only left to Touches remaining, with evidence in `.audit/runs/ai-request-budgets/verifier/REPORT.md`.
 
+### Compact active task - candidate
+
+- Owns `ZC-037-006`.
+- Keeps title and live active, sprint, accepted-break, paused, and ended-workday state in the menu-bar task card.
+- Adds main-objective state, estimate, urgency, deadline, locked state, and blocked reason to the compact visible and accessible summary.
+- Preserves the canonical Pause, Break, Complete, Resume, End Break, Start, and End Workday command boundaries.
+- Five focused state, accessibility, and lifecycle tests plus the release build pass.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/compact-active-task/candidate/REPORT.md`.
+
 ### Settings notification delivery test - candidate
 
 - Owns `ZC-044-012`.

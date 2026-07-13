@@ -305,11 +305,20 @@ struct MenuBarCoachView: View {
                         .accessibilityIdentifier("menu-bar.task.timing-mode")
                 }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(menuState.taskStatus(at: context.date))
-                        .font(Sumi.body(11))
-                        .foregroundStyle(Sumi.muted)
-                        .accessibilityIdentifier("menu-bar.task.status")
-                }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(menuState.taskStatus(at: context.date))
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                            .accessibilityIdentifier("menu-bar.task.status")
+                        Text(menuState.compactTaskFacts.joined(separator: " · "))
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("menu-bar.task.facts")
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(menuState.compactTaskAccessibilitySummary(at: context.date) ?? "No active task")
+}
 
                 HStack(spacing: 8) {
                     if menuState.activeTask != nil {
