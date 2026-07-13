@@ -7714,10 +7714,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "A signed installed app restored a six-action numeric-flag `GAMING_DRIFT` envelope across app and helper restart and visibly exposed all six accessible actions, including `Mark blocked`, after scrolling the adaptive collection. The compatibility fix preserves canonical Boolean encoding while accepting only legacy Boolean or exact integer `0/1` confirmation values, and focused prompt, blocker-state, and gaming-drift tests pass. The blocker-sheet click was not reliable before the capped signed session ended, so the too-short reason, Cancel, successful block, replacement-main promotion, answered history, durable relaunch, and unavailable-agent journeys remain (`PromptInboxStore.swift`; `PromptTaskBlockState.swift`; `GamingDriftPromptService.swift`; `.audit/runs/prompt-action-rendering/verifier/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/prompt-blocker-reachability/verifier/REPORT.md"
+      ],
+      "last_verified_commit": "e7030f585f1c67db9654ead7d4532837bba5f4bf",
+      "last_verified_build": "zoid-coach-e7030f585f1c67db9654ead7d4532837bba5f4bf-clean",
+      "audit_note": "The signed constrained Today window restored the exact six-action numeric-flag `GAMING_DRIFT` envelope and rendered `CHANGE THE TASK` before `RECOVERY OPTIONS`, but the task-change accessibility collection still had no button children, so `Mark blocked` remained unreachable without coordinate guessing. Focused partition and reason-boundary tests plus the signed release package pass. The reason sheet, two-character rejection, Cancel, successful block, replacement-main promotion, answered history, relaunch, and unavailable-agent journeys remain (`TodayPromptInboxLedger.swift`; `PromptTaskBlockState.swift`; `.audit/runs/prompt-blocker-reachability/verifier/REPORT.md`).",
       "tracker_line": 494
     },
     {
