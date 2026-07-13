@@ -19,7 +19,7 @@ The snapshot remains beside the database for independent recovery evidence.
 
 - `Sources/ZoidCoachInfrastructure/AutonomousDatabaseMigrator.swift`
 - `Tests/ZoidCoachAppTests/AutonomousDatabaseMigratorTests.swift`
-- `docs/impl/666-BACKLOG.md`
+- `.audit/runs/failed-upgrade-recovery/candidate/REPORT.md`
 
 ## Verification
 
@@ -32,9 +32,9 @@ The snapshot remains beside the database for independent recovery evidence.
 
 ## Authoritative baseline note
 
-The broader migration-filter run currently has 13 pre-existing expectation failures because the authoritative source contains migrations through 42 while `AutonomousDatabaseMigrator.currentVersion` is 41 and several tests still expect version 38.
-This candidate does not change those migration definitions or Daily Review expectations because they are outside the accepted lane scope.
+The candidate found that the authoritative source contains migrations through 42 while `AutonomousDatabaseMigrator.currentVersion` is 41 and several broader tests still expect version 38.
+The independent verifier corrected that consistency defect separately from the recovery implementation and required the complete migration suite to pass.
 
 ## Independent acceptance remaining
 
-An independent verifier must copy a representative signed-QA database into an isolated run root, install a deliberately failing migration build, confirm the pre-upgrade snapshot and restored readable data, restart the previous signed app against the restored copy, then install a corrected build and verify the same estimates, plans, prompts, and task sessions after app and helper relaunch.
+An independent verifier must still install a deliberately failing signed-QA migration build against isolated representative data, visibly confirm recovery guidance, then install a corrected build and verify the same data after app and helper relaunch.

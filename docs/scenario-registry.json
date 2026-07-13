@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "d766da64b51545ddb8930f2667aef1f92fb009d5beaaa54ac8cc5c3409e6f64c",
+  "tracker_sha256": "2501452a6aacbeada8644e14415a0dd01f77333b19f19eae27916e542285ec31",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12090,10 +12090,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/failed-upgrade-recovery/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Migration and rollback code exists and the canonical database is healthy, but safely forcing a failed installed-app upgrade requires an isolated copy rather than the user's live store.",
+      "audit_note": "Every pending upgrade to an existing database now starts from a consistent SQLite snapshot, including committed WAL rows. A real SQLite integration test applied one migration, failed before the next, restored the exact prior schema and readable source-health row with integrity `ok`, retained the recovery snapshot, and then completed a healthy restart without losing the row. A separate destructive test removed the snapshot before restore and proved the error fails closed without falsely claiming that prior data was recovered. The verifier also corrected the pre-existing schema-42 versus expected-schema-41 drift, passed all 24 migrator tests, and completed a release build. Full qualification remains blocked because the unsigned release agent correctly refused isolated fixture access before migration; a deliberately failing clean signed-QA package must still visibly show recovery guidance, preserve representative estimates, plans, prompts, and task sessions, then survive corrected-package app and helper relaunch (`AutonomousDatabaseMigrator.swift`; `AutonomousDatabaseMigratorTests.swift`; `.audit/runs/failed-upgrade-recovery/verifier/REPORT.md`).",
       "tracker_line": 742
     },
     {
