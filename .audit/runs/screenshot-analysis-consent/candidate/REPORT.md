@@ -48,3 +48,19 @@ It does not change tracker status because installed UI and running-agent accepta
 10. Capture the onboarding Off and On states, Settings restored state, allowed unknown result, and post-disable refusal before cleanup.
 
 The verifier must keep tracker, registry, and Lavish status conservative until the complete installed journey passes.
+
+## Fresh verifier result
+
+The rebased focused screenshot-analysis, OCR persistence, and prompt-response seams passed.
+A signed QA release package passed application and agent release builds, strict signing validation, LaunchAgent validation, and Mach-service validation.
+Fresh signed onboarding visibly proved the default-Off control, the explicit-On control, the ambiguous-only explanations, stable accessibility identifiers, and policy-before-advance failure behavior.
+
+The first signed Continue attempt exposed a startup race where onboarding could retain policy version 0 after the helper bootstrapped version 1.
+Commit `f43fe50` adopts only that initial helper bootstrap before the first onboarding policy mutation, and its focused regression passed.
+The rebuilt signed app then exposed a second blocker: `PolicyStore` did not allow Screenwatch as a policy-bearing onboarding step, so the consent mutation was rejected before a receipt was written.
+Commit `1a696c8` adds Screenwatch to the onboarding mutation allowlist, and a focused real-store regression passed.
+
+No second signed package was created after the final allowlist fix because the bounded UI window ended.
+Both claimed scenarios therefore remain **Touches remaining**.
+The only next signed consent check is to package the final revision, prove Continue writes policy version 2 and advances to Notifications, relaunch, and prove the same choice is restored.
+Running-agent known-versus-unknown selection, post-disable refusal, and structured-evidence-only retention also remain outstanding.
