@@ -134,6 +134,8 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             trigger: trigger
         )
         do {
+            center.removePendingNotificationRequests(withIdentifiers: [requestIdentifier])
+            center.removeDeliveredNotifications(withIdentifiers: [requestIdentifier])
             try await center.add(request)
             recordDelivery(
                 requestIdentifier: requestIdentifier,
@@ -220,7 +222,9 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
                 surface: .notification
             )
             completionHandler()
-            Task { await onResponse(result) }
+            if result.wasApplied {
+                Task { await onResponse(result) }
+            }
         } catch {
             completionHandler()
         }
