@@ -289,6 +289,83 @@ import ZoidCoachInfrastructure
 }
 
 @MainActor
+@Test func menuBarStartsOnlyTheFreshRecommendedTaskAndConfirmsItBecameActive() async {
+    let ready = menuSnapshot(
+        rows: [menuTask(id: "focus", title: "Ship the review", state: .ready)],
+        recommendation: .init(
+            taskID: "focus",
+            sentence: "Start Ship the review.",
+            reasons: []
+        )
+    )
+    let active = menuSnapshot(
+        rows: [menuTask(id: "focus", title: "Ship the review", state: .active)],
+        activeTask: .init(taskID: "focus", startedAt: Date(), elapsedMinutes: 0)
+    )
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(ready),
+        applyResults: [.success(active)]
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.startRecommendedTaskIfStillReady(taskID: "focus")
+
+    #expect(controller.state.activeTask?.taskID == "focus")
+    #expect(controller.errorMessage == nil)
+    let commands = await client.commands
+    #expect(commands.count == 1)
+    #expect(commands.first?.0 == .start)
+    #expect(commands.first?.1 == "focus")
+}
+
+@MainActor
+@Test func menuBarRefusesAStartAfterTheRecommendationChanges() async {
+    let replacement = menuSnapshot(
+        rows: [menuTask(id: "replacement", title: "New priority", state: .ready)],
+        recommendation: .init(
+            taskID: "replacement",
+            sentence: "Start New priority.",
+            reasons: []
+        )
+    )
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(replacement),
+        applyResults: []
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.startRecommendedTaskIfStillReady(taskID: "stale")
+
+    #expect(controller.state.recommendedTask?.taskID == "replacement")
+    #expect(controller.errorMessage?.contains("Nothing was started") == true)
+    #expect(await client.commands.isEmpty)
+}
+
+@MainActor
+@Test func menuBarRejectsAnUnconfirmedStartResultWithoutReplacingFreshState() async {
+    let ready = menuSnapshot(
+        rows: [menuTask(id: "focus", title: "Ship the review", state: .ready)],
+        recommendation: .init(
+            taskID: "focus",
+            sentence: "Start Ship the review.",
+            reasons: []
+        )
+    )
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(ready),
+        applyResults: [.success(ready)]
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.startRecommendedTaskIfStillReady(taskID: "focus")
+
+    #expect(controller.state.recommendedTask?.taskID == "focus")
+    #expect(controller.state.activeTask == nil)
+    #expect(controller.errorMessage?.contains("did not confirm") == true)
+    #expect(await client.commands.count == 1)
+}
+
+@MainActor
 @Test func menuBarBreakAndEndWorkdayPersistThroughTheCanonicalAgent() async throws {
     let databaseURL = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-666-menu-workday-\(UUID().uuidString).sqlite")
@@ -328,7 +405,8 @@ import ZoidCoachInfrastructure
     let controller = MenuBarCoachController(client: client)
 
     await controller.refresh()
-    await controller.apply(.start, taskID: "focus")
+    await controller.startRecommendedTaskIfStillReady(taskID: "focus")
+    #expect(controller.state.activeTask?.taskID == "focus")
     await controller.apply(.pauseForBreak, taskID: "focus")
     #expect(controller.state.pausedTask?.acceptedBreak != nil)
 
