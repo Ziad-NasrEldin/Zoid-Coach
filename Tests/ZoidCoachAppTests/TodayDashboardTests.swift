@@ -86,6 +86,66 @@ func recommendationIsStableAndSkipsBlockedTasks() {
     let recommendation = NextTaskRecommender().recommend(tasks: tasks, referenceDate: now, availableMinutes: 30, coverage: coverage)
 
     #expect(recommendation.taskID == "a")
+    #expect(recommendation.suggestedSprintMinutes == nil)
+}
+
+@Test
+func oversizedRecommendationOffersABoundedSprintThatFitsAvailableTime() {
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let coverage = TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: now)
+    let task = TodayTaskRow(
+        taskID: "large",
+        title: "Prepare migration plan",
+        estimateMinutes: 90,
+        dueDate: now,
+        urgency: .high,
+        state: .ready
+    )
+
+    let recommendation = NextTaskRecommender().recommend(
+        tasks: [task],
+        referenceDate: now,
+        availableMinutes: 20,
+        coverage: coverage
+    )
+
+    #expect(recommendation.taskID == "large")
+    #expect(recommendation.suggestedSprintMinutes == 20)
+    #expect(recommendation.reasons.contains(.boundedSprint))
+    #expect(recommendation.sentence.contains("20-minute sprint"))
+    #expect(recommendation.sentence.contains("task will stay incomplete"))
+}
+
+@Test
+func boundedSprintRecommendationCapsLongWindowsAndAvoidsZeroTime() {
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let coverage = TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: now)
+    let task = TodayTaskRow(
+        taskID: "large",
+        title: "Prepare migration plan",
+        estimateMinutes: 120,
+        dueDate: nil,
+        urgency: .high,
+        state: .ready
+    )
+    let recommender = NextTaskRecommender()
+
+    let longWindow = recommender.recommend(tasks: [task], referenceDate: now, availableMinutes: 40, coverage: coverage)
+    let noWindow = recommender.recommend(tasks: [task], referenceDate: now, availableMinutes: 0, coverage: coverage)
+
+    #expect(longWindow.suggestedSprintMinutes == 25)
+    #expect(noWindow.suggestedSprintMinutes == nil)
+    #expect(noWindow.reasons.contains(.boundedSprint) == false)
+}
+
+@Test
+func legacyRecommendationDecodesWithoutASuggestedSprint() throws {
+    let data = Data(#"{"taskID":"task","sentence":"Start now.","reasons":["shortFit"]}"#.utf8)
+
+    let recommendation = try JSONDecoder().decode(NextTaskRecommendation.self, from: data)
+
+    #expect(recommendation.taskID == "task")
+    #expect(recommendation.suggestedSprintMinutes == nil)
 }
 
 @Test

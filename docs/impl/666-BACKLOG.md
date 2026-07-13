@@ -67,6 +67,17 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Focused Settings proof covers selection ordering, last-day protection, policy round-trip, multi-window compatibility, overlapping conflict recovery, durable PolicyStore persistence, and next scheduled-review consumption without restarting the app.
 - Candidate evidence is recorded in `.audit/runs/settings-workdays/candidate/REPORT.md`.
 - Independent signed evidence is recorded in `.audit/runs/settings-workdays/verifier/REPORT.md`, and `ZC-044-002` is integrated as Fully implemented.
+### Recommended bounded sprint - candidate
+
+- Owns `ZC-015-004`.
+- Adds an explicit bounded-sprint recommendation when the selected task estimate exceeds the currently available time.
+- Uses the exact available minutes up to a restrained 25-minute maximum and never proposes a sprint when no time remains.
+- Explains the estimate mismatch, available window, sprint boundary, and that expiry will not complete the task.
+- Replaces the generic Start action with one direct, accessible `START N-MINUTE SPRINT` action for the recommended task.
+- Routes through the existing serialized custom-sprint XPC path, which preserves restart-safe timing and leaves the task active and incomplete after expiry.
+- Focused recommendation, legacy decoding, custom sprint, agent expiry, and restart tests pass.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/recommended-bounded-sprint/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after signed oversized-recommendation, click, countdown, expiry, and restart verification.
 
 ### Reduced-motion state feedback - candidate
 
