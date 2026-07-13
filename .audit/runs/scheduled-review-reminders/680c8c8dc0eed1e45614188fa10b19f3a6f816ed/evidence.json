@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "run_id": "scheduled-review-reminders/680c8c8dc0eed1e45614188fa10b19f3a6f816ed",
+  "verified_commit": "680c8c8dc0eed1e45614188fa10b19f3a6f816ed",
+  "build_identity": "zoid-coach-680c8c8dc0eed1e45614188fa10b19f3a6f816ed-clean",
+  "fixture": "/private/tmp/zoid-666-scheduled-review-reminders-qa/OS Fixtures/state.json",
+  "qa_root": "/private/tmp/zoid-666-scheduled-review-reminders-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "a6807bdc262bb9d326979606eedaff9f83be8289c7ff0a357a4ab5de7ad1dd71",
+  "scenario_ids": [
+    "ZC-054-004",
+    "ZC-054-005"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T11:10:59.150755+00:00",
+  "completed_at": "2026-07-13T11:10:59Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "475599ffebf03159815be5cdc1fc9e33cf799d9dbe581dc24110418867b3e862"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "daily_review_delivered_at_quiet_boundary",
+      "result": "passed",
+      "detail": "The signed fixture delivered daily-review:2026-07-13 at the exact 14:07 Africa/Cairo quiet-hours boundary."
+    },
+    {
+      "name": "weekly_review_delivered_at_quiet_boundary",
+      "result": "passed",
+      "detail": "The signed fixture delivered weekly-review:2026-W29 at the same exact final-workday boundary."
+    },
+    {
+      "name": "restart_preserves_stable_occurrence_ids",
+      "result": "passed",
+      "detail": "LaunchAgent restarted the helper and retained one current daily and one current weekly identifier without duplicate scheduling."
+    },
+    {
+      "name": "observation_mode_retains_factual_reminders",
+      "result": "passed",
+      "detail": "The active signed policy was observe and both scheduled_review commands reached succeeded."
+    },
+    {
+      "name": "reviews_destination_is_usable",
+      "result": "passed",
+      "detail": "The signed Reviews navigation opened both Daily Review correction controls and the Weekly Review evidence summary."
+    }
+  ],
+  "commands": [
+    "swift test --filter ReviewReminderServiceTests|ActionOutboxStoreTests",
+    "swift build -c release --product ZoidCoach",
+    "CONFIGURATION=release ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-scheduled-review-reminders-qa Scripts/package-app.sh"
+  ]
+}

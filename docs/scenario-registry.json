@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "636864857157f724c232a8d8582b23fe774ad99f996901b017e7a2ec7604f536",
+  "tracker_sha256": "6ebc9d3ae2494982fbba01da77a01ba12c9c8e7d4275d130e95450a3b2c8e14f",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12380,9 +12380,9 @@
       "section_title": "Quiet hours and scheduling",
       "item_index": 4,
       "wording": "Receive the end-of-day review reminder.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12390,10 +12390,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No functional daily review system or review scheduling surface is present.",
+      "evidence_paths": [
+        ".audit/runs/scheduled-review-reminders/680c8c8dc0eed1e45614188fa10b19f3a6f816ed/evidence.json"
+      ],
+      "last_verified_commit": "680c8c8dc0eed1e45614188fa10b19f3a6f816ed",
+      "last_verified_build": "zoid-coach-680c8c8dc0eed1e45614188fa10b19f3a6f816ed-clean",
+      "audit_note": "The signed observation-mode helper scheduled `daily-review:2026-07-13` for the configured 14:06 work end, deferred it through quiet hours to exactly 14:07 Cairo, retained one stable current occurrence across helper restart, and delivered it at the boundary. The reminder copy directs the user to Reviews, where the signed app exposed the complete Daily Review correction and confirmation workflow (`ReviewReminderService.swift`; `AgentMain.swift`; `.audit/runs/scheduled-review-reminders/680c8c8dc0eed1e45614188fa10b19f3a6f816ed/evidence.json`).",
       "tracker_line": 764
     },
     {
@@ -12402,9 +12404,9 @@
       "section_title": "Quiet hours and scheduling",
       "item_index": 5,
       "wording": "Receive the weekly review reminder.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12412,10 +12414,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No functional weekly review generation or reminder exists.",
+      "evidence_paths": [
+        ".audit/runs/scheduled-review-reminders/680c8c8dc0eed1e45614188fa10b19f3a6f816ed/evidence.json"
+      ],
+      "last_verified_commit": "680c8c8dc0eed1e45614188fa10b19f3a6f816ed",
+      "last_verified_build": "zoid-coach-680c8c8dc0eed1e45614188fa10b19f3a6f816ed-clean",
+      "audit_note": "The signed Monday-only schedule treated 14:06 as the final configured workday boundary, deferred `weekly-review:2026-W29` to exactly 14:07 Cairo, retained one stable current occurrence across helper restart, and delivered it at the boundary. The next ISO-week identifier was scheduled separately, and the signed Reviews surface exposed the weekly evidence summary without inventing conclusions (`ReviewReminderService.swift`; `AgentMain.swift`; `.audit/runs/scheduled-review-reminders/680c8c8dc0eed1e45614188fa10b19f3a6f816ed/evidence.json`).",
       "tracker_line": 765
     },
     {
