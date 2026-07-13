@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "62e25dffa94a5d7b2d58922979d6ce62772d9896176a0136d520d57028a56031",
+  "tracker_sha256": "fff670b470d8d267bd33050413588b042d1a1314908797da7afe5d9720fee24e",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8708,9 +8708,9 @@
       "section_title": "Pausing coaching",
       "item_index": 7,
       "wording": "End the workday from the pause controls.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8718,10 +8718,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/pause-end-workday-review/candidate/REPORT.md",
+        ".audit/runs/pause-end-workday-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The Settings pause card only pauses/resumes all automation; it has no end-workday control.",
+      "audit_note": "The signed Settings card exposed one accessible active-task-specific action, required destructive confirmation, preserved the active task after cancellation and helper failure, and applied exactly one durable `endingWorkday` pause after success (`EndWorkdayReviewController.swift`; `.audit/runs/pause-end-workday-review/verifier/REPORT.md`).",
       "tracker_line": 557
     },
     {
@@ -8796,9 +8799,9 @@
       "section_title": "End-of-day review trigger",
       "item_index": 2,
       "wording": "Open the review immediately after ending the workday manually.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8806,10 +8809,13 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/pause-end-workday-review/candidate/REPORT.md",
+        ".audit/runs/pause-end-workday-review/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no manual end-workday flow or daily review screen.",
+      "audit_note": "The signed success path refreshed Today and opened the current-day Review with visible work evidence only after the durable command succeeded, while failure remained in Settings; helper and app relaunch restored the end-workday pause with no active timer (`SettingsView.swift`; `.audit/runs/pause-end-workday-review/verifier/REPORT.md`).",
       "tracker_line": 564
     },
     {
