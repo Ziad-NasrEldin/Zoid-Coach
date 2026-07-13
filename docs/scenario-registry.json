@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "dfbd6c9a9afb747481b5f8436ef30e630953107f3f4c8c359f574002de6cb719",
+  "tracker_sha256": "6780670d866a88069b16accaade5586b3987bf49f449523d1acfd5e8bacd5893",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12067,8 +12067,8 @@
       "item_index": 2,
       "wording": "Wake after a short lock and see timing follow the configured policy.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12079,7 +12079,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Sleep and wake events are modeled in replay and scheduling, but the active-task UI does not expose a clear short-lock timing policy or reconciliation result.",
+      "audit_note": "Real workspace and display sleep notifications now record one absence boundary, and a wake below five minutes keeps the active task running with neutral reconciliation copy naming the task, observed absence, and aligned-work evidence boundary. Six focused tests, release, and signed packaging pass, while physical sleep and wake required action-time confirmation that was not present (`WakeTaskReconfirmationController.swift`; `ZoidCoachApp.swift`; `.audit/runs/wake-task-reconfirmation/verifier/REPORT.md`).",
       "tracker_line": 748
     },
     {
@@ -12089,8 +12089,8 @@
       "item_index": 3,
       "wording": "Wake after a long sleep and be asked whether the task is still active.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12101,7 +12101,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No installed UI prompt or task-session confirmation flow for `still active?` was found.",
+      "audit_note": "A wake at or above five minutes now opens a non-dismissible, keyboard-accessible task check-in with the active task title, observed absence duration, Continue and Pause choices, stable identifiers, and no scene-focus trigger. Physical installed sleep and wake plus both persisted choices remain unverified because action-time confirmation was absent (`WakeTaskReconfirmationView.swift`; `ZoidCoachApp.swift`; `.audit/runs/wake-task-reconfirmation/verifier/REPORT.md`).",
       "tracker_line": 749
     },
     {
@@ -12111,8 +12111,8 @@
       "item_index": 4,
       "wording": "Avoid accumulating aligned time while no telemetry exists.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12123,7 +12123,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Coverage and freshness logic suppress unsafe conclusions, but no live sleep-to-wake active-task accounting journey was proven.",
+      "audit_note": "The wake notice and decision explicitly separate the task clock from observed activity and state that time without telemetry is never aligned work, while existing coverage logic suppresses unsafe conclusions. A physical sleep-to-wake comparison of visible task time against aligned totals remains (`WakeTaskReconfirmationView.swift`; `DailySourceCoverage.swift`; `.audit/runs/wake-task-reconfirmation/verifier/REPORT.md`).",
       "tracker_line": 750
     },
     {
