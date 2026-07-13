@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "4cb5b55f2a52cb5d8c2eb8816f969e6bb615490b30127c2d35676c35a6d93a02",
+  "tracker_sha256": "5c17e3b97a731c5de3fb18de7b7801e1073cbcff2670ae9cdb36293e4fa42169",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12256,9 +12256,9 @@
       "section_title": "Quiet hours and scheduling",
       "item_index": 2,
       "wording": "Receive planned task-start reminders.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12266,10 +12266,12 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Scheduled calendar blocks exist, but a dedicated user-facing task-start reminder journey is not present.",
+      "evidence_paths": [
+        ".audit/runs/planned-task-start-reminders/0b857b9fd456b76ae69a2bc951d1fdac4f34d35d/evidence.json"
+      ],
+      "last_verified_commit": "0b857b9fd456b76ae69a2bc951d1fdac4f34d35d",
+      "last_verified_build": "zoid-coach-0b857b9fd456b76ae69a2bc951d1fdac4f34d35d-clean",
+      "audit_note": "The signed app accepted a two-block plan and scheduled exactly one `TASK_START` request at each block start, while the optional task produced none. Replanning retained the stable day-and-task identifier, replaced the second request's 09:40 time with 10:10 and revised its task copy, and app/helper restart preserved exactly two requests (`AgentPlanScheduler.swift`; `ActionCommandExecutor.swift`; `.audit/runs/planned-task-start-reminders/0b857b9fd456b76ae69a2bc951d1fdac4f34d35d/REPORT.md`).",
       "tracker_line": 762
     },
     {
