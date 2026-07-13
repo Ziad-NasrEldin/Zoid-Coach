@@ -196,6 +196,9 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Two focused dashboard-start tests and the existing exactly-once coaching-action test pass.
 - The release build passes.
 - Candidate evidence is recorded in `.audit/runs/dashboard-prompt-task-start/candidate/REPORT.md`.
+- Independent verification passed four focused dashboard-start, exact-once, mismatch, and replay tests plus one QA release package.
+- The signed ready-state app exposed the known task, but the fixture contract has no prompt-episode seed seam and rejected a direct isolated seed, so no native prompt Start action rendered.
+- `ZC-016-003` advances from Barely started to Touches remaining, while native activation, replay, and relaunch proof remain in `.audit/runs/dashboard-prompt-task-start/verifier/REPORT.md`.
 
 ### Reduced-motion state feedback - candidate
 
