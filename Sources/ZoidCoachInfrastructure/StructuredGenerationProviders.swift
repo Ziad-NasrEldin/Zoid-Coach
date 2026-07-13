@@ -87,6 +87,7 @@ public struct AuditedStructuredGenerationProvider: StructuredGenerationProviding
     private let store: ModelRunStore
     private let gate: StructuredGenerationConcurrencyGate
     private let dailyRequestBudget: Int
+    private let monthlyRequestBudget: Int
     private let now: @Sendable () -> Date
 
     public init(
@@ -94,40 +95,56 @@ public struct AuditedStructuredGenerationProvider: StructuredGenerationProviding
         store: ModelRunStore,
         gate: StructuredGenerationConcurrencyGate = StructuredGenerationConcurrencyGate(),
         dailyRequestBudget: Int = 100,
+        monthlyRequestBudget: Int = 3_000,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.provider = provider
         self.store = store
         self.gate = gate
         self.dailyRequestBudget = max(0, dailyRequestBudget)
+        self.monthlyRequestBudget = max(0, monthlyRequestBudget)
         self.now = now
     }
 
     public func generate(_ request: StructuredGenerationRequest) async throws -> StructuredGenerationOutput {
+        let reservationID = UUID().uuidString
+        try await gate.acquire()
         let started = now()
-        guard try store.canStartRequest(provider: providerID, dailyBudget: dailyRequestBudget, now: started) else {
+        let reserved: Bool
+        do {
+            reserved = try store.reserveRequest(
+                modelRun(id: reservationID, request: request, state: .pending, started: started, finished: started, diagnostic: nil),
+                dailyBudget: dailyRequestBudget,
+                monthlyBudget: monthlyRequestBudget,
+                now: started
+            )
+        } catch {
+            await gate.release()
+            throw error
+        }
+        guard reserved else {
+            await gate.release()
             throw StructuredGenerationError.requestBudgetExceeded
         }
-        try await gate.acquire()
         do {
             let output = try await provider.generate(request)
             guard (try? JSONSerialization.jsonObject(with: output.json)) != nil else {
                 throw StructuredGenerationError.invalidStructuredOutput
             }
-            try store.record(modelRun(request: request, state: .validated, started: started, finished: now(), diagnostic: nil))
+            try store.record(modelRun(id: reservationID, request: request, state: .validated, started: started, finished: now(), diagnostic: nil))
             await gate.release()
             return output
         } catch {
             await gate.release()
-            try? store.record(modelRun(request: request, state: .rejected, started: started, finished: now(), diagnostic: String(describing: type(of: error))))
+            try? store.record(modelRun(id: reservationID, request: request, state: .rejected, started: started, finished: now(), diagnostic: String(describing: type(of: error))))
             throw error
         }
     }
 
-    private func modelRun(request: StructuredGenerationRequest, state: ModelRunValidationState, started: Date, finished: Date, diagnostic: String?) -> ModelRun {
+    private func modelRun(id: String, request: StructuredGenerationRequest, state: ModelRunValidationState, started: Date, finished: Date, diagnostic: String?) -> ModelRun {
         let inputHash = SHA256.hash(data: request.inputJSON).map { String(format: "%02x", $0) }.joined()
         return ModelRun(
-            id: UUID().uuidString,
+            id: id,
             provider: providerID,
             model: modelID,
             schemaVersion: request.schemaVersion,

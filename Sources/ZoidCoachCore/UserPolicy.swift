@@ -277,6 +277,8 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
     public let codexCLIModel: CodexCLIModel?
     public let codexCLICustomModelID: String?
     public let codexCLIReasoningEffort: CodexCLIReasoningEffort?
+    public let aiDailyRequestBudget: Int?
+    public let aiMonthlyRequestBudget: Int?
 
     public var effectiveCodexCLIModel: CodexCLIModel { codexCLIModel ?? .gpt56Terra }
     public var effectiveNotificationPromptsEnabled: Bool { notificationPromptsEnabled ?? true }
@@ -292,6 +294,8 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
     public var effectiveTaskSessionRetentionDays: Int { taskSessionRetentionDays ?? 365 }
     public var effectivePromptRetentionDays: Int { promptRetentionDays ?? 90 }
     public var effectiveReviewRetentionDays: Int { reviewRetentionDays ?? 365 }
+    public var effectiveAIDailyRequestBudget: Int { aiDailyRequestBudget ?? 100 }
+    public var effectiveAIMonthlyRequestBudget: Int { aiMonthlyRequestBudget ?? 3_000 }
 
     public init(
         screenshotAnalysisEnabled: Bool,
@@ -307,7 +311,9 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
         reviewRetentionDays: Int? = 365,
         codexCLIModel: CodexCLIModel? = .gpt56Terra,
         codexCLICustomModelID: String? = nil,
-        codexCLIReasoningEffort: CodexCLIReasoningEffort? = .low
+        codexCLIReasoningEffort: CodexCLIReasoningEffort? = .low,
+        aiDailyRequestBudget: Int? = 100,
+        aiMonthlyRequestBudget: Int? = 3_000
     ) {
         self.screenshotAnalysisEnabled = screenshotAnalysisEnabled
         self.notificationPromptsEnabled = notificationPromptsEnabled
@@ -323,6 +329,8 @@ public struct PrivacyPolicy: Codable, Equatable, Sendable {
         self.codexCLIModel = codexCLIModel
         self.codexCLICustomModelID = codexCLICustomModelID
         self.codexCLIReasoningEffort = codexCLIReasoningEffort
+        self.aiDailyRequestBudget = aiDailyRequestBudget
+        self.aiMonthlyRequestBudget = aiMonthlyRequestBudget
     }
 }
 
@@ -787,6 +795,12 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         appendRetentionViolation(privacy.effectiveTaskSessionRetentionDays, field: "privacy.taskSessionRetentionDays", to: &violations)
         appendRetentionViolation(privacy.effectivePromptRetentionDays, field: "privacy.promptRetentionDays", to: &violations)
         appendRetentionViolation(privacy.effectiveReviewRetentionDays, field: "privacy.reviewRetentionDays", to: &violations)
+        if !(0...10_000).contains(privacy.effectiveAIDailyRequestBudget) {
+            violations.append(.init(code: .invalidAIRequestBudget, field: "privacy.aiDailyRequestBudget"))
+        }
+        if !(0...100_000).contains(privacy.effectiveAIMonthlyRequestBudget) {
+            violations.append(.init(code: .invalidAIRequestBudget, field: "privacy.aiMonthlyRequestBudget"))
+        }
         if !privacy.aiProvider.usesRemoteProcessing, privacy.remoteEvidencePolicy != .localOnly {
             violations.append(.init(code: .remotePolicyWithoutRemoteProvider, field: "privacy.remoteEvidencePolicy"))
         }
@@ -921,6 +935,7 @@ public struct PolicyViolation: Codable, Equatable, Sendable {
         case emptyCalendarIdentifier
         case duplicateCalendarIdentifier
         case invalidRetention
+        case invalidAIRequestBudget
         case remotePolicyWithoutRemoteProvider
         case emptyApplicationClassification
         case duplicateApplicationClassification
