@@ -112,8 +112,10 @@ struct DashboardView: View {
 
 private struct TodayCommandView: View {
     @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var modalCoordinator: SumiModalCoordinator
     @Binding var editingCandidate: StoredMeetingCandidate?
     let createLocalTask: () -> Void
+    @StateObject private var endWorkdayFlow = DashboardEndWorkdayFlow()
     @State private var draggedReminderListID: String?
 
     var body: some View {
@@ -225,6 +227,44 @@ private struct TodayCommandView: View {
             .padding(.horizontal, 28)
             .frame(height: 60)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+            if let activeTask = activeWorkdayTask {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("WORKDAY IN PROGRESS")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.seal)
+                        Text("When you are finished for today, preserve \(activeTask.title)'s tracked time and review the day before closing it.")
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 12)
+                    Button(endWorkdayFlow.isEndingWorkday ? "ENDING WORKDAY" : "END WORKDAY AND REVIEW") {
+                        requestEndWorkday(activeTask)
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .disabled(endWorkdayFlow.isEndingWorkday || model.runtimeSafety.isReadOnly)
+                    .accessibilityLabel("End today's workday and open the review")
+                    .accessibilityHint("Tracked time is preserved and the task is not marked complete.")
+                    .accessibilityIdentifier("today.end-workday")
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 12)
+                .background(Sumi.sealWash.opacity(0.45))
+                .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+            }
+
+            if let statusMessage = endWorkdayFlow.statusMessage {
+                Text(statusMessage)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(statusMessage.hasPrefix("Workday ended") ? Sumi.okay : Sumi.seal)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 10)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("today.end-workday.status")
+            }
 
             PlanningInvitationBanner()
 
@@ -349,6 +389,32 @@ private struct TodayCommandView: View {
 
             TodaySourceFreshnessFooter()
         }
+    }
+
+    private var activeWorkdayTask: TodayTaskRow? {
+        guard let activeTaskID = model.todaySnapshot?.activeTask?.taskID else { return nil }
+        return model.todaySnapshot?.taskRows.first { $0.taskID == activeTaskID }
+    }
+
+    private func requestEndWorkday(_ task: TodayTaskRow) {
+        modalCoordinator.present(
+            eyebrow: "END WORKDAY",
+            title: "End work on \(task.title)?",
+            message: "Zoid 666 will recheck the active task, stop its timer, preserve its tracked time, and open today's review. The task will not be marked complete.",
+            confirmTitle: "END AND REVIEW",
+            confirmRole: .destructive,
+            confirm: {
+                Task {
+                    let succeeded = await endWorkdayFlow.endWorkday(
+                        expectedActiveTaskID: task.taskID
+                    )
+                    await model.refreshTodaySnapshot()
+                    if succeeded {
+                        model.selectedSection = .reviews
+                    }
+                }
+            }
+        )
     }
 
     private var unplannedTasks: [ReminderTask] {
