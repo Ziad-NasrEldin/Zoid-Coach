@@ -198,7 +198,15 @@ public final class PrivacyDataService: @unchecked Sendable {
     }
 
     public func deleteReviewsAndLearnedRules() throws -> Int {
-        try deleteFromTables(["learning_samples", "learning_aggregates", "planner_trust_cycles"])
+        try deleteFromTables([
+            "daily_review_corrections",
+            "daily_reviews",
+            "weekly_review_experiments",
+            "app_classification_correction_rules",
+            "learning_samples",
+            "learning_aggregates",
+            "planner_trust_cycles",
+        ])
     }
 
     public func deleteAllUserData() throws -> Int {

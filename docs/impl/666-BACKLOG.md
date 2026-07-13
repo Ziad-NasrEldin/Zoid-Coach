@@ -478,3 +478,13 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Signed fixture latest-per-group state, Today preservation, exactly-once older response, and app plus helper relaunch durability passed.
 - Real Notification Center remains the conservative proof gap because signed QA mode intentionally uses the isolated fixture adapter.
 - Verification evidence is recorded in `.audit/runs/latest-relevant-notification/verifier/REPORT.md`.
+
+### Delete reviews and learned rules - candidate
+
+- Owns `ZC-047-012`.
+- Expands the existing confirmation-backed deletion command to remove daily review decisions and notes, review corrections, weekly experiments, learned app-classification rules, estimate samples and aggregates, and planner trust cycles in one transaction.
+- Preserves source behavior records and task execution state so deleting interpretations does not erase the user's factual activity or task history.
+- Makes repeated deletion safe and idempotent across service restart.
+- The complete Privacy Data Service test group and a focused seven-store deletion plus restart test pass, and the release build passes.
+- Candidate evidence is recorded in `.audit/runs/delete-reviews-learned-rules/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after an independent signed Settings confirmation, visible result refresh, review-empty state, learned-rule-empty state, and relaunch verification.
