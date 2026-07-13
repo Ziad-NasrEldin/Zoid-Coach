@@ -364,21 +364,24 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
     public let dailyBudgetMinutes: Int
     public let priorityTaskRewardMinutes: Int
     public let coachingLevel: CoachingLevel
+    public let intentionalOverrideMinutes: Int
 
     public init(
         version: Int = 1,
         dailyBudgetMinutes: Int = 60,
         priorityTaskRewardMinutes: Int = 15,
-        coachingLevel: CoachingLevel = .gentle
+        coachingLevel: CoachingLevel = .gentle,
+        intentionalOverrideMinutes: Int = 45
     ) {
         self.version = version
         self.dailyBudgetMinutes = max(0, dailyBudgetMinutes)
         self.priorityTaskRewardMinutes = max(0, priorityTaskRewardMinutes)
         self.coachingLevel = coachingLevel
+        self.intentionalOverrideMinutes = max(5, intentionalOverrideMinutes)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel
+        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes
     }
 
     public init(from decoder: Decoder) throws {
@@ -387,7 +390,8 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
             version: try container.decodeIfPresent(Int.self, forKey: .version) ?? 1,
             dailyBudgetMinutes: try container.decodeIfPresent(Int.self, forKey: .dailyBudgetMinutes) ?? 60,
             priorityTaskRewardMinutes: try container.decodeIfPresent(Int.self, forKey: .priorityTaskRewardMinutes) ?? 15,
-            coachingLevel: try container.decodeIfPresent(CoachingLevel.self, forKey: .coachingLevel) ?? .gentle
+            coachingLevel: try container.decodeIfPresent(CoachingLevel.self, forKey: .coachingLevel) ?? .gentle,
+            intentionalOverrideMinutes: try container.decodeIfPresent(Int.self, forKey: .intentionalOverrideMinutes) ?? 45
         )
     }
 }

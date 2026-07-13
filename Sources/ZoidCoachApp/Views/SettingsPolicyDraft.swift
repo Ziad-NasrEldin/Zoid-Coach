@@ -39,6 +39,7 @@ struct SettingsPolicyDraft: Equatable {
     var coachingLevel: CoachingLevel
     var gamingDailyBudgetMinutes: Int
     var gamingPriorityTaskRewardMinutes: Int
+    var gamingIntentionalOverrideMinutes: Int
 
     init(policy: UserPolicy) {
         operatingMode = policy.operatingMode
@@ -78,6 +79,7 @@ struct SettingsPolicyDraft: Equatable {
         coachingLevel = policy.gaming.coachingLevel
         gamingDailyBudgetMinutes = policy.gaming.dailyBudgetMinutes
         gamingPriorityTaskRewardMinutes = policy.gaming.priorityTaskRewardMinutes
+        gamingIntentionalOverrideMinutes = policy.gaming.intentionalOverrideMinutes
     }
 
     func classification(for application: String) -> AppClassificationChoice {
@@ -237,7 +239,8 @@ struct SettingsPolicyDraft: Equatable {
                 version: original.gaming.version,
                 dailyBudgetMinutes: gamingDailyBudgetMinutes,
                 priorityTaskRewardMinutes: gamingPriorityTaskRewardMinutes,
-                coachingLevel: coachingLevel
+                coachingLevel: coachingLevel,
+                intentionalOverrideMinutes: gamingIntentionalOverrideMinutes
             ),
             reminderLists: reminderListPolicy
         )
