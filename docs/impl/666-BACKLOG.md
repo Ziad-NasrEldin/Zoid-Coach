@@ -58,6 +58,17 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Settings notification delivery test - candidate
+
+- Owns `ZC-044-012`.
+- Adds one direct Send Test Notification action to the existing Settings notification card.
+- Reuses the canonical local production and isolated-QA delivery boundary from onboarding.
+- Prevents duplicate activation while a test is running and exposes a direct retry afterward.
+- Distinguishes delivered, scheduled, unavailable, failed, and Today-fallback outcomes with stable accessibility.
+- Keeps unavailable and failed states truthful that unresolved coaching choices remain usable in Today.
+- Two focused async controller tests and the release build pass.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/settings-notification-delivery-test/candidate/REPORT.md`.
+
 ### Active-task elapsed and observed alignment - candidate
 
 - Owns `ZC-024-008`.
