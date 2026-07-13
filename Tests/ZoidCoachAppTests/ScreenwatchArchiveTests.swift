@@ -215,7 +215,11 @@ func whatsappOCRPersistsEncryptedPositionedEvidenceAndLinksTheCandidate() async 
     ])
     let cipher = try LocalEvidenceCipher(keyData: Data(repeating: 7, count: 32))
 
-    let analysis = try await archive.analyzePendingWhatsAppScreenshots(using: FakeScreenshotRecognizer(result: result), cipher: cipher)
+    let analysis = try await archive.analyzePendingWhatsAppScreenshots(
+        authorization: allowedScreenshotAnalysis(at: observedAt),
+        using: FakeScreenshotRecognizer(result: result),
+        cipher: cipher
+    )
     let encrypted = try archiveBlob(databaseURL: databaseURL, sql: "SELECT encrypted_payload FROM extracted_facts LIMIT 1;")
     let decrypted = try cipher.decrypt(encrypted)
     let decoded = try JSONDecoder().decode(ScreenshotOCRResult.self, from: decrypted)
@@ -259,6 +263,7 @@ func qaAppModelUsesRuntimeMeetingEvidenceCipherWithoutConsultingProductionFactor
     ])
     let qaCipher = try LocalEvidenceCipher(keyData: Data(repeating: 9, count: 32))
     _ = try await archive.analyzePendingWhatsAppScreenshots(
+        authorization: allowedScreenshotAnalysis(at: Date(timeIntervalSince1970: 1_783_663_200)),
         using: FakeScreenshotRecognizer(result: result),
         cipher: qaCipher
     )
@@ -295,6 +300,96 @@ func qaAppModelUsesRuntimeMeetingEvidenceCipherWithoutConsultingProductionFactor
 }
 
 @Test
+func screenshotAnalysisRequiresConsentAmbiguityInterventionValueAndRetention() async throws {
+    let gateNow = Date(timeIntervalSince1970: 1_783_663_210)
+    #expect(!ScreenshotAnalysisAuthorization(
+        consentEnabled: false,
+        canMateriallyChangeIntervention: true,
+        resourceConstrained: false,
+        rawScreenshotRetentionDays: 30,
+        now: gateNow
+    ).allowsInspection)
+    #expect(!ScreenshotAnalysisAuthorization(
+        consentEnabled: true,
+        canMateriallyChangeIntervention: false,
+        resourceConstrained: false,
+        rawScreenshotRetentionDays: 30,
+        now: gateNow
+    ).allowsInspection)
+    #expect(!ScreenshotAnalysisAuthorization(
+        consentEnabled: true,
+        canMateriallyChangeIntervention: true,
+        resourceConstrained: true,
+        rawScreenshotRetentionDays: 30,
+        now: gateNow
+    ).allowsInspection)
+    #expect(!ScreenshotAnalysisAuthorization(
+        consentEnabled: true,
+        canMateriallyChangeIntervention: true,
+        resourceConstrained: false,
+        rawScreenshotRetentionDays: 0,
+        now: gateNow
+    ).allowsInspection)
+
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-screenshot-consent-\(UUID().uuidString)", isDirectory: true)
+    let day = root.appendingPathComponent("2026-07-10", isDirectory: true)
+    try FileManager.default.createDirectory(at: day, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let log = """
+    {"t":"09-00-00","epoch":1783663200,"app":"WhatsApp","window":"Unknown chat","url":"","img":true}
+    {"t":"09-00-05","epoch":1783663205,"app":"WhatsApp","window":"Known work chat","url":"","img":true}
+
+    """
+    try Data(log.utf8).write(to: day.appendingPathComponent("log.jsonl"))
+    try Data([0x01]).write(to: day.appendingPathComponent("09-00-00.jpg"))
+    try Data([0x02]).write(to: day.appendingPathComponent("09-00-05.jpg"))
+    let databaseURL = root.appendingPathComponent("zoid-coach.sqlite")
+    let archive = try ScreenwatchArchive(databaseURL: databaseURL)
+    let observedAt = Date(timeIntervalSince1970: 1_783_663_210)
+    _ = try archive.ingestToday(from: root, now: observedAt)
+    let recognizer = CountingScreenshotRecognizer(result: ScreenshotOCRResult(blocks: []))
+    let cipher = try LocalEvidenceCipher(keyData: Data(repeating: 6, count: 32))
+
+    let denied = try await archive.analyzePendingWhatsAppScreenshots(
+        using: recognizer,
+        cipher: cipher
+    )
+    #expect(denied.screenshotsProcessed == 0)
+    #expect(await recognizer.callCount == 0)
+
+    let expired = try await archive.analyzePendingWhatsAppScreenshots(
+        authorization: ScreenshotAnalysisAuthorization(
+            consentEnabled: true,
+            canMateriallyChangeIntervention: true,
+            resourceConstrained: false,
+            rawScreenshotRetentionDays: 1,
+            now: observedAt.addingTimeInterval(2 * 86_400)
+        ),
+        using: recognizer,
+        cipher: cipher
+    )
+    #expect(expired.screenshotsProcessed == 0)
+
+    try archiveExecute(
+        databaseURL: databaseURL,
+        sql: "UPDATE behavior_records SET classification = 'work' WHERE epoch = 1783663205;"
+    )
+    let allowed = try await archive.analyzePendingWhatsAppScreenshots(
+        authorization: allowedScreenshotAnalysis(at: observedAt),
+        using: recognizer,
+        cipher: cipher
+    )
+
+    #expect(allowed.screenshotsProcessed == 1)
+    #expect(await recognizer.callCount == 1)
+    #expect(try archiveScalar(
+        databaseURL: databaseURL,
+        sql: "SELECT COUNT(*) FROM screenshot_analyses;"
+    ) == 1)
+}
+
+@Test
 func whatsappOCRSkipsOnlyByteIdenticalFrames() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
     let day = root.appendingPathComponent("2026-07-10", isDirectory: true)
@@ -322,7 +417,11 @@ func whatsappOCRSkipsOnlyByteIdenticalFrames() async throws {
     let recognizer = CountingScreenshotRecognizer(result: result)
     let cipher = try LocalEvidenceCipher(keyData: Data(repeating: 8, count: 32))
 
-    let analysis = try await archive.analyzePendingWhatsAppScreenshots(using: recognizer, cipher: cipher)
+    let analysis = try await archive.analyzePendingWhatsAppScreenshots(
+        authorization: allowedScreenshotAnalysis(at: Date(timeIntervalSince1970: 1_783_663_210)),
+        using: recognizer,
+        cipher: cipher
+    )
 
     #expect(analysis.screenshotsProcessed == 2)
     #expect(await recognizer.callCount == 1)
@@ -333,6 +432,16 @@ func whatsappOCRSkipsOnlyByteIdenticalFrames() async throws {
 private struct FakeScreenshotRecognizer: ScreenshotTextRecognizing {
     let result: ScreenshotOCRResult
     func recognize(in imageURL: URL) async throws -> ScreenshotOCRResult { result }
+}
+
+private func allowedScreenshotAnalysis(at now: Date) -> ScreenshotAnalysisAuthorization {
+    ScreenshotAnalysisAuthorization(
+        consentEnabled: true,
+        canMateriallyChangeIntervention: true,
+        resourceConstrained: false,
+        rawScreenshotRetentionDays: 30,
+        now: now
+    )
 }
 
 private actor CountingScreenshotRecognizer: ScreenshotTextRecognizing {

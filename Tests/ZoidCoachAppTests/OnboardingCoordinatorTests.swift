@@ -595,6 +595,65 @@ func classificationAndScheduleAreAppliedBeforeAdvancing() async throws {
 
 @MainActor
 @Test
+func screenshotAnalysisStartsOffForNewSetupAndPersistsExplicitConsent() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.screenwatch))
+    let policyRecorder = PolicyRecorder()
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(policyRecorder: policyRecorder)
+    )
+
+    #expect(!coordinator.screenshotAnalysisEnabled)
+    coordinator.screenshotAnalysisEnabled = true
+    coordinator.deferAccess(for: .screenwatch)
+    try await coordinator.continueFromCurrentStep()
+
+    #expect(coordinator.progress.currentStep == .notifications)
+    #expect(policyRecorder.applyCallCount == 1)
+    #expect(policyRecorder.policy.privacy.screenshotAnalysisEnabled)
+}
+
+@MainActor
+@Test
+func screenshotAnalysisRestoresExistingPolicyAndPersistsOptOut() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.screenwatch))
+    let policyRecorder = PolicyRecorder()
+    policyRecorder.version = 1
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(policyRecorder: policyRecorder)
+    )
+
+    #expect(coordinator.screenshotAnalysisEnabled)
+    coordinator.screenshotAnalysisEnabled = false
+    coordinator.deferAccess(for: .screenwatch)
+    try await coordinator.continueFromCurrentStep()
+
+    #expect(!policyRecorder.policy.privacy.screenshotAnalysisEnabled)
+    #expect(coordinator.progress.currentStep == .notifications)
+}
+
+@MainActor
+@Test
+func screenshotAnalysisConsentMustBeDurableBeforeScreenwatchStepAdvances() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.screenwatch))
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(failPolicyMutation: true)
+    )
+
+    coordinator.screenshotAnalysisEnabled = true
+    coordinator.deferAccess(for: .screenwatch)
+    await #expect(throws: SagaTestError.injected) {
+        try await coordinator.continueFromCurrentStep()
+    }
+
+    #expect(coordinator.progress.currentStep == .screenwatch)
+    #expect(coordinator.errorMessage?.contains("could not be applied") == true)
+}
+
+@MainActor
+@Test
 func onboardingScheduleRejectsEmptyWindowsAndAcceptsOvernightWorkAndQuietHours() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.schedule))
     let policyRecorder = PolicyRecorder()

@@ -137,6 +137,7 @@ struct OnboardingRootView: View {
                     explanation: "Screenwatch contributes time and application evidence. Zoid 666 checks the expected daily JSONL stream without showing captured titles, URLs, or screenshots here.",
                     grantTitle: "CHECK EXPECTED FOLDER"
                 )
+                screenshotAnalysisConsent
             case .notifications:
                 sourceStep(
                     step: .notifications,
@@ -380,6 +381,28 @@ struct OnboardingRootView: View {
                     .accessibilityIdentifier("onboarding.notifications.delivery-result")
             }
         }
+    }
+
+    private var screenshotAnalysisConsent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle(
+                "ALLOW SCREENSHOT ANALYSIS FOR AMBIGUOUS ACTIVITY",
+                isOn: $coordinator.screenshotAnalysisEnabled
+            )
+            .toggleStyle(SumiToggleStyle())
+            .accessibilityIdentifier("onboarding.screenwatch.screenshot-analysis")
+            Text(
+                coordinator.screenshotAnalysisEnabled
+                    ? "ON · Zoid 666 may inspect a Screenwatch screenshot only when app and time evidence cannot classify the activity. The screenshot stays local."
+                    : "OFF · Screenshots are never inspected. Ambiguous activity remains unknown for later review."
+            )
+            .font(Sumi.body(12))
+            .foregroundStyle(Sumi.muted)
+            .accessibilityIdentifier("onboarding.screenwatch.screenshot-analysis.explanation")
+        }
+        .padding(14)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityElement(children: .contain)
     }
 
     private func chooseScreenwatchFolder() {

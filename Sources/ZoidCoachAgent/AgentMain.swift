@@ -570,9 +570,15 @@ struct ZoidCoachAgentMain {
                         )
                         result = ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0)
                     }
-                    let analysis = policy.privacy.screenshotAnalysisEnabled && !resourceConstrained
-                        ? try await archive.analyzePendingWhatsAppScreenshots()
-                        : MeetingAnalysisResult(screenshotsProcessed: 0, candidatesCreated: 0)
+                    let analysis = try await archive.analyzePendingWhatsAppScreenshots(
+                        authorization: ScreenshotAnalysisAuthorization(
+                            consentEnabled: policy.privacy.screenshotAnalysisEnabled,
+                            canMateriallyChangeIntervention: policy.operatingMode != .observe,
+                            resourceConstrained: resourceConstrained,
+                            rawScreenshotRetentionDays: policy.privacy.rawScreenshotRetentionDays,
+                            now: Date()
+                        )
+                    )
                     if policy.operatingMode != .observe {
                         try await Self.processMeetingPrompts(
                             archive: archive,
@@ -790,7 +796,15 @@ struct ZoidCoachAgentMain {
                     )
                     result = ScreenwatchIngestionResult(insertedCount: 0, totalRecordsRead: 0)
                 }
-                let analysis = try await archive.analyzePendingWhatsAppScreenshots()
+                let analysis = try await archive.analyzePendingWhatsAppScreenshots(
+                    authorization: ScreenshotAnalysisAuthorization(
+                        consentEnabled: initialPolicy.privacy.screenshotAnalysisEnabled,
+                        canMateriallyChangeIntervention: initialPolicy.operatingMode != .observe,
+                        resourceConstrained: false,
+                        rawScreenshotRetentionDays: initialPolicy.privacy.rawScreenshotRetentionDays,
+                        now: Date()
+                    )
+                )
                 try await Self.processMeetingPrompts(
                     archive: archive,
                     promptStore: promptStore,
