@@ -1170,27 +1170,6 @@ private struct DailyPlanLedger: View {
                     .contentTransition(.numericText())
             }
 
-            HStack(spacing: 18) {
-                planMetric(
-                    label: "FOCUSED WORK",
-                    value: "\(state.plannedMinutes) MIN",
-                    accessibilityValue: "\(state.plannedMinutes) minutes of focused work planned",
-                    identifier: "planning-capacity-focused-work"
-                )
-                planMetric(
-                    label: state.overCapacityMinutes > 0 ? "OVER CAPACITY" : "PLANNED BUFFER",
-                    value: "\(state.overCapacityMinutes > 0 ? state.overCapacityMinutes : state.remainingBufferMinutes) MIN",
-                    accessibilityValue: state.overCapacityMinutes > 0
-                        ? "Plan exceeds focus capacity by \(state.overCapacityMinutes) minutes"
-                        : "\(state.remainingBufferMinutes) minutes remain unplanned as buffer",
-                    identifier: "planning-capacity-buffer"
-                )
-            }
-            .padding(.horizontal, 28)
-            .padding(.vertical, 10)
-            .background(Sumi.ink)
-            .foregroundStyle(Sumi.paper)
-
             if let persistenceMessage = model.persistenceMessage {
                 Text(persistenceMessage)
                     .font(Sumi.body(12))
@@ -1301,6 +1280,23 @@ private struct PlanningCapacityPanel: View {
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.ink)
                     .contentTransition(.numericText())
+            }
+
+            HStack(spacing: 18) {
+                planMetric(
+                    label: "FOCUSED WORK",
+                    value: "\(state.plannedMinutes) MIN",
+                    accessibilityValue: "\(state.plannedMinutes) minutes of focused work planned",
+                    identifier: "planning-capacity-focused-work"
+                )
+                planMetric(
+                    label: state.overCapacityMinutes > 0 ? "OVER CAPACITY" : "PLANNED BUFFER",
+                    value: "\(state.overCapacityMinutes > 0 ? state.overCapacityMinutes : state.remainingBufferMinutes) MIN",
+                    accessibilityValue: state.overCapacityMinutes > 0
+                        ? "Plan exceeds focus capacity by \(state.overCapacityMinutes) minutes"
+                        : "\(state.remainingBufferMinutes) minutes remain unplanned as buffer",
+                    identifier: "planning-capacity-buffer"
+                )
             }
 
             Text(explanation)
