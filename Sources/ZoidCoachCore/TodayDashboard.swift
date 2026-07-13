@@ -367,6 +367,7 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
     public let intentionalOverrideMinutes: Int
     public let dailyPromptCap: Int
     public let promptCooldownMinutes: Int
+    public let budgetEnabled: Bool
 
     public init(
         version: Int = 1,
@@ -375,7 +376,8 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
         coachingLevel: CoachingLevel = .gentle,
         intentionalOverrideMinutes: Int = 45,
         dailyPromptCap: Int? = nil,
-        promptCooldownMinutes: Int? = nil
+        promptCooldownMinutes: Int? = nil,
+        budgetEnabled: Bool = true
     ) {
         self.version = version
         self.dailyBudgetMinutes = max(0, dailyBudgetMinutes)
@@ -384,10 +386,11 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
         self.intentionalOverrideMinutes = max(5, intentionalOverrideMinutes)
         self.dailyPromptCap = max(1, dailyPromptCap ?? coachingLevel.maximumDailyPrompts)
         self.promptCooldownMinutes = max(5, promptCooldownMinutes ?? coachingLevel.cooldownMinutes)
+        self.budgetEnabled = budgetEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes, dailyPromptCap, promptCooldownMinutes
+        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes, dailyPromptCap, promptCooldownMinutes, budgetEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -399,7 +402,8 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
             coachingLevel: try container.decodeIfPresent(CoachingLevel.self, forKey: .coachingLevel) ?? .gentle,
             intentionalOverrideMinutes: try container.decodeIfPresent(Int.self, forKey: .intentionalOverrideMinutes) ?? 45,
             dailyPromptCap: try container.decodeIfPresent(Int.self, forKey: .dailyPromptCap),
-            promptCooldownMinutes: try container.decodeIfPresent(Int.self, forKey: .promptCooldownMinutes)
+            promptCooldownMinutes: try container.decodeIfPresent(Int.self, forKey: .promptCooldownMinutes),
+            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
         )
     }
 }
@@ -410,13 +414,15 @@ public struct GamingStatus: Equatable, Codable, Sendable {
     public let unlockedRemainingMinutes: Int
     public let nextUnlockReason: String
     public let confidenceIsLimited: Bool
+    public let budgetEnabled: Bool
 
-    public init(budgetMinutes: Int, usedMinutes: Int, unlockedRemainingMinutes: Int, nextUnlockReason: String, confidenceIsLimited: Bool) {
+    public init(budgetMinutes: Int, usedMinutes: Int, unlockedRemainingMinutes: Int, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true) {
         self.budgetMinutes = max(0, budgetMinutes)
         self.usedMinutes = max(0, usedMinutes)
         self.unlockedRemainingMinutes = max(0, unlockedRemainingMinutes)
         self.nextUnlockReason = nextUnlockReason
         self.confidenceIsLimited = confidenceIsLimited
+        self.budgetEnabled = budgetEnabled
     }
 }
 
@@ -641,6 +647,16 @@ public struct GamingStatusCalculator: Sendable {
         appliedRewardMinutes: Int?,
         coverage: TelemetryCoverage
     ) -> GamingStatus {
+        guard policy.budgetEnabled else {
+            return GamingStatus(
+                budgetMinutes: 0,
+                usedMinutes: gamingMinutes,
+                unlockedRemainingMinutes: 0,
+                nextUnlockReason: "Observation only. No gaming budget, unlock, debt, or coaching prompt is applied.",
+                confidenceIsLimited: coverage.isLimited,
+                budgetEnabled: false
+            )
+        }
         let rewardMinutes = max(0, appliedRewardMinutes ?? 0)
         let allowance = policy.dailyBudgetMinutes + rewardMinutes
         let nextUnlockReason: String

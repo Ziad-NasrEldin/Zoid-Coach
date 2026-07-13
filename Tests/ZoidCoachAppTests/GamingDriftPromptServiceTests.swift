@@ -376,6 +376,21 @@ func configuredCooldownAndDailyPromptLimitApplyAcrossSeparateSessions() throws {
 }
 
 @Test
+func gamingObservationModeNeverProducesABehaviorPrompt() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let result = try fixture.service.produce(
+        policy: fixture.policy(budgetEnabled: false),
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    )
+    #expect(result == .suppressed(.gamingBudgetDisabled))
+    #expect(try fixture.promptStore.unresolved().isEmpty)
+}
+
+@Test
 func legacyGamingPolicyDefaultsToGentleCoaching() throws {
     let data = Data(#"{"version":1,"dailyBudgetMinutes":60,"priorityTaskRewardMinutes":15}"#.utf8)
     let decoded = try JSONDecoder().decode(GamingPolicy.self, from: data)
@@ -469,7 +484,8 @@ private final class GamingPromptFixture: @unchecked Sendable {
         level: CoachingLevel = .gentle,
         intentionalOverrideMinutes: Int = 45,
         dailyPromptCap: Int? = nil,
-        promptCooldownMinutes: Int? = nil
+        promptCooldownMinutes: Int? = nil,
+        budgetEnabled: Bool = true
     ) -> UserPolicy {
         let defaults = UserPolicy.defaults(timeZoneIdentifier: "UTC")
         return UserPolicy(
@@ -498,7 +514,8 @@ private final class GamingPromptFixture: @unchecked Sendable {
                 coachingLevel: level,
                 intentionalOverrideMinutes: intentionalOverrideMinutes,
                 dailyPromptCap: dailyPromptCap,
-                promptCooldownMinutes: promptCooldownMinutes
+                promptCooldownMinutes: promptCooldownMinutes,
+                budgetEnabled: budgetEnabled
             ),
             reminderLists: defaults.reminderLists
         )

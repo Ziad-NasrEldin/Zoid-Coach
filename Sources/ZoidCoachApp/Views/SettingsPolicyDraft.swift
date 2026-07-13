@@ -42,6 +42,7 @@ struct SettingsPolicyDraft: Equatable {
     var gamingIntentionalOverrideMinutes: Int
     var gamingDailyPromptCap: Int
     var gamingPromptCooldownMinutes: Int
+    var gamingBudgetEnabled: Bool
 
     init(policy: UserPolicy) {
         operatingMode = policy.operatingMode
@@ -84,6 +85,7 @@ struct SettingsPolicyDraft: Equatable {
         gamingIntentionalOverrideMinutes = policy.gaming.intentionalOverrideMinutes
         gamingDailyPromptCap = policy.gaming.dailyPromptCap
         gamingPromptCooldownMinutes = policy.gaming.promptCooldownMinutes
+        gamingBudgetEnabled = policy.gaming.budgetEnabled
     }
 
     func classification(for application: String) -> AppClassificationChoice {
@@ -246,7 +248,8 @@ struct SettingsPolicyDraft: Equatable {
                 coachingLevel: coachingLevel,
                 intentionalOverrideMinutes: gamingIntentionalOverrideMinutes,
                 dailyPromptCap: gamingDailyPromptCap,
-                promptCooldownMinutes: gamingPromptCooldownMinutes
+                promptCooldownMinutes: gamingPromptCooldownMinutes,
+                budgetEnabled: gamingBudgetEnabled
             ),
             reminderLists: reminderListPolicy
         )
