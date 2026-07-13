@@ -102,6 +102,30 @@ func futureClassificationRulePersistsCanBeReplacedAndRemovedWithoutRewritingCorr
 }
 
 @Test
+func resetClassificationRulesTombstonesEveryActiveRuleAndPreservesHistoricalCorrections() throws {
+    let fixedNow = Date(timeIntervalSince1970: 1_783_700_000)
+    let fixture = try DailyReviewFixture(now: { fixedNow })
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "YouTube", classification: .distracting)
+    try fixture.insert(epoch: 1_783_663_900, app: "Steam", classification: .gaming)
+    let sessions = try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+    try fixture.store.correct(sessions[0], to: .work, taskID: "Research", applyToFuture: true)
+    try fixture.store.correct(sessions[1], to: .work, taskID: "Documentation", applyToFuture: true)
+
+    #expect(try fixture.store.classificationRules().count == 2)
+    #expect(try fixture.store.resetClassificationRules() == 2)
+    #expect(try fixture.store.classificationRules().isEmpty)
+    #expect(try fixture.store.resetClassificationRules() == 0)
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM app_classification_correction_rules;") == 4)
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let historical = try reopened.load(sourceDay: fixture.sourceDay)
+    #expect(try reopened.classificationRules().isEmpty)
+    #expect(historical.sessions.allSatisfy { $0.classification == .work })
+    #expect(Set(historical.sessions.compactMap(\.taskID)) == Set(["Research", "Documentation"]))
+}
+
+@Test
 func futureClassificationRuleRejectsIdleAndUnknownAsUnsafeAppDefaults() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
