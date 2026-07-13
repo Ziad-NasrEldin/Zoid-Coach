@@ -58,18 +58,19 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
-### Deterministic QA ready state - repair candidate, fresh runtime verification required
+### Deterministic QA ready state - READY after signed repair verification
 
 - Prepares a strict isolated QA root with valid completed onboarding, existing-schema OS fixture control, and configurable Screenwatch data.
 - Supports explicit granted and deferred Reminders, Screenwatch, and notification decisions without real OS mutation.
 - Adds native AX `--expect-today` plus optional pixel evidence so signed runs can begin at Today instead of spending their cap on onboarding.
 - Three focused schema/state tests, Python compilation, native probe typecheck, release build, and diff checks pass.
 - Candidate evidence is recorded in `.audit/runs/qa-ready-state-fixture/candidate/REPORT.md`.
-- Independent signed verification installed the exact packaged app and helper against the preserved prepared root, but the fixture request remained at `os-fixture-request.processing.json`, the fixture state stayed empty, and native AX reported `Today did not appear`.
+- The original signed verifier failure remains recorded as the evidence that exposed the notification identity mismatch.
 - Root-cause repair aligns the example notification ID with its nested prompt ID, adds strict pre-replacement validation for that invariant, and proves the exact generated processing artifact is consumed through an independent helper process with canonical state and snapshot output.
 - Focused tests, Python compilation, probe typecheck, and release build pass for the repair candidate without production fixture-consumption changes.
-- Do not use this fixture for waiting scenario verification until the installed app and helper consume the seed exactly once and `--expect-today` passes after launch and relaunch.
-- Conservative failure evidence and the malformed-root safety pass are recorded in `.audit/runs/qa-ready-state-fixture/verifier/REPORT.md`.
+- Fresh signed repair verification proved exact helper consumption, canonical seeded state and snapshot output, direct Today at 1180 by 760 with 119 AX nodes, pixel evidence, and Today again after relaunch with 118 AX nodes.
+- The fixture is ready for isolated signed scenarios that do not test onboarding itself.
+- Historical failure evidence remains in `.audit/runs/qa-ready-state-fixture/verifier/REPORT.md`; passing repair evidence is recorded in `.audit/runs/qa-ready-state-fixture/repair-verifier/REPORT.md`.
 ### Settings notification delivery test - candidate
 
 - Owns `ZC-044-012`.
