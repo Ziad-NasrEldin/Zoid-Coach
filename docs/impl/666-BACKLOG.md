@@ -56,6 +56,17 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Settings working-day selection - candidate
+
+- Owns `ZC-044-002`.
+- Adds explicit locale-aware Sunday-through-Saturday controls beside the existing work start and end fields.
+- Keeps at least one working day selected and explains that planning, scheduled reviews, and work-window coaching consume the chosen days.
+- Saves a changed day set through the existing versioned policy mutation path and treats concurrent working-day edits as an independent conflict group.
+- Preserves advanced multi-window weekday groupings when the user changes only start or end times, and normalizes to one visible window only after the day set is deliberately changed.
+- Focused Settings proof covers selection ordering, last-day protection, policy round-trip, multi-window compatibility, overlapping conflict recovery, durable PolicyStore persistence, and next scheduled-review consumption without restarting the app.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/settings-workdays/candidate/REPORT.md`.
+- The authoritative tracker remains owned by the root integrator and must only advance after signed Settings save, relaunch, and runtime-boundary verification.
+
 ### Reduced-motion state feedback - candidate
 
 - Owns `ZC-055-011` and `ZC-056-010`.
