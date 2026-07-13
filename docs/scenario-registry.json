@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "367d60ac22b2b285413c77682be0ff8e20e7fd547a86ef786d30b78cabf6e9a1",
+  "tracker_sha256": "48b2fa7813197cffcbccadb072f8a2327ebe3099a4aa21336539c69bdd62841c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8831,9 +8831,9 @@
       "section_title": "End-of-day review trigger",
       "item_index": 1,
       "wording": "Open the review at the configured review time.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8842,11 +8842,11 @@
       ],
       "affected_capability": "review_and_learning",
       "evidence_paths": [
-        ".audit/runs/unfinished-review-resume/verifier/REPORT.md"
+        ".audit/runs/configurable-review-time/verifier/REPORT.md"
       ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings has nightly planning and morning confirmation times, but no review time or review UI.",
+      "audit_note": "The installed signed app exposed and persisted an accessible Daily review time, replaced its scheduled daily notification without duplicates after two time changes, deferred a 23:30 choice to the 07:00 quiet-hours boundary, and preserved policy version 4 plus exactly one pending reminder after app and helper restart (`ReviewReminderService.swift`; `SettingsView.swift`; `.audit/runs/configurable-review-time/verifier/REPORT.md`).",
       "tracker_line": 563
     },
     {
@@ -10021,18 +10021,20 @@
       "item_index": 3,
       "wording": "Set planning and review times.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/configurable-review-time/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Nightly planning and morning confirmation are configurable and now participate in field-level conflict recovery, but review time is absent.",
+      "audit_note": "Nightly planning, morning confirmation, and Daily review are now visible versioned policy controls, and the installed signed app persisted Daily review through multiple saves and restart with stable accessibility. A signed edit-and-relaunch pass for both planning-time controls remains (`SettingsPolicyDraft.swift`; `SettingsPolicyConflict.swift`; `.audit/runs/configurable-review-time/verifier/REPORT.md`).",
       "tracker_line": 626
     },
     {
