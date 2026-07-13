@@ -45,14 +45,25 @@ func agentSchedulerConstrainsBlocksByFixedCalendarAndEnqueuesReminderMutations()
     let result = try await scheduler.enqueueSchedule(for: day, policy: policy, policyVersion: 1)
     let commands = try outbox.recentCommands(limit: 20)
     let block = try #require(commands.first(where: { $0.type == .reconcileCalendarBlock }))
+    let taskStartReminder = try #require(commands.first(where: { $0.type == .scheduleNotification }))
 
     #expect(result.scheduledBlockCount == 1)
+    #expect(result.taskStartReminderCount == 1)
     #expect(result.reminderMutationCount == 2)
     #expect(Set(result.commandIDs) == Set(commands.map(\.id)))
     if case let .calendarBlock(desired) = block.desiredState {
         #expect(desired.start >= fixed.end)
     } else {
         Issue.record("Expected calendar block desired state")
+    }
+    if case let .notification(desired) = taskStartReminder.desiredState {
+        #expect(desired.category == "TASK_START")
+        #expect(desired.promptID == "task-start:2026-07-06:urgent")
+        #expect(desired.title == "Planned task ready")
+        #expect(desired.body.contains("Urgent"))
+        #expect(desired.deliveryDate == fixed.end)
+    } else {
+        Issue.record("Expected task-start notification desired state")
     }
     #expect(commands.contains { $0.type == .setReminderPriority })
     #expect(commands.contains { $0.type == .setReminderDueDate })
@@ -264,6 +275,93 @@ func agentSchedulerExcludesOptionalAndDeferredTasksFromCalendarBlocks() async th
 
     #expect(result.scheduledBlockCount == 1)
     #expect(calendarCommands.map(\.entityID) == ["committed"])
+}
+
+@Test
+func plannedTaskStartReminderSchedulesAndReplacesThroughTheDurableExecutor() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-task-start-reminder-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: root,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    let day = calendar.date(from: DateComponents(year: 2026, month: 7, day: 13))!
+    let now = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: day)!
+    let nine = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: day)!
+    let ten = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: day)!
+    let eleven = calendar.date(bySettingHour: 11, minute: 0, second: 0, of: day)!
+    let plans = try AutonomousPlanStore(databaseURL: runtime.databaseURL)
+    try plans.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: "focus", title: "Write proposal", rank: 1, estimateMinutes: 45, reason: "Main objective", score: 100)],
+            mainObjectiveTaskID: "focus",
+            plannedFocusMinutes: 45,
+            availableFocusMinutes: 300
+        ),
+        for: day
+    )
+    let reminders = try ReminderSnapshotStore(databaseURL: runtime.databaseURL)
+    try reminders.replace([ReminderSourceSnapshot(id: "focus", title: "Write proposal", dueDate: day, priority: 9)])
+    let policy = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    _ = try PolicyStore(databaseURL: runtime.databaseURL).saveSystemMaintenancePolicy(policy)
+    let outbox = try ActionOutboxStore(databaseURL: runtime.databaseURL, now: { now })
+    let firstScheduler = AgentPlanScheduler(
+        plans: plans,
+        reminders: reminders,
+        outbox: outbox,
+        calendar: SchedulerCalendar(commitments: [
+            CalendarCommitment(id: "meeting", title: "Meeting", start: nine, end: ten, calendarIdentifier: "work")
+        ]),
+        now: { now }
+    )
+
+    let first = try await firstScheduler.enqueueSchedule(for: day, policy: policy, policyVersion: 1)
+    #expect(first.taskStartReminderCount == 1)
+    let firstNotification = try #require(
+        try outbox.recentCommands(limit: 20).first { $0.type == .scheduleNotification }
+    )
+    guard case let .notification(firstDesired) = firstNotification.desiredState else {
+        Issue.record("Expected a task-start notification")
+        return
+    }
+    #expect(firstDesired.promptID == "task-start:2026-07-13:focus")
+    #expect(firstDesired.deliveryDate == ten)
+
+    _ = try outbox.cancelPendingCommands(type: .setReminderPriority, entityID: "focus")
+    _ = try outbox.cancelPendingCommands(type: .setReminderDueDate, entityID: "focus")
+    let revisedScheduler = AgentPlanScheduler(
+        plans: plans,
+        reminders: reminders,
+        outbox: outbox,
+        calendar: SchedulerCalendar(commitments: [
+            CalendarCommitment(id: "long-meeting", title: "Long meeting", start: nine, end: eleven, calendarIdentifier: "work")
+        ]),
+        now: { now }
+    )
+
+    let revised = try await revisedScheduler.enqueueSchedule(for: day, policy: policy, policyVersion: 2)
+    #expect(revised.taskStartReminderCount == 1)
+    let notificationCommands = try outbox.recentCommands(limit: 30)
+        .filter { $0.type == .scheduleNotification && $0.state != .cancelled }
+    #expect(notificationCommands.count == 1)
+    let replacement = try #require(notificationCommands.first)
+    guard case let .notification(revisedDesired) = replacement.desiredState else {
+        Issue.record("Expected a replacement task-start notification")
+        return
+    }
+    #expect(revisedDesired.promptID == "task-start:2026-07-13:focus")
+    #expect(revisedDesired.deliveryDate == eleven)
+    #expect(revisedDesired.body.contains("Write proposal"))
 }
 
 private struct SchedulerCalendar: CalendarAvailabilitySource {
