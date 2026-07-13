@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "7bbc4f624ea79590f05d4701f37fcf0b4e6cdbb55c0bf396c26ec2e88c6043c7",
+  "tracker_sha256": "7eb83bff8f53c2b1a6a3e38dbe94af1bf010b7d05757e60e296505c510d514d4",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4611,8 +4611,8 @@
       "item_index": 2,
       "wording": "See an active externally completed task end with an understandable reason.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4623,7 +4623,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A missing Reminder drops out of the snapshot; there is no explicit external-completion reason or session closure explanation.",
+      "audit_note": "Focused tests prove a synchronized Apple Reminder completion ends the active interval and sprint once, records one source-completion history entry without a redundant command, preserves an explicit reason for planned rows, and leaves another planned task available. In the signed ready-state journey, the unplanned active row disappeared after external completion and relaunch, so the user could not see `Ended because the Apple Reminder was completed`; signed cross-task continuity also remains unproven (`TodayDashboardAgent.swift`; `TodayDashboard.swift`; `.audit/runs/external-reminder-completion/verifier/REPORT.md`).",
       "tracker_line": 320
     },
     {
