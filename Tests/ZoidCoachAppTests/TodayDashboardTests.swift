@@ -103,7 +103,8 @@ func briefGamingTransitionDoesNotConsumeAllowanceButMeaningfulSessionDoes() {
 
     let result = BehaviorSessionizer().summarize(observations: observations, now: start.addingTimeInterval(360))
 
-    #expect(result.summary.gamingMinutes == 3)
+    #expect(result.summary.gamingMinutes == 4)
+    #expect(result.summary.meaningfulGamingMinutes == 3)
     #expect(result.summary.workMinutes == 2)
 }
 
@@ -123,7 +124,8 @@ func gamingStatusSeparatesBaseEarnedLockedRemainingAndSameDayOverage() {
     #expect(earned.usedMinutes == 80)
     #expect(earned.lockedMinutes == 0)
     #expect(earned.unlockedRemainingMinutes == 0)
-    #expect(earned.debtMinutes == 5)
+    #expect(earned.overageMinutes == 5)
+    #expect(earned.allowanceBreakdown == "Base 60m · Earned 15m · Used 80m · Locked 0m · Remaining 0m · Same-day overage 5m")
 
     let locked = GamingStatusCalculator().status(
         policy: policy,
@@ -133,7 +135,26 @@ func gamingStatusSeparatesBaseEarnedLockedRemainingAndSameDayOverage() {
     )
     #expect(locked.earnedMinutes == 0)
     #expect(locked.lockedMinutes == 15)
-    #expect(locked.debtMinutes == 20)
+    #expect(locked.overageMinutes == 20)
+}
+
+@Test
+func legacyGamingAndBehaviorSnapshotsDecodeWithoutLosingObservedMinutes() throws {
+    let gaming = try JSONDecoder().decode(
+        GamingStatus.self,
+        from: Data(#"{"budgetMinutes":60,"usedMinutes":7,"unlockedRemainingMinutes":53,"nextUnlockReason":"Legacy","confidenceIsLimited":false}"#.utf8)
+    )
+    #expect(gaming.earnedMinutes == 0)
+    #expect(gaming.lockedMinutes == 0)
+    #expect(gaming.overageMinutes == 0)
+    #expect(gaming.budgetEnabled)
+
+    let behavior = try JSONDecoder().decode(
+        BehaviorSummary.self,
+        from: Data(#"{"workMinutes":12,"gamingMinutes":7,"distractingMinutes":0,"idleMinutes":0,"unknownMinutes":0}"#.utf8)
+    )
+    #expect(behavior.gamingMinutes == 7)
+    #expect(behavior.meaningfulGamingMinutes == 7)
 }
 
 @Test
@@ -203,7 +224,7 @@ func gamingAllowanceUsesOnlyClassifiedGamingTime() {
     let coverage = TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: Date())
     let summary = BehaviorSummary(workMinutes: 10, gamingMinutes: 12, distractingMinutes: 25, idleMinutes: 0, unknownMinutes: 0)
 
-    let status = GamingStatusCalculator().status(policy: GamingPolicy(), gamingMinutes: summary.gamingMinutes, rewardApplied: false, coverage: coverage)
+    let status = GamingStatusCalculator().status(policy: GamingPolicy(), gamingMinutes: summary.meaningfulGamingMinutes, rewardApplied: false, coverage: coverage)
 
     #expect(summary.gamingOrDistractingMinutes == 37)
     #expect(status.usedMinutes == 12)
@@ -267,14 +288,15 @@ func gamingToWorkPolicyBoundaryPreservesEarlierGamingUsageAndLabelsBothSessions(
     )
     let gaming = GamingStatusCalculator().status(
         policy: GamingPolicy(),
-        gamingMinutes: result.summary.gamingMinutes,
+        gamingMinutes: result.summary.meaningfulGamingMinutes,
         rewardApplied: false,
         coverage: result.coverage
     )
 
     #expect(result.summary.gamingMinutes == 1)
+    #expect(result.summary.meaningfulGamingMinutes == 0)
     #expect(result.summary.workMinutes == 2)
     #expect(result.summary.appUsage.filter { $0.application == "Steam" }.map(\.classification) == [.work, .gaming])
-    #expect(gaming.usedMinutes == 1)
-    #expect(gaming.unlockedRemainingMinutes == 59)
+    #expect(gaming.usedMinutes == 0)
+    #expect(gaming.unlockedRemainingMinutes == 60)
 }

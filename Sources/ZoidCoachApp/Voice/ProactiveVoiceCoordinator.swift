@@ -42,7 +42,7 @@ final class ProactiveVoiceCoordinator {
     private func evaluate(_ context: ChiefOfStaffContextPacket) async {
         let now = Date()
         let activeJobIDs = Set(context.activeCodexJobs.map(\.id))
-        let distraction = context.snapshot.behavior.gamingMinutes + context.snapshot.behavior.distractingMinutes
+        let distraction = context.snapshot.behavior.meaningfulGamingMinutes + context.snapshot.behavior.distractingMinutes
         guard !isQuietTime(now, schedule: context.schedule) else {
             priorActiveJobIDs = activeJobIDs
             previousDistractionMinutes = distraction

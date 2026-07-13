@@ -812,7 +812,7 @@ private struct TodayAgentLedger: View {
 
             sectionTitle(snapshot.gaming.budgetEnabled ? "GAMING BUDGET" : "GAMING OBSERVATION")
             Text(snapshot.gaming.budgetEnabled
-                 ? "Base \(snapshot.gaming.budgetMinutes)m · Earned \(snapshot.gaming.earnedMinutes)m · Used \(snapshot.gaming.usedMinutes)m · Locked \(snapshot.gaming.lockedMinutes)m · Remaining \(snapshot.gaming.unlockedRemainingMinutes)m · Same-day overage \(snapshot.gaming.debtMinutes)m. Gaming sessions under 2 continuous minutes are observed but do not use the allowance."
+                 ? "\(snapshot.gaming.allowanceBreakdown). \(GamingStatus.meaningfulSessionExplanation)"
                  : "\(snapshot.gaming.usedMinutes)m observed. No budget is applied.")
                 .font(Sumi.body(14))
                 .foregroundStyle(Sumi.ink)
