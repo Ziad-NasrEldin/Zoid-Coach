@@ -14,9 +14,6 @@ This lane claims the first coherent unimplemented notification-control gap that 
 
 - Notification-prompt preference only in `Sources/ZoidCoachCore/UserPolicy.swift`.
 - Notification-prompt delivery gating only in `Sources/ZoidCoachInfrastructure/PromptNotificationCoordinator.swift`.
-- Preference outcome only in `Sources/ZoidCoachInfrastructure/NotificationDeliveryLedger.swift`.
-- User-disabled outcome copy only in `Sources/ZoidCoachApp/Services/NotificationService.swift`.
-- User-disabled outcome title only in `Sources/ZoidCoachApp/Views/NotificationDeliveryHealthView.swift`.
 - Notification preference composition only in `Sources/ZoidCoachAgent/AgentMain.swift`.
 - Notification preference only in `Sources/ZoidCoachApp/Views/SettingsPolicyDraft.swift`.
 - Notification preference merge only in `Sources/ZoidCoachApp/Views/SettingsPolicyConflict.swift`.
@@ -29,5 +26,7 @@ This lane claims the first coherent unimplemented notification-control gap that 
 This lane does not touch root, runtime, tracker, registry, backlog, Lavish, AppModel, TodayDashboard, DashboardView, TodayDashboardCommandOverview, or any active-task context source.
 
 Disabling notification prompts must leave prompt episodes persisted and available to the existing in-app inbox while suppressing only system notification delivery.
+
+The disabled preference is policy intent rather than a failed delivery attempt, so it does not add a misleading delivery-ledger event.
 
 Task-start, break-end, review, and other non-prompt notification services remain outside this preference.
