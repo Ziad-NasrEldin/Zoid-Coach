@@ -101,6 +101,10 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Durable Reminder-source completion history prevents a later source deletion from relabeling the task as deleted and prevents Today refresh from recording the same completion twice after EventKit sync.
 - Regression coverage starts an unplanned sprint without a saved Today row, completes the Reminder externally, verifies the explicit reason and stopped elapsed time, keeps another Reminder available, verifies the row after restart, and covers both duplicate-history and completed-then-deleted ordering.
 - Four focused completion tests plus the release build pass; candidate evidence is recorded in `.audit/runs/external-reminder-completion/unplanned-candidate/REPORT.md`.
+- Fresh signed follow-up verification proved that the completed unplanned row persists through helper refresh, app relaunch, and later source deletion while another Reminder remains available.
+- Database proof showed one ended interval with zero open intervals, exactly one Reminder completion history row, and zero redundant completion commands.
+- The signed row still says only `Completed`, and the signed journey created no sprint, so `ZC-021-002` remains Partially implemented with unchanged counts.
+- Follow-up evidence is recorded in `.audit/runs/external-reminder-completion/unplanned-verifier/REPORT.md`.
 
 ### Settings notification delivery test - candidate
 
