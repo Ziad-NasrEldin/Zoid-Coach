@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @MainActor
@@ -48,19 +49,100 @@ struct SumiConfirmationRequest: Identifiable {
     let cancel: () -> Void
 }
 
+struct SumiColorComponents: Equatable, Sendable {
+    let red: Double
+    let green: Double
+    let blue: Double
+
+    var relativeLuminance: Double {
+        func linear(_ component: Double) -> Double {
+            component <= 0.04045
+                ? component / 12.92
+                : pow((component + 0.055) / 1.055, 2.4)
+        }
+        return (0.2126 * linear(red)) + (0.7152 * linear(green)) + (0.0722 * linear(blue))
+    }
+
+    func contrastRatio(with other: Self) -> Double {
+        let lighter = max(relativeLuminance, other.relativeLuminance)
+        let darker = min(relativeLuminance, other.relativeLuminance)
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    fileprivate var nsColor: NSColor {
+        NSColor(srgbRed: red, green: green, blue: blue, alpha: 1)
+    }
+}
+
+struct SumiAppearancePalette: Equatable, Sendable {
+    let ink: SumiColorComponents
+    let paper: SumiColorComponents
+    let softPaper: SumiColorComponents
+    let mist: SumiColorComponents
+    let rule: SumiColorComponents
+    let paleRule: SumiColorComponents
+    let muted: SumiColorComponents
+    let wash: SumiColorComponents
+    let seal: SumiColorComponents
+    let sealDeep: SumiColorComponents
+    let sealWash: SumiColorComponents
+    let okay: SumiColorComponents
+
+    static let light = Self(
+        ink: .init(red: 13 / 255, green: 10 / 255, blue: 10 / 255),
+        paper: .init(red: 1, green: 1, blue: 1),
+        softPaper: .init(red: 250 / 255, green: 250 / 255, blue: 250 / 255),
+        mist: .init(red: 245 / 255, green: 245 / 255, blue: 245 / 255),
+        rule: .init(red: 148 / 255, green: 148 / 255, blue: 148 / 255),
+        paleRule: .init(red: 190 / 255, green: 190 / 255, blue: 190 / 255),
+        muted: .init(red: 84 / 255, green: 85 / 255, blue: 84 / 255),
+        wash: .init(red: 247 / 255, green: 245 / 255, blue: 244 / 255),
+        seal: .init(red: 194 / 255, green: 58 / 255, blue: 46 / 255),
+        sealDeep: .init(red: 143 / 255, green: 33 / 255, blue: 26 / 255),
+        sealWash: .init(red: 245 / 255, green: 229 / 255, blue: 227 / 255),
+        okay: .init(red: 47 / 255, green: 58 / 255, blue: 47 / 255)
+    )
+
+    static let dark = Self(
+        ink: .init(red: 242 / 255, green: 236 / 255, blue: 232 / 255),
+        paper: .init(red: 16 / 255, green: 14 / 255, blue: 14 / 255),
+        softPaper: .init(red: 27 / 255, green: 24 / 255, blue: 24 / 255),
+        mist: .init(red: 39 / 255, green: 35 / 255, blue: 34 / 255),
+        rule: .init(red: 112 / 255, green: 103 / 255, blue: 99 / 255),
+        paleRule: .init(red: 77 / 255, green: 70 / 255, blue: 68 / 255),
+        muted: .init(red: 190 / 255, green: 180 / 255, blue: 175 / 255),
+        wash: .init(red: 33 / 255, green: 28 / 255, blue: 27 / 255),
+        seal: .init(red: 224 / 255, green: 96 / 255, blue: 81 / 255),
+        sealDeep: .init(red: 255 / 255, green: 154 / 255, blue: 139 / 255),
+        sealWash: .init(red: 61 / 255, green: 27 / 255, blue: 24 / 255),
+        okay: .init(red: 142 / 255, green: 190 / 255, blue: 146 / 255)
+    )
+}
+
 enum Sumi {
-    static let ink = Color(red: 13 / 255, green: 10 / 255, blue: 10 / 255)
-    static let paper = Color.white
-    static let softPaper = Color(red: 250 / 255, green: 250 / 255, blue: 250 / 255)
-    static let mist = Color(red: 245 / 255, green: 245 / 255, blue: 245 / 255)
-    static let rule = Color(red: 224 / 255, green: 224 / 255, blue: 224 / 255)
-    static let paleRule = Color(red: 237 / 255, green: 237 / 255, blue: 237 / 255)
-    static let muted = Color(red: 84 / 255, green: 85 / 255, blue: 84 / 255)
-    static let wash = Color(red: 247 / 255, green: 245 / 255, blue: 244 / 255)
-    static let seal = Color(red: 194 / 255, green: 58 / 255, blue: 46 / 255)
-    static let sealDeep = Color(red: 143 / 255, green: 33 / 255, blue: 26 / 255)
-    static let sealWash = Color(red: 245 / 255, green: 229 / 255, blue: 227 / 255)
-    static let okay = Color(red: 47 / 255, green: 58 / 255, blue: 47 / 255)
+    static let ink = dynamicColor(\.ink)
+    static let paper = dynamicColor(\.paper)
+    static let softPaper = dynamicColor(\.softPaper)
+    static let mist = dynamicColor(\.mist)
+    static let rule = dynamicColor(\.rule)
+    static let paleRule = dynamicColor(\.paleRule)
+    static let muted = dynamicColor(\.muted)
+    static let wash = dynamicColor(\.wash)
+    static let seal = dynamicColor(\.seal)
+    static let sealDeep = dynamicColor(\.sealDeep)
+    static let sealWash = dynamicColor(\.sealWash)
+    static let okay = dynamicColor(\.okay)
+
+    private static func dynamicColor(
+        _ keyPath: KeyPath<SumiAppearancePalette, SumiColorComponents>
+    ) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let palette = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? SumiAppearancePalette.dark
+                : SumiAppearancePalette.light
+            return palette[keyPath: keyPath].nsColor
+        })
+    }
 
     static func display(_ size: CGFloat) -> Font {
         .system(size: size, weight: .regular, design: .serif)
