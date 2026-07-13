@@ -40,6 +40,12 @@ public final class TodayDashboardAgent: @unchecked Sendable {
     }
 
     public func snapshot(now: Date = Date()) throws -> TodaySnapshot {
+        let previousSnapshot = try snapshots.load(for: now)
+        if let active = try execution.activeTask(now: now),
+           try reminders.sourceKind(forID: active.taskID) == nil,
+           previousSnapshot?.taskRows.contains(where: { $0.taskID == active.taskID }) == true {
+            try execution.pauseForDeletedReminder(taskID: active.taskID, at: now)
+        }
         let plan = try plans.loadDailyPlan(for: now)
         let reminderSnapshots = try reminders.loadIncomplete()
         let reminderByID = Dictionary(uniqueKeysWithValues: reminderSnapshots.map { ($0.id, $0) })
@@ -121,6 +127,17 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                     currentEstimateMinutes: 30
                 )
             ))
+        }
+        if let previousSnapshot {
+            for previousRow in previousSnapshot.taskRows where !rows.contains(where: { $0.taskID == previousRow.taskID }) {
+                guard reminderByID[previousRow.taskID] == nil,
+                      try reminders.sourceKind(forID: previousRow.taskID) == nil,
+                      let current = try execution.snapshot(for: [previousRow.taskID], now: now)[previousRow.taskID],
+                      current.state == .paused,
+                      current.latestPauseReason == .reminderDeleted
+                else { continue }
+                rows.append(deletedReminderRow(from: previousRow, execution: current))
+            }
         }
         let timeZoneIdentifier = (try? userPolicyStore.current()?.policy.schedule.timeZoneIdentifier) ?? TimeZone.current.identifier
         let suppressedRecommendationIDs = try recommendationFeedback.suppressedTaskIDs(
@@ -207,6 +224,29 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         )
         try snapshots.save(snapshot, for: now)
         return snapshot
+    }
+
+    private func deletedReminderRow(
+        from previous: TodayTaskRow,
+        execution current: TaskExecutionSnapshot
+    ) -> TodayTaskRow {
+        TodayTaskRow(
+            taskID: previous.taskID,
+            title: previous.title,
+            estimateMinutes: previous.estimateMinutes,
+            dueDate: previous.dueDate,
+            urgency: previous.urgency,
+            state: .paused,
+            elapsedMinutes: current.elapsedMinutes,
+            latestPauseReason: .reminderDeleted,
+            sprint: current.sprint,
+            isMainObjective: previous.isMainObjective,
+            isLocked: previous.isLocked,
+            isOptional: previous.isOptional ?? false,
+            blockedReason: previous.blockedReason,
+            deferredUntil: previous.deferredUntil,
+            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
+        )
     }
 
     @discardableResult
