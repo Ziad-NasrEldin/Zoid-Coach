@@ -296,6 +296,14 @@ struct MenuBarCoachView: View {
                     .foregroundStyle(Sumi.ink)
                     .lineLimit(2)
                     .accessibilityIdentifier("menu-bar.task.title")
+                if let activeCommitment = menuState.activeCommitment {
+                    Text(activeCommitment.modeLabel)
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.sealDeep)
+                        .accessibilityLabel(activeCommitment.accessibilitySummary)
+                        .accessibilityIdentifier("menu-bar.task.timing-mode")
+                }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     Text(menuState.taskStatus(at: context.date))
                         .font(Sumi.body(11))
@@ -311,6 +319,10 @@ struct MenuBarCoachView: View {
                         taskButton("BREAK 15", role: .quiet, identifier: "menu-bar.task.break") {
                             await apply(.pauseForBreak, taskID: task.taskID)
                         }
+                        taskButton("COMPLETE", role: .quiet, identifier: "menu-bar.task.complete") {
+                            await apply(.complete, taskID: task.taskID)
+                        }
+                        .accessibilityLabel("Complete active task \(task.title)")
                     } else if menuState.pausedTask != nil {
                         taskButton(task.acceptedBreak == nil ? "RESUME" : "END BREAK", identifier: "menu-bar.task.resume") {
                             await apply(.resume, taskID: task.taskID)

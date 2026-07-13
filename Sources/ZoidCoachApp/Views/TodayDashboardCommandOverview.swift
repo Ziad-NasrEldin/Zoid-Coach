@@ -118,6 +118,22 @@ struct TodayDashboardCommandOverview: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 14)
             if let row = primaryFocusRow {
+                if let activeCommitment = ActiveCommitmentPresentation(task: row) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(activeCommitment.modeLabel)
+                            .font(Sumi.label(8))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.sealDeep)
+                        Text(activeCommitment.detail)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, 10)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(activeCommitment.accessibilitySummary)
+                    .accessibilityIdentifier("today.active-commitment.timing-mode")
+                }
                 HStack(spacing: 14) {
                     detail("Estimate", planEntry(for: row)?.estimateMinutes.map { "\($0)m" } ?? "Choose")
                     detail("Deadline", deadlineLabel(row.dueDate))
@@ -516,8 +532,8 @@ struct TodayDashboardCommandOverview: View {
 
     private var primaryFocusHeading: String {
         guard let row = primaryFocusRow else { return "MAIN OBJECTIVE" }
-        if row.state == .active {
-            return "ACTIVE COMMITMENT · \(row.elapsedMinutes) MIN TRACKED"
+        if let activeCommitment = ActiveCommitmentPresentation(task: row) {
+            return activeCommitment.dashboardHeading
         }
         if row.state == .paused, let reason = row.latestPauseReason {
             return reason.userFacingLabel.uppercased()
