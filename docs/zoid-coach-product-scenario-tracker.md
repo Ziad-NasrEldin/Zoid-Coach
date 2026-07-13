@@ -15,9 +15,9 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 Only scenarios proven completely usable end to end are checked.
 
 - **Fully implemented:** 174
-- **Touches remaining:** 297
+- **Touches remaining:** 298
 - **Frontend only left:** 3
-- **Partially implemented:** 102
+- **Partially implemented:** 101
 - **Barely started:** 8
 - **Not implemented:** 55
 - **Blocked from verification:** 27
@@ -681,7 +681,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Delete a date range. **Status: Touches remaining.** Inclusive local-day selection now deletes behavior evidence plus every canonical and projected day-keyed plan record, preserves adjacent days, never deletes source screenshots, and refreshes Today and inventory; the destructive installed-app journey remains unexercised.
 - [ ] Delete all raw behavior metadata. **Status: Touches remaining.** A confirmation-backed agent command deletes only local behavior, analysis, artifact-index, fact, and meeting-evidence rows while leaving source-owned files untouched; installed-app confirmation and result refresh remain to be witnessed.
 - [ ] Delete AI request metadata. **Status: Touches remaining.** A confirmation-backed agent command independently deletes model runs, Codex jobs, and transmission receipts without touching Keychain credentials; installed-app confirmation and result refresh remain to be witnessed.
-- [ ] Delete reviews and learned rules. **Status: Partially implemented.** A confirmation-backed agent command independently deletes learning samples, aggregates, and planner trust cycles, but the review product itself is not yet implemented and the installed deletion journey is unverified.
+- [ ] Delete reviews and learned rules. **Status: Touches remaining.** The confirmation-backed command now atomically deletes daily review corrections and decisions, weekly experiments, learned app-classification rules, learning samples and aggregates, and planner trust cycles while preserving raw behavior and task facts. Full service tests pass, and a signed Settings journey proved Cancel preservation, seven-row deletion, empty refreshed Reviews and learning inventory, relaunch durability, and repeat idempotence. The confirmation and result copy still disclose only samples, aggregates, and planner trust, omitting reviews, notes, corrections, experiments, and app rules, so informed end-user deletion remains incomplete (`Sources/ZoidCoachInfrastructure/PrivacyDataService.swift`; `Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift`; `.audit/runs/delete-reviews-learned-rules/verifier/REPORT.md`).
 - [ ] Delete all Zoid 666 data. **Status: Touches remaining.** A confirmation-backed agent command deletes all user tables while preserving schema migrations, source-owned files, and Keychain credentials, and an empty-store restart test passes; the destructive installed-app journey remains unexercised.
 - [ ] See related totals and conclusions disappear when their evidence is deleted. **Status: Touches remaining.** Successful data mutations now refresh the Today snapshot and stored-data inventory, and range deletion removes both canonical and projected plan conclusions; visible installed-app before-and-after proof is still required.
 - [ ] Export redacted diagnostics without exposing raw titles, URLs, notes, screenshots, prompts, or credentials. **Status: Touches remaining.** Export is counts-only, excludes content and paths, rejects non-JSON and symbolic-link targets, and has payload inspection tests plus a pre-export manifest; a live saved-file inspection from the packaged app remains.

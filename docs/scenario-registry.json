@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "d76b1088688eeeff054dbc01ad37d842df4c1b836f614457b813dbdaa2f3343c",
+  "tracker_sha256": "061e61c0f624971f1d1fa0ae2dd2660b5018da9dad0862b969c1613b2746f4a7",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11103,8 +11103,8 @@
       "item_index": 12,
       "wording": "Delete reviews and learned rules.",
       "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -11112,10 +11112,12 @@
         "ui_automation"
       ],
       "affected_capability": "privacy_and_data_control",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/delete-reviews-learned-rules/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A confirmation-backed agent command independently deletes learning samples, aggregates, and planner trust cycles, but the review product itself is not yet implemented and the installed deletion journey is unverified.",
+      "audit_note": "The confirmation-backed command now atomically deletes daily review corrections and decisions, weekly experiments, learned app-classification rules, learning samples and aggregates, and planner trust cycles while preserving raw behavior and task facts. Full service tests pass, and a signed Settings journey proved Cancel preservation, seven-row deletion, empty refreshed Reviews and learning inventory, relaunch durability, and repeat idempotence. The confirmation and result copy still disclose only samples, aggregates, and planner trust, omitting reviews, notes, corrections, experiments, and app rules, so informed end-user deletion remains incomplete (`Sources/ZoidCoachInfrastructure/PrivacyDataService.swift`; `Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift`; `.audit/runs/delete-reviews-learned-rules/verifier/REPORT.md`).",
       "tracker_line": 684
     },
     {
