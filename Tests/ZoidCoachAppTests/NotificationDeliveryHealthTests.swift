@@ -99,6 +99,52 @@ import ZoidCoachInfrastructure
     #expect(controller.health == granted)
     #expect(service.inspectCount == 2)
     #expect(service.requestCount == 0)
+    #expect(controller.statusMessage == "Notifications are enabled. Timely prompts can use Notification Center, and every unresolved choice also remains available in Today.")
+}
+
+@MainActor
+@Test func returningFromNotificationSettingsStillDeniedKeepsExactRepairAndFallbackGuidance() async {
+    let denied = SourceHealth(
+        id: .notifications,
+        title: "macOS Notifications",
+        eyebrow: "Escalation",
+        state: .attention,
+        detail: "Notifications are off",
+        evidence: "Today remains available",
+        actionTitle: "Open Settings"
+    )
+    let service = RecordingNotificationDeliveryHealthService(health: denied, records: [])
+    let controller = NotificationDeliveryHealthController(service: service, openURL: { _ in true })
+
+    await controller.refresh()
+    #expect(controller.openSystemSettings())
+    await controller.applicationDidBecomeActive()
+
+    #expect(controller.health == denied)
+    #expect(controller.statusMessage == "Notifications are still off. In System Settings, choose Notifications, choose Zoid 666, and turn on Allow notifications. You can continue responding through Today meanwhile.")
+    #expect(service.inspectCount == 2)
+    #expect(service.requestCount == 0)
+}
+
+@MainActor
+@Test func unrelatedForegroundRefreshDoesNotClaimAPermissionRepairAttempt() async {
+    let denied = SourceHealth(
+        id: .notifications,
+        title: "macOS Notifications",
+        eyebrow: "Escalation",
+        state: .attention,
+        detail: "Notifications are off",
+        evidence: "Today remains available",
+        actionTitle: "Open Settings"
+    )
+    let service = RecordingNotificationDeliveryHealthService(health: denied, records: [])
+    let controller = NotificationDeliveryHealthController(service: service)
+
+    await controller.refresh()
+    await controller.applicationDidBecomeActive()
+
+    #expect(controller.statusMessage == nil)
+    #expect(service.inspectCount == 2)
 }
 
 @MainActor

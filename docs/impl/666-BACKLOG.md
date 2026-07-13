@@ -509,6 +509,18 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - `ZC-047-012` advances from Touches remaining to Fully implemented.
 - Final verifier evidence is recorded in `.audit/runs/delete-reviews-learned-rules/disclosure-verifier/REPORT.md`.
 
+### Notification permission return guidance - candidate
+
+- Owns the remaining implementation usability gap for `ZC-050-002`.
+- Preserves whether Zoid 666 actually opened Notification Settings instead of treating every foreground activation as a repair attempt.
+- Automatically rechecks authorization after the user returns from the opened settings page.
+- Shows explicit success copy when access is restored and confirms that Today still retains every unresolved choice.
+- If access remains off, keeps exact `System Settings > Notifications > Zoid 666 > Allow notifications` guidance visible and names Today as the immediate fallback instead of clearing the repair instructions.
+- Unrelated foreground refreshes remain passive and do not claim that a repair was attempted.
+- The complete Notification Delivery Health test group, focused restored, still-denied, failure, and unrelated-return tests, and the release build pass.
+- Candidate evidence is recorded in `.audit/runs/notification-permission-return-ux/candidate/REPORT.md`.
+- Independent signed revoked-to-settings-to-still-denied-to-granted verification remains before final tracker promotion.
+
 ### Delete reviews and learned rules - candidate
 
 - Owns `ZC-047-012`.
