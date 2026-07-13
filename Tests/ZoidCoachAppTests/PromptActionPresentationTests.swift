@@ -8,7 +8,8 @@ func selectedPromptShowsApplyingAndExplainsDurableCrossSurfaceRefresh() throws {
     #expect(state.actionsDisabled)
     #expect(state.stateLabel == "APPLYING")
     #expect(try #require(state.progressMessage).contains("Saving this choice once"))
-    #expect(try #require(state.progressMessage).contains("refreshing every surface"))
+    #expect(try #require(state.progressMessage).contains("Today will refresh"))
+    #expect(try #require(state.progressMessage).contains("another surface cannot apply it twice"))
 }
 
 @Test
