@@ -43,7 +43,7 @@ The authoritative scenario status remains `docs/zoid-coach-product-scenario-trac
 | 24 | Complete evidence-gated weekly review and next-week experiment | done | Weekly-review verifier at `b98464e` | Signed QA proved limited and sufficient evidence states, corrected factual patterns, expandable dated evidence, exactly one editable experiment, accept and reject actions, and restart-safe next-week tracking; final proof is recorded in `.audit/runs/weekly-review/verifier/REPORT.md` |
 | 25 | Complete the fixed five-minute coaching follow-up | done | Five-minute verifier at `b159b6f` | Signed QA proved the visible choice, durable response, no early prompt after helper restart, exactly one fixture-delivered follow-up after the boundary, no second snooze, and replay-safe counts; final proof is recorded in `.audit/runs/five-minute-coaching-followup/verifier/REPORT.md` |
 | 26 | End the workday and open the current-day review | done | End-workday verifier at `708cd14` | Signed QA proved active-only discovery, cancellation, unavailable-helper failure without navigation, exactly one durable end-workday pause, populated current-day Review navigation, and relaunch durability; final proof is recorded in `.audit/runs/pause-end-workday-review/verifier/REPORT.md` |
-| 27 | Resume or explicitly close an unfinished daily review | verify | Review-resume accepted; skip-review candidate ready | `ZC-040-005` and `ZC-053-008` persist unfinished-review discovery, restore the saved day and corrections, and clear the prompt after confirmation. `ZC-040-006` now offers a consequence-first Skip Review action, persists a skipped state distinct from confirmation, closes the unfinished prompt without deleting local evidence, survives restart, and safely reopens after a later edit. Focused proof and the release build pass in `.audit/runs/skip-daily-review/candidate/REPORT.md`; signed installed Review traversal remains. |
+| 27 | Resume, delay, or explicitly close an unfinished daily review | verify | Review-resume accepted; review-deferral and skip-review candidates ready | `ZC-040-004` now offers Review Tomorrow, persists the exact due time, keeps the unfinished-review banner quiet before that time, returns the corrected review automatically after the boundary and restart, and offers Resume Review Now without losing evidence. Focused migration, persistence, controller proof and the release build pass in `.audit/runs/daily-review-deferral/candidate/REPORT.md`; signed installed Review traversal remains. `ZC-040-005` and `ZC-053-008` persist unfinished-review discovery, restore the saved day and corrections, and clear the prompt after confirmation. `ZC-040-006` now offers a consequence-first Skip Review action, persists a skipped state distinct from confirmation, closes the unfinished prompt without deleting local evidence, survives restart, and safely reopens after a later edit. Focused proof and the release build pass in `.audit/runs/skip-daily-review/candidate/REPORT.md`; signed installed Review traversal remains. |
 | 28 | Surface advisory estimates from completed-task learning | verify | Learned-estimate lane | `ZC-012-001` through `ZC-012-009`; candidate shows threshold-gated sample count, exact aligned-duration range, early or established evidence, explicit Use and Keep actions, custom alternatives, restart-safe advice, and preserves the current estimate until the user chooses. |
 
 ## Pull Rules
@@ -57,6 +57,18 @@ After a substantial batch, the orchestrator rotates the agent before assigning f
 Every completed item adds its commit, tests, end-to-end evidence, and affected scenario IDs to this file before tracker integration.
 
 ## Delivered Batches Awaiting Parallel Verification
+
+### Daily review deferral - candidate
+
+- Owns `ZC-040-004`.
+- Adds Review Tomorrow without confirming or discarding the day.
+- Persists a future deferral through schema version 42 while preserving all existing review rows.
+- Suppresses the unfinished-review banner before the due time and restores it automatically afterward across restart.
+- Keeps activity, task outcomes, classification and task corrections, and notes unchanged.
+- Shows the exact deferred-until time and offers Resume Review Now.
+- Confirm and Skip clear the outstanding deferral.
+- Four focused migration, persistence, and controller tests pass, and the release build passes.
+- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/daily-review-deferral/candidate/REPORT.md`.
 
 ### Deterministic QA ready state - READY after signed repair verification
 
