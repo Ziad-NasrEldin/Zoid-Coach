@@ -13,7 +13,7 @@ enum ProbeError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .usage:
-            "usage: qa-window-content-probe.swift <pid> [--screenshot <path>]"
+            "usage: qa-window-content-probe.swift <pid> [--expect-today] [--screenshot <path>]"
         case let .inaccessible(detail):
             "SETUP_FAIL: Accessibility inspection failed: \(detail)"
         case .noWindow:
@@ -105,6 +105,20 @@ func waitForButton(identifier expectedIdentifier: String, in window: AXUIElement
     return nil
 }
 
+func waitForText(_ expectedValue: String, in window: AXUIElement, timeout: TimeInterval) -> AXUIElement? {
+    let deadline = Date().addingTimeInterval(timeout)
+    repeat {
+        if let match = descendants(window).first(where: { element in
+            stringValue(element, kAXRoleAttribute as CFString) == kAXStaticTextRole as String
+                && stringValue(element, kAXValueAttribute as CFString) == expectedValue
+        }) {
+            return match
+        }
+        Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    return nil
+}
+
 func contentNodeCount(in window: AXUIElement) -> Int {
     let contentRoles = Set([
         kAXStaticTextRole as String,
@@ -138,20 +152,56 @@ func windowState(_ window: AXUIElement) throws -> (minimized: Bool, width: Int, 
 }
 
 do {
-    guard [2, 4].contains(CommandLine.arguments.count),
+    guard CommandLine.arguments.count >= 2,
           let pid = Int32(CommandLine.arguments[1]) else { throw ProbeError.usage }
-    let screenshotPath: String?
-    if CommandLine.arguments.count == 4 {
-        guard CommandLine.arguments[2] == "--screenshot" else { throw ProbeError.usage }
-        screenshotPath = CommandLine.arguments[3]
-    } else {
-        screenshotPath = nil
+    var expectToday = false
+    var screenshotPath: String?
+    var argumentIndex = 2
+    while argumentIndex < CommandLine.arguments.count {
+        switch CommandLine.arguments[argumentIndex] {
+        case "--expect-today":
+            guard !expectToday else { throw ProbeError.usage }
+            expectToday = true
+            argumentIndex += 1
+        case "--screenshot":
+            guard screenshotPath == nil, argumentIndex + 1 < CommandLine.arguments.count else {
+                throw ProbeError.usage
+            }
+            screenshotPath = CommandLine.arguments[argumentIndex + 1]
+            argumentIndex += 2
+        default:
+            throw ProbeError.usage
+        }
     }
     let application = AXUIElementCreateApplication(pid)
     guard let initialWindow = window(for: application, timeout: 10) else { throw ProbeError.noWindow }
     let initialState = try windowState(initialWindow)
     let initialNodes = contentNodeCount(in: initialWindow)
-    if let continuation = waitForButton(identifier: "onboarding.continue", in: initialWindow, timeout: 3) {
+    if expectToday {
+        guard waitForText("ZOID 666 - TODAY", in: initialWindow, timeout: 5) != nil else {
+            throw ProbeError.inaccessible("Today did not appear")
+        }
+        guard !initialState.minimized,
+              initialState.width == 1180,
+              initialState.height == 760 else {
+            throw ProbeError.invalidWindow(
+                minimized: initialState.minimized,
+                width: initialState.width,
+                height: initialState.height
+            )
+        }
+        guard initialNodes >= 5 else {
+            throw ProbeError.emptyContent(
+                width: initialState.width,
+                height: initialState.height,
+                nodes: initialNodes
+            )
+        }
+        if let screenshotPath {
+            try captureWindow(pid: pid, at: screenshotPath)
+        }
+        print("GREEN: Today is visible in a non-minimized \(initialState.width)x\(initialState.height) window with \(initialNodes) AX content nodes")
+    } else if let continuation = waitForButton(identifier: "onboarding.continue", in: initialWindow, timeout: 3) {
         guard AXUIElementPerformAction(continuation, kAXPressAction as CFString) == .success else {
             throw ProbeError.inaccessible("onboarding continuation could not be activated")
         }
@@ -168,19 +218,21 @@ do {
     } else {
         throw ProbeError.inaccessible("onboarding.continue did not appear in a non-empty launch window")
     }
-    guard let finalWindow = window(for: application, timeout: 5) else { throw ProbeError.noWindow }
-    let state = try windowState(finalWindow)
-    guard !state.minimized, state.width == 1180, state.height == 760 else {
-        throw ProbeError.invalidWindow(minimized: state.minimized, width: state.width, height: state.height)
+    if !expectToday {
+        guard let finalWindow = window(for: application, timeout: 5) else { throw ProbeError.noWindow }
+        let state = try windowState(finalWindow)
+        guard !state.minimized, state.width == 1180, state.height == 760 else {
+            throw ProbeError.invalidWindow(minimized: state.minimized, width: state.width, height: state.height)
+        }
+        let contentNodes = contentNodeCount(in: finalWindow)
+        guard contentNodes >= 5 else {
+            throw ProbeError.emptyContent(width: state.width, height: state.height, nodes: contentNodes)
+        }
+        if let screenshotPath {
+            try captureWindow(pid: pid, at: screenshotPath)
+        }
+        print("GREEN: non-minimized \(state.width)x\(state.height) Zoid window exposes \(contentNodes) AX content nodes after onboarding continuation")
     }
-    let contentNodes = contentNodeCount(in: finalWindow)
-    guard contentNodes >= 5 else {
-        throw ProbeError.emptyContent(width: state.width, height: state.height, nodes: contentNodes)
-    }
-    if let screenshotPath {
-        try captureWindow(pid: pid, at: screenshotPath)
-    }
-    print("GREEN: non-minimized \(state.width)x\(state.height) Zoid window exposes \(contentNodes) AX content nodes after onboarding continuation")
 } catch {
     fputs("\(error)\n", stderr)
     exit(error is ProbeError ? 1 : 2)
