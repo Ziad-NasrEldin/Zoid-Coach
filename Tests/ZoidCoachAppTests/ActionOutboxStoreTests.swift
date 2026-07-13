@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import Testing
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
@@ -18,6 +19,66 @@ func outboxDeduplicatesEquivalentDesiredActions() throws {
     #expect(second.wasInserted == false)
     #expect(first.command.id == second.command.id)
     #expect(try store.recentCommands().count == 1)
+}
+
+@Test
+func outboxRetriesAWriteAfterATemporaryDatabaseLockClears() async throws {
+    let url = temporaryOutboxURL("temporary-lock")
+    defer { removeOutboxDatabase(url) }
+    let store = try ActionOutboxStore(
+        databaseURL: url,
+        busyTimeoutMilliseconds: 10,
+        lockRetryDelays: [0.02, 0.04, 0.08]
+    )
+    var rawBlocker: OpaquePointer?
+    #expect(sqlite3_open_v2(url.path, &rawBlocker, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK)
+    let blocker = try #require(rawBlocker)
+    defer { sqlite3_close(blocker) }
+    #expect(sqlite3_exec(blocker, "BEGIN EXCLUSIVE TRANSACTION;", nil, nil, nil) == SQLITE_OK)
+
+    let enqueue = Task.detached {
+        try store.enqueue(
+            type: .setReminderPriority,
+            entityID: "reminder-locked",
+            desiredState: .reminder(ReminderDesiredState(priority: 9, metadataMarker: "zoid:v1")),
+            planVersion: 1
+        )
+    }
+    try await Task.sleep(for: .milliseconds(60))
+    #expect(sqlite3_exec(blocker, "COMMIT;", nil, nil, nil) == SQLITE_OK)
+
+    let result = try await enqueue.value
+    #expect(result.wasInserted)
+    #expect(result.command.entityID == "reminder-locked")
+    #expect(try store.recentCommands().map(\.id) == [result.command.id])
+}
+
+@Test
+func outboxStopsRetryingWhenADatabaseLockPersists() throws {
+    let url = temporaryOutboxURL("persistent-lock")
+    defer { removeOutboxDatabase(url) }
+    let store = try ActionOutboxStore(
+        databaseURL: url,
+        busyTimeoutMilliseconds: 5,
+        lockRetryDelays: [0.01, 0.02]
+    )
+    var rawBlocker: OpaquePointer?
+    #expect(sqlite3_open_v2(url.path, &rawBlocker, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK)
+    let blocker = try #require(rawBlocker)
+    defer {
+        _ = sqlite3_exec(blocker, "ROLLBACK;", nil, nil, nil)
+        sqlite3_close(blocker)
+    }
+    #expect(sqlite3_exec(blocker, "BEGIN EXCLUSIVE TRANSACTION;", nil, nil, nil) == SQLITE_OK)
+
+    #expect(throws: ActionOutboxStoreError.self) {
+        try store.enqueue(
+            type: .setReminderPriority,
+            entityID: "reminder-still-locked",
+            desiredState: .reminder(ReminderDesiredState(priority: 5, metadataMarker: "zoid:v1")),
+            planVersion: 1
+        )
+    }
 }
 
 @Test
