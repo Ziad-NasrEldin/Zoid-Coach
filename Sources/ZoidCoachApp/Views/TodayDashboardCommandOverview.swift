@@ -154,10 +154,21 @@ struct TodayDashboardCommandOverview: View {
                         selectedMinutes: entry.estimateMinutes,
                         isUnknown: entry.estimateIsUncertain,
                         taskTitle: row.title,
+                        taskID: row.taskID,
                         setEstimate: { model.setEstimate($0, for: entry) },
                         setUnknown: { model.setEstimateUnknown(for: entry) }
                     )
                     .padding(.top, 14)
+                    if let suggestion = row.learnedEstimateSuggestion {
+                        LearnedEstimateSuggestionView(
+                            taskID: row.taskID,
+                            taskTitle: row.title,
+                            suggestion: suggestion,
+                            currentEstimateMinutes: entry.estimateIsUncertain ? nil : entry.estimateMinutes,
+                            useSuggestion: { model.setEstimate($0, for: entry) }
+                        )
+                        .padding(.top, 10)
+                    }
                 }
             }
             Spacer(minLength: 22)
@@ -1136,9 +1147,19 @@ private struct TodayPlanTaskRow: View {
                         selectedMinutes: entry.estimateMinutes,
                         isUnknown: entry.estimateIsUncertain,
                         taskTitle: row.title,
+                        taskID: row.taskID,
                         setEstimate: setEstimate,
                         setUnknown: setUnknown
                     )
+                    if let suggestion = row.learnedEstimateSuggestion {
+                        LearnedEstimateSuggestionView(
+                            taskID: row.taskID,
+                            taskTitle: row.title,
+                            suggestion: suggestion,
+                            currentEstimateMinutes: entry.estimateIsUncertain ? nil : entry.estimateMinutes,
+                            useSuggestion: setEstimate
+                        )
+                    }
                     HStack(spacing: 14) {
                         Button("MOVE UP", action: moveUp)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
@@ -1218,9 +1239,13 @@ private struct TodayEstimateStrip: View {
     let selectedMinutes: Int?
     let isUnknown: Bool
     let taskTitle: String
+    let taskID: String
     let setEstimate: (Int) -> Void
     let setUnknown: () -> Void
     private let options = [15, 30, 45, 60, 90]
+    @State private var isEnteringCustom = false
+    @State private var customMinutes = ""
+    @State private var customError: String?
 
     var body: some View {
         HStack(spacing: 6) {
@@ -1252,6 +1277,41 @@ private struct TodayEstimateStrip: View {
                 .buttonStyle(TodayCommandPressStyle())
                 .accessibilityLabel("Set \(taskTitle) estimate to unknown and use a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder")
                 .accessibilityValue(isUnknown ? "Selected" : "Not selected")
+            Button("CUSTOM") {
+                customMinutes = selectedMinutes.map(String.init) ?? ""
+                customError = nil
+                isEnteringCustom = true
+            }
+            .font(Sumi.label(8))
+            .sumiLabelTracking()
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
+            .accessibilityIdentifier("today-estimate-custom-\(taskID)")
+            if isEnteringCustom {
+                TextField("Minutes", text: $customMinutes)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 78)
+                    .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
+                    .accessibilityIdentifier("today-estimate-custom-input-\(taskID)")
+                    .onSubmit(saveCustomEstimate)
+                Button("SAVE", action: saveCustomEstimate)
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
+                    .accessibilityIdentifier("today-estimate-custom-save-\(taskID)")
+                Button("CANCEL") {
+                    isEnteringCustom = false
+                    customError = nil
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("today-estimate-custom-cancel-\(taskID)")
+                if let customError {
+                    Text(customError)
+                        .font(Sumi.body(10))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("today-estimate-custom-error-\(taskID)")
+                }
+            }
             if let selectedMinutes {
                 Text("\(selectedMinutes) MIN SELECTED")
                     .font(Sumi.label(7))
@@ -1271,6 +1331,18 @@ private struct TodayEstimateStrip: View {
             }
         }
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedMinutes)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isEnteringCustom)
+    }
+
+    private func saveCustomEstimate() {
+        switch TaskEstimateInput.parse(customMinutes) {
+        case let .success(minutes):
+            setEstimate(minutes)
+            isEnteringCustom = false
+            customError = nil
+        case let .failure(error):
+            customError = error.message
+        }
     }
 }
 
