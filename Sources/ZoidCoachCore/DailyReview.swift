@@ -136,6 +136,17 @@ public struct DailyReviewPlannedTaskOutcome: Identifiable, Equatable, Sendable {
     }
 }
 
+public enum DailyReviewCoachingOutcome: Equatable, Sendable {
+    case unanswered
+    case effectPending
+    case recoveryStarted
+    case returnedToWork(observedMinutes: Int, selectedTaskMatched: Bool)
+    case acceptedBreak
+    case intentionalChoice
+    case extensionRecorded
+    case responseRecorded
+}
+
 public struct DailyReviewCoachingInteraction: Identifiable, Equatable, Sendable {
     public let promptID: String
     public let promptType: String
@@ -146,6 +157,10 @@ public struct DailyReviewCoachingInteraction: Identifiable, Equatable, Sendable 
     public let responseSurface: String?
     public let respondedAt: Date?
     public let effectWasApplied: Bool?
+    public let observedApplication: String?
+    public let observedGamingMinutes: Int?
+    public let unfinishedTaskTitle: String?
+    public let outcome: DailyReviewCoachingOutcome
 
     public var id: String { promptID }
 
@@ -158,7 +173,11 @@ public struct DailyReviewCoachingInteraction: Identifiable, Equatable, Sendable 
         responseAction: String?,
         responseSurface: String?,
         respondedAt: Date?,
-        effectWasApplied: Bool?
+        effectWasApplied: Bool?,
+        observedApplication: String?,
+        observedGamingMinutes: Int?,
+        unfinishedTaskTitle: String?,
+        outcome: DailyReviewCoachingOutcome
     ) {
         self.promptID = promptID
         self.promptType = promptType
@@ -169,6 +188,10 @@ public struct DailyReviewCoachingInteraction: Identifiable, Equatable, Sendable 
         self.responseSurface = responseSurface
         self.respondedAt = respondedAt
         self.effectWasApplied = effectWasApplied
+        self.observedApplication = observedApplication
+        self.observedGamingMinutes = observedGamingMinutes
+        self.unfinishedTaskTitle = unfinishedTaskTitle
+        self.outcome = outcome
     }
 }
 

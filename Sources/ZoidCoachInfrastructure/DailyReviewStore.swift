@@ -51,7 +51,7 @@ public final class DailyReviewStore: @unchecked Sendable {
         let offlineWork = try readOfflineWork(sourceDay: sourceDay)
         let completedTasks = try completedTasks(sourceDay: sourceDay)
         let plannedTasks = try plannedTasks(sourceDay: sourceDay, completedTasks: completedTasks)
-        let coachingInteractions = try coachingInteractions(sourceDay: sourceDay)
+        let coachingInteractions = try coachingInteractions(sourceDay: sourceDay, sessions: sessions)
         return DailyReviewSnapshot(
             sourceDay: sourceDay,
             sessions: sessions,
@@ -66,7 +66,10 @@ public final class DailyReviewStore: @unchecked Sendable {
         )
     }
 
-    private func coachingInteractions(sourceDay: String) throws -> [DailyReviewCoachingInteraction] {
+    private func coachingInteractions(
+        sourceDay: String,
+        sessions: [DailyReviewSession]
+    ) throws -> [DailyReviewCoachingInteraction] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         let dayFormatter = DateFormatter()
@@ -84,6 +87,7 @@ public final class DailyReviewStore: @unchecked Sendable {
                episode.prompt_type,
                episode.title,
                episode.summary,
+               episode.payload_json,
                episode.created_at_utc,
                response.response,
                response.surface,
@@ -109,9 +113,13 @@ public final class DailyReviewStore: @unchecked Sendable {
                   let promptType = text(statement, 1),
                   let title = text(statement, 2),
                   let summary = text(statement, 3),
-                  let createdAt = text(statement, 4).flatMap(formatter.date(from:))
+                  let payloadJSON = text(statement, 4),
+                  let createdAt = text(statement, 5).flatMap(formatter.date(from:))
             else { continue }
-            let responseAction = text(statement, 5)
+            let payload = Self.reviewPromptPayload(payloadJSON)
+            let responseAction = text(statement, 6)
+            let respondedAt = text(statement, 8).flatMap(formatter.date(from:))
+            let effectWasApplied = responseAction.map { _ in text(statement, 9) == "applied" }
             interactions.append(DailyReviewCoachingInteraction(
                 promptID: promptID,
                 promptType: promptType,
@@ -119,12 +127,77 @@ public final class DailyReviewStore: @unchecked Sendable {
                 summary: summary,
                 createdAt: createdAt,
                 responseAction: responseAction,
-                responseSurface: text(statement, 6),
-                respondedAt: text(statement, 7).flatMap(formatter.date(from:)),
-                effectWasApplied: responseAction.map { _ in text(statement, 8) == "applied" }
+                responseSurface: text(statement, 7),
+                respondedAt: respondedAt,
+                effectWasApplied: effectWasApplied,
+                observedApplication: payload["application"],
+                observedGamingMinutes: payload["observedGamingMinutes"].flatMap(Int.init),
+                unfinishedTaskTitle: payload["taskTitle"],
+                outcome: Self.coachingOutcome(
+                    responseAction: responseAction,
+                    respondedAt: respondedAt,
+                    effectWasApplied: effectWasApplied,
+                    selectedTaskID: payload["taskID"],
+                    sessions: sessions
+                )
             ))
         }
         return interactions
+    }
+
+    private static func reviewPromptPayload(_ payloadJSON: String) -> [String: String] {
+        guard let data = payloadJSON.data(using: .utf8),
+              let envelope = try? JSONDecoder().decode(ReviewPromptEnvelope.self, from: data)
+        else { return [:] }
+        return envelope.payload
+    }
+
+    private static func coachingOutcome(
+        responseAction: String?,
+        respondedAt: Date?,
+        effectWasApplied: Bool?,
+        selectedTaskID: String?,
+        sessions: [DailyReviewSession]
+    ) -> DailyReviewCoachingOutcome {
+        guard let responseAction else { return .unanswered }
+        guard effectWasApplied == true else { return .effectPending }
+        switch PromptActionKind(rawValue: responseAction) {
+        case .returnToActiveTask, .startRecommendedTask, .startShortSprint, .startWorkSprint:
+            guard let respondedAt else { return .recoveryStarted }
+            let followThroughEnd = respondedAt.addingTimeInterval(30 * 60)
+            let observedWork = sessions.filter {
+                $0.classification == .work
+                    && $0.end > respondedAt
+                    && $0.start < followThroughEnd
+            }
+            let observedSeconds = observedWork.reduce(TimeInterval.zero) { total, session in
+                total + max(
+                    0,
+                    min(session.end, followThroughEnd)
+                        .timeIntervalSince(max(session.start, respondedAt))
+                )
+            }
+            guard observedSeconds > 0 else { return .recoveryStarted }
+            let selectedTaskMatched = selectedTaskID.map { taskID in
+                observedWork.contains { $0.taskID == taskID }
+            } ?? false
+            return .returnedToWork(
+                observedMinutes: max(1, Int((observedSeconds / 60).rounded(.up))),
+                selectedTaskMatched: selectedTaskMatched
+            )
+        case .startBreak:
+            return .acceptedBreak
+        case .continueIntentionally:
+            return .intentionalChoice
+        case .fiveMoreMinutes:
+            return .extensionRecorded
+        default:
+            return .responseRecorded
+        }
+    }
+
+    private struct ReviewPromptEnvelope: Decodable {
+        let payload: [String: String]
     }
 
     private func plannedTasks(

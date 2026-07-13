@@ -120,7 +120,13 @@ func dailyReviewShowsCorrectionAwareHighlightsAndBehaviorCoachingResponsesAcross
             type: "GAMING_DRIFT",
             title: "Ready to return?",
             summary: "Observed gaming while the main task remained open.",
-            actions: [PromptAction(kind: .continueIntentionally, title: "Continue intentionally")]
+            actions: [PromptAction(kind: .continueIntentionally, title: "Continue intentionally")],
+            payload: [
+                "application": "Steam",
+                "observedGamingMinutes": "12",
+                "taskID": "main-1",
+                "taskTitle": "Ship the client proposal"
+            ]
         )).episode
         let response = try promptStore.respond(
             promptID: gaming.id,
@@ -150,6 +156,66 @@ func dailyReviewShowsCorrectionAwareHighlightsAndBehaviorCoachingResponsesAcross
             actions: [PromptAction(kind: .acceptPlan, title: "Accept")]
         ))
     }
+    do {
+        let promptStore = try PromptInboxStore(
+            databaseURL: fixture.databaseURL,
+            now: { sourceDate.addingTimeInterval(12 * 3_600) }
+        )
+        let recovery = try promptStore.enqueue(PromptDraft(
+            decisionKey: "review-recovery-observed",
+            type: "GAMING_DRIFT",
+            title: "Ready to return?",
+            summary: "Observed 10 minutes in Steam while the proposal remained unfinished.",
+            actions: [PromptAction(kind: .startWorkSprint, title: "Start a 20-minute work sprint")],
+            payload: [
+                "application": "Steam",
+                "observedGamingMinutes": "10",
+                "taskID": "main-1",
+                "taskTitle": "Ship the client proposal"
+            ]
+        )).episode
+        let response = try promptStore.respond(
+            promptID: recovery.id,
+            action: .startWorkSprint,
+            actionToken: PromptResponseToken.make(promptID: recovery.id, action: .startWorkSprint),
+            surface: .notification
+        )
+        try promptStore.markEffectApplied(responseID: response.response.id)
+        let followThroughStart = Int64(sourceDate.addingTimeInterval(12 * 3_600 + 5 * 60).timeIntervalSince1970)
+        for offset in 0..<3 {
+            try fixture.insert(
+                epoch: followThroughStart + Int64(offset * 60),
+                app: "Xcode",
+                classification: .work
+            )
+        }
+        let withFollowThrough = try fixture.store.load(sourceDay: fixture.sourceDay)
+        let followThrough = try #require(withFollowThrough.sessions.first {
+            $0.application == "Xcode" && $0.start.timeIntervalSince1970 >= Double(followThroughStart)
+        })
+        try fixture.store.correct(followThrough, to: .work, taskID: "main-1", from: nil)
+    }
+    do {
+        let promptStore = try PromptInboxStore(
+            databaseURL: fixture.databaseURL,
+            now: { sourceDate.addingTimeInterval(13 * 3_600) }
+        )
+        let recovery = try promptStore.enqueue(PromptDraft(
+            decisionKey: "review-recovery-unobserved",
+            type: "GAMING_DRIFT",
+            title: "Ready to return?",
+            summary: "The selected task remains available.",
+            actions: [PromptAction(kind: .returnToActiveTask, title: "Return to the task")],
+            payload: ["taskID": "main-1", "taskTitle": "Ship the client proposal"]
+        )).episode
+        let response = try promptStore.respond(
+            promptID: recovery.id,
+            action: .returnToActiveTask,
+            actionToken: PromptResponseToken.make(promptID: recovery.id, action: .returnToActiveTask),
+            surface: .dashboard
+        )
+        try promptStore.markEffectApplied(responseID: response.response.id)
+    }
 
     let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
     let snapshot = try reopened.load(sourceDay: fixture.sourceDay)
@@ -158,14 +224,23 @@ func dailyReviewShowsCorrectionAwareHighlightsAndBehaviorCoachingResponsesAcross
     #expect(snapshot.bestObservedWorkBlock?.durationMinutes == 5)
     #expect(snapshot.largestObservedDriftEpisode?.application == "Steam")
     #expect(snapshot.largestObservedDriftEpisode?.durationMinutes == 3)
-    #expect(snapshot.coachingInteractions.count == 2)
+    #expect(snapshot.coachingInteractions.count == 4)
     #expect(snapshot.coachingInteractions[0].promptType == "GAMING_DRIFT")
     #expect(snapshot.coachingInteractions[0].responseAction == PromptActionKind.continueIntentionally.rawValue)
     #expect(snapshot.coachingInteractions[0].responseSurface == PromptSurface.dashboard.rawValue)
     #expect(snapshot.coachingInteractions[0].effectWasApplied == true)
+    #expect(snapshot.coachingInteractions[0].observedApplication == "Steam")
+    #expect(snapshot.coachingInteractions[0].observedGamingMinutes == 12)
+    #expect(snapshot.coachingInteractions[0].unfinishedTaskTitle == "Ship the client proposal")
+    #expect(snapshot.coachingInteractions[0].outcome == .intentionalChoice)
     #expect(snapshot.coachingInteractions[1].promptType == "WAKE_INTERVENTION")
     #expect(snapshot.coachingInteractions[1].responseAction == nil)
     #expect(snapshot.coachingInteractions[1].effectWasApplied == nil)
+    #expect(snapshot.coachingInteractions[1].outcome == .unanswered)
+    #expect(snapshot.coachingInteractions[2].responseAction == PromptActionKind.startWorkSprint.rawValue)
+    #expect(snapshot.coachingInteractions[2].responseSurface == PromptSurface.notification.rawValue)
+    #expect(snapshot.coachingInteractions[2].outcome == .returnedToWork(observedMinutes: 3, selectedTaskMatched: true))
+    #expect(snapshot.coachingInteractions[3].outcome == .recoveryStarted)
 }
 
 @Test
