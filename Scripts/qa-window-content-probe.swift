@@ -5,7 +5,6 @@ enum ProbeError: Error, CustomStringConvertible {
     case usage
     case inaccessible(String)
     case noWindow
-    case continuationMissing
     case invalidWindow(minimized: Bool, width: Int, height: Int)
     case emptyContent(width: Int, height: Int, nodes: Int)
 
@@ -17,8 +16,6 @@ enum ProbeError: Error, CustomStringConvertible {
             "SETUP_FAIL: Accessibility inspection failed: \(detail)"
         case .noWindow:
             "SETUP_FAIL: Zoid window did not appear"
-        case .continuationMissing:
-            "SETUP_FAIL: onboarding continuation control did not appear"
         case let .invalidWindow(minimized, width, height):
             "SETUP_FAIL: expected a non-minimized 1180x760 window, got minimized=\(minimized) size=\(width)x\(height)"
         case let .emptyContent(width, height, nodes):
@@ -67,25 +64,39 @@ func window(for application: AXUIElement, timeout: TimeInterval) -> AXUIElement?
     return nil
 }
 
-func button(named expected: String, in window: AXUIElement) -> AXUIElement? {
+func button(identifier expectedIdentifier: String, in window: AXUIElement) -> AXUIElement? {
     descendants(window).first { element in
         guard stringValue(element, kAXRoleAttribute as CFString) == kAXButtonRole as String else { return false }
-        let candidates = [
-            stringValue(element, kAXTitleAttribute as CFString),
-            stringValue(element, kAXDescriptionAttribute as CFString),
-            stringValue(element, kAXValueAttribute as CFString)
-        ]
-        return candidates.compactMap { $0 }.contains { $0.localizedCaseInsensitiveContains(expected) }
+        return stringValue(element, kAXIdentifierAttribute as CFString) == expectedIdentifier
     }
 }
 
-func waitForButton(named expected: String, in window: AXUIElement, timeout: TimeInterval) -> AXUIElement? {
+func waitForButton(identifier expectedIdentifier: String, in window: AXUIElement, timeout: TimeInterval) -> AXUIElement? {
     let deadline = Date().addingTimeInterval(timeout)
     repeat {
-        if let button = button(named: expected, in: window) { return button }
+        if let button = button(identifier: expectedIdentifier, in: window) { return button }
         Thread.sleep(forTimeInterval: 0.1)
     } while Date() < deadline
     return nil
+}
+
+func contentNodeCount(in window: AXUIElement) -> Int {
+    let contentRoles = Set([
+        kAXStaticTextRole as String,
+        kAXButtonRole as String,
+        kAXGroupRole as String,
+        kAXScrollAreaRole as String,
+        kAXTextFieldRole as String,
+        kAXCheckBoxRole as String
+    ])
+    return descendants(window).filter {
+        guard let role = stringValue($0, kAXRoleAttribute as CFString), contentRoles.contains(role) else { return false }
+        if role != kAXButtonRole as String { return true }
+        let subrole = stringValue($0, kAXSubroleAttribute as CFString) ?? ""
+        return ![kAXCloseButtonSubrole, kAXMinimizeButtonSubrole, kAXZoomButtonSubrole]
+            .map { $0 as String }
+            .contains(subrole)
+    }.count
 }
 
 func windowState(_ window: AXUIElement) throws -> (minimized: Bool, width: Int, height: Int) {
@@ -106,38 +117,35 @@ do {
           let pid = Int32(CommandLine.arguments[1]) else { throw ProbeError.usage }
     let application = AXUIElementCreateApplication(pid)
     guard let initialWindow = window(for: application, timeout: 10) else { throw ProbeError.noWindow }
-    guard let continuation = waitForButton(named: "Exit For Now", in: initialWindow, timeout: 10) else {
-        throw ProbeError.continuationMissing
+    let initialState = try windowState(initialWindow)
+    let initialNodes = contentNodeCount(in: initialWindow)
+    if let continuation = waitForButton(identifier: "onboarding.continue", in: initialWindow, timeout: 3) {
+        guard AXUIElementPerformAction(continuation, kAXPressAction as CFString) == .success else {
+            throw ProbeError.inaccessible("onboarding continuation could not be activated")
+        }
+        Thread.sleep(forTimeInterval: 1)
+    } else if initialNodes < 5,
+              !initialState.minimized,
+              initialState.width == 1180,
+              initialState.height == 760 {
+        throw ProbeError.emptyContent(
+            width: initialState.width,
+            height: initialState.height,
+            nodes: initialNodes
+        )
+    } else {
+        throw ProbeError.inaccessible("onboarding.continue did not appear in a non-empty launch window")
     }
-    guard AXUIElementPerformAction(continuation, kAXPressAction as CFString) == .success else {
-        throw ProbeError.inaccessible("onboarding continuation could not be activated")
-    }
-    Thread.sleep(forTimeInterval: 1)
     guard let finalWindow = window(for: application, timeout: 5) else { throw ProbeError.noWindow }
     let state = try windowState(finalWindow)
     guard !state.minimized, state.width == 1180, state.height == 760 else {
         throw ProbeError.invalidWindow(minimized: state.minimized, width: state.width, height: state.height)
     }
-    let contentRoles = Set([
-        kAXStaticTextRole as String,
-        kAXButtonRole as String,
-        kAXGroupRole as String,
-        kAXScrollAreaRole as String,
-        kAXTextFieldRole as String,
-        kAXCheckBoxRole as String
-    ])
-    let contentNodes = descendants(finalWindow).filter {
-        guard let role = stringValue($0, kAXRoleAttribute as CFString), contentRoles.contains(role) else { return false }
-        if role != kAXButtonRole as String { return true }
-        let subrole = stringValue($0, kAXSubroleAttribute as CFString) ?? ""
-        return ![kAXCloseButtonSubrole, kAXMinimizeButtonSubrole, kAXZoomButtonSubrole]
-            .map { $0 as String }
-            .contains(subrole)
+    let contentNodes = contentNodeCount(in: finalWindow)
+    guard contentNodes >= 5 else {
+        throw ProbeError.emptyContent(width: state.width, height: state.height, nodes: contentNodes)
     }
-    guard contentNodes.count >= 5 else {
-        throw ProbeError.emptyContent(width: state.width, height: state.height, nodes: contentNodes.count)
-    }
-    print("GREEN: non-minimized \(state.width)x\(state.height) Zoid window exposes \(contentNodes.count) AX content nodes after onboarding continuation")
+    print("GREEN: non-minimized \(state.width)x\(state.height) Zoid window exposes \(contentNodes) AX content nodes after onboarding continuation")
 } catch {
     fputs("\(error)\n", stderr)
     exit(error is ProbeError ? 1 : 2)
