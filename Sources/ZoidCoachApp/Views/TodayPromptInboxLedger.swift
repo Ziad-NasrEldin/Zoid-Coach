@@ -61,7 +61,7 @@ struct TodayPromptInboxLedger: View {
                 Button("Cancel", role: .cancel) { self.confirmation = nil }
             }
         } message: {
-            Text("The inbox will refresh from the background agent before showing the resulting state.")
+            Text("This choice is saved once. Today, notifications, and other open surfaces refresh from the same durable result.")
         }
     }
 
@@ -93,20 +93,35 @@ struct TodayPromptInboxLedger: View {
     }
 
     private func activeRow(_ entry: PromptInboxTimelineEntry) -> some View {
+        let presentation = PromptActionPresentation(
+            promptID: entry.episode.id,
+            pendingPromptID: model.pendingPromptID,
+            replayed: entry.isReplay
+        )
         VStack(alignment: .leading, spacing: 8) {
-            promptHeading(entry, state: entry.isReplay ? "RETURNED" : "WAITING")
+            promptHeading(entry, state: presentation.stateLabel)
             Text(entry.episode.summary).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
+            if let progressMessage = presentation.progressMessage {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(progressMessage)
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("today.prompt.\(entry.id).applying")
+            }
             HStack(spacing: 8) {
                 ForEach(entry.episode.actions) { action in
                     Button(action.title.uppercased()) { choose(action, for: entry.episode) }
                         .buttonStyle(SumiActionButtonStyle(role: actionRole(action.role), size: .compact))
-                        .disabled(model.pendingPromptID != nil)
+                        .disabled(presentation.actionsDisabled)
                         .accessibilityIdentifier("today.prompt.\(entry.id).action.\(action.kind.rawValue)")
                 }
                 if entry.episode.allowsDismissal {
                     Button("DISMISS") { model.dismissPrompt(entry.episode) }
                         .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
-                        .disabled(model.pendingPromptID != nil)
+                        .disabled(presentation.actionsDisabled)
                         .accessibilityIdentifier("today.prompt.\(entry.id).dismiss")
                 }
             }
