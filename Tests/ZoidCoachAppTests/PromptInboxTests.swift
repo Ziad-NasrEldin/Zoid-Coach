@@ -1,7 +1,32 @@
 import Foundation
+import SQLite3
 import Testing
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
+
+@Test
+func promptInboxPreservesActionsFromLegacyNumericConfirmationFlags() throws {
+    let url = temporaryPromptInboxURL("numeric-confirmation-flags")
+    defer { removePromptInboxDatabase(url) }
+    let store = try PromptInboxStore(databaseURL: url)
+    let episode = try store.enqueue(PromptDraft(
+        decisionKey: "qa:block:1",
+        type: "GAMING_DRIFT",
+        title: "Gaming drift detected",
+        summary: "Choose how to recover.",
+        actions: [PromptAction(kind: .returnToActiveTask, title: "Return", role: .primary)],
+        payload: ["taskID": "task-1", "taskTitle": "Ship client proposal"]
+    )).episode
+    let legacyEnvelope = #"{"decisionKey":"qa:block:1","actions":[{"kind":"return_to_active_task","title":"Return to Ship client proposal","role":"primary","requiresConfirmation":0},{"kind":"start_work_sprint","title":"Start a 20-minute work sprint","role":"secondary","requiresConfirmation":0},{"kind":"start_break","title":"Take a break","role":"secondary","requiresConfirmation":0},{"kind":"reschedule_task","title":"Reschedule Ship client proposal","role":"destructive","requiresConfirmation":1},{"kind":"mark_blocked","title":"Mark Ship client proposal blocked","role":"destructive","requiresConfirmation":1},{"kind":"continue_intentionally","title":"Continue intentionally","role":"secondary","requiresConfirmation":0}],"payload":{"taskID":"task-1","taskTitle":"Ship client proposal"}}"#
+
+    try replacePromptEnvelope(databaseURL: url, promptID: episode.id, json: legacyEnvelope)
+    let reopened = try PromptInboxStore(databaseURL: url)
+    let restored = try #require(reopened.unresolved().first)
+
+    #expect(restored.actions.count == 6)
+    #expect(restored.actions.map(\.kind).contains(.markBlocked))
+    #expect(restored.actions.first(where: { $0.kind == .markBlocked })?.requiresConfirmation == true)
+}
 
 @Test
 func promptEpisodeStateMachineEnforcesTheDocumentedLifecycle() throws {
@@ -380,4 +405,26 @@ private func temporaryPromptInboxURL(_ label: String) -> URL {
 
 private func removePromptInboxDatabase(_ url: URL) {
     for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) }
+}
+
+private func replacePromptEnvelope(databaseURL: URL, promptID: String, json: String) throws {
+    var database: OpaquePointer?
+    guard sqlite3_open(databaseURL.path, &database) == SQLITE_OK, let database else {
+        throw PromptInboxRawFixtureError.database
+    }
+    defer { sqlite3_close(database) }
+    var statement: OpaquePointer?
+    guard sqlite3_prepare_v2(database, "UPDATE prompt_episodes SET payload_json = ? WHERE id = ?;", -1, &statement, nil) == SQLITE_OK,
+          let statement else {
+        throw PromptInboxRawFixtureError.database
+    }
+    defer { sqlite3_finalize(statement) }
+    let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+    sqlite3_bind_text(statement, 1, json, -1, transient)
+    sqlite3_bind_text(statement, 2, promptID, -1, transient)
+    guard sqlite3_step(statement) == SQLITE_DONE else { throw PromptInboxRawFixtureError.database }
+}
+
+private enum PromptInboxRawFixtureError: Error {
+    case database
 }
