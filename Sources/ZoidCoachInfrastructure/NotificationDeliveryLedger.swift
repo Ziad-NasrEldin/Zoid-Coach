@@ -170,6 +170,14 @@ public final class NotificationDeliveryLedger: @unchecked Sendable {
         return records
     }
 
+    public func containsAcceptedDelivery(requestIdentifier: String) throws -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return try hasAcceptedRequest(
+            requestIdentifier: Self.boundedIdentifier(requestIdentifier)
+        )
+    }
+
     @discardableResult
     public func enforceRetention(days: Int = defaultRetentionDays) throws -> Int {
         lock.lock()

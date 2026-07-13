@@ -887,7 +887,6 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         }) else {
             throw QAFixtureStateError.invalidPersistedState("generated identifier provenance mismatch")
         }
-        let notificationIDs = Set(state.notifications.map(\.id))
         let auditIDs = Set(state.audit.map(\.id))
         let allocationKinds = Dictionary(
             uniqueKeysWithValues: state.generatedIdentifiers.map { ($0.id, $0.kind) }
@@ -901,7 +900,9 @@ public final class DeterministicOSFixtureAdapters: TaskSource, CalendarSource,
         guard state.generatedIdentifiers.allSatisfy({ allocation in
             switch allocation.kind {
             case .reminder: true
-            case .notification: notificationIDs.contains(allocation.id)
+            // Caller-supplied notification IDs remain allocated as tombstones after cancellation.
+            // This preserves monotonic counters and prevents an old request identity being reused.
+            case .notification: true
             case .audit: auditIDs.contains(allocation.id)
             case .calendarCommitment: true
             }

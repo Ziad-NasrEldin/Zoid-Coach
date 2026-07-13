@@ -182,6 +182,10 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             deliveryDate: deliveryDate
         )
 
+        if try deliveryLedger?.containsAcceptedDelivery(requestIdentifier: requestIdentifier) == true {
+            return false
+        }
+
         if let fixtureAdapter {
             let notifications = try fixtureAdapter.snapshot().notifications
             if notifications.contains(where: { $0.id == requestIdentifier }) {
@@ -192,6 +196,13 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             }
             try fixtureAdapter.cancelNotifications(withPrefix: requestPrefix, keeping: requestIdentifier)
             _ = try await fixtureAdapter.schedule(desired)
+            _ = try deliveryLedger?.record(
+                requestIdentifier: requestIdentifier,
+                promptID: requestIdentifier,
+                category: desired.category,
+                outcome: .deliveredByFixture,
+                scheduledFor: deliveryDate
+            )
             return true
         }
 
@@ -230,6 +241,13 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
             content: content,
             trigger: trigger
         ))
+        _ = try deliveryLedger?.record(
+            requestIdentifier: requestIdentifier,
+            promptID: requestIdentifier,
+            category: desired.category,
+            outcome: .acceptedBySystem,
+            scheduledFor: deliveryDate
+        )
         return true
     }
 
