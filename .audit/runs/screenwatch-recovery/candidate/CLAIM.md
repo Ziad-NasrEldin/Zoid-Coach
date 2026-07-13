@@ -18,3 +18,8 @@ This isolated implementation lane starts from authoritative commit `b452949`.
 
 This lane owns only a cohesive end-user Screenwatch setup and recovery surface plus focused tests and candidate evidence.
 It does not modify Reminders recovery, root composition locks, the authoritative tracker, registry, Lavish artifact, shared runtime, migrations, or canonical Screenwatch repository and ingestion services.
+
+## Released before implementation
+
+The claim was released immediately after file-ownership inspection showed that completing the end-user flow would overlap the active Reminders recovery lane in onboarding composition files.
+No product source or test file was modified under this claim.
