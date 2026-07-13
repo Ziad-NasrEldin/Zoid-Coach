@@ -295,6 +295,7 @@ struct MenuBarCoachView: View {
                     .font(Sumi.body(15))
                     .foregroundStyle(Sumi.ink)
                     .lineLimit(2)
+                    .accessibilityHidden(true)
                     .accessibilityIdentifier("menu-bar.task.title")
                 if let activeCommitment = menuState.activeCommitment {
                     Text(activeCommitment.modeLabel)
@@ -302,6 +303,7 @@ struct MenuBarCoachView: View {
                         .sumiLabelTracking()
                         .foregroundStyle(Sumi.sealDeep)
                         .accessibilityLabel(activeCommitment.accessibilitySummary)
+                        .accessibilityHidden(true)
                         .accessibilityIdentifier("menu-bar.task.timing-mode")
                 }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -318,7 +320,8 @@ struct MenuBarCoachView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(menuState.compactTaskAccessibilitySummary(at: context.date) ?? "No active task")
-}
+                    .accessibilityIdentifier("menu-bar.task.summary")
+                }
 
                 HStack(spacing: 8) {
                     if menuState.activeTask != nil {

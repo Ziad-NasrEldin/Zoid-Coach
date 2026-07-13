@@ -8,7 +8,7 @@ This candidate implements `ZC-037-006` without changing the authoritative tracke
 
 - The menu-bar task card keeps the active task title and live active, sprint, accepted-break, paused, or ended-workday status visible.
 - The compact card now also exposes main-objective status, estimate, urgency, deadline, locked state, and blocked reason.
-- One combined accessibility label announces the title, live task status, and every compact fact without requiring the user to open Today.
+- One combined accessibility label announces the title, live task status, and every compact fact once without requiring the user to open Today.
 - Existing Pause, Break, Complete, Resume, End Break, Start, and End Workday actions continue through their canonical durable command boundaries.
 - Recommended and paused tasks use the same factual presentation without inventing unavailable state.
 
@@ -20,6 +20,10 @@ This candidate implements `ZC-037-006` without changing the authoritative tracke
 - `activeMenuTaskCompletesThroughTheSameDurableCommandBoundary` passed.
 - `menuBarControllerRunsBreakResumeAndConfirmedEndWorkdayJourney` passed.
 - `swift build -c release` passed.
+
+The focused tests cover the compact presentation model and command lifecycle.
+
+Visible layout and the combined native accessibility node remain assigned to signed verifier proof.
 
 ## Verifier handoff
 
