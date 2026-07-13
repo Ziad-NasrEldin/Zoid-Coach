@@ -223,3 +223,70 @@ func gamingPromptBreakActionPausesTheActiveTaskExactlyOnce() throws {
     #expect(snapshot?.latestPauseReason == .break)
     #expect(try execution.activeTask(now: observedAt) == nil)
 }
+
+@Test
+func coachingTaskActionsApplyExactDurationsAndNeverReplay() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coaching-actions-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let promptStore = try PromptInboxStore(databaseURL: databaseURL, now: { now })
+    let execution = try TaskExecutionStore(databaseURL: databaseURL)
+    let router = PromptResponseEffectRouter(
+        outbox: try ActionOutboxStore(databaseURL: databaseURL),
+        meetingArchive: try ScreenwatchArchive(databaseURL: databaseURL),
+        promptStore: promptStore,
+        taskExecution: execution
+    )
+
+    func responses(_ action: PromptActionKind, taskID: String) throws -> (PromptResponseResult, PromptResponseResult) {
+        let episode = try promptStore.enqueue(PromptDraft(
+            decisionKey: "coaching:\(action.rawValue):\(taskID)",
+            type: PromptNotificationCategory.gamingDrift.rawValue,
+            title: "Choose the next step",
+            summary: "Observed activity while work remains unfinished.",
+            actions: [PromptAction(kind: action, title: action.rawValue)],
+            payload: ["taskID": taskID]
+        )).episode
+        let token = PromptResponseToken.make(promptID: episode.id, action: action)
+        return (
+            try promptStore.respond(promptID: episode.id, action: action, actionToken: token, surface: .dashboard),
+            try promptStore.respond(promptID: episode.id, action: action, actionToken: token, surface: .notification)
+        )
+    }
+
+    var pair = try responses(.startRecommendedTask, taskID: "recommended")
+    #expect(try router.apply(pair.0) == .coachingTaskStarted(taskID: "recommended"))
+    #expect(try router.apply(pair.1) == .none)
+
+    pair = try responses(.startShortSprint, taskID: "recovery")
+    #expect(try router.apply(pair.0) == .coachingSprintStarted(taskID: "recovery", durationMinutes: 10))
+    #expect(try router.apply(pair.1) == .none)
+    #expect(try execution.snapshot(for: ["recovery"], now: now)["recovery"]?.sprint?.durationMinutes == 10)
+
+    pair = try responses(.startWorkSprint, taskID: "work")
+    #expect(try router.apply(pair.0) == .coachingSprintStarted(taskID: "work", durationMinutes: 20))
+    #expect(try router.apply(pair.1) == .none)
+    #expect(try execution.snapshot(for: ["work"], now: now)["work"]?.sprint?.durationMinutes == 20)
+
+    try execution.apply(.pause, taskID: "work", at: now.addingTimeInterval(1))
+    pair = try responses(.returnToActiveTask, taskID: "work")
+    #expect(try router.apply(pair.0) == .coachingTaskStarted(taskID: "work"))
+    #expect(try router.apply(pair.1) == .none)
+    #expect(try execution.snapshot(for: ["work"], now: now)["work"]?.state == .active)
+
+    pair = try responses(.pauseTask, taskID: "work")
+    #expect(try router.apply(pair.0) == .coachingTaskPaused(taskID: "work"))
+    #expect(try router.apply(pair.1) == .none)
+    #expect(try execution.snapshot(for: ["work"], now: now)["work"]?.state == .paused)
+
+    try execution.apply(.start, taskID: "end-day", at: now.addingTimeInterval(2))
+    pair = try responses(.endWorkday, taskID: "end-day")
+    #expect(try router.apply(pair.0) == .coachingWorkdayEnded(taskID: "end-day"))
+    #expect(try router.apply(pair.1) == .none)
+    let ended = try execution.snapshot(for: ["end-day"], now: now)["end-day"]
+    #expect(ended?.state == .paused)
+    #expect(ended?.latestPauseReason == .endingWorkday)
+}

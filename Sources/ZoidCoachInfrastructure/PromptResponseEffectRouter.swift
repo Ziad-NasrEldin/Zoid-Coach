@@ -12,6 +12,9 @@ public enum PromptResponseEffect: Equatable, Sendable {
     case planningDismissed(until: Date, promptID: String)
     case unplannedDaySelected
     case coachingTaskStarted(taskID: String)
+    case coachingSprintStarted(taskID: String, durationMinutes: Int)
+    case coachingTaskPaused(taskID: String)
+    case coachingWorkdayEnded(taskID: String)
     case coachingBreakStarted(taskID: String)
 }
 
@@ -52,13 +55,39 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
     }
 
     private func applyEffect(_ result: PromptResponseResult) throws -> PromptResponseEffect {
-        if result.episode.type == PromptNotificationCategory.gamingDrift.rawValue,
-           result.response.action == .returnToActiveTask,
-           result.wasApplied,
-           let taskID = result.episode.payload["taskID"],
-           let taskExecution {
-            try taskExecution.apply(.start, taskID: taskID, at: result.response.respondedAt)
-            return .coachingTaskStarted(taskID: taskID)
+        if result.wasApplied, let taskExecution {
+            let payloadTaskID = result.episode.payload["taskID"]
+            switch result.response.action {
+            case .startRecommendedTask:
+                guard let taskID = payloadTaskID else { break }
+                try taskExecution.apply(.start, taskID: taskID, at: result.response.respondedAt)
+                return .coachingTaskStarted(taskID: taskID)
+            case .startShortSprint:
+                guard let taskID = payloadTaskID else { break }
+                try taskExecution.apply(.startSprint10, taskID: taskID, at: result.response.respondedAt)
+                return .coachingSprintStarted(taskID: taskID, durationMinutes: 10)
+            case .startWorkSprint:
+                guard let taskID = payloadTaskID else { break }
+                try taskExecution.apply(.startSprint20, taskID: taskID, at: result.response.respondedAt)
+                return .coachingSprintStarted(taskID: taskID, durationMinutes: 20)
+            case .returnToActiveTask:
+                guard let taskID = payloadTaskID else { break }
+                let state = try taskExecution.snapshot(for: [taskID], now: result.response.respondedAt)[taskID]?.state
+                try taskExecution.apply(state == .paused ? .resume : .start, taskID: taskID, at: result.response.respondedAt)
+                return .coachingTaskStarted(taskID: taskID)
+            case .pauseTask:
+                let taskID = try payloadTaskID ?? taskExecution.activeTask(now: result.response.respondedAt)?.taskID
+                guard let taskID else { break }
+                try taskExecution.apply(.pause, taskID: taskID, at: result.response.respondedAt)
+                return .coachingTaskPaused(taskID: taskID)
+            case .endWorkday:
+                let taskID = try payloadTaskID ?? taskExecution.activeTask(now: result.response.respondedAt)?.taskID
+                guard let taskID else { break }
+                try taskExecution.apply(.pauseForEndOfDay, taskID: taskID, at: result.response.respondedAt)
+                return .coachingWorkdayEnded(taskID: taskID)
+            default:
+                break
+            }
         }
         if result.episode.type == PromptNotificationCategory.gamingDrift.rawValue,
            result.response.action == .startBreak,
