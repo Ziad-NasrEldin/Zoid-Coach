@@ -1,4 +1,5 @@
 import ApplicationServices
+import CoreGraphics
 import Foundation
 
 enum ProbeError: Error, CustomStringConvertible {
@@ -7,11 +8,12 @@ enum ProbeError: Error, CustomStringConvertible {
     case noWindow
     case invalidWindow(minimized: Bool, width: Int, height: Int)
     case emptyContent(width: Int, height: Int, nodes: Int)
+    case screenshot(String)
 
     var description: String {
         switch self {
         case .usage:
-            "usage: qa-window-content-probe.swift <pid>"
+            "usage: qa-window-content-probe.swift <pid> [--screenshot <path>]"
         case let .inaccessible(detail):
             "SETUP_FAIL: Accessibility inspection failed: \(detail)"
         case .noWindow:
@@ -20,7 +22,30 @@ enum ProbeError: Error, CustomStringConvertible {
             "SETUP_FAIL: expected a non-minimized 1180x760 window, got minimized=\(minimized) size=\(width)x\(height)"
         case let .emptyContent(width, height, nodes):
             "RED: exact empty-window symptom reproduced: non-minimized \(width)x\(height) Zoid window has \(nodes) AX content nodes after onboarding continuation"
+        case let .screenshot(detail):
+            "SETUP_FAIL: window screenshot failed: \(detail)"
         }
+    }
+}
+
+func captureWindow(pid: Int32, at path: String) throws {
+    guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID)
+        as? [[String: Any]],
+        let windowInfo = windowList.first(where: { info in
+            (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == pid
+                && (info[kCGWindowLayer as String] as? NSNumber)?.intValue == 0
+        }),
+        let windowNumber = windowInfo[kCGWindowNumber as String] as? NSNumber else {
+        throw ProbeError.screenshot("no on-screen application window was found")
+    }
+
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+    process.arguments = ["-x", "-l", windowNumber.stringValue, path]
+    try process.run()
+    process.waitUntilExit()
+    guard process.terminationStatus == 0 else {
+        throw ProbeError.screenshot("screencapture exited \(process.terminationStatus)")
     }
 }
 
@@ -113,8 +138,15 @@ func windowState(_ window: AXUIElement) throws -> (minimized: Bool, width: Int, 
 }
 
 do {
-    guard CommandLine.arguments.count == 2,
+    guard [2, 4].contains(CommandLine.arguments.count),
           let pid = Int32(CommandLine.arguments[1]) else { throw ProbeError.usage }
+    let screenshotPath: String?
+    if CommandLine.arguments.count == 4 {
+        guard CommandLine.arguments[2] == "--screenshot" else { throw ProbeError.usage }
+        screenshotPath = CommandLine.arguments[3]
+    } else {
+        screenshotPath = nil
+    }
     let application = AXUIElementCreateApplication(pid)
     guard let initialWindow = window(for: application, timeout: 10) else { throw ProbeError.noWindow }
     let initialState = try windowState(initialWindow)
@@ -144,6 +176,9 @@ do {
     let contentNodes = contentNodeCount(in: finalWindow)
     guard contentNodes >= 5 else {
         throw ProbeError.emptyContent(width: state.width, height: state.height, nodes: contentNodes)
+    }
+    if let screenshotPath {
+        try captureWindow(pid: pid, at: screenshotPath)
     }
     print("GREEN: non-minimized \(state.width)x\(state.height) Zoid window exposes \(contentNodes) AX content nodes after onboarding continuation")
 } catch {
