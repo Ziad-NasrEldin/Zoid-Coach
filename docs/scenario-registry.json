@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "5c17e3b97a731c5de3fb18de7b7801e1073cbcff2670ae9cdb36293e4fa42169",
+  "tracker_sha256": "bc52edb3a1f2ba6adff474ba257e60843f7e3d2abba952f7bd43e9eae2df3a78",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7498,9 +7498,9 @@
       "section_title": "Responding to coaching",
       "item_index": 5,
       "wording": "Choose `Five more minutes`.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7508,10 +7508,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/five-minute-coaching-followup/candidate/REPORT.md",
+        ".audit/runs/five-minute-coaching-followup/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`fiveMoreMinutes` exists as an enum, but no coaching prompt currently offers it and no snooze is scheduled.",
+      "audit_note": "The signed Today prompt visibly offered `Five more minutes`, the end user selected it, the answered choice persisted across a helper restart, and no follow-up appeared before the promised boundary (`GamingDriftPromptService.swift`; `.audit/runs/five-minute-coaching-followup/verifier/REPORT.md`).",
       "tracker_line": 488
     },
     {
@@ -7520,9 +7523,9 @@
       "section_title": "Responding to coaching",
       "item_index": 6,
       "wording": "Receive one follow-up when the five-minute snooze ends.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7530,10 +7533,13 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/five-minute-coaching-followup/candidate/REPORT.md",
+        ".audit/runs/five-minute-coaching-followup/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There is no snooze store, timer, cooldown, or follow-up producer.",
+      "audit_note": "The restart-safe response timestamp produced exactly one fixture-delivered `Your five minutes are up` card after the boundary, the card omitted a second snooze, and helper replay kept prompt and delivery counts unchanged (`GamingDriftPromptService.swift`; `.audit/runs/five-minute-coaching-followup/verifier/REPORT.md`).",
       "tracker_line": 489
     },
     {
@@ -7857,8 +7863,8 @@
       "item_index": 6,
       "wording": "Receive the selected snooze duration after choosing a snooze.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -7869,7 +7875,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "`PromptActionKind` has no snooze action or duration payload.",
+      "audit_note": "The fixed five-minute choice now persists its response timestamp, survives restart, and produces one follow-up with `snoozeDurationMinutes: 5`, but arbitrary end-user duration selection is not implemented (`GamingDriftPromptService.swift`; `.audit/runs/five-minute-coaching-followup/verifier/REPORT.md`).",
       "tracker_line": 507
     },
     {
