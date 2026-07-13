@@ -90,6 +90,53 @@ func gamingStatusUsesTheRecordedRewardAmountAndTruthfulFlexibleCopy() {
 }
 
 @Test
+func briefGamingTransitionDoesNotConsumeAllowanceButMeaningfulSessionDoes() {
+    let start = Date(timeIntervalSince1970: 1_800_000_000)
+    let observations = [
+        BehaviorObservation(observedAt: start, application: "Steam", classification: .gaming),
+        BehaviorObservation(observedAt: start.addingTimeInterval(60), application: "Xcode", classification: .work),
+        BehaviorObservation(observedAt: start.addingTimeInterval(120), application: "Steam", classification: .gaming),
+        BehaviorObservation(observedAt: start.addingTimeInterval(180), application: "Steam", classification: .gaming),
+        BehaviorObservation(observedAt: start.addingTimeInterval(240), application: "Steam", classification: .gaming),
+        BehaviorObservation(observedAt: start.addingTimeInterval(300), application: "Xcode", classification: .work)
+    ]
+
+    let result = BehaviorSessionizer().summarize(observations: observations, now: start.addingTimeInterval(360))
+
+    #expect(result.summary.gamingMinutes == 3)
+    #expect(result.summary.workMinutes == 2)
+}
+
+@Test
+func gamingStatusSeparatesBaseEarnedLockedRemainingAndSameDayOverage() {
+    let coverage = TelemetryCoverage(isLimited: false, explanation: "Current", lastObservationAt: Date())
+    let policy = GamingPolicy(dailyBudgetMinutes: 60, priorityTaskRewardMinutes: 15)
+
+    let earned = GamingStatusCalculator().status(
+        policy: policy,
+        gamingMinutes: 80,
+        appliedRewardMinutes: 15,
+        coverage: coverage
+    )
+    #expect(earned.budgetMinutes == 60)
+    #expect(earned.earnedMinutes == 15)
+    #expect(earned.usedMinutes == 80)
+    #expect(earned.lockedMinutes == 0)
+    #expect(earned.unlockedRemainingMinutes == 0)
+    #expect(earned.debtMinutes == 5)
+
+    let locked = GamingStatusCalculator().status(
+        policy: policy,
+        gamingMinutes: 80,
+        appliedRewardMinutes: nil,
+        coverage: coverage
+    )
+    #expect(locked.earnedMinutes == 0)
+    #expect(locked.lockedMinutes == 15)
+    #expect(locked.debtMinutes == 20)
+}
+
+@Test
 func replayClassifiesEachBehaviorBucketWithoutTreatingGapsAsTime() {
     let start = Date(timeIntervalSince1970: 1_700_000_000)
     let observations = [

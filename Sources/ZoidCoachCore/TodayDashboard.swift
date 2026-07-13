@@ -433,19 +433,44 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
 
 public struct GamingStatus: Equatable, Codable, Sendable {
     public let budgetMinutes: Int
+    public let earnedMinutes: Int
     public let usedMinutes: Int
     public let unlockedRemainingMinutes: Int
+    public let lockedMinutes: Int
+    public let debtMinutes: Int
     public let nextUnlockReason: String
     public let confidenceIsLimited: Bool
     public let budgetEnabled: Bool
 
-    public init(budgetMinutes: Int, usedMinutes: Int, unlockedRemainingMinutes: Int, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true) {
+    public init(budgetMinutes: Int, earnedMinutes: Int = 0, usedMinutes: Int, unlockedRemainingMinutes: Int, lockedMinutes: Int = 0, debtMinutes: Int = 0, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true) {
         self.budgetMinutes = max(0, budgetMinutes)
+        self.earnedMinutes = max(0, earnedMinutes)
         self.usedMinutes = max(0, usedMinutes)
         self.unlockedRemainingMinutes = max(0, unlockedRemainingMinutes)
+        self.lockedMinutes = max(0, lockedMinutes)
+        self.debtMinutes = max(0, debtMinutes)
         self.nextUnlockReason = nextUnlockReason
         self.confidenceIsLimited = confidenceIsLimited
         self.budgetEnabled = budgetEnabled
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case budgetMinutes, earnedMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, debtMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            budgetMinutes: try container.decode(Int.self, forKey: .budgetMinutes),
+            earnedMinutes: try container.decodeIfPresent(Int.self, forKey: .earnedMinutes) ?? 0,
+            usedMinutes: try container.decode(Int.self, forKey: .usedMinutes),
+            unlockedRemainingMinutes: try container.decode(Int.self, forKey: .unlockedRemainingMinutes),
+            lockedMinutes: try container.decodeIfPresent(Int.self, forKey: .lockedMinutes) ?? 0,
+            debtMinutes: try container.decodeIfPresent(Int.self, forKey: .debtMinutes) ?? 0,
+            nextUnlockReason: try container.decode(String.self, forKey: .nextUnlockReason),
+            confidenceIsLimited: try container.decode(Bool.self, forKey: .confidenceIsLimited),
+            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
+        )
     }
 }
 
@@ -546,19 +571,35 @@ public struct BehaviorSessionizer: Sendable {
             return (BehaviorSummary(), TelemetryCoverage(isLimited: true, explanation: "Limited coverage: Screenwatch has no observations today.", lastObservationAt: nil))
         }
         var totals = Dictionary(uniqueKeysWithValues: BehaviorClassification.allCases.map { ($0, TimeInterval(0)) })
+        var gamingRuns: [TimeInterval] = []
+        var currentGamingRun: TimeInterval = 0
         var applicationTotals: [AppUsageKey: TimeInterval] = [:]
         for (index, observation) in sorted.enumerated() {
             let next = index + 1 < sorted.count ? sorted[index + 1].observedAt : now
             let rawElapsed = max(0, next.timeIntervalSince(observation.observedAt))
-            guard rawElapsed <= inactivityGap else { continue }
+            guard rawElapsed <= inactivityGap else {
+                if currentGamingRun > 0 {
+                    gamingRuns.append(currentGamingRun)
+                    currentGamingRun = 0
+                }
+                continue
+            }
             let elapsed = min(maximumObservationDuration, rawElapsed)
             totals[observation.classification, default: 0] += elapsed
+            if observation.classification == .gaming {
+                currentGamingRun += elapsed
+            } else if currentGamingRun > 0 {
+                gamingRuns.append(currentGamingRun)
+                currentGamingRun = 0
+            }
             let application = observation.application?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .nilIfEmpty ?? "Unknown application"
             let applicationKey = AppUsageKey(application: application, classification: observation.classification)
             applicationTotals[applicationKey, default: 0] += elapsed
         }
+        if currentGamingRun > 0 { gamingRuns.append(currentGamingRun) }
+        let meaningfulGamingSeconds = gamingRuns.filter { $0 >= 120 }.reduce(0, +)
         let limited = now.timeIntervalSince(last.observedAt) > staleAfter
         let totalApplicationSeconds = applicationTotals.values.reduce(0, +)
         let appUsage = applicationTotals
@@ -579,7 +620,7 @@ public struct BehaviorSessionizer: Sendable {
             }
         let summary = BehaviorSummary(
             workMinutes: Int(totals[.work, default: 0] / 60),
-            gamingMinutes: Int(totals[.gaming, default: 0] / 60),
+            gamingMinutes: Int(meaningfulGamingSeconds / 60),
             distractingMinutes: Int(totals[.distracting, default: 0] / 60),
             idleMinutes: Int(totals[.idle, default: 0] / 60),
             unknownMinutes: Int(totals[.unknown, default: 0] / 60),
@@ -692,8 +733,11 @@ public struct GamingStatusCalculator: Sendable {
         }
         return GamingStatus(
             budgetMinutes: policy.dailyBudgetMinutes,
+            earnedMinutes: rewardMinutes,
             usedMinutes: gamingMinutes,
             unlockedRemainingMinutes: max(0, allowance - gamingMinutes),
+            lockedMinutes: rewardMinutes == 0 ? policy.priorityTaskRewardMinutes : 0,
+            debtMinutes: max(0, gamingMinutes - allowance),
             nextUnlockReason: nextUnlockReason,
             confidenceIsLimited: coverage.isLimited
         )
