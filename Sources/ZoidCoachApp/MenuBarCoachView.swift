@@ -6,9 +6,17 @@ import ZoidCoachInfrastructure
 protocol MenuBarTodayClient: Sendable {
     func fetchTodaySnapshot() async throws -> TodaySnapshot
     func apply(_ command: TaskActivityCommand, taskID: String) async throws -> TodaySnapshot
+    func blockTask(taskID: String, reason: String) async throws -> TodaySnapshot
 }
 
 extension TodayDashboardXPCClient: MenuBarTodayClient {}
+
+enum MenuBarTaskSyncPresentation: Equatable {
+    case loading
+    case confirmed
+    case stale
+    case unavailable
+}
 
 @MainActor
 final class MenuBarCoachController: ObservableObject {
@@ -16,6 +24,8 @@ final class MenuBarCoachController: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var isApplying = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var syncPresentation: MenuBarTaskSyncPresentation = .loading
+    @Published private(set) var lastConfirmedAt: Date?
 
     private let client: any MenuBarTodayClient
 
@@ -32,8 +42,16 @@ final class MenuBarCoachController: ObservableObject {
         do {
             snapshot = try await client.fetchTodaySnapshot()
             errorMessage = nil
+            syncPresentation = .confirmed
+            lastConfirmedAt = Date()
         } catch {
-            errorMessage = "Today could not be refreshed. Open Source Health and check the background agent."
+            if snapshot == nil {
+                syncPresentation = .unavailable
+                errorMessage = "Task state is unavailable because Zoid 666 could not load a confirmed state from the background agent. Open Source Health, then refresh."
+            } else {
+                syncPresentation = .stale
+                errorMessage = "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh."
+            }
         }
     }
 
@@ -44,8 +62,40 @@ final class MenuBarCoachController: ObservableObject {
         do {
             snapshot = try await client.apply(command, taskID: taskID)
             errorMessage = nil
+            syncPresentation = .confirmed
+            lastConfirmedAt = Date()
         } catch {
             errorMessage = "The task change was not saved. The last confirmed state is still shown."
+            syncPresentation = snapshot == nil ? .unavailable : .stale
+        }
+    }
+
+    func block(taskID: String, reason: String) async {
+        guard !isApplying else { return }
+        let normalizedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (3...240).contains(normalizedReason.count) else {
+            errorMessage = "Enter a blocker reason between 3 and 240 characters. Nothing was changed."
+            return
+        }
+        isApplying = true
+        defer { isApplying = false }
+        do {
+            let updated = try await client.blockTask(taskID: taskID, reason: normalizedReason)
+            guard let confirmed = updated.taskRows.first(where: { $0.taskID == taskID }),
+                  confirmed.state == .blocked,
+                  confirmed.blockedReason == normalizedReason
+            else {
+                errorMessage = "The background agent did not confirm the blocker. The last confirmed state is still shown."
+                syncPresentation = snapshot == nil ? .unavailable : .stale
+                return
+            }
+            snapshot = updated
+            errorMessage = nil
+            syncPresentation = .confirmed
+            lastConfirmedAt = Date()
+        } catch {
+            errorMessage = "The blocker was not saved. The last confirmed state is still shown."
+            syncPresentation = snapshot == nil ? .unavailable : .stale
         }
     }
 
@@ -56,6 +106,8 @@ final class MenuBarCoachController: ObservableObject {
         do {
             let latest = try await client.fetchTodaySnapshot()
             snapshot = latest
+            syncPresentation = .confirmed
+            lastConfirmedAt = Date()
             let latestState = MenuBarCoachState(snapshot: latest)
             guard latestState.activeTask == nil,
                   latestState.pausedTask == nil,
@@ -76,8 +128,11 @@ final class MenuBarCoachController: ObservableObject {
 
             snapshot = updated
             errorMessage = nil
+            syncPresentation = .confirmed
+            lastConfirmedAt = Date()
         } catch {
             errorMessage = "The task was not started. The last confirmed state is still shown."
+            syncPresentation = snapshot == nil ? .unavailable : .stale
         }
     }
 
@@ -88,6 +143,8 @@ final class MenuBarCoachController: ObservableObject {
         do {
             let latest = try await client.fetchTodaySnapshot()
             snapshot = latest
+            syncPresentation = .confirmed
+            lastConfirmedAt = Date()
             let activeID = MenuBarCoachState(snapshot: latest).activeTask?.taskID
             guard activeID == taskID else {
                 errorMessage = "The active task changed before confirmation. Nothing was paused. Review the current task and try again."
@@ -95,8 +152,11 @@ final class MenuBarCoachController: ObservableObject {
             }
             snapshot = try await client.apply(.pauseForEndOfDay, taskID: taskID)
             errorMessage = nil
+            syncPresentation = .confirmed
+            lastConfirmedAt = Date()
         } catch {
             errorMessage = "The task change was not saved. The last confirmed state is still shown."
+            syncPresentation = snapshot == nil ? .unavailable : .stale
         }
     }
 }
@@ -108,6 +168,8 @@ struct MenuBarCoachView: View {
     @StateObject private var controller: MenuBarCoachController
     @StateObject private var pauseController: MenuBarCoachingPauseController
     @State private var pendingEndWorkdayTask: TodayTaskRow?
+    @State private var pendingBlockedTask: TodayTaskRow?
+    @State private var blockReason = ""
 
     @MainActor
     init(
@@ -176,11 +238,23 @@ struct MenuBarCoachView: View {
         } message: {
             Text("The active task will pause and its tracked time will remain saved. You can resume it later from Today or this menu.")
         }
+        .sheet(item: $pendingBlockedTask) { task in
+            TaskBlockReasonSheet(taskTitle: task.title, reason: $blockReason) {
+                let reason = blockReason
+                pendingBlockedTask = nil
+                blockReason = ""
+                Task {
+                    await controller.block(taskID: task.taskID, reason: reason)
+                    await appModel.refreshTodaySnapshot()
+                }
+            }
+        }
     }
 
     private var menuState: MenuBarCoachState {
         MenuBarCoachState(
             snapshot: controller.snapshot,
+            snapshotConfirmedAt: controller.lastConfirmedAt,
             coachingIsPaused: pauseController.isPaused,
             unresolvedPromptCount: appModel.promptEpisodes.count,
             notificationsUnavailable: notificationsUnavailable
@@ -323,42 +397,25 @@ struct MenuBarCoachView: View {
                     .accessibilityIdentifier("menu-bar.task.summary")
                 }
 
-                HStack(spacing: 8) {
-                    if menuState.activeTask != nil {
-                        taskButton("PAUSE", identifier: "menu-bar.task.pause") {
-                            await apply(.pauseDoneForNow, taskID: task.taskID)
-                        }
-                        taskButton("BREAK 15", role: .quiet, identifier: "menu-bar.task.break") {
-                            await apply(.pauseForBreak, taskID: task.taskID)
-                        }
-                        taskButton("COMPLETE", role: .quiet, identifier: "menu-bar.task.complete") {
-                            await apply(.complete, taskID: task.taskID)
-                        }
-                        .accessibilityLabel("Complete active task \(task.title)")
-                    } else if menuState.pausedTask != nil {
-                        taskButton(task.acceptedBreak == nil ? "RESUME" : "END BREAK", identifier: "menu-bar.task.resume") {
-                            await apply(.resume, taskID: task.taskID)
-                        }
-                    } else {
-                        taskButton("START", identifier: "menu-bar.task.start") {
-                            await startRecommendedTask(taskID: task.taskID)
-                        }
-                        .accessibilityLabel("Start \(task.title)")
-                        .accessibilityHint("Rechecks that this is still the recommended ready task before starting it.")
-                    }
-                    taskButton("OPEN TODAY", role: .quiet, identifier: "menu-bar.open-today") {
-                        open(.today)
+                LazyVGrid(
+                    columns: [GridItem(.flexible()), GridItem(.flexible())],
+                    alignment: .leading,
+                    spacing: 8
+                ) {
+                    ForEach(menuState.availableTaskActions) { action in
+                        taskActionButton(action, task: task)
                     }
                 }
-                if menuState.canEndWorkday {
-                    Button("END WORKDAY") {
-                        pendingEndWorkdayTask = task
-                    }
-                    .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
-                    .disabled(controller.isApplying)
-                    .help("Pause this task and close the workday after confirmation")
-                    .accessibilityIdentifier("menu-bar.task.end-workday")
-                }
+            } else if controller.syncPresentation == .loading {
+                ProgressView("Loading confirmed task state")
+                    .controlSize(.small)
+                    .accessibilityIdentifier("menu-bar.task.loading")
+            } else if controller.syncPresentation == .unavailable {
+                Text("Task state is unavailable. Zoid 666 has not confirmed whether a task is active.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.sealDeep)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("menu-bar.task.unavailable")
             } else {
                 Text("No task is active or ready. Open Today to plan the next deliberate move.")
                     .font(Sumi.body(12))
@@ -410,8 +467,66 @@ struct MenuBarCoachView: View {
     ) -> some View {
         Button(title) { Task { await action() } }
             .buttonStyle(SumiActionButtonStyle(role: role, size: .compact))
+            .frame(maxWidth: .infinity)
             .disabled(controller.isApplying)
             .accessibilityIdentifier(identifier)
+    }
+
+    @ViewBuilder
+    private func taskActionButton(_ action: MenuBarTaskAction, task: TodayTaskRow) -> some View {
+        switch action {
+        case .start:
+            taskButton("START", identifier: "menu-bar.task.start") {
+                await startRecommendedTask(taskID: task.taskID)
+            }
+            .accessibilityLabel(action.accessibilityLabel)
+            .accessibilityHint("Rechecks that this is still the recommended ready task before starting it.")
+        case .pause:
+            taskButton("PAUSE", identifier: "menu-bar.task.pause") {
+                await apply(.pauseDoneForNow, taskID: task.taskID)
+            }
+            .accessibilityLabel(action.accessibilityLabel)
+        case .resume, .endBreak:
+            taskButton(action == .resume ? "RESUME" : "END BREAK", identifier: "menu-bar.task.resume") {
+                await apply(.resume, taskID: task.taskID)
+            }
+            .accessibilityLabel(action.accessibilityLabel)
+        case .startBreak:
+            taskButton("BREAK 15", role: .quiet, identifier: "menu-bar.task.break") {
+                await apply(.pauseForBreak, taskID: task.taskID)
+            }
+            .accessibilityLabel(action.accessibilityLabel)
+        case .complete:
+            taskButton("COMPLETE", role: .quiet, identifier: "menu-bar.task.complete") {
+                await apply(.complete, taskID: task.taskID)
+            }
+            .accessibilityLabel(action.accessibilityLabel)
+        case .markBlocked:
+            Button("BLOCKED") {
+                blockReason = task.blockedReason ?? ""
+                pendingBlockedTask = task
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .frame(maxWidth: .infinity)
+            .disabled(controller.isApplying)
+            .accessibilityLabel(action.accessibilityLabel)
+            .accessibilityIdentifier("menu-bar.task.block")
+        case .openToday:
+            taskButton("OPEN TODAY", role: .quiet, identifier: "menu-bar.open-today") {
+                open(.today)
+            }
+            .accessibilityLabel(action.accessibilityLabel)
+        case .endWorkday:
+            Button("END WORKDAY") {
+                pendingEndWorkdayTask = task
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+            .frame(maxWidth: .infinity)
+            .disabled(controller.isApplying)
+            .help("Pause this task and close the workday after confirmation")
+            .accessibilityLabel(action.accessibilityLabel)
+            .accessibilityIdentifier("menu-bar.task.end-workday")
+        }
     }
 
     private func apply(_ command: TaskActivityCommand, taskID: String) async {
