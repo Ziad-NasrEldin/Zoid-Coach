@@ -43,6 +43,35 @@ struct GamingUnlockConditionPresentationTests {
 
 @Suite("Reachable Today gaming unlock control")
 struct TodayPlanGamingUnlockControlStateTests {
+    @Test("live plan ownership overrides a stale snapshot and missing live state falls back")
+    func livePlanOwnershipWins() {
+        let newlyMain = DailyPlanEntry(
+            reminderID: "new-main",
+            rank: 2,
+            isMainObjective: true,
+            estimateMinutes: 30
+        )
+        let formerlyMain = DailyPlanEntry(
+            reminderID: "old-main",
+            rank: 1,
+            isMainObjective: false,
+            estimateMinutes: 30
+        )
+
+        #expect(TodayPlanMainObjectiveState.resolve(
+            snapshotIsMainObjective: false,
+            livePlanEntry: newlyMain
+        ))
+        #expect(!TodayPlanMainObjectiveState.resolve(
+            snapshotIsMainObjective: true,
+            livePlanEntry: formerlyMain
+        ))
+        #expect(TodayPlanMainObjectiveState.resolve(
+            snapshotIsMainObjective: true,
+            livePlanEntry: nil
+        ))
+    }
+
     @Test("locked reward labels the main task and requires confirmation before moving")
     func lockedReward() {
         let gaming = gaming(locked: 25)

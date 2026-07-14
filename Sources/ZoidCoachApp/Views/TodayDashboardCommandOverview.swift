@@ -582,7 +582,10 @@ struct TodayDashboardCommandOverview: View {
     }
 
     private func isMainObjective(_ row: TodayTaskRow) -> Bool {
-        row.isMainObjective
+        TodayPlanMainObjectiveState.resolve(
+            snapshotIsMainObjective: row.isMainObjective,
+            livePlanEntry: planEntry(for: row)
+        )
     }
 
     private var nextDecisionTitle: String {
@@ -1147,6 +1150,15 @@ private struct UsagePanelIconButton: View {
         .onHover { isHovering = $0 }
         .help(accessibilityLabel)
         .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+struct TodayPlanMainObjectiveState {
+    static func resolve(
+        snapshotIsMainObjective: Bool,
+        livePlanEntry: DailyPlanEntry?
+    ) -> Bool {
+        livePlanEntry?.isMainObjective ?? snapshotIsMainObjective
     }
 }
 
