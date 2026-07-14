@@ -239,9 +239,11 @@ struct ZoidCoachApplication: App {
                     if onboarding.route == .today {
                         voiceModel.startAlwaysAvailable()
                     }
+                    updateTodayLiveRefresh()
                     presentInitialMainWindow()
                 }
                 .onChange(of: onboarding.route) { _, route in
+                    updateTodayLiveRefresh()
                     if route == .today {
                         voiceModel.startAlwaysAvailable()
                         Task {
@@ -264,6 +266,7 @@ struct ZoidCoachApplication: App {
                     reconcileTaskAfterWake()
                 }
                 .onChange(of: scenePhase) { _, phase in
+                    updateTodayLiveRefresh()
                     guard phase == .active else { return }
                     Task {
                         if onboarding.route == .onboarding,
@@ -326,6 +329,12 @@ struct ZoidCoachApplication: App {
         return notifications.state == .attention
             || notifications.state == .notConnected
             || notifications.state == .unavailable
+    }
+
+    private func updateTodayLiveRefresh() {
+        model.setTodayLiveRefreshEnabled(
+            onboarding.route == .today && scenePhase == .active
+        )
     }
 
     private func presentInitialMainWindow() {
