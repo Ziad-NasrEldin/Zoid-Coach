@@ -32,7 +32,8 @@ func notificationReplacementProbeRefusesProductionAndUnpackagedQA() throws {
             runtimeEnvironment: .production(),
             promptStore: store,
             notifications: coordinator,
-            probeID: "refused-production"
+            probeID: "refused-production",
+            now: { fixture.now }
         )
     }
     #expect(throws: QANotificationReplacementProbeError.unavailable) {
@@ -40,7 +41,8 @@ func notificationReplacementProbeRefusesProductionAndUnpackagedQA() throws {
             runtimeEnvironment: unpackaged,
             promptStore: store,
             notifications: coordinator,
-            probeID: "refused-unpackaged"
+            probeID: "refused-unpackaged",
+            now: { fixture.now }
         )
     }
 }
@@ -64,7 +66,8 @@ func notificationReplacementProbeUsesStableIdentityForANewChangedEpisode() async
         runtimeEnvironment: fixture.environment,
         promptStore: store,
         notifications: coordinator,
-        probeID: "zc-054-009"
+        probeID: "zc-054-009",
+        now: { fixture.now }
     )
 
     let original = try await probe.scheduleOriginal()
@@ -114,7 +117,8 @@ func notificationReplacementProbeRoutesOnlyTheNewestActionAndSurvivesRelaunch() 
         runtimeEnvironment: fixture.environment,
         promptStore: store,
         notifications: coordinator,
-        probeID: "zc-054-009"
+        probeID: "zc-054-009",
+        now: { fixture.now }
     )
     let original = try await probe.scheduleOriginal()
     let replacement = try await probe.scheduleReplacement()
@@ -144,7 +148,8 @@ func notificationReplacementProbeRoutesOnlyTheNewestActionAndSurvivesRelaunch() 
         runtimeEnvironment: fixture.environment,
         promptStore: relaunchedStore,
         notifications: relaunchedCoordinator,
-        probeID: "zc-054-009"
+        probeID: "zc-054-009",
+        now: { fixture.now }
     )
     let snapshot = try await relaunchedProbe.snapshot()
 
@@ -173,13 +178,15 @@ func notificationReplacementProbeKeepsDistinctLogicalDecisionsDistinct() async t
         runtimeEnvironment: fixture.environment,
         promptStore: store,
         notifications: coordinator,
-        probeID: "decision-a"
+        probeID: "decision-a",
+        now: { fixture.now }
     )
     let second = try QANotificationReplacementProbe(
         runtimeEnvironment: fixture.environment,
         promptStore: store,
         notifications: coordinator,
-        probeID: "decision-b"
+        probeID: "decision-b",
+        now: { fixture.now }
     )
 
     let firstEpisode = try await first.scheduleOriginal().episode
