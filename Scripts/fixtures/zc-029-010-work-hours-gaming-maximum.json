@@ -1,0 +1,91 @@
+{
+  "scenarioID": "ZC-029-010",
+  "policy": {
+    "timeZoneIdentifier": "Africa/Cairo",
+    "dailyBudgetMinutes": 60,
+    "priorityTaskRewardMinutes": 15,
+    "workHoursDailyMaximumMinutes": 30
+  },
+  "observation": {
+    "meaningfulGamingMinutes": 20,
+    "rewardAppliedMinutes": 15
+  },
+  "settings": {
+    "toggleIdentifier": "settings.gaming.work-hours-maximum-enabled",
+    "controlIdentifier": "settings.gaming.work-hours-maximum",
+    "detailIdentifier": "settings.gaming.work-hours-maximum-detail",
+    "enabledDetail": "During configured work windows, total available gaming cannot exceed this maximum, including unlocked rewards. Outside work hours, the normal daily allowance applies.",
+    "disabledDetail": "No separate work-hours maximum is applied. The normal daily allowance applies all day."
+  },
+  "menu": {
+    "containerIdentifier": "menu-bar.gaming.work-hours",
+    "maximumIdentifier": "menu-bar.gaming.work-hours.maximum",
+    "statusIdentifier": "menu-bar.gaming.work-hours.status",
+    "withinWorkWindowStatus": "Active in the current work window · 10m remaining",
+    "outsideWorkWindowStatus": "Not active now · Normal allowance has 55m remaining",
+    "awaitingRefreshStatus": "Current allowance is awaiting a work-hours policy refresh"
+  },
+  "states": {
+    "withinWorkWindow": {
+      "gamingStatus": {
+        "budgetMinutes": 30,
+        "earnedMinutes": 0,
+        "manualAdjustmentMinutes": 0,
+        "usedMinutes": 20,
+        "unlockedRemainingMinutes": 10,
+        "lockedMinutes": 0,
+        "overageMinutes": 0,
+        "nextUnlockReason": "Work-hours gaming is capped at 30 minutes. The normal daily allowance returns outside configured work hours.",
+        "confidenceIsLimited": false,
+        "budgetEnabled": true
+      },
+      "renderedStatus": "Base 30m · Earned 0m · Used 20m · Locked 0m · Remaining 10m · Same-day overage 0m"
+    },
+    "outsideWorkWindow": {
+      "gamingStatus": {
+        "budgetMinutes": 60,
+        "earnedMinutes": 15,
+        "manualAdjustmentMinutes": 0,
+        "usedMinutes": 20,
+        "unlockedRemainingMinutes": 55,
+        "lockedMinutes": 0,
+        "overageMinutes": 0,
+        "nextUnlockReason": "Priority-task reward already applied today.",
+        "confidenceIsLimited": false,
+        "budgetEnabled": true
+      },
+      "renderedStatus": "Base 60m · Earned 15m · Used 20m · Locked 0m · Remaining 55m · Same-day overage 0m"
+    },
+    "maximumDisabled": {
+      "gamingStatus": {
+        "budgetMinutes": 60,
+        "earnedMinutes": 15,
+        "manualAdjustmentMinutes": 0,
+        "usedMinutes": 20,
+        "unlockedRemainingMinutes": 55,
+        "lockedMinutes": 0,
+        "overageMinutes": 0,
+        "nextUnlockReason": "Priority-task reward already applied today.",
+        "confidenceIsLimited": false,
+        "budgetEnabled": true
+      },
+      "renderedStatus": "Base 60m · Earned 15m · Used 20m · Locked 0m · Remaining 55m · Same-day overage 0m"
+    },
+    "partialLockedReward": {
+      "workHoursDailyMaximumMinutes": 70,
+      "gamingStatus": {
+        "budgetMinutes": 60,
+        "earnedMinutes": 0,
+        "manualAdjustmentMinutes": 0,
+        "usedMinutes": 0,
+        "unlockedRemainingMinutes": 60,
+        "lockedMinutes": 10,
+        "overageMinutes": 0,
+        "nextUnlockReason": "Work-hours gaming is capped at 70 minutes. The normal daily allowance returns outside configured work hours.",
+        "confidenceIsLimited": false,
+        "budgetEnabled": true
+      },
+      "renderedStatus": "Base 60m · Earned 0m · Used 0m · Locked 10m · Remaining 60m · Same-day overage 0m"
+    }
+  }
+}

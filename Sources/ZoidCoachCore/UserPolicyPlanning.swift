@@ -1,6 +1,32 @@
 import Foundation
 
 public extension SchedulePolicy {
+    func isWithinWorkWindow(at date: Date) -> Bool {
+        guard let timeZone = TimeZone(identifier: timeZoneIdentifier) else { return false }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        guard let weekday = Weekday(rawValue: calendar.component(.weekday, from: date)) else { return false }
+        let localTime = LocalTime(
+            hour: calendar.component(.hour, from: date),
+            minute: calendar.component(.minute, from: date)
+        )
+        return workWindows.contains { window in
+            if window.end < window.start {
+                if localTime >= window.start {
+                    return window.weekdays.contains(weekday)
+                }
+                guard localTime <= window.end,
+                      let previousDate = calendar.date(byAdding: .day, value: -1, to: date),
+                      let previousWeekday = Weekday(rawValue: calendar.component(.weekday, from: previousDate))
+                else { return false }
+                return window.weekdays.contains(previousWeekday)
+            }
+            return window.weekdays.contains(weekday)
+                && localTime >= window.start
+                && localTime <= window.end
+        }
+    }
+
     func workIntervals(on day: Date) -> [CalendarInterval] {
         guard let timeZone = TimeZone(identifier: timeZoneIdentifier) else { return [] }
         var calendar = Calendar(identifier: .gregorian)

@@ -205,6 +205,7 @@ struct MenuBarCoachView: View {
             coachHeader
             notificationFallbackSection
             coachingPauseSection
+            gamingWorkHoursSection
 
             Divider().overlay(Sumi.rule)
 
@@ -272,12 +273,17 @@ struct MenuBarCoachView: View {
     }
 
     private var menuState: MenuBarCoachState {
+        menuState(at: Date())
+    }
+
+    private func menuState(at date: Date) -> MenuBarCoachState {
         MenuBarCoachState(
             snapshot: controller.snapshot,
             snapshotConfirmedAt: controller.lastConfirmedAt,
             coachingIsPaused: pauseController.isPaused,
             unresolvedPromptCount: appModel.promptEpisodes.count,
-            notificationsUnavailable: notificationsUnavailable
+            notificationsUnavailable: notificationsUnavailable,
+            gamingWorkHoursContext: appModel.menuBarGamingWorkHoursContext(at: date)
         )
     }
 
@@ -379,6 +385,36 @@ struct MenuBarCoachView: View {
         .background(pauseController.isPaused ? Sumi.sealWash : Sumi.softPaper)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("menu-bar.coaching-control")
+    }
+
+    private var gamingWorkHoursSection: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            if let gaming = menuState(at: context.date).gamingWorkHours {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("WORK-HOURS GAMING")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.sealDeep)
+                    Text(gaming.maximumLabel)
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.ink)
+                        .accessibilityIdentifier("menu-bar.gaming.work-hours.maximum")
+                    Text(gaming.status)
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("menu-bar.gaming.work-hours.status")
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(gaming.isCappedNow ? Sumi.sealWash : Sumi.softPaper)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(gaming.accessibilitySummary)
+                .accessibilityIdentifier("menu-bar.gaming.work-hours")
+
+                Divider().overlay(Sumi.rule)
+            }
+        }
     }
 
     @ViewBuilder

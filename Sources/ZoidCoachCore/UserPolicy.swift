@@ -826,6 +826,10 @@ public struct UserPolicy: Codable, Equatable, Sendable {
         if !(0...1_440).contains(gaming.dailyBudgetMinutes) {
             violations.append(.init(code: .invalidGamingBudget, field: "gaming.dailyBudgetMinutes"))
         }
+        if let maximum = gaming.workHoursDailyMaximumMinutes,
+           !(0...gaming.dailyBudgetMinutes).contains(maximum) {
+            violations.append(.init(code: .invalidGamingBudget, field: "gaming.workHoursDailyMaximumMinutes"))
+        }
         if !(0...1_440).contains(gaming.priorityTaskRewardMinutes) {
             violations.append(.init(
                 code: .invalidGamingReward,
