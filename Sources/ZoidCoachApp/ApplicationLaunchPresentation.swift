@@ -48,13 +48,28 @@ struct BackgroundApplicationLifecycleHook {
         dismissVisibleNormalWindows()
     }
 
+    func applicationDidUpdate() {
+        guard policy == .backgroundScheduling else { return }
+        setAccessoryActivationPolicy()
+        dismissVisibleNormalWindows()
+    }
+
     func windowDidBecomeVisible(_ window: ApplicationWindowDescriptor) {
-        guard policy == .backgroundScheduling, window.isNormalLevel else { return }
+        guard policy == .backgroundScheduling,
+              window.isVisible,
+              window.isNormalLevel
+        else {
+            return
+        }
         dismissWindow(window.windowNumber)
     }
 
+    func shouldTerminateAfterLastWindowClosed(defaultDecision: Bool) -> Bool {
+        policy == .backgroundScheduling ? false : defaultDecision
+    }
+
     private func dismissVisibleNormalWindows() {
-        for window in availableWindows() where window.isNormalLevel {
+        for window in availableWindows() where window.isVisible && window.isNormalLevel {
             dismissWindow(window.windowNumber)
         }
     }
@@ -65,6 +80,7 @@ struct ApplicationWindowDescriptor: Equatable, Sendable {
     let identifier: String?
     let title: String
     let canBecomeKey: Bool
+    let isVisible: Bool
     let isNormalLevel: Bool
 
     @MainActor
@@ -73,6 +89,7 @@ struct ApplicationWindowDescriptor: Equatable, Sendable {
         identifier = window.identifier?.rawValue
         title = window.title
         canBecomeKey = window.canBecomeKey
+        isVisible = window.isVisible
         isNormalLevel = window.level == .normal
     }
 
@@ -81,12 +98,14 @@ struct ApplicationWindowDescriptor: Equatable, Sendable {
         identifier: String?,
         title: String,
         canBecomeKey: Bool,
+        isVisible: Bool = true,
         isNormalLevel: Bool
     ) {
         self.windowNumber = windowNumber
         self.identifier = identifier
         self.title = title
         self.canBecomeKey = canBecomeKey
+        self.isVisible = isVisible
         self.isNormalLevel = isNormalLevel
     }
 }
