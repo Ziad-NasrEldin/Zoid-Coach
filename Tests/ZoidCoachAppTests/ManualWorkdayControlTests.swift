@@ -35,7 +35,7 @@ func manualWorkdaySelectionSurvivesSaveReopenAndMenuRefresh() async throws {
     let store = try PolicyStore(databaseURL: databaseURL)
     _ = try store.saveSystemMaintenancePolicy(draft.policy(preserving: initial))
     let reopened = try PolicyStore(databaseURL: databaseURL)
-    let current = try #require(reopened.current())
+    let current = try #require(try reopened.current())
 
     #expect(current.policy.schedule.effectiveWorkdayControlMode == .manual)
     #expect(current.policy.schedule.workWindows.first?.start == originalStart)
@@ -46,7 +46,7 @@ func manualWorkdaySelectionSurvivesSaveReopenAndMenuRefresh() async throws {
     await controller.refresh()
 
     #expect(controller.usesManualWorkday)
-    #expect(controller.workdayControlMode == .manual)
+    #expect(controller.workdayControlMode == WorkdayControlMode.manual)
 }
 
 @Test
@@ -115,6 +115,10 @@ func manualWorkdaySettingsAndMenuExposeStableAccessibilityIdentifiers() throws {
 
 private actor ManualWorkdayPolicyClient: MenuBarCoachingPauseClient {
     let current: VersionedUserPolicy
+
+    init(current: VersionedUserPolicy) {
+        self.current = current
+    }
 
     func loadCurrentPolicy() -> VersionedUserPolicy { current }
 
