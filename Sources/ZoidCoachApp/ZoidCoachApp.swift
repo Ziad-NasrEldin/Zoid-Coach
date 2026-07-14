@@ -14,6 +14,7 @@ struct ZoidCoachApplication: App {
     @StateObject private var menuBarCoach: MenuBarCoachController
     @StateObject private var menuBarCoachingPause: MenuBarCoachingPauseController
     private let launchesForBackgroundScheduling: Bool
+    private let shouldOpenMainWindow: Bool
 
     init() {
         if CommandLine.arguments.contains(ZC052005AcceptanceProbe.argument) {
@@ -52,9 +53,13 @@ struct ZoidCoachApplication: App {
             fflush(stderr)
             Darwin.exit(exitCode)
         }
-        let isBackgroundLaunch = CommandLine.arguments.contains("--background-schedule")
         let runtimeEnvironment = RuntimeEnvironment.current()
-        launchesForBackgroundScheduling = isBackgroundLaunch
+        let launchPresentation = ApplicationLaunchPresentation(
+            arguments: CommandLine.arguments,
+            packageMode: runtimeEnvironment.packageMode
+        )
+        launchesForBackgroundScheduling = launchPresentation.launchesForBackgroundScheduling
+        shouldOpenMainWindow = launchPresentation.shouldOpenMainWindow
         _model = StateObject(wrappedValue: AppModel(runtimeEnvironment: runtimeEnvironment))
         _voiceModel = StateObject(wrappedValue: VoiceConversationModel())
         _onboarding = StateObject(wrappedValue: OnboardingCoordinator())
@@ -202,6 +207,9 @@ struct ZoidCoachApplication: App {
         } label: {
             Image(systemName: menuBarState.menuBarSymbol)
                 .accessibilityLabel(menuBarState.menuBarLabel)
+                .modifier(QAMainWindowLaunchModifier(
+                    shouldOpenMainWindow: shouldOpenMainWindow
+                ))
         }
         .menuBarExtraStyle(.window)
     }
