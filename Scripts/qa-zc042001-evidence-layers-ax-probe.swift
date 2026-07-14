@@ -12,7 +12,15 @@ private struct WindowTraits {
     let hasReviews: Bool
 }
 private enum WindowSelection: Equatable { case selected(Int), missing, ambiguous }
+private func reviewsNavigationSucceeded(
+    targetVisibleBeforePress: Bool,
+    pressSucceeded: Bool,
+    targetVisibleAfterPress: Bool
+) -> Bool {
+    targetVisibleBeforePress || targetVisibleAfterPress
+}
 private let mainWindowID = "zoid-666.main-window"
+private let evidenceContainerID = "reviews.evidence-layers"
 private let layerIDs = [
     "reviews.evidence-layers.facts",
     "reviews.evidence-layers.context",
@@ -42,6 +50,26 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           selectMainWindow([auxiliary]) == .missing,
           selectMainWindow([minimized]) == .missing,
           selectMainWindow([hidden]) == .missing,
+          reviewsNavigationSucceeded(
+              targetVisibleBeforePress: true,
+              pressSucceeded: false,
+              targetVisibleAfterPress: true
+          ),
+          reviewsNavigationSucceeded(
+              targetVisibleBeforePress: false,
+              pressSucceeded: true,
+              targetVisibleAfterPress: true
+          ),
+          !reviewsNavigationSucceeded(
+              targetVisibleBeforePress: false,
+              pressSucceeded: true,
+              targetVisibleAfterPress: false
+          ),
+          !reviewsNavigationSucceeded(
+              targetVisibleBeforePress: false,
+              pressSucceeded: false,
+              targetVisibleAfterPress: false
+          ),
           Set(layerIDs).count == 3
     else {
         fputs("FAIL: ZC-042-001 AX probe self-test\n", stderr)
@@ -124,13 +152,26 @@ private func mainWindow() throws -> AXUIElement {
     }
 }
 private func pressReviews(_ window: AXUIElement) throws {
+    let targetVisibleBeforePress = try walk(window, matching: {
+        identifier($0) == evidenceContainerID
+    }) != nil
     guard let reviews = try walk(window, matching: {
         role($0) == (kAXButtonRole as String) && labels($0).contains("Reviews")
     }) else { throw ProbeError.failure("normal Reviews navigation is unavailable") }
-    guard AXUIElementPerformAction(reviews, kAXPressAction as CFString) == .success else {
+
+    _ = AXUIElementPerformAction(reviews, "AXScrollToVisible" as CFString)
+    let pressSucceeded = AXUIElementPerformAction(reviews, kAXPressAction as CFString) == .success
+    Thread.sleep(forTimeInterval: 0.3)
+    let targetVisibleAfterPress = try walk(window, matching: {
+        identifier($0) == evidenceContainerID
+    }) != nil
+    guard reviewsNavigationSucceeded(
+        targetVisibleBeforePress: targetVisibleBeforePress,
+        pressSucceeded: pressSucceeded,
+        targetVisibleAfterPress: targetVisibleAfterPress
+    ) else {
         throw ProbeError.failure("could not press Reviews")
     }
-    Thread.sleep(forTimeInterval: 0.3)
 }
 private func find(_ expected: String, in window: AXUIElement) throws -> AXUIElement {
     for page in 0...maximumPages {
@@ -166,7 +207,7 @@ do {
     let window = try mainWindow()
     if phase == "window" { print("PASS: ZC-042-001 exactly one visible main window"); exit(0) }
     try pressReviews(window)
-    let container = try find("reviews.evidence-layers", in: window)
+    let container = try find(evidenceContainerID, in: window)
     let snapshot = try subtree(container)
     let exposedLayers = Set(snapshot.ids.filter { $0.hasPrefix("reviews.evidence-layers.") })
     guard exposedLayers == Set(layerIDs) else { throw ProbeError.failure("exactly three distinct evidence layers were not exposed") }
