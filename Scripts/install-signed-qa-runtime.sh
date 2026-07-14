@@ -43,7 +43,8 @@ launchctl bootout "$USER_DOMAIN/$AGENT_LABEL" >/dev/null 2>&1 || true
 pkill -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
 qa_commit_app_replacement "$INSTALLED_APP" "$STAGED_APP" "$BACKUP_APP"
 
-if ! "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-register-agent; then
+registration_output=""
+if ! registration_output="$("$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-register-agent)"; then
     qa_rollback_app_replacement "$INSTALLED_APP" "$BACKUP_APP"
     if [[ -x "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" ]]; then
         "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-register-agent || true
@@ -51,7 +52,13 @@ if ! "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-register-agent; then
     print -u2 "FAIL: QA LaunchAgent registration failed; the previous installed app was restored"
     exit 1
 fi
-rm -rf "$BACKUP_APP"
+print -r -- "$registration_output"
+if ! grep -Fq "PASS: QA XPC runtime is writable and prompt timeline is available" <<<"$registration_output"; then
+    "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-unregister-agent || true
+    qa_rollback_app_replacement "$INSTALLED_APP" "$BACKUP_APP"
+    print -u2 "FAIL: QA LaunchAgent registered without a writable XPC prompt timeline"
+    exit 1
+fi
 
 agent_path="$INSTALLED_APP/Contents/MacOS/$AGENT_EXECUTABLE"
 service=""
@@ -68,10 +75,29 @@ for _ in {1..30}; do
 done
 
 if [[ "${executable:-}" != "$agent_path" ]]; then
+    "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-unregister-agent || true
+    qa_rollback_app_replacement "$INSTALLED_APP" "$BACKUP_APP"
     print -u2 "FAIL: QA LaunchAgent did not start from the installed signed app"
     print -u2 "$service"
     exit 1
 fi
+
+database="$QA_ROOT/Application Support/Zoid 666/zoid-coach.sqlite"
+heartbeat=""
+for _ in {1..30}; do
+    if [[ -f "$database" ]]; then
+        heartbeat="$(sqlite3 "$database" "SELECT last_success_at_utc FROM processing_checkpoints WHERE source_id = 'agent-runtime' LIMIT 1;" 2>/dev/null || true)"
+        [[ -n "$heartbeat" ]] && break
+    fi
+    sleep 0.2
+done
+if [[ -z "$heartbeat" ]]; then
+    "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-unregister-agent || true
+    qa_rollback_app_replacement "$INSTALLED_APP" "$BACKUP_APP"
+    print -u2 "FAIL: QA LaunchAgent did not publish a canonical runtime heartbeat"
+    exit 1
+fi
+rm -rf "$BACKUP_APP"
 
 open "$INSTALLED_APP"
 
