@@ -72,6 +72,11 @@ The verifier repair therefore has a green release build.
 - Because the QA bundle was not already authorized, the run stopped before replacement, action routing, or relaunch as required by the runtime safety boundary.
 - The native accessibility tree also revealed that the containing view's identifier overwrites the intended child button and status identifiers, so every probe element appeared as `settings.qa-notification-replacement` even though the visible names remained reachable.
 - The verifier removed that overriding container identifier, centralized four distinct child identifiers, and added a source-level uniqueness contract test.
+- The repaired focused suite `swift test --filter QANotificationReplacementProbeTests` passed five probe tests at exit 0.
+- One incremental `swift build -c release` completed successfully after the accessibility repair.
+- A second isolated signed package passed package, signing, LaunchAgent, Mach service, and designated-requirement validation.
+- The signed native accessibility tree then exposed exactly `settings.qa-notification-replacement.original` as Create Original, `settings.qa-notification-replacement.updated` as Replace With Update, `settings.qa-notification-replacement.refresh` as Refresh Result, and `settings.qa-notification-replacement.status` with the visible sequence guidance.
+- This AX-only recheck did not schedule a notification, request permission, or change System Settings.
 - No Notification Center card, changed action set, newest response, or relaunch behavior is claimed from this run.
 - The QA LaunchAgent was unregistered and the isolated app, database, and temporary accessibility artifacts were removed at the cap.
 
@@ -83,6 +88,6 @@ The verifier repair therefore has a green release build.
 4. Invoke Undo from the newest card and prove the response belongs only to the replacement episode.
 5. Restart app and helper and prove the response remains durable and the original card does not return.
 
-The repaired child identifiers still require a short signed native AX recheck after the build lease becomes available.
+The repaired child identifiers are signed-native verified, while Notification Center replacement remains permission-blocked.
 
 The signed runtime lease may now be requested because the repaired focused tests and release build are green.
