@@ -71,6 +71,7 @@ private func reviewScrollStep(
 }
 
 private let mainWindowIdentifier = "zoid-666.main-window"
+private let reviewsNavigationIdentifier = "sidebar.navigation.reviews"
 
 private func selectMainWindow(from windows: [WindowTraits]) -> MainWindowSelection {
     let matches = windows.indices.filter { index in
@@ -275,6 +276,12 @@ private func labels(_ element: AXUIElement) -> [String] {
         .compactMap { string(element, $0 as CFString) }
 }
 
+private func actionNames(_ element: AXUIElement) -> [String] {
+    var names: CFArray?
+    guard AXUIElementCopyActionNames(element, &names) == .success else { return [] }
+    return names as? [String] ?? []
+}
+
 private func children(_ element: AXUIElement) -> [AXUIElement] {
     attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? []
 }
@@ -355,7 +362,9 @@ private func reviewsNavigationState(in window: AXUIElement) throws -> ReviewsNav
 private func navigateToReviews(window: AXUIElement) throws {
     var reviewItems: [AXUIElement] = []
     _ = try walk(root: window) { element in
-        if role(element) == (kAXButtonRole as String), labels(element).contains("Reviews") {
+        if role(element) == (kAXButtonRole as String),
+           identifier(element) == reviewsNavigationIdentifier,
+           labels(element).contains("Reviews") {
             reviewItems.append(element)
         }
         return false
@@ -369,6 +378,9 @@ private func navigateToReviews(window: AXUIElement) throws {
                 ? "normal Reviews navigation is unavailable"
                 : "normal Reviews navigation is ambiguous"
         )
+    }
+    guard actionNames(reviews).contains(kAXPressAction as String) else {
+        throw ProbeError.failure("visible Reviews navigation has no AXPress action")
     }
     let beforePress = try reviewsNavigationState(in: window)
     _ = AXUIElementPerformAction(reviews, "AXScrollToVisible" as CFString)

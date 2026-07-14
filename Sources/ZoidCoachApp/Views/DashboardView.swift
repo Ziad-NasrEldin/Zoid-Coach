@@ -2347,8 +2347,10 @@ private struct SidebarView: View {
         _ section: AppSection,
         shortcut: DailyReviewKeyboardShortcutDescriptor? = nil
     ) -> some View {
-        Button {
-            model.selectedSection = section
+        let navigation = SidebarNavigationAction(destination: section)
+
+        return Button {
+            navigation.perform { model.selectedSection = $0 }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: section.symbol)
@@ -2374,6 +2376,10 @@ private struct SidebarView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(section.rawValue)
         .accessibilityHint(shortcut?.visibleLegend ?? "")
+        .accessibilityIdentifier(section.sidebarAccessibilityIdentifier)
+        .accessibilityAction {
+            navigation.perform { model.selectedSection = $0 }
+        }
     }
 }
 
