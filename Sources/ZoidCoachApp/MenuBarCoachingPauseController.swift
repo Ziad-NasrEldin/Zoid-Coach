@@ -56,7 +56,7 @@ final class MenuBarCoachingPauseController: ObservableObject {
     private let now: @Sendable () -> Date
 
     init(
-        client: any MenuBarCoachingPauseClient = LiveMenuBarCoachingPauseClient(runtimeEnvironment: .current()),
+        client: any MenuBarCoachingPauseClient,
         makeRequestID: @escaping @Sendable () -> String = {
             "system-policy-v1:menu-bar-coaching-pause:\(UUID().uuidString.lowercased())"
         },
@@ -65,6 +65,12 @@ final class MenuBarCoachingPauseController: ObservableObject {
         self.client = client
         self.makeRequestID = makeRequestID
         self.now = now
+    }
+
+    convenience init(runtimeEnvironment: RuntimeEnvironment) {
+        self.init(
+            client: LiveMenuBarCoachingPauseClient(runtimeEnvironment: runtimeEnvironment)
+        )
     }
 
     var isPaused: Bool { pause.isPaused }
