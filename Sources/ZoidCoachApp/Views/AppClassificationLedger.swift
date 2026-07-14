@@ -12,8 +12,10 @@ struct AppClassificationLedger: View {
     @State private var warning: String?
     @State private var notice: String?
     @State private var pendingAction: PendingAppRuleAction?
+    @State private var showsDomainRules = false
     private let service: AppInventoryService
     private let rulesService: AppClassificationRulesDocumentService
+    private let domainRuleReview = DomainRuleReviewState()
 
     init(
         draft: Binding<SettingsPolicyDraft>,
@@ -51,6 +53,7 @@ struct AppClassificationLedger: View {
             }
 
             ruleActions
+            domainRuleReviewSection
 
             if let notice {
                 Text(notice)
@@ -154,6 +157,97 @@ struct AppClassificationLedger: View {
         }
     }
 
+    private var domainRuleReviewSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                showsDomainRules.toggle()
+            } label: {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("DOMAIN RULES")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.ink)
+                        Text(domainRuleReview.summary)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                    }
+                    Spacer()
+                    Text(showsDomainRules ? "HIDE" : "REVIEW")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                    Image(systemName: showsDomainRules ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Review domain rules")
+            .accessibilityValue(showsDomainRules ? "Expanded" : "Collapsed")
+            .accessibilityHint("Shows the built-in URL and domain signals used by local contextual classification.")
+            .accessibilityIdentifier("settings.domain-rules.toggle")
+
+            if showsDomainRules {
+                Text(domainRuleReview.privacyDetail)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.domain-rules.privacy")
+
+                LazyVStack(spacing: 0) {
+                    ForEach(domainRuleReview.rows) { row in
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                                domainRuleIdentity(row)
+                                Text(row.outcome.uppercased())
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.ink)
+                                    .frame(width: 100, alignment: .trailing)
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                domainRuleIdentity(row)
+                                Text(row.outcome.uppercased())
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.ink)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+                        .background(Sumi.paper)
+                        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(row.accessibilityLabel)
+                        .accessibilityHint(row.explanation)
+                        .accessibilityIdentifier(row.accessibilityIdentifier)
+                    }
+                }
+                .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+            }
+        }
+        .padding(12)
+        .background(Sumi.softPaper)
+        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.domain-rules")
+    }
+
+    private func domainRuleIdentity(_ row: DomainRuleReviewRow) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(row.pattern)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(Sumi.ink)
+                .textSelection(.enabled)
+            Text(row.explanation)
+                .font(Sumi.body(10))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     @ViewBuilder
     private var bulkButtons: some View {
         Text("SET \(filteredItems.count) VISIBLE")
@@ -208,11 +302,14 @@ struct AppClassificationLedger: View {
         let savedNames = draft.behaviorPolicy.workApplications
             + draft.behaviorPolicy.communicationApplications
             + draft.behaviorPolicy.gamingApplications
-        for name in savedNames where !loaded.contains(where: { $0.normalizedName == name }) {
+        let reviewableNames = savedNames + ContextualGamingAppRulePresentation.builtInApplications
+        for name in reviewableNames where !loaded.contains(where: {
+            $0.normalizedName == BehaviorPolicy.normalize(name)
+        }) {
             loaded.append(
                 AppInventoryItem(
                     name: name,
-                    normalizedName: name,
+                    normalizedName: BehaviorPolicy.normalize(name),
                     bundleIdentifier: nil,
                     isInstalled: false,
                     lastObservedAt: nil,
@@ -340,6 +437,8 @@ private struct AppClassificationRow: View {
         .frame(minHeight: 54, alignment: .leading)
         .background(selection == .automatic ? Sumi.paper : Sumi.softPaper)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.app-rules.row.\(identifierSuffix)")
     }
 
     private var identity: some View {
@@ -352,6 +451,21 @@ private struct AppClassificationRow: View {
                 .font(.system(.caption2, design: .serif))
                 .sumiLabelTracking()
                 .foregroundStyle(Sumi.muted)
+            if ContextualGamingAppRulePresentation.isSupported(item.normalizedName) {
+                let presentation = ContextualGamingAppRulePresentation(
+                    application: item.name,
+                    selection: selection
+                )
+                Text(presentation.title)
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.sealDeep)
+                Text(presentation.detail)
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.app-rules.context.\(identifierSuffix)")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -360,7 +474,14 @@ private struct AppClassificationRow: View {
         if item.isInstalled && item.isObserved { return "INSTALLED / OBSERVED" }
         if item.isInstalled { return "INSTALLED" }
         if item.isObserved { return "OBSERVED" }
+        if ContextualGamingAppRulePresentation.isSupported(item.normalizedName) {
+            return "CONTEXT-SENSITIVE OPTION"
+        }
         return "SAVED CLASSIFICATION"
+    }
+
+    private var identifierSuffix: String {
+        ContextualGamingAppRulePresentation.identifierSuffix(for: item.normalizedName)
     }
 }
 
@@ -385,6 +506,10 @@ private struct AppClassificationChoiceControl: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Classify \(applicationName) as \(choice.label)")
                 .accessibilityValue(selection == choice ? "Selected" : "Not selected")
+                .accessibilityHint(accessibilityHint(for: choice))
+                .accessibilityIdentifier(
+                    "settings.app-rules.\(identifierSuffix).\(choice.rawValue)"
+                )
 
                 if choice != ApplicationRuleCategory.allCases.last {
                     Rectangle().fill(Sumi.rule).frame(width: 1, height: 32)
@@ -396,6 +521,20 @@ private struct AppClassificationChoiceControl: View {
 
     private func displayLabel(for choice: ApplicationRuleCategory) -> String {
         choice == .communication ? "Comms" : choice.label
+    }
+
+    private func accessibilityHint(for choice: ApplicationRuleCategory) -> String {
+        guard ContextualGamingAppRulePresentation.isSupported(applicationName) else {
+            return "Applies this classification to future observed activity after Save Settings."
+        }
+        return ContextualGamingAppRulePresentation(
+            application: applicationName,
+            selection: choice
+        ).detail
+    }
+
+    private var identifierSuffix: String {
+        ContextualGamingAppRulePresentation.identifierSuffix(for: applicationName)
     }
 }
 

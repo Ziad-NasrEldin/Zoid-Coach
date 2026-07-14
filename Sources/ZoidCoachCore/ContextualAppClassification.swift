@@ -1,5 +1,116 @@
 import Foundation
 
+public struct ContextualDomainRule: Identifiable, Equatable, Sendable {
+    public let id: String
+    public let displayPattern: String
+    public let classification: BehaviorClassification
+    public let explanation: String
+
+    fileprivate let matchText: String
+    fileprivate let isReviewableDomainRule: Bool
+
+    fileprivate init(
+        id: String,
+        matchText: String,
+        displayPattern: String? = nil,
+        classification: BehaviorClassification,
+        explanation: String,
+        isReviewableDomainRule: Bool
+    ) {
+        self.id = id
+        self.matchText = matchText
+        self.displayPattern = displayPattern ?? matchText
+        self.classification = classification
+        self.explanation = explanation
+        self.isReviewableDomainRule = isReviewableDomainRule
+    }
+
+    fileprivate func matches(_ context: String) -> Bool {
+        context.contains(matchText)
+    }
+}
+
+public enum ContextualClassificationRuleCatalog {
+    public static let domainRules = orderedRules.filter(\.isReviewableDomainRule)
+
+    fileprivate static let orderedRules: [ContextualDomainRule] = [
+        rule("work-api-reference", "api reference", .work),
+        rule("work-client", "client", .work),
+        rule("work-code-review", "code review", .work),
+        rule("work-course", "course", .work),
+        rule("work-customer", "customer", .work),
+        rule("work-design", "design", .work),
+        rule("work-developer", "developer.", .work, displayPattern: "developer.*", reviewable: true),
+        rule("work-documentation", "documentation", .work),
+        rule("work-engineering", "engineering", .work),
+        rule("work-figma", "figma", .work, reviewable: true),
+        rule("work-github", "github", .work, reviewable: true),
+        rule("work-issue", "issue", .work),
+        rule("work-lecture", "lecture", .work),
+        rule("work-meeting", "meeting", .work),
+        rule("work-proposal", "proposal", .work),
+        rule("work-project", "project", .work),
+        rule("work-pull-request", "pull request", .work),
+        rule("work-research", "research", .work),
+        rule("work-roadmap", "roadmap", .work),
+        rule("work-stackoverflow", "stackoverflow", .work, reviewable: true),
+        rule("work-task", "task", .work),
+        rule("work-workspace", "workspace", .work),
+        rule("gaming-battle-net", "battle.net", .gaming, reviewable: true),
+        rule("gaming-game-lobby", "game lobby", .gaming),
+        rule("gaming-gameplay", "gameplay", .gaming),
+        rule("gaming-league-of-legends", "league of legends", .gaming),
+        rule("gaming-minecraft", "minecraft", .gaming),
+        rule("gaming-playstation", "playstation", .gaming, reviewable: true),
+        rule("gaming-roblox", "roblox", .gaming),
+        rule("gaming-steam", "steam", .gaming, reviewable: true),
+        rule("gaming-twitch", "twitch", .gaming, reviewable: true),
+        rule("gaming-valorant", "valorant", .gaming),
+        rule("gaming-xbox", "xbox", .gaming, reviewable: true),
+        rule("distraction-explore", "explore", .distracting),
+        rule("distraction-for-you", "for you", .distracting),
+        rule("distraction-home-feed", "home feed", .distracting),
+        rule("distraction-instagram", "instagram", .distracting, reviewable: true),
+        rule("distraction-recommendations", "recommendations", .distracting),
+        rule("distraction-reddit", "reddit", .distracting, reviewable: true),
+        rule("distraction-shorts", "shorts", .distracting),
+        rule("distraction-tiktok", "tiktok", .distracting, reviewable: true),
+        rule("distraction-trending", "trending", .distracting),
+        rule("distraction-twitter", "twitter", .distracting, reviewable: true),
+        rule("distraction-x-home", "x.com/home", .distracting, reviewable: true),
+    ]
+
+    private static func rule(
+        _ id: String,
+        _ matchText: String,
+        _ classification: BehaviorClassification,
+        displayPattern: String? = nil,
+        reviewable: Bool = false
+    ) -> ContextualDomainRule {
+        ContextualDomainRule(
+            id: id,
+            matchText: matchText,
+            displayPattern: displayPattern,
+            classification: classification,
+            explanation: explanation(for: classification),
+            isReviewableDomainRule: reviewable
+        )
+    }
+
+    private static func explanation(for classification: BehaviorClassification) -> String {
+        switch classification {
+        case .work:
+            "Matches a built-in work or research destination signal."
+        case .gaming:
+            "Matches a built-in gaming destination signal."
+        case .distracting:
+            "Matches a built-in feed or entertainment destination signal."
+        case .idle, .unknown:
+            "Does not create a contextual classification."
+        }
+    }
+}
+
 public struct ContextualAppClassification: Sendable {
     public init() {}
 
@@ -12,9 +123,9 @@ public struct ContextualAppClassification: Sendable {
         let context = Self.normalize("\(windowTitle) \(url)")
         guard isContextSensitive(application: application, context: context) else { return nil }
 
-        if Self.containsAny(context, Self.workSignals) { return .work }
-        if Self.containsAny(context, Self.gamingSignals) { return .gaming }
-        if Self.containsAny(context, Self.distractionSignals) { return .distracting }
+        if let rule = ContextualClassificationRuleCatalog.orderedRules.first(where: { $0.matches(context) }) {
+            return rule.classification
+        }
         return .unknown
     }
 
@@ -40,23 +151,7 @@ public struct ContextualAppClassification: Sendable {
 
     private static let contextSensitiveApplications = [
         "brave", "chrome", "chromium", "discord", "firefox", "microsoft edge",
-        "notion", "opera", "preview", "safari", "slack", "youtube",
+        "notion", "opera", "preview", "safari", "slack", "twitch", "youtube",
     ]
 
-    private static let workSignals = [
-        "api reference", "client", "code review", "course", "customer", "design", "developer.",
-        "documentation", "engineering", "figma", "github", "issue", "lecture", "meeting",
-        "proposal", "project", "pull request", "research", "roadmap", "stackoverflow", "task",
-        "workspace",
-    ]
-
-    private static let gamingSignals = [
-        "battle.net", "game lobby", "gameplay", "league of legends", "minecraft", "playstation",
-        "roblox", "steam", "twitch", "valorant", "xbox",
-    ]
-
-    private static let distractionSignals = [
-        "explore", "for you", "home feed", "instagram", "recommendations", "reddit", "shorts",
-        "tiktok", "trending", "twitter", "x.com/home",
-    ]
 }

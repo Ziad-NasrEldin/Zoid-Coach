@@ -86,10 +86,11 @@ struct ScreenwatchConnectionView: View {
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .disabled(controller.isWorking)
                     .accessibilityIdentifier("settings.screenwatch.recheck")
-                Button("CHOOSE FOLDER") { chooseFolder() }
+                Button(repairPresentation.primaryTitle) { chooseFolder() }
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
                     .disabled(controller.isWorking)
                     .accessibilityIdentifier("settings.screenwatch.choose-folder")
+                    .accessibilityHint(repairPresentation.accessibilityHint)
                 if controller.status?.source == .alternateFolder {
                     Button("USE EXPECTED FOLDER") {
                         Task { await controller.useExpectedDirectory() }
@@ -151,7 +152,7 @@ struct ScreenwatchConnectionView: View {
                 .accessibilityLabel(recordEvidence.accessibilitySummary)
                 .accessibilityIdentifier("settings.screenwatch.record-evidence")
             }
-            Text(repairGuidance(status))
+            Text(ScreenwatchRepairActionPresentation(status: status).explanation)
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
         }
@@ -160,19 +161,8 @@ struct ScreenwatchConnectionView: View {
         .accessibilityIdentifier("settings.screenwatch.status")
     }
 
-    private func repairGuidance(_ status: ScreenwatchSetupStatus) -> String {
-        switch status.repair {
-        case .none:
-            "The source is usable. Recheck after Screenwatch writes new activity."
-        case .recheck:
-            "Recheck after Screenwatch writes today's log or resumes activity."
-        case .chooseFolder:
-            "Choose the direct Screenwatch days folder. Captured titles, URLs, screenshots, and file locations are never shown here."
-        case .reauthorizeFolder:
-            "Choose the folder again to renew local access without displaying captured content."
-        case .useDefaultLocation:
-            "Return to the expected Screenwatch folder or choose the current direct days folder."
-        }
+    private var repairPresentation: ScreenwatchRepairActionPresentation {
+        ScreenwatchRepairActionPresentation(status: controller.status)
     }
 
     private func healthLabel(_ health: ScreenwatchSetupHealth) -> String {
