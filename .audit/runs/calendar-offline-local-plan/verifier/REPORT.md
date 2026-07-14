@@ -12,7 +12,12 @@ A signed installed-app journey with Calendar unavailable, recovery, retry, and r
 
 - Authoritative baseline: `69fd38fcbb4969063abe1532d5dbaae9ad733cd8`.
 - Verification branch: `codex/verify-calendar-offline-local-plan`.
+- Verifier commit: `efc5ccd4ab3e12549345d9560aba04e46c7b332d`.
 - Canonical tracker, registry, Lavish audit, backlog, runtime fixtures, mutation stores, and notification QA seams were not edited.
+
+The verifier initially reported an incorrect manual expansion of the short `efc5ccd` identifier.
+
+The exact Git object verified and integrated is `efc5ccd4ab3e12549345d9560aba04e46c7b332d`.
 
 ## Existing end-user behavior verified in source and tests
 
@@ -48,6 +53,19 @@ Reconciliation now remains pending until every currently tracked command has rea
 - A successful retry transitions to applied with the truthful original total of two commands.
 - `swift build -c release` completed successfully.
 - `git diff --check` passed.
+
+## Signed installed-app checkpoint
+
+- The release QA package reused the green build cache and passed package, signing, LaunchAgent, Mach service, and designated-requirement validation.
+- The isolated signed app launched directly into Today with deterministic Reminders access and Calendar permission denied.
+- Native accessibility inspection visibly exposed `CALENDAR AVAILABILITY COULD NOT BE READ. CAPACITY USES THE CONFIGURED WORK WINDOW ONLY.`.
+- The intended task `Protect the local approved plan` remained visible and usable while Calendar was unavailable.
+- Native accessibility activated the task's Add to Today control.
+- The isolated SQLite database then contained one `daily_plan_entries` row and two action-command rows, proving that local planning mutation progressed durably.
+- The visible planning card nevertheless remained stale at `0 PLANNED BLOCKS` and `0 MIN PLANNED`.
+- Because the card did not refresh, the run could not truthfully reach `USE PLAN LOCALLY`, produce a visible zero-write receipt, prove receipt restoration after relaunch, or exercise the partial-failure recovery controls.
+- No screenshot from this run is claimed as local approval, retry, or final reconciliation evidence.
+- The QA LaunchAgent was unregistered and the isolated app, database, fixture, and temporary accessibility artifacts were removed at the runtime cap.
 
 ## Required signed acceptance
 
