@@ -146,6 +146,27 @@ import ZoidCoachInfrastructure
     #expect(state.compactTaskFacts.contains("Blocked: Client approval"))
 }
 
+@Test func compactConfirmedBlockedTaskRemainsVisibleWithOnlyTruthfulActions() throws {
+    let blocked = TodayTaskRow(
+        taskID: "blocked",
+        title: "Waiting for approval",
+        estimateMinutes: 20,
+        dueDate: nil,
+        urgency: .medium,
+        state: .blocked,
+        isLocked: true,
+        blockedReason: "Client approval"
+    )
+    let state = MenuBarCoachState(snapshot: menuSnapshot(rows: [blocked]))
+
+    #expect(state.primaryTask?.taskID == blocked.taskID)
+    #expect(state.tone == .attention)
+    #expect(state.taskStatus(at: Date()) == "Blocked: Client approval")
+    #expect(state.compactTaskFacts.contains("Blocked: Client approval"))
+    #expect(state.availableTaskActions == [.openToday])
+    #expect(try #require(state.compactTaskAccessibilitySummary(at: Date())).contains("Client approval"))
+}
+
 @Test func unavailableNotificationsExposeAStableDecisionBadgeWithoutRemovingTaskControls() {
     let active = menuSnapshot(
         rows: [menuTask(id: "active", title: "Write proposal", state: .active)],

@@ -62,6 +62,7 @@ struct MenuBarCoachState: Equatable {
     let tone: MenuBarCoachTone
     let activeTask: TodayTaskRow?
     let pausedTask: TodayTaskRow?
+    let blockedTask: TodayTaskRow?
     let recommendedTask: TodayTaskRow?
     let attentionDetail: String?
     let coachingIsPaused: Bool
@@ -86,6 +87,7 @@ struct MenuBarCoachState: Equatable {
             rows.first { $0.taskID == active.taskID }
         } ?? rows.first { $0.state == .active }
         pausedTask = rows.first { $0.state == .paused }
+        blockedTask = rows.first { $0.state == .blocked }
         recommendedTask = snapshot?.recommendation.taskID.flatMap { taskID in
             rows.first { $0.taskID == taskID && $0.state == .ready }
         } ?? rows.first { $0.state == .ready && $0.isOptional != true }
@@ -101,6 +103,8 @@ struct MenuBarCoachState: Equatable {
             tone = .active
         } else if pausedTask != nil {
             tone = .paused
+        } else if blockedTask != nil {
+            tone = .attention
         } else if unhealthy != nil {
             tone = .attention
         } else {
@@ -108,7 +112,7 @@ struct MenuBarCoachState: Equatable {
         }
     }
 
-    var primaryTask: TodayTaskRow? { activeTask ?? pausedTask ?? recommendedTask }
+    var primaryTask: TodayTaskRow? { activeTask ?? pausedTask ?? blockedTask ?? recommendedTask }
 
     var menuBarSymbol: String {
         notificationFallbackIsActive ? "exclamationmark.bubble.fill" : tone.symbol
@@ -137,6 +141,9 @@ struct MenuBarCoachState: Equatable {
         }
         if let pausedTask {
             return [pausedTask.acceptedBreak == nil ? .resume : .endBreak, .markBlocked, .openToday]
+        }
+        if blockedTask != nil {
+            return [.openToday]
         }
         if recommendedTask != nil {
             return [.start, .markBlocked, .openToday]
@@ -202,6 +209,9 @@ struct MenuBarCoachState: Equatable {
                 return "Workday ended · Tracked time is saved"
             }
             return pausedTask.latestPauseReason?.userFacingLabel ?? "Paused"
+        }
+        if let blockedTask {
+            return blockedTask.blockedReason.map { "Blocked: \($0)" } ?? "Blocked"
         }
         if recommendedTask != nil {
             return "Recommended next"
