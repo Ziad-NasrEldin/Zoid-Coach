@@ -207,7 +207,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
             } else if result.adjustment.minutes > 0 {
                 message = "Added \(result.adjustment.minutes) minutes to today's gaming allowance."
             } else {
-                message = "Removed \(abs(result.adjustment.minutes)) manually granted minutes from today's gaming allowance."
+                message = "Removed \(result.adjustment.minutes.magnitude) manually granted minutes from today's gaming allowance."
             }
             return .init(accepted: true, message: message)
 

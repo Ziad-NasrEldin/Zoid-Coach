@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 47
+    public static let currentVersion = 48
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1210,7 +1210,10 @@ private extension AutonomousDatabaseMigrator {
             ON deleted_reminder_decisions(state, deleted_at_utc DESC);
             """)
         ]),
-        Migration(version: 47, isDestructive: false, operations: [
+        // Version 47 belongs to the independently verified review-hypothesis
+        // candidate. This branch deliberately reserves that integration slot;
+        // the canonical integration must land version 47 before version 48.
+        Migration(version: 48, isDestructive: false, operations: [
             .sql("""
             CREATE TABLE IF NOT EXISTS gaming_manual_adjustments (
                 request_id TEXT PRIMARY KEY,
@@ -1220,7 +1223,7 @@ private extension AutonomousDatabaseMigrator {
                 recorded_at_utc TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS gaming_manual_adjustments_day
-            ON gaming_manual_adjustments(local_day, recorded_at_utc, request_id);
+            ON gaming_manual_adjustments(local_day, recorded_at_utc);
             """)
         ])
     ]

@@ -98,6 +98,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var isSavingGamingManualAdjustment = false
     @Published private(set) var gamingManualAdjustmentMessage: String?
     @Published private(set) var gamingManualAdjustmentError: String?
+    @Published private(set) var gamingManualAdjustments: [GamingManualAdjustment] = []
+    @Published private(set) var gamingManualAdjustmentLedgerError: String?
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
@@ -119,7 +121,9 @@ final class AppModel: ObservableObject {
     private let retryReminderCompletion: @Sendable (String) async throws -> Void
     private let fetchReminderCompletionSync: @Sendable (String) async throws -> ReminderCompletionSyncState
     private let saveGamingManualAdjustment: @Sendable (GamingManualAdjustmentRequest) async throws -> AgentMutationReceipt
-    private let loadGamingManualAdjustmentMinutes: @Sendable (Date, String) throws -> Int
+    private let loadGamingManualAdjustments: @Sendable (Date, String) throws -> [GamingManualAdjustment]
+    private let fetchAuthoritativeGamingSnapshot: @Sendable () async throws -> TodaySnapshot
+    private let now: @Sendable () -> Date
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
     private var sourceChecksInFlight: Set<SourceID> = []
@@ -142,7 +146,9 @@ final class AppModel: ObservableObject {
         retryReminderCompletion: (@Sendable (String) async throws -> Void)? = nil,
         fetchReminderCompletionSync: (@Sendable (String) async throws -> ReminderCompletionSyncState)? = nil,
         saveGamingManualAdjustment: (@Sendable (GamingManualAdjustmentRequest) async throws -> AgentMutationReceipt)? = nil,
-        loadGamingManualAdjustmentMinutes: (@Sendable (Date, String) throws -> Int)? = nil
+        loadGamingManualAdjustments: (@Sendable (Date, String) throws -> [GamingManualAdjustment])? = nil,
+        fetchAuthoritativeGamingSnapshot: (@Sendable () async throws -> TodaySnapshot)? = nil,
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         let resolvedAgentLaunchService = agentLaunchService
             ?? AgentLaunchService(runtimeEnvironment: runtimeEnvironment)
@@ -166,12 +172,16 @@ final class AppModel: ObservableObject {
                 .recordGamingManualAdjustment(request)
             )
         }
+        self.fetchAuthoritativeGamingSnapshot = fetchAuthoritativeGamingSnapshot ?? {
+            try await resolvedTodayDashboardXPCClient.fetchTodaySnapshot()
+        }
+        self.now = now
         let gamingAdjustmentDatabaseURL = runtimeEnvironment.databaseURL
-        self.loadGamingManualAdjustmentMinutes = loadGamingManualAdjustmentMinutes ?? { day, timeZoneIdentifier in
+        self.loadGamingManualAdjustments = loadGamingManualAdjustments ?? { day, timeZoneIdentifier in
             try GamingManualAdjustmentStore(
                 databaseURL: gamingAdjustmentDatabaseURL,
                 readOnly: true
-            ).netMinutes(
+            ).adjustments(
                 for: day,
                 timeZoneIdentifier: timeZoneIdentifier
             )
@@ -398,20 +408,48 @@ final class AppModel: ObservableObject {
     func recordGamingManualAdjustment(minutes: Int, note: String?) {
         guard !isSavingGamingManualAdjustment,
               let snapshot = todaySnapshot,
-              snapshot.gaming.budgetEnabled else { return }
+              snapshot.gaming.budgetEnabled,
+              gamingManualAdjustmentLedgerError == nil else { return }
         isSavingGamingManualAdjustment = true
         gamingManualAdjustmentMessage = nil
         gamingManualAdjustmentError = nil
-        let request = GamingManualAdjustmentRequest(
-            requestID: "gaming-adjustment-v1:\(UUID().uuidString.lowercased())",
-            day: snapshot.localDate,
-            timeZoneIdentifier: snapshot.timeZoneIdentifier,
-            minutes: minutes,
-            note: note
+        let presentedDay = Self.gamingAdjustmentDayKey(
+            snapshot.localDate,
+            timeZoneIdentifier: snapshot.timeZoneIdentifier
         )
+        let presentedTimeZone = snapshot.timeZoneIdentifier
         Task {
             defer { isSavingGamingManualAdjustment = false }
             do {
+                let authoritative = try await fetchAuthoritativeGamingSnapshot()
+                let authoritativeDay = Self.gamingAdjustmentDayKey(
+                    authoritative.localDate,
+                    timeZoneIdentifier: authoritative.timeZoneIdentifier
+                )
+                let currentDay = Self.gamingAdjustmentDayKey(
+                    now(),
+                    timeZoneIdentifier: authoritative.timeZoneIdentifier
+                )
+                guard authoritative.gaming.budgetEnabled,
+                      presentedDay == authoritativeDay,
+                      presentedTimeZone == authoritative.timeZoneIdentifier,
+                      authoritativeDay == currentDay else {
+                    installTodaySnapshot(authoritative)
+                    gamingManualAdjustmentError = "Today or its time zone changed. Review the refreshed allowance before saving this adjustment."
+                    return
+                }
+                installTodaySnapshot(authoritative)
+                guard gamingManualAdjustmentLedgerError == nil else {
+                    gamingManualAdjustmentError = gamingManualAdjustmentLedgerError
+                    return
+                }
+                let request = GamingManualAdjustmentRequest(
+                    requestID: "gaming-adjustment-v1:\(UUID().uuidString.lowercased())",
+                    day: authoritative.localDate,
+                    timeZoneIdentifier: authoritative.timeZoneIdentifier,
+                    minutes: minutes,
+                    note: note
+                )
                 let receipt = try await saveGamingManualAdjustment(request)
                 guard receipt.accepted else {
                     gamingManualAdjustmentError = receipt.message
@@ -429,12 +467,26 @@ final class AppModel: ObservableObject {
     private func installTodaySnapshot(_ snapshot: TodaySnapshot?) {
         guard let snapshot else {
             todaySnapshot = nil
+            gamingManualAdjustments = []
+            gamingManualAdjustmentLedgerError = nil
             return
         }
-        let manualMinutes = (try? loadGamingManualAdjustmentMinutes(
-            snapshot.localDate,
-            snapshot.timeZoneIdentifier
-        )) ?? 0
+        let adjustments: [GamingManualAdjustment]
+        do {
+            adjustments = try loadGamingManualAdjustments(
+                snapshot.localDate,
+                snapshot.timeZoneIdentifier
+            )
+            gamingManualAdjustments = adjustments
+            gamingManualAdjustmentLedgerError = nil
+        } catch {
+            adjustments = []
+            gamingManualAdjustments = []
+            gamingManualAdjustmentLedgerError = "Manual allowance history is unavailable. Refresh Today after checking Agent source health."
+        }
+        let manualMinutes = adjustments.reduce(into: 0) { total, adjustment in
+            total += adjustment.minutes
+        }
         todaySnapshot = TodaySnapshot(
             localDate: snapshot.localDate,
             timeZoneIdentifier: snapshot.timeZoneIdentifier,
@@ -451,6 +503,15 @@ final class AppModel: ObservableObject {
             sources: snapshot.sources ?? [],
             planningStatus: snapshot.planningStatus
         )
+    }
+
+    private static func gamingAdjustmentDayKey(
+        _ date: Date,
+        timeZoneIdentifier: String
+    ) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
+        return calendar.startOfDay(for: date)
     }
 
     func refreshMenuBarPromptFallback() async {

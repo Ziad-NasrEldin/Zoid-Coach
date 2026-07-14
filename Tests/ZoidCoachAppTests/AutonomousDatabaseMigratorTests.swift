@@ -17,14 +17,34 @@ func migration46AddsDeletedReminderDecisionHistory() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 45)
-    #expect(result.appliedVersions == [46])
-    #expect(result.currentVersion == 47)
+    #expect(result.appliedVersions == [46, 48])
+    #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try tableExists(databaseURL, "deleted_reminder_decisions"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "state"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "decided_at_utc"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "notes") == false)
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "url") == false)
     #expect(try scalarText(databaseURL, "SELECT title FROM legacy_reminder_history WHERE source_id = 'preserved';") == "Existing history")
+}
+
+@Test
+func migration48AddsDurableGamingManualAdjustmentsAfterReservedReviewMigration() throws {
+    let databaseURL = temporaryDatabaseURL("v48-gaming-manual-adjustments")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (47, '2026-07-14T00:00:00Z');
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.previousVersion == 47)
+    #expect(result.appliedVersions == [48])
+    #expect(result.currentVersion == 48)
+    #expect(try tableExists(databaseURL, "gaming_manual_adjustments"))
+    #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "request_id"))
+    #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "local_day"))
+    #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "minutes"))
 }
 
 @Test
@@ -38,9 +58,9 @@ func cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() throws {
 
     #expect(first.previousVersion == 0)
     #expect(first.currentVersion == AutonomousDatabaseMigrator.currentVersion)
-    #expect(first.appliedVersions == Array(1...AutonomousDatabaseMigrator.currentVersion))
+    #expect(first.appliedVersions == Array(1...46) + [48])
     #expect(second.appliedVersions.isEmpty)
-    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM schema_migrations;") == AutonomousDatabaseMigrator.currentVersion)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM schema_migrations;") == 47)
     #expect(try tableExists(databaseURL, "domain_events"))
     #expect(try tableExists(databaseURL, "action_commands"))
     #expect(try tableExists(databaseURL, "prompt_episodes"))
@@ -83,7 +103,7 @@ func migration43AddsDurableMutationReceiptsWithoutLosingHistory() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == Array(43...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 43))
     #expect(try tableExists(databaseURL, "task_mutation_operations"))
     #expect(try tableExists(databaseURL, "task_mutation_steps"))
     #expect(try tableExists(databaseURL, "calendar_plan_operations"))
@@ -121,7 +141,7 @@ func migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [45])
+    #expect(result.appliedVersions == [45, 46, 48])
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_origin"))
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_reason"))
     #expect(try scalarText(databaseURL, "SELECT state FROM prompt_episodes WHERE id = 'legacy-dismissal';") == "dismissed")
@@ -140,7 +160,7 @@ func migration39AddsRestartSafeQuietDriftLedger() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == Array(39...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 39))
     #expect(try tableExists(databaseURL, "quiet_drift_episodes"))
     try execute(databaseURL, "INSERT INTO quiet_drift_episodes(local_day, session_started_epoch, latest_observed_epoch, application, observed_minutes, recorded_at_utc, updated_at_utc) VALUES ('2026-07-13', 100, 700, 'Steam', 11, '2026-07-13T10:00:00Z', '2026-07-13T10:00:00Z');")
     #expect(try scalarInt(databaseURL, "SELECT observed_minutes FROM quiet_drift_episodes WHERE local_day = '2026-07-13';") == 11)
@@ -168,7 +188,7 @@ func migration38AddsEstimateUncertaintyWithoutChangingExistingPlanRows() throws 
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == Array(38...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 38))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "estimate_is_uncertain"))
     #expect(try scalarInt(databaseURL, "SELECT estimate_is_uncertain FROM daily_plan_entries WHERE reminder_id = 'existing';") == 0)
     #expect(try scalarInt(databaseURL, "SELECT estimate_minutes FROM daily_plan_entries WHERE reminder_id = 'existing';") == 30)
@@ -208,7 +228,7 @@ func versionTwoFixtureUpgradesWithoutLosingExistingPlanOrSourceHistory() throws 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 2)
-    #expect(result.appliedVersions == Array(3...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 3))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM source_checkpoints WHERE source_id = 'reminders';") == 1)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM daily_plan_entries WHERE reminder_id = 'task-1';") == 1)
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "selection_reason"))
@@ -251,7 +271,7 @@ func behaviorClassificationMigrationFreezesLegacyRecords() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == Array(20...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 20))
     #expect(try scalarText(databaseURL, "SELECT classification FROM behavior_records WHERE app_name = 'Xcode';") == "work")
     #expect(try scalarText(databaseURL, "SELECT classification FROM behavior_records WHERE app_name = 'Steam';") == "gaming")
     #expect(try scalarInt(databaseURL, "SELECT SUM(classification_policy_version) FROM behavior_records;") == 0)
@@ -295,7 +315,7 @@ func versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() throws {
         if let backupURL = result.backupURL { removeDatabaseFiles(at: backupURL) }
     }
 
-    #expect(result.appliedVersions == Array(23...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 23))
     #expect(result.backupURL != nil)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses;") == 2)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM prompt_responses WHERE surface = 'dashboard';") == 1)
@@ -331,7 +351,7 @@ func versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == Array(24...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 24))
     #expect(try columnExists(databaseURL, table: "gaming_reward_ledger", column: "reward_minutes"))
     #expect(try scalarInt(databaseURL, "SELECT reward_minutes FROM gaming_reward_ledger;") == 15)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
@@ -356,7 +376,7 @@ func versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() throws {
     let first = try migrator.migrate()
     let second = try migrator.migrate()
 
-    #expect(first.appliedVersions == Array(25...AutonomousDatabaseMigrator.currentVersion))
+    #expect(first.appliedVersions == expectedMigrationVersions(from: 25))
     #expect(second.appliedVersions.isEmpty)
     #expect(try tableExists(databaseURL, "policy_mutation_receipts"))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM schema_migrations WHERE version = 25;") == 1)
@@ -385,7 +405,7 @@ func versionTwentySevenRebrandsPersistedPromptSummaries() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == Array(27...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 27))
     #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'old';")
         == "Meeting details are available in Zoid 666.")
     #expect(try scalarText(databaseURL, "SELECT summary FROM prompt_episodes WHERE id = 'neutral';")
@@ -419,7 +439,7 @@ func dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEviden
 
     #expect(result.previousVersion == 27)
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
-    #expect(result.appliedVersions == Array(28...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 28))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM behavior_records;") == 1)
     #expect(try tableExists(databaseURL, "daily_reviews"))
     #expect(try tableExists(databaseURL, "daily_review_corrections"))
@@ -741,7 +761,7 @@ func migration35ToleratesLegacyFixtureWithoutDailyPlanTable() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == Array(35...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 35))
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try tableExists(databaseURL, "daily_plan_entries") == false)
 }
@@ -767,7 +787,7 @@ func migration35CompletesPartiallyUpgradedDailyPlanTable() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == Array(35...AutonomousDatabaseMigrator.currentVersion))
+    #expect(result.appliedVersions == expectedMigrationVersions(from: 35))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "is_optional"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "blocked_reason"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "deferred_until_utc"))
@@ -786,4 +806,9 @@ func migration36AddsPrivacyBoundedNotificationDeliveryHistoryAfterDailyPlanRevis
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'notification_delivery_events';") == 1)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'notification_delivery_events_recent';") == 1)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'notification_delivery_events_request';") == 1)
+}
+
+private func expectedMigrationVersions(from firstVersion: Int) -> [Int] {
+    let throughCanonicalBase = firstVersion <= 46 ? Array(firstVersion...46) : []
+    return throughCanonicalBase + [48]
 }

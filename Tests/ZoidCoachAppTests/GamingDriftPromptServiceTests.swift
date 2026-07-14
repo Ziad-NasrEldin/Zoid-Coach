@@ -139,6 +139,48 @@ func gamingDriftRequiresTenFreshCertainMinutesAndAnExhaustedAllowance() throws {
 }
 
 @Test
+func manuallyGrantedGamingAllowanceSuppressesDriftAfterAgentStoreRestart() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let request = GamingManualAdjustmentRequest(
+        requestID: "gaming-adjustment-v1:prompt-suppression",
+        day: fixture.clock.now,
+        timeZoneIdentifier: "UTC",
+        minutes: 15,
+        note: "Intentional evening grant"
+    )
+    let writer = try GamingManualAdjustmentStore(databaseURL: fixture.databaseURL)
+    _ = try writer.record(request)
+
+    let restartedLedger = try GamingManualAdjustmentStore(databaseURL: fixture.databaseURL)
+    let adjustedStatus = try restartedLedger.gamingStatus(
+        applyingAdjustmentsFor: fixture.clock.now,
+        timeZoneIdentifier: "UTC",
+        to: fixture.gamingStatus
+    )
+    #expect(adjustedStatus.manualAdjustmentMinutes == 15)
+    #expect(adjustedStatus.unlockedRemainingMinutes == 5)
+
+    let restartedPromptStore = try PromptInboxStore(
+        databaseURL: fixture.databaseURL,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+    let restartedService = try GamingDriftPromptService(
+        databaseURL: fixture.databaseURL,
+        promptStore: restartedPromptStore,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+    #expect(try restartedService.produce(
+        policy: fixture.policy(),
+        gamingStatus: adjustedStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.gamingIsUnlocked))
+    #expect(try restartedPromptStore.unresolved().isEmpty)
+}
+
+@Test
 func gamingDriftHonorsPauseWorkWindowBreakEndDayAndIncompleteWorkGates() throws {
     let fixture = try GamingPromptFixture()
     defer { fixture.remove() }
