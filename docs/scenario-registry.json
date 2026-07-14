@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "7b18f9382afca1d1e44da10f20b81a4060c281df2add713be53f59603caab28d",
+  "tracker_sha256": "4ba189ab6adcd60edf378806158bf2938fb89c69411fb3b973ac3ab483d0de70",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11509,6 +11509,8 @@
       ],
       "affected_capability": "resilience_and_diagnostics",
       "evidence_paths": [
+        ".audit/runs/screenwatch-resolution-origin/candidate/REPORT.md",
+        ".audit/runs/screenwatch-resolution-origin/verifier/REPORT.md",
         ".audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md",
         ".audit/runs/stale-screenwatch-suppression/signed-builder/fresh.png",
         ".audit/runs/stale-screenwatch-suppression/signed-builder/stale.png",
@@ -11516,7 +11518,7 @@
       ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Gaming-drift production rejects missing, future-dated, and older-than-180-second evidence, dismisses a queued prompt when coverage becomes stale, and now reconciles inbox truth on every helper loop and startup so pending or delivered prompt notifications are removed while unrelated notifications remain. All 20 focused gaming-drift tests, the delivered-and-pending notification fixture, privacy assertions, and an isolated release build passed; signed-builder evidence shows Build 8 with a complete baseline and no visible behavior prompt, one persisted dismissed gaming episode with zero unresolved prompts or responses, no remaining gaming notification, and unrelated review/test notifications preserved, while the older signed missing-source run remained prompt-free after relaunch. This stays at Touches because the signed package identity was not preserved, the stale screenshot is unreadable provenance, and persistence still cannot distinguish a system withdrawal from a user dismissal, so same-session stale-withdrawn-to-fresh recovery cannot safely bypass dismissal, cooldown, or daily-cap semantics and the complete signed stale-to-fresh-to-stale relaunch journey remains (`PromptNotificationCoordinator.swift`; `GamingDriftPromptService.swift`; `PromptNotificationCoordinatorTests.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md`; `.audit/runs/stale-screenwatch-suppression/verifier/REPORT.md`).",
+      "audit_note": "Gaming-drift production rejects missing, future-dated, and older-than-180-second evidence, withdraws unresolved stale decisions, and reconciles inbox truth so their pending or delivered notifications are removed while unrelated notifications remain. Resolution origin and reason are now durable: only the exact `system` plus `screenwatch_evidence_invalid` pair can bypass same-session deduplication, cooldown, and daily-cap gates after fresh evidence returns, while explicit user dismissal and conservative legacy null metadata continue to enforce every normal limit across restart. The focused recovery contract passed 5 of 5 tests, the relevant migration, inbox, gaming-drift, and adjacent prompt suite passed 79 of 79 tests, and the release build passed. An exact clean signed package at `d1bff474f7fe3451ee274b958bc734950ceab1a0` passed identity, signing, XPC, migration-45, and database checks; its fresh isolated rerun ingested 70 current gaming observations and showed a current signed Today snapshot with seven complete baseline days, one incomplete main objective, a 60-minute budget, 70 used minutes, and zero unlocked minutes, but no initial prompt appeared inside the bounded acceptance window. This stays at Touches because that inconclusive signed run could not prove the visible prompt, stale withdrawal, same-session fresh recovery, explicit user dismissal, cooldown and daily-cap preservation, or app and helper restart sequence end to end (`PromptInbox.swift`; `PromptInboxStore.swift`; `GamingDriftPromptService.swift`; `AutonomousDatabaseMigrator.swift`; `.audit/runs/screenwatch-resolution-origin/candidate/REPORT.md`; `.audit/runs/screenwatch-resolution-origin/verifier/REPORT.md`; `.audit/runs/stale-screenwatch-suppression/verifier/REPORT.md`).",
       "tracker_line": 706
     },
     {
