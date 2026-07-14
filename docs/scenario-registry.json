@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "f45ec78b8297697bfca83c5b9d9c97968d96d17b5a1f1a2483a9cd9a1dc4e26f",
+  "tracker_sha256": "ab8867bbdcc6e139ffbde170e056cad5599d7a166a0e27eb2342f24c781413eb",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8397,12 +8397,10 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [
-        ".audit/runs/compact-active-task/pause-retention-2a11918/REPORT.md"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The signed compact menu now retains the exact unplanned task across active, Pause, paused-popover reopen, Resume, and application relaunch. Native AX verified the truthful active and paused action sets, while the canonical database verified one closed interval, one resumed pause event, and a new active interval without substituting the unrelated queued reminder. Native Complete, native Blocked with an exact reason, and helper-failure stale-state preservation remain before this scenario can be fully accepted (`TodayDashboardAgent.swift`; `MenuBarCoachTests.swift`; `.audit/runs/compact-active-task/pause-retention-2a11918/REPORT.md`).",
+      "audit_note": "The compact menu now shares the exact runtime boundary used by Today, rejects delayed fallback snapshots that would overwrite newer controller truth, and retains its previously tested deduplicated active, paused, break, recommended, and blocked action model. All 27 focused tests passed, and exact-PID signed QA acceptance proved that Today could start the fixture task, compact Refresh displayed the same active task with its full native action set, and compact Pause persisted one closed interval plus canonical paused state. Reopening the compact popover then incorrectly displayed no task instead of the paused task and Resume action, so native Resume, Complete, Blocked reason, helper-failure stale preservation, and relaunch restoration remain incomplete (`MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `ZoidCoachApp.swift`; `.audit/runs/compact-active-task/helper-repair-c8c478/REPORT.md`).",
       "tracker_line": 533
     },
     {
@@ -10321,8 +10319,8 @@
       "item_index": 2,
       "wording": "Choose the maximum intervention level.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10332,7 +10330,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Only a wake-intervention daily maximum exists; no coaching escalation ceiling exists.",
+      "audit_note": "Settings now presents the persisted coaching level as an explicit hard maximum intervention ceiling with stable accessibility, Gentle and Accountability explanations, conflict-safe policy round-trip proof, and runtime tests that enforce the lighter 10-minute recovery without the accountability-only break action versus the stronger 20-minute recovery with the eligible break action while preserving prompt-cap and cooldown gates. The clean signed package installed with its QA agent, but an onboarding policy-store failure made Settings unreachable, so selecting Gentle, saving, relaunching, and proving its prompt boundary, then selecting Accountability, saving, relaunching, and proving its active-task prompt boundary remain before full end-to-end acceptance (`SettingsPolicyDraft.swift`; `SettingsView.swift`; `GamingDriftPromptService.swift`; `.audit/runs/maximum-intervention-level/candidate/REPORT.md`; `.audit/runs/maximum-intervention-level/verifier/REPORT.md`).",
       "tracker_line": 641
     },
     {
