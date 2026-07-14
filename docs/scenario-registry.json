@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "ff694ee16fd60f3efe66a1a056861624472d301179a4467478d6c59cd40b4ed1",
+  "tracker_sha256": "3b5c3d0b62645a1a36a000a25f1bc129f2fad98790121091fef725efa4ff78c7",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5372,8 +5372,8 @@
       "item_index": 8,
       "wording": "See active-task elapsed time separately from aligned time.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5382,10 +5382,14 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-024-008-active-vs-aligned-time/fixture-correction/REPORT.md",
+        ".audit/runs/zc-024-008-active-vs-aligned-time/initial-verifier/REPORT.md",
+        ".audit/runs/zc-024-008-active-vs-aligned-time/signed-rerun/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Elapsed is stored but not rendered, and aligned time is not calculated.",
+      "audit_note": "The installed signed MenuBarExtra exposed separate `menu-bar.task.elapsed-time`, `menu-bar.task.aligned-time`, and `menu-bar.task.alignment-evidence` elements with truthful timer and evidence-boundary hints; the baseline showed 14 elapsed minutes beside 5 observed-aligned minutes, and an app and helper relaunch restored the same non-regressing values. The corrected permission-independent local-task fixture resolved through the real Today task-row path, and a second signed state showed elapsed advancing to 15 minutes while explicit non-work producer observations yielded 0 aligned minutes. Full qualification still requires a signed missing-producer state that is visibly unavailable rather than conflated with explicit zero, plus a full compact-card accessibility privacy scan proving fixture application names, task identifiers, window titles, URLs, and private observation values remain absent (`Sources/ZoidCoachApp/MenuBarActiveTimeComparisonView.swift`; `Sources/ZoidCoachApp/MenuBarCoachState.swift`; `Scripts/qa-active-time-comparison-fixture.sh`; `.audit/runs/zc-024-008-active-vs-aligned-time/initial-verifier/REPORT.md`; `.audit/runs/zc-024-008-active-vs-aligned-time/fixture-correction/REPORT.md`; `.audit/runs/zc-024-008-active-vs-aligned-time/signed-rerun/REPORT.md`).",
       "tracker_line": 362
     },
     {
