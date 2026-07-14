@@ -3,7 +3,7 @@
   "onboarding": {
     "coachingMode": "rulesOnly",
     "remindersAccess": "granted",
-    "screenwatchAccess": "granted",
+    "screenwatchAccess": "unavailable",
     "notificationAccess": "granted",
     "reminderListDecisions": [
       {
@@ -29,7 +29,7 @@
     "notifications": []
   },
   "screenwatch": {
-    "state": "healthy",
+    "state": "missing",
     "days": []
   }
 }

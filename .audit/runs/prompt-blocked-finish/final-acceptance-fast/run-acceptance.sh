@@ -29,10 +29,8 @@ log() {
 
 stop_app() {
     pkill -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
-    pkill -f "${INSTALLED_APP}/Contents/MacOS/${APP_EXECUTABLE}" >/dev/null 2>&1 || true
     for _ in {1..20}; do
-        if ! pgrep -x "$APP_EXECUTABLE" >/dev/null 2>&1 \
-            && ! pgrep -f "${INSTALLED_APP}/Contents/MacOS/${APP_EXECUTABLE}" >/dev/null 2>&1; then
+        if ! pgrep -x "$APP_EXECUTABLE" >/dev/null 2>&1; then
             return 0
         fi
         sleep 0.1
@@ -50,6 +48,7 @@ unregister_helper() {
 
 cleanup() {
     set +e
+    trap - EXIT INT TERM
     stop_app
     unregister_helper
     rm -rf "$INSTALLED_APP" "$INSTALL_ROOT" "$QA_ROOT"

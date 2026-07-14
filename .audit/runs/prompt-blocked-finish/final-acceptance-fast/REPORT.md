@@ -32,5 +32,23 @@ The exit trap always stops the isolated app, unregisters the QA LaunchAgent, and
 
 ## Lease state
 
-No product build, package, install, launch, or runtime mutation was performed while the Screenwatch lane held the serialized leases.
-The next verifier may compile the two small accessibility tools and build the exact clean signed QA package only after those leases transfer.
+The serialized build, package, and runtime leases transferred for this bounded run.
+
+## Verification result
+
+All three exact focused filters passed independently.
+The exact clean `1cc6b852f3f3cdaf9672885f8abadbcd9952a74a` release QA package passed signing and package-identity verification.
+The harness dry-run passed.
+The first two signed invocations stopped before product mutation because the reused ready-state manifest no longer satisfied the stricter Screenwatch fixture contract.
+The manifest now uses a matching unavailable and missing Screenwatch state, and the exit cleanup now disarms its trap only after disabling immediate shell exit.
+
+The final bounded signed run reached the candidate with a writable XPC helper, a presented `qa-block-1` episode containing six persisted actions, an active primary task, an eligible replacement task, one open interval, and zero responses.
+The launched Today accessibility tree exposed zero direct action buttons matching `today.prompt.qa-block-1.action.` instead of six.
+The harness stopped before clicking Mark blocked or mutating the database.
+Therefore the Save, exact database mutation, replacement objective, relaunch persistence, and helper-down gates remain unverified.
+`ZC-034-011` must remain `Touches remaining`.
+
+## Cleanup result
+
+The foreground app, helper, QA LaunchAgent, isolated install root, and isolated QA root were all absent after the failed gate.
+No tracker, registry, Lavish artifact, canonical user database, or canonical branch was modified.
