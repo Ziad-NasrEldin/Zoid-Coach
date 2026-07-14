@@ -205,6 +205,7 @@ struct MenuBarCoachView: View {
             coachHeader
             notificationFallbackSection
             coachingPauseSection
+            gamingWorkHoursSection
 
             if pauseController.usesManualWorkday {
                 manualWorkdaySection
@@ -276,13 +277,37 @@ struct MenuBarCoachView: View {
     }
 
     private var menuState: MenuBarCoachState {
+        menuState(at: Date())
+    }
+
+    private func menuState(at date: Date) -> MenuBarCoachState {
         MenuBarCoachState(
             snapshot: controller.snapshot,
             snapshotConfirmedAt: controller.lastConfirmedAt,
             coachingIsPaused: pauseController.isPaused,
             unresolvedPromptCount: appModel.promptEpisodes.count,
-            notificationsUnavailable: notificationsUnavailable
+            notificationsUnavailable: notificationsUnavailable,
+            gamingWorkHoursContext: appModel.menuBarGamingWorkHoursContext(at: date),
+            authoritativeGamingStatus: appModel.todaySnapshot?.gaming,
+            gamingStatusIsConfirmed: menuGamingStatusIsConfirmed
         )
+    }
+
+    private var menuGamingStatusIsConfirmed: Bool {
+        guard controller.syncPresentation == .confirmed,
+              let confirmed = controller.snapshot,
+              let authoritative = appModel.todaySnapshot,
+              confirmed.localDate == authoritative.localDate,
+              confirmed.timeZoneIdentifier == authoritative.timeZoneIdentifier
+        else { return false }
+        let confirmedGaming = confirmed.gaming
+        let authoritativeGaming = authoritative.gaming
+        return confirmedGaming.budgetMinutes == authoritativeGaming.budgetMinutes
+            && confirmedGaming.earnedMinutes == authoritativeGaming.earnedMinutes
+            && confirmedGaming.usedMinutes == authoritativeGaming.usedMinutes
+            && confirmedGaming.lockedMinutes == authoritativeGaming.lockedMinutes
+            && confirmedGaming.budgetEnabled == authoritativeGaming.budgetEnabled
+            && confirmedGaming.workHoursMaximumEvaluation == authoritativeGaming.workHoursMaximumEvaluation
     }
 
     private var notificationsUnavailable: Bool {
@@ -411,6 +436,36 @@ struct MenuBarCoachView: View {
             return "Your workday is active. Use End Workday below when you are finished; fixed hours will not end it for you."
         }
         return "Your workday begins only when you start or resume a task. Fixed hours will not start it for you."
+    }
+
+    private var gamingWorkHoursSection: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            if let gaming = menuState(at: context.date).gamingWorkHours {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("WORK-HOURS GAMING")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.sealDeep)
+                    Text(gaming.maximumLabel)
+                        .font(Sumi.body(13))
+                        .foregroundStyle(Sumi.ink)
+                        .accessibilityIdentifier("menu-bar.gaming.work-hours.maximum")
+                    Text(gaming.status)
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("menu-bar.gaming.work-hours.status")
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(gaming.isCappedNow ? Sumi.sealWash : Sumi.softPaper)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(gaming.accessibilitySummary)
+                .accessibilityIdentifier("menu-bar.gaming.work-hours")
+
+                Divider().overlay(Sumi.rule)
+            }
+        }
     }
 
     @ViewBuilder

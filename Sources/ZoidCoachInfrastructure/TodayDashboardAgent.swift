@@ -124,13 +124,15 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 )
             )
         }
-        let gamingPolicy = try userPolicyStore.currentGamingPolicy()
+        let userPolicy = try userPolicyStore.current()?.policy ?? UserPolicy.defaults()
+        let gamingPolicy = userPolicy.gaming
         let rewardMinutes = try snapshots.priorityRewardMinutes(policy: gamingPolicy, day: now)
         let gaming = GamingStatusCalculator().status(
             policy: gamingPolicy,
             gamingMinutes: behavior.summary.meaningfulGamingMinutes,
             appliedRewardMinutes: rewardMinutes,
-            coverage: behavior.coverage
+            coverage: behavior.coverage,
+            isWithinWorkWindow: userPolicy.schedule.isWithinWorkWindow(at: now)
         )
         let activeIsUnplanned = active.map { active in
             !plan.contains(where: { $0.reminderID == active.taskID })
