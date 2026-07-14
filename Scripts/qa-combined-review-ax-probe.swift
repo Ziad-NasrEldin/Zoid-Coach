@@ -212,6 +212,57 @@ private func requireIdentifier(
     try requireTarget(in: root, name: expected, code: code) { identifier(of: $0) == expected }
 }
 
+private func requireIdentifierByScrolling(
+    _ expected: String,
+    in window: AXUIElement,
+    code: ExitCode,
+    maximumPages: Int = 16
+) throws -> AXUIElement {
+    for page in 0...maximumPages {
+        if let element = try boundedWalk(
+            from: window,
+            targetName: expected,
+            visit: { identifier(of: $0) == expected }
+        ) {
+            return element
+        }
+        guard page < maximumPages else { break }
+        var scrollAreas: [AXUIElement] = []
+        _ = try boundedWalk(from: window, targetName: "scroll areas") { element in
+            if role(of: element) == (kAXScrollAreaRole as String) {
+                scrollAreas.append(element)
+            }
+            return false
+        }
+        var scrolled = false
+        for scrollArea in scrollAreas.reversed() {
+            if AXUIElementPerformAction(scrollArea, "AXScrollDownByPage" as CFString) == .success {
+                scrolled = true
+                break
+            }
+        }
+        if !scrolled {
+            guard let wheel = CGEvent(
+                scrollWheelEvent2Source: nil,
+                units: .line,
+                wheelCount: 1,
+                wheel1: -12,
+                wheel2: 0,
+                wheel3: 0
+            ) else {
+                throw ProbeFailure(code: code, message: "could not scroll toward \(expected)")
+            }
+            wheel.post(tap: CGEventTapLocation.cghidEventTap)
+        }
+        Thread.sleep(forTimeInterval: 0.15)
+    }
+    let snapshot = try subtreeSnapshot(root: window, name: "scroll diagnostics")
+    throw ProbeFailure(
+        code: code,
+        message: "required target is unavailable after scrolling: \(expected); identifiers=\(snapshot.identifiers.prefix(120).joined(separator: " | ")); visible strings=\(snapshot.strings.prefix(120).joined(separator: " | "))"
+    )
+}
+
 private func press(_ element: AXUIElement, name: String, code: ExitCode) throws {
     _ = AXUIElementPerformAction(element, scrollToVisibleAction)
     if AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
@@ -384,9 +435,8 @@ private func assertWeeklyReview(
         let acceptID = "\(patternID).accept-hypothesis"
         let accept = try requireIdentifier(acceptID, in: card, code: .weeklyReview)
         _ = AXUIElementPerformAction(accept, scrollToVisibleAction)
-        guard AXUIElementPerformAction(accept, kAXPressAction as CFString) == .success,
-              AXUIElementPerformAction(accept, kAXPressAction as CFString) == .success else {
-            throw ProbeFailure(code: .action, message: "could not activate Weekly Review hypothesis acceptance twice")
+        guard AXUIElementPerformAction(accept, kAXPressAction as CFString) == .success else {
+            throw ProbeFailure(code: .action, message: "could not activate Weekly Review hypothesis acceptance")
         }
         pauseForPresentation()
         card = patterns
@@ -423,10 +473,21 @@ private func assertWeeklyReview(
 
 private func deleteReviewsAndLearning(window: AXUIElement) throws {
     try navigate("Settings", in: window)
-    let delete = try requireIdentifier(
+    let records = try requireTarget(
+        in: window,
+        name: "Records, Local data and audit",
+        code: .navigation
+    ) {
+        role(of: $0) == (kAXButtonRole as String)
+            && hasExactPublicString("Records, Local data and audit", element: $0)
+    }
+    try press(records, name: "Records settings chapter", code: .navigation)
+    pauseForPresentation()
+    let delete = try requireIdentifierByScrolling(
         "settings.data.delete-reviews-learning",
         in: window,
-        code: .action
+        code: .action,
+        maximumPages: 20
     )
     try press(delete, name: "Delete reviews and learned rules", code: .action)
     pauseForPresentation()
@@ -498,7 +559,7 @@ private func run() throws {
     }
 
     let application = AXUIElementCreateApplication(arguments.pid)
-    _ = NSRunningApplication(processIdentifier: arguments.pid)?.activate(options: [.activateIgnoringOtherApps])
+    _ = NSRunningApplication(processIdentifier: arguments.pid)?.activate(options: [])
     Thread.sleep(forTimeInterval: 0.2)
     let window = try singleMainWindow(application: application)
     if arguments.deleteLearning {
