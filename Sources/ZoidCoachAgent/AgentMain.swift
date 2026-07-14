@@ -563,6 +563,31 @@ struct ZoidCoachAgentMain {
                     print("Zoid 666 agent: Apple Reminders full access is unavailable")
                 }
             }
+            if let probeOutputURL = configuration.qaGamingDriftProbeOutputURL {
+                let probeDate = Date()
+                let versionedPolicy = try policyStore.current() ?? initialVersionedPolicy
+                let snapshot = try todayDashboardAgent.snapshot(now: probeDate)
+                let adjustedGamingStatus = try gamingManualAdjustments.gamingStatus(
+                    applyingAdjustmentsFor: snapshot.localDate,
+                    timeZoneIdentifier: snapshot.timeZoneIdentifier,
+                    to: snapshot.gaming
+                )
+                let baselineStatus = try baselineObservationStore.status()
+                let result = try gamingDriftPrompts.produce(
+                    policy: versionedPolicy.policy,
+                    gamingStatus: adjustedGamingStatus,
+                    baselineStatus: baselineStatus
+                )
+                try writeGamingDriftProbeResult(
+                    result,
+                    gamingStatus: adjustedGamingStatus,
+                    snapshot: snapshot,
+                    outputURL: probeOutputURL,
+                    recordedAt: probeDate
+                )
+                print("Zoid 666 agent: wrote the signed QA gaming-drift probe result")
+                return
+            }
             if configuration.watch {
                 var lastAutomaticDraftAttempt: Date?
                 var lastMaintenanceAttempt: Date?
@@ -1360,6 +1385,39 @@ struct ZoidCoachAgentMain {
         return policy.schedule.planningCapacityMinutes(on: day, fixedCommitmentMinutes: Int(occupiedSeconds / 60))
     }
 
+    private static func writeGamingDriftProbeResult(
+        _ result: GamingDriftPromptResult,
+        gamingStatus: GamingStatus,
+        snapshot: TodaySnapshot,
+        outputURL: URL,
+        recordedAt: Date
+    ) throws {
+        let outcome: String
+        let promptID: String?
+        switch result {
+        case let .suppressed(reason):
+            outcome = "suppressed:\(String(describing: reason))"
+            promptID = nil
+        case let .queued(episode, wasInserted):
+            outcome = wasInserted ? "queued:inserted" : "queued:existing"
+            promptID = episode.id
+        }
+        let payload: [String: Any] = [
+            "outcome": outcome,
+            "promptID": promptID.map { $0 as Any } ?? NSNull(),
+            "localDate": ISO8601DateFormatter().string(from: snapshot.localDate),
+            "timeZoneIdentifier": snapshot.timeZoneIdentifier,
+            "unlockedRemainingMinutes": gamingStatus.unlockedRemainingMinutes,
+            "recordedAt": ISO8601DateFormatter().string(from: recordedAt)
+        ]
+        try FileManager.default.createDirectory(
+            at: outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+        try data.write(to: outputURL, options: .atomic)
+    }
+
     private static func finalizeMeetingEffect(_ result: ActionExecutionResult, outbox: ActionOutboxStore, archive: ScreenwatchArchive) throws {
         let commandID: String
         let state: String
@@ -1394,6 +1452,7 @@ private struct AgentConfiguration {
     let nativeCapture: Bool
     let captureDisplayIDs: Set<UInt32>
     let nativeCaptureDirectory: URL
+    let qaGamingDriftProbeOutputURL: URL?
 
     func activeCaptureDirectory(using store: NativeCaptureConfigurationStore) -> URL {
         let mode = (try? store.load().mode) ?? .legacy
@@ -1413,6 +1472,7 @@ private struct AgentConfiguration {
         var nativeCapture = ProcessInfo.processInfo.environment["ZOID_COACH_NATIVE_CAPTURE"] == "1"
         var captureDisplayIDs = Set<UInt32>()
         var nativeCaptureDirectory = runtimeEnvironment.nativeCaptureDaysDirectory
+        var qaGamingDriftProbeOutputURL: URL?
         var index = 0
 
         while index < arguments.count {
@@ -1447,6 +1507,14 @@ private struct AgentConfiguration {
                 index += 1
                 guard index < arguments.count else { throw AgentConfigurationError.missingValue("--native-capture-directory") }
                 nativeCaptureDirectory = URL(fileURLWithPath: arguments[index], isDirectory: true)
+            case "--qa-gaming-drift-probe":
+                guard case let .qa(runRoot) = runtimeEnvironment.mode else {
+                    throw AgentConfigurationError.qaProbeRequiresSignedQAPackage
+                }
+                watch = false
+                qaGamingDriftProbeOutputURL = runRoot
+                    .appendingPathComponent("QA Control", isDirectory: true)
+                    .appendingPathComponent("gaming-drift-probe.json")
             case "--once":
                 watch = false
             default:
@@ -1466,6 +1534,7 @@ private struct AgentConfiguration {
         self.printRemindersStatus = printRemindersStatus
         self.nativeCapture = nativeCapture
         self.captureDisplayIDs = captureDisplayIDs
+        self.qaGamingDriftProbeOutputURL = qaGamingDriftProbeOutputURL
         guard NativeCapturePolicy.pathsDoNotCollide(native: nativeCaptureDirectory, legacy: screenwatchDirectory) else {
             throw AgentConfigurationError.captureDirectoryCollision
         }
@@ -1489,6 +1558,7 @@ private enum AgentConfigurationError: LocalizedError {
     case unknownArgument(String)
     case invalidDisplayIDs(String)
     case captureDirectoryCollision
+    case qaProbeRequiresSignedQAPackage
 
     var errorDescription: String? {
         switch self {
@@ -1496,6 +1566,7 @@ private enum AgentConfigurationError: LocalizedError {
         case let .unknownArgument(argument): "Unknown argument \(argument)"
         case let .invalidDisplayIDs(value): "Invalid comma-separated display IDs: \(value)"
         case .captureDirectoryCollision: "Native capture must use an app-owned directory separate from legacy Screenwatch."
+        case .qaProbeRequiresSignedQAPackage: "The gaming-drift probe is available only in a signed QA package."
         }
     }
 }
