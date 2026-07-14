@@ -86,12 +86,14 @@ enum CalendarPlanWriteState: Equatable, Sendable {
     case idle
     case reviewing
     case queueing
+    case reconciling
     case pending(commandIDs: Set<String>)
     case applied(commandCount: Int)
     case failed(commandIDs: Set<String>)
 }
 
 enum CalendarPlanReceiptOutcome: String, Codable, Equatable, Sendable {
+    case reconciling
     case pending
     case applied
     case failed
@@ -110,6 +112,8 @@ struct CalendarPlanApprovalReceipt: Codable, Equatable, Sendable {
     var summary: String {
         let taskCount = items.count
         switch outcome {
+        case .reconciling:
+            return "The approved plan may already be queued. Zoid 666 is reconciling its exact Calendar and Reminder receipt."
         case .pending:
             return "Approved \(taskCount) task\(taskCount == 1 ? "" : "s"). \(commandIDs.count) Calendar change\(commandIDs.count == 1 ? " is" : "s are") still pending."
         case .applied:
@@ -185,8 +189,27 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
             commandIDs: identifiers,
             outcome: identifiers.isEmpty ? .applied : .pending,
             commandCount: identifiers.isEmpty ? 0 : identifiers.count,
+            approvedAt: receipt?.approvedAt ?? approvedAt
+        )
+    }
+
+    mutating func markReconciling(approvedAt: Date = Date()) {
+        writeState = .reconciling
+        receipt = CalendarPlanApprovalReceipt(
+            items: items,
+            availableMinutes: availableMinutes,
+            fixedCommitmentMinutes: fixedCommitmentMinutes,
+            usesCalendarAvailability: usesCalendarAvailability,
+            commandIDs: [],
+            outcome: .reconciling,
+            commandCount: 0,
             approvedAt: approvedAt
         )
+    }
+
+    mutating func returnToReviewAfterAuthoritativeRefusal() {
+        writeState = .reviewing
+        receipt = nil
     }
 
     @discardableResult
@@ -286,6 +309,8 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
         reviewedAvailabilityRevision = nil
         presentationIsOpen = false
         switch receipt.outcome {
+        case .reconciling:
+            writeState = .reconciling
         case .pending:
             writeState = .pending(commandIDs: receipt.commandIDs)
         case .applied:
