@@ -229,7 +229,7 @@ private struct TodayCommandView: View {
             .frame(height: 60)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
 
-            if !model.promptInboxTimeline.awaitingResponse.isEmpty {
+            if TodayPromptInboxLedgerPresentation.placement(for: model.promptInboxTimeline) == .beforeTaskDetail {
                 TodayPromptInboxLedger()
             }
 
@@ -321,7 +321,7 @@ private struct TodayCommandView: View {
                     .accessibilityLabel("Task action failed. \(taskError)")
             }
 
-            if model.promptInboxTimeline.awaitingResponse.isEmpty {
+            if TodayPromptInboxLedgerPresentation.placement(for: model.promptInboxTimeline) == .afterTaskDetail {
                 TodayPromptInboxLedger()
             }
             MeetingCandidateLedger(editingCandidate: $editingCandidate)
