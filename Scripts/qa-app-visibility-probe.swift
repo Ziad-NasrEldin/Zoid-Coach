@@ -24,6 +24,10 @@ enum VisibilityProbeError: Error, CustomStringConvertible {
     }
 }
 
+private let maximumDiagnosticWindows = 24
+private let diagnosticTimeLimit: TimeInterval = 0.25
+private let knownWindowTitles = Set(["Zoid 666", "Zoid 666 QA", "Background Agent"])
+
 func value(_ element: AXUIElement, _ attribute: CFString) -> AnyObject? {
     var result: CFTypeRef?
     guard AXUIElementCopyAttributeValue(element, attribute, &result) == .success else { return nil }
@@ -52,6 +56,49 @@ func hasStatusItem(_ application: AXUIElement) -> Bool {
     }
 }
 
+func attributeDescription(_ element: AXUIElement, _ attribute: CFString) -> String {
+    guard let result = value(element, attribute) else { return "unknown" }
+    if let flag = result as? Bool { return flag ? "true" : "false" }
+    if let number = result as? NSNumber { return number.stringValue }
+    return "unknown"
+}
+
+func privacySafeWindowDiagnostics(_ application: AXUIElement, expectedPID: Int32) -> String {
+    guard let windows = value(application, kAXWindowsAttribute as CFString) as? [AXUIElement] else {
+        return "DIAGNOSTIC: candidate-windows pid=\(expectedPID) unavailable"
+    }
+
+    let deadline = Date().addingTimeInterval(diagnosticTimeLimit)
+    var lines = ["DIAGNOSTIC: candidate-windows pid=\(expectedPID) count=\(windows.count)"]
+    var emitted = 0
+    for (index, window) in windows.prefix(maximumDiagnosticWindows).enumerated() {
+        guard Date() < deadline else { break }
+        var windowPID: pid_t = 0
+        let pidResult = AXUIElementGetPid(window, &windowPID)
+        let reportedPID = pidResult == .success ? String(windowPID) : "unknown"
+        let role = (value(window, kAXRoleAttribute as CFString) as? String) ?? "unknown"
+        let rawTitle = (value(window, kAXTitleAttribute as CFString) as? String) ?? ""
+        let title = knownWindowTitles.contains(rawTitle) ? rawTitle : "<redacted>"
+        let level = attributeDescription(window, "AXWindowLevel" as CFString)
+        let visible = attributeDescription(window, "AXVisible" as CFString)
+        let key = attributeDescription(window, kAXFocusedAttribute as CFString)
+        let main = attributeDescription(window, kAXMainAttribute as CFString)
+        let minimized = attributeDescription(window, kAXMinimizedAttribute as CFString)
+        lines.append(
+            "DIAGNOSTIC: window[\(index)] role=\(role) title=\(title) level=\(level) "
+                + "visible=\(visible) key=\(key) main=\(main) minimized=\(minimized) pid=\(reportedPID)"
+        )
+        emitted += 1
+    }
+    if emitted < windows.count {
+        lines.append("DIAGNOSTIC: omitted=\(windows.count - emitted) bounded=true")
+    }
+    return lines.joined(separator: "\n")
+}
+
+var diagnosticApplication: AXUIElement?
+var diagnosticPID: Int32?
+
 do {
     guard CommandLine.arguments.count == 4,
           let pid = Int32(CommandLine.arguments[1]),
@@ -62,6 +109,8 @@ do {
 
     let expectation = CommandLine.arguments[2]
     let application = AXUIElementCreateApplication(pid)
+    diagnosticApplication = application
+    diagnosticPID = pid
     let deadline = Date().addingTimeInterval(timeout)
 
     switch expectation {
@@ -105,5 +154,11 @@ do {
     }
 } catch {
     fputs("\(error)\n", stderr)
+    if let visibilityError = error as? VisibilityProbeError,
+       case .usage = visibilityError {
+        // Usage failures do not have a target process to diagnose.
+    } else if let application = diagnosticApplication, let pid = diagnosticPID {
+        fputs("\(privacySafeWindowDiagnostics(application, expectedPID: pid))\n", stderr)
+    }
     exit(error is VisibilityProbeError ? 1 : 2)
 }
