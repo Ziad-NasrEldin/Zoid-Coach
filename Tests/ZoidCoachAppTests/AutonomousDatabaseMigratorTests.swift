@@ -24,6 +24,8 @@ func cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() throws {
     #expect(try tableExists(databaseURL, "processing_checkpoints"))
     #expect(try tableExists(databaseURL, "task_mutation_operations"))
     #expect(try tableExists(databaseURL, "task_mutation_steps"))
+    #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_origin"))
+    #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_reason"))
     #expect(try columnExists(databaseURL, table: "task_history", column: "operation_id"))
     #expect(try columnExists(databaseURL, table: "source_tasks", column: "source_kind"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "estimate_is_uncertain"))
@@ -57,13 +59,50 @@ func migration43AddsDurableMutationReceiptsWithoutLosingHistory() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [43, 44])
+    #expect(result.appliedVersions == Array(43...AutonomousDatabaseMigrator.currentVersion))
     #expect(try tableExists(databaseURL, "task_mutation_operations"))
     #expect(try tableExists(databaseURL, "task_mutation_steps"))
     #expect(try tableExists(databaseURL, "calendar_plan_operations"))
     #expect(try columnExists(databaseURL, table: "task_history", column: "operation_id"))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM task_history WHERE task_id = 'existing';") == 1)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM scheduled_blocks WHERE calendar_event_id = 'calendar-event-preserved';") == 1)
+}
+
+@Test
+func migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals() throws {
+    let databaseURL = temporaryDatabaseURL("v45-prompt-resolution-origin")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (44, '2026-07-14T00:00:00Z');
+    CREATE TABLE prompt_episodes (
+        id TEXT PRIMARY KEY,
+        decision_key TEXT NOT NULL,
+        prompt_type TEXT NOT NULL,
+        state TEXT NOT NULL,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        action_token TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        created_at_utc TEXT NOT NULL,
+        expires_at_utc TEXT
+    );
+    INSERT INTO prompt_episodes(
+        id, decision_key, prompt_type, state, title, summary, action_token, payload_json, created_at_utc
+    ) VALUES (
+        'legacy-dismissal', 'resolved:legacy-dismissal:gaming-drift:2026-07-14:1', 'GAMING_DRIFT',
+        'dismissed', 'Ready to return?', 'Legacy user dismissal', 'token', '{}', '2026-07-14T00:00:00Z'
+    );
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.appliedVersions == [45])
+    #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_origin"))
+    #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_reason"))
+    #expect(try scalarText(databaseURL, "SELECT state FROM prompt_episodes WHERE id = 'legacy-dismissal';") == "dismissed")
+    #expect(try scalarInt(databaseURL, "SELECT resolution_origin IS NULL FROM prompt_episodes WHERE id = 'legacy-dismissal';") == 1)
+    #expect(try scalarInt(databaseURL, "SELECT resolution_reason IS NULL FROM prompt_episodes WHERE id = 'legacy-dismissal';") == 1)
 }
 
 @Test

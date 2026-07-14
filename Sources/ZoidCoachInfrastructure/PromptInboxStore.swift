@@ -181,6 +181,30 @@ public final class PromptInboxStore: @unchecked Sendable {
 
     @discardableResult
     public func dismiss(promptID: String) throws -> PromptEpisode {
+        try resolveDismissal(
+            promptID: promptID,
+            origin: .user,
+            reason: .explicitDismissal,
+            requiresUserDismissalPermission: true
+        )
+    }
+
+    @discardableResult
+    public func withdrawForInvalidScreenwatchEvidence(promptID: String) throws -> PromptEpisode {
+        try resolveDismissal(
+            promptID: promptID,
+            origin: .system,
+            reason: .screenwatchEvidenceInvalid,
+            requiresUserDismissalPermission: false
+        )
+    }
+
+    private func resolveDismissal(
+        promptID: String,
+        origin: PromptResolutionOrigin,
+        reason: PromptResolutionReason,
+        requiresUserDismissalPermission: Bool
+    ) throws -> PromptEpisode {
         lock.lock()
         defer { lock.unlock() }
         try expireDue()
@@ -192,10 +216,11 @@ public final class PromptInboxStore: @unchecked Sendable {
             committed = true
             return episode
         }
-        guard episode.allowsDismissal else {
+        guard !requiresUserDismissalPermission || episode.allowsDismissal else {
             throw PromptInboxStoreError.dismissalNotAllowed
         }
         let dismissed = try transition(episode, on: .dismiss, at: now())
+            .recordingResolution(origin: origin, reason: reason)
         try update(dismissed, releaseDecisionKey: true)
         committed = true
         return dismissed
@@ -395,8 +420,9 @@ public final class PromptInboxStore: @unchecked Sendable {
     private func insert(_ episode: PromptEpisode) throws {
         let sql = """
         INSERT INTO prompt_episodes
-        (id, decision_key, prompt_type, state, title, summary, action_token, payload_json, created_at_utc, expires_at_utc)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        (id, decision_key, prompt_type, state, title, summary, action_token, payload_json, created_at_utc, expires_at_utc,
+         resolution_origin, resolution_reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
@@ -413,6 +439,8 @@ public final class PromptInboxStore: @unchecked Sendable {
         bind(try encodeEnvelope(episode), statement, 8)
         bind(formatter.string(from: episode.createdAt), statement, 9)
         bindOptional(episode.expiresAt.map(formatter.string(from:)), statement, 10)
+        bindOptional(episode.resolutionOrigin?.rawValue, statement, 11)
+        bindOptional(episode.resolutionReason?.rawValue, statement, 12)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw PromptInboxStoreError.write(errorMessage) }
     }
 
@@ -456,7 +484,11 @@ public final class PromptInboxStore: @unchecked Sendable {
         let storedDecisionKey = releaseDecisionKey
             ? "resolved:\(episode.id):\(episode.decisionKey)"
             : episode.decisionKey
-        let sql = "UPDATE prompt_episodes SET decision_key = ?, state = ?, payload_json = ? WHERE id = ?;"
+        let sql = """
+        UPDATE prompt_episodes
+        SET decision_key = ?, state = ?, payload_json = ?, resolution_origin = ?, resolution_reason = ?
+        WHERE id = ?;
+        """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
             throw PromptInboxStoreError.prepare(errorMessage)
@@ -465,7 +497,9 @@ public final class PromptInboxStore: @unchecked Sendable {
         bind(storedDecisionKey, statement, 1)
         bind(episode.state.rawValue, statement, 2)
         bind(try encodeEnvelope(episode), statement, 3)
-        bind(episode.id, statement, 4)
+        bindOptional(episode.resolutionOrigin?.rawValue, statement, 4)
+        bindOptional(episode.resolutionReason?.rawValue, statement, 5)
+        bind(episode.id, statement, 6)
         guard sqlite3_step(statement) == SQLITE_DONE, sqlite3_changes(database) == 1 else {
             throw PromptInboxStoreError.write(errorMessage)
         }
@@ -548,7 +582,9 @@ public final class PromptInboxStore: @unchecked Sendable {
             createdAt: createdAt,
             expiresAt: text(statement, 8).flatMap(formatter.date(from:)),
             presentedAt: envelope.presentedAt,
-            resolvedAt: envelope.resolvedAt
+            resolvedAt: envelope.resolvedAt,
+            resolutionOrigin: text(statement, 9).flatMap(PromptResolutionOrigin.init(rawValue:)),
+            resolutionReason: text(statement, 10).flatMap(PromptResolutionReason.init(rawValue:))
         )
     }
 
@@ -624,7 +660,8 @@ public final class PromptInboxStore: @unchecked Sendable {
     private var errorMessage: String { String(cString: sqlite3_errmsg(database)) }
 
     private static let episodeSelect = """
-    SELECT id, decision_key, prompt_type, state, title, summary, payload_json, created_at_utc, expires_at_utc
+    SELECT id, decision_key, prompt_type, state, title, summary, payload_json, created_at_utc, expires_at_utc,
+           resolution_origin, resolution_reason
     FROM prompt_episodes
     """
 
