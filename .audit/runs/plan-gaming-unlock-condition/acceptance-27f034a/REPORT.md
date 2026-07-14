@@ -63,3 +63,13 @@ Free disk after cleanup was 5.2 GiB.
 The repair makes the scenario reachable, deliberate, durable, and reward-correct, but it is not completely usable end to end because the confirmed move is visibly stale until refresh or relaunch.
 The independent recommendation is `Touches remaining`, not `Fully implemented`.
 The smallest repair is to derive `TodayPlanTaskRow.isMainObjective` from the matching live `DailyPlanEntry` when available and fall back to the snapshot row only when no plan entry exists.
+
+## Immediate-state repair
+
+The approved repair introduced `TodayPlanMainObjectiveState.resolve(snapshotIsMainObjective:livePlanEntry:)` and routed the reachable Today rows through it.
+The regression test first failed on both stale directions: a live main entry could not override a false snapshot flag, and a live non-main entry could not override a true snapshot flag.
+The resolver now uses `livePlanEntry?.isMainObjective ?? snapshotIsMainObjective`, so the currently edited plan is authoritative and the snapshot is used only when the row has no matching live plan entry.
+The focused five-test run across both gaming-unlock suites passed with process exit 0 after the repair.
+The single release build passed with process exit 0 and produced executable `.build/release/ZoidCoach`.
+Free disk after the build gate was 5.1 GiB.
+The immediate post-confirm and relaunch signed recheck is pending.
