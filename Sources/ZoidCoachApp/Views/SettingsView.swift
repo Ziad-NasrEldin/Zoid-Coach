@@ -1462,7 +1462,7 @@ struct SettingsView: View {
     }
 
     private var dataSection: some View {
-        SettingsCard(title: "LOCAL DATA", detail: "Inspect what Zoid 666 stores on this Mac, export a reviewed redacted diagnostic file, or selectively delete local records. None of these controls require a cloud service.") {
+        SettingsCard(title: "LOCAL DATA", detail: "Inspect what Zoid 666 stores on this Mac, export a reviewed redacted diagnostic package, or selectively delete local records. None of these controls require a cloud service.") {
             if isLoadingPrivacyInventory {
                 ProgressView("Inspecting local data...")
                     .accessibilityIdentifier("settings.data.inventory.loading")
@@ -1516,20 +1516,39 @@ struct SettingsView: View {
                 .accessibilityLabel("Open Zoid 666 local data folder")
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("EXPORT PREVIEW")
+                let preview = DiagnosticExportPackagePresentation.preview
+                Text("DIAGNOSTIC PACKAGE PREVIEW")
                     .font(Sumi.label(9))
                     .sumiLabelTracking()
-                Text("The JSON export contains only its creation time, schema version, and grouped counts for action states, source health, prompts, and meeting suggestions. It excludes titles, conversation text, URLs, file paths, event names, payloads, screenshots, and credentials.")
+                Text("Review every file before choosing where to save the package.")
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                ForEach(preview.artifacts) { artifact in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(artifact.fileName)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.ink)
+                        Text(artifact.detail)
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.muted)
+                    }
+                    .padding(.vertical, 3)
+                }
+                Text("NOT INCLUDED · \(preview.exclusions.joined(separator: ", "))")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(12)
             .background(Sumi.sealWash)
             .overlay { Rectangle().stroke(Sumi.seal.opacity(0.34), lineWidth: 1) }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(DiagnosticExportPackagePresentation.preview.accessibilitySummary)
             .accessibilityIdentifier("settings.data.export.preview")
 
-            Button("CHOOSE EXPORT DESTINATION") { chooseExportDestination() }
+            Button(DiagnosticExportPackagePresentation.preview.saveButtonTitle) { chooseExportDestination() }
                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                 .accessibilityIdentifier("settings.data.export.choose-destination")
 
@@ -1678,11 +1697,14 @@ struct SettingsView: View {
     }
 
     private func chooseExportDestination() {
+        let preview = DiagnosticExportPackagePresentation.preview
         let panel = NSSavePanel()
-        panel.title = "Export redacted Zoid 666 diagnostics"
-        panel.prompt = "EXPORT REDACTED JSON"
-        panel.nameFieldStringValue = "zoid-666-redacted-diagnostics.json"
-        panel.allowedContentTypes = [.json]
+        panel.title = preview.panelTitle
+        panel.prompt = preview.panelPrompt
+        panel.nameFieldStringValue = preview.suggestedFileName
+        panel.allowedContentTypes = [
+            UTType(exportedAs: "com.zoidcoach.diagnostic-package", conformingTo: .package),
+        ]
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task { await performDataCommand(.exportRedactedDiagnosticsTo(path: url.path)) }
