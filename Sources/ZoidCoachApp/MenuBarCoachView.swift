@@ -29,11 +29,27 @@ final class MenuBarCoachController: ObservableObject {
 
     private let client: any MenuBarTodayClient
 
-    init(client: any MenuBarTodayClient = TodayDashboardXPCClient(runtimeEnvironment: .current())) {
+    init(client: any MenuBarTodayClient) {
         self.client = client
     }
 
+    convenience init(runtimeEnvironment: RuntimeEnvironment) {
+        self.init(client: TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment))
+    }
+
     var state: MenuBarCoachState { MenuBarCoachState(snapshot: snapshot) }
+
+    func adoptLastKnownSnapshot(_ lastKnownSnapshot: TodaySnapshot?) {
+        guard let lastKnownSnapshot else { return }
+        snapshot = lastKnownSnapshot
+        if lastConfirmedAt == nil {
+            lastConfirmedAt = Date()
+        }
+        if syncPresentation == .unavailable {
+            syncPresentation = .stale
+            errorMessage = "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh."
+        }
+    }
 
     func refresh() async {
         guard !isLoading else { return }
@@ -175,8 +191,8 @@ struct MenuBarCoachView: View {
     init(
         appModel: AppModel,
         voiceModel: VoiceConversationModel,
-        controller: MenuBarCoachController = MenuBarCoachController(),
-        pauseController: MenuBarCoachingPauseController = MenuBarCoachingPauseController()
+        controller: MenuBarCoachController,
+        pauseController: MenuBarCoachingPauseController
     ) {
         self.appModel = appModel
         self.voiceModel = voiceModel
@@ -211,11 +227,15 @@ struct MenuBarCoachView: View {
         .frame(width: 360)
         .background(Sumi.paper)
         .task {
+            controller.adoptLastKnownSnapshot(appModel.todaySnapshot)
             async let todayRefresh: Void = controller.refresh()
             async let pauseRefresh: Void = pauseController.refresh()
             async let fallbackRefresh: Void = appModel.refreshMenuBarPromptFallback()
             _ = await (todayRefresh, pauseRefresh, fallbackRefresh)
             await appModel.refreshTodaySnapshot()
+        }
+        .onChange(of: appModel.todaySnapshot) { _, snapshot in
+            controller.adoptLastKnownSnapshot(snapshot)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("menu-bar.coach")

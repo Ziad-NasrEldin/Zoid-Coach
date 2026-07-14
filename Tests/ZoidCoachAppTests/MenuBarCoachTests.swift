@@ -4,6 +4,23 @@ import Testing
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
+@Test func applicationComposesTodayAndCompactControlsFromOneRuntimeBoundary() throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let sourceURL = repositoryRoot
+        .appendingPathComponent("Sources/ZoidCoachApp/ZoidCoachApp.swift")
+    let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+    #expect(source.contains("let runtimeEnvironment = RuntimeEnvironment.current()"))
+    #expect(source.contains("AppModel(runtimeEnvironment: runtimeEnvironment)"))
+    #expect(source.contains("MenuBarCoachController(\n            runtimeEnvironment: runtimeEnvironment"))
+    #expect(source.contains("MenuBarCoachingPauseController(\n            runtimeEnvironment: runtimeEnvironment"))
+    #expect(source.contains("controller: menuBarCoach"))
+    #expect(source.contains("pauseController: menuBarCoachingPause"))
+}
+
 @Test func menuBarStateDistinguishesNeutralAttentionActiveAndPaused() {
     #expect(MenuBarCoachState(snapshot: nil).tone == .neutral)
 
@@ -389,6 +406,27 @@ import ZoidCoachInfrastructure
     #expect(controller.snapshot == nil)
     #expect(controller.syncPresentation == .unavailable)
     #expect(controller.errorMessage == "Task state is unavailable because Zoid 666 could not load a confirmed state from the background agent. Open Source Health, then refresh.")
+}
+
+@MainActor
+@Test func compactMenuPreservesTodayTaskWhenItsOwnHelperRefreshFails() async {
+    let active = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Task", state: .active, elapsedMinutes: 9)],
+        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 9)
+    )
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .failure(MenuBarClientError.failed),
+        applyResults: []
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    controller.adoptLastKnownSnapshot(active)
+    await controller.refresh()
+
+    #expect(controller.state.activeTask?.taskID == "task")
+    #expect(controller.state.taskStatus == "Active · Open-ended · 9 min tracked")
+    #expect(controller.syncPresentation == .stale)
+    #expect(controller.errorMessage == "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh.")
 }
 
 @MainActor
