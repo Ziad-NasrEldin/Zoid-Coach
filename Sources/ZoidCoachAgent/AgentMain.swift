@@ -217,6 +217,7 @@ struct ZoidCoachAgentMain {
                 try await notificationCoordinator.processFixtureActions()
             }
             try Self.replayPendingPromptEffects(store: promptStore, router: promptEffectRouter)
+            try await notificationCoordinator.reconcilePromptNotifications()
             let initialVersionedPolicy: VersionedUserPolicy
             if let stored = try policyStore.current() {
                 initialVersionedPolicy = stored
@@ -574,7 +575,7 @@ struct ZoidCoachAgentMain {
                     let promptNotificationsEnabled = policy.privacy.effectiveNotificationPromptsEnabled
                     let screenwatchIngestion = ScreenwatchIngestionControl(policy: policy.capture)
                     if lastPromptNotificationsEnabled != promptNotificationsEnabled {
-                        try await notificationCoordinator.reconcilePromptNotificationPreference()
+                        try await notificationCoordinator.reconcilePromptNotifications()
                         lastPromptNotificationsEnabled = promptNotificationsEnabled
                     }
                     let resourceConstrained = Self.isResourceConstrained
@@ -675,6 +676,7 @@ struct ZoidCoachAgentMain {
                         _ = try? await notificationCoordinator.schedule(episode)
                     }
                     _ = try promptStore.expireDue()
+                    try await notificationCoordinator.reconcilePromptNotifications()
                     if policy.automationPause.isPaused {
                         await progressMonitor.markProgress()
                         try await Task.sleep(for: .seconds(5))
@@ -916,6 +918,7 @@ struct ZoidCoachAgentMain {
                    ), case let .queued(episode, wasInserted) = promptResult, wasInserted {
                     _ = try? await notificationCoordinator.schedule(episode)
                 }
+                try await notificationCoordinator.reconcilePromptNotifications()
             }
         } catch let error as AgentOSAdapterBoundaryError {
             fputs("Zoid 666 agent refused QA OS access: \(error.localizedDescription)\n", stderr)
