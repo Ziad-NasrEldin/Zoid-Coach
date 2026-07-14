@@ -139,7 +139,7 @@ func migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [45])
+    #expect(result.appliedVersions == [45, 46, 47])
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_origin"))
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_reason"))
     #expect(try scalarText(databaseURL, "SELECT state FROM prompt_episodes WHERE id = 'legacy-dismissal';") == "dismissed")
