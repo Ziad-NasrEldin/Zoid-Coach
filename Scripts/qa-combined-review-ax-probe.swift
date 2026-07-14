@@ -1,0 +1,398 @@
+#!/usr/bin/env swift
+
+import ApplicationServices
+import Foundation
+
+private enum ExitCode: Int32 {
+    case success = 0
+    case usage = 2
+    case attach = 3
+    case window = 4
+    case navigation = 5
+    case dailyReview = 6
+    case weeklyReview = 7
+    case behaviorEvidence = 8
+    case timeout = 9
+    case accessibilityPermission = 10
+    case action = 11
+}
+
+private struct ProbeFailure: Error {
+    let code: ExitCode
+    let message: String
+}
+
+private struct Arguments {
+    let pid: pid_t
+    let expandWeekly: Bool
+
+    static func parse() throws -> Arguments {
+        var pid: pid_t?
+        var expandWeekly = false
+        var index = 1
+        while index < CommandLine.arguments.count {
+            switch CommandLine.arguments[index] {
+            case "--pid":
+                index += 1
+                guard index < CommandLine.arguments.count,
+                      let value = Int32(CommandLine.arguments[index]),
+                      value > 0 else {
+                    throw ProbeFailure(code: .usage, message: "--pid requires a positive process identifier")
+                }
+                pid = value
+            case "--expand-weekly":
+                expandWeekly = true
+            case "--help", "-h":
+                throw ProbeFailure(code: .usage, message: usage)
+            default:
+                throw ProbeFailure(code: .usage, message: "unsupported argument")
+            }
+            index += 1
+        }
+        guard let pid else {
+            throw ProbeFailure(code: .usage, message: "--pid is required")
+        }
+        return Arguments(pid: pid, expandWeekly: expandWeekly)
+    }
+}
+
+private let usage = "Usage: qa-combined-review-ax-probe.swift --pid <pid> [--expand-weekly]"
+private let maximumNodesPerTarget = 2_000
+private let targetTimeout: TimeInterval = 4
+private let scrollToVisibleAction = "AXScrollToVisible" as CFString
+
+private let privateSentinels = [
+    "qa-review-private-sentinel",
+    "secret-review-",
+    "https://private.invalid/qa-review",
+]
+
+private let dailySections: [(id: String, label: String, value: String?, hint: String)] = [
+    (
+        "reviews.evidence-boundary.observed-facts",
+        "OBSERVED FACTS",
+        nil,
+        "These values come from corrected local activity. Missing time stays unobserved instead of being filled in."
+    ),
+    (
+        "reviews.evidence-boundary.user-context",
+        "USER CONTEXT",
+        "PERSONAL CONTEXT ADDED",
+        "A personal note can explain circumstances, but it is never treated as observed behavior or learned automatically."
+    ),
+    (
+        "reviews.evidence-boundary.hypothesis",
+        "HYPOTHESIS",
+        "UNCONFIRMED HYPOTHESIS",
+        "A possible explanation is kept separate and remains a hypothesis, not an observed fact."
+    ),
+]
+
+private let workCategories: [(suffix: String, label: String, hint: String)] = [
+    ("deep_work", "Deep work, 5 minutes", "Work observed in explicitly recognized development tools."),
+    ("creative_work", "Creative work, 5 minutes", "Work observed in explicitly recognized design and media tools."),
+    ("research", "Research, 5 minutes", "Work observed in explicitly recognized research tools."),
+    ("communication", "Communication, 5 minutes", "Work observed in explicitly recognized communication tools."),
+    ("administration", "Administration, 5 minutes", "Work observed in explicitly recognized planning and administration tools."),
+    ("uncategorized", "Uncategorized work, 5 minutes", "Work that cannot be safely categorized from the application name alone."),
+]
+
+private func attribute(_ element: AXUIElement, _ name: CFString) -> CFTypeRef? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, name, &value) == .success else { return nil }
+    return value
+}
+
+private func stringAttribute(_ element: AXUIElement, _ name: CFString) -> String? {
+    attribute(element, name) as? String
+}
+
+private func boolAttribute(_ element: AXUIElement, _ name: CFString) -> Bool? {
+    (attribute(element, name) as? NSNumber)?.boolValue
+}
+
+private func children(of element: AXUIElement) -> [AXUIElement] {
+    attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? []
+}
+
+private func identifier(of element: AXUIElement) -> String? {
+    stringAttribute(element, kAXIdentifierAttribute as CFString)
+}
+
+private func role(of element: AXUIElement) -> String? {
+    stringAttribute(element, kAXRoleAttribute as CFString)
+}
+
+private func publicStrings(of element: AXUIElement) -> [String] {
+    [
+        stringAttribute(element, kAXTitleAttribute as CFString),
+        stringAttribute(element, kAXDescriptionAttribute as CFString),
+        stringAttribute(element, kAXValueAttribute as CFString),
+        stringAttribute(element, kAXHelpAttribute as CFString),
+    ].compactMap { $0 }
+}
+
+private func hasExactPublicString(_ expected: String, element: AXUIElement) -> Bool {
+    publicStrings(of: element).contains(expected)
+}
+
+private func sameElement(_ lhs: AXUIElement, _ rhs: AXUIElement) -> Bool {
+    CFEqual(lhs, rhs)
+}
+
+private func boundedWalk(
+    from root: AXUIElement,
+    targetName: String,
+    visit: (AXUIElement) throws -> Bool
+) throws -> AXUIElement? {
+    let deadline = Date().addingTimeInterval(targetTimeout)
+    var stack = [root]
+    var visited = Set<CFHashCode>()
+    var count = 0
+
+    while let element = stack.popLast() {
+        if Date() >= deadline {
+            throw ProbeFailure(code: .timeout, message: "timed out while locating \(targetName)")
+        }
+        guard visited.insert(CFHash(element)).inserted else { continue }
+        count += 1
+        guard count <= maximumNodesPerTarget else {
+            throw ProbeFailure(code: .timeout, message: "node limit reached while locating \(targetName)")
+        }
+        if try visit(element) { return element }
+        stack.append(contentsOf: children(of: element).reversed())
+    }
+    return nil
+}
+
+private func requireTarget(
+    in root: AXUIElement,
+    name: String,
+    code: ExitCode,
+    matching: (AXUIElement) -> Bool
+) throws -> AXUIElement {
+    if let result = try boundedWalk(from: root, targetName: name, visit: matching) {
+        return result
+    }
+    throw ProbeFailure(code: code, message: "required target is unavailable: \(name)")
+}
+
+private func requireIdentifier(
+    _ expected: String,
+    in root: AXUIElement,
+    code: ExitCode
+) throws -> AXUIElement {
+    try requireTarget(in: root, name: expected, code: code) { identifier(of: $0) == expected }
+}
+
+private func press(_ element: AXUIElement, name: String, code: ExitCode) throws {
+    _ = AXUIElementPerformAction(element, scrollToVisibleAction)
+    guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else {
+        throw ProbeFailure(code: code, message: "could not activate \(name)")
+    }
+}
+
+private func pauseForPresentation() {
+    Thread.sleep(forTimeInterval: 0.3)
+}
+
+private func subtreeSnapshot(
+    root: AXUIElement,
+    name: String
+) throws -> (identifiers: [String], strings: [String]) {
+    var identifiers: [String] = []
+    var strings: [String] = []
+    _ = try boundedWalk(from: root, targetName: name) { element in
+        if let identifier = identifier(of: element) { identifiers.append(identifier) }
+        strings.append(contentsOf: publicStrings(of: element))
+        return false
+    }
+    return (identifiers, strings)
+}
+
+private func assertNoPrivateSentinel(_ strings: [String], code: ExitCode, scope: String) throws {
+    let normalized = strings.map { $0.lowercased() }
+    guard normalized.allSatisfy({ value in
+        privateSentinels.allSatisfy { !value.contains($0) }
+    }) else {
+        throw ProbeFailure(code: code, message: "private fixture evidence escaped into \(scope)")
+    }
+}
+
+private func singleMainWindow(application: AXUIElement) throws -> AXUIElement {
+    guard let windows = attribute(application, kAXWindowsAttribute as CFString) as? [AXUIElement] else {
+        throw ProbeFailure(code: .attach, message: "the supplied process does not expose application windows")
+    }
+    let eligible = windows.filter {
+        role(of: $0) == (kAXWindowRole as String)
+            && boolAttribute($0, kAXMinimizedAttribute as CFString) != true
+    }
+    guard eligible.count == 1, let window = eligible.first else {
+        throw ProbeFailure(code: .window, message: "expected exactly one non-minimized application window")
+    }
+    if let mainValue = attribute(application, kAXMainWindowAttribute as CFString),
+       CFGetTypeID(mainValue) == AXUIElementGetTypeID() {
+        let main = unsafeBitCast(mainValue, to: AXUIElement.self)
+        guard sameElement(main, window) else {
+            throw ProbeFailure(code: .window, message: "the visible application window is not the main window")
+        }
+    }
+    return window
+}
+
+private func navigate(_ label: String, in window: AXUIElement) throws {
+    let button = try requireTarget(in: window, name: label, code: .navigation) {
+        role(of: $0) == (kAXButtonRole as String) && hasExactPublicString(label, element: $0)
+    }
+    try press(button, name: label, code: .navigation)
+    pauseForPresentation()
+}
+
+private func assertDailyReview(window: AXUIElement) throws {
+    let boundary = try requireIdentifier("reviews.evidence-boundary", in: window, code: .dailyReview)
+    _ = AXUIElementPerformAction(boundary, scrollToVisibleAction)
+
+    var elements: [AXUIElement] = []
+    for section in dailySections {
+        let element = try requireIdentifier(section.id, in: boundary, code: .dailyReview)
+        guard hasExactPublicString(section.label, element: element),
+              stringAttribute(element, kAXHelpAttribute as CFString) == section.hint else {
+            throw ProbeFailure(code: .dailyReview, message: "Daily Review evidence contract mismatch for \(section.id)")
+        }
+        if let value = section.value,
+           stringAttribute(element, kAXValueAttribute as CFString) != value {
+            throw ProbeFailure(code: .dailyReview, message: "Daily Review evidence status mismatch for \(section.id)")
+        }
+        elements.append(element)
+    }
+
+    guard Set(elements.map(CFHash)).count == dailySections.count else {
+        throw ProbeFailure(code: .dailyReview, message: "Daily Review evidence sections are not distinct AX elements")
+    }
+    let observedStatus = stringAttribute(elements[0], kAXValueAttribute as CFString) ?? ""
+    let observedPattern = #"^[1-9][0-9]* OBSERVED SESSIONS? · [1-9][0-9]* MIN$"#
+    guard observedStatus.range(of: observedPattern, options: .regularExpression) != nil else {
+        throw ProbeFailure(code: .dailyReview, message: "Daily Review observed facts do not expose session and minute totals")
+    }
+
+    let snapshot = try subtreeSnapshot(root: boundary, name: "Daily Review evidence boundary")
+    let ordered = snapshot.identifiers.filter { $0.hasPrefix("reviews.evidence-boundary.") }
+    guard ordered == dailySections.map(\.id) else {
+        throw ProbeFailure(code: .dailyReview, message: "Daily Review evidence sections are missing, duplicated, or out of order")
+    }
+    try assertNoPrivateSentinel(snapshot.strings, code: .dailyReview, scope: "Daily Review collapsed evidence")
+}
+
+private func assertWeeklyReview(window: AXUIElement, expand: Bool) throws {
+    let weekly = try requireIdentifier("reviews.weekly", in: window, code: .weeklyReview)
+    _ = AXUIElementPerformAction(weekly, scrollToVisibleAction)
+    let patterns = try requireIdentifier("reviews.weekly.patterns", in: weekly, code: .weeklyReview)
+    let patternsSnapshot = try subtreeSnapshot(root: patterns, name: "Weekly Review patterns")
+    let prefix = "reviews.weekly.pattern."
+    let patternIDs = patternsSnapshot.identifiers.filter { identifier in
+        guard identifier.hasPrefix(prefix) else { return false }
+        return !identifier.dropFirst(prefix.count).contains(".")
+    }
+    guard patternIDs.count == 1, let patternID = patternIDs.first else {
+        throw ProbeFailure(code: .weeklyReview, message: "expected exactly one Weekly Review pattern")
+    }
+
+    var card = try requireIdentifier(patternID, in: patterns, code: .weeklyReview)
+    var status = try requireIdentifier("\(patternID).learning-status", in: card, code: .weeklyReview)
+    guard hasExactPublicString("NOT LEARNED", element: status) else {
+        throw ProbeFailure(code: .weeklyReview, message: "Weekly Review pattern is missing NOT LEARNED")
+    }
+    var evidenceButton = try requireIdentifier("\(patternID).evidence", in: card, code: .weeklyReview)
+    guard hasExactPublicString("SHOW EVIDENCE", element: evidenceButton) else {
+        throw ProbeFailure(code: .weeklyReview, message: "Weekly Review pattern did not start collapsed")
+    }
+    var cardSnapshot = try subtreeSnapshot(root: card, name: "collapsed Weekly Review pattern")
+    guard cardSnapshot.strings.allSatisfy({
+        !$0.localizedCaseInsensitiveContains("Observed evidence:")
+            && !$0.localizedCaseInsensitiveContains("Alternative explanation:")
+    }) else {
+        throw ProbeFailure(code: .weeklyReview, message: "Weekly Review collapsed pattern exposed hidden evidence")
+    }
+    try assertNoPrivateSentinel(cardSnapshot.strings, code: .weeklyReview, scope: "Weekly Review collapsed pattern")
+
+    guard expand else { return }
+    try press(evidenceButton, name: "Weekly Review evidence", code: .action)
+    pauseForPresentation()
+    card = try requireIdentifier(patternID, in: patterns, code: .weeklyReview)
+    status = try requireIdentifier("\(patternID).learning-status", in: card, code: .weeklyReview)
+    evidenceButton = try requireIdentifier("\(patternID).evidence", in: card, code: .weeklyReview)
+    guard hasExactPublicString("NOT LEARNED", element: status),
+          hasExactPublicString("HIDE EVIDENCE", element: evidenceButton) else {
+        throw ProbeFailure(code: .weeklyReview, message: "expanded Weekly Review did not retain its learning boundary")
+    }
+    cardSnapshot = try subtreeSnapshot(root: card, name: "expanded Weekly Review pattern")
+    guard cardSnapshot.strings.contains(where: { $0.localizedCaseInsensitiveContains("Observed evidence:") }),
+          cardSnapshot.strings.contains(where: { $0.localizedCaseInsensitiveContains("Alternative explanation:") }) else {
+        throw ProbeFailure(code: .weeklyReview, message: "expanded Weekly Review did not expose evidence and an alternative")
+    }
+    try assertNoPrivateSentinel(cardSnapshot.strings, code: .weeklyReview, scope: "Weekly Review expanded pattern")
+}
+
+private func assertBehaviorEvidence(window: AXUIElement) throws {
+    let open = try requireIdentifier("today.behavior-evidence.open", in: window, code: .behaviorEvidence)
+    try press(open, name: "View all activity", code: .action)
+    pauseForPresentation()
+
+    let sheet = try requireIdentifier("today.behavior-evidence.sheet", in: window, code: .behaviorEvidence)
+    let ledger = try requireIdentifier("today.behavior-evidence.work-categories", in: sheet, code: .behaviorEvidence)
+    _ = AXUIElementPerformAction(ledger, scrollToVisibleAction)
+
+    var elements: [AXUIElement] = []
+    let expectedIDs = workCategories.map { "today.behavior-evidence.work-category.\($0.suffix)" }
+    for (index, category) in workCategories.enumerated() {
+        let element = try requireIdentifier(expectedIDs[index], in: ledger, code: .behaviorEvidence)
+        guard hasExactPublicString(category.label, element: element),
+              stringAttribute(element, kAXHelpAttribute as CFString) == category.hint else {
+            throw ProbeFailure(code: .behaviorEvidence, message: "work-category AX contract mismatch for \(category.suffix)")
+        }
+        elements.append(element)
+    }
+    guard Set(elements.map(CFHash)).count == workCategories.count else {
+        throw ProbeFailure(code: .behaviorEvidence, message: "work-category totals are not six distinct AX elements")
+    }
+    let snapshot = try subtreeSnapshot(root: ledger, name: "Behavior Evidence work categories")
+    let ordered = snapshot.identifiers.filter { $0.hasPrefix("today.behavior-evidence.work-category.") }
+    guard ordered == expectedIDs else {
+        throw ProbeFailure(code: .behaviorEvidence, message: "work-category totals are missing, duplicated, or out of order")
+    }
+    let sheetSnapshot = try subtreeSnapshot(root: sheet, name: "Behavior Evidence sheet")
+    try assertNoPrivateSentinel(sheetSnapshot.strings, code: .behaviorEvidence, scope: "Behavior Evidence")
+}
+
+private func run() throws {
+    let arguments = try Arguments.parse()
+    guard AXIsProcessTrusted() else {
+        throw ProbeFailure(code: .accessibilityPermission, message: "Accessibility permission is required")
+    }
+    guard kill(arguments.pid, 0) == 0 else {
+        throw ProbeFailure(code: .attach, message: "the supplied process is not running")
+    }
+
+    let application = AXUIElementCreateApplication(arguments.pid)
+    let window = try singleMainWindow(application: application)
+    try navigate("Reviews", in: window)
+    try assertDailyReview(window: window)
+    try assertWeeklyReview(window: window, expand: arguments.expandWeekly)
+    try navigate("Today", in: window)
+    try assertBehaviorEvidence(window: window)
+
+    let weeklyMode = arguments.expandWeekly ? "weekly expanded" : "weekly collapsed"
+    print("PASS: combined review AX contract verified (\(weeklyMode))")
+}
+
+do {
+    try run()
+    exit(ExitCode.success.rawValue)
+} catch let failure as ProbeFailure {
+    fputs("FAIL: \(failure.message)\n", stderr)
+    if failure.code == .usage { fputs("\(usage)\n", stderr) }
+    exit(failure.code.rawValue)
+} catch {
+    fputs("FAIL: unexpected verifier error (details redacted)\n", stderr)
+    exit(ExitCode.dailyReview.rawValue)
+}
