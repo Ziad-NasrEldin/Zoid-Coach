@@ -4,18 +4,19 @@ set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
 ROOT="${SCRIPT_DIR:A:h:h:h:h}"
-EXPECTED_COMMIT="f28ad1087623bd308fc410f78ab6215cf1b69131"
+EXPECTED_COMMIT="1cc6b852f3f3cdaf9672885f8abadbcd9952a74a"
 QA_ROOT="/private/tmp/zoid-666-zc034011-fast-root"
 INSTALL_ROOT="/private/tmp/zoid-666-zc034011-fast-install"
-PACKAGE_APP="$ROOT/.build/app-qa/Zoid 666 QA.app"
+PACKAGE_APP="${ZOID_ACCEPT_PACKAGE_APP:-$ROOT/.build/app-qa/Zoid 666 QA.app}"
 INSTALLED_APP="$INSTALL_ROOT/Zoid 666 QA E2E.app"
 APP_EXECUTABLE="ZoidCoachQA"
 AGENT_EXECUTABLE="ZoidCoachAgentQA"
 AGENT_LABEL="qa.ziadnasreldin.ZoidCoach.agent"
 APP_COMMAND="$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE"
 DB="$QA_ROOT/Application Support/Zoid 666/zoid-coach.sqlite"
-AX_DRIVER="$SCRIPT_DIR/bin/ax-driver"
-WINDOW_PROBE="$SCRIPT_DIR/bin/qa-window-content-probe"
+TOOL_DIR="$ROOT/.build/zc034011-prompt-reachability"
+AX_DRIVER="$TOOL_DIR/ax-driver"
+WINDOW_PROBE="$TOOL_DIR/qa-window-content-probe"
 MANIFEST="$SCRIPT_DIR/ready-state.json"
 EVIDENCE="$SCRIPT_DIR/evidence"
 USER_DOMAIN="gui/$(id -u)"
@@ -28,8 +29,12 @@ log() {
 
 stop_app() {
     pkill -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
+    pkill -f "${INSTALLED_APP}/Contents/MacOS/${APP_EXECUTABLE}" >/dev/null 2>&1 || true
     for _ in {1..20}; do
-        pgrep -x "$APP_EXECUTABLE" >/dev/null 2>&1 || return 0
+        if ! pgrep -x "$APP_EXECUTABLE" >/dev/null 2>&1 \
+            && ! pgrep -f "${INSTALLED_APP}/Contents/MacOS/${APP_EXECUTABLE}" >/dev/null 2>&1; then
+            return 0
+        fi
         sleep 0.1
     done
     print -u2 "FAIL: foreground QA app did not stop"
@@ -282,7 +287,7 @@ preflight() {
     python3 -m json.tool "$MANIFEST" >/dev/null
     "$ROOT/Scripts/verify-build-identity.sh" \
         "$PACKAGE_APP/Contents/Info.plist" \
-        --expected-cmt "$EXPECTED_COMMIT" --require-clean \
+        --expected-commit "$EXPECTED_COMMIT" --require-clean \
         | tee "$EVIDENCE/package-identity.txt"
     codesign --verify --deep --strict --verbose=2 "$PACKAGE_APP"
     log "PASS: harness preflight complete"
@@ -316,10 +321,12 @@ success_helper_pid="$(helper_pid)"
 success_app_pid="$(launch_and_wait_for_actions)"
 "$WINDOW_PROBE" "$success_app_pid" --expect-today --screenshot "$EVIDENCE/success-actions.png" \
     | tee -a "$EVIDENCE/runtime.log"
-"$AX_DRIVER" "$success_app_pid" press "today.prompt.qa-block-1.action.mark_blocked"
+"$AX_DRIVER" "$success_app_pid" assert-visible-prefix "today.prompt.qa-block-1.action." 6 10 \
+    | tee "$EVIDENCE/success-initial-action-frames.txt"
+"$AX_DRIVER" "$success_app_pid" click "today.prompt.qa-block-1.action.mark_blocked"
 "$AX_DRIVER" "$success_app_pid" wait "today.prompt.block.sheet" 6
-"$AX_DRIVER" "$success_app_pid" press "today.prompt.block.suggestion.approval"
-"$AX_DRIVER" "$success_app_pid" press "today.prompt.block.confirm"
+"$AX_DRIVER" "$success_app_pid" click "today.prompt.block.suggestion.approval"
+"$AX_DRIVER" "$success_app_pid" click "today.prompt.block.confirm"
 "$AX_DRIVER" "$success_app_pid" wait "today.prompt.qa-block-1.history.blocked-reason" 10 \
     | tee "$EVIDENCE/success-history.txt"
 assert_success_database "success"
@@ -349,11 +356,15 @@ assert_success_database "helper-relaunch"
 
 prepare_presented_runtime "helper-down"
 failure_app_pid="$(launch_and_wait_for_actions)"
-"$AX_DRIVER" "$failure_app_pid" press "today.prompt.qa-block-1.action.mark_blocked"
+"$WINDOW_PROBE" "$failure_app_pid" --expect-today --screenshot "$EVIDENCE/helper-down-actions.png" \
+    | tee -a "$EVIDENCE/runtime.log"
+"$AX_DRIVER" "$failure_app_pid" assert-visible-prefix "today.prompt.qa-block-1.action." 6 10 \
+    | tee "$EVIDENCE/helper-down-initial-action-frames.txt"
+"$AX_DRIVER" "$failure_app_pid" click "today.prompt.qa-block-1.action.mark_blocked"
 "$AX_DRIVER" "$failure_app_pid" wait "today.prompt.block.sheet" 6
-"$AX_DRIVER" "$failure_app_pid" press "today.prompt.block.suggestion.approval"
+"$AX_DRIVER" "$failure_app_pid" click "today.prompt.block.suggestion.approval"
 unregister_helper
-"$AX_DRIVER" "$failure_app_pid" press "today.prompt.block.confirm"
+"$AX_DRIVER" "$failure_app_pid" click "today.prompt.block.confirm"
 failure_text="$($AX_DRIVER "$failure_app_pid" text "today.prompt.block.err" 10)"
 print -r -- "$failure_text" | tee "$EVIDENCE/helper-down-error.txt"
 grep -Fq "The blocker was not saved. The last confirmed task and plan state are still shown." <<<"$failure_text"
