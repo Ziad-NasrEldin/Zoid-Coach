@@ -918,6 +918,49 @@ func workCategoryBreakdownReconstructsFromPersistedCorrectedSessionsAfterReopen(
 }
 
 @Test
+func evidenceLayersReconstructFromPersistedReviewEvidenceAfterReopen() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    let start: Int64 = 1_783_663_200
+    try fixture.insert(epoch: start, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: start + 60, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: start + 600, app: "Safari", classification: .unknown)
+    try fixture.store.savePersonalNote("  Client context remains separate.  ", sourceDay: fixture.sourceDay)
+
+    let firstSnapshot = try fixture.store.load(sourceDay: fixture.sourceDay)
+    let first = DailyReviewEvidenceLayersState(snapshot: firstSnapshot)
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let relaunched = DailyReviewEvidenceLayersState(
+        snapshot: try reopened.load(sourceDay: fixture.sourceDay)
+    )
+
+    #expect(relaunched == first)
+    #expect(relaunched.layers[0].body.contains("3 corrected observed minutes"))
+    #expect(relaunched.layers[1].body.contains("1 observed minute remains Unknown"))
+    #expect(relaunched.layers[1].body.contains("personal note supplies user context"))
+    #expect(relaunched.layers[2].body.contains("Observed work time was the largest covered category"))
+}
+
+@Test
+func unknownOnlyEvidenceRemainsLimitedAfterStoreReopen() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    let start: Int64 = 1_783_663_200
+    try fixture.insert(epoch: start, app: "PRIVATE-ZC042001-APP", classification: .unknown)
+    try fixture.store.savePersonalNote("PRIVATE-ZC042001-NOTE", sourceDay: fixture.sourceDay)
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let snapshot = try reopened.load(sourceDay: fixture.sourceDay)
+    let state = DailyReviewEvidenceLayersState(snapshot: snapshot)
+
+    #expect(snapshot.hypothesis == nil)
+    #expect(state.layers[0].body.contains("1 corrected observed minute"))
+    #expect(state.layers[1].body.contains("1 observed minute remains Unknown"))
+    #expect(state.layers[2].body == "No possible explanation was generated because the covered evidence is insufficient.")
+    #expect(state.layers.allSatisfy { !$0.accessibilityLabel.contains("PRIVATE-ZC042001") })
+}
+
+@Test
 func workCategoryBreakdownHonorsPersistedWorkLeftMergeTruthAfterReopen() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
