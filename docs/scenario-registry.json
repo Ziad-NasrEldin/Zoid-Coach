@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "dc5ecded0c215891afb7d11f6a5e06f5c9d397975fc9b0ba18bf886f39768d3a",
+  "tracker_sha256": "ec65f7163a58d650a471b60ea27f85bb3990cba38dbcda61573037b0991f1a23",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9133,7 +9133,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Daily Review now implements six conservative corrected-work categories, persisted correction and chosen-left merge reconstruction, honest empty and Uncategorized states, stable accessibility identities, and seven passing focused tests. Signed QA passed release packaging, deep signing, LaunchAgent, Mach service, XPC readiness, exact app/helper/root/database binding, foreground-before-helper ordering, visible Today, and the non-work-only fixture database assertion, but the category probe rejected an auxiliary AX window before the empty ledger, exact 2/3/4/5/6/8-minute rows, 28-minute total, authority and exclusion copy, recursive privacy, and relaunch journey could pass (`.audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md`).",
+      "audit_note": "Daily Review implements six conservative corrected-work categories, persisted correction and chosen-left merge reconstruction, honest empty and Uncategorized states, and stable accessibility identities. The latest exact signed candidate passed verifier typechecking and self-test, packaging, deep signing, identity, foreground-before-helper startup, LaunchAgent, Mach/XPC, exact app/helper/root/database/PID binding, visible Today, the empty non-work database fixture, and an ordinary relaunch with exactly one restored main window. Normal Reviews navigation was reached after foreground activation, but scrolling to the work-category ledger still failed, so the visible empty result, exact 2/3/4/5/6/8-minute rows and 28-minute total, chosen-left authority, non-work exclusions, recursive privacy, and ordinary relaunch persistence remain (`.audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md`; `.audit/runs/zc-041-005-daily-review-work-categories/final-window-navigation/REPORT.md`).",
       "tracker_line": 576
     },
     {
