@@ -574,7 +574,12 @@ struct TodayDashboardCommandOverview: View {
     }
 
     private var plannedRows: [TodayTaskRow] {
-        snapshot.taskRows
+        guard !model.isLoadingDailyPlan else { return snapshot.taskRows }
+        return TodayPlanPresentation.rows(
+            snapshotRows: snapshot.taskRows,
+            livePlan: model.dailyPlan,
+            reminders: model.reminderTasks
+        )
     }
 
     private func planEntry(for row: TodayTaskRow) -> DailyPlanEntry? {
