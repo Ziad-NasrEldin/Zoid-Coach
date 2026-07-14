@@ -285,6 +285,7 @@ public final class PrivacyDataService: @unchecked Sendable {
             try execute("DELETE FROM screenshot_artifacts WHERE behavior_day >= ? AND behavior_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM screenshot_analyses WHERE source_day >= ? AND source_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM meeting_candidates WHERE source_day >= ? AND source_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM daily_review_session_merges WHERE source_day >= ? AND source_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM behavior_records WHERE source_day >= ? AND source_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM daily_plan_entries WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else { throw PrivacyDataServiceError.write }

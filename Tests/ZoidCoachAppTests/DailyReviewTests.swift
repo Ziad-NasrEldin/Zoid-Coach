@@ -50,6 +50,24 @@ func dailyReviewMergesAdjacentSessionsIntoOneDurableActivity() throws {
 }
 
 @Test
+func dailyReviewRejectsAStaleMergeAfterAnotherStoreChangedTheSessions() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: 1_783_663_260, app: "Safari", classification: .work)
+    let staleSessions = try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+    let concurrentStore = try DailyReviewStore(databaseURL: fixture.databaseURL)
+
+    try concurrentStore.merge(staleSessions[0], with: staleSessions[1])
+
+    #expect(throws: DailyReviewStoreError.self) {
+        try fixture.store.merge(staleSessions[0], with: staleSessions[1])
+    }
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM behavior_records;") == 2)
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM daily_review_session_merges;") == 1)
+}
+
+@Test
 func dailyReviewMergeUsesTheChosenLeftTruthAndRejectsNonAdjacentSessions() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }

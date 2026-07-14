@@ -40,7 +40,7 @@ func migration46AddsDeletedReminderDecisionHistory() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 45)
-    #expect(result.appliedVersions == [46, 47, 48])
+    #expect(result.appliedVersions == [46, 47, 48, 49])
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try tableExists(databaseURL, "deleted_reminder_decisions"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "state"))
@@ -62,7 +62,7 @@ func migration47AddsDurableReviewHypothesisPromotions() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 46)
-    #expect(result.appliedVersions == [47, 48])
+    #expect(result.appliedVersions == [47, 48, 49])
     #expect(try tableExists(databaseURL, "review_hypothesis_promotions"))
     #expect(try columnExists(databaseURL, table: "review_hypothesis_promotions", column: "candidate_id"))
     #expect(try columnExists(databaseURL, table: "review_hypothesis_promotions", column: "evidence_json"))
@@ -80,7 +80,7 @@ func migration48AddsDurableGamingManualAdjustmentsAfterReviewMigration() throws 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 47)
-    #expect(result.appliedVersions == [48])
+    #expect(result.appliedVersions == [48, 49])
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try tableExists(databaseURL, "gaming_manual_adjustments"))
     #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "request_id"))
@@ -183,7 +183,7 @@ func migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [45, 46, 47, 48])
+    #expect(result.appliedVersions == [45, 46, 47, 48, 49])
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_origin"))
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_reason"))
     #expect(try scalarText(databaseURL, "SELECT state FROM prompt_episodes WHERE id = 'legacy-dismissal';") == "dismissed")
