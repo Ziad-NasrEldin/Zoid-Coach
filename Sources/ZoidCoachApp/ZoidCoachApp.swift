@@ -301,7 +301,8 @@ struct ZoidCoachApplication: App {
             )
         } label: {
             Image(systemName: menuBarState.menuBarSymbol)
-                .accessibilityLabel(menuBarState.menuBarLabel)
+                .accessibilityLabel("Zoid 666, \(menuBarState.menuBarLabel)")
+                .accessibilityIdentifier("menu-bar.status-item")
                 .modifier(QAMainWindowLaunchModifier(
                     shouldOpenMainWindow: shouldOpenMainWindow
                 ))
