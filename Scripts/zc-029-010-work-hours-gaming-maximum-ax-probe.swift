@@ -175,8 +175,18 @@ private func modeRoot(pid: pid_t, mode: Mode) throws -> AXUIElement {
     }
     let identifiers = candidates.map { window in walk(window).compactMap(identifier) }
     let matches = identifiers.indices.filter { identifiers[$0].contains(requiredIdentifier(for: mode)) }
-    guard matches.count == 1, let index = matches.first else {
+    guard !matches.isEmpty else {
         throw Failure(message: "no application window contains \(requiredIdentifier(for: mode))")
+    }
+    if matches.count == 1, let index = matches.first {
+        return candidates[index]
+    }
+    let foregroundMatches = matches.filter { index in
+        (attribute(candidates[index], "AXMain" as CFString) as? Bool) == true
+            || (attribute(candidates[index], "AXFocused" as CFString) as? Bool) == true
+    }
+    guard foregroundMatches.count == 1, let index = foregroundMatches.first else {
+        throw Failure(message: "multiple application windows contain \(requiredIdentifier(for: mode)) and no unique foreground window is available")
     }
     return candidates[index]
 }
