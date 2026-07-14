@@ -22,11 +22,46 @@ private func exposesPrivateSentinel(_ values: [String], rejected: [String]) -> B
     return rejected.contains { combined.localizedCaseInsensitiveContains($0) }
 }
 
+private func formattedDayStateDate(
+    _ date: Date,
+    locale: Locale,
+    calendar: Calendar,
+    timeZone: TimeZone
+) -> String {
+    date.formatted(
+        Date.FormatStyle(locale: locale, calendar: calendar, timeZone: timeZone)
+            .weekday(.wide)
+            .month(.wide)
+            .day()
+    )
+}
+
 if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
+    let fixtureDate = ISO8601DateFormatter().date(from: "2026-07-14T12:00:00Z")!
+    let cairo = TimeZone(identifier: "Africa/Cairo")!
+    let gregorian = Calendar(identifier: .gregorian)
     let valid = [
         "Tuesday, July 14. Day state: ACTIVE WORK. One task is currently tracking time.",
     ]
-    guard matchesDayState(valid, expectedDate: "Tuesday, July 14", expectedState: "Active work"),
+    guard formattedDayStateDate(
+              fixtureDate,
+              locale: Locale(identifier: "en_US"),
+              calendar: gregorian,
+              timeZone: cairo
+          ) == "Tuesday, July 14",
+          formattedDayStateDate(
+              fixtureDate,
+              locale: Locale(identifier: "en_GB"),
+              calendar: gregorian,
+              timeZone: cairo
+          ) == "Tuesday 14 July",
+          formattedDayStateDate(
+              fixtureDate,
+              locale: Locale(identifier: "en"),
+              calendar: gregorian,
+              timeZone: cairo
+          ) == "Tuesday, July 14",
+          matchesDayState(valid, expectedDate: "Tuesday, July 14", expectedState: "Active work"),
           !matchesDayState(valid, expectedDate: "Monday, July 13", expectedState: "Active work"),
           !matchesDayState(valid, expectedDate: "Tuesday, July 14", expectedState: "Planned day"),
           matchesDayState(
@@ -48,7 +83,7 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
 }
 
 var pid: Int32?
-var expectedDate: String?
+var appBundlePath: String?
 var expectedState: String?
 var rejected: [String] = []
 var index = 1
@@ -59,7 +94,7 @@ while index < CommandLine.arguments.count {
     }
     switch CommandLine.arguments[index] {
     case "--pid": pid = Int32(CommandLine.arguments[index + 1])
-    case "--expected-date": expectedDate = CommandLine.arguments[index + 1]
+    case "--app-bundle": appBundlePath = CommandLine.arguments[index + 1]
     case "--expected-state": expectedState = CommandLine.arguments[index + 1]
     case "--reject": rejected.append(CommandLine.arguments[index + 1])
     default:
@@ -68,13 +103,27 @@ while index < CommandLine.arguments.count {
     }
     index += 2
 }
-guard let pid, let expectedDate, let expectedState else {
+guard let pid, let appBundlePath, let expectedState else {
     fputs(
-        "usage: qa-zc013001-day-state-ax-probe.swift --self-test | --pid <pid> --expected-date <date> --expected-state <state> [--reject <sentinel>]...\n",
+        "usage: qa-zc013001-day-state-ax-probe.swift --self-test | --pid <pid> --app-bundle <path> --expected-state <state> [--reject <sentinel>]...\n",
         stderr
     )
     exit(2)
 }
+
+guard let appBundle = Bundle(path: appBundlePath) else {
+    fputs("FAIL: installed app bundle is unavailable\n", stderr)
+    exit(1)
+}
+let appLocaleIdentifier = appBundle.preferredLocalizations.first
+    ?? appBundle.developmentLocalization
+    ?? Locale.current.identifier
+let expectedDate = formattedDayStateDate(
+    Date(),
+    locale: Locale(identifier: appLocaleIdentifier),
+    calendar: Calendar.current,
+    timeZone: TimeZone.current
+)
 
 guard AXIsProcessTrusted() else {
     fputs("FAIL: Accessibility permission is required\n", stderr)
@@ -142,14 +191,20 @@ do {
         expectedDate: expectedDate,
         expectedState: expectedState
     ) else {
-        fputs("FAIL: Today day-state header did not expose the expected date and state\n", stderr)
+        let observed = values(dayState).joined(separator: " | ")
+        fputs(
+            "FAIL: Today day-state header mismatch; expected date=\(expectedDate) state=\(expectedState) locale=\(appLocaleIdentifier); observed=\(observed)\n",
+            stderr
+        )
         exit(1)
     }
     guard !exposesPrivateSentinel(values(dayState), rejected: rejected) else {
         fputs("FAIL: private fixture evidence escaped into the Today day-state header\n", stderr)
         exit(1)
     }
-    print("PASS: ZC-013-001 visible date and day state")
+    print(
+        "PASS: ZC-013-001 visible date=\(expectedDate) state=\(expectedState) locale=\(appLocaleIdentifier)"
+    )
 } catch {
     fputs("FAIL: Today day-state accessibility traversal failed\n", stderr)
     exit(1)
