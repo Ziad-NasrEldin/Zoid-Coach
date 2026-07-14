@@ -44,6 +44,7 @@ public final class TaskExecutionStore: @unchecked Sendable {
         _ command: TaskActivityCommand,
         taskID: String,
         blockedReason: String? = nil,
+        operationID: UUID? = nil,
         at date: Date = Date()
     ) throws {
         let normalizedBlockedReason = blockedReason?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -53,6 +54,7 @@ public final class TaskExecutionStore: @unchecked Sendable {
             else { throw TaskExecutionStoreError.invalidBlockedReason }
         }
         try transaction {
+            if let operationID, try hasMutationReceipt(operationID: operationID, step: "execution") { return }
             let current = try state(for: taskID)
             switch command {
             case .start, .resume, .startSprint10, .startSprint20, .startSprint25, .continueOpenEnded:
@@ -98,7 +100,27 @@ public final class TaskExecutionStore: @unchecked Sendable {
                 try updatePlanBlockedReason(nil, taskID: taskID, at: date)
                 try finishSprint(taskID: taskID, at: date)
             }
+            if let operationID { try insertMutationReceipt(operationID: operationID, step: "execution", at: date) }
         }
+    }
+
+    private func hasMutationReceipt(operationID: UUID, step: String) throws -> Bool {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "SELECT 1 FROM task_mutation_steps WHERE operation_id = ? AND step = ?;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(operationID.uuidString, statement, 1)
+        bind(step, statement, 2)
+        return sqlite3_step(statement) == SQLITE_ROW
+    }
+
+    private func insertMutationReceipt(operationID: UUID, step: String, at date: Date) throws {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "INSERT OR IGNORE INTO task_mutation_steps(operation_id, step, completed_at_utc) VALUES (?, ?, ?);", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        bind(operationID.uuidString, statement, 1)
+        bind(step, statement, 2)
+        bind(formatter.string(from: date), statement, 3)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
     }
 
     public func startSprint(taskID: String, durationMinutes: Int, at date: Date = Date()) throws {
@@ -149,6 +171,17 @@ public final class TaskExecutionStore: @unchecked Sendable {
             elapsedMinutes: try elapsedMinutes(taskID: open.taskID, now: now),
             sprint: try sprintSnapshot(taskID: open.taskID, now: now)
         )
+    }
+
+    public func latestIntervalStartedAt(taskID: String, endingAt date: Date) throws -> Date? {
+        var statement: OpaquePointer?
+        let sql = "SELECT started_at FROM task_activity_intervals WHERE task_id = ? AND ended_at <= ? ORDER BY ended_at DESC, id DESC LIMIT 1;"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        bind(formatter.string(from: date), statement, 2)
+        guard sqlite3_step(statement) == SQLITE_ROW, let text = sqlite3_column_text(statement, 0) else { return nil }
+        return formatter.date(from: String(cString: text))
     }
 
     public func sprintSnapshot(taskID: String, now: Date = Date()) throws -> SprintSnapshot? {

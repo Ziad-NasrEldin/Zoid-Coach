@@ -1,5 +1,6 @@
 import Foundation
 import EventKit
+import SQLite3
 import ZoidCoachCore
 
 public final class TodayDashboardAgent: @unchecked Sendable {
@@ -15,8 +16,19 @@ public final class TodayDashboardAgent: @unchecked Sendable {
     private let checkpoints: ProcessingCheckpointStore
     private let planningInvitations: PlanningInvitationService
     private let recommendationFeedback: RecommendationFeedbackStore
+    private let mutationOperations: TaskMutationOperationStore
+    private let databaseURL: URL
+    private let mutationLockRetryDelays: [TimeInterval]
+    private let mutationStepObserver: @Sendable (String) throws -> Void
 
-    public init(databaseURL: URL = ZoidCoachStorage.databaseURL()) throws {
+    public init(
+        databaseURL: URL = ZoidCoachStorage.databaseURL(),
+        mutationLockRetryDelays: [TimeInterval] = [0.10, 0.30, 0.60],
+        mutationStepObserver: @escaping @Sendable (String) throws -> Void = { _ in }
+    ) throws {
+        self.databaseURL = databaseURL
+        self.mutationLockRetryDelays = mutationLockRetryDelays.map { max(0, $0) }
+        self.mutationStepObserver = mutationStepObserver
         reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
         let policyStore = try PolicyStore(databaseURL: databaseURL)
         userPolicyStore = policyStore
@@ -34,6 +46,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         taskHistory = try TaskHistoryStore(databaseURL: databaseURL)
         checkpoints = try ProcessingCheckpointStore(databaseURL: databaseURL)
         recommendationFeedback = try RecommendationFeedbackStore(databaseURL: databaseURL)
+        mutationOperations = try TaskMutationOperationStore(databaseURL: databaseURL)
         planningInvitations = PlanningInvitationService(
             store: try PromptInboxStore(databaseURL: databaseURL)
         )
@@ -380,15 +393,68 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         _ command: TaskActivityCommand,
         taskID: String,
         blockedReason: String? = nil,
+        operationID: UUID = UUID(),
         now: Date = Date()
     ) throws -> TodaySnapshot {
+        try waitForMutationWriteAvailability()
+        let operation = try mutationOperations.begin(
+            id: operationID,
+            taskID: taskID,
+            command: command,
+            blockedReason: blockedReason,
+            requestedAt: now
+        )
+        if operation.state == .completed, let result = operation.result {
+            return result
+        }
+        if operation.state == .failed {
+            throw TodayDashboardAgentError.validationFailed(
+                operation.lastDiagnostic ?? "This task change is not valid."
+            )
+        }
+        var retryIndex = 0
+        while true {
+            do {
+                let result = try applyPending(
+                    command,
+                    taskID: taskID,
+                    blockedReason: blockedReason,
+                    operationID: operationID,
+                    now: operation.requestedAt
+                )
+                try mutationOperations.complete(operationID: operationID, result: result)
+                return result
+            } catch {
+                if Self.isTerminalValidationError(error) {
+                    try? mutationOperations.failValidation(operationID: operationID, diagnostic: error.localizedDescription)
+                    throw error
+                } else {
+                    try? mutationOperations.recordPendingFailure(operationID: operationID, diagnostic: error.localizedDescription)
+                }
+                guard retryIndex < mutationLockRetryDelays.count, databaseHasCompetingWriteLock() else { throw error }
+                Thread.sleep(forTimeInterval: mutationLockRetryDelays[retryIndex])
+                retryIndex += 1
+            }
+        }
+    }
+
+    private func applyPending(
+        _ command: TaskActivityCommand,
+        taskID: String,
+        blockedReason: String?,
+        operationID: UUID,
+        now: Date
+    ) throws -> TodaySnapshot {
         let previousSnapshot = try snapshots.load(for: now)
-        let previousExecution = try execution.snapshot(for: [taskID], now: now)[taskID]
         let activeBefore = try execution.activeTask(now: now)
-        let reminderBefore = try reminders.loadIncomplete().first(where: { $0.id == taskID })
+        let reminderBefore = try reminders.snapshot(forID: taskID)
         let sourceKind = try reminders.sourceKind(forID: taskID)
-        try execution.apply(command, taskID: taskID, blockedReason: blockedReason, at: now)
-        if command == .block {
+        if try !mutationOperations.hasCompletedStep(operationID: operationID, step: "execution") {
+            try execution.apply(command, taskID: taskID, blockedReason: blockedReason, operationID: operationID, at: now)
+            try completeMutationStep(operationID: operationID, step: "execution", at: now)
+        }
+        if command == .block,
+           try !mutationOperations.hasCompletedStep(operationID: operationID, step: "plan-promotion") {
             let plan = try plans.loadDailyPlan(for: now)
             let executionByID = try execution.snapshot(for: plan.map(\.reminderID), now: now)
             let availableReminderIDs = Set(try reminders.loadIncomplete().map(\.id))
@@ -409,34 +475,49 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 eligibleTaskIDs: eligibleTaskIDs,
                 for: now
             )
+            try completeMutationStep(operationID: operationID, step: "plan-promotion", at: now)
         }
         switch command {
         case .complete:
-            if sourceKind == .local {
+            if try !mutationOperations.hasCompletedStep(operationID: operationID, step: "reminder-completion") && sourceKind == .local {
                 try reminders.completeLocal(id: taskID, completedAt: now)
-            } else {
+                try completeMutationStep(operationID: operationID, step: "reminder-completion", at: now)
+            } else if sourceKind != .local,
+                      try !mutationOperations.hasCompletedStep(operationID: operationID, step: "outbox") {
                 _ = try outbox.enqueue(
                     type: .completeReminder,
                     entityID: taskID,
                     desiredState: .completeReminder,
                     planVersion: 1
                 )
+                try completeMutationStep(operationID: operationID, step: "outbox", at: now)
             }
-            try taskHistory.record(
-                taskID: taskID,
-                state: .completed,
-                title: reminderBefore?.title,
-                sourceKind: reminderBefore?.sourceKind,
-                at: now
-            )
+            if try !mutationOperations.hasCompletedStep(operationID: operationID, step: "history") {
+                try taskHistory.record(
+                    taskID: taskID,
+                    state: .completed,
+                    title: reminderBefore?.title,
+                    sourceKind: reminderBefore?.sourceKind,
+                    operationID: operationID,
+                    at: now
+                )
+                try completeMutationStep(operationID: operationID, step: "history", at: now)
+            }
         case .reschedule:
-            try taskHistory.record(taskID: taskID, state: .postponed, at: now)
+            if try !mutationOperations.hasCompletedStep(operationID: operationID, step: "history") {
+                try taskHistory.record(taskID: taskID, state: .postponed, operationID: operationID, at: now)
+                try completeMutationStep(operationID: operationID, step: "history", at: now)
+            }
         case .start, .startSprint10, .startSprint20, .startSprint25:
-            try taskHistory.record(taskID: taskID, state: .selected, at: now)
+            if try !mutationOperations.hasCompletedStep(operationID: operationID, step: "history") {
+                try taskHistory.record(taskID: taskID, state: .selected, operationID: operationID, at: now)
+                try completeMutationStep(operationID: operationID, step: "history", at: now)
+            }
         case .pause, .pauseForBreak, .pauseForExternalInterruption, .pauseDoneForNow, .pauseForEndOfDay, .resume, .block, .continueOpenEnded:
             break
         }
         if command == .complete,
+           try !mutationOperations.hasCompletedStep(operationID: operationID, step: "reward"),
            let current = try snapshots.load(for: now),
            current.taskRows.first(where: { $0.taskID == taskID })?.isMainObjective == true {
             let gamingPolicy = try userPolicyStore.currentGamingPolicy()
@@ -447,9 +528,10 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                     day: now
                 )
             }
+            try completeMutationStep(operationID: operationID, step: "reward", at: now)
         }
         if command == .complete,
-           previousExecution?.state != .completed,
+           try !mutationOperations.hasCompletedStep(operationID: operationID, step: "learning"),
            let row = previousSnapshot?.taskRows.first(where: { $0.taskID == taskID }) {
             let coverage = previousSnapshot?.coverage.isLimited == true ? 0.5 : 1.0
             let context = EstimateLearningContext(taskType: taskType(for: row.title), project: reminderBefore?.listName)
@@ -464,7 +546,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             )
             _ = try learning.recordEstimateSample(sample, evidenceID: sampleID)
             _ = try learning.updateEstimateAggregate(context: context, currentEstimateMinutes: row.estimateMinutes)
-            if let startedAt = activeBefore?.taskID == taskID ? activeBefore?.startedAt : nil, startedAt < now {
+            let persistedStartedAt = try execution.latestIntervalStartedAt(taskID: taskID, endingAt: now)
+            if let startedAt = activeBefore?.taskID == taskID ? activeBefore?.startedAt : persistedStartedAt, startedAt < now {
                 let workSample = WorkWindowLearningSample(
                     id: "work-window:\(taskID):\(Int(startedAt.timeIntervalSince1970))",
                     startedAt: startedAt,
@@ -475,8 +558,32 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 _ = try learning.recordWorkWindowSample(workSample, timeZoneIdentifier: timeZoneIdentifier)
                 _ = try learning.updatePreferredWorkWindowAggregate(timeZoneIdentifier: timeZoneIdentifier)
             }
+            try completeMutationStep(operationID: operationID, step: "learning", at: now)
         }
-        return try snapshot(now: now)
+        let result: TodaySnapshot
+        if try mutationOperations.hasCompletedStep(operationID: operationID, step: "today-snapshot"),
+           let stored = try snapshots.load(for: now) {
+            result = stored
+        } else {
+            result = try snapshot(now: now)
+            try completeMutationStep(operationID: operationID, step: "today-snapshot", at: now)
+        }
+        return result
+    }
+
+    private func completeMutationStep(operationID: UUID, step: String, at date: Date) throws {
+        try mutationOperations.completeStep(operationID: operationID, step: step, at: date)
+        try mutationStepObserver(step)
+    }
+
+    private static func isTerminalValidationError(_ error: Error) -> Bool {
+        guard let executionError = error as? TaskExecutionStoreError else { return false }
+        switch executionError {
+        case .invalidSprintDuration, .invalidBlockedReason, .sprintUnavailable, .sprintStillActive:
+            return true
+        case .openDatabase, .schema, .read, .write:
+            return false
+        }
     }
 
     public func startSprint(taskID: String, durationMinutes: Int, now: Date = Date()) throws -> TodaySnapshot {
@@ -629,11 +736,39 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
         return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))
     }
+
+    private func databaseHasCompetingWriteLock() -> Bool {
+        var probe: OpaquePointer?
+        guard sqlite3_open_v2(databaseURL.path, &probe, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
+              let probe else { return false }
+        defer { sqlite3_close(probe) }
+        sqlite3_busy_timeout(probe, 5)
+        let result = sqlite3_exec(probe, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil)
+        if result == SQLITE_OK {
+            _ = sqlite3_exec(probe, "ROLLBACK;", nil, nil, nil)
+            return false
+        }
+        let primary = result & 0xFF
+        return primary == SQLITE_BUSY || primary == SQLITE_LOCKED
+    }
+
+    private func waitForMutationWriteAvailability() throws {
+        var retryIndex = 0
+        while databaseHasCompetingWriteLock() {
+            guard retryIndex < mutationLockRetryDelays.count else {
+                throw TodayDashboardAgentError.databaseTemporarilyLocked
+            }
+            Thread.sleep(forTimeInterval: mutationLockRetryDelays[retryIndex])
+            retryIndex += 1
+        }
+    }
 }
 
 public enum TodayDashboardAgentError: LocalizedError, Equatable {
     case unavailableTask
     case completionNotRetryable
+    case databaseTemporarilyLocked
+    case validationFailed(String)
 
     public var errorDescription: String? {
         switch self {
@@ -641,6 +776,10 @@ public enum TodayDashboardAgentError: LocalizedError, Equatable {
             "That Reminder is no longer available. Refresh tasks and choose another one."
         case .completionNotRetryable:
             "This completion is not waiting for a manual retry. Refresh its sync status before trying again."
+        case .databaseTemporarilyLocked:
+            "The local database is still busy. The last confirmed task state is unchanged. Try again in a moment."
+        case let .validationFailed(message):
+            message
         }
     }
 }
