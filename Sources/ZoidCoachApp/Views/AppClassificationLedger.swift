@@ -208,11 +208,14 @@ struct AppClassificationLedger: View {
         let savedNames = draft.behaviorPolicy.workApplications
             + draft.behaviorPolicy.communicationApplications
             + draft.behaviorPolicy.gamingApplications
-        for name in savedNames where !loaded.contains(where: { $0.normalizedName == name }) {
+        let reviewableNames = savedNames + ContextualGamingAppRulePresentation.builtInApplications
+        for name in reviewableNames where !loaded.contains(where: {
+            $0.normalizedName == BehaviorPolicy.normalize(name)
+        }) {
             loaded.append(
                 AppInventoryItem(
                     name: name,
-                    normalizedName: name,
+                    normalizedName: BehaviorPolicy.normalize(name),
                     bundleIdentifier: nil,
                     isInstalled: false,
                     lastObservedAt: nil,
@@ -340,6 +343,8 @@ private struct AppClassificationRow: View {
         .frame(minHeight: 54, alignment: .leading)
         .background(selection == .automatic ? Sumi.paper : Sumi.softPaper)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.app-rules.row.\(identifierSuffix)")
     }
 
     private var identity: some View {
@@ -352,6 +357,21 @@ private struct AppClassificationRow: View {
                 .font(.system(.caption2, design: .serif))
                 .sumiLabelTracking()
                 .foregroundStyle(Sumi.muted)
+            if ContextualGamingAppRulePresentation.isSupported(item.normalizedName) {
+                let presentation = ContextualGamingAppRulePresentation(
+                    application: item.name,
+                    selection: selection
+                )
+                Text(presentation.title)
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.sealDeep)
+                Text(presentation.detail)
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.app-rules.context.\(identifierSuffix)")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -360,7 +380,14 @@ private struct AppClassificationRow: View {
         if item.isInstalled && item.isObserved { return "INSTALLED / OBSERVED" }
         if item.isInstalled { return "INSTALLED" }
         if item.isObserved { return "OBSERVED" }
+        if ContextualGamingAppRulePresentation.isSupported(item.normalizedName) {
+            return "CONTEXT-SENSITIVE OPTION"
+        }
         return "SAVED CLASSIFICATION"
+    }
+
+    private var identifierSuffix: String {
+        ContextualGamingAppRulePresentation.identifierSuffix(for: item.normalizedName)
     }
 }
 
@@ -385,6 +412,10 @@ private struct AppClassificationChoiceControl: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Classify \(applicationName) as \(choice.label)")
                 .accessibilityValue(selection == choice ? "Selected" : "Not selected")
+                .accessibilityHint(accessibilityHint(for: choice))
+                .accessibilityIdentifier(
+                    "settings.app-rules.\(identifierSuffix).\(choice.rawValue)"
+                )
 
                 if choice != ApplicationRuleCategory.allCases.last {
                     Rectangle().fill(Sumi.rule).frame(width: 1, height: 32)
@@ -396,6 +427,20 @@ private struct AppClassificationChoiceControl: View {
 
     private func displayLabel(for choice: ApplicationRuleCategory) -> String {
         choice == .communication ? "Comms" : choice.label
+    }
+
+    private func accessibilityHint(for choice: ApplicationRuleCategory) -> String {
+        guard ContextualGamingAppRulePresentation.isSupported(applicationName) else {
+            return "Applies this classification to future observed activity after Save Settings."
+        }
+        return ContextualGamingAppRulePresentation(
+            application: applicationName,
+            selection: choice
+        ).detail
+    }
+
+    private var identifierSuffix: String {
+        ContextualGamingAppRulePresentation.identifierSuffix(for: applicationName)
     }
 }
 
