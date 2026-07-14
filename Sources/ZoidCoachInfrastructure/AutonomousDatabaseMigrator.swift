@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 43
+    public static let currentVersion = 44
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1162,6 +1162,18 @@ private extension AutonomousDatabaseMigrator {
             .sqlIfTableExists(
                 table: "task_history",
                 sql: "CREATE UNIQUE INDEX IF NOT EXISTS task_history_operation_state ON task_history(operation_id, state) WHERE operation_id IS NOT NULL;"
+            )
+        ]),
+        Migration(version: 44, isDestructive: false, operations: [
+            .addColumnIfTableExists(
+                table: "prompt_episodes",
+                column: "resolution_origin",
+                declaration: "TEXT CHECK(resolution_origin IN ('user', 'system'))"
+            ),
+            .addColumnIfTableExists(
+                table: "prompt_episodes",
+                column: "resolution_reason",
+                declaration: "TEXT CHECK(resolution_reason IN ('explicit_dismissal', 'screenwatch_evidence_invalid'))"
             )
         ])
     ]
