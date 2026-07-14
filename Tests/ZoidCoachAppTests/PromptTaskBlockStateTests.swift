@@ -185,6 +185,82 @@ func todayLoadsDelayedPromptTimelineIntoSixDirectRenderedActions() async throws 
     withExtendedLifetime(window) {}
 }
 
+@MainActor
+@Test
+func todayPromptPlacementRefreshesOnceAndKeepsResolvedHistoryVisible() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-prompt-placement-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: ["--qa-run-root", root.path],
+        processEnvironment: [:]
+    ).environment
+    let model = AppModel(
+        runtimeEnvironment: runtime,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: runtime,
+            service: PromptRenderNoopAgentRegistration()
+        ),
+        synchronizeReminderSnapshots: { _ in }
+    )
+    let episode = promptEpisode(
+        id: "qa-placement-1",
+        actions: [
+            .init(kind: .returnToActiveTask, title: "Return"),
+            .init(kind: .startWorkSprint, title: "Sprint", role: .primary),
+            .init(kind: .startBreak, title: "Break"),
+            .init(kind: .rescheduleTask, title: "Reschedule", role: .destructive),
+            .init(kind: .markBlocked, title: "Mark blocked", role: .destructive),
+            .init(kind: .continueIntentionally, title: "Continue")
+        ],
+        payload: ["taskID": "task-1", "taskTitle": "Prepare release"]
+    )
+    let state = PromptPlacementFixtureState(waitingEpisode: episode)
+    let host = NSHostingView(
+        rootView: PromptConditionalPlacementFixture(state: state)
+            .environmentObject(model)
+    )
+    let window = NSWindow(
+        contentRect: NSRect(x: 80, y: 80, width: 900, height: 700),
+        styleMask: [.titled, .closable, .resizable],
+        backing: .buffered,
+        defer: false
+    )
+    window.contentView = host
+    window.makeKeyAndOrderFront(nil)
+    defer { window.orderOut(nil) }
+
+    let waitingIdentifier = "today.prompt.qa-placement-1.action.mark_blocked"
+    let waitingDeadline = ContinuousClock.now.advanced(by: .seconds(2))
+    repeat {
+        host.layoutSubtreeIfNeeded()
+        if promptRenderAXDescendants().contains(where: {
+            promptRenderAXString($0, kAXIdentifierAttribute as CFString) == waitingIdentifier
+        }) { break }
+        try await Task.sleep(for: .milliseconds(20))
+    } while ContinuousClock.now < waitingDeadline
+
+    #expect(state.refreshCount == 1)
+    state.resolveAsBlocked()
+
+    let historyIdentifier = "today.prompt.qa-placement-1.history"
+    let historyDeadline = ContinuousClock.now.advanced(by: .seconds(2))
+    var historyIsVisible = false
+    repeat {
+        host.layoutSubtreeIfNeeded()
+        historyIsVisible = promptRenderAXDescendants().contains {
+            promptRenderAXString($0, kAXIdentifierAttribute as CFString) == historyIdentifier
+        }
+        if historyIsVisible { break }
+        try await Task.sleep(for: .milliseconds(20))
+    } while ContinuousClock.now < historyDeadline
+
+    try await Task.sleep(for: .milliseconds(100))
+    #expect(historyIsVisible)
+    #expect(state.refreshCount == 1)
+    withExtendedLifetime(window) {}
+}
+
 @Test
 func promptBlockFormRejectsEmptyInputAndPreventsDuplicateSubmission() throws {
     var form = PromptTaskBlockFormState()
@@ -273,6 +349,85 @@ private struct DelayedPromptTodayFixture: View {
                 refreshInbox: { timeline = loadedTimeline }
             )
         }
+    }
+}
+
+@MainActor
+private final class PromptPlacementFixtureState: ObservableObject {
+    @Published var timeline = PromptInboxTimeline.empty
+    private(set) var refreshCount = 0
+    private let waitingEpisode: PromptEpisode
+
+    init(waitingEpisode: PromptEpisode) {
+        self.waitingEpisode = waitingEpisode
+    }
+
+    func refresh() async {
+        refreshCount += 1
+        guard refreshCount == 1 else { return }
+        timeline = PromptInboxTimeline(
+            awaitingResponse: [.init(episode: waitingEpisode)]
+        )
+    }
+
+    func resolveAsBlocked() {
+        let respondedAt = Date()
+        let resolvedEpisode = PromptEpisode(
+            id: waitingEpisode.id,
+            decisionKey: waitingEpisode.decisionKey,
+            type: waitingEpisode.type,
+            state: .responded,
+            title: waitingEpisode.title,
+            summary: waitingEpisode.summary,
+            actions: waitingEpisode.actions,
+            payload: waitingEpisode.payload,
+            createdAt: waitingEpisode.createdAt,
+            presentedAt: waitingEpisode.presentedAt,
+            resolvedAt: respondedAt
+        )
+        timeline = PromptInboxTimeline(
+            recent: [
+                .init(
+                    episode: resolvedEpisode,
+                    response: PromptResponse(
+                        id: "response-qa-placement-1",
+                        promptID: waitingEpisode.id,
+                        action: .markBlocked,
+                        actionToken: PromptResponseToken.make(
+                            promptID: waitingEpisode.id,
+                            action: .markBlocked
+                        ),
+                        surface: .dashboard,
+                        respondedAt: respondedAt
+                    )
+                )
+            ]
+        )
+    }
+}
+
+private struct PromptConditionalPlacementFixture: View {
+    @ObservedObject var state: PromptPlacementFixtureState
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if !state.timeline.awaitingResponse.isEmpty {
+                    ledger
+                }
+                Text("TODAY DETAIL")
+                if state.timeline.awaitingResponse.isEmpty {
+                    ledger
+                }
+            }
+        }
+    }
+
+    private var ledger: some View {
+        TodayPromptInboxLedger(
+            timeline: state.timeline,
+            refreshInbox: state.refresh
+        )
     }
 }
 
