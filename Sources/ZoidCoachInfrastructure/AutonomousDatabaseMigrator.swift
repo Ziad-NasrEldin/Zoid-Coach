@@ -1233,7 +1233,7 @@ private extension AutonomousDatabaseMigrator {
                 recorded_at_utc TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS gaming_manual_adjustments_day
-            ON gaming_manual_adjustments(local_day, recorded_at_utc, request_id);
+            ON gaming_manual_adjustments(local_day, recorded_at_utc);
             """)
         ])
     ]

@@ -6,6 +6,7 @@ public final class GamingManualAdjustmentStore: @unchecked Sendable {
     private let database: OpaquePointer
     private let formatter = ISO8601DateFormatter()
     private let now: @Sendable () -> Date
+    private let lock = NSLock()
 
     public init(
         databaseURL: URL,
@@ -39,6 +40,8 @@ public final class GamingManualAdjustmentStore: @unchecked Sendable {
     public func record(
         _ request: GamingManualAdjustmentRequest
     ) throws -> GamingManualAdjustmentReceipt {
+        lock.lock()
+        defer { lock.unlock() }
         let normalized = try normalizedRequest(request)
         let localDay = dayKey(
             request.day,
@@ -96,14 +99,30 @@ public final class GamingManualAdjustmentStore: @unchecked Sendable {
         for day: Date,
         timeZoneIdentifier: String = TimeZone.current.identifier
     ) throws -> [GamingManualAdjustment] {
-        try adjustments(localDay: dayKey(day, timeZoneIdentifier: timeZoneIdentifier))
+        lock.lock()
+        defer { lock.unlock() }
+        return try adjustments(localDay: dayKey(day, timeZoneIdentifier: timeZoneIdentifier))
     }
 
     public func netMinutes(
         for day: Date,
         timeZoneIdentifier: String = TimeZone.current.identifier
     ) throws -> Int {
-        try netMinutes(localDay: dayKey(day, timeZoneIdentifier: timeZoneIdentifier))
+        lock.lock()
+        defer { lock.unlock() }
+        return try netMinutes(localDay: dayKey(day, timeZoneIdentifier: timeZoneIdentifier))
+    }
+
+    public func gamingStatus(
+        applyingAdjustmentsFor day: Date,
+        timeZoneIdentifier: String,
+        to status: GamingStatus
+    ) throws -> GamingStatus {
+        lock.lock()
+        defer { lock.unlock() }
+        return status.applyingManualAdjustment(
+            try netMinutes(localDay: dayKey(day, timeZoneIdentifier: timeZoneIdentifier))
+        )
     }
 
     private func normalizedRequest(
@@ -164,7 +183,7 @@ public final class GamingManualAdjustmentStore: @unchecked Sendable {
     }
 
     private func adjustments(localDay: String) throws -> [GamingManualAdjustment] {
-        let sql = "SELECT request_id, minutes, note, recorded_at_utc FROM gaming_manual_adjustments WHERE local_day = ? ORDER BY recorded_at_utc, request_id;"
+        let sql = "SELECT request_id, minutes, note, recorded_at_utc FROM gaming_manual_adjustments WHERE local_day = ? ORDER BY recorded_at_utc, rowid;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement else {
