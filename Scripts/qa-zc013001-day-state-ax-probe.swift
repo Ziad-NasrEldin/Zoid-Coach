@@ -17,6 +17,11 @@ private func matchesDayState(
         && combined.localizedCaseInsensitiveContains(expectedState)
 }
 
+private func exposesPrivateSentinel(_ values: [String], rejected: [String]) -> Bool {
+    let combined = values.joined(separator: " ")
+    return rejected.contains { combined.localizedCaseInsensitiveContains($0) }
+}
+
 if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     let valid = [
         "Tuesday, July 14. Day state: ACTIVE WORK. One task is currently tracking time.",
@@ -28,6 +33,11 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
               ["Wednesday, July 15", "Day state", "Preparing today"],
               expectedDate: "Wednesday, July 15",
               expectedState: "Preparing today"
+          ),
+          !exposesPrivateSentinel(valid, rejected: ["qa-zc013001-private", "private.invalid"]),
+          exposesPrivateSentinel(
+              valid + ["qa-zc013001-private-window-title"],
+              rejected: ["qa-zc013001-private"]
           )
     else {
         fputs("FAIL: ZC-013-001 day-state AX probe self-test\n", stderr)
@@ -37,15 +47,30 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     exit(0)
 }
 
-let arguments = CommandLine.arguments
-guard arguments.count == 7,
-      arguments[1] == "--pid",
-      let pid = Int32(arguments[2]),
-      arguments[3] == "--expected-date",
-      arguments[5] == "--expected-state"
-else {
+var pid: Int32?
+var expectedDate: String?
+var expectedState: String?
+var rejected: [String] = []
+var index = 1
+while index < CommandLine.arguments.count {
+    guard index + 1 < CommandLine.arguments.count else {
+        fputs("FAIL: verifier option requires a value\n", stderr)
+        exit(2)
+    }
+    switch CommandLine.arguments[index] {
+    case "--pid": pid = Int32(CommandLine.arguments[index + 1])
+    case "--expected-date": expectedDate = CommandLine.arguments[index + 1]
+    case "--expected-state": expectedState = CommandLine.arguments[index + 1]
+    case "--reject": rejected.append(CommandLine.arguments[index + 1])
+    default:
+        fputs("FAIL: unsupported verifier option\n", stderr)
+        exit(2)
+    }
+    index += 2
+}
+guard let pid, let expectedDate, let expectedState else {
     fputs(
-        "usage: qa-zc013001-day-state-ax-probe.swift --self-test | --pid <pid> --expected-date <date> --expected-state <state>\n",
+        "usage: qa-zc013001-day-state-ax-probe.swift --self-test | --pid <pid> --expected-date <date> --expected-state <state> [--reject <sentinel>]...\n",
         stderr
     )
     exit(2)
@@ -60,8 +85,6 @@ guard kill(pid, 0) == 0 else {
     exit(1)
 }
 
-let expectedDate = arguments[4]
-let expectedState = arguments[6]
 let application = AXUIElementCreateApplication(pid)
 
 private func attribute(_ element: AXUIElement, _ name: CFString) -> CFTypeRef? {
@@ -120,6 +143,10 @@ do {
         expectedState: expectedState
     ) else {
         fputs("FAIL: Today day-state header did not expose the expected date and state\n", stderr)
+        exit(1)
+    }
+    guard !exposesPrivateSentinel(values(dayState), rejected: rejected) else {
+        fputs("FAIL: private fixture evidence escaped into the Today day-state header\n", stderr)
         exit(1)
     }
     print("PASS: ZC-013-001 visible date and day state")
