@@ -113,6 +113,19 @@ struct PromptTaskBlockFormState: Equatable, Sendable {
     }
 }
 
+struct PromptTaskBlockFailurePresentation: Equatable, Sendable {
+    let message: String
+
+    init(taskCommandError: String?) {
+        message = taskCommandError
+            ?? "The blocker was not saved, so this decision is still waiting."
+    }
+
+    func restoring(afterInboxRefreshError _: String?) -> String {
+        message
+    }
+}
+
 struct PromptActionReachabilityLayout: Equatable, Sendable {
     let taskChangeActions: [PromptAction]
     let recoveryActions: [PromptAction]

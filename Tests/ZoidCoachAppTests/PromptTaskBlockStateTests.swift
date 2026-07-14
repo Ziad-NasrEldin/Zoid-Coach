@@ -134,6 +134,19 @@ func promptBlockFormRejectsEmptyInputAndPreventsDuplicateSubmission() throws {
 }
 
 @Test
+func promptBlockFailurePresentationSurvivesInboxRefreshOutcome() {
+    let presentation = PromptTaskBlockFailurePresentation(
+        taskCommandError: "The blocker was not saved. The last confirmed task and plan state are still shown."
+    )
+
+    #expect(presentation.restoring(afterInboxRefreshError: nil) ==
+        "The blocker was not saved. The last confirmed task and plan state are still shown.")
+    #expect(presentation.restoring(afterInboxRefreshError:
+        "Decisions could not be refreshed. The last confirmed inbox remains visible.") ==
+        "The blocker was not saved. The last confirmed task and plan state are still shown.")
+}
+
+@Test
 func promptBlockReasonSuggestionsAreValidAndHistoryFindsThePersistedReason() throws {
     for suggestion in PromptTaskBlockReasonSuggestion.allCases {
         #expect(try PromptTaskBlockReasonState().validated(suggestion.reason).get() == suggestion.reason)
