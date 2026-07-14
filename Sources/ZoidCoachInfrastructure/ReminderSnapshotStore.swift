@@ -470,8 +470,8 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
         var statement: OpaquePointer?
         let sql = """
         INSERT INTO deleted_reminder_decisions(source_id, title, due_at, list_name, deleted_at_utc, state, decided_at_utc)
-        SELECT src_id, title, due_at, list_name, ?, 'pending', NULL
-        FROM src_tasks WHERE src_id = ? AND src_kind = 'reminders'
+        SELECT source_id, title, due_at, list_name, ?, 'pending', NULL
+        FROM source_tasks WHERE source_id = ? AND source_kind = 'reminders'
         ON CONFLICT(source_id) DO UPDATE SET
             title = excluded.title,
             due_at = excluded.due_at,

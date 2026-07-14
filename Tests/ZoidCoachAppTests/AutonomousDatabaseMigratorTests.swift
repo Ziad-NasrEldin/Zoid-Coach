@@ -6,7 +6,7 @@ import Testing
 @Test
 func migration46AddsDeletedReminderDecisionHistory() throws {
     let databaseURL = temporaryDatabaseURL("v46-deleted-reminder-decisions")
-    defer { removeDatabaseFiles(databaseURL) }
+    defer { removeDatabaseFiles(at: databaseURL) }
     try execute(databaseURL, """
     CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
     INSERT INTO schema_migrations(version, applied_at) VALUES (45, '2026-07-14T00:00:00Z');
