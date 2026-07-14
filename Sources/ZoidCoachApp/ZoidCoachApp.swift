@@ -45,6 +45,14 @@ final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
         lifecycleHook.applicationDidFinishLaunching()
     }
 
+    func applicationDidUpdate(_ notification: Notification) {
+        lifecycleHook.applicationDidUpdate()
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        lifecycleHook.shouldTerminateAfterLastWindowClosed(defaultDecision: false)
+    }
+
     @objc private func windowDidBecomeVisible(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
         lifecycleHook.windowDidBecomeVisible(ApplicationWindowDescriptor(window: window))
