@@ -56,7 +56,7 @@ struct OnboardingRootView: View {
 
     private var progressRail: some View {
         let copy = welcomeCopy
-        VStack(alignment: .leading, spacing: 0) {
+        return VStack(alignment: .leading, spacing: 0) {
             Text(copy.progressTitle)
                 .font(Sumi.label())
                 .tracking(1.5)
@@ -95,7 +95,7 @@ struct OnboardingRootView: View {
 
     private var header: some View {
         let copy = welcomeCopy
-        HStack {
+        return HStack {
             Text(copy.setupProgress(currentPosition, OnboardingProgress.stepSequence.count))
                 .font(Sumi.label())
                 .tracking(1.4)
@@ -917,7 +917,7 @@ struct OnboardingRootView: View {
            let index = OnboardingProgress.stepSequence.firstIndex(of: step) {
             return welcomeCopy.stepTitles[index]
         }
-        switch step {
+        return switch step {
         case .welcome: "Welcome"
         case .localPrivacy: "Local privacy"
         case .reminders: "Reminders"

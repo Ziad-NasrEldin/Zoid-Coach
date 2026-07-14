@@ -1,13 +1,13 @@
 import Foundation
 
-struct OnboardingWelcomeCopy {
+struct OnboardingWelcomeCopy: Sendable {
     let eyebrow: String
     let title: String
     let body: String
     let note: String
     let progressTitle: String
     let progressFooter: String
-    let setupProgress: (Int, Int) -> String
+    let setupProgress: @Sendable (Int, Int) -> String
     let exitTitle: String
     let exitHint: String
     let readyStatus: String
@@ -17,8 +17,8 @@ struct OnboardingWelcomeCopy {
     let completedState: String
     let currentState: String
     let upcomingState: String
-    let stepAccessibilityLabel: (Int, String) -> String
-    let setupErrorLabel: (String) -> String
+    let stepAccessibilityLabel: @Sendable (Int, String) -> String
+    let setupErrorLabel: @Sendable (String) -> String
     let isRightToLeft: Bool
 
     static func localized(for locale: Locale) -> Self {
