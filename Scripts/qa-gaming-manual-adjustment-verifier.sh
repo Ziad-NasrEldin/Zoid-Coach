@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 <prepare-suppression|verify-grant|verify-probe|stale-day|changed-time-zone|restore-snapshot|ledger-unavailable|restore-ledger|verify-zero-write|cleanup> <database> <qa-run-root>" >&2
+    echo "Usage: $0 <prepare-suppression|verify-grant|verify-probe|authoritative-next-day|authoritative-time-zone|restore-policy|ledger-unavailable|restore-ledger|verify-zero-write|cleanup> <database> <qa-run-root>" >&2
     exit 64
 }
 
@@ -122,6 +122,77 @@ with open(os.environ["STATE_FILE"], "w", encoding="utf-8") as handle:
 PY
 }
 
+mutate_authoritative_policy() {
+    local mode="$1"
+    MODE="$mode" DATABASE="$database" STATE_FILE="$state_file" python3 - <<'PY'
+import base64, datetime, json, os, sqlite3
+from zoneinfo import ZoneInfo
+
+db = sqlite3.connect(os.environ["DATABASE"])
+settings = db.execute("SELECT val_json FROM settings WHERE key = 'user_policy'").fetchone()
+versioned = db.execute("SELECT policy_type, version, payload_json FROM policy_versions WHERE is_active = 1 ORDER BY version DESC LIMIT 1").fetchone()
+if settings is None or versioned is None:
+    raise SystemExit("The authoritative user policy is unavailable.")
+settings_document = json.loads(settings[0])
+current_zone = settings_document["schedule"]["timeZoneIdentifier"]
+now = datetime.datetime.now(datetime.timezone.utc)
+current_day = now.astimezone(ZoneInfo(current_zone)).date()
+candidates = ["Pacific/Kiritimati", "America/Adak", "UTC", "Africa/Cairo", "Europe/London"]
+if os.environ["MODE"] == "authoritative-next-day":
+    replacement_zone = next(
+        zone for zone in candidates
+        if zone != current_zone and now.astimezone(ZoneInfo(zone)).date() != current_day
+    )
+else:
+    replacement_zone = next(
+        zone for zone in candidates
+        if zone != current_zone and now.astimezone(ZoneInfo(zone)).date() == current_day
+    )
+state_path = os.environ["STATE_FILE"]
+state = {}
+if os.path.exists(state_path):
+    with open(state_path, encoding="utf-8") as handle:
+        state = json.load(handle)
+state["settingsPolicy"] = base64.b64encode(settings[0].encode()).decode()
+state["versionedPolicyType"] = versioned[0]
+state["versionedPolicyVersion"] = versioned[1]
+state["versionedPolicy"] = base64.b64encode(versioned[2].encode()).decode()
+state["authoritativePolicyMode"] = os.environ["MODE"]
+state["replacementTimeZone"] = replacement_zone
+settings_document["schedule"]["timeZoneIdentifier"] = replacement_zone
+versioned_document = json.loads(versioned[2])
+versioned_document["schedule"]["timeZoneIdentifier"] = replacement_zone
+db.execute("UPDATE settings SET val_json = ? WHERE key = 'user_policy'", (json.dumps(settings_document, separators=(",", ":")),))
+db.execute("UPDATE policy_versions SET payload_json = ? WHERE policy_type = ? AND version = ?", (json.dumps(versioned_document, separators=(",", ":")), versioned[0], versioned[1]))
+db.commit()
+with open(state_path, "w", encoding="utf-8") as handle:
+    json.dump(state, handle, indent=2, sort_keys=True)
+print(f"Prepared authoritative policy zone {current_zone} -> {replacement_zone}.")
+PY
+}
+
+restore_policy() {
+    DATABASE="$database" STATE_FILE="$state_file" python3 - <<'PY'
+import base64, json, os, sqlite3
+with open(os.environ["STATE_FILE"], encoding="utf-8") as handle:
+    state = json.load(handle)
+settings = state.pop("settingsPolicy", None)
+policy_type = state.pop("versionedPolicyType", None)
+version = state.pop("versionedPolicyVersion", None)
+versioned = state.pop("versionedPolicy", None)
+state.pop("authoritativePolicyMode", None)
+state.pop("replacementTimeZone", None)
+if None in (settings, policy_type, version, versioned):
+    raise SystemExit("No verifier policy backup is available.")
+db = sqlite3.connect(os.environ["DATABASE"])
+db.execute("UPDATE settings SET val_json = ? WHERE key = 'user_policy'", (base64.b64decode(settings).decode(),))
+db.execute("UPDATE policy_versions SET payload_json = ? WHERE policy_type = ? AND version = ?", (base64.b64decode(versioned).decode(), policy_type, version))
+db.commit()
+with open(os.environ["STATE_FILE"], "w", encoding="utf-8") as handle:
+    json.dump(state, handle, indent=2, sort_keys=True)
+PY
+}
+
 verify_zero_write() {
     DATABASE="$database" STATE_FILE="$state_file" python3 - <<'PY'
 import json, os, sqlite3
@@ -185,15 +256,15 @@ PY
         fi
         echo "PASS: the signed helper evaluated the production service and suppressed drift because gaming is unlocked."
         ;;
-    stale-day|changed-time-zone)
+    authoritative-next-day|authoritative-time-zone)
         validate_schema
         capture_ledger "$command_name"
-        mutate_snapshot "$command_name"
-        echo "Prepared $command_name cached Today state. Keep the helper stopped until the adjustment form is open."
+        mutate_authoritative_policy "$command_name"
+        echo "Prepared $command_name after the adjustment form captured its presentation state."
         ;;
-    restore-snapshot)
-        restore_snapshot
-        echo "Restored the original cached Today snapshot."
+    restore-policy)
+        restore_policy
+        echo "Restored the original authoritative QA policy."
         ;;
     ledger-unavailable)
         validate_schema
@@ -217,6 +288,9 @@ PY
         fi
         if [[ -f "$state_file" ]] && python3 -c 'import json,sys; print(int("snapshotPayload" in json.load(open(sys.argv[1]))))' "$state_file" | grep -qx 1; then
             restore_snapshot
+        fi
+        if [[ -f "$state_file" ]] && python3 -c 'import json,sys; print(int("settingsPolicy" in json.load(open(sys.argv[1]))))' "$state_file" | grep -qx 1; then
+            restore_policy
         fi
         sqlite3 -batch "$database" "DELETE FROM behavior_records WHERE source_day = '$local_day' AND app_name = '$app_name'; DELETE FROM gaming_manual_adjustments WHERE note = '$note'; DELETE FROM prompt_episodes WHERE payload_json LIKE '%$app_name%';"
         rm -f "$state_file" "$probe_file"

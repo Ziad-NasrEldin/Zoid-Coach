@@ -46,38 +46,35 @@ The probe must report `suppressed:gamingIsUnlocked`, positive unlocked minutes, 
 
 ## Reject a stale local day with zero writes
 
-Stop the helper before preparing the stale cached snapshot so the app presents that exact state.
+Open the form first so it captures the currently presented local day and time zone.
+After the form is open, move the authoritative QA policy to a time zone whose current local day differs.
 
 ```bash
-"$APP_EXECUTABLE" --qa-unregister-agent
-"$FIXTURE" stale-day "$DATABASE" "$QA_ROOT"
-pkill -x ZoidCoachQA || true
 open "$APP"
 export APP_PID="$(pgrep -x ZoidCoachQA | head -1)"
 "$AX_PROBE" "$APP_PID" open
-"$APP_EXECUTABLE" --qa-register-agent
+"$FIXTURE" authoritative-next-day "$DATABASE" "$QA_ROOT"
 "$AX_PROBE" "$APP_PID" submit
 "$AX_PROBE" "$APP_PID" assert-rejection
 "$FIXTURE" verify-zero-write "$DATABASE" "$QA_ROOT"
-"$FIXTURE" restore-snapshot "$DATABASE" "$QA_ROOT"
+"$FIXTURE" restore-policy "$DATABASE" "$QA_ROOT"
 ```
 
 ## Reject a changed time zone with zero writes
 
-Repeat the isolated cached-state procedure with only the presented time-zone identifier changed.
+Refresh the app, then open a new form so it captures the restored authoritative policy.
+After the form is open, move the authoritative QA policy to a different time zone that retains the same current local day.
 
 ```bash
-"$APP_EXECUTABLE" --qa-unregister-agent
-"$FIXTURE" changed-time-zone "$DATABASE" "$QA_ROOT"
 pkill -x ZoidCoachQA || true
 open "$APP"
 export APP_PID="$(pgrep -x ZoidCoachQA | head -1)"
 "$AX_PROBE" "$APP_PID" open
-"$APP_EXECUTABLE" --qa-register-agent
+"$FIXTURE" authoritative-time-zone "$DATABASE" "$QA_ROOT"
 "$AX_PROBE" "$APP_PID" submit
 "$AX_PROBE" "$APP_PID" assert-rejection
 "$FIXTURE" verify-zero-write "$DATABASE" "$QA_ROOT"
-"$FIXTURE" restore-snapshot "$DATABASE" "$QA_ROOT"
+"$FIXTURE" restore-policy "$DATABASE" "$QA_ROOT"
 ```
 
 ## Disable saving when the ledger is unavailable
