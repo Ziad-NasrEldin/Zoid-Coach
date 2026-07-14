@@ -355,6 +355,11 @@ final class AgentLaunchService {
         userDefaults.set(true, forKey: launchAtLoginChoiceKey)
     }
 
+    nonisolated static func recordSuccessfulExternalUnregistration(userDefaults: UserDefaults) {
+        userDefaults.removeObject(forKey: registrationFingerprintKey)
+        userDefaults.set(false, forKey: launchAtLoginChoiceKey)
+    }
+
     nonisolated static func isDevelopmentBundle(_ bundleURL: URL) -> Bool {
         bundleURL.standardizedFileURL.path.contains("/.build/")
     }
