@@ -1,0 +1,64 @@
+# ZC-029-010 installed signed acceptance runbook
+
+This runbook verifies the installed signed application through production Settings, policy persistence, the running agent, and the rendered Today state.
+It does not inject a `TodaySnapshot`, patch SwiftUI state, or treat source-code presence as acceptance.
+
+## Fixed acceptance data
+
+Use [the namespaced fixture](../../scripts/fixtures/zc-029-010-work-hours-gaming-maximum.json) as the expected policy and rendered-state contract.
+Use [the namespaced ready-state fixture](../../scripts/fixtures/zc-029-010-work-hours-gaming-maximum-ready-state.json) only through the existing QA ready-state preparer so reminders and Screenwatch data enter through their production fixture schemas.
+The ready-state schema intentionally has no policy field, so configure and persist the policy through Settings instead of inventing a fixture-only policy mutation.
+Run `scripts/verify-zc-029-010-work-hours-gaming-maximum-fixture.sh` before starting.
+
+Use an isolated signed QA root and the canonical installed-app lifecycle.
+Complete onboarding, connect the real local sources required by Today, and keep the app and agent on the same database.
+Record the installed build identity and signing result before acceptance.
+
+## Settings and persistence
+
+1. Open Settings > Command in the installed signed app.
+2. Keep the gaming budget enabled, set the base to 60 minutes, and set the priority reward to 15 minutes.
+3. Enable `Use a separate maximum during configured work hours` and set `MAXIMUM DURING WORK HOURS` to 30 minutes.
+4. Confirm the separate maximum cannot be decremented below zero or incremented above the current base allowance.
+5. Confirm the enabled consequence explains that base plus unlocked rewards are capped only in configured work windows and that the normal allowance returns outside them.
+6. Run `scripts/zc-029-010-work-hours-gaming-maximum-ax-probe.swift <app-pid> settings-enabled`.
+7. Quit the app normally, relaunch the same installed signed app, reopen Settings > Command, and run the probe with `settings-persisted`.
+8. Confirm the toggle remains enabled, the value remains 30 minutes, and the consequence copy is unchanged.
+
+## Real Today evidence
+
+Create 20 meaningful gaming minutes through connected production observation data.
+Do not insert a `today_snapshots` row or replace the rendered snapshot payload.
+Complete the real priority task so the production reward ledger records the configured 15-minute reward.
+Wait for the agent to publish a fresh Today snapshot, then refresh the app.
+
+Configure a work window containing the current local time in the saved `Africa/Cairo` policy time zone.
+In Today, confirm `Base 30m`, `Earned 0m`, `Used 20m`, `Locked 0m`, and `Remaining 10m`, plus the work-hours cap explanation.
+Run the probe with `within-work-window`.
+
+Open the menu-bar surface and use its Today action.
+Confirm it opens the same fresh Today state, then rerun `within-work-window` against the resulting main window.
+The current menu-bar popover does not render gaming allowance content, so record this as navigation and availability regression evidence only.
+Do not claim that the popover itself proves the cap unless product work first adds a real gaming status surface there.
+
+Move the saved work window so the same instant is outside the window, wait for an agent refresh, and run `outside-work-window`.
+Confirm the normal `Base 60m`, `Earned 15m`, and `Remaining 55m` allowance returns without changing observed gaming or the reward ledger.
+
+Disable the separate work-hours maximum, save, wait for refresh, and run `disabled` while the instant is inside the configured work window.
+Confirm the normal allowance still applies.
+
+For the partial-lock boundary, set the base to 60, reward to 15, and separate work-hours maximum to 70.
+Use a fresh QA local day with no reward ledger entry and no meaningful gaming observation.
+While inside the saved work window, confirm `Base 60m`, `Earned 0m`, `Locked 10m`, and `Remaining 60m`, then run `partial-locked-reward`.
+
+## Time-zone boundary
+
+Keep the Mac and policy on intentionally different time zones.
+Set an `Africa/Cairo` work window whose start or end lies between the two zones' current local times.
+Capture the saved schedule, system time, policy time zone, Today state before the Cairo boundary, and Today state after it.
+Acceptance requires the cap to switch at the saved policy-time-zone boundary, not the Mac's current time zone, with no manual snapshot replacement.
+
+## Acceptance record
+
+Retain the signed build identity, database path, policy version before and after Settings save, reward-ledger evidence, source freshness, probe output for every mode, and screenshots of Settings plus each Today state.
+Any stale source, unsigned replacement build, read-only Settings state, missing reward ledger, or probe failure leaves ZC-029-010 unverified.
