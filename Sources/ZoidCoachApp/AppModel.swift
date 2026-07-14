@@ -3,6 +3,26 @@ import Foundation
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
+enum CalendarPlanReceiptReconciler {
+    @discardableResult
+    static func apply(
+        _ receipt: AgentMutationReceipt,
+        to approval: inout CalendarPlanApprovalState,
+        store: CalendarPlanApprovalReceiptStore
+    ) -> Bool {
+        guard receipt.accepted else {
+            approval.returnToReviewAfterAuthoritativeRefusal()
+            store.clear()
+            return false
+        }
+        approval.queued(commandIDs: receipt.commandIDs)
+        if let durableReceipt = approval.receipt {
+            try? store.save(durableReceipt)
+        }
+        return true
+    }
+}
+
 @MainActor
 struct AppOSServiceFactory {
     let reminders: () -> any RemindersServicing
@@ -203,9 +223,15 @@ final class AppModel: ObservableObject {
                 todaySnapshot = latest
             }
             let reconciledCalendarReceipts = await resolvedTodayDashboardXPCClient.reconcilePendingCalendarPlans()
-            if let receipt = reconciledCalendarReceipts.last, receipt.accepted {
-                calendarPlanApproval.queued(commandIDs: receipt.commandIDs)
-                persistCalendarPlanApprovalReceipt()
+            if let receipt = reconciledCalendarReceipts.last {
+                let accepted = CalendarPlanReceiptReconciler.apply(
+                    receipt,
+                    to: &calendarPlanApproval,
+                    store: self.calendarPlanApprovalReceiptStore
+                )
+                if !accepted {
+                    calendarScheduleError = receipt.message
+                }
                 lastActionMessage = receipt.message
             }
             await refreshAllSources()
@@ -1211,9 +1237,15 @@ final class AppModel: ObservableObject {
     func recheckCalendarPlanWrite() {
         Task {
             let receipts = await todayDashboardXPCClient.reconcilePendingCalendarPlans()
-            if let receipt = receipts.last, receipt.accepted {
-                calendarPlanApproval.queued(commandIDs: receipt.commandIDs)
-                persistCalendarPlanApprovalReceipt()
+            if let receipt = receipts.last {
+                let accepted = CalendarPlanReceiptReconciler.apply(
+                    receipt,
+                    to: &calendarPlanApproval,
+                    store: calendarPlanApprovalReceiptStore
+                )
+                if !accepted {
+                    calendarScheduleError = receipt.message
+                }
                 lastActionMessage = receipt.message
             }
             await refreshActionAudit()

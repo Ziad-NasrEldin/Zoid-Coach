@@ -57,9 +57,10 @@ func migration43AddsDurableMutationReceiptsWithoutLosingHistory() throws {
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [43])
+    #expect(result.appliedVersions == [43, 44])
     #expect(try tableExists(databaseURL, "task_mutation_operations"))
     #expect(try tableExists(databaseURL, "task_mutation_steps"))
+    #expect(try tableExists(databaseURL, "calendar_plan_operations"))
     #expect(try columnExists(databaseURL, table: "task_history", column: "operation_id"))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM task_history WHERE task_id = 'existing';") == 1)
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM scheduled_blocks WHERE calendar_event_id = 'calendar-event-preserved';") == 1)

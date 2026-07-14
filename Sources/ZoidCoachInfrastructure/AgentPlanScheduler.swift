@@ -1,7 +1,8 @@
+import CryptoKit
 import Foundation
 import ZoidCoachCore
 
-public struct AgentPlanCommandRequirement: Equatable, Hashable, Sendable {
+public struct AgentPlanCommandRequirement: Equatable, Hashable, Codable, Sendable {
     public let type: ActionCommandType
     public let entityID: String
 
@@ -17,6 +18,102 @@ public struct AgentPlanCommandRequirement: Equatable, Hashable, Sendable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(type.rawValue)
         hasher.combine(entityID)
+    }
+}
+
+public struct AgentPlanPreparedCommand: Equatable, Codable, Sendable {
+    public let type: ActionCommandType
+    public let entityID: String
+    public let desiredState: ActionDesiredState
+    public let planVersion: Int
+    public let supersedingPending: Bool
+    public let origin: ActionOrigin
+
+    public init(
+        type: ActionCommandType,
+        entityID: String,
+        desiredState: ActionDesiredState,
+        planVersion: Int,
+        supersedingPending: Bool = true,
+        origin: ActionOrigin
+    ) {
+        self.type = type
+        self.entityID = entityID
+        self.desiredState = desiredState
+        self.planVersion = planVersion
+        self.supersedingPending = supersedingPending
+        self.origin = origin
+    }
+
+    public var requirement: AgentPlanCommandRequirement {
+        AgentPlanCommandRequirement(type: type, entityID: entityID)
+    }
+}
+
+public struct AgentPlanCommandCancellation: Equatable, Codable, Sendable {
+    public let type: ActionCommandType
+    public let entityID: String
+
+    public init(type: ActionCommandType, entityID: String) {
+        self.type = type
+        self.entityID = entityID
+    }
+}
+
+public struct PreparedAgentPlanSchedule: Equatable, Codable, Sendable {
+    public let requestFingerprint: String
+    public let unscheduledTaskIDs: [String]
+    public let cancellations: [AgentPlanCommandCancellation]
+    public let commands: [AgentPlanPreparedCommand]
+
+    public init(
+        requestFingerprint: String,
+        unscheduledTaskIDs: [String],
+        cancellations: [AgentPlanCommandCancellation] = [],
+        commands: [AgentPlanPreparedCommand] = []
+    ) {
+        self.requestFingerprint = requestFingerprint
+        self.unscheduledTaskIDs = unscheduledTaskIDs
+        self.cancellations = cancellations
+        self.commands = commands
+    }
+
+    public var requiredCommands: Set<AgentPlanCommandRequirement> {
+        Set(commands.map(\.requirement))
+    }
+}
+
+private struct AgentPlanRequestFingerprintPayload: Codable {
+    let dayKey: String
+    let policyVersion: Int
+    let policy: UserPolicy
+    let plan: [StoredAutonomousPlanEntry]
+    let tasks: [AgentPlanTaskFingerprint]
+}
+
+private struct AgentPlanTaskFingerprint: Codable {
+    let id: String
+    let title: String
+    let dueDate: Date?
+    let priority: Int
+    let notes: String?
+    let listID: String?
+    let listName: String?
+    let modificationDate: Date?
+    let isCompleted: Bool
+    let sourceKind: ReminderSourceKind
+
+    init(_ task: ReminderSourceSnapshot) {
+        id = task.id
+        title = task.title
+        dueDate = task.dueDate
+        priority = task.priority
+        notes = task.notes
+        listID = task.listID
+        listName = task.listName
+        modificationDate = task.modificationDate
+        isCompleted = task.isCompleted
+        sourceKind = task.sourceKind
     }
 }
 
@@ -64,14 +161,19 @@ public final class AgentPlanScheduler: @unchecked Sendable {
         self.now = now
     }
 
-    public func enqueueSchedule(
+    public func prepareSchedule(
         for day: Date,
         policy: UserPolicy,
         policyVersion: Int,
         origin: ActionOrigin = .explicitUser
-    ) async throws -> AgentPlanSchedulingResult {
+    ) async throws -> PreparedAgentPlanSchedule {
+        let requestFingerprint = try makeRequestFingerprint(
+            for: day,
+            policy: policy,
+            policyVersion: policyVersion
+        )
         guard !policy.automationPause.isPaused else {
-            return AgentPlanSchedulingResult(scheduledBlockCount: 0, unscheduledTaskIDs: [], reminderMutationCount: 0, obsoleteBlockDeletionCount: 0)
+            return PreparedAgentPlanSchedule(requestFingerprint: requestFingerprint, unscheduledTaskIDs: [])
         }
         let plan = try plans.loadDailyPlan(for: day)
         let reminderByID = Dictionary(uniqueKeysWithValues: try reminders.loadIncomplete().map { ($0.id, $0) })
@@ -82,7 +184,10 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             return CalendarInterval(start: start, end: interval.end)
         }
         guard !plan.isEmpty, let firstStart = workIntervals.map(\.start).min(), let finalEnd = workIntervals.map(\.end).max() else {
-            return AgentPlanSchedulingResult(scheduledBlockCount: 0, unscheduledTaskIDs: plan.map(\.reminderID), reminderMutationCount: 0, obsoleteBlockDeletionCount: 0)
+            return PreparedAgentPlanSchedule(
+                requestFingerprint: requestFingerprint,
+                unscheduledTaskIDs: plan.map(\.reminderID)
+            )
         }
         let commitments = try await calendar.commitments(
             from: firstStart,
@@ -97,11 +202,12 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             guard token.hasPrefix(ownershipPrefix) else { return nil }
             return String(token.dropFirst(ownershipPrefix.count))
         })
+        var cancellations: [AgentPlanCommandCancellation] = []
         for commitment in protectedOwned {
-            _ = try outbox.cancelPendingCommands(type: .deleteCalendarBlock, entityID: commitment.id)
+            cancellations.append(.init(type: .deleteCalendarBlock, entityID: commitment.id))
         }
         for taskID in protectedTaskIDs {
-            _ = try outbox.cancelPendingCommands(type: .reconcileCalendarBlock, entityID: taskID)
+            cancellations.append(.init(type: .reconcileCalendarBlock, entityID: taskID))
         }
         let fixed = commitments.filter { $0.ownershipToken == nil || $0.start <= schedulingTime }
         let free = workIntervals.flatMap { interval in freeIntervals(in: interval, commitments: fixed) }
@@ -122,38 +228,30 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             preferredInterval: preferredInterval
         )
         guard schedule.unscheduledTaskIDs.isEmpty else {
-            return AgentPlanSchedulingResult(
-                scheduledBlockCount: 0,
+            return PreparedAgentPlanSchedule(
+                requestFingerprint: requestFingerprint,
                 unscheduledTaskIDs: schedule.unscheduledTaskIDs,
-                reminderMutationCount: 0,
-                obsoleteBlockDeletionCount: 0
+                cancellations: cancellations
             )
         }
         let desiredTokens = Set(schedule.blocks.map { ownershipToken(dayKey: dayKey, taskID: $0.taskID) }).union(protectedTokens)
-        var deletions = 0
-        var commandIDs: [String] = []
-        var requiredCommands: Set<AgentPlanCommandRequirement> = []
+        var commands: [AgentPlanPreparedCommand] = []
         for existing in commitments where existing.ownershipToken != nil && existing.start > schedulingTime {
             guard let token = existing.ownershipToken, !desiredTokens.contains(token) else { continue }
-            let result = try outbox.enqueue(
+            commands.append(.init(
                 type: .deleteCalendarBlock,
                 entityID: existing.id,
                 desiredState: .deleteOwnedCalendarBlock(ownershipToken: token),
                 planVersion: policyVersion,
                 supersedingPending: true,
                 origin: origin
-            )
-            if result.wasInserted { deletions += 1 }
-            commandIDs.append(result.command.id)
-            requiredCommands.insert(.init(type: .deleteCalendarBlock, entityID: existing.id))
+            ))
         }
 
-        var blockCount = 0
-        var taskStartReminders = 0
         for block in schedule.blocks {
             guard let task = reminderByID[block.taskID] else { continue }
             let token = ownershipToken(dayKey: dayKey, taskID: block.taskID)
-            let result = try outbox.enqueue(
+            commands.append(.init(
                 type: .reconcileCalendarBlock,
                 entityID: block.taskID,
                 desiredState: .calendarBlock(CalendarBlockDesiredState(
@@ -166,13 +264,10 @@ public final class AgentPlanScheduler: @unchecked Sendable {
                 planVersion: policyVersion,
                 supersedingPending: true,
                 origin: origin
-            )
-            if result.wasInserted { blockCount += 1 }
-            commandIDs.append(result.command.id)
-            requiredCommands.insert(.init(type: .reconcileCalendarBlock, entityID: block.taskID))
+            ))
 
             let reminderID = "task-start:\(dayKey):\(block.taskID)"
-            let notificationResult = try outbox.enqueue(
+            commands.append(.init(
                 type: .scheduleNotification,
                 entityID: block.taskID,
                 desiredState: .notification(NotificationDesiredState(
@@ -185,51 +280,133 @@ public final class AgentPlanScheduler: @unchecked Sendable {
                 planVersion: policyVersion,
                 supersedingPending: true,
                 origin: origin
-            )
-            if notificationResult.wasInserted { taskStartReminders += 1 }
-            commandIDs.append(notificationResult.command.id)
-            requiredCommands.insert(.init(type: .scheduleNotification, entityID: block.taskID))
+            ))
         }
 
-        var reminderMutations = 0
         let dueDate = finalEnd
         for entry in plan {
             guard let task = reminderByID[entry.reminderID] else { continue }
             let marker = "plan:\(dayKey):rank:\(entry.rank)"
-            let priorityResult = try outbox.enqueue(
+            commands.append(.init(
                 type: .setReminderPriority,
                 entityID: entry.reminderID,
                 desiredState: .reminder(ReminderDesiredState(priority: entry.rank == 1 ? 1 : 5, metadataMarker: marker)),
                 planVersion: policyVersion,
                 supersedingPending: true,
                 origin: origin
-            )
-            if priorityResult.wasInserted { reminderMutations += 1 }
-            commandIDs.append(priorityResult.command.id)
-            requiredCommands.insert(.init(type: .setReminderPriority, entityID: entry.reminderID))
+            ))
             if task.dueDate == nil {
-                let dueResult = try outbox.enqueue(
+                commands.append(.init(
                     type: .setReminderDueDate,
                     entityID: entry.reminderID,
                     desiredState: .reminder(ReminderDesiredState(dueDate: dueDate, metadataMarker: marker)),
                     planVersion: policyVersion,
                     supersedingPending: true,
                     origin: origin
-                )
-                if dueResult.wasInserted { reminderMutations += 1 }
-                commandIDs.append(dueResult.command.id)
-                requiredCommands.insert(.init(type: .setReminderDueDate, entityID: entry.reminderID))
+                ))
             }
         }
-        return AgentPlanSchedulingResult(
-            scheduledBlockCount: blockCount,
+        return PreparedAgentPlanSchedule(
+            requestFingerprint: requestFingerprint,
             unscheduledTaskIDs: schedule.unscheduledTaskIDs,
-            reminderMutationCount: reminderMutations,
-            taskStartReminderCount: taskStartReminders,
-            obsoleteBlockDeletionCount: deletions,
-            commandIDs: Array(Set(commandIDs)).sorted(),
-            requiredCommands: requiredCommands
+            cancellations: cancellations,
+            commands: commands
         )
+    }
+
+    public func enqueueSchedule(
+        for day: Date,
+        policy: UserPolicy,
+        policyVersion: Int,
+        origin: ActionOrigin = .explicitUser
+    ) async throws -> AgentPlanSchedulingResult {
+        let prepared = try await prepareSchedule(
+            for: day,
+            policy: policy,
+            policyVersion: policyVersion,
+            origin: origin
+        )
+        return try enqueuePreparedSchedule(prepared)
+    }
+
+    public func enqueuePreparedSchedule(
+        _ prepared: PreparedAgentPlanSchedule
+    ) throws -> AgentPlanSchedulingResult {
+        for cancellation in prepared.cancellations {
+            _ = try outbox.cancelPendingCommands(
+                type: cancellation.type,
+                entityID: cancellation.entityID
+            )
+        }
+
+        var scheduledBlockCount = 0
+        var reminderMutationCount = 0
+        var taskStartReminderCount = 0
+        var obsoleteBlockDeletionCount = 0
+        var commandIDs: [String] = []
+
+        for command in prepared.commands {
+            let result = try outbox.enqueue(
+                type: command.type,
+                entityID: command.entityID,
+                desiredState: command.desiredState,
+                planVersion: command.planVersion,
+                supersedingPending: command.supersedingPending,
+                origin: command.origin
+            )
+            commandIDs.append(result.command.id)
+            guard result.wasInserted else { continue }
+            switch command.type {
+            case .reconcileCalendarBlock:
+                scheduledBlockCount += 1
+            case .scheduleNotification:
+                taskStartReminderCount += 1
+            case .setReminderPriority, .setReminderDueDate:
+                reminderMutationCount += 1
+            case .deleteCalendarBlock:
+                obsoleteBlockDeletionCount += 1
+            default:
+                break
+            }
+        }
+
+        return AgentPlanSchedulingResult(
+            scheduledBlockCount: scheduledBlockCount,
+            unscheduledTaskIDs: prepared.unscheduledTaskIDs,
+            reminderMutationCount: reminderMutationCount,
+            taskStartReminderCount: taskStartReminderCount,
+            obsoleteBlockDeletionCount: obsoleteBlockDeletionCount,
+            commandIDs: Array(Set(commandIDs)).sorted(),
+            requiredCommands: prepared.requiredCommands
+        )
+    }
+
+    public func makeRequestFingerprint(
+        for day: Date,
+        policy: UserPolicy,
+        policyVersion: Int
+    ) throws -> String {
+        let plan = try plans.loadDailyPlan(for: day)
+            .sorted { lhs, rhs in
+                lhs.rank == rhs.rank ? lhs.reminderID < rhs.reminderID : lhs.rank < rhs.rank
+            }
+        let taskIDs = Set(plan.map(\.reminderID))
+        let tasks = try reminders.loadIncomplete()
+            .filter { taskIDs.contains($0.id) }
+            .sorted { $0.id < $1.id }
+            .map(AgentPlanTaskFingerprint.init)
+        let payload = AgentPlanRequestFingerprintPayload(
+            dayKey: localDayKey(day, timeZoneIdentifier: policy.schedule.timeZoneIdentifier),
+            policyVersion: policyVersion,
+            policy: policy,
+            plan: plan,
+            tasks: tasks
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let digest = SHA256.hash(data: try encoder.encode(payload))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 
     private func freeIntervals(in workWindow: CalendarInterval, commitments: [CalendarCommitment]) -> [CalendarInterval] {

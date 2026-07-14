@@ -325,6 +325,7 @@ struct ZoidCoachAgentMain {
                 taskHistory: taskHistoryStore,
                 meetingArchive: archive,
                 planScheduler: planScheduler,
+                calendarPlanOperations: try CalendarPlanOperationStore(databaseURL: configuration.databaseURL),
                 policyStore: policyStore,
                 reminderSnapshots: reminderSnapshotStore,
                 privacyData: try PrivacyDataService(
