@@ -454,6 +454,18 @@ public struct BehaviorSummary: Equatable, Codable, Sendable {
             }
     }
 
+    public var workCategoryUsage: [WorkCategoryBreakdown] {
+        let classifier = WorkCategoryClassifier()
+        var seconds = Dictionary(uniqueKeysWithValues: WorkCategory.allCases.map { ($0, 0) })
+        for application in appUsage where application.classification == .work {
+            let category = classifier.category(for: application.application) ?? .uncategorized
+            seconds[category, default: 0] += application.observedSeconds
+        }
+        return WorkCategory.allCases.map {
+            WorkCategoryBreakdown(category: $0, observedSeconds: seconds[$0, default: 0])
+        }
+    }
+
     public init(workMinutes: Int = 0, gamingMinutes: Int = 0, meaningfulGamingMinutes: Int? = nil, distractingMinutes: Int = 0, idleMinutes: Int = 0, unknownMinutes: Int = 0, appUsage: [AppUsageBreakdown] = []) {
         self.workMinutes = max(0, workMinutes)
         self.gamingMinutes = max(0, gamingMinutes)
@@ -851,6 +863,7 @@ public struct BehaviorClassifier: Sendable {
         if ["steam", "league of legends", "minecraft", "roblox", "discord"].contains(where: normalized.contains) { return .gaming }
         if ["youtube", "tiktok", "instagram", "twitter", "x.com", "reddit"].contains(where: normalized.contains) { return .distracting }
         if ["screensaver", "loginwindow"].contains(where: normalized.contains) { return .idle }
+        if WorkCategoryClassifier().category(for: application) != nil { return .work }
         if ["xcode", "cursor", "visual studio code", "terminal", "iterm", "codex", "chatgpt", "figma", "pages", "numbers", "keynote", "mail", "calendar", "reminders", "slack"].contains(where: normalized.contains) { return .work }
         return .unknown
     }
