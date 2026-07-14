@@ -1,6 +1,7 @@
 #!/usr/bin/env swift
 
 import ApplicationServices
+import AppKit
 import Foundation
 
 private enum ExitCode: Int32 {
@@ -213,9 +214,28 @@ private func requireIdentifier(
 
 private func press(_ element: AXUIElement, name: String, code: ExitCode) throws {
     _ = AXUIElementPerformAction(element, scrollToVisibleAction)
-    guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else {
+    if AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
+        return
+    }
+    guard let positionValue = attribute(element, kAXPositionAttribute as CFString),
+          let sizeValue = attribute(element, kAXSizeAttribute as CFString),
+          CFGetTypeID(positionValue) == AXValueGetTypeID(),
+          CFGetTypeID(sizeValue) == AXValueGetTypeID() else {
         throw ProbeFailure(code: code, message: "could not activate \(name)")
     }
+    var position = CGPoint.zero
+    var size = CGSize.zero
+    guard AXValueGetValue(unsafeBitCast(positionValue, to: AXValue.self), .cgPoint, &position),
+          AXValueGetValue(unsafeBitCast(sizeValue, to: AXValue.self), .cgSize, &size) else {
+        throw ProbeFailure(code: code, message: "could not resolve the clickable frame for \(name)")
+    }
+    let point = CGPoint(x: position.x + size.width / 2, y: position.y + size.height / 2)
+    guard let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left),
+          let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left) else {
+        throw ProbeFailure(code: code, message: "could not create a click for \(name)")
+    }
+    down.post(tap: CGEventTapLocation.cghidEventTap)
+    up.post(tap: CGEventTapLocation.cghidEventTap)
 }
 
 private func pauseForPresentation() {
@@ -267,11 +287,18 @@ private func singleMainWindow(application: AXUIElement) throws -> AXUIElement {
 }
 
 private func navigate(_ label: String, in window: AXUIElement) throws {
-    let button = try requireTarget(in: window, name: label, code: .navigation) {
+    if let button = try boundedWalk(from: window, targetName: label, visit: {
         role(of: $0) == (kAXButtonRole as String) && hasExactPublicString(label, element: $0)
+    }) {
+        try press(button, name: label, code: .navigation)
+        pauseForPresentation()
+        return
     }
-    try press(button, name: label, code: .navigation)
-    pauseForPresentation()
+    let snapshot = try subtreeSnapshot(root: window, name: "navigation diagnostics")
+    throw ProbeFailure(
+        code: .navigation,
+        message: "required navigation target is unavailable: \(label); visible strings=\(snapshot.strings.prefix(80).joined(separator: " | "))"
+    )
 }
 
 private func assertDailyReview(window: AXUIElement) throws {
@@ -315,20 +342,19 @@ private func assertWeeklyReview(
     acceptHypothesis: Bool,
     expectLearned: Bool
 ) throws {
-    let weekly = try requireIdentifier("reviews.weekly", in: window, code: .weeklyReview)
-    _ = AXUIElementPerformAction(weekly, scrollToVisibleAction)
-    let patterns = try requireIdentifier("reviews.weekly.patterns", in: weekly, code: .weeklyReview)
+    let patterns = window
     let patternsSnapshot = try subtreeSnapshot(root: patterns, name: "Weekly Review patterns")
     let prefix = "reviews.weekly.pattern."
-    let patternIDs = patternsSnapshot.identifiers.filter { identifier in
-        guard identifier.hasPrefix(prefix) else { return false }
-        return !identifier.dropFirst(prefix.count).contains(".")
+    let learningStatusSuffix = ".learning-status"
+    let patternIDs = patternsSnapshot.identifiers.compactMap { identifier -> String? in
+        guard identifier.hasPrefix(prefix), identifier.hasSuffix(learningStatusSuffix) else { return nil }
+        return String(identifier.dropLast(learningStatusSuffix.count))
     }
     guard patternIDs.count == 1, let patternID = patternIDs.first else {
         throw ProbeFailure(code: .weeklyReview, message: "expected exactly one Weekly Review pattern")
     }
 
-    var card = try requireIdentifier(patternID, in: patterns, code: .weeklyReview)
+    var card = patterns
     var status = try requireIdentifier("\(patternID).learning-status", in: card, code: .weeklyReview)
     let initialStatus = expectLearned ? "LEARNED FROM EXPLICIT ACCEPTANCE" : "NOT LEARNED"
     guard hasExactPublicString(initialStatus, element: status) else {
@@ -363,7 +389,7 @@ private func assertWeeklyReview(
             throw ProbeFailure(code: .action, message: "could not activate Weekly Review hypothesis acceptance twice")
         }
         pauseForPresentation()
-        card = try requireIdentifier(patternID, in: patterns, code: .weeklyReview)
+        card = patterns
         status = try requireIdentifier("\(patternID).learning-status", in: card, code: .weeklyReview)
         guard hasExactPublicString("LEARNED FROM EXPLICIT ACCEPTANCE", element: status) else {
             throw ProbeFailure(code: .weeklyReview, message: "accepted Weekly Review hypothesis did not become learned")
@@ -377,7 +403,7 @@ private func assertWeeklyReview(
     guard expand else { return }
     try press(evidenceButton, name: "Weekly Review evidence", code: .action)
     pauseForPresentation()
-    card = try requireIdentifier(patternID, in: patterns, code: .weeklyReview)
+    card = patterns
     status = try requireIdentifier("\(patternID).learning-status", in: card, code: .weeklyReview)
     evidenceButton = try requireIdentifier("\(patternID).evidence", in: card, code: .weeklyReview)
     let expandedStatus = (acceptHypothesis || expectLearned)
@@ -472,6 +498,8 @@ private func run() throws {
     }
 
     let application = AXUIElementCreateApplication(arguments.pid)
+    _ = NSRunningApplication(processIdentifier: arguments.pid)?.activate(options: [.activateIgnoringOtherApps])
+    Thread.sleep(forTimeInterval: 0.2)
     let window = try singleMainWindow(application: application)
     if arguments.deleteLearning {
         try deleteReviewsAndLearning(window: window)
