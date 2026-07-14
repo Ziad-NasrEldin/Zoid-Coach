@@ -26,6 +26,40 @@ enum InitialMainWindowPresentationPolicy: Equatable {
     case backgroundScheduling
 }
 
+@MainActor
+struct BackgroundApplicationLifecycleHook {
+    let policy: InitialMainWindowPresentationPolicy
+    let setAccessoryActivationPolicy: () -> Void
+    let availableWindows: () -> [ApplicationWindowDescriptor]
+    let dismissWindow: (Int) -> Void
+
+    var shouldObserveWindowVisibility: Bool {
+        policy == .backgroundScheduling
+    }
+
+    func applicationWillFinishLaunching() {
+        guard policy == .backgroundScheduling else { return }
+        setAccessoryActivationPolicy()
+        dismissVisibleNormalWindows()
+    }
+
+    func applicationDidFinishLaunching() {
+        guard policy == .backgroundScheduling else { return }
+        dismissVisibleNormalWindows()
+    }
+
+    func windowDidBecomeVisible(_ window: ApplicationWindowDescriptor) {
+        guard policy == .backgroundScheduling, window.isNormalLevel else { return }
+        dismissWindow(window.windowNumber)
+    }
+
+    private func dismissVisibleNormalWindows() {
+        for window in availableWindows() where window.isNormalLevel {
+            dismissWindow(window.windowNumber)
+        }
+    }
+}
+
 struct ApplicationWindowDescriptor: Equatable, Sendable {
     let windowNumber: Int
     let identifier: String?
