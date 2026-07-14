@@ -8,18 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-14 against branch `codex/full-system` through contextual application classification verification commit `1377547`, the exact 666-scenario registry, and capped native macOS accessibility and pixel testing.
+Updated on 2026-07-14 against branch `codex/full-system` through ZC-008-016 gaming-unlock verifier commit `6ae0c10`, the exact 666-scenario registry, and capped native macOS accessibility, pixel, persistence, and raw-database testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 176
-- **Touches remaining:** 298
+- **Fully implemented:** 178
+- **Touches remaining:** 299
 - **Frontend only left:** 3
 - **Partially implemented:** 100
 - **Barely started:** 8
-- **Not implemented:** 54
+- **Not implemented:** 51
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -151,7 +151,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [x] Mark a task optional. **Status: Fully implemented.** The installed signed Today surface marked a task optional, displayed that it was excluded from capacity and Calendar, reduced committed capacity immediately, persisted through the agent, and restored the exact state after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).
 - [x] Mark a task blocked and explain why. **Status: Fully implemented.** The installed signed Today flow required a 3-to-240-character reason, atomically stored the reason with the blocked execution state, displayed the complete reason, and restored both after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).
 - [x] Reduce the day's scope. **Status: Fully implemented.** The installed signed Today journey made one task optional and deferred another to tomorrow, visibly reduced committed capacity from 90 to 30 minutes, excluded both from Calendar scheduling, and restored the reduced scope after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).
-- [ ] Change the gaming unlock condition. **Status: Not implemented.** No user-facing gaming policy controls exist.
+- [x] Change the gaming unlock condition. **Status: Fully implemented.** The installed signed Today journey identified the exact task owning the locked 15-minute reward, exposed `MAKE MAIN + GAMING UNLOCK` with consequence-first help on the other task, kept Cancel mutation-free, moved the single main objective and unlock condition immediately after confirmation, and restored the same ownership after relaunch. Completing the former main produced no reward, completing the newly selected main produced exactly one 15-minute ledger row, and a final relaunch retained one reward with truthful Earned and Locked totals (`TodayDashboardCommandOverview.swift`; `GamingUnlockConditionPresentationTests.swift`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/REPORT.md`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/evidence/09-immediate-fixed.png`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/evidence/10-relaunch-fixed.png`).
 - [x] Approve the proposed plan. **Status: Fully implemented.** The installed signed-QA journey reviewed the exact task and capacity, refused both a cancelled commitment and denied Calendar access with `NOTHING WAS WRITTEN`, preserved the plan with zero commands, refreshed to current availability, applied four exact Calendar and Reminder commands after repair, and restored the confirmed receipt after relaunch (`.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json`; `.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/REPORT.md`).
 - [ ] Restart the app and see the approved plan restored correctly. **Status: Touches remaining.** The receipt now durably stores exact reviewed tasks, order, estimates, capacity basis, approval time, command identities, and outcome without reopening or reissuing on restore, with focused persistence proof. The isolated signed run could not create a pending receipt because Calendar fixture access was disconnected, so pending and confirmed relaunch comparison remains (`CalendarPlanApprovalReceiptStore.swift`; `CalendarPlanApprovalStateTests.swift`; `.audit/runs/calendar-approval-receipt/verifier/REPORT.md`).
 

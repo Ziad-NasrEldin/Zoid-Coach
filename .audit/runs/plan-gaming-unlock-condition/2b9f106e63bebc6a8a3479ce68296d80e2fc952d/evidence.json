@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "run_id": "plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d",
+  "verified_commit": "2b9f106e63bebc6a8a3479ce68296d80e2fc952d",
+  "build_identity": "zoid-coach-2b9f106e63bebc6a8a3479ce68296d80e2fc952d-clean",
+  "fixture": "signed two-task gaming unlock ownership and reward journey",
+  "qa_root": "/private/tmp/zoid-666-gaming-fix-qa",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "7f532c7cbc08b23f5bc7b264ea12bb97a4baf22479c1e320a278e843a571be6c",
+  "scenario_ids": [
+    "ZC-008-016"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-14T01:50:04.183735+00:00",
+  "completed_at": "2026-07-14T02:00:00Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "8680236305a51cf321a24579ec3e87986facdc25504e7fe645d9904c9a3777f3"
+    },
+    {
+      "path": "03-confirmation.png",
+      "sha256": "d544b55ad98078bce64822e0825c8402c443e439cacb30c675c5074a7f4ebc67"
+    },
+    {
+      "path": "06-old-no-reward.png",
+      "sha256": "9043ab4b605ee94e31d337fc4a322a58aa31561c509991153a88c6a71b7636c0"
+    },
+    {
+      "path": "07-new-main-reward.png",
+      "sha256": "23f4f2cf8ee71dd41183bfd270933efa390afa510251cacb44deabaa506c60ef"
+    },
+    {
+      "path": "09-immediate-fixed.png",
+      "sha256": "cb4d00d38fb7a60d0141b23e53630edd995167381f284922f8def0f78ce0aa92"
+    },
+    {
+      "path": "10-relaunch-fixed.png",
+      "sha256": "9043ab4b605ee94e31d337fc4a322a58aa31561c509991153a88c6a71b7636c0"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "The current main objective exposed the exact gaming unlock condition and every non-main task exposed MAKE MAIN + GAMING UNLOCK with a consequence-first hint",
+      "result": "passed"
+    },
+    {
+      "name": "Cancel left main-objective ownership and the reward ledger unchanged",
+      "result": "passed"
+    },
+    {
+      "name": "Confirm moved the single main objective and gaming unlock condition immediately without requiring a relaunch",
+      "result": "passed"
+    },
+    {
+      "name": "Relaunch preserved the newly selected main objective as the sole gaming unlock owner",
+      "result": "passed"
+    },
+    {
+      "name": "Completing the former main objective produced no reward and showed Earned 0 and Locked 15",
+      "result": "passed"
+    },
+    {
+      "name": "Completing the new main objective produced exactly one 15-minute reward row and showed Earned 15 and Locked 0 after the final relaunch",
+      "result": "passed"
+    },
+    {
+      "name": "Five focused gaming unlock presentation tests passed and the release build succeeded",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "swift test --filter GamingUnlockConditionPresentation",
+    "swift build -c release",
+    "signed native accessibility and SQLite two-task gaming unlock journey"
+  ]
+}

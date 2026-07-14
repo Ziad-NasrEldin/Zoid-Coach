@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "1556c6d6efd61cc436d20b70f3e53bc52219113cce50d60552702205efb0c0af",
+  "tracker_sha256": "9c5d9599e8c3aa8c30b4d908f71d6bb03d5e268da3c2cd4d05110b0c77aa183e",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1780,19 +1780,27 @@
       "section_title": "Building the daily plan",
       "item_index": 16,
       "wording": "Change the gaming unlock condition.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "No user-facing gaming policy controls exist.",
+      "evidence_paths": [
+        ".audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/03-confirmation.png",
+        ".audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/06-old-no-reward.png",
+        ".audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/07-new-main-reward.png",
+        ".audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/09-immediate-fixed.png",
+        ".audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/10-relaunch-fixed.png",
+        ".audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/REPORT.md",
+        ".audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/evidence.json"
+      ],
+      "last_verified_commit": "2b9f106e63bebc6a8a3479ce68296d80e2fc952d",
+      "last_verified_build": "zoid-coach-2b9f106e63bebc6a8a3479ce68296d80e2fc952d-clean",
+      "audit_note": "The installed signed Today journey identified the exact task owning the locked 15-minute reward, exposed `MAKE MAIN + GAMING UNLOCK` with consequence-first help on the other task, kept Cancel mutation-free, moved the single main objective and unlock condition immediately after confirmation, and restored the same ownership after relaunch. Completing the former main produced no reward, completing the newly selected main produced exactly one 15-minute ledger row, and a final relaunch retained one reward with truthful Earned and Locked totals (`TodayDashboardCommandOverview.swift`; `GamingUnlockConditionPresentationTests.swift`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/REPORT.md`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/evidence/09-immediate-fixed.png`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/evidence/10-relaunch-fixed.png`).",
       "tracker_line": 154
     },
     {
