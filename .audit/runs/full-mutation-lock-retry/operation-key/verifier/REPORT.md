@@ -101,4 +101,6 @@ The signed run exposed an inaccurate app confirmation after local task completio
 The AppModel confirmation mapping now recognizes the established `local:user:` task identity and reports `Local task completed on this Mac.` without mentioning a queue, sync, or Reminders.
 External Reminder completion continues to report the truthful pending state as `Task completion is pending Reminders sync.`
 Focused public-interface tests cover both messages.
-The focused tests and release build remain pending the serialized build lease.
+Both focused public-interface confirmation tests pass.
+The nearest dashboard task-confirmation regression selection passes.
+The incremental production release build passes and produced updated app and agent executables.

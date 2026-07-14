@@ -2,6 +2,7 @@ import Testing
 @testable import ZoidCoachApp
 @testable import ZoidCoachCore
 
+@MainActor
 @Test
 func localTaskCompletionConfirmationNeverClaimsRemindersSync() {
     let message = AppModel.taskCommandConfirmation(
@@ -15,6 +16,7 @@ func localTaskCompletionConfirmationNeverClaimsRemindersSync() {
     #expect(!message.localizedCaseInsensitiveContains("sync"))
 }
 
+@MainActor
 @Test
 func externalReminderCompletionConfirmationNamesPendingSync() {
     let message = AppModel.taskCommandConfirmation(
