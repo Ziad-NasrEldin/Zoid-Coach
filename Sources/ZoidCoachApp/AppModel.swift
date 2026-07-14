@@ -947,8 +947,9 @@ final class AppModel: ObservableObject {
         defer { pendingPromptID = nil }
 
         guard await performTaskBlock(taskID: request.taskID, reason: reason) else {
-            promptInboxError = taskCommandError ?? "The blocker was not saved, so this decision is still waiting."
+            let failure = PromptTaskBlockFailurePresentation(taskCommandError: taskCommandError)
             await refreshPromptInbox()
+            promptInboxError = failure.restoring(afterInboxRefreshError: promptInboxError)
             return false
         }
         let command = PromptResponseCommand(
