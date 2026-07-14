@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "5ce5651046791db0a58be11f843b1d43ef69b9a8cc6f65b6636e7a673b8f1efe",
+  "tracker_sha256": "b2d575b5522104f5965fd562636a45b97413412c5d0499734bba66c02818a944",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10790,7 +10790,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Core planning, tracking, settings, and task commands are local and rules-first; no installed-app network-off acceptance test was run.",
+      "audit_note": "Calendar-unavailable planning now offers a truthful local-only approval with zero Calendar or Reminder command identities, durable receipt restore, and no false external-write claim. Focused tests prove that partial results stay pending across restore, only the exact failed command can be retried, duplicate retry requests are suppressed while pending, and the original total survives successful recovery. A signed isolated app visibly showed Calendar-unavailable configured-work-window capacity and durably added the intended task, but the planning card remained stale at zero blocks and zero minutes, so `USE PLAN LOCALLY`, the zero-write receipt, relaunch persistence, and the visible recovery sequence remain unproved (`CalendarPlanApprovalState.swift`; `CalendarPlanApprovalStateTests.swift`; `.audit/runs/calendar-offline-local-plan/verifier/REPORT.md`).",
       "tracker_line": 666
     },
     {
