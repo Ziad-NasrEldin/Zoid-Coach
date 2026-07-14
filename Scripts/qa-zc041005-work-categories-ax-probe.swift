@@ -13,6 +13,36 @@ private struct ExpectedCategory {
     let minutes: Int
 }
 
+private struct WindowTraits {
+    let identifier: String?
+    let isMinimized: Bool
+    let isExplicitlyHidden: Bool
+    let hasTodayNavigation: Bool
+    let hasReviewsNavigation: Bool
+}
+
+private enum MainWindowSelection: Equatable {
+    case selected(Int)
+    case missing
+    case ambiguous
+}
+
+private let mainWindowIdentifier = "zoid-666.main-window"
+
+private func selectMainWindow(from windows: [WindowTraits]) -> MainWindowSelection {
+    let matches = windows.indices.filter { index in
+        let window = windows[index]
+        guard !window.isMinimized, !window.isExplicitlyHidden else { return false }
+        return window.identifier == mainWindowIdentifier
+            || (window.hasTodayNavigation && window.hasReviewsNavigation)
+    }
+    switch matches.count {
+    case 1: return .selected(matches[0])
+    case 0: return .missing
+    default: return .ambiguous
+    }
+}
+
 private let expectedCategories = [
     ExpectedCategory(id: "deep_work", label: "Deep work", minutes: 2),
     ExpectedCategory(id: "creative_work", label: "Creative work", minutes: 3),
@@ -26,10 +56,53 @@ private let privateSentinels = [
 ]
 
 if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
+    let main = WindowTraits(
+        identifier: mainWindowIdentifier,
+        isMinimized: false,
+        isExplicitlyHidden: false,
+        hasTodayNavigation: true,
+        hasReviewsNavigation: true
+    )
+    let auxiliary = WindowTraits(
+        identifier: "agent-lifecycle",
+        isMinimized: false,
+        isExplicitlyHidden: false,
+        hasTodayNavigation: false,
+        hasReviewsNavigation: false
+    )
+    let contentIdentifiedMain = WindowTraits(
+        identifier: nil,
+        isMinimized: false,
+        isExplicitlyHidden: false,
+        hasTodayNavigation: true,
+        hasReviewsNavigation: true
+    )
+    let minimizedMain = WindowTraits(
+        identifier: mainWindowIdentifier,
+        isMinimized: true,
+        isExplicitlyHidden: false,
+        hasTodayNavigation: true,
+        hasReviewsNavigation: true
+    )
+    let hiddenMain = WindowTraits(
+        identifier: mainWindowIdentifier,
+        isMinimized: false,
+        isExplicitlyHidden: true,
+        hasTodayNavigation: true,
+        hasReviewsNavigation: true
+    )
     guard expectedCategories.count == 6,
           expectedCategories.reduce(0, { $0 + $1.minutes }) == 28,
           privateSentinels.contains(where: { "qa-zc041005-private-deep".localizedCaseInsensitiveContains($0) }),
-          !privateSentinels.contains(where: { "Deep work, 2 minutes".localizedCaseInsensitiveContains($0) })
+          !privateSentinels.contains(where: { "Deep work, 2 minutes".localizedCaseInsensitiveContains($0) }),
+          selectMainWindow(from: [main, auxiliary]) == .selected(0),
+          selectMainWindow(from: [auxiliary, contentIdentifiedMain]) == .selected(1),
+          selectMainWindow(from: [main, minimizedMain]) == .selected(0),
+          selectMainWindow(from: [main, main]) == .ambiguous,
+          selectMainWindow(from: [main, contentIdentifiedMain]) == .ambiguous,
+          selectMainWindow(from: [auxiliary]) == .missing,
+          selectMainWindow(from: [minimizedMain]) == .missing,
+          selectMainWindow(from: [hiddenMain]) == .missing
     else {
         fputs("FAIL: ZC-041-005 AX probe self-test\n", stderr)
         exit(1)
@@ -43,9 +116,9 @@ guard arguments.count == 5,
       arguments[1] == "--pid",
       let pid = Int32(arguments[2]),
       arguments[3] == "--phase",
-      ["categories", "empty"].contains(arguments[4])
+      ["categories", "empty", "window"].contains(arguments[4])
 else {
-    fputs("usage: qa-zc041005-work-categories-ax-probe.swift --self-test | --pid <pid> --phase <categories|empty>\n", stderr)
+    fputs("usage: qa-zc041005-work-categories-ax-probe.swift --self-test | --pid <pid> --phase <categories|empty|window>\n", stderr)
     exit(2)
 }
 
@@ -109,14 +182,30 @@ private func mainWindow() throws -> AXUIElement {
     guard AXIsProcessTrusted() else { throw ProbeError.failure("Accessibility permission is required") }
     guard kill(pid, 0) == 0 else { throw ProbeError.failure("the supplied process is not running") }
     let windows = ((attribute(application, kAXWindowsAttribute as CFString) as? [AXUIElement]) ?? [])
-        .filter {
-            role($0) == (kAXWindowRole as String)
-                && bool($0, kAXMinimizedAttribute as CFString) != true
+        .filter { role($0) == (kAXWindowRole as String) }
+    let traits = try windows.map { window in
+        var navigationLabels = Set<String>()
+        _ = try walk(root: window) { element in
+            guard role(element) == (kAXButtonRole as String) else { return false }
+            navigationLabels.formUnion(labels(element))
+            return false
         }
-    guard windows.count == 1, let window = windows.first else {
-        throw ProbeError.failure("expected exactly one non-minimized app window")
+        return WindowTraits(
+            identifier: identifier(window),
+            isMinimized: bool(window, kAXMinimizedAttribute as CFString) == true,
+            isExplicitlyHidden: bool(window, "AXVisible" as CFString) == false,
+            hasTodayNavigation: navigationLabels.contains("Today"),
+            hasReviewsNavigation: navigationLabels.contains("Reviews")
+        )
     }
-    return window
+    switch selectMainWindow(from: traits) {
+    case let .selected(index):
+        return windows[index]
+    case .missing:
+        throw ProbeError.failure("visible main Today/Reviews window is unavailable")
+    case .ambiguous:
+        throw ProbeError.failure("multiple visible main Today/Reviews windows are ambiguous")
+    }
 }
 
 private func press(_ element: AXUIElement, name: String) throws {
@@ -185,6 +274,10 @@ private func assertPrivacy(_ strings: [String]) throws {
 
 do {
     let window = try mainWindow()
+    if phase == "window" {
+        print("PASS: ZC-041-005 exactly one visible main window")
+        exit(0)
+    }
     try navigateToReviews(window: window)
     let ledger = try findIdentifierByScrolling("reviews.work-categories", in: window)
     let snapshot = try subtreeSnapshot(ledger)
