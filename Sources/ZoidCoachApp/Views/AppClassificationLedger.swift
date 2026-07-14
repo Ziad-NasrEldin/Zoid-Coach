@@ -12,8 +12,10 @@ struct AppClassificationLedger: View {
     @State private var warning: String?
     @State private var notice: String?
     @State private var pendingAction: PendingAppRuleAction?
+    @State private var showsDomainRules = false
     private let service: AppInventoryService
     private let rulesService: AppClassificationRulesDocumentService
+    private let domainRuleReview = DomainRuleReviewState()
 
     init(
         draft: Binding<SettingsPolicyDraft>,
@@ -51,6 +53,7 @@ struct AppClassificationLedger: View {
             }
 
             ruleActions
+            domainRuleReviewSection
 
             if let notice {
                 Text(notice)
@@ -152,6 +155,97 @@ struct AppClassificationLedger: View {
                 VStack(alignment: .leading, spacing: 8) { documentButtons }
             }
         }
+    }
+
+    private var domainRuleReviewSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                showsDomainRules.toggle()
+            } label: {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("DOMAIN RULES")
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.ink)
+                        Text(domainRuleReview.summary)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                    }
+                    Spacer()
+                    Text(showsDomainRules ? "HIDE" : "REVIEW")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                    Image(systemName: showsDomainRules ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Review domain rules")
+            .accessibilityValue(showsDomainRules ? "Expanded" : "Collapsed")
+            .accessibilityHint("Shows the built-in URL and domain signals used by local contextual classification.")
+            .accessibilityIdentifier("settings.domain-rules.toggle")
+
+            if showsDomainRules {
+                Text(domainRuleReview.privacyDetail)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.domain-rules.privacy")
+
+                LazyVStack(spacing: 0) {
+                    ForEach(domainRuleReview.rows) { row in
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                                domainRuleIdentity(row)
+                                Text(row.outcome.uppercased())
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.ink)
+                                    .frame(width: 100, alignment: .trailing)
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                domainRuleIdentity(row)
+                                Text(row.outcome.uppercased())
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.ink)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+                        .background(Sumi.paper)
+                        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(row.accessibilityLabel)
+                        .accessibilityHint(row.explanation)
+                        .accessibilityIdentifier(row.accessibilityIdentifier)
+                    }
+                }
+                .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+            }
+        }
+        .padding(12)
+        .background(Sumi.softPaper)
+        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.domain-rules")
+    }
+
+    private func domainRuleIdentity(_ row: DomainRuleReviewRow) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(row.pattern)
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(Sumi.ink)
+                .textSelection(.enabled)
+            Text(row.explanation)
+                .font(Sumi.body(10))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
