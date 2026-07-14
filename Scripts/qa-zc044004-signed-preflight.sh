@@ -14,9 +14,23 @@ fail() {
     exit 1
 }
 
+is_full_lowercase_sha() {
+    [[ "$1" =~ '^[0-9a-f]{40}$' ]]
+}
+
+if [[ "$APP" == "--self-test" ]]; then
+    is_full_lowercase_sha "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a" \
+        || fail "valid SHA was rejected without extendedglob"
+    ! is_full_lowercase_sha "B3FF3D3E8EFF70F60301C5BE3FAFFB9C00CCFC2A" \
+        || fail "uppercase SHA was accepted"
+    ! is_full_lowercase_sha "b3ff3d3" || fail "abbreviated SHA was accepted"
+    print -- "PASS: ZC-044-004 signed preflight SHA validation self-test"
+    exit 0
+fi
+
 [[ -d "$APP" ]] || fail "signed app does not exist: $APP"
 [[ -f "$DATABASE" ]] || fail "isolated database does not exist: $DATABASE"
-[[ "$EXPECTED_COMMIT" == [0-9a-f]## && ${#EXPECTED_COMMIT} -eq 40 ]] || fail "expected commit must be a full 40-character lowercase SHA"
+is_full_lowercase_sha "$EXPECTED_COMMIT" || fail "expected commit must be a full 40-character lowercase SHA"
 
 readonly CANONICAL_APP="${APP:A}"
 readonly CANONICAL_DATABASE="${DATABASE:A}"

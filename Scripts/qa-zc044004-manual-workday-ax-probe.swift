@@ -11,11 +11,16 @@ private func containsForbidden(_ exposed: String, forbiddenStrings: [String]) ->
     forbiddenStrings.contains { exposed.localizedCaseInsensitiveContains($0) }
 }
 
+private func boundedPageIndexes(maximumPages: Int) -> ClosedRange<Int> {
+    0...maximumPages
+}
+
 if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
     let forbidden = ["private-token", "/private/tmp/qa-root"]
     guard containsForbidden("PRIVATE-TOKEN", forbiddenStrings: forbidden),
           containsForbidden("database: /private/tmp/qa-root/zoid.sqlite", forbiddenStrings: forbidden),
-          !containsForbidden("Manual workday is active", forbiddenStrings: forbidden)
+          !containsForbidden("Manual workday is active", forbiddenStrings: forbidden),
+          Array(boundedPageIndexes(maximumPages: 12)) == Array(0...12)
     else {
         fputs("FAIL: AX privacy sentinel matcher self-test\n", stderr)
         exit(1)
@@ -71,6 +76,8 @@ private func parseOptions() -> Options {
 private let options = parseOptions()
 private let application = AXUIElementCreateApplication(options.pid)
 private let maximumNodes = 4_000
+private let maximumSettingsScrollPages = 12
+private var boundWindow: AXUIElement?
 
 private func attribute(_ element: AXUIElement, _ name: CFString) -> CFTypeRef? {
     var value: CFTypeRef?
@@ -84,6 +91,14 @@ private func string(_ element: AXUIElement, _ name: CFString) -> String? {
 
 private func identifier(_ element: AXUIElement) -> String? {
     string(element, kAXIdentifierAttribute as CFString)
+}
+
+private func role(_ element: AXUIElement) -> String? {
+    string(element, kAXRoleAttribute as CFString)
+}
+
+private func bool(_ element: AXUIElement, _ name: CFString) -> Bool? {
+    (attribute(element, name) as? NSNumber)?.boolValue
 }
 
 private func exposedStrings(_ element: AXUIElement) -> [String] {
@@ -100,9 +115,18 @@ private func children(_ element: AXUIElement) -> [AXUIElement] {
     attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? []
 }
 
-private func roots() throws -> [AXUIElement] {
+private func applicationWindows() throws -> [AXUIElement] {
     guard AXIsProcessTrusted() else { throw ProbeError.failure("Accessibility permission is required") }
-    return (attribute(application, kAXWindowsAttribute as CFString) as? [AXUIElement]) ?? []
+    return ((attribute(application, kAXWindowsAttribute as CFString) as? [AXUIElement]) ?? [])
+        .filter {
+            role($0) == (kAXWindowRole as String)
+                && bool($0, kAXMinimizedAttribute as CFString) != true
+        }
+}
+
+private func roots() throws -> [AXUIElement] {
+    if let boundWindow { return [boundWindow] }
+    return try applicationWindows()
 }
 
 private func find(_ description: String, matching: (AXUIElement) -> Bool) throws -> AXUIElement {
@@ -122,6 +146,99 @@ private func find(_ description: String, matching: (AXUIElement) -> Bool) throws
         Thread.sleep(forTimeInterval: 0.1)
     } while Date() < deadline
     throw ProbeError.failure("required AX target is unavailable: \(description)")
+}
+
+private func findOnce(in root: AXUIElement, matching: (AXUIElement) -> Bool) -> AXUIElement? {
+    var queue = [root]
+    var visited = Set<CFHashCode>()
+    var count = 0
+    while !queue.isEmpty {
+        let element = queue.removeFirst()
+        guard visited.insert(CFHash(element)).inserted else { continue }
+        count += 1
+        guard count <= maximumNodes else { return nil }
+        if matching(element) { return element }
+        queue.append(contentsOf: children(element))
+    }
+    return nil
+}
+
+private func existingSettingsWindow() throws -> AXUIElement? {
+    for window in try applicationWindows() {
+        if findOnce(in: window, matching: {
+            labels($0).contains(where: { $0.contains("SETTINGS / POLICY") })
+        }) != nil {
+            return window
+        }
+    }
+    return nil
+}
+
+private func settingsWindow() throws -> AXUIElement {
+    let deadline = Date().addingTimeInterval(8)
+    repeat {
+        if let window = try existingSettingsWindow() { return window }
+        Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    throw ProbeError.failure("the normal Settings route did not expose a visible SETTINGS / POLICY window")
+}
+
+private func navigateToSettings() throws -> AXUIElement {
+    if let existing = try existingSettingsWindow() { return existing }
+
+    let windows = try applicationWindows()
+    if let menuSettings = windows.lazy.compactMap({ window in
+        findOnce(in: window, matching: { identifier($0) == "menu-bar.open-settings" })
+    }).first {
+        try press(menuSettings, name: "menu-bar Settings")
+        return try settingsWindow()
+    }
+
+    if let sidebarSettings = windows.lazy.compactMap({ window in
+        findOnce(in: window) {
+            role($0) == (kAXButtonRole as String) && labels($0).contains("Settings")
+        }
+    }).first {
+        try press(sidebarSettings, name: "sidebar Settings")
+        return try settingsWindow()
+    }
+
+    if windows.contains(where: { window in
+        findOnce(in: window, matching: { identifier($0) == "onboarding.root" }) != nil
+    }) {
+        throw ProbeError.failure(
+            "onboarding is still visible; establish the supported QA ready state before verifying post-onboarding Settings"
+        )
+    }
+
+    throw ProbeError.failure(
+        "the normal Settings route is unavailable; finish or seed the supported QA onboarding ready state, then use the menu Settings button or sidebar Settings button"
+    )
+}
+
+private func findSettingsIdentifier(_ expected: String) throws -> AXUIElement {
+    guard let window = boundWindow else {
+        throw ProbeError.failure("Settings window is not bound")
+    }
+    for page in boundedPageIndexes(maximumPages: maximumSettingsScrollPages) {
+        if let element = findOnce(in: window, matching: { identifier($0) == expected }) {
+            _ = AXUIElementPerformAction(element, "AXScrollToVisible" as CFString)
+            return element
+        }
+        guard page < maximumSettingsScrollPages else { break }
+        var scrollAreas: [AXUIElement] = []
+        _ = findOnce(in: window) { element in
+            if role(element) == (kAXScrollAreaRole as String) { scrollAreas.append(element) }
+            return false
+        }
+        guard scrollAreas.reversed().contains(where: {
+            AXUIElementPerformAction($0, "AXScrollDownByPage" as CFString) == .success
+        }) else {
+            throw ProbeError.failure("could not scroll the visible Settings window toward \(expected)")
+        }
+        Thread.sleep(forTimeInterval: 0.15)
+    }
+    throw ProbeError.failure("required Settings target is unavailable after bounded scrolling: \(expected)")
 }
 
 private func findIdentifier(_ expected: String) throws -> AXUIElement {
@@ -199,23 +316,26 @@ private func requirePrivacy() throws {
 }
 
 private func requireManualSettings() throws {
-    let picker = try findIdentifier("settings.schedule.workday-control")
-    _ = try findIdentifier("settings.schedule.workday-control.detail")
+    let picker = try findSettingsIdentifier("settings.schedule.workday-control")
+    _ = try findSettingsIdentifier("settings.schedule.workday-control.detail")
     let manual = try descendant(picker, label: "Manual start and end")
     try requireSelected(manual, picker: picker)
-    try requireEnabled(false, element: try findIdentifier("settings.schedule.fixed-hours"), name: "fixed-hours manual mode")
+    try requireEnabled(false, element: try findSettingsIdentifier("settings.schedule.fixed-hours"), name: "fixed-hours manual mode")
 }
 
 do {
+    if options.phase == "settings-select-manual" || options.phase == "settings-persisted" {
+        boundWindow = try navigateToSettings()
+    }
     switch options.phase {
     case "settings-select-manual":
-        let picker = try findIdentifier("settings.schedule.workday-control")
-        _ = try findIdentifier("settings.schedule.workday-control.detail")
-        let fixedHours = try findIdentifier("settings.schedule.fixed-hours")
+        let picker = try findSettingsIdentifier("settings.schedule.workday-control")
+        _ = try findSettingsIdentifier("settings.schedule.workday-control.detail")
+        let fixedHours = try findSettingsIdentifier("settings.schedule.fixed-hours")
         try requireEnabled(true, element: fixedHours, name: "fixed-hours baseline")
         let manual = try descendant(picker, label: "Manual start and end")
         try press(manual, name: "Manual start and end")
-        try requireEnabled(false, element: try findIdentifier("settings.schedule.fixed-hours"), name: "fixed-hours manual mode")
+        try requireEnabled(false, element: try findSettingsIdentifier("settings.schedule.fixed-hours"), name: "fixed-hours manual mode")
         let save = try find("SAVE CHANGES") { labels($0).contains("SAVE CHANGES") }
         try press(save, name: "Save Changes")
         _ = try find("All changes saved") { labels($0).contains("All changes saved") }

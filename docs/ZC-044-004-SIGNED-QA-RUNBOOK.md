@@ -26,6 +26,9 @@ EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_INTEGRATION_COMMIT"
 FIXTURE="$PWD/Scripts/qa-zc044004-manual-workday-fixture.sh"
 PROBE="$PWD/Scripts/qa-zc044004-manual-workday-ax-probe.swift"
 PREFLIGHT="$PWD/Scripts/qa-zc044004-signed-preflight.sh"
+READY_STATE="$PWD/Scripts/prepare-qa-ready-state.py"
+READY_MANIFEST="$PWD/Scripts/fixtures/qa-ready-state.example.json"
+WINDOW_PROBE="$PWD/Scripts/qa-window-content-probe.swift"
 TASK_TITLE="QA ZC-044-004 manual workday task"
 PRIVATE_ROOT="${DATABASE%/Application Support/Zoid 666/zoid-coach.sqlite}"
 ```
@@ -47,6 +50,29 @@ It requires the signed commit to contain both the product candidate and verifier
 It requires the app and LaunchAgent to embed the same canonical QA root.
 It requires the helper's stripped-environment runtime identity and open SQLite file to resolve to `DATABASE`.
 
+## Establish the supported post-onboarding QA state
+
+A clean isolated runtime starts at onboarding and intentionally has no Dashboard Settings route.
+ZC-044-004 tests Settings after onboarding, so establish the repository's supported 12-of-12 QA ready state before preparing the scenario database.
+This is fixture state, not a product launch argument or product backdoor.
+
+```sh
+APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/Info.plist")"
+APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
+"$APP_EXECUTABLE" --qa-unregister-agent
+kill "$PID"
+while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
+"$READY_STATE" "$READY_MANIFEST" "$PRIVATE_ROOT" --replace
+"$APP_EXECUTABLE" --qa-register-agent
+open "$APP"
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
+swift "$WINDOW_PROBE" "$PID" --expect-today
+```
+
+The Today assertion proves onboarding is complete and the normal Dashboard navigation is visible.
+Do not continue if the app still exposes onboarding.
+
 ## Prepare scheduled baseline and ready task
 
 Quit the app before fixture mutation.
@@ -64,8 +90,11 @@ PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
 
 ## Save manual mode through production Settings
 
-Open Settings in the signed app and leave the Command chapter visible.
+Leave the normal Today window visible.
 The probe must begin from the scheduled baseline.
+The probe presses the normal sidebar `Settings` button.
+If the menu-bar popover is already open, it may instead press the production `menu-bar.open-settings` button.
+It then binds the one visible window containing `SETTINGS / POLICY` and scrolls at most 12 pages to the Command schedule controls.
 
 ```sh
 swift "$PROBE" --pid "$PID" --phase settings-select-manual \
@@ -81,7 +110,8 @@ The fixture requires a newly versioned active manual policy while preserving at 
 ## Prove Settings persistence after relaunch
 
 Quit and relaunch the same installed bundle.
-Open Settings and leave the Command chapter visible.
+Leave the normal Today window visible after relaunch.
+The probe must navigate to Settings again through the normal user-facing route.
 
 ```sh
 kill "$PID"
