@@ -40,7 +40,7 @@ final class MenuBarCoachController: ObservableObject {
     var state: MenuBarCoachState { MenuBarCoachState(snapshot: snapshot) }
 
     func adoptLastKnownSnapshot(_ lastKnownSnapshot: TodaySnapshot?) {
-        guard let lastKnownSnapshot else { return }
+        guard snapshot == nil, let lastKnownSnapshot else { return }
         snapshot = lastKnownSnapshot
         if lastConfirmedAt == nil {
             lastConfirmedAt = Date()
