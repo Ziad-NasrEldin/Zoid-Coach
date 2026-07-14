@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "dcb4a4226cd3c4376ffa329ee266cef40683df8acd65695f2c584cd77725fbb3",
+  "tracker_sha256": "f45ec78b8297697bfca83c5b9d9c97968d96d17b5a1f1a2483a9cd9a1dc4e26f",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8397,10 +8397,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/compact-active-task/pause-retention-2a11918/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The compact menu now shares the exact runtime boundary used by Today, rejects delayed fallback snapshots that would overwrite newer controller truth, and retains its previously tested deduplicated active, paused, break, recommended, and blocked action model. All 27 focused tests passed, and exact-PID signed QA acceptance proved that Today could start the fixture task, compact Refresh displayed the same active task with its full native action set, and compact Pause persisted one closed interval plus canonical paused state. Reopening the compact popover then incorrectly displayed no task instead of the paused task and Resume action, so native Resume, Complete, Blocked reason, helper-failure stale preservation, and relaunch restoration remain incomplete (`MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `ZoidCoachApp.swift`; `.audit/runs/compact-active-task/helper-repair-c8c478/REPORT.md`).",
+      "audit_note": "The signed compact menu now retains the exact unplanned task across active, Pause, paused-popover reopen, Resume, and application relaunch. Native AX verified the truthful active and paused action sets, while the canonical database verified one closed interval, one resumed pause event, and a new active interval without substituting the unrelated queued reminder. Native Complete, native Blocked with an exact reason, and helper-failure stale-state preservation remain before this scenario can be fully accepted (`TodayDashboardAgent.swift`; `MenuBarCoachTests.swift`; `.audit/runs/compact-active-task/pause-retention-2a11918/REPORT.md`).",
       "tracker_line": 533
     },
     {

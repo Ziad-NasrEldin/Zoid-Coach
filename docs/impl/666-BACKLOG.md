@@ -139,6 +139,8 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - `ZC-037-006` advances from Not implemented to Touches remaining with evidence in `.audit/runs/compact-active-task/verifier/REPORT.md`.
 - The shared-runtime repair at `c8c478a` now lets exact-PID compact Refresh display the same signed active task as Today, and native compact Pause persists canonical paused state.
 - Reopening the compact popover loses that paused task and Resume action, so `ZC-037-006` remains Touches remaining with the narrowed blocker recorded in `.audit/runs/compact-active-task/helper-repair-c8c478/REPORT.md`.
+- The paused-task retention repair at `2a11918` passed five focused tests and exact-PID signed acceptance through active, Pause, paused reopen, Resume, and application relaunch.
+- Native Complete, native Blocked with an exact reason, and helper-failure stale-state preservation remain, so `ZC-037-006` truthfully stays Touches remaining with evidence in `.audit/runs/compact-active-task/pause-retention-2a11918/REPORT.md`.
 
 ### Clock-safe task durations - candidate
 
