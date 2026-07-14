@@ -115,6 +115,94 @@ func updatedEpisodeReplacesPersistedFixtureNotificationAcrossCoordinatorRelaunch
 }
 
 @Test
+func resolvedPromptReconciliationCancelsDeliveredAndPendingNotificationsWithoutTouchingUnresolvedDecisions() async throws {
+    let root = try notificationFixtureRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let environment = try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: root,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let adapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: environment,
+        clock: .fixed(now)
+    )
+    try adapter.reset(to: .init(permissions: [.notifications: .granted]))
+    let promptStore = try PromptInboxStore(databaseURL: environment.databaseURL, now: { now })
+    let coordinator = PromptNotificationCoordinator(
+        promptStore: promptStore,
+        fixtureAdapter: adapter,
+        runtimeEnvironment: environment
+    )
+    let privateWindowTitle = "Quarterly acquisition plan - private"
+    let privateURL = "https://private.example.invalid/client/42"
+
+    let delivered = try promptStore.enqueue(gamingNotificationDraft(
+        decisionKey: "gaming:delivered",
+        privateWindowTitle: privateWindowTitle,
+        privateURL: privateURL,
+        expiresAt: now.addingTimeInterval(1_800)
+    )).episode
+    #expect(try await coordinator.schedule(delivered))
+    let deliveredNotification = try #require(
+        adapter.snapshot().notifications.first { $0.desired.promptID == delivered.id }
+    )
+    #expect(deliveredNotification.status == .delivered)
+    #expect(!deliveredNotification.id.contains(privateWindowTitle))
+    #expect(!deliveredNotification.id.contains(privateURL))
+    #expect(!deliveredNotification.desired.title.contains(privateWindowTitle))
+    #expect(!deliveredNotification.desired.body.contains(privateURL))
+
+    let unrelated = try promptStore.enqueue(PromptDraft(
+        decisionKey: "plan:unrelated",
+        type: PromptNotificationCategory.planReady.rawValue,
+        title: "A plan is ready",
+        summary: "Review the current plan.",
+        actions: [.init(kind: .reviewPlan, title: "Review")]
+    )).episode
+    _ = try await adapter.schedule(.init(
+        category: PromptNotificationCategory.planReady.rawValue,
+        title: unrelated.title,
+        body: unrelated.summary,
+        promptID: unrelated.id,
+        deliveryDate: nil
+    ))
+    _ = try adapter.deliverDueNotifications()
+
+    _ = try promptStore.dismiss(promptID: delivered.id)
+    try await coordinator.reconcilePromptNotifications()
+    var notifications = try adapter.snapshot().notifications
+    #expect(notifications.map(\.desired.promptID) == [unrelated.id])
+
+    let pending = try promptStore.enqueue(gamingNotificationDraft(
+        decisionKey: "gaming:pending",
+        privateWindowTitle: privateWindowTitle,
+        privateURL: privateURL,
+        expiresAt: now.addingTimeInterval(7_200)
+    )).episode
+    #expect(try await coordinator.schedule(pending, deliveryDate: now.addingTimeInterval(3_600)))
+    let pendingNotification = try #require(
+        adapter.snapshot().notifications.first { $0.desired.promptID == pending.id }
+    )
+    #expect(pendingNotification.status == .scheduled)
+    #expect(!pendingNotification.id.contains(privateWindowTitle))
+    #expect(!pendingNotification.id.contains(privateURL))
+    #expect(!pendingNotification.desired.title.contains(privateWindowTitle))
+    #expect(!pendingNotification.desired.body.contains(privateURL))
+
+    _ = try promptStore.dismiss(promptID: pending.id)
+    try await coordinator.reconcilePromptNotifications()
+    notifications = try adapter.snapshot().notifications
+    #expect(notifications.map(\.desired.promptID) == [unrelated.id])
+}
+
+@Test
 func emptyDecisionKeyStillReceivesDeterministicPrivateRequestIdentity() {
     let episode = notificationIdentityEpisode(id: "private-episode-id", decisionKey: "", title: "Prompt")
     let first = PromptNotificationCoordinator.requestIdentifier(
@@ -224,6 +312,34 @@ private func notificationIdentityEpisode(id: String, decisionKey: String, title:
         expiresAt: nil,
         presentedAt: nil,
         resolvedAt: nil
+    )
+}
+
+private func gamingNotificationDraft(
+    decisionKey: String,
+    privateWindowTitle: String,
+    privateURL: String,
+    expiresAt: Date
+) -> PromptDraft {
+    PromptDraft(
+        decisionKey: decisionKey,
+        type: PromptNotificationCategory.gamingDrift.rawValue,
+        title: "Gaming drift noticed",
+        summary: "10 observed minutes in Steam. This does not establish your intent.",
+        actions: [
+            .init(kind: .returnToActiveTask, title: "Return to task", role: .primary),
+            .init(kind: .startBreak, title: "Take a break"),
+        ],
+        payload: [
+            "behaviorPromptContractVersion": BehaviorPromptPresentationPolicy.contractVersion,
+            "observedGamingMinutes": "10",
+            "evidenceStartedAtEpoch": "1799999460",
+            "evidenceLatestAtEpoch": "1800000000",
+            "allowsDismissal": "true",
+            "windowTitle": privateWindowTitle,
+            "url": privateURL,
+        ],
+        expiresAt: expiresAt
     )
 }
 
