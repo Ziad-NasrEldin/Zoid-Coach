@@ -892,16 +892,22 @@ public final class DailyReviewStore: @unchecked Sendable {
         )
     }
 
-    private static func hypothesis(for totals: [DailyReviewTotal]) -> String? {
+    static func hypothesis(for totals: [DailyReviewTotal]) -> String? {
         guard !totals.isEmpty else { return nil }
         let work = totals.first { $0.classification == .work }?.minutes ?? 0
         let drift = totals
             .filter { $0.classification == .gaming || $0.classification == .distracting }
             .reduce(0) { $0 + $1.minutes }
-        if drift > work {
+        let limited = totals
+            .filter { $0.classification == .unknown || $0.classification == .idle }
+            .reduce(0) { $0 + $1.minutes }
+        if drift > 0, drift > work, drift > limited {
             return "Observed gaming and distracting time exceeded observed work time. This may indicate that the planned work was difficult to start."
         }
-        return "Observed work time was the largest covered category. This may indicate that today’s plan matched the available capacity."
+        if work > 0, work > drift, work > limited {
+            return "Observed work time was the largest covered category. This may indicate that today’s plan matched the available capacity."
+        }
+        return nil
     }
 
     private enum Binding {
