@@ -15,7 +15,7 @@ fail() {
 }
 
 usage() {
-    print -u2 -- "usage: $0 <prepare|assert-prepared|assert-manual|assert-active|assert-ended|assert-relaunch|cleanup|self-test> [database]"
+    print -u2 -- "usage: $0 <prepare|assert-prepared|assert-manual|assert-active|assert-ended|assert-relaunch|inject-start-stale|assert-start-stale|restore-ready|inject-end-stale|assert-end-stale|restore-active|cleanup|self-test> [database]"
     exit 2
 }
 
@@ -60,6 +60,10 @@ assert_prepared() {
     validate_schema
     assert_scalar "SELECT COUNT(*) FROM settings WHERE key = '$BACKUP_KEY' AND json_valid(value_json) AND json_type(value_json, '$.version') = 'integer';" "1" "policy backup"
     assert_scalar "SELECT json_extract(value_json, '$.schedule.workdayControlMode') FROM settings WHERE key = 'user_policy';" "scheduled" "scheduled baseline"
+    assert_ready_state
+}
+
+assert_ready_state() {
     assert_scalar "SELECT COUNT(*) FROM source_tasks WHERE source_id = '$TASK_ID' AND title = '$TASK_TITLE' AND source_kind = 'local' AND is_completed = 0;" "1" "owned local task"
     assert_scalar "SELECT COUNT(*) FROM daily_plan_entries WHERE day_key = '$DAY_KEY' AND reminder_id = '$TASK_ID' AND rank = 0 AND is_main_objective = 1 AND is_optional = 0;" "1" "owned daily plan row"
     assert_scalar "SELECT COUNT(*) FROM task_execution_states WHERE task_id = '$TASK_ID' AND state = 'ready';" "1" "ready task state"
@@ -85,6 +89,75 @@ assert_ended() {
     assert_scalar "SELECT COUNT(*) FROM task_execution_states WHERE task_id = '$TASK_ID' AND state = 'paused';" "1" "ended task state"
     assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NULL;" "0" "closed task interval"
     assert_scalar "SELECT COUNT(*) FROM task_pause_events WHERE task_id = '$TASK_ID' AND reason = 'endingWorkday' AND resumed_at IS NULL;" "1" "persisted end-workday pause"
+}
+
+inject_start_stale() {
+    assert_manual
+    assert_ready_state
+    local timestamp
+    timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    sqlite3 -batch "$DATABASE" <<SQL
+BEGIN IMMEDIATE;
+UPDATE task_execution_states SET state = 'paused', updated_at = '$timestamp' WHERE task_id = '$TASK_ID';
+INSERT INTO task_pause_events(task_id, reason, paused_at, resumed_at)
+VALUES('$TASK_ID', 'doneForNow', '$timestamp', NULL);
+COMMIT;
+SQL
+    assert_start_stale
+}
+
+assert_start_stale() {
+    assert_manual
+    assert_scalar "SELECT COUNT(*) FROM task_execution_states WHERE task_id = '$TASK_ID' AND state = 'paused';" "1" "stale Start source state"
+    assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NULL;" "0" "stale Start did not open an interval"
+    assert_scalar "SELECT COUNT(*) FROM task_pause_events WHERE task_id = '$TASK_ID' AND reason = 'doneForNow' AND resumed_at IS NULL;" "1" "stale Start pause preserved"
+    assert_scalar "SELECT COUNT(*) FROM task_pause_events WHERE task_id = '$TASK_ID' AND reason = 'endingWorkday';" "0" "stale Start did not end the workday"
+}
+
+restore_ready() {
+    assert_start_stale
+    local timestamp
+    timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    sqlite3 -batch "$DATABASE" "BEGIN IMMEDIATE; DELETE FROM task_pause_events WHERE task_id = '$TASK_ID'; UPDATE task_execution_states SET state = 'ready', updated_at = '$timestamp' WHERE task_id = '$TASK_ID'; COMMIT;"
+    assert_ready_state
+    assert_manual
+}
+
+inject_end_stale() {
+    assert_active
+    local timestamp
+    timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    sqlite3 -batch "$DATABASE" <<SQL
+BEGIN IMMEDIATE;
+UPDATE task_activity_intervals SET ended_at = '$timestamp' WHERE task_id = '$TASK_ID' AND ended_at IS NULL;
+UPDATE task_execution_states SET state = 'paused', updated_at = '$timestamp' WHERE task_id = '$TASK_ID';
+INSERT INTO task_pause_events(task_id, reason, paused_at, resumed_at)
+VALUES('$TASK_ID', 'doneForNow', '$timestamp', NULL);
+COMMIT;
+SQL
+    assert_end_stale
+}
+
+assert_end_stale() {
+    assert_manual
+    assert_scalar "SELECT COUNT(*) FROM task_execution_states WHERE task_id = '$TASK_ID' AND state = 'paused';" "1" "stale End source state"
+    assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NULL;" "0" "stale End kept the interval closed"
+    assert_scalar "SELECT COUNT(*) FROM task_pause_events WHERE task_id = '$TASK_ID' AND reason = 'doneForNow' AND resumed_at IS NULL;" "1" "stale End pause preserved"
+    assert_scalar "SELECT COUNT(*) FROM task_pause_events WHERE task_id = '$TASK_ID' AND reason = 'endingWorkday';" "0" "stale End did not apply an end-workday mutation"
+}
+
+restore_active() {
+    assert_end_stale
+    local timestamp
+    timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    sqlite3 -batch "$DATABASE" <<SQL
+BEGIN IMMEDIATE;
+DELETE FROM task_pause_events WHERE task_id = '$TASK_ID';
+UPDATE task_execution_states SET state = 'active', updated_at = '$timestamp' WHERE task_id = '$TASK_ID';
+INSERT INTO task_activity_intervals(task_id, started_at, ended_at) VALUES('$TASK_ID', '$timestamp', NULL);
+COMMIT;
+SQL
+    assert_active
 }
 
 prepare() {
@@ -145,6 +218,13 @@ COMMIT;
 SQL
     assert_scalar "SELECT COUNT(*) FROM source_tasks WHERE source_id = '$TASK_ID';" "0" "fixture task cleanup"
     assert_scalar "SELECT policy_version FROM settings WHERE key = 'user_policy';" "$original_version" "original policy restoration"
+    assert_scalar "SELECT COUNT(*) FROM settings WHERE key = '$BACKUP_KEY';" "0" "fixture backup cleanup"
+    assert_scalar "SELECT COUNT(*) FROM policy_versions WHERE policy_type = 'user_policy' AND version = $original_version AND is_active = 1;" "1" "original active policy restoration"
+    assert_scalar "SELECT CASE WHEN json((SELECT value_json FROM settings WHERE key = 'user_policy')) = json((SELECT payload_json FROM policy_versions WHERE policy_type = 'user_policy' AND version = $original_version)) THEN 1 ELSE 0 END;" "1" "original policy payload restoration"
+    assert_scalar "SELECT COUNT(*) FROM daily_plan_entries WHERE reminder_id = '$TASK_ID';" "0" "fixture plan cleanup"
+    assert_scalar "SELECT COUNT(*) FROM task_execution_states WHERE task_id = '$TASK_ID';" "0" "fixture execution cleanup"
+    assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID';" "0" "fixture interval cleanup"
+    assert_scalar "SELECT COUNT(*) FROM task_pause_events WHERE task_id = '$TASK_ID';" "0" "fixture pause cleanup"
 }
 
 self_test() {
@@ -169,8 +249,14 @@ SQL
     ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" assert-prepared "$database"
     sqlite3 -batch "$database" "INSERT INTO policy_versions SELECT 'user_policy', 3, json_set(value_json, '$.schedule.workdayControlMode', 'manual'), '$timestamp', 1 FROM settings WHERE key = 'user_policy'; UPDATE policy_versions SET is_active = CASE WHEN version = 3 THEN 1 ELSE 0 END WHERE policy_type = 'user_policy'; UPDATE settings SET value_json = json_set(value_json, '$.schedule.workdayControlMode', 'manual'), policy_version = 3 WHERE key = 'user_policy';"
     ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" assert-manual "$database"
+    ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" inject-start-stale "$database"
+    ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" assert-start-stale "$database"
+    ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" restore-ready "$database"
     sqlite3 -batch "$database" "UPDATE task_execution_states SET state = 'active'; INSERT INTO task_activity_intervals(task_id, started_at, ended_at) VALUES('$TASK_ID', '$timestamp', NULL);"
     ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" assert-active "$database"
+    ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" inject-end-stale "$database"
+    ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" assert-end-stale "$database"
+    ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" restore-active "$database"
     sqlite3 -batch "$database" "UPDATE task_execution_states SET state = 'paused'; UPDATE task_activity_intervals SET ended_at = '2026-07-14T09:00:00Z' WHERE task_id = '$TASK_ID'; INSERT INTO task_pause_events(task_id, reason, paused_at, resumed_at) VALUES('$TASK_ID', 'endingWorkday', '2026-07-14T09:00:00Z', NULL);"
     ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" assert-ended "$database"
     ZOID_666_QA_ZC044004_DAY="$DAY_KEY" "$SCRIPT_PATH" assert-relaunch "$database"
@@ -194,6 +280,12 @@ case "$COMMAND" in
     assert-manual) assert_manual ;;
     assert-active) assert_active ;;
     assert-ended|assert-relaunch) assert_ended ;;
+    inject-start-stale) inject_start_stale ;;
+    assert-start-stale) assert_start_stale ;;
+    restore-ready) restore_ready ;;
+    inject-end-stale) inject_end_stale ;;
+    assert-end-stale) assert_end_stale ;;
+    restore-active) restore_active ;;
     cleanup) cleanup ;;
     *) usage ;;
 esac
