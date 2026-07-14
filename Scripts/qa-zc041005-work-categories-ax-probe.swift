@@ -77,14 +77,32 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
         hasTodayNavigation: true,
         hasReviewsNavigation: true
     )
+    let minimizedMain = WindowTraits(
+        identifier: mainWindowIdentifier,
+        isMinimized: true,
+        isExplicitlyHidden: false,
+        hasTodayNavigation: true,
+        hasReviewsNavigation: true
+    )
+    let hiddenMain = WindowTraits(
+        identifier: mainWindowIdentifier,
+        isMinimized: false,
+        isExplicitlyHidden: true,
+        hasTodayNavigation: true,
+        hasReviewsNavigation: true
+    )
     guard expectedCategories.count == 6,
           expectedCategories.reduce(0, { $0 + $1.minutes }) == 28,
           privateSentinels.contains(where: { "qa-zc041005-private-deep".localizedCaseInsensitiveContains($0) }),
           !privateSentinels.contains(where: { "Deep work, 2 minutes".localizedCaseInsensitiveContains($0) }),
           selectMainWindow(from: [main, auxiliary]) == .selected(0),
           selectMainWindow(from: [auxiliary, contentIdentifiedMain]) == .selected(1),
+          selectMainWindow(from: [main, minimizedMain]) == .selected(0),
           selectMainWindow(from: [main, main]) == .ambiguous,
-          selectMainWindow(from: [auxiliary]) == .missing
+          selectMainWindow(from: [main, contentIdentifiedMain]) == .ambiguous,
+          selectMainWindow(from: [auxiliary]) == .missing,
+          selectMainWindow(from: [minimizedMain]) == .missing,
+          selectMainWindow(from: [hiddenMain]) == .missing
     else {
         fputs("FAIL: ZC-041-005 AX probe self-test\n", stderr)
         exit(1)
@@ -98,9 +116,9 @@ guard arguments.count == 5,
       arguments[1] == "--pid",
       let pid = Int32(arguments[2]),
       arguments[3] == "--phase",
-      ["categories", "empty"].contains(arguments[4])
+      ["categories", "empty", "window"].contains(arguments[4])
 else {
-    fputs("usage: qa-zc041005-work-categories-ax-probe.swift --self-test | --pid <pid> --phase <categories|empty>\n", stderr)
+    fputs("usage: qa-zc041005-work-categories-ax-probe.swift --self-test | --pid <pid> --phase <categories|empty|window>\n", stderr)
     exit(2)
 }
 
@@ -256,6 +274,10 @@ private func assertPrivacy(_ strings: [String]) throws {
 
 do {
     let window = try mainWindow()
+    if phase == "window" {
+        print("PASS: ZC-041-005 exactly one visible main window")
+        exit(0)
+    }
     try navigateToReviews(window: window)
     let ledger = try findIdentifierByScrolling("reviews.work-categories", in: window)
     let snapshot = try subtreeSnapshot(ledger)
