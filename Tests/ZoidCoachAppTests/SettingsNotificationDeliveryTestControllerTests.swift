@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import ZoidCoachApp
+@testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
 
 @MainActor
