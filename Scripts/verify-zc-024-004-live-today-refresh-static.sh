@@ -4,19 +4,23 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BASE="6dfb5886f4ca2d157745f10b5d737988a08d596a"
 
+readonly OWNED_PATHS=(
+    "Sources/ZoidCoachApp/AppModel.swift"
+    "Sources/ZoidCoachApp/ZoidCoachApp.swift"
+    "Sources/ZoidCoachApp/TodayLiveRefreshLoop.swift"
+    "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift"
+    "Scripts/verify-zc-024-004-live-today-refresh-static.sh"
+    "Scripts/qa-zc024004-live-refresh-ax-probe.swift"
+    "Scripts/qa-zc024004-live-refresh-fixture.sh"
+    "docs/ZC-024-004-SIGNED-QA-RUNBOOK.md"
+)
+
 is_owned() {
-    case "$1" in
-        Sources/ZoidCoachApp/AppModel.swift | \
-        Sources/ZoidCoachApp/ZoidCoachApp.swift | \
-        Sources/ZoidCoachApp/TodayLiveRefreshLoop.swift | \
-        Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift | \
-        Scripts/verify-zc-024-004-live-today-refresh-static.sh)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    local owned_path
+    for owned_path in "${OWNED_PATHS[@]}"; do
+        [[ "$1" == "$owned_path" ]] && return 0
+    done
+    return 1
 }
 
 is_forbidden() {
@@ -62,7 +66,23 @@ assert_contains() {
 }
 
 run_self_test() {
-    is_owned "Sources/ZoidCoachApp/AppModel.swift"
+    local expected_path
+    local expected_paths=(
+        "Sources/ZoidCoachApp/AppModel.swift"
+        "Sources/ZoidCoachApp/ZoidCoachApp.swift"
+        "Sources/ZoidCoachApp/TodayLiveRefreshLoop.swift"
+        "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift"
+        "Scripts/verify-zc-024-004-live-today-refresh-static.sh"
+        "Scripts/qa-zc024004-live-refresh-ax-probe.swift"
+        "Scripts/qa-zc024004-live-refresh-fixture.sh"
+        "docs/ZC-024-004-SIGNED-QA-RUNBOOK.md"
+    )
+    [[ "${#OWNED_PATHS[@]}" == "${#expected_paths[@]}" ]]
+    for expected_path in "${expected_paths[@]}"; do
+        is_owned "$expected_path"
+    done
+    ! is_owned "Scripts/qa-zc024004-live-refresh-extra.sh"
+    ! is_owned "docs/ZC-024-004-SIGNED-QA-RUNBOOK-copy.md"
     ! is_owned "Sources/ZoidCoachApp/Views/DashboardView.swift"
     is_forbidden "Sources/ZoidCoachApp/Views/DashboardView.swift"
     ! is_forbidden "Sources/ZoidCoachApp/AppModel.swift"
