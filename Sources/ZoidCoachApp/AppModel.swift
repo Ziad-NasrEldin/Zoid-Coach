@@ -95,6 +95,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var planningCapacityUsesCalendar = false
     @Published private(set) var planningFixedCommitmentMinutes = 0
     @Published private(set) var calendarPlanApproval = CalendarPlanApprovalState()
+    @Published private(set) var isSavingGamingManualAdjustment = false
+    @Published private(set) var gamingManualAdjustmentMessage: String?
+    @Published private(set) var gamingManualAdjustmentError: String?
     @Published var lastCheckAt: Date?
     @Published var isCheckingSources = false
     private let screenwatchReader: ScreenwatchReader
@@ -115,6 +118,8 @@ final class AppModel: ObservableObject {
     private var dailyPlanPersistenceRevision = 0
     private let retryReminderCompletion: @Sendable (String) async throws -> Void
     private let fetchReminderCompletionSync: @Sendable (String) async throws -> ReminderCompletionSyncState
+    private let saveGamingManualAdjustment: @Sendable (GamingManualAdjustmentRequest) async throws -> AgentMutationReceipt
+    private let loadGamingManualAdjustmentMinutes: @Sendable (Date, String) throws -> Int
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
     private var sourceChecksInFlight: Set<SourceID> = []
@@ -135,7 +140,9 @@ final class AppModel: ObservableObject {
         reminderListPolicyLoader: (@Sendable () throws -> ReminderListPolicy)? = nil,
         synchronizeReminderSnapshots: (@Sendable ([AgentReminderSnapshot]) async throws -> Void)? = nil,
         retryReminderCompletion: (@Sendable (String) async throws -> Void)? = nil,
-        fetchReminderCompletionSync: (@Sendable (String) async throws -> ReminderCompletionSyncState)? = nil
+        fetchReminderCompletionSync: (@Sendable (String) async throws -> ReminderCompletionSyncState)? = nil,
+        saveGamingManualAdjustment: (@Sendable (GamingManualAdjustmentRequest) async throws -> AgentMutationReceipt)? = nil,
+        loadGamingManualAdjustmentMinutes: (@Sendable (Date, String) throws -> Int)? = nil
     ) {
         let resolvedAgentLaunchService = agentLaunchService
             ?? AgentLaunchService(runtimeEnvironment: runtimeEnvironment)
@@ -153,6 +160,21 @@ final class AppModel: ObservableObject {
         }
         self.fetchReminderCompletionSync = fetchReminderCompletionSync ?? { taskID in
             try await resolvedTodayDashboardXPCClient.fetchReminderCompletionSync(taskID: taskID)
+        }
+        self.saveGamingManualAdjustment = saveGamingManualAdjustment ?? { request in
+            try await resolvedTodayDashboardXPCClient.apply(
+                .recordGamingManualAdjustment(request)
+            )
+        }
+        let gamingAdjustmentDatabaseURL = runtimeEnvironment.databaseURL
+        self.loadGamingManualAdjustmentMinutes = loadGamingManualAdjustmentMinutes ?? { day, timeZoneIdentifier in
+            try GamingManualAdjustmentStore(
+                databaseURL: gamingAdjustmentDatabaseURL,
+                readOnly: true
+            ).netMinutes(
+                for: day,
+                timeZoneIdentifier: timeZoneIdentifier
+            )
         }
         if let screenwatchReader {
             self.screenwatchReader = screenwatchReader
@@ -220,7 +242,7 @@ final class AppModel: ObservableObject {
             updateSource(resolvedAgentLaunchService.reconcileAtLaunchAndInspect())
             let reconciledTaskSnapshots = await resolvedTodayDashboardXPCClient.reconcilePendingTaskMutations()
             if let latest = reconciledTaskSnapshots.last {
-                todaySnapshot = latest
+                installTodaySnapshot(latest)
             }
             let reconciledCalendarReceipts = await resolvedTodayDashboardXPCClient.reconcilePendingCalendarPlans()
             if let receipt = reconciledCalendarReceipts.last {
@@ -367,10 +389,68 @@ final class AppModel: ObservableObject {
 
     func refreshTodaySnapshot() async {
         do {
-            todaySnapshot = try await todayDashboardXPCClient.fetchTodaySnapshot()
+            installTodaySnapshot(try await todayDashboardXPCClient.fetchTodaySnapshot())
         } catch {
-            todaySnapshot = try? todaySnapshotStore?.load()
+            installTodaySnapshot(try? todaySnapshotStore?.load())
         }
+    }
+
+    func recordGamingManualAdjustment(minutes: Int, note: String?) {
+        guard !isSavingGamingManualAdjustment,
+              let snapshot = todaySnapshot,
+              snapshot.gaming.budgetEnabled else { return }
+        isSavingGamingManualAdjustment = true
+        gamingManualAdjustmentMessage = nil
+        gamingManualAdjustmentError = nil
+        let request = GamingManualAdjustmentRequest(
+            requestID: "gaming-adjustment-v1:\(UUID().uuidString.lowercased())",
+            day: snapshot.localDate,
+            timeZoneIdentifier: snapshot.timeZoneIdentifier,
+            minutes: minutes,
+            note: note
+        )
+        Task {
+            defer { isSavingGamingManualAdjustment = false }
+            do {
+                let receipt = try await saveGamingManualAdjustment(request)
+                guard receipt.accepted else {
+                    gamingManualAdjustmentError = receipt.message
+                    return
+                }
+                await refreshTodaySnapshot()
+                gamingManualAdjustmentMessage = receipt.message
+            } catch {
+                gamingManualAdjustmentError = error.localizedDescription
+                installTodaySnapshot(try? todaySnapshotStore?.load())
+            }
+        }
+    }
+
+    private func installTodaySnapshot(_ snapshot: TodaySnapshot?) {
+        guard let snapshot else {
+            todaySnapshot = nil
+            return
+        }
+        let manualMinutes = (try? loadGamingManualAdjustmentMinutes(
+            snapshot.localDate,
+            snapshot.timeZoneIdentifier
+        )) ?? 0
+        todaySnapshot = TodaySnapshot(
+            localDate: snapshot.localDate,
+            timeZoneIdentifier: snapshot.timeZoneIdentifier,
+            mainObjective: snapshot.mainObjective,
+            taskRows: snapshot.taskRows,
+            activeTask: snapshot.activeTask,
+            activeTaskContext: snapshot.activeTaskContext,
+            recommendation: snapshot.recommendation,
+            behavior: snapshot.behavior,
+            coverage: snapshot.coverage,
+            gaming: snapshot.gaming.applyingManualAdjustment(manualMinutes),
+            sourceFreshnessExplanation: snapshot.sourceFreshnessExplanation,
+            unplannedReminders: snapshot.unplannedReminders ?? [],
+            sources: snapshot.sources ?? [],
+            planningStatus: snapshot.planningStatus
+        )
     }
 
     func refreshMenuBarPromptFallback() async {
@@ -385,7 +465,7 @@ final class AppModel: ObservableObject {
         Task {
             defer { pendingTaskCommandIDs.remove(taskID) }
             do {
-                todaySnapshot = try await todayDashboardXPCClient.apply(command, taskID: taskID)
+                installTodaySnapshot(try await todayDashboardXPCClient.apply(command, taskID: taskID))
                 await reconcileAcceptedBreakReminder(taskID: taskID)
                 lastActionMessage = Self.taskCommandConfirmation(command, taskID: taskID)
                 if command == .complete {
@@ -394,7 +474,7 @@ final class AppModel: ObservableObject {
                 }
             } catch {
                 taskCommandError = "The task change could not be saved. The last confirmed state is still shown. Try again after checking Agent source health."
-                todaySnapshot = try? todaySnapshotStore?.load()
+                installTodaySnapshot(try? todaySnapshotStore?.load())
             }
         }
     }
@@ -426,7 +506,7 @@ final class AppModel: ObservableObject {
                 }
                 recommendationFeedbackMessage = receipt.message
                 do {
-                    todaySnapshot = try await todayDashboardXPCClient.fetchTodaySnapshot()
+                    installTodaySnapshot(try await todayDashboardXPCClient.fetchTodaySnapshot())
                 } catch {
                     recommendationFeedbackError = "Feedback was saved, but the next recommendation could not be refreshed. Refresh Today to see the current choice."
                 }
@@ -463,11 +543,11 @@ final class AppModel: ObservableObject {
         Task {
             defer { pendingTaskCommandIDs.remove(taskID) }
             do {
-                todaySnapshot = try await todayDashboardXPCClient.startSprint(taskID: taskID, durationMinutes: durationMinutes)
+                installTodaySnapshot(try await todayDashboardXPCClient.startSprint(taskID: taskID, durationMinutes: durationMinutes))
                 lastActionMessage = "\(durationMinutes)-minute sprint started."
             } catch {
                 taskCommandError = error.localizedDescription
-                todaySnapshot = try? todaySnapshotStore?.load()
+                installTodaySnapshot(try? todaySnapshotStore?.load())
             }
         }
     }
@@ -677,12 +757,12 @@ final class AppModel: ObservableObject {
         Task {
             defer { pendingTaskCommandIDs.remove(task.id) }
             do {
-                todaySnapshot = try await todayDashboardXPCClient.startUnplannedTask(task.id)
+                installTodaySnapshot(try await todayDashboardXPCClient.startUnplannedTask(task.id))
                 lastActionMessage = "Unplanned work started. Zoid 666 will track this task without claiming that it violates a plan."
                 await refreshPromptInbox()
             } catch {
                 taskCommandError = error.localizedDescription
-                todaySnapshot = try? todaySnapshotStore?.load()
+                installTodaySnapshot(try? todaySnapshotStore?.load())
             }
         }
     }
@@ -691,7 +771,7 @@ final class AppModel: ObservableObject {
         guard pendingTaskCommandIDs.isEmpty else { return }
         Task {
             do {
-                todaySnapshot = try await todayDashboardXPCClient.skipPlanning()
+                installTodaySnapshot(try await todayDashboardXPCClient.skipPlanning())
                 lastActionMessage = "Planning is skipped for now. You can still start any available task or return to planning later."
                 await refreshPromptInbox()
             } catch {
@@ -1025,7 +1105,7 @@ final class AppModel: ObservableObject {
                 taskID: taskID,
                 reason: normalizedReason
             )
-            todaySnapshot = refreshedSnapshot
+            installTodaySnapshot(refreshedSnapshot)
             await reloadDailyPlan()
             if blockedWasMainObjective,
                let replacement = refreshedSnapshot.mainObjective,
@@ -1038,7 +1118,7 @@ final class AppModel: ObservableObject {
         } catch {
             taskCommandError = "The blocker was not saved. The last confirmed task and plan state are still shown."
             await reloadDailyPlan()
-            todaySnapshot = try? todaySnapshotStore?.load()
+            installTodaySnapshot(try? todaySnapshotStore?.load())
             return false
         }
     }

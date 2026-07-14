@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 47
+    public static let currentVersion = 48
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1221,6 +1221,19 @@ private extension AutonomousDatabaseMigrator {
             );
             CREATE INDEX IF NOT EXISTS review_hypothesis_promotions_source
             ON review_hypothesis_promotions(source_day, promoted_at_utc DESC);
+            """)
+        ]),
+        Migration(version: 48, isDestructive: false, operations: [
+            .sql("""
+            CREATE TABLE IF NOT EXISTS gaming_manual_adjustments (
+                request_id TEXT PRIMARY KEY,
+                local_day TEXT NOT NULL CHECK(length(local_day) = 10),
+                minutes INTEGER NOT NULL CHECK(minutes != 0 AND abs(minutes) <= 240),
+                note TEXT CHECK(note IS NULL OR length(note) <= 160),
+                recorded_at_utc TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS gaming_manual_adjustments_day
+            ON gaming_manual_adjustments(local_day, recorded_at_utc, request_id);
             """)
         ])
     ]
