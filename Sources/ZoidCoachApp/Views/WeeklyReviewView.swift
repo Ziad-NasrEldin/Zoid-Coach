@@ -341,6 +341,10 @@ private struct WeeklyPatternCard: View {
     let pattern: WeeklyReviewPattern
     @State private var showsEvidence = false
 
+    private var presentation: WeeklyReviewPatternPresentation {
+        WeeklyReviewPatternPresentation(pattern: pattern)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
@@ -348,12 +352,16 @@ private struct WeeklyPatternCard: View {
                     .font(Sumi.label())
                     .sumiLabelTracking()
                 Spacer()
-                Text("\(pattern.confidencePercent)% CONFIDENCE")
+                Text(presentation.confidenceLabel)
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(Sumi.muted)
             }
-            Text(pattern.conclusion).font(Sumi.body(14))
-            Text("\(pattern.sampleCount) SAMPLES · \(pattern.dateRange.startDay) TO \(pattern.dateRange.endDay)")
+            Text("HYPOTHESIS")
+                .font(Sumi.label(10))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+            Text(presentation.hypothesis).font(Sumi.body(14))
+            Text("\(presentation.sampleLabel) · \(pattern.dateRange.startDay) TO \(pattern.dateRange.endDay)")
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(Sumi.muted)
             Button(showsEvidence ? "HIDE EVIDENCE" : "SHOW EVIDENCE") {
@@ -363,10 +371,17 @@ private struct WeeklyPatternCard: View {
             .accessibilityIdentifier("reviews.weekly.pattern.\(pattern.id).evidence")
 
             if showsEvidence {
-                ForEach(pattern.examples, id: \.self) { example in
+                Text(presentation.evidenceHeading)
+                    .font(Sumi.label(10))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+                ForEach(presentation.evidenceLines, id: \.self) { example in
                     Text("• \(example)").font(Sumi.body(12)).foregroundStyle(Sumi.muted)
                 }
-                Text("ALTERNATIVE · \(pattern.alternativeExplanation)")
+                Text("ALTERNATIVE EXPLANATION · \(presentation.alternativeExplanation)")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                Text(presentation.causalityCaveat)
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.muted)
             }
@@ -375,6 +390,7 @@ private struct WeeklyPatternCard: View {
         .background(Sumi.paper)
         .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
         .accessibilityElement(children: .contain)
+        .accessibilityLabel(presentation.accessibilitySummary)
         .accessibilityIdentifier("reviews.weekly.pattern.\(pattern.id)")
     }
 }
