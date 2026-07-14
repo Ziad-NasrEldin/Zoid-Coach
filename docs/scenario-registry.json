@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "becf57cb15cb8efca66e89be07663f409447b5cf7665d26cacba59419208c4ab",
+  "tracker_sha256": "6e84f274d763170316ff9dc1710ea7f00d2d575284a6ded039580bb176e56bd3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12940,8 +12940,8 @@
       "item_index": 3,
       "wording": "Read localized text without clipped controls.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12951,7 +12951,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "There are no localization resources or translated strings to test.",
+      "audit_note": "The signed Arabic first-launch Welcome screen now renders its full card, progress rail, header, status, Continue action, Exit help, and accessibility labels in logical right-to-left layout, advertises both English and Arabic in the signed bundle, returns to the exact English left-to-right shell on step 2, and preserves that boundary across app and helper restart. The installed 519-point layout, keyboard Return, generic Arabic error, unsupported-locale fallback, and localization of the remaining product surfaces still require acceptance (`OnboardingWelcomeCopy.swift`; `OnboardingRootView.swift`; `App/Info.plist`; `.audit/runs/arabic-welcome/verifier/signed-runtime.md`).",
       "tracker_line": 790
     },
     {
