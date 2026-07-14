@@ -12,7 +12,7 @@ No evidence is written inside the repository before package cleanliness verifica
 
 Run the full journey from one shell rooted at the candidate repository.
 
-```sh
+```zsh
 set -euo pipefail
 
 EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_COMMIT"
@@ -31,6 +31,7 @@ test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor db0a5305604bfb372da20fb95c8f05d22c4660b8 "$EXPECTED_SIGNED_COMMIT"
 "$FIXTURE" self-test
 swift "$PROBE" --self-test
+Scripts/qa-zc013001-runbook-self-test.sh
 mkdir -p "$EVIDENCE"
 
 ZOID_COACH_QA_RUN_ROOT="$QA_ROOT" \
@@ -45,12 +46,15 @@ The evidence directory is external to the repository, so installer logs cannot i
 
 Resolve the exact packaged identities and establish the supported ready state.
 
-```sh
+```zsh
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/Info.plist")"
 APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
-AGENT_PLIST=("$APP"/Contents/Library/LaunchAgents/*.plist)
-test "${#AGENT_PLIST[@]}" = 1
-AGENT_LABEL="$(plutil -extract Label raw -o - "${AGENT_PLIST[0]}")"
+# BEGIN RUNBOOK SELF-TEST: launch-agent-array
+AGENT_PLISTS=("$APP"/Contents/Library/LaunchAgents/*.plist(N))
+test "${#AGENT_PLISTS[@]}" = 1
+AGENT_PLIST="${AGENT_PLISTS[1]}"
+# END RUNBOOK SELF-TEST: launch-agent-array
+AGENT_LABEL="$(plutil -extract Label raw -o - "$AGENT_PLIST")"
 
 "$APP_EXECUTABLE" --qa-unregister-agent || true
 pkill -x "$APP_EXECUTABLE_NAME" || true
@@ -71,7 +75,7 @@ Every acceptance relaunch below is an ordinary LaunchServices open.
 
 Stop the helper and app before fixture ownership begins.
 
-```sh
+```zsh
 "$APP_EXECUTABLE" --qa-unregister-agent
 pkill -x "$APP_EXECUTABLE_NAME" || true
 ! launchctl print "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1
@@ -86,7 +90,7 @@ This keeps month-first and day-first localizations exact without accepting a par
 Use this helper in the same shell for every state.
 It binds the exact installed executable, rejects presentation-only launch arguments, proves that the app opened the isolated database, and runs the accessibility and privacy assertions.
 
-```sh
+```zsh
 stop_exact_app() {
   local candidate
   for candidate in $(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true); do
@@ -134,7 +138,7 @@ verify_state() {
 
 Verify the no-snapshot header first while the helper is still unregistered.
 
-```sh
+```zsh
 verify_state preparing "PREPARING TODAY" 2>&1 | tee "$EVIDENCE/preparing.log"
 ```
 
@@ -143,7 +147,7 @@ It also proves that the fallback says the data is preparing instead of inventing
 
 Verify the full persisted planning lifecycle.
 
-```sh
+```zsh
 verify_state invitation "PLAN NEEDED" 2>&1 | tee "$EVIDENCE/invitation.log"
 verify_state snoozed "PLANNING SNOOZED" 2>&1 | tee "$EVIDENCE/snoozed.log"
 verify_state dismissed "PLANNING DISMISSED" 2>&1 | tee "$EVIDENCE/dismissed.log"
@@ -163,7 +167,7 @@ Each probe rejects the private title and URL sentinels stored in the snapshot pa
 
 Keep the planned snapshot unchanged and relaunch twice.
 
-```sh
+```zsh
 stop_exact_app
 "$FIXTURE" set planned --database "$DATABASE" --backup "$BACKUP"
 open "$APP"
@@ -202,7 +206,7 @@ Both opens are ordinary and use the same unchanged persisted snapshot.
 
 Stop the exact installed app, restore the original snapshot, verify cleanup, and uninstall the isolated runtime.
 
-```sh
+```zsh
 stop_exact_app
 "$FIXTURE" cleanup --database "$DATABASE" --backup "$BACKUP" 2>&1 | tee "$EVIDENCE/cleanup.log"
 test ! -e "$BACKUP"
