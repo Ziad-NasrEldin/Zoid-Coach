@@ -386,6 +386,7 @@ struct TodayDashboardCommandOverview: View {
                 TodayPlanTaskRow(
                     row: row,
                     entry: planEntry(for: row),
+                    gaming: snapshot.gaming,
                     planCount: model.dailyPlan.count,
                     isMainObjective: isMainObjective(row),
                     isRecommended: row.taskID == recommendedRow?.taskID,
@@ -1149,10 +1150,43 @@ private struct UsagePanelIconButton: View {
     }
 }
 
+struct TodayPlanGamingUnlockControlState: Equatable, Sendable {
+    private let presentation: GamingUnlockConditionPresentation
+    let isMainObjective: Bool
+
+    init(gaming: GamingStatus, isMainObjective: Bool) {
+        presentation = GamingUnlockConditionPresentation(gaming: gaming)
+        self.isMainObjective = isMainObjective
+    }
+
+    var conditionLabel: String? {
+        presentation.conditionLabel(isMainObjective: isMainObjective)
+    }
+
+    var makeMainTitle: String {
+        presentation.isConfigurable ? presentation.makeMainTitle(isMainObjective: false) : "MAKE MAIN"
+    }
+
+    var requiresConfirmation: Bool {
+        presentation.isConfigurable && !isMainObjective
+    }
+
+    var accessibilityHint: String {
+        requiresConfirmation
+            ? "Moves both today's main objective and the one-time gaming reward condition to this task."
+            : "Makes this task today's main objective."
+    }
+
+    func confirmationMessage(taskTitle: String) -> String {
+        presentation.confirmationMessage(taskTitle: taskTitle)
+    }
+}
+
 private struct TodayPlanTaskRow: View {
     @SumiReduceMotion private var reduceMotion
     let row: TodayTaskRow
     let entry: DailyPlanEntry?
+    let gaming: GamingStatus
     let planCount: Int
     let isMainObjective: Bool
     let isRecommended: Bool
@@ -1168,6 +1202,7 @@ private struct TodayPlanTaskRow: View {
     let remove: () -> Void
     @State private var isBlockReasonPresented = false
     @State private var blockReason = ""
+    @State private var isGamingUnlockConfirmationPresented = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -1215,6 +1250,12 @@ private struct TodayPlanTaskRow: View {
                             .foregroundStyle(Sumi.muted)
                             .accessibilityIdentifier("today.plan.\(row.taskID).optional-state")
                     }
+                    if let conditionLabel = gamingUnlock.conditionLabel {
+                        Text(conditionLabel)
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.sealDeep)
+                            .accessibilityIdentifier("today.plan.\(row.taskID).gaming-unlock-condition")
+                    }
                     TodayEstimateStrip(
                         selectedMinutes: entry.estimateMinutes,
                         isUnknown: entry.estimateIsUncertain,
@@ -1242,9 +1283,16 @@ private struct TodayPlanTaskRow: View {
                             .disabled(entry.rank >= planCount)
                             .accessibilityIdentifier("today.plan.\(row.taskID).move-down")
                         if !isMainObjective {
-                            Button("MAKE MAIN", action: makeMain)
+                            Button(gamingUnlock.makeMainTitle) {
+                                if gamingUnlock.requiresConfirmation {
+                                    isGamingUnlockConfirmationPresented = true
+                                } else {
+                                    makeMain()
+                                }
+                            }
                                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-                                .accessibilityLabel("Make \(row.title) the main objective")
+                                .accessibilityHint(gamingUnlock.accessibilityHint)
+                                .accessibilityIdentifier("today.plan.\(row.taskID).make-main")
                         }
                         Button("REMOVE", action: remove)
                             .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
@@ -1280,6 +1328,16 @@ private struct TodayPlanTaskRow: View {
                 isBlockReasonPresented = false
             }
         }
+        .alert("Move main objective and gaming unlock?", isPresented: $isGamingUnlockConfirmationPresented) {
+            Button("Cancel", role: .cancel) {}
+            Button("Move unlock condition", action: makeMain)
+        } message: {
+            Text(gamingUnlock.confirmationMessage(taskTitle: row.title))
+        }
+    }
+
+    private var gamingUnlock: TodayPlanGamingUnlockControlState {
+        TodayPlanGamingUnlockControlState(gaming: gaming, isMainObjective: isMainObjective)
     }
 
     private var estimateSummary: String {
