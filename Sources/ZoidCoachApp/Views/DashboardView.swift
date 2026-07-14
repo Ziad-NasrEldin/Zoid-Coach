@@ -229,6 +229,10 @@ private struct TodayCommandView: View {
             .frame(height: 60)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
 
+            if TodayPromptInboxLedgerPresentation.placement(for: model.promptInboxTimeline) == .beforeTaskDetail {
+                TodayPromptInboxLedger()
+            }
+
             if let activeTask = activeWorkdayTask {
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -317,7 +321,9 @@ private struct TodayCommandView: View {
                     .accessibilityLabel("Task action failed. \(taskError)")
             }
 
-            TodayPromptInboxLedger()
+            if TodayPromptInboxLedgerPresentation.placement(for: model.promptInboxTimeline) == .afterTaskDetail {
+                TodayPromptInboxLedger()
+            }
             MeetingCandidateLedger(editingCandidate: $editingCandidate)
             ReminderCompletionSyncLedger()
             ReminderRescheduleSyncLedger()
