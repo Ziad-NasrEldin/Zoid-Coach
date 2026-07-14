@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "204685da4cd0effe5d041cae44cd1cd563f2b69482d1aeac19d4dfa56eec4ebd",
+  "tracker_sha256": "00b14b4a7f39e8e968abbaa7e5d91a812dcabad0d4f6859b18eef7dc75f68b04",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -15049,8 +15049,8 @@
       "item_index": 8,
       "wording": "Require any future blocking to be explicitly enabled, reversible, time-bounded, and protected by an escape hatch.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "deferred_guardrail",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -15061,7 +15061,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "General policy, approval, undo, and pause patterns exist, but no blocking-specific contract or UI can yet prove these safeguards.",
+      "audit_note": "The signed Background Agent surface now states `HARD BLOCKING OFF`, explains that this release does not block applications or websites, presents Explicit enablement, Reversible, Time-bounded, and Escape hatch in stable order at standard and narrow widths, exposes no activation control or focus trap, preserves the existing lifecycle actions, causes zero policy or history mutations, and restores identically after app and helper relaunch (`Sources/ZoidCoachApp/BlockingSafetyDisclosure.swift`; `Sources/ZoidCoachApp/Views/AgentLifecycleView.swift`; `Tests/ZoidCoachAppTests/BlockingSafetyDisclosureTests.swift`; `.audit/runs/hard-blocking-safety/verifier/REPORT.md`). This is a visible and mechanically tested release guardrail rather than a blocking engine, so enforcement before activation, during a future active block, and through a real emergency escape remains unproven.",
       "tracker_line": 911
     }
   ]
