@@ -124,6 +124,7 @@ struct DailyReviewKeyboardFlowState: Equatable {
 }
 
 enum DailyReviewKeyboardShortcut: CaseIterable, Hashable {
+    case openReviews
     case previousSession
     case nextSession
     case chooseWork
@@ -146,6 +147,8 @@ enum DailyReviewKeyboardShortcut: CaseIterable, Hashable {
 
     var descriptor: DailyReviewKeyboardShortcutDescriptor {
         switch self {
+        case .openReviews:
+            .init(key: .character("r"), modifiers: [.command, .option])
         case .previousSession:
             .init(key: .character("["), modifiers: [.command, .shift])
         case .nextSession:
@@ -165,6 +168,12 @@ enum DailyReviewKeyboardShortcut: CaseIterable, Hashable {
         case .confirmReview:
             .init(key: .returnKey, modifiers: [.command, .shift])
         }
+    }
+}
+
+extension AppSection {
+    var dailyReviewKeyboardShortcut: DailyReviewKeyboardShortcut? {
+        self == .reviews ? .openReviews : nil
     }
 }
 
