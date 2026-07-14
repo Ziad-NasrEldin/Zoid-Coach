@@ -108,6 +108,39 @@ ordinary_launch_command_is_valid() {
 }
 # END RUNBOOK SELF-TEST: ordinary-launch-command
 
+# BEGIN RUNBOOK SELF-TEST: database-readiness
+process_is_alive() {
+  kill -0 "$1" 2>/dev/null
+}
+
+open_zoid_databases() {
+  lsof -Fn -a -p "$1" 2>/dev/null \
+    | sed -n 's/^n//p' \
+    | grep -E '/zoid-coach\.sqlite$' \
+    | sort -u \
+    || true
+}
+
+wait_for_exact_database() {
+  local pid="$1"
+  local expected_database="$2"
+  local attempts="${3:-40}"
+  local delay_seconds="${4:-0.2}"
+  local open_databases
+
+  for (( attempt = 1; attempt <= attempts; attempt += 1 )); do
+    process_is_alive "$pid" || return 1
+    open_databases="$(open_zoid_databases "$pid")"
+    if [[ "$open_databases" == "$expected_database" ]]; then
+      return 0
+    fi
+    [[ -z "$open_databases" ]] || return 1
+    sleep "$delay_seconds"
+  done
+  return 1
+}
+# END RUNBOOK SELF-TEST: database-readiness
+
 verify_state() {
   local fixture_state="$1"
   local expected_state="$2"
@@ -129,7 +162,7 @@ verify_state() {
   test -n "$pid"
   command_line="$(ps -p "$pid" -o command=)"
   ordinary_launch_command_is_valid "$command_line"
-  lsof -Fn -a -p "$pid" "$DATABASE" 2>/dev/null | grep -Fqx "n$DATABASE"
+  wait_for_exact_database "$pid" "$DATABASE"
   swift "$PROBE" \
     --pid "$pid" \
     --app-bundle "$APP" \
@@ -192,6 +225,7 @@ for relaunch in first second; do
   done
   test -n "$pid"
   ordinary_launch_command_is_valid "$(ps -p "$pid" -o command=)"
+  wait_for_exact_database "$pid" "$DATABASE"
   swift "$PROBE" \
     --pid "$pid" \
     --app-bundle "$APP" \
