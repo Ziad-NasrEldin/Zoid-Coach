@@ -9,7 +9,8 @@ struct WeeklyReviewPatternPresentation: Equatable, Sendable {
     let evidenceLines: [String]
     let alternativeExplanation: String
     let causalityCaveat: String
-    let accessibilitySummary: String
+    let collapsedAccessibilitySummary: String
+    let expandedAccessibilitySummary: String
     let hasSufficientEvidence: Bool
 
     init(pattern: WeeklyReviewPattern) {
@@ -44,12 +45,21 @@ struct WeeklyReviewPatternPresentation: Equatable, Sendable {
         self.alternativeExplanation = pattern.alternativeExplanation
         self.causalityCaveat = causalityCaveat
         self.hasSufficientEvidence = hasSufficientEvidence
-        accessibilitySummary = [
+        collapsedAccessibilitySummary = [
+            "Hypothesis: \(pattern.conclusion)",
+            "\(sampleLabel). \(confidenceLabel).",
+            causalityCaveat,
+        ].joined(separator: " ")
+        expandedAccessibilitySummary = [
             "Hypothesis: \(pattern.conclusion)",
             "\(sampleLabel). \(confidenceLabel).",
             "\(accessibleEvidenceHeading): \(visibleEvidence.joined(separator: "; "))",
             "Alternative explanation: \(pattern.alternativeExplanation)",
             causalityCaveat,
         ].joined(separator: " ")
+    }
+
+    func accessibilitySummary(showsEvidence: Bool) -> String {
+        showsEvidence ? expandedAccessibilitySummary : collapsedAccessibilitySummary
     }
 }

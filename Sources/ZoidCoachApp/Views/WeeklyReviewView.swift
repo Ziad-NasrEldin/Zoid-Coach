@@ -337,7 +337,7 @@ struct WeeklyReviewView: View {
     }
 }
 
-private struct WeeklyPatternCard: View {
+struct WeeklyPatternCard: View {
     let pattern: WeeklyReviewPattern
     @State private var showsEvidence = false
 
@@ -360,7 +360,9 @@ private struct WeeklyPatternCard: View {
                 .font(Sumi.label(10))
                 .sumiLabelTracking()
                 .foregroundStyle(Sumi.muted)
-            Text(presentation.hypothesis).font(Sumi.body(14))
+            Text(presentation.hypothesis)
+                .font(Sumi.body(14))
+                .fixedSize(horizontal: false, vertical: true)
             Text("\(presentation.sampleLabel) · \(pattern.dateRange.startDay) TO \(pattern.dateRange.endDay)")
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(Sumi.muted)
@@ -376,21 +378,26 @@ private struct WeeklyPatternCard: View {
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
                 ForEach(presentation.evidenceLines, id: \.self) { example in
-                    Text("• \(example)").font(Sumi.body(12)).foregroundStyle(Sumi.muted)
+                    Text("• \(example)")
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Text("ALTERNATIVE EXPLANATION · \(presentation.alternativeExplanation)")
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(presentation.causalityCaveat)
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(16)
         .background(Sumi.paper)
         .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(presentation.accessibilitySummary)
+        .accessibilityLabel(presentation.accessibilitySummary(showsEvidence: showsEvidence))
         .accessibilityIdentifier("reviews.weekly.pattern.\(pattern.id)")
     }
 }
