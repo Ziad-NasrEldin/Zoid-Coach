@@ -15,12 +15,24 @@ private func boundedPageIndexes(maximumPages: Int) -> ClosedRange<Int> {
     0...maximumPages
 }
 
+private func readinessIdentifier(for phase: String) -> String? {
+    switch phase {
+    case "ready-visible": "menu-bar.task.start"
+    case "active-visible": "menu-bar.task.end-workday"
+    case "ended": "menu-bar.manual-workday.status"
+    default: nil
+    }
+}
+
 if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
     let forbidden = ["private-token", "/private/tmp/qa-root"]
     guard containsForbidden("PRIVATE-TOKEN", forbiddenStrings: forbidden),
           containsForbidden("database: /private/tmp/qa-root/zoid.sqlite", forbiddenStrings: forbidden),
           !containsForbidden("Manual workday is active", forbiddenStrings: forbidden),
-          Array(boundedPageIndexes(maximumPages: 12)) == Array(0...12)
+          Array(boundedPageIndexes(maximumPages: 12)) == Array(0...12),
+          readinessIdentifier(for: "ready-visible") == "menu-bar.task.start",
+          readinessIdentifier(for: "active-visible") == "menu-bar.task.end-workday",
+          readinessIdentifier(for: "stale-start") == nil
     else {
         fputs("FAIL: AX privacy sentinel matcher self-test\n", stderr)
         exit(1)
@@ -37,7 +49,7 @@ private struct Options {
 }
 
 private func usage() -> Never {
-    fputs("usage: qa-zc044004-manual-workday-ax-probe.swift --self-test | --pid <pid> --phase <settings-select-manual|settings-persisted|ready-start|stale-start|active-end|stale-end|ended> [--expected-task-title <title>] [--forbid <private-string>]...\n", stderr)
+    fputs("usage: qa-zc044004-manual-workday-ax-probe.swift --self-test | --pid <pid> --phase <settings-select-manual|settings-persisted|ready-visible|ready-start|stale-start|active-visible|active-end|stale-end|ended> [--expected-task-title <title>] [--forbid <private-string>]...\n", stderr)
     exit(2)
 }
 
@@ -161,6 +173,43 @@ private func findOnce(in root: AXUIElement, matching: (AXUIElement) -> Bool) -> 
         queue.append(contentsOf: children(element))
     }
     return nil
+}
+
+private func applicationContainsIdentifier(_ expected: String) -> Bool {
+    guard let windows = try? applicationWindows() else { return false }
+    return windows.contains { window in
+        findOnce(in: window, matching: { identifier($0) == expected }) != nil
+    }
+}
+
+private func waitForApplicationIdentifier(_ expected: String, present: Bool) -> Bool {
+    let deadline = Date().addingTimeInterval(8)
+    repeat {
+        if applicationContainsIdentifier(expected) == present { return true }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    } while Date() < deadline
+    return false
+}
+
+private func reopenMenuBarPopover(expectedIdentifier: String) throws {
+    guard let extrasValue = attribute(application, kAXExtrasMenuBarAttribute as CFString),
+          CFGetTypeID(extrasValue) == AXUIElementGetTypeID()
+    else { throw ProbeError.failure("menu-bar status item is unavailable") }
+    let extras = unsafeBitCast(extrasValue, to: AXUIElement.self)
+    guard let statusItem = findOnce(in: extras, matching: {
+        identifier($0) == "menu-bar.status-item"
+    }) else { throw ProbeError.failure("menu-bar status item is missing") }
+
+    if applicationContainsIdentifier("menu-bar.open-today") {
+        try press(statusItem, name: "close menu-bar popover")
+        guard waitForApplicationIdentifier("menu-bar.open-today", present: false) else {
+            throw ProbeError.failure("menu-bar popover did not close before state reload")
+        }
+    }
+    try press(statusItem, name: "open menu-bar popover")
+    guard waitForApplicationIdentifier(expectedIdentifier, present: true) else {
+        throw ProbeError.failure("menu-bar popover did not expose readiness target: \(expectedIdentifier)")
+    }
 }
 
 private func existingSettingsWindow() throws -> AXUIElement? {
@@ -341,6 +390,17 @@ do {
         _ = try find("All changes saved") { labels($0).contains("All changes saved") }
     case "settings-persisted":
         try requireManualSettings()
+    case "ready-visible":
+        try reopenMenuBarPopover(expectedIdentifier: "menu-bar.task.start")
+        _ = try findIdentifier("menu-bar.manual-workday.status")
+        if let title = options.expectedTaskTitle {
+            try requireLabelContaining(title, on: try findIdentifier("menu-bar.task.summary"), name: "ready task summary")
+        }
+        let start = try findIdentifier("menu-bar.task.start")
+        try requireLabel("Start workday with recommended task", on: start)
+        guard !targetExists("menu-bar.task.end-workday") else {
+            throw ProbeError.failure("End Workday must be omitted while the task is ready")
+        }
     case "ready-start":
         _ = try findIdentifier("menu-bar.manual-workday.status")
         if let title = options.expectedTaskTitle {
@@ -360,6 +420,14 @@ do {
         guard !targetExists("menu-bar.task.start") else {
             throw ProbeError.failure("stale Start remained available after the fresh state was loaded")
         }
+    case "active-visible":
+        try reopenMenuBarPopover(expectedIdentifier: "menu-bar.task.end-workday")
+        _ = try findIdentifier("menu-bar.manual-workday.status")
+        guard !targetExists("menu-bar.task.start") else {
+            throw ProbeError.failure("Start Workday must be omitted while active")
+        }
+        let end = try findIdentifier("menu-bar.task.end-workday")
+        try requireLabel("End the workday", on: end)
     case "active-end":
         _ = try findIdentifier("menu-bar.manual-workday.status")
         guard !targetExists("menu-bar.task.start") else {
@@ -385,6 +453,7 @@ do {
             throw ProbeError.failure("stale End remained available after the fresh state was loaded")
         }
     case "ended":
+        try reopenMenuBarPopover(expectedIdentifier: "menu-bar.manual-workday.status")
         let status = try findIdentifier("menu-bar.manual-workday.status")
         try requireLabelContaining("ended", on: status, name: "manual workday status")
         guard !targetExists("menu-bar.task.start"), !targetExists("menu-bar.task.end-workday") else {

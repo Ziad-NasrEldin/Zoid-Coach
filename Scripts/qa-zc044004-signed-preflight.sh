@@ -44,6 +44,19 @@ assert_runbook_launch_order() {
         || fail "runbook must launch and bind the foreground QA app before registering the helper"
 }
 
+assert_runbook_shell_blocks_fail_fast() {
+    local runbook="$REPOSITORY/docs/ZC-044-004-SIGNED-QA-RUNBOOK.md"
+    awk '
+        /^```sh$/ { checking = 1; next }
+        checking && /^[[:space:]]*$/ { next }
+        checking {
+            if ($0 != "set -euo pipefail") { exit 1 }
+            checking = 0
+        }
+        END { if (checking) { exit 1 } }
+    ' "$runbook" || fail "every runbook shell block must abort on errors, unset variables, and pipeline failures"
+}
+
 if [[ "$APP" == "--self-test" ]]; then
     is_full_lowercase_sha "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a" \
         || fail "valid SHA was rejected without extendedglob"
@@ -57,6 +70,7 @@ if [[ "$APP" == "--self-test" ]]; then
     launch_order_is_valid 20 30 || fail "valid foreground-before-helper order was rejected"
     ! launch_order_is_valid 30 20 || fail "helper-before-foreground order was accepted"
     assert_runbook_launch_order
+    assert_runbook_shell_blocks_fail_fast
     print -- "PASS: ZC-044-004 signed preflight validation self-test"
     exit 0
 fi
