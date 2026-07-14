@@ -5,6 +5,7 @@ public struct DailyReviewSession: Identifiable, Equatable, Sendable {
     public let start: Date
     public let end: Date
     public let application: String
+    public let applications: [String]
     public let classification: BehaviorClassification
     public let taskID: String?
     public let observationCount: Int
@@ -14,6 +15,7 @@ public struct DailyReviewSession: Identifiable, Equatable, Sendable {
         start: Date,
         end: Date,
         application: String,
+        applications: [String]? = nil,
         classification: BehaviorClassification,
         taskID: String? = nil,
         observationCount: Int
@@ -22,6 +24,7 @@ public struct DailyReviewSession: Identifiable, Equatable, Sendable {
         self.start = start
         self.end = max(start, end)
         self.application = application
+        self.applications = applications ?? [application]
         self.classification = classification
         self.taskID = taskID
         self.observationCount = max(1, observationCount)
@@ -30,6 +33,96 @@ public struct DailyReviewSession: Identifiable, Equatable, Sendable {
     public var id: String { "\(sourceDay):\(Int(start.timeIntervalSince1970))" }
     public var durationMinutes: Int {
         max(1, Int((end.timeIntervalSince(start) / 60).rounded(.up)))
+    }
+}
+
+public struct DailyReviewSessionMerge: Equatable, Sendable {
+    public let sourceDay: String
+    public let leftSessionStart: Date
+    public let rightSessionStart: Date
+
+    public init(sourceDay: String, leftSessionStart: Date, rightSessionStart: Date) {
+        self.sourceDay = sourceDay
+        self.leftSessionStart = leftSessionStart
+        self.rightSessionStart = rightSessionStart
+    }
+}
+
+public enum DailyReviewSessionMerger {
+    public static func canMerge(
+        _ left: DailyReviewSession,
+        with right: DailyReviewSession,
+        maximumGap: TimeInterval = 5 * 60
+    ) -> Bool {
+        left.sourceDay == right.sourceDay
+            && left.start < right.start
+            && right.start.timeIntervalSince(left.end) <= maximumGap
+    }
+
+    public static func applying(
+        _ merges: [DailyReviewSessionMerge],
+        to sessions: [DailyReviewSession],
+        maximumGap: TimeInterval = 5 * 60
+    ) -> [DailyReviewSession] {
+        let ordered = sessions.sorted(by: sessionOrder)
+        guard ordered.count > 1, !merges.isEmpty else { return ordered }
+        let starts = ordered.indices.reduce(into: [Int64: Int]()) { result, index in
+            let epoch = Int64(ordered[index].start.timeIntervalSince1970)
+            if result[epoch] == nil { result[epoch] = index }
+        }
+        var joinedBoundaries = Array(repeating: false, count: ordered.count - 1)
+
+        for merge in merges {
+            guard let leftIndex = starts[Int64(merge.leftSessionStart.timeIntervalSince1970)],
+                  let rightIndex = starts[Int64(merge.rightSessionStart.timeIntervalSince1970)],
+                  leftIndex < rightIndex,
+                  ordered[leftIndex].sourceDay == merge.sourceDay,
+                  ordered[rightIndex].sourceDay == merge.sourceDay
+            else { continue }
+            let range = leftIndex...rightIndex
+            guard range.dropFirst().allSatisfy({ index in
+                canMerge(ordered[index - 1], with: ordered[index], maximumGap: maximumGap)
+            }) else { continue }
+            for boundary in leftIndex..<rightIndex {
+                joinedBoundaries[boundary] = true
+            }
+        }
+
+        var result: [DailyReviewSession] = []
+        var index = ordered.startIndex
+        while index < ordered.endIndex {
+            var groupEnd = index
+            while groupEnd < joinedBoundaries.endIndex, joinedBoundaries[groupEnd] {
+                groupEnd += 1
+            }
+            result.append(combined(Array(ordered[index...groupEnd])))
+            index = groupEnd + 1
+        }
+        return result
+    }
+
+    private static func combined(_ sessions: [DailyReviewSession]) -> DailyReviewSession {
+        guard let first = sessions.first, let last = sessions.last else {
+            preconditionFailure("A merged session group cannot be empty.")
+        }
+        let applications = sessions.flatMap(\.applications).reduce(into: [String]()) { result, application in
+            if !result.contains(application) { result.append(application) }
+        }
+        return DailyReviewSession(
+            sourceDay: first.sourceDay,
+            start: first.start,
+            end: last.end,
+            application: applications.joined(separator: " + "),
+            applications: applications,
+            classification: first.classification,
+            taskID: first.taskID,
+            observationCount: sessions.reduce(0) { $0 + $1.observationCount }
+        )
+    }
+
+    private static func sessionOrder(_ lhs: DailyReviewSession, _ rhs: DailyReviewSession) -> Bool {
+        if lhs.start != rhs.start { return lhs.start < rhs.start }
+        return lhs.id < rhs.id
     }
 }
 

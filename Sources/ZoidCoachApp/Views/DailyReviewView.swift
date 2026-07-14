@@ -12,6 +12,7 @@ protocol DailyReviewServicing: AnyObject {
         from splitDate: Date?,
         applyToFuture: Bool
     ) throws
+    func merge(_ left: DailyReviewSession, with right: DailyReviewSession) throws
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws
     func savePersonalNote(_ note: String?, sourceDay: String) throws
     func confirm(sourceDay: String) throws
@@ -174,6 +175,17 @@ final class DailyReviewController: ObservableObject {
         }
     }
 
+    func merge(_ left: DailyReviewSession, with right: DailyReviewSession) {
+        do {
+            try service.merge(left, with: right)
+            try refreshSnapshotAndResumeState()
+            errorMessage = nil
+            successMessage = "The adjacent sessions were merged into one activity. The original observations remain unchanged."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func classificationRule(for application: String) -> AppClassificationCorrectionRule? {
         let normalized = BehaviorPolicy.normalize(application)
         return classificationRules.first { $0.normalizedApplication == normalized }
@@ -324,6 +336,7 @@ private final class UnavailableDailyReviewService: DailyReviewServicing {
     func load(sourceDay: String) throws -> DailyReviewSnapshot { throw error }
     func mostRecentUnfinishedReview() throws -> UnfinishedDailyReview? { throw error }
     func correct(_ session: DailyReviewSession, to classification: BehaviorClassification, taskID: String?, from splitDate: Date?, applyToFuture: Bool) throws { throw error }
+    func merge(_ left: DailyReviewSession, with right: DailyReviewSession) throws { throw error }
     func setHypothesisState(_ state: DailyReviewHypothesisState, sourceDay: String) throws { throw error }
     func savePersonalNote(_ note: String?, sourceDay: String) throws { throw error }
     func confirm(sourceDay: String) throws { throw error }
@@ -752,10 +765,19 @@ struct DailyReviewView: View {
     }
 
     private func sessionRow(_ session: DailyReviewSession) -> some View {
-        DailyReviewSessionRow(
+        let nextSession = controller.snapshot.flatMap { snapshot -> DailyReviewSession? in
+            guard let index = snapshot.sessions.firstIndex(of: session),
+                  snapshot.sessions.indices.contains(index + 1)
+            else { return nil }
+            let candidate = snapshot.sessions[index + 1]
+            return DailyReviewSessionMerger.canMerge(session, with: candidate) ? candidate : nil
+        }
+        return DailyReviewSessionRow(
             session: session,
+            nextSession: nextSession,
             activeRule: controller.classificationRule(for: session.application),
-            removeRule: controller.removeClassificationRule
+            removeRule: controller.removeClassificationRule,
+            merge: { nextSession in controller.merge(session, with: nextSession) }
         ) { classification, taskID, split, applyToFuture in
             controller.correct(
                 session: session,
@@ -1525,8 +1547,10 @@ private struct CompletedTaskHistorySection: View {
 
 private struct DailyReviewSessionRow: View {
     let session: DailyReviewSession
+    let nextSession: DailyReviewSession?
     let activeRule: AppClassificationCorrectionRule?
     let removeRule: (AppClassificationCorrectionRule) -> Void
+    let merge: (DailyReviewSession) -> Void
     let apply: (BehaviorClassification, String?, Bool, Bool) -> Void
 
     @State private var classification: BehaviorClassification
@@ -1534,16 +1558,21 @@ private struct DailyReviewSessionRow: View {
     @State private var splitAtMidpoint = false
     @State private var applyToFuture = false
     @State private var ruleToRemove: AppClassificationCorrectionRule?
+    @State private var mergeRequested = false
 
     init(
         session: DailyReviewSession,
+        nextSession: DailyReviewSession?,
         activeRule: AppClassificationCorrectionRule?,
         removeRule: @escaping (AppClassificationCorrectionRule) -> Void,
+        merge: @escaping (DailyReviewSession) -> Void,
         apply: @escaping (BehaviorClassification, String?, Bool, Bool) -> Void
     ) {
         self.session = session
+        self.nextSession = nextSession
         self.activeRule = activeRule
         self.removeRule = removeRule
+        self.merge = merge
         self.apply = apply
         _classification = State(initialValue: session.classification)
         _taskID = State(initialValue: session.taskID ?? "")
@@ -1620,9 +1649,28 @@ private struct DailyReviewSessionRow: View {
                     .foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("reviews.session.\(session.id).future-rule.preview")
             } else if !supportsFutureRule {
-                Text("Idle and Unknown are observation states, so they cannot become a lasting app rule.")
+                Text(futureRuleUnavailableExplanation)
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
+            }
+            if let nextSession {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("SAME ACTIVITY?")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                    Text("Merge with the next \(nextSession.application) session at \(nextSession.start.formatted(date: .omitted, time: .shortened)). The combined activity will use this session's classification and task without deleting either observation.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("MERGE WITH NEXT") { mergeRequested = true }
+                        .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                        .accessibilityIdentifier("reviews.session.\(session.id).merge-next")
+                }
+                .padding(10)
+                .background(Sumi.softPaper)
+                .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("reviews.session.\(session.id).merge-candidate")
             }
             Button(session.classification == .unknown ? "APPLY CLASSIFICATION" : "APPLY CORRECTION") {
                 apply(classification, taskID.isEmpty ? nil : taskID, splitAtMidpoint, applyToFuture)
@@ -1660,10 +1708,31 @@ private struct DailyReviewSessionRow: View {
         } message: {
             Text("Future observations will return to the normal Settings policy. This review's historical correction will remain.")
         }
+        .confirmationDialog(
+            "Merge these adjacent sessions?",
+            isPresented: $mergeRequested,
+            titleVisibility: .visible
+        ) {
+            if let nextSession {
+                Button("Merge into one activity") { merge(nextSession) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let nextSession {
+                Text("\(session.application) and \(nextSession.application) will appear as one \(session.classification.rawValue) activity. The next session will use this session's task attachment. Raw Screenwatch observations stay unchanged, and the merge can be reviewed after restart.")
+            }
+        }
     }
 
     private var supportsFutureRule: Bool {
-        [.work, .gaming, .distracting].contains(classification)
+        session.applications.count == 1 && [.work, .gaming, .distracting].contains(classification)
+    }
+
+    private var futureRuleUnavailableExplanation: String {
+        if session.applications.count > 1 {
+            return "Merged history can be corrected as one activity, but it cannot create a future rule for multiple applications."
+        }
+        return "Idle and Unknown are observation states, so they cannot become a lasting app rule."
     }
 
     private var futureRulePreview: String {

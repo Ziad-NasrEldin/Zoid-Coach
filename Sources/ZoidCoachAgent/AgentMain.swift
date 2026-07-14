@@ -149,6 +149,9 @@ struct ZoidCoachAgentMain {
                 databaseURL: configuration.databaseURL,
                 promptStore: promptStore
             )
+            let gamingManualAdjustments = try GamingManualAdjustmentStore(
+                databaseURL: configuration.databaseURL
+            )
             let coachingTaskExecutionStore = try TaskExecutionStore(
                 databaseURL: configuration.databaseURL
             )
@@ -336,6 +339,7 @@ struct ZoidCoachAgentMain {
                 recommendationFeedback: try RecommendationFeedbackStore(
                     databaseURL: configuration.databaseURL
                 ),
+                gamingManualAdjustments: gamingManualAdjustments,
                 draftPlan: { day, overwriteExisting in
                     let policy = try policyStore.current()?.policy ?? UserPolicy.defaults()
                     let behavior = try archive.recentBehaviorEvidence(since: Date().addingTimeInterval(-7 * 24 * 60 * 60))
@@ -668,10 +672,15 @@ struct ZoidCoachAgentMain {
                         await acceptedBreakReminders.reconcile(taskRows: dashboardSnapshot.taskRows, now: now)
                     }
                     if let snapshot = dashboardSnapshot,
+                       let adjustedGamingStatus = try? gamingManualAdjustments.gamingStatus(
+                           applyingAdjustmentsFor: snapshot.localDate,
+                           timeZoneIdentifier: snapshot.timeZoneIdentifier,
+                           to: snapshot.gaming
+                       ),
                        let baselineStatus = try? baselineObservationStore.status(),
                        let promptResult = try? gamingDriftPrompts.produce(
                            policy: policy,
-                           gamingStatus: snapshot.gaming,
+                           gamingStatus: adjustedGamingStatus,
                            baselineStatus: baselineStatus
                        ), case let .queued(episode, wasInserted) = promptResult, wasInserted {
                         _ = try? await notificationCoordinator.schedule(episode)
@@ -911,10 +920,15 @@ struct ZoidCoachAgentMain {
                     await acceptedBreakReminders.reconcile(taskRows: dashboardSnapshot.taskRows, now: baselineNow)
                 }
                 if let snapshot = dashboardSnapshot,
+                   let adjustedGamingStatus = try? gamingManualAdjustments.gamingStatus(
+                       applyingAdjustmentsFor: snapshot.localDate,
+                       timeZoneIdentifier: snapshot.timeZoneIdentifier,
+                       to: snapshot.gaming
+                   ),
                    let baselineStatus = try? baselineObservationStore.status(),
                    let promptResult = try? gamingDriftPrompts.produce(
                        policy: initialPolicy,
-                       gamingStatus: snapshot.gaming,
+                       gamingStatus: adjustedGamingStatus,
                        baselineStatus: baselineStatus
                    ), case let .queued(episode, wasInserted) = promptResult, wasInserted {
                     _ = try? await notificationCoordinator.schedule(episode)
