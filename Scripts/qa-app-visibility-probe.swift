@@ -1,26 +1,101 @@
 import ApplicationServices
+import Darwin
 import Foundation
 
-enum VisibilityProbeError: Error, CustomStringConvertible {
+enum VisibilityProbeError: Error, CustomStringConvertible, Equatable {
     case usage
     case foregroundDidNotRemainVisible
     case backgroundBecameHidden
-    case backgroundWindowRemainedVisible
+    case backgroundWindowPersisted
+    case backgroundWindowReappeared
     case statusItemUnavailable
+    case processExited
+    case accessibilityUnavailable
 
     var description: String {
         switch self {
         case .usage:
-            "usage: qa-app-visibility-probe.swift <pid> <foreground-visible|background-windowless-menu-ready> <timeout-seconds>"
+            "usage: qa-app-visibility-probe.swift <pid> <foreground-visible|background-windowless-menu-ready> <timeout-seconds> | --self-test"
         case .foregroundDidNotRemainVisible:
             "RED: foreground launch did not remain visible for the complete observation window"
         case .backgroundBecameHidden:
             "RED: --background-schedule hid the application and made its status item unusable"
-        case .backgroundWindowRemainedVisible:
-            "RED: --background-schedule left a normal application window visible"
+        case .backgroundWindowPersisted:
+            "RED: --background-schedule retained a normal application window for the complete observation window"
+        case .backgroundWindowReappeared:
+            "RED: --background-schedule showed a normal application window after becoming stably windowless"
         case .statusItemUnavailable:
             "RED: --background-schedule did not retain a stable status item"
+        case .processExited:
+            "RED: target application process exited during visibility verification"
+        case .accessibilityUnavailable:
+            "RED: target application window accessibility state was unavailable"
         }
+    }
+
+    var exitCode: Int32 {
+        switch self {
+        case .usage: 2
+        case .foregroundDidNotRemainVisible: 10
+        case .backgroundBecameHidden: 11
+        case .backgroundWindowPersisted: 12
+        case .backgroundWindowReappeared: 13
+        case .statusItemUnavailable: 14
+        case .processExited: 15
+        case .accessibilityUnavailable: 16
+        }
+    }
+}
+
+enum WindowSample: Equatable {
+    case availableEmpty
+    case availableNonempty
+    case unavailable
+}
+
+struct BackgroundVisibilityState {
+    static let stableWindowlessInterval: TimeInterval = 0.5
+
+    private(set) var sawWindow = false
+    private(set) var becameStablyWindowless = false
+    private(set) var retainedStatusItem = false
+    private var emptyStartedAt: TimeInterval?
+
+    mutating func observe(
+        windows: WindowSample,
+        hasStatusItem: Bool,
+        elapsed: TimeInterval
+    ) -> VisibilityProbeError? {
+        switch windows {
+        case .unavailable:
+            return .accessibilityUnavailable
+        case .availableNonempty:
+            if becameStablyWindowless {
+                return .backgroundWindowReappeared
+            }
+            sawWindow = true
+            emptyStartedAt = nil
+        case .availableEmpty:
+            if becameStablyWindowless, !hasStatusItem {
+                return .statusItemUnavailable
+            }
+            retainedStatusItem = retainedStatusItem || hasStatusItem
+            if emptyStartedAt == nil {
+                emptyStartedAt = elapsed
+            }
+            if let emptyStartedAt,
+               elapsed - emptyStartedAt >= Self.stableWindowlessInterval,
+               retainedStatusItem {
+                becameStablyWindowless = true
+            }
+        }
+        return nil
+    }
+
+    func finalError() -> VisibilityProbeError? {
+        if becameStablyWindowless { return nil }
+        if sawWindow { return .backgroundWindowPersisted }
+        return .statusItemUnavailable
     }
 }
 
@@ -38,11 +113,18 @@ func isHidden(_ application: AXUIElement) -> Bool {
     (value(application, kAXHiddenAttribute as CFString) as? Bool) ?? false
 }
 
-func hasWindow(_ application: AXUIElement) -> Bool {
-    guard let windows = value(application, kAXWindowsAttribute as CFString) as? [AXUIElement] else {
-        return false
+func windowSample(_ application: AXUIElement) -> WindowSample {
+    var result: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(
+        application,
+        kAXWindowsAttribute as CFString,
+        &result
+    ) == .success,
+          let windows = result as? [AXUIElement]
+    else {
+        return .unavailable
     }
-    return !windows.isEmpty
+    return windows.isEmpty ? .availableEmpty : .availableNonempty
 }
 
 func hasStatusItem(_ application: AXUIElement) -> Bool {
@@ -54,6 +136,11 @@ func hasStatusItem(_ application: AXUIElement) -> Bool {
     return children.contains { element in
         (value(element, kAXRoleAttribute as CFString) as? String) == (kAXMenuBarItemRole as String)
     }
+}
+
+func processIsAlive(_ pid: Int32) -> Bool {
+    if kill(pid, 0) == 0 { return true }
+    return errno == EPERM
 }
 
 func attributeDescription(_ element: AXUIElement, _ attribute: CFString) -> String {
@@ -96,14 +183,97 @@ func privacySafeWindowDiagnostics(_ application: AXUIElement, expectedPID: Int32
     return lines.joined(separator: "\n")
 }
 
+func require(_ condition: @autoclosure () -> Bool, _ label: String) {
+    guard condition() else {
+        fputs("SELF-TEST FAIL: \(label)\n", stderr)
+        exit(20)
+    }
+}
+
+func runSelfTests() {
+    var initiallyWindowless = BackgroundVisibilityState()
+    require(initiallyWindowless.observe(
+        windows: .availableEmpty,
+        hasStatusItem: true,
+        elapsed: 0
+    ) == nil, "initial empty sample")
+    require(initiallyWindowless.observe(
+        windows: .availableEmpty,
+        hasStatusItem: true,
+        elapsed: 0.5
+    ) == nil, "stable empty sample")
+    require(initiallyWindowless.finalError() == nil, "initially windowless pass")
+
+    var oldTransition = BackgroundVisibilityState()
+    require(oldTransition.observe(
+        windows: .availableNonempty,
+        hasStatusItem: false,
+        elapsed: 0
+    ) == nil, "old initial window")
+    require(oldTransition.observe(
+        windows: .availableEmpty,
+        hasStatusItem: true,
+        elapsed: 0.1
+    ) == nil, "old first empty")
+    require(oldTransition.observe(
+        windows: .availableEmpty,
+        hasStatusItem: true,
+        elapsed: 0.6
+    ) == nil, "old stable empty")
+    require(oldTransition.finalError() == nil, "old window-to-windowless compatibility")
+
+    var persistent = BackgroundVisibilityState()
+    _ = persistent.observe(windows: .availableNonempty, hasStatusItem: true, elapsed: 0)
+    require(persistent.finalError() == .backgroundWindowPersisted, "persistent window error")
+
+    var reappearing = BackgroundVisibilityState()
+    _ = reappearing.observe(windows: .availableEmpty, hasStatusItem: true, elapsed: 0)
+    _ = reappearing.observe(windows: .availableEmpty, hasStatusItem: true, elapsed: 0.5)
+    require(reappearing.observe(
+        windows: .availableNonempty,
+        hasStatusItem: true,
+        elapsed: 0.6
+    ) == .backgroundWindowReappeared, "reappearing window error")
+
+    var unavailable = BackgroundVisibilityState()
+    require(unavailable.observe(
+        windows: .unavailable,
+        hasStatusItem: false,
+        elapsed: 0
+    ) == .accessibilityUnavailable, "accessibility unavailable error")
+
+    var missingStatus = BackgroundVisibilityState()
+    _ = missingStatus.observe(windows: .availableEmpty, hasStatusItem: false, elapsed: 0)
+    _ = missingStatus.observe(windows: .availableEmpty, hasStatusItem: false, elapsed: 1)
+    require(missingStatus.finalError() == .statusItemUnavailable, "missing status item error")
+
+    var lostStatus = BackgroundVisibilityState()
+    _ = lostStatus.observe(windows: .availableEmpty, hasStatusItem: true, elapsed: 0)
+    _ = lostStatus.observe(windows: .availableEmpty, hasStatusItem: true, elapsed: 0.5)
+    require(lostStatus.observe(
+        windows: .availableEmpty,
+        hasStatusItem: false,
+        elapsed: 0.6
+    ) == .statusItemUnavailable, "lost status item error")
+
+    require(VisibilityProbeError.processExited.exitCode != VisibilityProbeError.accessibilityUnavailable.exitCode,
+            "process and accessibility exit codes differ")
+    print("PASS: visibility probe state-machine self-tests")
+}
+
 var diagnosticApplication: AXUIElement?
 var diagnosticPID: Int32?
 
 do {
+    if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
+        runSelfTests()
+        exit(0)
+    }
+
     guard CommandLine.arguments.count == 4,
           let pid = Int32(CommandLine.arguments[1]),
           let timeout = TimeInterval(CommandLine.arguments[3]),
-          timeout > 0 else {
+          timeout >= BackgroundVisibilityState.stableWindowlessInterval else {
         throw VisibilityProbeError.usage
     }
 
@@ -111,13 +281,17 @@ do {
     let application = AXUIElementCreateApplication(pid)
     diagnosticApplication = application
     diagnosticPID = pid
-    let deadline = Date().addingTimeInterval(timeout)
+    let startedAt = Date()
+    let deadline = startedAt.addingTimeInterval(timeout)
 
     switch expectation {
     case "foreground-visible":
         var becameVisible = false
         repeat {
-            let visible = !isHidden(application) && hasWindow(application)
+            guard processIsAlive(pid) else { throw VisibilityProbeError.processExited }
+            let windows = windowSample(application)
+            guard windows != .unavailable else { throw VisibilityProbeError.accessibilityUnavailable }
+            let visible = !isHidden(application) && windows == .availableNonempty
             if visible {
                 becameVisible = true
             } else if becameVisible {
@@ -128,37 +302,33 @@ do {
         guard becameVisible else { throw VisibilityProbeError.foregroundDidNotRemainVisible }
         print("GREEN: foreground launch remained visible for \(timeout) seconds")
     case "background-windowless-menu-ready":
-        var showedInitialWindow = false
-        var becameWindowless = false
-        var retainedStatusItem = false
+        var state = BackgroundVisibilityState()
         repeat {
-            if isHidden(application) {
-                throw VisibilityProbeError.backgroundBecameHidden
-            }
-            if hasWindow(application) {
-                showedInitialWindow = true
-                if becameWindowless {
-                    throw VisibilityProbeError.backgroundWindowRemainedVisible
-                }
-            } else if showedInitialWindow {
-                becameWindowless = true
-                retainedStatusItem = retainedStatusItem || hasStatusItem(application)
-            }
+            guard processIsAlive(pid) else { throw VisibilityProbeError.processExited }
+            if isHidden(application) { throw VisibilityProbeError.backgroundBecameHidden }
+            let failure = state.observe(
+                windows: windowSample(application),
+                hasStatusItem: hasStatusItem(application),
+                elapsed: Date().timeIntervalSince(startedAt)
+            )
+            if let failure { throw failure }
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < deadline
-        guard becameWindowless else { throw VisibilityProbeError.backgroundWindowRemainedVisible }
-        guard retainedStatusItem else { throw VisibilityProbeError.statusItemUnavailable }
-        print("GREEN: --background-schedule stayed unhidden with no normal window and a stable status item")
+        if let failure = state.finalError() { throw failure }
+        print("GREEN: --background-schedule stayed unhidden, stably windowless, and menu ready")
     default:
         throw VisibilityProbeError.usage
     }
-} catch {
+} catch let error as VisibilityProbeError {
     fputs("\(error)\n", stderr)
-    if let visibilityError = error as? VisibilityProbeError,
-       case .usage = visibilityError {
-        // Usage failures do not have a target process to diagnose.
-    } else if let application = diagnosticApplication, let pid = diagnosticPID {
+    if error != .usage, let application = diagnosticApplication, let pid = diagnosticPID {
         fputs("\(privacySafeWindowDiagnostics(application, expectedPID: pid))\n", stderr)
     }
-    exit(error is VisibilityProbeError ? 1 : 2)
+    exit(error.exitCode)
+} catch {
+    fputs("\(error)\n", stderr)
+    if let application = diagnosticApplication, let pid = diagnosticPID {
+        fputs("\(privacySafeWindowDiagnostics(application, expectedPID: pid))\n", stderr)
+    }
+    exit(3)
 }
