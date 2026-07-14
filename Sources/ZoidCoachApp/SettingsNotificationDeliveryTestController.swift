@@ -5,6 +5,8 @@ import ZoidCoachInfrastructure
 
 @MainActor
 final class SettingsNotificationDeliveryTestController: ObservableObject {
+    static let liveQAMarkerRelativePath = "QA Control/live-system-notification-test.enabled"
+
     enum Phase: Equatable {
         case idle
         case running
@@ -46,8 +48,11 @@ final class SettingsNotificationDeliveryTestController: ObservableObject {
 
     private static func runLiveTest() async -> OnboardingDeliveryResult {
         let runtimeEnvironment = RuntimeEnvironment.current()
+        let useLiveSystemCenter = shouldUseLiveSystemCenter(
+            runtimeEnvironment: runtimeEnvironment
+        )
         let fixtureAdapter: DeterministicOSFixtureAdapters?
-        if case .qa = runtimeEnvironment.mode {
+        if case .qa = runtimeEnvironment.mode, !useLiveSystemCenter {
             fixtureAdapter = try? QAFixtureOSComposition.makeAuthorizedAdapter(
                 runtimeEnvironment: runtimeEnvironment
             )
@@ -56,7 +61,23 @@ final class SettingsNotificationDeliveryTestController: ObservableObject {
         }
         return await OnboardingDeliveryTestService(
             runtimeEnvironment: runtimeEnvironment,
-            fixtureAdapter: fixtureAdapter
+            fixtureAdapter: fixtureAdapter,
+            useLiveSystemCenterInPackagedQA: useLiveSystemCenter
         ).run()
+    }
+
+    static func shouldUseLiveSystemCenter(
+        runtimeEnvironment: RuntimeEnvironment,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        guard case let .qa(runRoot) = runtimeEnvironment.mode,
+              runtimeEnvironment.packageMode == .qa,
+              runtimeEnvironment.identity == .qa else {
+            return false
+        }
+        let marker = runRoot.appendingPathComponent(liveQAMarkerRelativePath)
+        var isDirectory: ObjCBool = false
+        return fileManager.fileExists(atPath: marker.path, isDirectory: &isDirectory)
+            && !isDirectory.boolValue
     }
 }
