@@ -286,15 +286,16 @@ func manualGamingAdjustmentRoundTripsThroughAgentMutationBoundary() async throws
     let databaseURL = temporaryGamingAdjustmentDatabaseURL()
     defer { removeGamingAdjustmentDatabase(at: databaseURL) }
     let adjustments = try GamingManualAdjustmentStore(databaseURL: databaseURL)
-    let router = try makeGamingAdjustmentRouter(
-        databaseURL: databaseURL,
-        adjustments: adjustments
-    )
     let request = GamingManualAdjustmentRequest(
         requestID: "gaming-adjustment-v1:router",
         day: Date(timeIntervalSince1970: 1_752_489_600),
         minutes: 30,
         note: "Manual grant"
+    )
+    let router = try makeGamingAdjustmentRouter(
+        databaseURL: databaseURL,
+        adjustments: adjustments,
+        now: request.day
     )
     let command = AgentMutationCommand.recordGamingManualAdjustment(request)
 
@@ -307,6 +308,43 @@ func manualGamingAdjustmentRoundTripsThroughAgentMutationBoundary() async throws
     #expect(replay.accepted)
     #expect(replay.message == "This gaming-time adjustment was already saved.")
     #expect(try adjustments.netMinutes(for: request.day) == 30)
+}
+
+@Test
+func agentMutationBoundaryRejectsStaleGamingDayAndTimeZoneBeforeLedgerInsert() async throws {
+    let databaseURL = temporaryGamingAdjustmentDatabaseURL()
+    defer { removeGamingAdjustmentDatabase(at: databaseURL) }
+    let adjustments = try GamingManualAdjustmentStore(databaseURL: databaseURL)
+    let now = Date(timeIntervalSince1970: 1_783_663_200)
+    let router = try makeGamingAdjustmentRouter(
+        databaseURL: databaseURL,
+        adjustments: adjustments,
+        now: now
+    )
+    let currentTimeZone = TimeZone.current.identifier
+    let staleDay = GamingManualAdjustmentRequest(
+        requestID: "gaming-adjustment-v1:stale-day-boundary",
+        day: now.addingTimeInterval(-24 * 60 * 60),
+        timeZoneIdentifier: currentTimeZone,
+        minutes: 15,
+        note: nil
+    )
+    let changedTimeZone = GamingManualAdjustmentRequest(
+        requestID: "gaming-adjustment-v1:stale-zone-boundary",
+        day: now,
+        timeZoneIdentifier: currentTimeZone == "UTC" ? "Africa/Cairo" : "UTC",
+        minutes: 15,
+        note: nil
+    )
+
+    let staleDayReceipt = try await router.apply(.recordGamingManualAdjustment(staleDay))
+    let changedTimeZoneReceipt = try await router.apply(.recordGamingManualAdjustment(changedTimeZone))
+
+    #expect(!staleDayReceipt.accepted)
+    #expect(!changedTimeZoneReceipt.accepted)
+    #expect(staleDayReceipt.message == "Today or its time zone changed. Review the refreshed allowance before saving this adjustment.")
+    #expect(changedTimeZoneReceipt.message == staleDayReceipt.message)
+    #expect(try adjustments.netMinutes(for: now, timeZoneIdentifier: currentTimeZone) == 0)
 }
 
 @MainActor
@@ -363,7 +401,15 @@ func todayAdjustmentActionSavesThroughAgentBoundaryAndRefreshesVisibleAllowance(
     await model.refreshTodaySnapshot()
     #expect(model.todaySnapshot?.gaming.manualAdjustmentMinutes == 0)
 
-    model.recordGamingManualAdjustment(minutes: 20, note: "Weekend exception")
+    model.recordGamingManualAdjustment(
+        minutes: 20,
+        note: "Weekend exception",
+        presentation: GamingManualAdjustmentPresentation(
+            localDate: day,
+            timeZoneIdentifier: "UTC",
+            currentManualMinutes: 0
+        )
+    )
     while model.isSavingGamingManualAdjustment {
         await Task.yield()
     }
@@ -377,7 +423,15 @@ func todayAdjustmentActionSavesThroughAgentBoundaryAndRefreshesVisibleAllowance(
     #expect(model.gamingManualAdjustmentError == nil)
     #expect(try adjustments.adjustments(for: day, timeZoneIdentifier: "UTC").map(\.note) == ["Weekend exception"])
 
-    model.recordGamingManualAdjustment(minutes: -5, note: "Leaving early")
+    model.recordGamingManualAdjustment(
+        minutes: -5,
+        note: "Leaving early",
+        presentation: GamingManualAdjustmentPresentation(
+            localDate: day,
+            timeZoneIdentifier: "UTC",
+            currentManualMinutes: 20
+        )
+    )
     while model.isSavingGamingManualAdjustment {
         await Task.yield()
     }
@@ -448,7 +502,15 @@ func todayAdjustmentDisablesMutationWhenAuthoritativeLedgerCannotBeRead() async 
     await model.refreshTodaySnapshot()
     #expect(model.gamingManualAdjustments.isEmpty)
     #expect(model.gamingManualAdjustmentLedgerError == "Manual allowance history is unavailable. Refresh Today after checking Agent source health.")
-    model.recordGamingManualAdjustment(minutes: 15, note: nil)
+    model.recordGamingManualAdjustment(
+        minutes: 15,
+        note: nil,
+        presentation: GamingManualAdjustmentPresentation(
+            localDate: day,
+            timeZoneIdentifier: "UTC",
+            currentManualMinutes: 0
+        )
+    )
     #expect(!model.isSavingGamingManualAdjustment)
     #expect(model.gamingManualAdjustmentMessage == nil)
 }
@@ -475,17 +537,20 @@ func todayAdjustmentRejectsStaleDayAndTimeZoneBeforeAgentMutation() async throws
     let presented = gamingAdjustmentTodaySnapshot(day: presentedDay)
     let authoritative = gamingAdjustmentTodaySnapshot(day: authoritativeDay)
     try TodaySnapshotStore(databaseURL: runtime.databaseURL).save(presented, for: presentedDay)
+    let adjustments = try GamingManualAdjustmentStore(databaseURL: runtime.databaseURL)
     let model = AppModel(
         runtimeEnvironment: runtime,
         agentLaunchService: AgentLaunchService(
             runtimeEnvironment: runtime,
             service: GamingAdjustmentNoopAgentRegistration()
         ),
-        saveGamingManualAdjustment: { _ in
-            Issue.record("A stale Today surface must not send a mutation")
+        saveGamingManualAdjustment: { request in
+            _ = try adjustments.record(request)
             return AgentMutationReceipt(accepted: true, message: "Unexpected")
         },
-        loadGamingManualAdjustments: { _, _ in [] },
+        loadGamingManualAdjustments: { day, timeZoneIdentifier in
+            try adjustments.adjustments(for: day, timeZoneIdentifier: timeZoneIdentifier)
+        },
         fetchAuthoritativeGamingSnapshot: { authoritative },
         now: { authoritativeDay }
     )
@@ -493,7 +558,20 @@ func todayAdjustmentRejectsStaleDayAndTimeZoneBeforeAgentMutation() async throws
     await model.refreshTodaySnapshot()
     let loadedPresentedDay = try #require(model.todaySnapshot?.localDate)
     #expect(abs(loadedPresentedDay.timeIntervalSince(presentedDay)) < 1)
-    model.recordGamingManualAdjustment(minutes: 15, note: nil)
+    let presentation = GamingManualAdjustmentPresentation(
+        localDate: presentedDay,
+        timeZoneIdentifier: "UTC",
+        currentManualMinutes: 0
+    )
+    try TodaySnapshotStore(databaseURL: runtime.databaseURL).save(authoritative, for: presentedDay)
+    await model.refreshTodaySnapshot()
+    let refreshedAuthoritativeDay = try #require(model.todaySnapshot?.localDate)
+    #expect(abs(refreshedAuthoritativeDay.timeIntervalSince(authoritativeDay)) < 1)
+    model.recordGamingManualAdjustment(
+        minutes: 15,
+        note: nil,
+        presentation: presentation
+    )
     while model.isSavingGamingManualAdjustment {
         await Task.yield()
     }
@@ -501,6 +579,7 @@ func todayAdjustmentRejectsStaleDayAndTimeZoneBeforeAgentMutation() async throws
     #expect(model.todaySnapshot?.localDate == authoritativeDay)
     #expect(model.gamingManualAdjustmentError == "Today or its time zone changed. Review the refreshed allowance before saving this adjustment.")
     #expect(model.gamingManualAdjustments.isEmpty)
+    #expect(try adjustments.netMinutes(for: authoritativeDay, timeZoneIdentifier: "UTC") == 0)
 }
 
 @MainActor
@@ -527,30 +606,49 @@ func todayAdjustmentRejectsChangedTimeZoneEvenWhenLocalDayLabelMatches() async t
         timeZoneIdentifier: "Africa/Cairo"
     )
     try TodaySnapshotStore(databaseURL: runtime.databaseURL).save(presented, for: day)
+    let adjustments = try GamingManualAdjustmentStore(databaseURL: runtime.databaseURL)
     let model = AppModel(
         runtimeEnvironment: runtime,
         agentLaunchService: AgentLaunchService(
             runtimeEnvironment: runtime,
             service: GamingAdjustmentNoopAgentRegistration()
         ),
-        saveGamingManualAdjustment: { _ in
-            Issue.record("A changed time zone must not reuse the stale adjustment form")
+        saveGamingManualAdjustment: { request in
+            _ = try adjustments.record(request)
             return AgentMutationReceipt(accepted: true, message: "Unexpected")
         },
-        loadGamingManualAdjustments: { _, _ in [] },
+        loadGamingManualAdjustments: { adjustmentDay, timeZoneIdentifier in
+            try adjustments.adjustments(
+                for: adjustmentDay,
+                timeZoneIdentifier: timeZoneIdentifier
+            )
+        },
         fetchAuthoritativeGamingSnapshot: { authoritative },
         now: { day }
     )
 
     await model.refreshTodaySnapshot()
     #expect(model.todaySnapshot?.timeZoneIdentifier == "UTC")
-    model.recordGamingManualAdjustment(minutes: 15, note: nil)
+    let presentation = GamingManualAdjustmentPresentation(
+        localDate: day,
+        timeZoneIdentifier: "UTC",
+        currentManualMinutes: 0
+    )
+    try TodaySnapshotStore(databaseURL: runtime.databaseURL).save(authoritative, for: day)
+    await model.refreshTodaySnapshot()
+    #expect(model.todaySnapshot?.timeZoneIdentifier == "Africa/Cairo")
+    model.recordGamingManualAdjustment(
+        minutes: 15,
+        note: nil,
+        presentation: presentation
+    )
     while model.isSavingGamingManualAdjustment {
         await Task.yield()
     }
 
     #expect(model.todaySnapshot?.timeZoneIdentifier == "Africa/Cairo")
     #expect(model.gamingManualAdjustmentError == "Today or its time zone changed. Review the refreshed allowance before saving this adjustment.")
+    #expect(try adjustments.netMinutes(for: day, timeZoneIdentifier: "Africa/Cairo") == 0)
 }
 
 private struct EmptyGamingAdjustmentCalendar: CalendarAvailabilitySource {
@@ -610,7 +708,8 @@ private func gamingAdjustmentTodaySnapshot(
 
 private func makeGamingAdjustmentRouter(
     databaseURL: URL,
-    adjustments: GamingManualAdjustmentStore
+    adjustments: GamingManualAdjustmentStore,
+    now: Date
 ) throws -> AgentMutationRouter {
     let outbox = try ActionOutboxStore(databaseURL: databaseURL)
     let reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
@@ -628,7 +727,8 @@ private func makeGamingAdjustmentRouter(
         policyStore: try PolicyStore(databaseURL: databaseURL),
         reminderSnapshots: reminders,
         privacyData: try PrivacyDataService(databaseURL: databaseURL),
-        gamingManualAdjustments: adjustments
+        gamingManualAdjustments: adjustments,
+        now: { now }
     )
 }
 

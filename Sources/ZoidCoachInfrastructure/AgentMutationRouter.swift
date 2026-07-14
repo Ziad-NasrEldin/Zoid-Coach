@@ -16,6 +16,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
     private let recommendationFeedback: RecommendationFeedbackStore?
     private let gamingManualAdjustments: GamingManualAdjustmentStore?
     private let draftPlan: (@Sendable (Date, Bool) async throws -> Int)?
+    private let now: @Sendable () -> Date
 
     public init(
         outbox: ActionOutboxStore,
@@ -30,7 +31,8 @@ public final class AgentMutationRouter: @unchecked Sendable {
         writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(),
         recommendationFeedback: RecommendationFeedbackStore? = nil,
         gamingManualAdjustments: GamingManualAdjustmentStore? = nil,
-        draftPlan: (@Sendable (Date, Bool) async throws -> Int)? = nil
+        draftPlan: (@Sendable (Date, Bool) async throws -> Int)? = nil,
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.outbox = outbox
         self.stateStore = stateStore
@@ -45,6 +47,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
         self.recommendationFeedback = recommendationFeedback
         self.gamingManualAdjustments = gamingManualAdjustments
         self.draftPlan = draftPlan
+        self.now = now
     }
 
     public func apply(_ command: AgentMutationCommand) async throws -> AgentMutationReceipt {
@@ -199,6 +202,16 @@ public final class AgentMutationRouter: @unchecked Sendable {
         case let .recordGamingManualAdjustment(request):
             guard let gamingManualAdjustments else {
                 throw AgentMutationRouterError.invalidCommand
+            }
+            let currentTimeZoneIdentifier = try policyStore.current()?.policy.schedule.timeZoneIdentifier
+                ?? TimeZone.current.identifier
+            guard request.timeZoneIdentifier == currentTimeZoneIdentifier,
+                  Self.localDay(request.day, timeZoneIdentifier: request.timeZoneIdentifier)
+                    == Self.localDay(now(), timeZoneIdentifier: currentTimeZoneIdentifier) else {
+                return .init(
+                    accepted: false,
+                    message: "Today or its time zone changed. Review the refreshed allowance before saving this adjustment."
+                )
             }
             let result = try gamingManualAdjustments.record(request)
             let message: String
@@ -429,6 +442,15 @@ public final class AgentMutationRouter: @unchecked Sendable {
             let count = try await draftPlan(day, overwriteExisting)
             return .init(accepted: true, message: "Drafted \(count) commitments through the agent.")
         }
+    }
+
+    private static func localDay(_ date: Date, timeZoneIdentifier: String) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 
     public func recentActionAudit(limit: Int = 50) throws -> [ActionAuditEntry] {

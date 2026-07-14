@@ -1,5 +1,24 @@
 import Foundation
 
+struct GamingManualAdjustmentPresentation: Identifiable, Equatable {
+    let id: UUID
+    let localDate: Date
+    let timeZoneIdentifier: String
+    let currentManualMinutes: Int
+
+    init(
+        id: UUID = UUID(),
+        localDate: Date,
+        timeZoneIdentifier: String,
+        currentManualMinutes: Int
+    ) {
+        self.id = id
+        self.localDate = localDate
+        self.timeZoneIdentifier = timeZoneIdentifier
+        self.currentManualMinutes = currentManualMinutes
+    }
+}
+
 enum GamingManualAdjustmentDirection: String, CaseIterable, Identifiable {
     case add
     case remove
