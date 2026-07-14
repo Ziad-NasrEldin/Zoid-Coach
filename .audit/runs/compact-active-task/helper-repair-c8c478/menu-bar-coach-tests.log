@@ -1,0 +1,76 @@
+[0/1] Planning build
+Building for debugging...
+[0/7] Write sources
+[1/7] Write swift-version--58304C5D6DBC2206.txt
+[3/7] Compiling ZoidCoachApp MenuBarCoachView.swift
+[4/7] Emitting module ZoidCoachApp
+[4/9] Write Objects.LinkFileList
+[5/9] Linking ZoidCoach
+[6/9] Applying ZoidCoach
+[7/9] Write Objects.LinkFileList
+[8/9] Linking ZoidCoachPackageTests
+Build complete! (4.05s)
+Test Suite 'Selected tests' started at 2026-07-14 08:52:51.125.
+Test Suite 'ZoidCoachPackageTests.xctest' started at 2026-07-14 08:52:51.127.
+Test Suite 'ZoidCoachPackageTests.xctest' passed at 2026-07-14 08:52:51.127.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-07-14 08:52:51.127.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test compactMenuPreservesTodayTaskWhenItsOwnHelperRefreshFails() started.
+◇ Test compactActiveElapsedTimeAdvancesFromTheLastConfirmedSnapshot() started.
+◇ Test menuBarRefusesAStartAfterTheRecommendationChanges() started.
+◇ Test menuBarRejectsAnUnconfirmedStartResultWithoutReplacingFreshState() started.
+◇ Test endWorkdayConfirmationDoesNothingWhenTheActiveTaskChanged() started.
+◇ Test menuBarCoachingPauseRefreshesAndPersistsOnlyThePauseSetting() started.
+◇ Test applicationComposesTodayAndCompactControlsFromOneRuntimeBoundary() started.
+◇ Test compactActiveTaskKeepsEssentialStateVisibleAndAccessible() started.
+◇ Test activeMenuTaskCompletesThroughTheSameDurableCommandBoundary() started.
+◇ Test menuBarBreakAndEndWorkdayPersistThroughTheCanonicalAgent() started.
+◇ Test compactTaskFactsExposeLockedAndBlockedStateWithoutInventingIt() started.
+◇ Test menuBarExplainsEndOfWorkdayWithoutLosingThePausedTask() started.
+◇ Test menuBarStartsOnlyTheFreshRecommendedTaskAndConfirmsItBecameActive() started.
+◇ Test menuBarControllerRunsBreakResumeAndConfirmedEndWorkdayJourney() started.
+◇ Test menuBarStateDistinguishesNeutralAttentionActiveAndPaused() started.
+◇ Test menuBarInitialRefreshFailureNeverClaimsThereIsNoActiveTask() started.
+◇ Test menuBarControllerRefreshesAppliesAndPreservesLastConfirmedStateOnFailure() started.
+◇ Test compactMenuFallbackNeverOverwritesNewerControllerTruth() started.
+◇ Test compactPausedTaskHasOneTruthfulResumePathAndNoActiveOnlyActions() started.
+◇ Test blockActionRejectsInvalidReasonAndUnconfirmedAgentResponse() started.
+◇ Test compactStatusItemNeverLeaksThePrivateTaskTitle() started.
+◇ Test menuBarChoosesExplicitRecommendationBeforeFallbackReadyTask() started.
+◇ Test compactConfirmedBlockedTaskRemainsVisibleWithOnlyTruthfulActions() started.
+◇ Test activeTaskCanBeMarkedBlockedWithARequiredReasonAndConfirmedSnapshot() started.
+◇ Test menuBarDoesNotOfferOptionalOrUnavailableRecommendationAsFallback() started.
+◇ Test unavailableNotificationsExposeAStableDecisionBadgeWithoutRemovingTaskControls() started.
+◇ Test menuBarCoachingPauseRejectsAnUnconfirmedMutation() started.
+✔ Test menuBarChoosesExplicitRecommendationBeforeFallbackReadyTask() passed after 0.001 seconds.
+✔ Test compactActiveElapsedTimeAdvancesFromTheLastConfirmedSnapshot() passed after 0.001 seconds.
+✔ Test compactTaskFactsExposeLockedAndBlockedStateWithoutInventingIt() passed after 0.001 seconds.
+✔ Test menuBarExplainsEndOfWorkdayWithoutLosingThePausedTask() passed after 0.001 seconds.
+✔ Test unavailableNotificationsExposeAStableDecisionBadgeWithoutRemovingTaskControls() passed after 0.001 seconds.
+✔ Test compactConfirmedBlockedTaskRemainsVisibleWithOnlyTruthfulActions() passed after 0.001 seconds.
+✔ Test menuBarDoesNotOfferOptionalOrUnavailableRecommendationAsFallback() passed after 0.001 seconds.
+✔ Test compactPausedTaskHasOneTruthfulResumePathAndNoActiveOnlyActions() passed after 0.001 seconds.
+✔ Test compactStatusItemNeverLeaksThePrivateTaskTitle() passed after 0.001 seconds.
+✔ Test menuBarStateDistinguishesNeutralAttentionActiveAndPaused() passed after 0.001 seconds.
+✔ Test applicationComposesTodayAndCompactControlsFromOneRuntimeBoundary() passed after 0.001 seconds.
+✔ Test compactActiveTaskKeepsEssentialStateVisibleAndAccessible() passed after 0.004 seconds.
+✔ Test compactMenuPreservesTodayTaskWhenItsOwnHelperRefreshFails() passed after 0.085 seconds.
+✔ Test compactMenuFallbackNeverOverwritesNewerControllerTruth() passed after 0.084 seconds.
+✔ Test menuBarInitialRefreshFailureNeverClaimsThereIsNoActiveTask() passed after 0.085 seconds.
+✔ Test menuBarRefusesAStartAfterTheRecommendationChanges() passed after 0.085 seconds.
+✔ Test menuBarRejectsAnUnconfirmedStartResultWithoutReplacingFreshState() passed after 0.085 seconds.
+✔ Test activeMenuTaskCompletesThroughTheSameDurableCommandBoundary() passed after 0.085 seconds.
+✔ Test blockActionRejectsInvalidReasonAndUnconfirmedAgentResponse() passed after 0.085 seconds.
+✔ Test endWorkdayConfirmationDoesNothingWhenTheActiveTaskChanged() passed after 0.085 seconds.
+✔ Test menuBarStartsOnlyTheFreshRecommendedTaskAndConfirmsItBecameActive() passed after 0.085 seconds.
+✔ Test activeTaskCanBeMarkedBlockedWithARequiredReasonAndConfirmedSnapshot() passed after 0.085 seconds.
+✔ Test menuBarControllerRefreshesAppliesAndPreservesLastConfirmedStateOnFailure() passed after 0.085 seconds.
+✔ Test menuBarControllerRunsBreakResumeAndConfirmedEndWorkdayJourney() passed after 0.086 seconds.
+✔ Test menuBarCoachingPauseRejectsAnUnconfirmedMutation() passed after 0.085 seconds.
+✔ Test menuBarCoachingPauseRefreshesAndPersistsOnlyThePauseSetting() passed after 0.086 seconds.
+✔ Test menuBarBreakAndEndWorkdayPersistThroughTheCanonicalAgent() passed after 0.507 seconds.
+✔ Test run with 27 tests in 0 suites passed after 0.507 seconds.

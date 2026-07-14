@@ -137,6 +137,8 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - Signed ready-state proof established one active task and one open interval, and native AX exposed the real status item as `A task is active`.
 - AXPress failed and the single native frame click opened Notification Center, so compact-popover pixels and controls remain unverified.
 - `ZC-037-006` advances from Not implemented to Touches remaining with evidence in `.audit/runs/compact-active-task/verifier/REPORT.md`.
+- The shared-runtime repair at `c8c478a` now lets exact-PID compact Refresh display the same signed active task as Today, and native compact Pause persists canonical paused state.
+- Reopening the compact popover loses that paused task and Resume action, so `ZC-037-006` remains Touches remaining with the narrowed blocker recorded in `.audit/runs/compact-active-task/helper-repair-c8c478/REPORT.md`.
 
 ### Clock-safe task durations - candidate
 
