@@ -131,7 +131,7 @@ struct TodayPromptInboxLedger: View {
             promptBlockSheet(request)
         }
         .task {
-            guard timeline.awaitingResponse.isEmpty else { return }
+            guard timeline.isEmpty else { return }
             if let refreshInboxOverride {
                 await refreshInboxOverride()
             } else {
