@@ -2317,26 +2317,12 @@ private struct SidebarView: View {
                 .padding(.bottom, 8)
 
             ForEach(AppSection.allCases) { section in
-                Button {
-                    model.selectedSection = section
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: section.symbol)
-                            .font(.system(size: 12, weight: .regular))
-                            .frame(width: 16)
-                        Text(section.rawValue)
-                            .font(Sumi.label(11))
-                            .sumiLabelTracking()
-                        Spacer()
-                    }
-                    .foregroundStyle(model.selectedSection == section ? Sumi.paper : Sumi.ink)
-                    .padding(.horizontal, 18)
-                    .frame(height: 42)
-                    .background(model.selectedSection == section ? Sumi.ink : Sumi.paper)
-                    .contentShape(Rectangle())
+                if let shortcut = section.dailyReviewKeyboardShortcut?.descriptor {
+                    sectionButton(section, shortcut: shortcut)
+                        .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.eventModifiers)
+                } else {
+                    sectionButton(section)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(section.rawValue)
             }
 
             Spacer()
@@ -2359,6 +2345,39 @@ private struct SidebarView: View {
             .background(Sumi.softPaper)
         }
         .background(Sumi.paper)
+    }
+
+    private func sectionButton(
+        _ section: AppSection,
+        shortcut: DailyReviewKeyboardShortcutDescriptor? = nil
+    ) -> some View {
+        Button {
+            model.selectedSection = section
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: section.symbol)
+                    .font(.system(size: 12, weight: .regular))
+                    .frame(width: 16)
+                Text(section.rawValue)
+                    .font(Sumi.label(11))
+                    .sumiLabelTracking()
+                Spacer()
+                if let shortcut {
+                    Text(shortcut.glyphLegend)
+                        .font(Sumi.label(9))
+                        .foregroundStyle(model.selectedSection == section ? Sumi.paper.opacity(0.8) : Sumi.muted)
+                        .accessibilityHidden(true)
+                }
+            }
+            .foregroundStyle(model.selectedSection == section ? Sumi.paper : Sumi.ink)
+            .padding(.horizontal, 18)
+            .frame(height: 42)
+            .background(model.selectedSection == section ? Sumi.ink : Sumi.paper)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(section.rawValue)
+        .accessibilityHint(shortcut?.visibleLegend ?? "")
     }
 }
 

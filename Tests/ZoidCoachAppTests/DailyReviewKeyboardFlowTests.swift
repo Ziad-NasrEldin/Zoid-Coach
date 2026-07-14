@@ -90,6 +90,7 @@ func keyboardReviewShortcutRoutesAreVisibleCompleteAndCollisionFree() {
         !$0.modifiers.isSuperset(of: [.control, .option])
     })
     #expect(Set(DailyReviewKeyboardShortcut.allCases) == Set([
+        .openReviews,
         .previousSession,
         .nextSession,
         .chooseWork,
@@ -102,6 +103,17 @@ func keyboardReviewShortcutRoutesAreVisibleCompleteAndCollisionFree() {
     ]))
     #expect(DailyReviewKeyboardShortcut.applyCorrection.descriptor.visibleLegend == "command-shift-a")
     #expect(DailyReviewKeyboardShortcut.confirmReview.descriptor.visibleLegend == "command-shift-return")
+}
+
+@Test
+func keyboardReviewNavigationShortcutIsVisibleAndRoutesOnlyToReviews() {
+    let shortcut = DailyReviewKeyboardShortcut.openReviews.descriptor
+
+    #expect(AppSection.reviews.dailyReviewKeyboardShortcut == .openReviews)
+    #expect(AppSection.allCases.filter { $0.dailyReviewKeyboardShortcut != nil } == [.reviews])
+    #expect(shortcut.signature == "command+option+r")
+    #expect(shortcut.visibleLegend == "option-command-r")
+    #expect(shortcut.glyphLegend == "⌥⌘r")
 }
 
 private func reviewSession(
