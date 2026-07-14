@@ -29,6 +29,34 @@ enum MenuBarCoachTone: Equatable {
     }
 }
 
+enum MenuBarTaskAction: String, Hashable, Identifiable {
+    case start
+    case pause
+    case resume
+    case endBreak
+    case startBreak
+    case complete
+    case markBlocked
+    case openToday
+    case endWorkday
+
+    var id: String { rawValue }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .start: "Start recommended task"
+        case .pause: "Pause active task"
+        case .resume: "Resume paused task"
+        case .endBreak: "End break and resume task"
+        case .startBreak: "Start a 15 minute break"
+        case .complete: "Complete active task"
+        case .markBlocked: "Mark task as blocked"
+        case .openToday: "Open Today"
+        case .endWorkday: "End the workday"
+        }
+    }
+}
+
 struct MenuBarCoachState: Equatable {
     let snapshot: TodaySnapshot?
     let tone: MenuBarCoachTone
@@ -39,14 +67,17 @@ struct MenuBarCoachState: Equatable {
     let coachingIsPaused: Bool
     let unresolvedPromptCount: Int
     let notificationFallbackIsActive: Bool
+    let snapshotConfirmedAt: Date?
 
     init(
         snapshot: TodaySnapshot?,
+        snapshotConfirmedAt: Date? = nil,
         coachingIsPaused: Bool = false,
         unresolvedPromptCount: Int = 0,
         notificationsUnavailable: Bool = false
     ) {
         self.snapshot = snapshot
+        self.snapshotConfirmedAt = snapshotConfirmedAt
         self.coachingIsPaused = coachingIsPaused
         self.unresolvedPromptCount = max(0, unresolvedPromptCount)
         notificationFallbackIsActive = notificationsUnavailable && unresolvedPromptCount > 0
@@ -100,6 +131,19 @@ struct MenuBarCoachState: Equatable {
 
     var canEndWorkday: Bool { activeTask != nil }
 
+    var availableTaskActions: [MenuBarTaskAction] {
+        if activeTask != nil {
+            return [.pause, .startBreak, .complete, .markBlocked, .openToday, .endWorkday]
+        }
+        if let pausedTask {
+            return [pausedTask.acceptedBreak == nil ? .resume : .endBreak, .markBlocked, .openToday]
+        }
+        if recommendedTask != nil {
+            return [.start, .markBlocked, .openToday]
+        }
+        return [.openToday]
+    }
+
     var workdayHasEnded: Bool { pausedTask?.latestPauseReason == .endingWorkday }
 
     var activeCommitment: ActiveCommitmentPresentation? {
@@ -131,8 +175,20 @@ struct MenuBarCoachState: Equatable {
 
     func taskStatus(at date: Date) -> String {
         if let activeTask {
-            return ActiveCommitmentPresentation(task: activeTask, at: date)?.menuStatus
-                ?? "Active · \(activeTask.elapsedMinutes) min tracked"
+            let elapsedMinutes = liveElapsedMinutes(for: activeTask, at: date)
+            guard let commitment = ActiveCommitmentPresentation(task: activeTask, at: date) else {
+                return "Active · \(elapsedMinutes) min tracked"
+            }
+            switch commitment.timingMode {
+            case .openEnded:
+                return "Active · Open-ended · \(elapsedMinutes) min tracked"
+            case let .bounded(_, remainingMinutes):
+                return "Active sprint · \(remainingMinutes) min left · \(elapsedMinutes) min tracked"
+            case .continuedOpenEnded:
+                return "Active · Open-ended continuation · \(elapsedMinutes) min tracked"
+            case .sprintComplete:
+                return "Sprint complete · Task remains active"
+            }
         }
         if let pausedTask {
             if let acceptedBreak = pausedTask.acceptedBreak {
@@ -151,6 +207,19 @@ struct MenuBarCoachState: Equatable {
             return "Recommended next"
         }
         return "No active task"
+    }
+
+    private func liveElapsedMinutes(for task: TodayTaskRow, at date: Date) -> Int {
+        guard let startedAt = snapshot?.activeTask?.startedAt,
+              snapshot?.activeTask?.taskID == task.taskID,
+              let snapshotConfirmedAt
+        else {
+            return task.elapsedMinutes
+        }
+        let segmentAtConfirmation = max(0, Int(snapshotConfirmedAt.timeIntervalSince(startedAt) / 60))
+        let elapsedBeforeOpenInterval = max(0, task.elapsedMinutes - segmentAtConfirmation)
+        let currentOpenInterval = max(0, Int(date.timeIntervalSince(startedAt) / 60))
+        return max(task.elapsedMinutes, elapsedBeforeOpenInterval + currentOpenInterval)
     }
 
     private static let healthySourceStates: Set<String> = [

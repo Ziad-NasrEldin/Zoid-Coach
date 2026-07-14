@@ -71,6 +71,62 @@ import ZoidCoachInfrastructure
     #expect(summary.contains("Active"))
     #expect(summary.contains("12 min tracked"))
     #expect(summary.contains("Main objective"))
+    #expect(state.availableTaskActions == [.pause, .startBreak, .complete, .markBlocked, .openToday, .endWorkday])
+    #expect(Set(state.availableTaskActions).count == state.availableTaskActions.count)
+    #expect(state.availableTaskActions.map(\.accessibilityLabel) == [
+        "Pause active task",
+        "Start a 15 minute break",
+        "Complete active task",
+        "Mark task as blocked",
+        "Open Today",
+        "End the workday"
+    ])
+}
+
+@Test func compactActiveElapsedTimeAdvancesFromTheLastConfirmedSnapshot() {
+    let confirmedAt = Date(timeIntervalSince1970: 1_800_000_000)
+    let row = menuTask(id: "active", title: "Write proposal", state: .active, elapsedMinutes: 32)
+    let state = MenuBarCoachState(
+        snapshot: menuSnapshot(
+            rows: [row],
+            activeTask: .init(taskID: row.taskID, startedAt: confirmedAt.addingTimeInterval(-720), elapsedMinutes: 32)
+        ),
+        snapshotConfirmedAt: confirmedAt
+    )
+
+    #expect(state.taskStatus(at: confirmedAt) == "Active · Open-ended · 32 min tracked")
+    #expect(state.taskStatus(at: confirmedAt.addingTimeInterval(125)) == "Active · Open-ended · 34 min tracked")
+    #expect(state.taskStatus(at: confirmedAt.addingTimeInterval(-60)) == "Active · Open-ended · 32 min tracked")
+}
+
+@Test func compactStatusItemNeverLeaksThePrivateTaskTitle() {
+    let privateTitle = "Confidential acquisition for Northwind"
+    let row = menuTask(id: "private", title: privateTitle, state: .active)
+    let state = MenuBarCoachState(snapshot: menuSnapshot(
+        rows: [row],
+        activeTask: .init(taskID: row.taskID, startedAt: nil, elapsedMinutes: 3)
+    ))
+
+    #expect(state.menuBarLabel == "A task is active")
+    #expect(!state.menuBarLabel.contains(privateTitle))
+    #expect(state.compactTaskAccessibilitySummary(at: Date())?.contains(privateTitle) == true)
+}
+
+@Test func compactPausedTaskHasOneTruthfulResumePathAndNoActiveOnlyActions() {
+    let row = menuTask(
+        id: "paused",
+        title: "Write launch plan",
+        state: .paused,
+        elapsedMinutes: 17,
+        pauseReason: .doneForNow
+    )
+    let state = MenuBarCoachState(snapshot: menuSnapshot(rows: [row]))
+
+    #expect(state.availableTaskActions == [.resume, .markBlocked, .openToday])
+    #expect(Set(state.availableTaskActions).count == state.availableTaskActions.count)
+    #expect(!state.availableTaskActions.contains(.pause))
+    #expect(!state.availableTaskActions.contains(.complete))
+    #expect(state.taskStatus(at: Date(timeIntervalSince1970: 1_900_000_000)) == "Paused because you are done for now")
 }
 
 @Test func compactTaskFactsExposeLockedAndBlockedStateWithoutInventingIt() {
@@ -282,6 +338,7 @@ import ZoidCoachInfrastructure
 
     await controller.refresh()
     #expect(controller.state.recommendedTask?.taskID == "task")
+    #expect(controller.syncPresentation == .confirmed)
 
     await controller.apply(.start, taskID: "task")
     #expect(controller.state.activeTask?.taskID == "task")
@@ -290,10 +347,89 @@ import ZoidCoachInfrastructure
     await controller.apply(.pauseDoneForNow, taskID: "task")
     #expect(controller.state.activeTask?.taskID == "task")
     #expect(controller.errorMessage?.contains("last confirmed state") == true)
+    #expect(controller.syncPresentation == .stale)
 
     let commands = await client.commands
     #expect(commands.map(\.0) == [.start, .pauseDoneForNow])
     #expect(commands.map(\.1) == ["task", "task"])
+}
+
+@MainActor
+@Test func menuBarInitialRefreshFailureNeverClaimsThereIsNoActiveTask() async {
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .failure(MenuBarClientError.failed),
+        applyResults: []
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    #expect(controller.syncPresentation == .loading)
+    await controller.refresh()
+
+    #expect(controller.snapshot == nil)
+    #expect(controller.syncPresentation == .unavailable)
+    #expect(controller.errorMessage == "Task state is unavailable because Zoid 666 could not load a confirmed state from the background agent. Open Source Health, then refresh.")
+}
+
+@MainActor
+@Test func activeTaskCanBeMarkedBlockedWithARequiredReasonAndConfirmedSnapshot() async {
+    let activeRow = menuTask(id: "task", title: "Write proposal", state: .active)
+    let active = menuSnapshot(
+        rows: [activeRow],
+        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 9)
+    )
+    let blocked = menuSnapshot(rows: [TodayTaskRow(
+        taskID: "task",
+        title: "Write proposal",
+        estimateMinutes: 30,
+        dueDate: nil,
+        urgency: .medium,
+        state: .blocked,
+        elapsedMinutes: 9,
+        blockedReason: "Waiting for client approval"
+    )])
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(active),
+        applyResults: [],
+        blockResults: [.success(blocked)]
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.refresh()
+    await controller.block(taskID: "task", reason: "  Waiting for client approval  ")
+
+    #expect(controller.snapshot?.taskRows.first?.state == .blocked)
+    #expect(controller.snapshot?.taskRows.first?.blockedReason == "Waiting for client approval")
+    #expect(controller.syncPresentation == .confirmed)
+    #expect(controller.errorMessage == nil)
+    let blockCommands = await client.blockCommands
+    #expect(blockCommands.count == 1)
+    #expect(blockCommands.first?.0 == "task")
+    #expect(blockCommands.first?.1 == "Waiting for client approval")
+}
+
+@MainActor
+@Test func blockActionRejectsInvalidReasonAndUnconfirmedAgentResponse() async {
+    let activeRow = menuTask(id: "task", title: "Write proposal", state: .active)
+    let active = menuSnapshot(
+        rows: [activeRow],
+        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 9)
+    )
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(active),
+        applyResults: [],
+        blockResults: [.success(active)]
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.refresh()
+    await controller.block(taskID: "task", reason: "x")
+    #expect(await client.blockCommands.isEmpty)
+    #expect(controller.errorMessage?.contains("Nothing was changed") == true)
+
+    await controller.block(taskID: "task", reason: "Waiting for client approval")
+    #expect(controller.snapshot == active)
+    #expect(controller.syncPresentation == .stale)
+    #expect(controller.errorMessage?.contains("did not confirm") == true)
 }
 
 @MainActor
@@ -505,16 +641,32 @@ import ZoidCoachInfrastructure
     #expect(restoredTask.state == .paused)
     #expect(restoredTask.latestPauseReason == .endingWorkday)
     #expect(restoredTask.acceptedBreak == nil)
+
+    let relaunchedController = MenuBarCoachController(client: AgentMenuBarTodayClient(
+        agent: try TodayDashboardAgent(databaseURL: databaseURL),
+        now: now.addingTimeInterval(360)
+    ))
+    await relaunchedController.refresh()
+    #expect(relaunchedController.state.primaryTask?.taskID == "focus")
+    #expect(relaunchedController.state.availableTaskActions == [.resume, .markBlocked, .openToday])
+    #expect(relaunchedController.state.taskStatus == "Workday ended · Tracked time is saved")
 }
 
 private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
     let fetchResult: Result<TodaySnapshot, Error>
     var applyResults: [Result<TodaySnapshot, Error>]
+    var blockResults: [Result<TodaySnapshot, Error>]
     private(set) var commands: [(TaskActivityCommand, String)] = []
+    private(set) var blockCommands: [(String, String)] = []
 
-    init(fetchResult: Result<TodaySnapshot, Error>, applyResults: [Result<TodaySnapshot, Error>]) {
+    init(
+        fetchResult: Result<TodaySnapshot, Error>,
+        applyResults: [Result<TodaySnapshot, Error>],
+        blockResults: [Result<TodaySnapshot, Error>] = []
+    ) {
         self.fetchResult = fetchResult
         self.applyResults = applyResults
+        self.blockResults = blockResults
     }
 
     func fetchTodaySnapshot() async throws -> TodaySnapshot { try fetchResult.get() }
@@ -523,6 +675,12 @@ private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
         commands.append((command, taskID))
         guard !applyResults.isEmpty else { throw MenuBarClientError.failed }
         return try applyResults.removeFirst().get()
+    }
+
+    func blockTask(taskID: String, reason: String) async throws -> TodaySnapshot {
+        blockCommands.append((taskID, reason))
+        guard !blockResults.isEmpty else { throw MenuBarClientError.failed }
+        return try blockResults.removeFirst().get()
     }
 }
 
@@ -585,6 +743,11 @@ private actor AgentMenuBarTodayClient: MenuBarTodayClient {
         now = now.addingTimeInterval(60)
         return try agent.apply(command, taskID: taskID, now: now)
     }
+
+    func blockTask(taskID: String, reason: String) throws -> TodaySnapshot {
+        now = now.addingTimeInterval(60)
+        return try agent.apply(.block, taskID: taskID, blockedReason: reason, now: now)
+    }
 }
 
 private actor SwitchingMenuBarTodayClient: MenuBarTodayClient {
@@ -602,6 +765,11 @@ private actor SwitchingMenuBarTodayClient: MenuBarTodayClient {
 
     func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
         commands.append((command, taskID))
+        return snapshots[0]
+    }
+
+    func blockTask(taskID: String, reason: String) throws -> TodaySnapshot {
+        commands.append((.block, taskID))
         return snapshots[0]
     }
 }
