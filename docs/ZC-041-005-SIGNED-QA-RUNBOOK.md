@@ -14,7 +14,8 @@ Persisted merges prove the chosen-left truth contract in both directions.
 Install a clean QA package under an isolated install root and QA root.
 Grant Accessibility permission to the terminal running the probe.
 Establish the repository's supported 12-of-12 QA ready state before this post-onboarding scenario.
-Use only the packaged QA `--qa-open-main` argument to request the normal foreground main window.
+Use the packaged QA `--qa-open-main` argument only for the initial foreground-before-helper launch.
+Use ordinary LaunchServices opens for every later fixture and persistence relaunch so scene restoration cannot create a duplicate main window.
 
 Set the exact paths and full signed commit.
 
@@ -32,7 +33,7 @@ WINDOW_PROBE="$PWD/Scripts/qa-window-content-probe.swift"
 "$PREFLIGHT" --self-test
 ```
 
-The preflight self-test parses this runbook and rejects helper registration before the foreground app launch and PID binding.
+The preflight self-test parses this runbook, rejects helper registration before the initial foreground app binding, and rejects `--qa-open-main` in every later relaunch phase.
 
 Verify the exact installed signature, package mode, build identity, and candidate ancestry.
 
@@ -90,7 +91,7 @@ kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$FIXTURE" prepare-empty "$DATABASE"
 "$FIXTURE" assert-empty "$DATABASE"
-open "$APP" --args --qa-open-main
+open "$APP"
 ```
 
 Resolve `PID` again with the same installed-executable loop.
@@ -106,9 +107,12 @@ for attempt in {1..40}; do
   sleep 0.2
 done
 "$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
-  --require-qa-open-main --expected-app-pid "$PID"
+  --require-ordinary-open --expected-app-pid "$PID"
 swift "$PROBE" --pid "$PID" --phase empty
 ```
+
+The ordinary-launch preflight binds the installed PID, build, root, helper, exact open database, and exactly one visible main window without accepting the initial QA foreground argument.
+The probe requires exactly one visible main Today/Reviews window and fails honestly when scene restoration is windowless or produces duplicates.
 
 The empty phase requires `NO CORRECTED WORK TO CATEGORIZE`.
 It requires all six category rows to be absent even though three persisted Gaming observations exist.
@@ -123,7 +127,7 @@ while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$FIXTURE" cleanup "$DATABASE"
 "$FIXTURE" prepare "$DATABASE"
 "$FIXTURE" assert-prepared "$DATABASE"
-open "$APP" --args --qa-open-main
+open "$APP"
 ```
 
 Resolve `PID` again with the installed-executable loop and leave Today visible.
@@ -137,7 +141,7 @@ for attempt in {1..40}; do
   sleep 0.2
 done
 "$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
-  --require-qa-open-main --expected-app-pid "$PID"
+  --require-ordinary-open --expected-app-pid "$PID"
 swift "$PROBE" --pid "$PID" --phase categories
 ```
 
@@ -164,7 +168,7 @@ Quit and relaunch the same installed bundle without touching the database.
 ```sh
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
-open "$APP" --args --qa-open-main
+open "$APP"
 ```
 
 Resolve `PID` again through the installed-executable loop.
@@ -179,7 +183,7 @@ for attempt in {1..40}; do
   sleep 0.2
 done
 "$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
-  --require-qa-open-main --expected-app-pid "$PID"
+  --require-ordinary-open --expected-app-pid "$PID"
 swift "$PROBE" --pid "$PID" --phase categories
 "$FIXTURE" assert-relaunch "$DATABASE"
 ```
