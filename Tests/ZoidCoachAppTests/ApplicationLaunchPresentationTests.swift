@@ -43,6 +43,41 @@ import ZoidCoachCore
     #expect(!presentation.launchesForBackgroundScheduling)
 }
 
+@Test func entrypointSelectionGivesBackgroundSchedulingAbsolutePriority() {
+    let selection = ApplicationEntrypointSelection.select(
+        arguments: ["ZoidCoachQA", "--background-schedule", "--qa-open-main"],
+        packageMode: .qa
+    )
+
+    #expect(selection == .background)
+    #expect(selection.sceneCompositionPolicy == .background)
+    #expect(!selection.sceneCompositionPolicy.includesMainWindowScene)
+    #expect(!selection.sceneCompositionPolicy.includesAgentWindowScene)
+    #expect(selection.sceneCompositionPolicy.includesMenuBarScene)
+}
+
+@Test func entrypointSelectionKeepsPositiveQAOnTheForegroundApp() {
+    let selection = ApplicationEntrypointSelection.select(
+        arguments: ["ZoidCoachQA", "--qa-open-main"],
+        packageMode: .qa
+    )
+
+    #expect(selection == .foreground)
+    #expect(selection.sceneCompositionPolicy == .foreground)
+}
+
+@Test func entrypointSelectionKeepsProductionOnTheForegroundApp() {
+    let selection = ApplicationEntrypointSelection.select(
+        arguments: ["ZoidCoach"],
+        packageMode: .production
+    )
+
+    #expect(selection == .foreground)
+    #expect(selection.sceneCompositionPolicy.includesMainWindowScene)
+    #expect(selection.sceneCompositionPolicy.includesAgentWindowScene)
+    #expect(selection.sceneCompositionPolicy.includesMenuBarScene)
+}
+
 @Test func mainWindowSelectionExcludesBackgroundAgentWhenBothWindowsExist() throws {
     let selected = try #require(MainApplicationWindowSelector.select(from: [
         ApplicationWindowDescriptor(
