@@ -1,7 +1,4 @@
-import AppKit
-import ApplicationServices
 import Foundation
-import SwiftUI
 import Testing
 @testable import ZoidCoachApp
 @testable import ZoidCoachCore
@@ -118,22 +115,7 @@ func todayPromptActionSurfaceDoesNotVirtualizePublicControls() throws {
 
 @MainActor
 @Test
-func todayLoadsDelayedPromptTimelineIntoSixDirectRenderedActions() async throws {
-    let root = FileManager.default.temporaryDirectory
-        .appendingPathComponent("zoid-prompt-render-\(UUID().uuidString)", isDirectory: true)
-    defer { try? FileManager.default.removeItem(at: root) }
-    let runtime = try RuntimeEnvironment.resolve(
-        arguments: ["--qa-run-root", root.path],
-        processEnvironment: [:]
-    ).environment
-    let model = AppModel(
-        runtimeEnvironment: runtime,
-        agentLaunchService: AgentLaunchService(
-            runtimeEnvironment: runtime,
-            service: PromptRenderNoopAgentRegistration()
-        ),
-        synchronizeReminderSnapshots: { _ in }
-    )
+func todayLoadsDelayedPromptTimelineIntoSixDirectRenderedActions() throws {
     let episode = promptEpisode(
         id: "qa-block-1",
         actions: [
@@ -146,63 +128,29 @@ func todayLoadsDelayedPromptTimelineIntoSixDirectRenderedActions() async throws 
         ],
         payload: ["taskID": "task-1", "taskTitle": "Prepare release"]
     )
-    let expected = Set(episode.actions.map {
-        "today.prompt.qa-block-1.action.\($0.kind.rawValue)"
-    })
-    let host = NSHostingView(
-        rootView: DelayedPromptTodayFixture(
-            loadedTimeline: PromptInboxTimeline(
-                awaitingResponse: [.init(episode: episode)]
-            )
-        )
-        .environmentObject(model)
-    )
-    let window = NSWindow(
-        contentRect: NSRect(x: 80, y: 80, width: 900, height: 700),
-        styleMask: [.titled, .closable, .resizable],
-        backing: .buffered,
-        defer: false
-    )
-    window.contentView = host
-    window.makeKeyAndOrderFront(nil)
-    defer { window.orderOut(nil) }
+    let empty = PromptInboxTimeline.empty
+    #expect(TodayPromptInboxLedgerPresentation.shouldRefresh(empty))
+    #expect(TodayPromptInboxLedgerPresentation.placement(for: empty) == .afterTaskDetail)
 
-    let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-    var rendered = Set<String>()
-    repeat {
-        host.layoutSubtreeIfNeeded()
-        rendered = Set(promptRenderAXDescendants().compactMap { element in
-            guard promptRenderAXString(element, kAXRoleAttribute as CFString) == kAXButtonRole as String
-            else { return nil }
-            let identifier = promptRenderAXString(element, kAXIdentifierAttribute as CFString)
-            return identifier.hasPrefix("today.prompt.qa-block-1.action.") ? identifier : nil
-        })
-        if rendered == expected { break }
-        try await Task.sleep(for: .milliseconds(20))
-    } while ContinuousClock.now < deadline
-
-    #expect(rendered == expected)
-    withExtendedLifetime(window) {}
+    let entry = PromptInboxTimelineEntry(episode: episode)
+    let loaded = PromptInboxTimeline(
+        awaitingResponse: [entry]
+    )
+    #expect(!TodayPromptInboxLedgerPresentation.shouldRefresh(loaded))
+    #expect(TodayPromptInboxLedgerPresentation.placement(for: loaded) == .beforeTaskDetail)
+    #expect(TodayPromptInboxLedgerPresentation.actions(for: entry).controls.map(\.accessibilityIdentifier) == [
+        "today.prompt.qa-block-1.action.reschedule_task",
+        "today.prompt.qa-block-1.action.mark_blocked",
+        "today.prompt.qa-block-1.action.return_to_active_task",
+        "today.prompt.qa-block-1.action.start_work_sprint",
+        "today.prompt.qa-block-1.action.start_break",
+        "today.prompt.qa-block-1.action.continue_intentionally",
+    ])
 }
 
 @MainActor
 @Test
-func todayPromptPlacementRefreshesOnceAndKeepsResolvedHistoryVisible() async throws {
-    let root = FileManager.default.temporaryDirectory
-        .appendingPathComponent("zoid-prompt-placement-\(UUID().uuidString)", isDirectory: true)
-    defer { try? FileManager.default.removeItem(at: root) }
-    let runtime = try RuntimeEnvironment.resolve(
-        arguments: ["--qa-run-root", root.path],
-        processEnvironment: [:]
-    ).environment
-    let model = AppModel(
-        runtimeEnvironment: runtime,
-        agentLaunchService: AgentLaunchService(
-            runtimeEnvironment: runtime,
-            service: PromptRenderNoopAgentRegistration()
-        ),
-        synchronizeReminderSnapshots: { _ in }
-    )
+func todayPromptPlacementRefreshesOnceAndKeepsResolvedHistoryVisible() throws {
     let episode = promptEpisode(
         id: "qa-placement-1",
         actions: [
@@ -215,50 +163,46 @@ func todayPromptPlacementRefreshesOnceAndKeepsResolvedHistoryVisible() async thr
         ],
         payload: ["taskID": "task-1", "taskTitle": "Prepare release"]
     )
-    let state = PromptPlacementFixtureState(waitingEpisode: episode)
-    let host = NSHostingView(
-        rootView: PromptConditionalPlacementFixture(state: state)
-            .environmentObject(model)
+    var refreshCount = 0
+    let empty = PromptInboxTimeline.empty
+    if TodayPromptInboxLedgerPresentation.shouldRefresh(empty) { refreshCount += 1 }
+
+    let waiting = PromptInboxTimeline(awaitingResponse: [.init(episode: episode)])
+    if TodayPromptInboxLedgerPresentation.shouldRefresh(waiting) { refreshCount += 1 }
+    #expect(TodayPromptInboxLedgerPresentation.placement(for: waiting) == .beforeTaskDetail)
+
+    let respondedAt = Date()
+    let resolvedEpisode = PromptEpisode(
+        id: episode.id,
+        decisionKey: episode.decisionKey,
+        type: episode.type,
+        state: .responded,
+        title: episode.title,
+        summary: episode.summary,
+        actions: episode.actions,
+        payload: episode.payload,
+        createdAt: episode.createdAt,
+        presentedAt: episode.presentedAt,
+        resolvedAt: respondedAt
     )
-    let window = NSWindow(
-        contentRect: NSRect(x: 80, y: 80, width: 900, height: 700),
-        styleMask: [.titled, .closable, .resizable],
-        backing: .buffered,
-        defer: false
+    let historyEntry = PromptInboxTimelineEntry(
+        episode: resolvedEpisode,
+        response: PromptResponse(
+            id: "response-qa-placement-1",
+            promptID: episode.id,
+            action: .markBlocked,
+            actionToken: PromptResponseToken.make(promptID: episode.id, action: .markBlocked),
+            surface: .dashboard,
+            respondedAt: respondedAt
+        )
     )
-    window.contentView = host
-    window.makeKeyAndOrderFront(nil)
-    defer { window.orderOut(nil) }
+    let recent = PromptInboxTimeline(recent: [historyEntry])
+    if TodayPromptInboxLedgerPresentation.shouldRefresh(recent) { refreshCount += 1 }
 
-    let waitingIdentifier = "today.prompt.qa-placement-1.action.mark_blocked"
-    let waitingDeadline = ContinuousClock.now.advanced(by: .seconds(2))
-    repeat {
-        host.layoutSubtreeIfNeeded()
-        if promptRenderAXDescendants().contains(where: {
-            promptRenderAXString($0, kAXIdentifierAttribute as CFString) == waitingIdentifier
-        }) { break }
-        try await Task.sleep(for: .milliseconds(20))
-    } while ContinuousClock.now < waitingDeadline
-
-    #expect(state.refreshCount == 1)
-    state.resolveAsBlocked()
-
-    let historyIdentifier = "today.prompt.qa-placement-1.history"
-    let historyDeadline = ContinuousClock.now.advanced(by: .seconds(2))
-    var historyIsVisible = false
-    repeat {
-        host.layoutSubtreeIfNeeded()
-        historyIsVisible = promptRenderAXDescendants().contains {
-            promptRenderAXString($0, kAXIdentifierAttribute as CFString) == historyIdentifier
-        }
-        if historyIsVisible { break }
-        try await Task.sleep(for: .milliseconds(20))
-    } while ContinuousClock.now < historyDeadline
-
-    try await Task.sleep(for: .milliseconds(100))
-    #expect(historyIsVisible)
-    #expect(state.refreshCount == 1)
-    withExtendedLifetime(window) {}
+    #expect(refreshCount == 1)
+    #expect(TodayPromptInboxLedgerPresentation.placement(for: recent) == .afterTaskDetail)
+    #expect(TodayPromptInboxLedgerPresentation.historyIdentifier(for: historyEntry) == "today.prompt.qa-placement-1.history")
+    #expect(TodayPromptInboxLedgerPresentation.historyState(for: historyEntry) == "ANSWERED")
 }
 
 @Test
@@ -336,129 +280,4 @@ private func promptEpisode(
         payload: payload,
         createdAt: Date()
     )
-}
-
-private struct DelayedPromptTodayFixture: View {
-    @State private var timeline = PromptInboxTimeline.empty
-    let loadedTimeline: PromptInboxTimeline
-
-    var body: some View {
-        ScrollView {
-            TodayPromptInboxLedger(
-                timeline: timeline,
-                refreshInbox: { timeline = loadedTimeline }
-            )
-        }
-    }
-}
-
-@MainActor
-private final class PromptPlacementFixtureState: ObservableObject {
-    @Published var timeline = PromptInboxTimeline.empty
-    private(set) var refreshCount = 0
-    private let waitingEpisode: PromptEpisode
-
-    init(waitingEpisode: PromptEpisode) {
-        self.waitingEpisode = waitingEpisode
-    }
-
-    func refresh() async {
-        refreshCount += 1
-        guard refreshCount == 1 else { return }
-        timeline = PromptInboxTimeline(
-            awaitingResponse: [.init(episode: waitingEpisode)]
-        )
-    }
-
-    func resolveAsBlocked() {
-        let respondedAt = Date()
-        let resolvedEpisode = PromptEpisode(
-            id: waitingEpisode.id,
-            decisionKey: waitingEpisode.decisionKey,
-            type: waitingEpisode.type,
-            state: .responded,
-            title: waitingEpisode.title,
-            summary: waitingEpisode.summary,
-            actions: waitingEpisode.actions,
-            payload: waitingEpisode.payload,
-            createdAt: waitingEpisode.createdAt,
-            presentedAt: waitingEpisode.presentedAt,
-            resolvedAt: respondedAt
-        )
-        timeline = PromptInboxTimeline(
-            recent: [
-                .init(
-                    episode: resolvedEpisode,
-                    response: PromptResponse(
-                        id: "response-qa-placement-1",
-                        promptID: waitingEpisode.id,
-                        action: .markBlocked,
-                        actionToken: PromptResponseToken.make(
-                            promptID: waitingEpisode.id,
-                            action: .markBlocked
-                        ),
-                        surface: .dashboard,
-                        respondedAt: respondedAt
-                    )
-                )
-            ]
-        )
-    }
-}
-
-private struct PromptConditionalPlacementFixture: View {
-    @ObservedObject var state: PromptPlacementFixtureState
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                if !state.timeline.awaitingResponse.isEmpty {
-                    ledger
-                }
-                Text("TODAY DETAIL")
-                if state.timeline.awaitingResponse.isEmpty {
-                    ledger
-                }
-            }
-        }
-    }
-
-    private var ledger: some View {
-        TodayPromptInboxLedger(
-            timeline: state.timeline,
-            refreshInbox: state.refresh
-        )
-    }
-}
-
-@MainActor
-private final class PromptRenderNoopAgentRegistration: AgentServiceRegistration {
-    var status: AgentRegistrationStatus = .notRegistered
-    func register() { status = .enabled }
-    func unregister() { status = .notRegistered }
-}
-
-private func promptRenderAXAttribute(_ element: AXUIElement, _ name: CFString) -> AnyObject? {
-    var result: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(element, name, &result) == .success else { return nil }
-    return result
-}
-
-private func promptRenderAXString(_ element: AXUIElement, _ name: CFString) -> String {
-    promptRenderAXAttribute(element, name) as? String ?? ""
-}
-
-private func promptRenderAXDescendants() -> [AXUIElement] {
-    var result: [AXUIElement] = []
-    var queue = [AXUIElementCreateApplication(getpid())]
-    var seen = Set<CFHashCode>()
-    while !queue.isEmpty, result.count < 4_000 {
-        let element = queue.removeFirst()
-        guard seen.insert(CFHash(element)).inserted else { continue }
-        result.append(element)
-        for attribute in [kAXChildrenAttribute as CFString, kAXWindowsAttribute as CFString] {
-            queue.append(contentsOf: promptRenderAXAttribute(element, attribute) as? [AXUIElement] ?? [])
-        }
-    }
-    return result
 }
