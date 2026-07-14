@@ -1,7 +1,19 @@
 import Foundation
 import Testing
+@testable import ZoidCoachApp
 @testable import ZoidCoachCore
 @testable import ZoidCoachInfrastructure
+
+@Test
+func notificationReplacementProbeExposesDistinctNativeAccessibilityIdentifiers() {
+    #expect(QANotificationReplacementProbeAccessibility.identifiers == [
+        "settings.qa-notification-replacement.original",
+        "settings.qa-notification-replacement.updated",
+        "settings.qa-notification-replacement.refresh",
+        "settings.qa-notification-replacement.status",
+    ])
+    #expect(Set(QANotificationReplacementProbeAccessibility.identifiers).count == 4)
+}
 
 @Test
 func notificationReplacementProbeRefusesProductionAndUnpackagedQA() throws {
