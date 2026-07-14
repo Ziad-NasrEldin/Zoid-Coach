@@ -13,6 +13,7 @@ readonly EVIDENCE_ROOT="${4:-}"
 shift $(( $# < 4 ? $# : 4 ))
 REQUIRE_QA_OPEN_MAIN=0
 REQUIRE_HELPER_UNREGISTERED=0
+WAIT_FOR_FOREGROUND_DATABASE=0
 EXPECTED_APP_PID=""
 
 fail() { print -u2 -- "FAIL: $*"; exit 1; }
@@ -25,15 +26,91 @@ is_external_path() {
     local candidate="${1:A}"
     [[ "$candidate" != "$REPOSITORY" && "$candidate" != "$REPOSITORY"/* ]]
 }
+exact_pid_is_running() {
+    local pid="$1"
+    local expected_executable="$2"
+    kill -0 "$pid" 2>/dev/null || return 3
+    lsof -Fn -a -p "$pid" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$expected_executable" \
+        || return 5
+}
+database_is_open_readable() {
+    local database="$1"
+    [[ -f "$database" ]] || return 1
+    sqlite3 -readonly "$database" 'PRAGMA schema_version;' >/dev/null 2>&1
+}
+readiness_sleep() { sleep 0.1; }
+wait_for_foreground_database() {
+    local pid="$1"
+    local expected_executable="$2"
+    local database="$3"
+    local expected_database="$4"
+    local pid_probe="${5:-exact_pid_is_running}"
+    local database_probe="${6:-database_is_open_readable}"
+    local sleeper="${7:-readiness_sleep}"
+    local maximum_attempts="${8:-300}"
+    local attempt readiness_result
+    [[ "${database:A}" == "${expected_database:A}" ]] || return 2
+    for attempt in {1..$maximum_attempts}; do
+        "$pid_probe" "$pid" "$expected_executable" "$attempt" || {
+            readiness_result=$?
+            return "$readiness_result"
+        }
+        if "$database_probe" "$database" "$attempt"; then
+            return 0
+        fi
+        (( attempt < maximum_attempts )) && "$sleeper" "$attempt"
+    done
+    return 4
+}
+test_pid_probe() {
+    [[ "${READINESS_TEST_CASE:-}" != "pid-exit" || "$3" -lt 2 ]] || return 3
+}
+test_database_probe() {
+    [[ "${READINESS_TEST_CASE:-}" == "delayed-success" && "$2" -ge 3 ]]
+}
+test_readiness_sleep() { :; }
+assert_readiness_self_tests() {
+    local readiness_result
+    READINESS_TEST_CASE="delayed-success"
+    wait_for_foreground_database 41 /tmp/ZoidCoachQA /tmp/qa/zoid-coach.sqlite \
+        /tmp/qa/zoid-coach.sqlite test_pid_probe test_database_probe test_readiness_sleep 4 \
+        || fail "delayed database readiness was rejected"
+    READINESS_TEST_CASE="never-appears"
+    if wait_for_foreground_database 41 /tmp/ZoidCoachQA /tmp/qa/zoid-coach.sqlite \
+        /tmp/qa/zoid-coach.sqlite test_pid_probe test_database_probe test_readiness_sleep 3; then
+        fail "database readiness timeout was accepted"
+    else
+        readiness_result=$?
+        [[ "$readiness_result" == 4 ]] || fail "database readiness timeout returned $readiness_result"
+    fi
+    READINESS_TEST_CASE="pid-exit"
+    if wait_for_foreground_database 41 /tmp/ZoidCoachQA /tmp/qa/zoid-coach.sqlite \
+        /tmp/qa/zoid-coach.sqlite test_pid_probe test_database_probe test_readiness_sleep 4; then
+        fail "foreground PID exit was accepted"
+    else
+        readiness_result=$?
+        [[ "$readiness_result" == 3 ]] || fail "foreground PID exit returned $readiness_result"
+    fi
+    READINESS_TEST_CASE="delayed-success"
+    if wait_for_foreground_database 41 /tmp/ZoidCoachQA /tmp/wrong/zoid-coach.sqlite \
+        /tmp/qa/zoid-coach.sqlite test_pid_probe test_database_probe test_readiness_sleep 4; then
+        fail "wrong database root was accepted"
+    else
+        readiness_result=$?
+        [[ "$readiness_result" == 2 ]] || fail "wrong database root returned $readiness_result"
+    fi
+    unset READINESS_TEST_CASE
+}
 assert_runbook_order() {
     local runbook="$REPOSITORY/docs/ZC-048-010-SIGNED-QA-RUNBOOK.md"
-    local install unregister terminate ready launch initial_bind register same_pid preview cancel prepare save inspect existing retry finder cleanup
+    local install unregister terminate ready launch initial_bind database_ready register same_pid preview cancel prepare save inspect existing retry finder cleanup
     install="$(grep -nF 'Scripts/install-signed-qa-runtime.sh' "$runbook" | head -n1 | cut -d: -f1)"
     unregister="$(grep -nF '"$APP_EXECUTABLE" --qa-unregister-agent' "$runbook" | head -n1 | cut -d: -f1)"
     terminate="$(grep -nF 'kill "$candidate"' "$runbook" | head -n1 | cut -d: -f1)"
     ready="$(grep -nF '"$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace' "$runbook" | head -n1 | cut -d: -f1)"
     launch="$(grep -nF 'open "$APP" --args --qa-open-main' "$runbook" | head -n1 | cut -d: -f1)"
     initial_bind="$(grep -nF -- '--require-qa-open-main --require-helper-unregistered' "$runbook" | head -n1 | cut -d: -f1)"
+    database_ready="$(grep -nF -- '--wait-for-foreground-database' "$runbook" | head -n1 | cut -d: -f1)"
     register="$(grep -nF '"$APP_EXECUTABLE" --qa-register-agent' "$runbook" | head -n1 | cut -d: -f1)"
     same_pid="$(grep -nF -- '--require-qa-open-main --expected-app-pid "$PID"' "$runbook" | head -n1 | cut -d: -f1)"
     preview="$(grep -nF -- '--phase preview' "$runbook" | head -n1 | cut -d: -f1)"
@@ -46,11 +123,12 @@ assert_runbook_order() {
     finder="$(grep -nF -- '--phase finder' "$runbook" | head -n1 | cut -d: -f1)"
     cleanup="$(grep -nF '"$FIXTURE" cleanup "$DATABASE"' "$runbook" | tail -n1 | cut -d: -f1)"
     [[ "$install" == <-> && "$unregister" == <-> && "$terminate" == <-> && "$ready" == <-> \
-        && "$launch" == <-> && "$initial_bind" == <-> && "$register" == <-> && "$same_pid" == <-> \
+        && "$launch" == <-> && "$initial_bind" == <-> && "$database_ready" == <-> && "$register" == <-> && "$same_pid" == <-> \
         && "$preview" == <-> && "$cancel" == <-> && "$prepare" == <-> && "$save" == <-> \
         && "$inspect" == <-> && "$existing" == <-> && "$retry" == <-> && "$finder" == <-> && "$cleanup" == <-> \
         && install -lt unregister && unregister -lt terminate && terminate -lt ready && ready -lt launch \
-        && launch -lt initial_bind && initial_bind -lt register && register -lt same_pid && same_pid -lt preview \
+        && launch -lt initial_bind && initial_bind -lt database_ready && database_ready -lt register \
+        && register -lt same_pid && same_pid -lt preview \
         && preview -lt cancel && cancel -lt prepare && prepare -lt save && save -lt inspect \
         && inspect -lt existing && existing -lt retry && retry -lt finder && finder -lt cleanup ]] \
         || fail "runbook must bind the foreground app before helper registration and preserve every acceptance phase"
@@ -64,6 +142,7 @@ if [[ "$APP" == "--self-test" ]]; then
     ! is_visible_foreground_command "/tmp/ZoidCoachQA --qa-open-main --background-schedule" || fail "mixed background command accepted"
     is_external_path "/private/tmp/zoid-zc048010-evidence" || fail "external evidence root rejected"
     ! is_external_path "$REPOSITORY/.audit/zc048010" || fail "repository evidence root accepted"
+    assert_readiness_self_tests
     assert_runbook_order
     "$FIXTURE" self-test >/dev/null
     "$PROBE" --self-test >/dev/null
@@ -75,6 +154,7 @@ while (( $# > 0 )); do
     case "$1" in
         --require-qa-open-main) REQUIRE_QA_OPEN_MAIN=1; shift ;;
         --require-helper-unregistered) REQUIRE_HELPER_UNREGISTERED=1; shift ;;
+        --wait-for-foreground-database) WAIT_FOR_FOREGROUND_DATABASE=1; shift ;;
         --expected-app-pid)
             (( $# >= 2 )) || fail "--expected-app-pid requires a PID"
             EXPECTED_APP_PID="$2"
@@ -85,7 +165,6 @@ while (( $# > 0 )); do
 done
 
 [[ -d "$APP" ]] || fail "signed app does not exist: $APP"
-[[ -f "$DATABASE" ]] || fail "database is unavailable: $DATABASE"
 is_sha "$EXPECTED_COMMIT" || fail "expected commit must be a full lowercase SHA"
 [[ -n "$EVIDENCE_ROOT" ]] || fail "external evidence root is required"
 is_external_path "$EVIDENCE_ROOT" || fail "evidence root must remain outside the repository"
@@ -115,6 +194,8 @@ readonly EXPECTED_DATABASE="${QA_ROOT:A}/Application Support/Zoid 666/zoid-coach
 [[ -x "$APP_EXECUTABLE" && -x "$AGENT_EXECUTABLE" ]] || fail "installed executables are unavailable"
 [[ "$APP_ROOT" == "$QA_ROOT" && "$AGENT_ROOT" == "$QA_ROOT" ]] || fail "app and helper QA roots differ"
 [[ "$CANONICAL_DATABASE" == "$EXPECTED_DATABASE" ]] || fail "database does not match embedded QA root"
+(( ! REQUIRE_HELPER_UNREGISTERED || WAIT_FOR_FOREGROUND_DATABASE )) \
+    || fail "helper-absent binding requires foreground database readiness"
 
 matching_pid() {
     local pid
@@ -135,6 +216,20 @@ readonly APP_COMMAND="$(ps -ww -p "$APP_PID" -o command=)"
 ! has_argument "$APP_COMMAND" "--background-schedule" || fail "app process is background-only"
 if (( REQUIRE_QA_OPEN_MAIN )); then
     has_argument "$APP_COMMAND" "--qa-open-main" || fail "visible foreground argument is absent"
+fi
+if (( WAIT_FOR_FOREGROUND_DATABASE )); then
+    if wait_for_foreground_database "$APP_PID" "$APP_EXECUTABLE" "$CANONICAL_DATABASE" "$EXPECTED_DATABASE"; then
+        :
+    else
+        readiness_status=$?
+        case "$readiness_status" in
+            2) fail "database does not match embedded QA root" ;;
+            3) fail "foreground app exited before database readiness" ;;
+            4) fail "isolated database did not become readable before timeout" ;;
+            5) fail "foreground PID executable changed before database readiness" ;;
+            *) fail "foreground database readiness failed with status $readiness_status" ;;
+        esac
+    fi
 fi
 if (( REQUIRE_HELPER_UNREGISTERED )); then
     ! launchctl print "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1 || fail "helper registered before foreground binding"
