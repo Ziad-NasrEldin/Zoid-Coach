@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 45
+    public static let currentVersion = 46
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1194,6 +1194,21 @@ private extension AutonomousDatabaseMigrator {
                 column: "resolution_reason",
                 declaration: "TEXT CHECK(resolution_reason IN ('explicit_dismissal', 'screenwatch_evidence_invalid'))"
             )
+        ]),
+        Migration(version: 46, isDestructive: false, operations: [
+            .sql("""
+            CREATE TABLE IF NOT EXISTS deleted_reminder_decisions (
+                source_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                due_at TEXT,
+                list_name TEXT,
+                deleted_at_utc TEXT NOT NULL,
+                state TEXT NOT NULL CHECK(state IN ('pending', 'kept')),
+                decided_at_utc TEXT
+            );
+            CREATE INDEX IF NOT EXISTS deleted_reminder_decisions_state
+            ON deleted_reminder_decisions(state, deleted_at_utc DESC);
+            """)
         ])
     ]
 }
