@@ -503,6 +503,7 @@ struct DailyReviewView: View {
     private func snapshotContent(_ snapshot: DailyReviewSnapshot) -> some View {
         keyboardCorrectionToolbar(snapshot)
         reviewCoverage(snapshot)
+        evidenceLayers(DailyReviewEvidenceLayersState(snapshot: snapshot))
         planOutcomes(snapshot)
         behavioralHighlights(snapshot)
         DailySourceCoverageView(selectedDay: controller.selectedDay)
@@ -1153,6 +1154,47 @@ struct DailyReviewView: View {
         .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
+    }
+
+    private func evidenceLayers(_ state: DailyReviewEvidenceLayersState) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("HOW TO READ THIS REVIEW")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            Text("Facts, context, and hypotheses stay visibly separate so uncertainty cannot be mistaken for observation.")
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(alignment: .top, spacing: 0) {
+                ForEach(state.layers) { layer in
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(layer.title)
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(layer.kind == .hypothesis ? Sumi.seal : Sumi.sealDeep)
+                        Text(layer.body)
+                            .font(Sumi.body(12))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(layer.detail)
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+                    .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(layer.accessibilityLabel)
+                    .accessibilityIdentifier(layer.accessibilityIdentifier)
+                }
+            }
+        }
+        .padding(18)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reviews.evidence-layers")
     }
 
     private func totals(_ totals: [DailyReviewTotal]) -> some View {
