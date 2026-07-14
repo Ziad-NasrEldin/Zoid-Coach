@@ -1,104 +1,207 @@
 # ZC-044-004 signed QA runbook
 
-This runbook verifies manual workday start and end against the exact installed signed candidate.
-It uses the production policy, local-task, daily-plan, task-execution, activity-interval, and pause-event schemas.
-The fixture owns only the `qa-zc044004-*` task namespace and records the original active policy version for cleanup.
+This runbook verifies manual workday start and end against one exact installed signed candidate.
+The product candidate is `03ed2a3ef6e14bd91cb0903d4c8b98be6ecdfa87`.
+The signed build commit must contain that product candidate and verifier base `0068cd2d9da540818feea90ff1e39fc5270b97ee`.
+Every command must run from the repository containing those commits.
 
-## Preconditions
+The fixture uses the production policy, local-task, daily-plan, task-execution, activity-interval, and pause-event schemas.
+The fixture owns only the `qa-zc044004-*` task namespace.
+It records the original active policy version and restores its exact payload during cleanup.
 
-Use an isolated QA database and install root.
-Confirm the installed application identity resolves to candidate `03ed2a30bb77c57a6f60b5102f3ae1b807ab75ae` or its accepted signed integration descendant.
-Grant Accessibility permission to the terminal that runs the probe.
-Do not continue if the fixture reports an ownership collision or schema mismatch.
+## Preconditions and exact identity binding
 
-Set these paths for the signed session:
+Install a clean signed QA package in an isolated install root.
+Grant Accessibility permission to the terminal that runs the AX probe.
+Close unrelated copies of the app.
+Do not continue after any failed assertion.
+
+Set the exact installed paths and full signed integration commit.
+The database path must be the database embedded in the QA bundle runtime root.
 
 ```sh
-APP="/absolute/path/to/Zoid 666.app"
-DATABASE="/absolute/path/to/isolated/zoid.sqlite"
-FIXTURE="Scripts/qa-zc044004-manual-workday-fixture.sh"
-PROBE="Scripts/qa-zc044004-manual-workday-ax-probe.swift"
+APP="/absolute/path/to/Zoid 666 QA E2E.app"
+DATABASE="/private/tmp/zc044004/Application Support/Zoid 666/zoid-coach.sqlite"
+EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_INTEGRATION_COMMIT"
+FIXTURE="$PWD/Scripts/qa-zc044004-manual-workday-fixture.sh"
+PROBE="$PWD/Scripts/qa-zc044004-manual-workday-ax-probe.swift"
+PREFLIGHT="$PWD/Scripts/qa-zc044004-signed-preflight.sh"
+TASK_TITLE="QA ZC-044-004 manual workday task"
+PRIVATE_ROOT="${DATABASE%/Application Support/Zoid 666/zoid-coach.sqlite}"
 ```
 
-## Prepare the real policy and task state
-
-Close the app before preparing the database.
+Open the installed bundle and bind the session to its real executable, helper, signature, build identity, and isolated database.
 
 ```sh
+open "$APP"
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+printf '%s\n' "$PREFLIGHT_OUTPUT"
+PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
+test -n "$PID"
+```
+
+The preflight derives `CFBundleExecutable` from the installed `Info.plist`.
+It rejects a PID whose executable path is outside the installed bundle.
+It runs strict code-signature, package, clean-build, and exact build-identity verification.
+It requires the signed commit to contain both the product candidate and verifier base.
+It requires the app and LaunchAgent to embed the same canonical QA root.
+It requires the helper's stripped-environment runtime identity and open SQLite file to resolve to `DATABASE`.
+
+## Prepare scheduled baseline and ready task
+
+Quit the app before fixture mutation.
+The helper may remain registered, but it must not mutate the owned fixture namespace.
+
+```sh
+kill "$PID"
+while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$FIXTURE" prepare "$DATABASE"
 "$FIXTURE" assert-prepared "$DATABASE"
 open "$APP"
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
 ```
+
+## Save manual mode through production Settings
 
 Open Settings in the signed app and leave the Command chapter visible.
-Capture the signed build identity and the scheduled baseline before mutation.
-Run the Settings probe against the exact installed process:
+The probe must begin from the scheduled baseline.
 
 ```sh
-PID="$(pgrep -x "Zoid 666")"
-swift "$PROBE" --pid "$PID" --phase settings-select-manual
+swift "$PROBE" --pid "$PID" --phase settings-select-manual \
+  --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" assert-manual "$DATABASE"
 ```
 
-The probe selects `Manual start and end`, proves the fixed-hours group changes from enabled to disabled, presses the real Save Changes control, and waits for the saved confirmation.
-The database assertion requires a newly versioned active policy with `schedule.workdayControlMode` equal to `manual` while preserving at least one planning window.
+The probe selects `Manual start and end` through the production segmented control.
+It proves the fixed-hours group changes from enabled to disabled.
+It presses the real `SAVE CHANGES` control and waits for `All changes saved`.
+The fixture requires a newly versioned active manual policy while preserving at least one planning window.
 
-## Prove save and relaunch persistence
+## Prove Settings persistence after relaunch
 
-Quit the signed app normally and launch the exact same installed bundle again.
-Open Settings and keep the Command chapter visible.
-Confirm `Manual start and end` remains selected and fixed-hours controls remain disabled.
+Quit and relaunch the same installed bundle.
+Open Settings and leave the Command chapter visible.
 
 ```sh
-PID="$(pgrep -x "Zoid 666")"
+kill "$PID"
+while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
+open "$APP"
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
+swift "$PROBE" --pid "$PID" --phase settings-persisted \
+  --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" assert-manual "$DATABASE"
 ```
 
-Record the Settings screenshot and AX evidence after relaunch.
+The persisted-settings phase requires `Manual start and end` to remain selected.
+It also requires the fixed-hours group to remain disabled.
 
-## Prove manual start and confirmed end
+## Prove stale Start is rejected without mutation
 
-Open the signed menu-bar popover before each probe phase.
-The ready phase requires `START WORKDAY`, proves `END WORKDAY` is absent, and activates the real start control.
+Open the menu-bar popover and leave the ready `START WORKDAY` control visible.
+Inject the stale state only after the control is visible.
 
 ```sh
-swift "$PROBE" --pid "$PID" --phase ready-start
+"$FIXTURE" inject-start-stale "$DATABASE"
+swift "$PROBE" --pid "$PID" --phase stale-start \
+  --expected-task-title "$TASK_TITLE" --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
+"$FIXTURE" assert-start-stale "$DATABASE"
+"$FIXTURE" restore-ready "$DATABASE"
+```
+
+The probe presses the stale production Start control.
+It requires the honest `changed before Start` error and requires Start to disappear after the fresh state loads.
+The fixture requires no active interval and no end-workday pause mutation.
+
+Close and reopen the popover so it reloads the restored ready state.
+
+## Prove manual Start through the production task path
+
+The ready phase requires the owned task title in the accessible task summary.
+It requires `START WORKDAY`, requires `END WORKDAY` to be absent, and presses the production Start control.
+
+```sh
+swift "$PROBE" --pid "$PID" --phase ready-start \
+  --expected-task-title "$TASK_TITLE" --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" assert-active "$DATABASE"
 ```
 
-Reopen the menu-bar popover after the task becomes active.
-The active phase proves Start is absent, activates the real End Workday control, and presses the destructive confirmation.
+The fixture requires the same owned task to become active with exactly one open activity interval and no open pause.
+
+## Prove stale End is rejected without mutation
+
+Reopen the menu-bar popover and leave the active `END WORKDAY` control visible.
+Inject the stale state only after the control is visible.
 
 ```sh
-swift "$PROBE" --pid "$PID" --phase active-end
+"$FIXTURE" inject-end-stale "$DATABASE"
+swift "$PROBE" --pid "$PID" --phase stale-end \
+  --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
+"$FIXTURE" assert-end-stale "$DATABASE"
+"$FIXTURE" restore-active "$DATABASE"
+```
+
+The probe opens and confirms the stale destructive action.
+It requires the honest `active task changed before confirmation` error and requires End to disappear after the fresh state loads.
+The fixture requires the ordinary pause to remain and requires no `endingWorkday` mutation.
+
+Close and reopen the popover so it reloads the restored active state.
+
+## Prove confirmed End and ended state
+
+The active phase requires Start to be absent.
+It presses the real End control and the destructive confirmation.
+
+```sh
+swift "$PROBE" --pid "$PID" --phase active-end \
+  --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" assert-ended "$DATABASE"
 ```
 
-Reopen the menu-bar popover after the confirmed mutation.
-The ended phase requires the ended status, requires both invalid Start and End actions to be absent, and requires the paused-task resume path to be labeled Start Workday.
+Reopen the popover after the confirmed mutation.
+The ended phase requires the ended status.
+It requires both invalid Start and End actions to be absent.
+It requires the paused-task resume path to be labeled `START WORKDAY`.
 
 ```sh
-swift "$PROBE" --pid "$PID" --phase ended
+swift "$PROBE" --pid "$PID" --phase ended \
+  --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 ```
 
-Quit and relaunch the exact signed app once more.
-Open the menu-bar popover and repeat the ended probe.
+Every AX phase recursively scans identifiers, titles, descriptions, values, and help text.
+The scan rejects raw fixture IDs, fixture notes, the database path, and the private QA root.
+
+## Prove ended-state persistence after relaunch
+
+Quit and relaunch the same installed bundle once more.
+Open the menu-bar popover.
 
 ```sh
-PID="$(pgrep -x "Zoid 666")"
-swift "$PROBE" --pid "$PID" --phase ended
+kill "$PID"
+while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
+open "$APP"
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
+swift "$PROBE" --pid "$PID" --phase ended \
+  --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" assert-relaunch "$DATABASE"
 ```
 
-The database must still contain a manual active policy, a paused task, no open activity interval, and one open `endingWorkday` pause event.
+The database must still contain the manual active policy, paused task, no open activity interval, and one open `endingWorkday` pause event.
 
-## Cleanup
+## Cleanup and restoration proof
 
-Close the signed app before cleanup.
+Quit the app before cleanup.
 
 ```sh
+kill "$PID"
+while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$FIXTURE" cleanup "$DATABASE"
 ```
 
-Cleanup removes only the owned QA task rows and restores the original active policy pointer and payload.
-Do not mark ZC-044-004 fully usable unless every fixture assertion and every AX phase passes against the same signed installed identity.
+Cleanup removes all owned task, plan, execution, interval, pause, and backup rows.
+Cleanup requires the original policy version to be active again.
+Cleanup also requires the restored settings payload to equal the original versioned payload.
+
+Do not mark ZC-044-004 fully usable unless every preflight, fixture assertion, stale-transition assertion, privacy scan, and AX phase passes against this one installed signed identity.
