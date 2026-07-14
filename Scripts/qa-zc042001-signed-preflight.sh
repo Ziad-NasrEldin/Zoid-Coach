@@ -37,12 +37,29 @@ assert_runbook_order() {
         || fail "runbook must use four bound ordinary relaunches after initial foreground launch"
 }
 
+assert_existing_main_window_is_reused() {
+    local source="$REPOSITORY/Sources/ZoidCoachApp/ApplicationLaunchPresentation.swift"
+    local tests="$REPOSITORY/Tests/ZoidCoachAppTests/ApplicationLaunchPresentationTests.swift"
+    local open_line reuse_line request_line
+    open_line="$(grep -n '^    func open() {$' "$source" | head -n1 | cut -d: -f1)"
+    reuse_line="$(awk -v start="$open_line" 'NR > start && /if let mainWindow = MainApplicationWindowSelector.select/ {print NR; exit}' "$source")"
+    request_line="$(awk -v start="$open_line" 'NR > start && /requestMainWindow\(\)/ {print NR; exit}' "$source")"
+    [[ "$open_line" == <-> && "$reuse_line" == <-> && "$request_line" == <-> \
+        && open_line -lt reuse_line && reuse_line -lt request_line ]] \
+        || fail "QA launch must reuse an existing main WindowGroup before requesting another scene"
+    grep -Fq '@Test func qaMainWindowLaunchReusesExistingMainWithoutRequestingDuplicate()' "$tests" \
+        || fail "existing-main duplicate regression test is unavailable"
+    grep -Fq '#expect(events == ["activate", "foreground-42"])' "$tests" \
+        || fail "existing-main regression test permits a duplicate scene request"
+}
+
 if [[ "$APP" == "--self-test" ]]; then
     is_sha "8cc9f2187e74787c183e444140b8696b8e37e52f" || fail "valid SHA rejected"
     ! is_sha "8CC9F2187E74787C183E444140B8696B8E37E52F" || fail "uppercase SHA accepted"
     has_argument "/tmp/Zoid666 --qa-open-main" "--qa-open-main" || fail "foreground argument rejected"
     ! has_argument "/tmp/Zoid666" "--qa-open-main" || fail "ordinary launch mistaken for foreground launch"
     assert_runbook_order
+    assert_existing_main_window_is_reused
     "$PROBE" --self-test >/dev/null
     print -- "PASS: ZC-042-001 signed preflight self-test"
     exit 0

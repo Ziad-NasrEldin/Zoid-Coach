@@ -85,7 +85,7 @@ import ZoidCoachCore
 }
 
 @MainActor
-@Test func qaMainWindowLaunchIsForegroundedExactlyOnce() {
+@Test func qaMainWindowLaunchReusesExistingMainWithoutRequestingDuplicate() {
     var events: [String] = []
     let backgroundWindow = applicationWindow(
         number: 41,
@@ -113,7 +113,7 @@ import ZoidCoachCore
     gate.openIfNeeded(shouldOpenMainWindow: true, coordinator: coordinator)
     gate.openIfNeeded(shouldOpenMainWindow: true, coordinator: coordinator)
 
-    #expect(events == ["request-main", "activate", "foreground-42"])
+    #expect(events == ["activate", "foreground-42"])
     #expect(gate.hasOpenedMainWindow)
 }
 
@@ -437,7 +437,7 @@ import ZoidCoachCore
         activateApplication: { events.append("activate") },
         availableWindows: {
             polls += 1
-            return polls == 1 ? [backgroundWindow] : [backgroundWindow, mainWindow]
+            return polls <= 2 ? [backgroundWindow] : [backgroundWindow, mainWindow]
         },
         foregroundWindow: { events.append("foreground-\($0)") },
         scheduleRetry: { action in
@@ -448,8 +448,8 @@ import ZoidCoachCore
 
     coordinator.open()
 
-    #expect(events == ["request-main", "activate", "retry", "foreground-42"])
-    #expect(polls == 2)
+    #expect(events == ["activate", "request-main", "retry", "foreground-42"])
+    #expect(polls == 3)
 }
 
 @MainActor
@@ -478,7 +478,7 @@ import ZoidCoachCore
 
     coordinator.open()
 
-    #expect(polls == 3)
+    #expect(polls == 4)
     #expect(retries == 2)
     #expect(foregroundedWindows.isEmpty)
 }
