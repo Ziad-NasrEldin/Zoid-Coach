@@ -735,6 +735,48 @@ import ZoidCoachInfrastructure
     #expect(relaunchedController.state.taskStatus == "Workday ended · Tracked time is saved")
 }
 
+@MainActor
+@Test func compactMenuReopensAnUnplannedPausedTaskWithResume() async throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-menu-unplanned-pause-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let startedAt = Date(timeIntervalSince1970: 1_800_000_000)
+    let reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "focus", title: "Verify the ready-state journey", dueDate: startedAt, priority: 9),
+        ReminderSourceSnapshot(id: "queued", title: "Leave this queued", dueDate: startedAt, priority: 0)
+    ])
+    let agent = try TodayDashboardAgent(databaseURL: databaseURL)
+
+    let active = try agent.startUnplannedTask("focus", now: startedAt)
+    #expect(active.activeTask?.taskID == "focus")
+    #expect(active.taskRows.first(where: { $0.taskID == "focus" })?.state == .active)
+
+    let paused = try agent.apply(
+        .pauseDoneForNow,
+        taskID: "focus",
+        now: startedAt.addingTimeInterval(60)
+    )
+    #expect(paused.taskRows.first(where: { $0.taskID == "focus" })?.state == .paused)
+
+    let reopenedController = MenuBarCoachController(client: AgentMenuBarTodayClient(
+        agent: try TodayDashboardAgent(databaseURL: databaseURL),
+        now: startedAt.addingTimeInterval(120)
+    ))
+    await reopenedController.refresh()
+
+    #expect(reopenedController.state.pausedTask?.taskID == "focus")
+    #expect(reopenedController.state.primaryTask?.title == "Verify the ready-state journey")
+    #expect(reopenedController.state.availableTaskActions == [.resume, .markBlocked, .openToday])
+    #expect(reopenedController.state.taskStatus == "Paused because you are done for now")
+    #expect(reopenedController.snapshot?.taskRows.contains(where: { $0.taskID == "queued" }) == false)
+    #expect(reopenedController.snapshot?.unplannedReminders?.contains(where: { $0.reminderID == "queued" }) == true)
+}
+
 private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
     let fetchResult: Result<TodaySnapshot, Error>
     var applyResults: [Result<TodaySnapshot, Error>]
