@@ -10,6 +10,9 @@ private enum Mode: String {
     case outsideWorkWindow = "outside-work-window"
     case disabled
     case partialLockedReward = "partial-locked-reward"
+    case menuWithinWorkWindow = "menu-within-work-window"
+    case menuOutsideWorkWindow = "menu-outside-work-window"
+    case menuOmitted = "menu-omitted"
 }
 
 private struct Failure: Error { let message: String }
@@ -21,7 +24,9 @@ private let expected: [Mode: [String]] = [
     ],
     .outsideWorkWindow: ["Base 60m · Earned 15m · Used 20m · Locked 0m · Remaining 55m · Same-day overage 0m"],
     .disabled: ["Base 60m · Earned 15m · Used 20m · Locked 0m · Remaining 55m · Same-day overage 0m"],
-    .partialLockedReward: ["Base 60m · Earned 0m · Used 0m · Locked 10m · Remaining 60m · Same-day overage 0m"]
+    .partialLockedReward: ["Base 60m · Earned 0m · Used 0m · Locked 10m · Remaining 60m · Same-day overage 0m"],
+    .menuWithinWorkWindow: ["30 MIN MAXIMUM", "Active in the current work window · 10m remaining"],
+    .menuOutsideWorkWindow: ["30 MIN MAXIMUM", "Not active now · Normal allowance has 55m remaining"]
 ]
 
 private func attribute(_ element: AXUIElement, _ name: CFString) -> AnyObject? {
@@ -119,7 +124,7 @@ private func run() throws {
     guard CommandLine.arguments.count == 3,
           let pid = pid_t(CommandLine.arguments[1]),
           let mode = Mode(rawValue: CommandLine.arguments[2])
-    else { throw Failure(message: "usage: probe <pid> <settings-enabled|settings-persisted|within-work-window|outside-work-window|disabled|partial-locked-reward>") }
+    else { throw Failure(message: "usage: probe <pid> <settings-enabled|settings-persisted|within-work-window|outside-work-window|disabled|partial-locked-reward|menu-within-work-window|menu-outside-work-window|menu-omitted>") }
     guard AXIsProcessTrusted() else { throw Failure(message: "Accessibility permission is required") }
     guard kill(pid, 0) == 0 else { throw Failure(message: "process is not running") }
     let elements = walk(try singleWindow(pid: pid))
@@ -132,6 +137,17 @@ private func run() throws {
         _ = try requireIdentifier("today.gaming.status", in: elements)
         for value in expected[mode, default: []] where !containsExact(value, in: elements) {
             throw Failure(message: "rendered Today gaming state did not match \(mode.rawValue)")
+        }
+    case .menuWithinWorkWindow, .menuOutsideWorkWindow:
+        _ = try requireIdentifier("menu-bar.gaming.work-hours", in: elements)
+        _ = try requireIdentifier("menu-bar.gaming.work-hours.maximum", in: elements)
+        _ = try requireIdentifier("menu-bar.gaming.work-hours.status", in: elements)
+        for value in expected[mode, default: []] where !containsExact(value, in: elements) {
+            throw Failure(message: "rendered menu gaming state did not match \(mode.rawValue)")
+        }
+    case .menuOmitted:
+        guard !elements.contains(where: { identifier($0) == "menu-bar.gaming.work-hours" }) else {
+            throw Failure(message: "menu work-hours summary should be omitted")
         }
     }
     print("PASS: ZC-029-010 \(mode.rawValue) accessibility contract verified")

@@ -40,7 +40,12 @@ jq -e '
   .states.partialLockedReward.renderedStatus == "Base 60m · Earned 0m · Used 0m · Locked 10m · Remaining 60m · Same-day overage 0m" and
   (.settings.toggleIdentifier | startswith("settings.gaming.")) and
   (.settings.controlIdentifier | startswith("settings.gaming.")) and
-  (.settings.detailIdentifier | startswith("settings.gaming."))
+  (.settings.detailIdentifier | startswith("settings.gaming.")) and
+  .menu.containerIdentifier == "menu-bar.gaming.work-hours" and
+  .menu.maximumIdentifier == "menu-bar.gaming.work-hours.maximum" and
+  .menu.statusIdentifier == "menu-bar.gaming.work-hours.status" and
+  .menu.withinWorkWindowStatus == "Active in the current work window · 10m remaining" and
+  .menu.outsideWorkWindowStatus == "Not active now · Normal allowance has 55m remaining"
 ' "$FIXTURE" >/dev/null || fail "fixture contract mismatch"
 
 jq -e '

@@ -17,6 +17,13 @@
     "enabledDetail": "During configured work windows, total available gaming cannot exceed this maximum, including unlocked rewards. Outside work hours, the normal daily allowance applies.",
     "disabledDetail": "No separate work-hours maximum is applied. The normal daily allowance applies all day."
   },
+  "menu": {
+    "containerIdentifier": "menu-bar.gaming.work-hours",
+    "maximumIdentifier": "menu-bar.gaming.work-hours.maximum",
+    "statusIdentifier": "menu-bar.gaming.work-hours.status",
+    "withinWorkWindowStatus": "Active in the current work window · 10m remaining",
+    "outsideWorkWindowStatus": "Not active now · Normal allowance has 55m remaining"
+  },
   "states": {
     "withinWorkWindow": {
       "gamingStatus": {

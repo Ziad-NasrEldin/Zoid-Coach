@@ -37,15 +37,18 @@ In Today, confirm `Base 30m`, `Earned 0m`, `Used 20m`, `Locked 0m`, and `Remaini
 Run the probe with `within-work-window`.
 
 Open the menu-bar surface and use its Today action.
-Confirm it opens the same fresh Today state, then rerun `within-work-window` against the resulting main window.
-The current menu-bar popover does not render gaming allowance content, so record this as navigation and availability regression evidence only.
-Do not claim that the popover itself proves the cap unless product work first adds a real gaming status surface there.
+Confirm the read-only `WORK-HOURS GAMING` summary shows `30 MIN MAXIMUM`, `Active in the current work window`, and `10m remaining`.
+Run the probe with `menu-within-work-window` against the menu popover.
+Use its Today action, confirm it opens the same fresh Today state, then rerun `within-work-window` against the resulting main window.
 
 Move the saved work window so the same instant is outside the window, wait for an agent refresh, and run `outside-work-window`.
 Confirm the normal `Base 60m`, `Earned 15m`, and `Remaining 55m` allowance returns without changing observed gaming or the reward ledger.
+Open the menu and run `menu-outside-work-window`.
+Confirm it keeps the configured 30-minute maximum visible while truthfully saying it is not active and that the normal allowance has 55 minutes remaining.
 
 Disable the separate work-hours maximum, save, wait for refresh, and run `disabled` while the instant is inside the configured work window.
 Confirm the normal allowance still applies.
+Open the menu and run `menu-omitted` to prove the read-only summary disappears when the separate maximum is disabled.
 
 For the partial-lock boundary, set the base to 60, reward to 15, and separate work-hours maximum to 70.
 Use a fresh QA local day with no reward ledger entry and no meaningful gaming observation.
