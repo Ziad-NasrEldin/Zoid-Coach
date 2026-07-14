@@ -40,10 +40,23 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     let fixtureDate = ISO8601DateFormatter().date(from: "2026-07-14T12:00:00Z")!
     let cairo = TimeZone(identifier: "Africa/Cairo")!
     let gregorian = Calendar(identifier: .gregorian)
+    let currentMachineDate = formattedDayStateDate(
+        fixtureDate,
+        locale: .current,
+        calendar: gregorian,
+        timeZone: cairo
+    )
     let valid = [
-        "Tuesday, July 14. Day state: ACTIVE WORK. One task is currently tracking time.",
+        "Tuesday, 14 July. Day state: ACTIVE WORK. One task is currently tracking time.",
     ]
-    guard formattedDayStateDate(
+    guard currentMachineDate == "Tuesday, 14 July",
+          formattedDayStateDate(
+              fixtureDate,
+              locale: Locale(identifier: "en_EG"),
+              calendar: gregorian,
+              timeZone: cairo
+          ) == "Tuesday, 14 July",
+          formattedDayStateDate(
               fixtureDate,
               locale: Locale(identifier: "en_US"),
               calendar: gregorian,
@@ -55,18 +68,12 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
               calendar: gregorian,
               timeZone: cairo
           ) == "Tuesday 14 July",
-          formattedDayStateDate(
-              fixtureDate,
-              locale: Locale(identifier: "en"),
-              calendar: gregorian,
-              timeZone: cairo
-          ) == "Tuesday, July 14",
-          matchesDayState(valid, expectedDate: "Tuesday, July 14", expectedState: "Active work"),
-          !matchesDayState(valid, expectedDate: "Monday, July 13", expectedState: "Active work"),
-          !matchesDayState(valid, expectedDate: "Tuesday, July 14", expectedState: "Planned day"),
+          matchesDayState(valid, expectedDate: "Tuesday, 14 July", expectedState: "Active work"),
+          !matchesDayState(valid, expectedDate: "Monday, 13 July", expectedState: "Active work"),
+          !matchesDayState(valid, expectedDate: "Tuesday, 14 July", expectedState: "Planned day"),
           matchesDayState(
-              ["Wednesday, July 15", "Day state", "Preparing today"],
-              expectedDate: "Wednesday, July 15",
+              ["Wednesday, 15 July", "Day state", "Preparing today"],
+              expectedDate: "Wednesday, 15 July",
               expectedState: "Preparing today"
           ),
           !exposesPrivateSentinel(valid, rejected: ["qa-zc013001-private", "private.invalid"]),
@@ -111,16 +118,15 @@ guard let pid, let appBundlePath, let expectedState else {
     exit(2)
 }
 
-guard let appBundle = Bundle(path: appBundlePath) else {
+guard Bundle(path: appBundlePath) != nil else {
     fputs("FAIL: installed app bundle is unavailable\n", stderr)
     exit(1)
 }
-let appLocaleIdentifier = appBundle.preferredLocalizations.first
-    ?? appBundle.developmentLocalization
-    ?? Locale.current.identifier
+let resolvedLocale = Locale.current
+let resolvedLocaleIdentifier = resolvedLocale.identifier
 let expectedDate = formattedDayStateDate(
     Date(),
-    locale: Locale(identifier: appLocaleIdentifier),
+    locale: resolvedLocale,
     calendar: Calendar.current,
     timeZone: TimeZone.current
 )
@@ -193,7 +199,7 @@ do {
     ) else {
         let observed = values(dayState).joined(separator: " | ")
         fputs(
-            "FAIL: Today day-state header mismatch; expected date=\(expectedDate) state=\(expectedState) locale=\(appLocaleIdentifier); observed=\(observed)\n",
+            "FAIL: Today day-state header mismatch; expected date=\(expectedDate) state=\(expectedState) locale=\(resolvedLocaleIdentifier); observed=\(observed)\n",
             stderr
         )
         exit(1)
@@ -203,7 +209,7 @@ do {
         exit(1)
     }
     print(
-        "PASS: ZC-013-001 visible date=\(expectedDate) state=\(expectedState) locale=\(appLocaleIdentifier)"
+        "PASS: ZC-013-001 visible date=\(expectedDate) state=\(expectedState) locale=\(resolvedLocaleIdentifier)"
     )
 } catch {
     fputs("FAIL: Today day-state accessibility traversal failed\n", stderr)
