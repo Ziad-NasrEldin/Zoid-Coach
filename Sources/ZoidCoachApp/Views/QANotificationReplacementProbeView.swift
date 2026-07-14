@@ -2,6 +2,15 @@ import SwiftUI
 import ZoidCoachCore
 import ZoidCoachInfrastructure
 
+enum QANotificationReplacementProbeAccessibility {
+    static let originalButton = "settings.qa-notification-replacement.original"
+    static let replacementButton = "settings.qa-notification-replacement.updated"
+    static let refreshButton = "settings.qa-notification-replacement.refresh"
+    static let status = "settings.qa-notification-replacement.status"
+
+    static let identifiers = [originalButton, replacementButton, refreshButton, status]
+}
+
 @MainActor
 final class QANotificationReplacementProbeController: ObservableObject {
     @Published private(set) var isRunning = false
@@ -122,23 +131,22 @@ struct QANotificationReplacementProbeView: View {
                     Button("CREATE ORIGINAL") { controller.scheduleOriginal() }
                         .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                         .disabled(controller.isRunning)
-                        .accessibilityIdentifier("settings.qa-notification-replacement.original")
+                        .accessibilityIdentifier(QANotificationReplacementProbeAccessibility.originalButton)
                     Button("REPLACE WITH UPDATE") { controller.scheduleReplacement() }
                         .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
                         .disabled(!controller.canScheduleReplacement)
-                        .accessibilityIdentifier("settings.qa-notification-replacement.updated")
+                        .accessibilityIdentifier(QANotificationReplacementProbeAccessibility.replacementButton)
                     Button("REFRESH RESULT") { controller.refresh() }
                         .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                         .disabled(controller.isRunning)
-                        .accessibilityIdentifier("settings.qa-notification-replacement.refresh")
+                        .accessibilityIdentifier(QANotificationReplacementProbeAccessibility.refreshButton)
                 }
                 Text(controller.message)
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
                     .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("settings.qa-notification-replacement.status")
+                    .accessibilityIdentifier(QANotificationReplacementProbeAccessibility.status)
             }
-            .accessibilityIdentifier("settings.qa-notification-replacement")
         }
     }
 }
