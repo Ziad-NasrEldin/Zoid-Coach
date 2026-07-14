@@ -117,16 +117,16 @@ func actionButtonWrapsConstrainedArabicWithoutHorizontalOverflow() async throws 
     let host = NSHostingView(
         rootView: LocalizedActionButtonFixture(
             label: "تأكيد الخطة اليومية ومراجعة التفاصيل قبل المتابعة",
-            width: 180,
+            width: 110,
             layoutDirection: .rightToLeft,
             measurement: measurement
         )
     )
-    host.frame = NSRect(x: 0, y: 0, width: 180, height: 240)
+    host.frame = NSRect(x: 0, y: 0, width: 110, height: 240)
     await settle(host)
 
     let size = try #require(measurement.size)
-    #expect(size.width <= 180)
+    #expect(size.width <= 110)
     #expect(size.height > 44)
     #expect(size.height < 240)
 
@@ -182,17 +182,17 @@ func compactActionButtonWrapsLocalizedCopyAboveTheMinimumTargetHeight() async th
     let host = NSHostingView(
         rootView: LocalizedActionButtonFixture(
             label: "فتح إعدادات الخصوصية ومراجعة الإذن",
-            width: 150,
+            width: 70,
             layoutDirection: .rightToLeft,
             controlSize: .compact,
             measurement: measurement
         )
     )
-    host.frame = NSRect(x: 0, y: 0, width: 150, height: 240)
+    host.frame = NSRect(x: 0, y: 0, width: 70, height: 240)
     await settle(host)
 
     let size = try #require(measurement.size)
-    #expect(size.width <= 150)
+    #expect(size.width <= 70)
     #expect(size.height > 44)
     #expect(size.height < 240)
 
@@ -205,17 +205,17 @@ func largeActionButtonWrapsLocalizedCopyAboveTheMinimumTargetHeight() async thro
     let host = NSHostingView(
         rootView: LocalizedActionButtonFixture(
             label: "مراجعة الخطة اليومية والمتابعة إلى شاشة اليوم",
-            width: 180,
+            width: 110,
             layoutDirection: .rightToLeft,
             controlSize: .large,
             measurement: measurement
         )
     )
-    host.frame = NSRect(x: 0, y: 0, width: 180, height: 240)
+    host.frame = NSRect(x: 0, y: 0, width: 110, height: 240)
     await settle(host)
 
     let size = try #require(measurement.size)
-    #expect(size.width <= 180)
+    #expect(size.width <= 110)
     #expect(size.height > 44)
     #expect(size.height < 240)
 
