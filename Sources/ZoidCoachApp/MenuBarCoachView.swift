@@ -28,13 +28,22 @@ final class MenuBarCoachController: ObservableObject {
     @Published private(set) var lastConfirmedAt: Date?
 
     private let client: any MenuBarTodayClient
+    private let loadTodaySnapshot: @Sendable () -> TodaySnapshot?
 
-    init(client: any MenuBarTodayClient) {
+    init(
+        client: any MenuBarTodayClient,
+        loadTodaySnapshot: @escaping @Sendable () -> TodaySnapshot? = { nil }
+    ) {
         self.client = client
+        self.loadTodaySnapshot = loadTodaySnapshot
     }
 
     convenience init(runtimeEnvironment: RuntimeEnvironment) {
-        self.init(client: TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment))
+        let loader = ReadOnlyTodaySnapshotLoader(runtimeEnvironment: runtimeEnvironment)
+        self.init(
+            client: TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment),
+            loadTodaySnapshot: loader.load
+        )
     }
 
     var state: MenuBarCoachState { MenuBarCoachState(snapshot: snapshot) }
@@ -55,18 +64,18 @@ final class MenuBarCoachController: ObservableObject {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-        do {
-            snapshot = try await client.fetchTodaySnapshot()
+        if let latest = loadTodaySnapshot() {
+            snapshot = latest
             errorMessage = nil
             syncPresentation = .confirmed
             lastConfirmedAt = Date()
-        } catch {
+        } else {
             if snapshot == nil {
                 syncPresentation = .unavailable
-                errorMessage = "Task state is unavailable because Zoid 666 could not load a confirmed state from the background agent. Open Source Health, then refresh."
+                errorMessage = "Task state is unavailable because Zoid 666 has not prepared a confirmed state yet. Open Today or Source Health, then refresh."
             } else {
                 syncPresentation = .stale
-                errorMessage = "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh."
+                errorMessage = "Today has not prepared a newer confirmed state. The last confirmed task state remains visible. Open Source Health, then refresh."
             }
         }
     }

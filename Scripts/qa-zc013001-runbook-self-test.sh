@@ -184,4 +184,20 @@ ZSH
 TEST_ROOT="$TEMP_ROOT" /bin/zsh "$TEMP_ROOT/execute-database-quiescence.zsh" \
     || fail "database quiescence helper failed delayed-release or timeout cases under zsh"
 
-print -- "PASS: ZC-013-001 runbook validates zsh portability, launch predicates, database readiness, and quiescence"
+awk '
+    /^# BEGIN RUNBOOK SELF-TEST: failure-cleanup$/ { inside = 1; next }
+    /^# END RUNBOOK SELF-TEST: failure-cleanup$/ { inside = 0; exit }
+    inside { print }
+' "$RUNBOOK" > "$TEMP_ROOT/failure-cleanup.zsh"
+test -s "$TEMP_ROOT/failure-cleanup.zsh" || fail "failure cleanup trap was not found"
+grep -Fq 'local exit_code=$?' "$TEMP_ROOT/failure-cleanup.zsh" \
+    || fail "failure cleanup must preserve the incoming exit code in a non-reserved variable"
+! grep -Eq '(^|[[:space:]])(local|typeset)[[:space:]]+status=' "$TEMP_ROOT/failure-cleanup.zsh" \
+    || fail "failure cleanup assigns zsh reserved variable status"
+
+cp "$TEMP_ROOT/failure-cleanup.zsh" "$TEMP_ROOT/invalid-failure-cleanup.zsh"
+print -r -- 'cleanup_invalid() { local status=$?; }' >> "$TEMP_ROOT/invalid-failure-cleanup.zsh"
+grep -Eq '(^|[[:space:]])(local|typeset)[[:space:]]+status=' "$TEMP_ROOT/invalid-failure-cleanup.zsh" \
+    || fail "reserved cleanup variable guard did not reject a known-invalid fixture"
+
+print -- "PASS: ZC-013-001 runbook validates zsh portability, launch predicates, database readiness, quiescence, and failure cleanup"

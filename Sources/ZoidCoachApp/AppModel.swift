@@ -110,7 +110,7 @@ final class AppModel: ObservableObject {
     private let eventStore: EventStore
     private let meetingArchive: ScreenwatchArchive?
     private let meetingEvidenceCipherFactory: () throws -> any EvidenceCiphering
-    private let todaySnapshotStore: TodaySnapshotStore?
+    private let todaySnapshotLoader: ReadOnlyTodaySnapshotLoader
     private let policyStore: PolicyStore?
     private let reminderListPolicyLoader: @Sendable () throws -> ReminderListPolicy
     private let todayDashboardXPCClient: TodayDashboardXPCClient
@@ -232,7 +232,7 @@ final class AppModel: ObservableObject {
             try meetingEvidenceCipherFactory.makeCipher(for: runtimeEnvironment)
         }
         meetingArchive = try? ScreenwatchArchive(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
-        todaySnapshotStore = try? TodaySnapshotStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
+        todaySnapshotLoader = ReadOnlyTodaySnapshotLoader(runtimeEnvironment: runtimeEnvironment)
         let resolvedPolicyStore = try? PolicyStore(
             databaseURL: runtimeEnvironment.databaseURL,
             readOnly: true
@@ -398,7 +398,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshTodaySnapshot() async {
-        installTodaySnapshot(try? todaySnapshotStore?.load())
+        installTodaySnapshot(todaySnapshotLoader.load())
     }
 
     func recordGamingManualAdjustment(
@@ -459,7 +459,7 @@ final class AppModel: ObservableObject {
                 gamingManualAdjustmentMessage = receipt.message
             } catch {
                 gamingManualAdjustmentError = error.localizedDescription
-                installTodaySnapshot(try? todaySnapshotStore?.load())
+                installTodaySnapshot(todaySnapshotLoader.load())
             }
         }
     }
@@ -535,7 +535,7 @@ final class AppModel: ObservableObject {
                 }
             } catch {
                 taskCommandError = "The task change could not be saved. The last confirmed state is still shown. Try again after checking Agent source health."
-                installTodaySnapshot(try? todaySnapshotStore?.load())
+                installTodaySnapshot(todaySnapshotLoader.load())
             }
         }
     }
@@ -608,7 +608,7 @@ final class AppModel: ObservableObject {
                 lastActionMessage = "\(durationMinutes)-minute sprint started."
             } catch {
                 taskCommandError = error.localizedDescription
-                installTodaySnapshot(try? todaySnapshotStore?.load())
+                installTodaySnapshot(todaySnapshotLoader.load())
             }
         }
     }
@@ -823,7 +823,7 @@ final class AppModel: ObservableObject {
                 await refreshPromptInbox()
             } catch {
                 taskCommandError = error.localizedDescription
-                installTodaySnapshot(try? todaySnapshotStore?.load())
+                installTodaySnapshot(todaySnapshotLoader.load())
             }
         }
     }
@@ -1179,7 +1179,7 @@ final class AppModel: ObservableObject {
         } catch {
             taskCommandError = "The blocker was not saved. The last confirmed task and plan state are still shown."
             await reloadDailyPlan()
-            installTodaySnapshot(try? todaySnapshotStore?.load())
+            installTodaySnapshot(todaySnapshotLoader.load())
             return false
         }
     }
