@@ -39,13 +39,22 @@ ZOID_COACH_QA_INSTALL_ROOT="$INSTALL_ROOT" \
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/Info.plist")"
 APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
 "$APP_EXECUTABLE" --qa-unregister-agent
+for candidate in $(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null); do
+  if lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$APP_EXECUTABLE"; then
+    kill "$candidate"
+    while kill -0 "$candidate" 2>/dev/null; do sleep 0.1; done
+  fi
+done
 "$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace
-"$APP_EXECUTABLE" --qa-register-agent
 open "$APP" --args --qa-open-main
-PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" "$EVIDENCE_ROOT")"
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" "$EVIDENCE_ROOT" \
+  --require-qa-open-main --require-helper-unregistered)"
 printf '%s\n' "$PREFLIGHT_OUTPUT"
 PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
 test -n "$PID"
+"$APP_EXECUTABLE" --qa-register-agent
+"$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" "$EVIDENCE_ROOT" \
+  --require-qa-open-main --expected-app-pid "$PID"
 ```
 
 Do not continue unless the preflight binds the foreground app, helper, database, QA root, signed commit, and external evidence root.

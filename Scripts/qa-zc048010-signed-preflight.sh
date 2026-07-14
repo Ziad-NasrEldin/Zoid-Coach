@@ -10,16 +10,32 @@ readonly APP="${1:-}"
 readonly DATABASE="${2:-}"
 readonly EXPECTED_COMMIT="${3:-}"
 readonly EVIDENCE_ROOT="${4:-}"
+shift $(( $# < 4 ? $# : 4 ))
+REQUIRE_QA_OPEN_MAIN=0
+REQUIRE_HELPER_UNREGISTERED=0
+EXPECTED_APP_PID=""
 
 fail() { print -u2 -- "FAIL: $*"; exit 1; }
 is_sha() { [[ "$1" =~ '^[0-9a-f]{40}$' ]]; }
+has_argument() { [[ " $1 " == *" $2 "* ]]; }
+is_visible_foreground_command() {
+    has_argument "$1" "--qa-open-main" && ! has_argument "$1" "--background-schedule"
+}
 is_external_path() {
     local candidate="${1:A}"
     [[ "$candidate" != "$REPOSITORY" && "$candidate" != "$REPOSITORY"/* ]]
 }
 assert_runbook_order() {
     local runbook="$REPOSITORY/docs/ZC-048-010-SIGNED-QA-RUNBOOK.md"
-    local preview cancel prepare save inspect existing retry finder cleanup
+    local install unregister terminate ready launch initial_bind register same_pid preview cancel prepare save inspect existing retry finder cleanup
+    install="$(grep -nF 'Scripts/install-signed-qa-runtime.sh' "$runbook" | head -n1 | cut -d: -f1)"
+    unregister="$(grep -nF '"$APP_EXECUTABLE" --qa-unregister-agent' "$runbook" | head -n1 | cut -d: -f1)"
+    terminate="$(grep -nF 'kill "$candidate"' "$runbook" | head -n1 | cut -d: -f1)"
+    ready="$(grep -nF '"$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace' "$runbook" | head -n1 | cut -d: -f1)"
+    launch="$(grep -nF 'open "$APP" --args --qa-open-main' "$runbook" | head -n1 | cut -d: -f1)"
+    initial_bind="$(grep -nF -- '--require-qa-open-main --require-helper-unregistered' "$runbook" | head -n1 | cut -d: -f1)"
+    register="$(grep -nF '"$APP_EXECUTABLE" --qa-register-agent' "$runbook" | head -n1 | cut -d: -f1)"
+    same_pid="$(grep -nF -- '--require-qa-open-main --expected-app-pid "$PID"' "$runbook" | head -n1 | cut -d: -f1)"
     preview="$(grep -nF -- '--phase preview' "$runbook" | head -n1 | cut -d: -f1)"
     cancel="$(grep -nF -- '--phase cancel' "$runbook" | head -n1 | cut -d: -f1)"
     prepare="$(grep -nF '"$FIXTURE" prepare "$DATABASE"' "$runbook" | head -n1 | cut -d: -f1)"
@@ -29,16 +45,23 @@ assert_runbook_order() {
     retry="$(grep -nF 'Fresh retry' "$runbook" | head -n1 | cut -d: -f1)"
     finder="$(grep -nF -- '--phase finder' "$runbook" | head -n1 | cut -d: -f1)"
     cleanup="$(grep -nF '"$FIXTURE" cleanup "$DATABASE"' "$runbook" | tail -n1 | cut -d: -f1)"
-    [[ "$preview" == <-> && "$cancel" == <-> && "$prepare" == <-> && "$save" == <-> \
+    [[ "$install" == <-> && "$unregister" == <-> && "$terminate" == <-> && "$ready" == <-> \
+        && "$launch" == <-> && "$initial_bind" == <-> && "$register" == <-> && "$same_pid" == <-> \
+        && "$preview" == <-> && "$cancel" == <-> && "$prepare" == <-> && "$save" == <-> \
         && "$inspect" == <-> && "$existing" == <-> && "$retry" == <-> && "$finder" == <-> && "$cleanup" == <-> \
+        && install -lt unregister && unregister -lt terminate && terminate -lt ready && ready -lt launch \
+        && launch -lt initial_bind && initial_bind -lt register && register -lt same_pid && same_pid -lt preview \
         && preview -lt cancel && cancel -lt prepare && prepare -lt save && save -lt inspect \
         && inspect -lt existing && existing -lt retry && retry -lt finder && finder -lt cleanup ]] \
-        || fail "runbook order must preserve preview, cancel, private fixture, export, inspection, rejection, retry, Finder, and cleanup"
+        || fail "runbook must bind the foreground app before helper registration and preserve every acceptance phase"
 }
 
 if [[ "$APP" == "--self-test" ]]; then
     is_sha "$CANDIDATE" || fail "candidate SHA rejected"
     ! is_sha "${CANDIDATE:u}" || fail "uppercase SHA accepted"
+    is_visible_foreground_command "/tmp/ZoidCoachQA --qa-open-main" || fail "foreground command rejected"
+    ! is_visible_foreground_command "/tmp/ZoidCoachQA --background-schedule" || fail "background command accepted"
+    ! is_visible_foreground_command "/tmp/ZoidCoachQA --qa-open-main --background-schedule" || fail "mixed background command accepted"
     is_external_path "/private/tmp/zoid-zc048010-evidence" || fail "external evidence root rejected"
     ! is_external_path "$REPOSITORY/.audit/zc048010" || fail "repository evidence root accepted"
     assert_runbook_order
@@ -47,6 +70,19 @@ if [[ "$APP" == "--self-test" ]]; then
     print -- "PASS: ZC-048-010 signed preflight self-test"
     exit 0
 fi
+
+while (( $# > 0 )); do
+    case "$1" in
+        --require-qa-open-main) REQUIRE_QA_OPEN_MAIN=1; shift ;;
+        --require-helper-unregistered) REQUIRE_HELPER_UNREGISTERED=1; shift ;;
+        --expected-app-pid)
+            (( $# >= 2 )) || fail "--expected-app-pid requires a PID"
+            EXPECTED_APP_PID="$2"
+            shift 2
+            ;;
+        *) fail "unsupported preflight option: $1" ;;
+    esac
+done
 
 [[ -d "$APP" ]] || fail "signed app does not exist: $APP"
 [[ -f "$DATABASE" ]] || fail "database is unavailable: $DATABASE"
@@ -94,13 +130,24 @@ matching_pid() {
     return 1
 }
 readonly APP_PID="$(matching_pid)" || fail "installed app process is unavailable"
-readonly SERVICE="$(launchctl print "gui/$(id -u)/$AGENT_LABEL" 2>/dev/null)" || fail "helper service unavailable"
-readonly HELPER_PID="$(awk '/pid =/{print $3; exit}' <<<"$SERVICE")"
-[[ "$HELPER_PID" == <-> ]] || fail "helper PID unavailable"
-lsof -Fn -a -p "$HELPER_PID" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$AGENT_EXECUTABLE" \
-    || fail "helper executable mismatch"
-lsof -a -p "$HELPER_PID" "$CANONICAL_DATABASE" >/dev/null 2>&1 \
-    || fail "helper does not hold the exact database open"
+[[ -z "$EXPECTED_APP_PID" || "$APP_PID" == "$EXPECTED_APP_PID" ]] || fail "visible app PID changed"
+readonly APP_COMMAND="$(ps -ww -p "$APP_PID" -o command=)"
+! has_argument "$APP_COMMAND" "--background-schedule" || fail "app process is background-only"
+if (( REQUIRE_QA_OPEN_MAIN )); then
+    has_argument "$APP_COMMAND" "--qa-open-main" || fail "visible foreground argument is absent"
+fi
+if (( REQUIRE_HELPER_UNREGISTERED )); then
+    ! launchctl print "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1 || fail "helper registered before foreground binding"
+    readonly HELPER_PID="UNREGISTERED"
+else
+    readonly SERVICE="$(launchctl print "gui/$(id -u)/$AGENT_LABEL" 2>/dev/null)" || fail "helper service unavailable"
+    readonly HELPER_PID="$(awk '/pid =/{print $3; exit}' <<<"$SERVICE")"
+    [[ "$HELPER_PID" == <-> ]] || fail "helper PID unavailable"
+    lsof -Fn -a -p "$HELPER_PID" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$AGENT_EXECUTABLE" \
+        || fail "helper executable mismatch"
+    lsof -a -p "$HELPER_PID" "$CANONICAL_DATABASE" >/dev/null 2>&1 \
+        || fail "helper does not hold the exact database open"
+fi
 mkdir -p "$CANONICAL_EVIDENCE"
 
 print -- "APP_PID=$APP_PID"
