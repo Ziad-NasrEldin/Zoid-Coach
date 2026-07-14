@@ -9,12 +9,21 @@ struct ApplicationLaunchPresentation: Equatable {
     let launchesForBackgroundScheduling: Bool
     let shouldOpenMainWindow: Bool
 
+    var initialMainWindowPresentationPolicy: InitialMainWindowPresentationPolicy {
+        launchesForBackgroundScheduling ? .backgroundScheduling : .ordinary
+    }
+
     init(arguments: [String], packageMode: RuntimePackageMode?) {
         launchesForBackgroundScheduling = arguments.contains(Self.backgroundScheduleArgument)
         shouldOpenMainWindow = packageMode == .qa
             && arguments.contains(Self.qaOpenMainWindowArgument)
             && !launchesForBackgroundScheduling
     }
+}
+
+enum InitialMainWindowPresentationPolicy: Equatable {
+    case ordinary
+    case backgroundScheduling
 }
 
 struct ApplicationWindowDescriptor: Equatable, Sendable {
@@ -61,6 +70,32 @@ enum MainApplicationWindowSelector {
         }
         return eligible.first { $0.identifier == mainWindowIdentifier }
             ?? eligible.first { $0.title == mainWindowTitle }
+    }
+}
+
+@MainActor
+struct InitialMainWindowPresentationCoordinator {
+    let availableWindows: () -> [ApplicationWindowDescriptor]
+    let positionWindow: (Int) -> Void
+    let dismissWindow: (Int) -> Void
+    let schedulePosition: (@escaping @MainActor () -> Void) -> Void
+
+    func apply(policy: InitialMainWindowPresentationPolicy) {
+        switch policy {
+        case .ordinary:
+            schedulePosition {
+                guard let mainWindow = MainApplicationWindowSelector.select(
+                    from: availableWindows()
+                ) else {
+                    return
+                }
+                positionWindow(mainWindow.windowNumber)
+            }
+        case .backgroundScheduling:
+            for window in availableWindows() where window.isNormalLevel {
+                dismissWindow(window.windowNumber)
+            }
+        }
     }
 }
 
