@@ -18,9 +18,12 @@ struct NotificationDeliveryTestSystemClient {
             authorization: {
                 let settings = await UNUserNotificationCenter.current().notificationSettings()
                 switch settings.authorizationStatus {
-                case .authorized: .authorized
-                case .provisional: .provisional
-                default: .unavailable
+                case .authorized:
+                    return NotificationDeliveryTestSystemClient.Authorization.authorized
+                case .provisional:
+                    return NotificationDeliveryTestSystemClient.Authorization.provisional
+                default:
+                    return NotificationDeliveryTestSystemClient.Authorization.unavailable
                 }
             },
             schedule: { identifier, title, body in
@@ -180,7 +183,7 @@ struct OnboardingDeliveryTestService {
         scheduledFor: Date? = nil,
         error: String? = nil
     ) {
-        try? ledger?.record(
+        _ = try? ledger?.record(
             requestIdentifier: requestIdentifier,
             promptID: Self.promptID,
             category: PromptNotificationCategory.onboardingTest.rawValue,
@@ -188,6 +191,6 @@ struct OnboardingDeliveryTestService {
             scheduledFor: scheduledFor,
             error: error
         )
-        try? ledger?.enforceRetention()
+        _ = try? ledger?.enforceRetention()
     }
 }
