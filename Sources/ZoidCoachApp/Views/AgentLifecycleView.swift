@@ -10,6 +10,7 @@ struct AgentLifecycleView: View {
                 header
                 statusPanel
                 behaviorPanel
+                blockingSafetyPanel
                 actions
             }
             .padding(32)
@@ -142,6 +143,53 @@ struct AgentLifecycleView: View {
                 .foregroundStyle(Sumi.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var blockingSafetyPanel: some View {
+        let disclosure = BlockingSafetyDisclosure()
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("ENFORCEMENT BOUNDARY")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+                Spacer()
+                Text(disclosure.statusTitle)
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.okay)
+                    .accessibilityIdentifier("agent-lifecycle.blocking-safety.status")
+            }
+            Text(disclosure.explanation)
+                .font(Sumi.body(13))
+                .foregroundStyle(Sumi.ink)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(disclosure.requirements) { requirement in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(requirement.title.uppercased())
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.ink)
+                    Text(requirement.detail)
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("agent-lifecycle.blocking-safety.\(requirement.id.rawValue)")
+            }
+
+            Text("Any future blocking must pass all four gates before it can activate.")
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.seal)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(20)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("agent-lifecycle.blocking-safety")
     }
 
     private var actions: some View {
