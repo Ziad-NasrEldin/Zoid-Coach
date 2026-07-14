@@ -159,6 +159,31 @@ struct CalendarPlanApprovalStateTests {
         #expect(state.receipt?.commandCount == 2)
     }
 
+    @Test("partial command progress remains pending across receipt restore")
+    func partialProgressRestoresPending() throws {
+        var state = CalendarPlanApprovalState()
+        state.queued(commandIDs: ["calendar", "reminder"])
+        state.reconcile(with: [
+            audit("calendar", .succeeded),
+            audit("reminder", .retryableFailure)
+        ])
+
+        #expect(state.writeState == .pending(commandIDs: ["calendar", "reminder"]))
+        #expect(state.receipt?.outcome == .pending)
+        #expect(state.receipt?.commandCount == 2)
+
+        var restored = CalendarPlanApprovalState()
+        restored.restore(try #require(state.receipt))
+        #expect(restored.writeState == .pending(commandIDs: ["calendar", "reminder"]))
+
+        restored.reconcile(with: [
+            audit("calendar", .succeeded),
+            audit("reminder", .succeeded)
+        ])
+        #expect(restored.writeState == .applied(commandCount: 2))
+        #expect(restored.receipt?.summary == "Approved plan confirmed. 2 Calendar changes applied.")
+    }
+
     @Test("terminal failure is never presented as a Calendar confirmation")
     func terminalFailure() {
         var state = CalendarPlanApprovalState()
@@ -250,6 +275,32 @@ struct CalendarPlanApprovalStateTests {
         state.retryRequestFailed(commandIDs: ["calendar"])
         #expect(state.writeState == .failed(commandIDs: ["calendar"]))
         #expect(state.receipt?.outcome == .failed)
+    }
+
+    @Test("partial failure retry is issued once and preserves the original total")
+    func partialFailureRetryPreservesTotal() throws {
+        var state = CalendarPlanApprovalState()
+        state.queued(commandIDs: ["calendar", "reminder"])
+        state.reconcile(with: [
+            audit("calendar", .terminalFailure),
+            audit("reminder", .succeeded)
+        ])
+
+        #expect(state.writeState == .failed(commandIDs: ["calendar"]))
+        #expect(state.receipt?.commandIDs == ["calendar"])
+        #expect(state.receipt?.commandCount == 2)
+
+        var restored = CalendarPlanApprovalState()
+        restored.restore(try #require(state.receipt))
+        #expect(restored.retryFailedCommands() == ["calendar"])
+        #expect(restored.retryFailedCommands().isEmpty)
+        #expect(restored.receipt?.outcome == .pending)
+        #expect(restored.receipt?.commandCount == 2)
+
+        restored.reconcile(with: [audit("calendar", .succeeded)])
+        #expect(restored.writeState == .applied(commandCount: 2))
+        #expect(restored.receipt?.commandCount == 2)
+        #expect(restored.receipt?.summary == "Approved plan confirmed. 2 Calendar changes applied.")
     }
 
     private func audit(_ id: String, _ state: ActionCommandState) -> ActionAuditEntry {
