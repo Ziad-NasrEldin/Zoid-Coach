@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 46
+    public static let currentVersion = 49
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1209,7 +1209,20 @@ private extension AutonomousDatabaseMigrator {
             CREATE INDEX IF NOT EXISTS deleted_reminder_decisions_state
             ON deleted_reminder_decisions(state, deleted_at_utc DESC);
             """)
-        ])
+        ]),
+        Migration(version: 49, isDestructive: false, operations: [.sql("""
+        CREATE TABLE IF NOT EXISTS daily_review_session_merges (
+            id TEXT PRIMARY KEY,
+            source_day TEXT NOT NULL,
+            left_start_epoch INTEGER NOT NULL,
+            right_start_epoch INTEGER NOT NULL,
+            created_at_utc TEXT NOT NULL,
+            CHECK(left_start_epoch < right_start_epoch),
+            UNIQUE(source_day, left_start_epoch, right_start_epoch)
+        );
+        CREATE INDEX IF NOT EXISTS daily_review_session_merges_day_time
+        ON daily_review_session_merges(source_day, left_start_epoch, right_start_epoch);
+        """)])
     ]
 }
 

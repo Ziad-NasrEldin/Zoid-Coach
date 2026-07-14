@@ -196,6 +196,8 @@ func deleteReviewsAndLearnedRulesClearsEveryReviewAndLearningStoreButPreservesSo
     VALUES ('task', 'completed', '2026-07-12T11:00:00Z');
     INSERT INTO daily_review_corrections (id, source_day, start_epoch, end_epoch, classification, task_id, created_at_utc)
     VALUES ('correction', '2026-07-12', 1000, 1060, 'work', 'task', '2026-07-12T11:00:00Z');
+    INSERT INTO daily_review_session_merges (id, source_day, left_start_epoch, right_start_epoch, created_at_utc)
+    VALUES ('merge', '2026-07-12', 1000, 1060, '2026-07-12T11:00:00Z');
     INSERT INTO daily_reviews (source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, personal_note)
     VALUES ('2026-07-12', 'accepted', '2026-07-12T18:00:00Z', '2026-07-12T18:00:00Z', 'Private note');
     INSERT INTO weekly_review_experiments (id, review_week_start, title, instruction, measurement, state, tracking_week_start, updated_at_utc)
@@ -218,11 +220,12 @@ func deleteReviewsAndLearnedRulesClearsEveryReviewAndLearningStoreButPreservesSo
     )
     #expect(learningInventory.title == ReviewLearningDeletionDisclosure.inventoryTitle)
     #expect(learningInventory.detail == ReviewLearningDeletionDisclosure.inventoryDetail)
-    #expect(learningInventory.recordCount == 7)
-    #expect(try service.deleteReviewsAndLearnedRules() == 7)
+    #expect(learningInventory.recordCount == 8)
+    #expect(try service.deleteReviewsAndLearnedRules() == 8)
 
     for table in [
         "daily_review_corrections",
+        "daily_review_session_merges",
         "daily_reviews",
         "weekly_review_experiments",
         "app_classification_correction_rules",
@@ -294,6 +297,7 @@ private func privacyRowCount(databaseURL: URL, table: String) throws -> Int {
     defer { sqlite3_close(database) }
     let allowed = Set([
         "daily_review_corrections",
+        "daily_review_session_merges",
         "daily_reviews",
         "weekly_review_experiments",
         "app_classification_correction_rules",

@@ -27,6 +27,70 @@ func dailyReviewGroupsCoveredActivityWithoutExposingPrivateFields() throws {
 }
 
 @Test
+func dailyReviewMergesAdjacentSessionsIntoOneDurableActivity() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: 1_783_663_260, app: "Safari", classification: .work)
+    let initial = try fixture.store.load(sourceDay: fixture.sourceDay)
+
+    #expect(initial.sessions.map(\.application) == ["Xcode", "Safari"])
+    try fixture.store.merge(initial.sessions[0], with: initial.sessions[1])
+
+    let merged = try DailyReviewStore(databaseURL: fixture.databaseURL)
+        .load(sourceDay: fixture.sourceDay)
+    #expect(merged.sessions.count == 1)
+    #expect(merged.sessions[0].application == "Xcode + Safari")
+    #expect(merged.sessions[0].classification == .work)
+    #expect(merged.sessions[0].observationCount == 2)
+    #expect(merged.sessions[0].durationMinutes == 2)
+    #expect(merged.totals == [DailyReviewTotal(classification: .work, minutes: 2)])
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM behavior_records;") == 2)
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM daily_review_session_merges;") == 1)
+}
+
+@Test
+func dailyReviewMergeUsesTheChosenLeftTruthAndRejectsNonAdjacentSessions() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: 1_783_663_260, app: "Steam", classification: .gaming)
+    try fixture.insert(epoch: 1_783_664_200, app: "Safari", classification: .work)
+    let sessions = try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+
+    try fixture.store.merge(sessions[0], with: sessions[1])
+    let merged = try fixture.store.load(sourceDay: fixture.sourceDay)
+    #expect(merged.sessions[0].application == "Xcode + Steam")
+    #expect(merged.sessions[0].classification == .work)
+    #expect(throws: DailyReviewStoreError.self) {
+        try fixture.store.merge(merged.sessions[0], with: merged.sessions[1])
+    }
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM daily_review_session_merges;") == 1)
+}
+
+@Test
+func splittingAMergedSessionRestoresItsSeparateActivities() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: 1_783_663_260, app: "Safari", classification: .work)
+    let initial = try fixture.store.load(sourceDay: fixture.sourceDay)
+    try fixture.store.merge(initial.sessions[0], with: initial.sessions[1])
+    let merged = try #require(fixture.store.load(sourceDay: fixture.sourceDay).sessions.first)
+
+    try fixture.store.correct(
+        merged,
+        to: .distracting,
+        from: merged.start.addingTimeInterval(60)
+    )
+
+    let split = try fixture.store.load(sourceDay: fixture.sourceDay)
+    #expect(split.sessions.map(\.application) == ["Xcode", "Safari"])
+    #expect(split.sessions.map(\.classification) == [.work, .distracting])
+    #expect(try fixture.scalar("SELECT COUNT(*) FROM daily_review_session_merges;") == 0)
+}
+
+@Test
 func dailyReviewKeepsCompletedTasksVisibleAfterTheyLeaveTheActiveList() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
