@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "6b11901125f8ab1c90a2d7ac49d8b4dab6d6294041092218fc6c668f599642cb",
+  "tracker_sha256": "9e2bcc404b4de7f9042e133195888d17b087b87a9311a332fd8e13becb828ea6",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10738,11 +10738,13 @@
       ],
       "affected_capability": "settings",
       "evidence_paths": [
-        ".audit/runs/ai-request-budgets/verifier/REPORT.md"
+        ".audit/runs/ai-budget-finish/candidate/REPORT.md",
+        ".audit/runs/ai-budget-finish/independent-verifier/REPORT.md",
+        ".audit/runs/ai-budget-finish/verifier/REPORT.md"
       ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The signed Intelligence Settings surface exposes separate accessible daily and monthly limits, explains that the first reached limit stops general AI requests, explains that zero preserves local planning, tracking, coaching rules, and reviews, saves distinct values, and restores them after app relaunch. Seven focused tests prove provider-independent daily and UTC-month enforcement, atomic reservations under concurrency, deterministic fallback, and independent conflict merging. The signed app has no dedicated deterministic provider-budget probe, so an installed provider invocation across a live provider switch remains (`UserPolicy.swift`; `SettingsView.swift`; `ModelRunStore.swift`; `AuditedPlanningAdvisor.swift`; `StructuredGenerationProviders.swift`; `.audit/runs/ai-request-budgets/verifier/REPORT.md`).",
+      "audit_note": "The signed Intelligence Settings flow now exposes separate accessible daily and monthly limits plus canonical saved usage, states that one provider-independent and model-independent bucket cannot be bypassed by switching, discards the complete unsaved Settings draft, saves 110 daily and 3,100 monthly through the agent, and restores both values after the app and helper relaunch. Three isolated Ollama and Codex model rows visibly aggregate to one daily and monthly count, reset copy identifies UTC enforcement boundaries, and a saved zero limit visibly preserves local planning, tracking, coaching rules, and reviews while stating that no paid request is sent. The destructive warning truthfully discloses the immediate usage reset and unchanged Keychain credentials, and Cancel preserves all rows and counts. Forty-three focused tests and one release build pass, but the final destructive `DELETE AI METADATA` confirmation still requires fresh action-time approval and verification of zero usage, preserved limits and credentials, and relaunch persistence (`AIBudgetStatusService.swift`; `SettingsPolicyController.swift`; `SettingsView.swift`; `AIBudgetStatusServiceTests.swift`; `SettingsPolicyDraftTests.swift`; `.audit/runs/ai-budget-finish/candidate/REPORT.md`; `.audit/runs/ai-budget-finish/verifier/REPORT.md`; `.audit/runs/ai-budget-finish/independent-verifier/REPORT.md`).",
       "tracker_line": 663
     },
     {
