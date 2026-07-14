@@ -50,4 +50,4 @@ APP_PID=""
 
 "$EXECUTABLE" --background-schedule >/tmp/zoid-qa-background.stdout 2>/tmp/zoid-qa-background.stderr &
 APP_PID=$!
-/usr/bin/swift "$SCRIPT_ROOT/qa-app-visibility-probe.swift" "$APP_PID" background-hidden 5
+/usr/bin/swift "$SCRIPT_ROOT/qa-app-visibility-probe.swift" "$APP_PID" background-windowless-menu-ready 5
