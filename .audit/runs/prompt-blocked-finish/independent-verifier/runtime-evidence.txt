@@ -1,0 +1,16 @@
+candidate=f83c7e8bd97655e06bcb9d9cc8ba85002f626dba
+canonical-base=2596f6e9c60bb6a7fad8f85003ccf17dea765236
+transplant-conflicts=none
+focused-tests=8 passed, 0 failed
+release-build=passed
+signed-package=passed nested app/helper signing and designated requirement
+installed-app=/private/tmp/zc034011-independent-install/Zoid 666 QA E2E.app
+raw-db-before-ui=qa-block-1|presented|GAMING_DRIFT
+raw-plan-before-ui=qa-ready-task|rank 1|main 1; qa-replacement-task|rank 2|main 0
+raw-execution-before-ui=qa-ready-task|active; one open interval
+native-inbox=today.prompt-inbox reported 0 WAITING
+native-six-actions=not exposed
+raw-db-after-ui=qa-block-1 remained presented with six-action payload
+acceptance=not independently established
+runtime-cleanup=PASS signed QA runtime removed; LaunchAgent absent; isolated roots removed
+free-disk-after-cleanup=2.8 GiB
