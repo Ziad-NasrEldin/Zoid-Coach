@@ -24,6 +24,19 @@ private func readinessIdentifier(for phase: String) -> String? {
     }
 }
 
+private func normalizedExactLabel(_ value: String) -> String {
+    value
+        .components(separatedBy: .whitespacesAndNewlines)
+        .filter { !$0.isEmpty }
+        .joined(separator: " ")
+        .lowercased(with: Locale(identifier: "en_US_POSIX"))
+}
+
+private func containsExactLabel(_ exposed: [String], expected: String) -> Bool {
+    let normalizedExpected = normalizedExactLabel(expected)
+    return exposed.contains { normalizedExactLabel($0) == normalizedExpected }
+}
+
 if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
     let forbidden = ["private-token", "/private/tmp/qa-root"]
     guard containsForbidden("PRIVATE-TOKEN", forbiddenStrings: forbidden),
@@ -32,7 +45,11 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
           Array(boundedPageIndexes(maximumPages: 12)) == Array(0...12),
           readinessIdentifier(for: "ready-visible") == "menu-bar.task.start",
           readinessIdentifier(for: "active-visible") == "menu-bar.task.end-workday",
-          readinessIdentifier(for: "stale-start") == nil
+          readinessIdentifier(for: "stale-start") == nil,
+          containsExactLabel(["START WORKDAY WITH RECOMMENDED TASK"], expected: "Start workday with recommended task"),
+          containsExactLabel(["  Start   workday\nwith recommended task  "], expected: "Start workday with recommended task"),
+          !containsExactLabel(["START WORKDAY"], expected: "Start workday with recommended task"),
+          !containsExactLabel(["Start workday with different task"], expected: "Start workday with recommended task")
     else {
         fputs("FAIL: AX privacy sentinel matcher self-test\n", stderr)
         exit(1)
@@ -307,7 +324,7 @@ private func press(_ element: AXUIElement, name: String) throws {
 }
 
 private func requireLabel(_ expected: String, on element: AXUIElement) throws {
-    guard labels(element).contains(expected) else {
+    guard containsExactLabel(labels(element), expected: expected) else {
         throw ProbeError.failure("AX label mismatch for \(expected): \(labels(element))")
     }
 }
