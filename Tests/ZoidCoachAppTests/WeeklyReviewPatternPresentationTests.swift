@@ -26,6 +26,9 @@ func weeklyPatternPresentationSeparatesHypothesisEvidenceAndAlternative() {
     #expect(presentation.alternativeExplanation == "Meeting load may have been lighter on those mornings.")
     #expect(presentation.causalityCaveat.contains("do not prove why"))
     #expect(presentation.hasSufficientEvidence)
+    #expect(presentation.learningStatusLabel == "NOT LEARNED")
+    #expect(presentation.learningSourceLabel == "SOURCE DAYS 2026-07-06 TO 2026-07-12 · 4 OBSERVED SAMPLES")
+    #expect(presentation.learningBoundaryDetail.contains("explicitly accept the corresponding review hypothesis"))
 }
 
 @Test
@@ -71,6 +74,8 @@ func weeklyPatternExpandedAccessibilitySummaryNamesEveryEvidenceBoundary() {
     #expect(summary.contains("Tuesday: 31 focused minutes"))
     #expect(summary.contains("Alternative explanation:"))
     #expect(summary.contains("NOT PROVEN CAUSE"))
+    #expect(summary.contains("Learning status: NOT LEARNED"))
+    #expect(summary.contains("SOURCE DAYS 2026-07-06 TO 2026-07-12"))
 }
 
 @Test
@@ -86,6 +91,8 @@ func weeklyPatternCollapsedAccessibilitySummaryExcludesHiddenEvidenceAndAlternat
     #expect(summary.contains("2 OBSERVED SAMPLES"))
     #expect(summary.contains("55% CONFIDENCE"))
     #expect(summary.contains("NOT PROVEN CAUSE"))
+    #expect(summary.contains("Learning status: NOT LEARNED"))
+    #expect(summary.contains("SOURCE DAYS 2026-07-06 TO 2026-07-12"))
     #expect(!summary.contains("Private task title"))
     #expect(!summary.contains("Observed evidence:"))
     #expect(!summary.contains("Alternative explanation:"))
