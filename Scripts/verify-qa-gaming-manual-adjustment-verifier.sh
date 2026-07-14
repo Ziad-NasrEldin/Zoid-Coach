@@ -52,7 +52,7 @@ CREATE TABLE notification_delivery_events (
 );
 CREATE TABLE settings (
     key TEXT PRIMARY KEY,
-    val_json TEXT NOT NULL,
+    value_json TEXT NOT NULL,
     policy_version INTEGER NOT NULL,
     updated_at_utc TEXT NOT NULL
 );
@@ -71,7 +71,7 @@ CREATE TABLE today_snapshots (
 );
 INSERT INTO today_snapshots(day_key, payload, updated_at)
 VALUES ('$local_day', '{"localDate":"2026-07-14T12:00:00Z","timeZoneIdentifier":"Africa/Cairo"}', '2026-07-14T12:00:00Z');
-INSERT INTO settings(key, val_json, policy_version, updated_at_utc)
+INSERT INTO settings(key, value_json, policy_version, updated_at_utc)
 VALUES ('user_policy', '{"schedule":{"timeZoneIdentifier":"Africa/Cairo"}}', 1, '2026-07-14T12:00:00Z');
 INSERT INTO policy_versions(policy_type, version, payload_json, created_at_utc, is_active)
 VALUES ('user', 1, '{"schedule":{"timeZoneIdentifier":"Africa/Cairo"}}', '2026-07-14T12:00:00Z', 1);
@@ -89,21 +89,28 @@ sqlite3 -batch "$database" "INSERT INTO gaming_manual_adjustments VALUES ('gamin
 printf '%s\n' '{"outcome":"suppressed:gamingIsUnlocked","unlockedRemainingMinutes":15}' > "$qa_root/QA Control/gaming-drift-probe.json"
 "$fixture" verify-probe "$database" "$qa_root"
 
-original_settings_policy="$(sqlite3 -batch -noheader "$database" "SELECT val_json FROM settings WHERE key = 'user_policy';")"
+original_settings_policy="$(sqlite3 -batch -noheader "$database" "SELECT value_json FROM settings WHERE key = 'user_policy';")"
 original_versioned_policy="$(sqlite3 -batch -noheader "$database" "SELECT payload_json FROM policy_versions WHERE policy_type = 'user' AND version = 1;")"
 "$fixture" authoritative-next-day "$database" "$qa_root"
-[[ "$(sqlite3 -batch -noheader "$database" "SELECT val_json FROM settings WHERE key = 'user_policy';")" != "$original_settings_policy" ]]
+[[ "$(sqlite3 -batch -noheader "$database" "SELECT value_json FROM settings WHERE key = 'user_policy';")" != "$original_settings_policy" ]]
 [[ "$(sqlite3 -batch -noheader "$database" "SELECT payload_json FROM policy_versions WHERE policy_type = 'user' AND version = 1;")" != "$original_versioned_policy" ]]
 "$fixture" restore-policy "$database" "$qa_root"
-[[ "$(sqlite3 -batch -noheader "$database" "SELECT val_json FROM settings WHERE key = 'user_policy';")" == "$original_settings_policy" ]]
+[[ "$(sqlite3 -batch -noheader "$database" "SELECT value_json FROM settings WHERE key = 'user_policy';")" == "$original_settings_policy" ]]
 [[ "$(sqlite3 -batch -noheader "$database" "SELECT payload_json FROM policy_versions WHERE policy_type = 'user' AND version = 1;")" == "$original_versioned_policy" ]]
 
 "$fixture" authoritative-time-zone "$database" "$qa_root"
-[[ "$(sqlite3 -batch -noheader "$database" "SELECT val_json FROM settings WHERE key = 'user_policy';")" != "$original_settings_policy" ]]
+[[ "$(sqlite3 -batch -noheader "$database" "SELECT value_json FROM settings WHERE key = 'user_policy';")" != "$original_settings_policy" ]]
 [[ "$(sqlite3 -batch -noheader "$database" "SELECT payload_json FROM policy_versions WHERE policy_type = 'user' AND version = 1;")" != "$original_versioned_policy" ]]
 "$fixture" restore-policy "$database" "$qa_root"
-[[ "$(sqlite3 -batch -noheader "$database" "SELECT val_json FROM settings WHERE key = 'user_policy';")" == "$original_settings_policy" ]]
+[[ "$(sqlite3 -batch -noheader "$database" "SELECT value_json FROM settings WHERE key = 'user_policy';")" == "$original_settings_policy" ]]
 [[ "$(sqlite3 -batch -noheader "$database" "SELECT payload_json FROM policy_versions WHERE policy_type = 'user' AND version = 1;")" == "$original_versioned_policy" ]]
+
+sqlite3 -batch "$database" "ALTER TABLE settings RENAME COLUMN value_json TO val_json;"
+"$fixture" authoritative-time-zone "$database" "$qa_root"
+[[ "$(sqlite3 -batch -noheader "$database" "SELECT val_json FROM settings WHERE key = 'user_policy';")" != "$original_settings_policy" ]]
+"$fixture" restore-policy "$database" "$qa_root"
+[[ "$(sqlite3 -batch -noheader "$database" "SELECT val_json FROM settings WHERE key = 'user_policy';")" == "$original_settings_policy" ]]
+sqlite3 -batch "$database" "ALTER TABLE settings RENAME COLUMN val_json TO value_json;"
 
 "$fixture" ledger-unavailable "$database" "$qa_root"
 [[ "$(sqlite3 -batch -noheader "$database" "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'gaming_manual_adjustments';")" == "0" ]]
@@ -113,6 +120,6 @@ original_versioned_policy="$(sqlite3 -batch -noheader "$database" "SELECT payloa
 
 [[ "$(sqlite3 -batch -noheader "$database" "SELECT COUNT(*) FROM behavior_records;")" == "0" ]]
 [[ "$(sqlite3 -batch -noheader "$database" "SELECT COUNT(*) FROM gaming_manual_adjustments;")" == "0" ]]
-[[ "$(sqlite3 -batch -noheader "$database" "SELECT val_json FROM settings WHERE key = 'user_policy';")" == "$original_settings_policy" ]]
+[[ "$(sqlite3 -batch -noheader "$database" "SELECT value_json FROM settings WHERE key = 'user_policy';")" == "$original_settings_policy" ]]
 [[ "$(sqlite3 -batch -noheader "$database" "SELECT payload_json FROM policy_versions WHERE policy_type = 'user' AND version = 1;")" == "$original_versioned_policy" ]]
 echo "PASS: gaming manual-adjustment verifier fixtures are deterministic, reversible, and ownership-bounded."

@@ -129,7 +129,14 @@ import base64, datetime, json, os, sqlite3
 from zoneinfo import ZoneInfo
 
 db = sqlite3.connect(os.environ["DATABASE"])
-settings = db.execute("SELECT val_json FROM settings WHERE key = 'user_policy'").fetchone()
+settings_columns = {row[1] for row in db.execute("PRAGMA table_info(settings)")}
+if "value_json" in settings_columns:
+    settings_column = "value_json"
+elif "val_json" in settings_columns:
+    settings_column = "val_json"
+else:
+    raise SystemExit("The settings table has no supported policy JSON column.")
+settings = db.execute(f"SELECT {settings_column} FROM settings WHERE key = 'user_policy'").fetchone()
 versioned = db.execute("SELECT policy_type, version, payload_json FROM policy_versions WHERE is_active = 1 ORDER BY version DESC LIMIT 1").fetchone()
 if settings is None or versioned is None:
     raise SystemExit("The authoritative user policy is unavailable.")
@@ -154,6 +161,7 @@ if os.path.exists(state_path):
     with open(state_path, encoding="utf-8") as handle:
         state = json.load(handle)
 state["settingsPolicy"] = base64.b64encode(settings[0].encode()).decode()
+state["settingsPolicyColumn"] = settings_column
 state["versionedPolicyType"] = versioned[0]
 state["versionedPolicyVersion"] = versioned[1]
 state["versionedPolicy"] = base64.b64encode(versioned[2].encode()).decode()
@@ -162,7 +170,7 @@ state["replacementTimeZone"] = replacement_zone
 settings_document["schedule"]["timeZoneIdentifier"] = replacement_zone
 versioned_document = json.loads(versioned[2])
 versioned_document["schedule"]["timeZoneIdentifier"] = replacement_zone
-db.execute("UPDATE settings SET val_json = ? WHERE key = 'user_policy'", (json.dumps(settings_document, separators=(",", ":")),))
+db.execute(f"UPDATE settings SET {settings_column} = ? WHERE key = 'user_policy'", (json.dumps(settings_document, separators=(",", ":")),))
 db.execute("UPDATE policy_versions SET payload_json = ? WHERE policy_type = ? AND version = ?", (json.dumps(versioned_document, separators=(",", ":")), versioned[0], versioned[1]))
 db.commit()
 with open(state_path, "w", encoding="utf-8") as handle:
@@ -177,15 +185,21 @@ import base64, json, os, sqlite3
 with open(os.environ["STATE_FILE"], encoding="utf-8") as handle:
     state = json.load(handle)
 settings = state.pop("settingsPolicy", None)
+settings_column = state.pop("settingsPolicyColumn", None)
 policy_type = state.pop("versionedPolicyType", None)
 version = state.pop("versionedPolicyVersion", None)
 versioned = state.pop("versionedPolicy", None)
 state.pop("authoritativePolicyMode", None)
 state.pop("replacementTimeZone", None)
-if None in (settings, policy_type, version, versioned):
+if None in (settings, settings_column, policy_type, version, versioned):
     raise SystemExit("No verifier policy backup is available.")
+if settings_column not in {"value_json", "val_json"}:
+    raise SystemExit("The verifier policy backup names an unsupported settings column.")
 db = sqlite3.connect(os.environ["DATABASE"])
-db.execute("UPDATE settings SET val_json = ? WHERE key = 'user_policy'", (base64.b64decode(settings).decode(),))
+settings_columns = {row[1] for row in db.execute("PRAGMA table_info(settings)")}
+if settings_column not in settings_columns:
+    raise SystemExit("The backed-up settings policy column is no longer available.")
+db.execute(f"UPDATE settings SET {settings_column} = ? WHERE key = 'user_policy'", (base64.b64decode(settings).decode(),))
 db.execute("UPDATE policy_versions SET payload_json = ? WHERE policy_type = ? AND version = ?", (base64.b64decode(versioned).decode(), policy_type, version))
 db.commit()
 with open(os.environ["STATE_FILE"], "w", encoding="utf-8") as handle:
