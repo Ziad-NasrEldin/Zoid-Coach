@@ -14,6 +14,8 @@ enum VisibilityProbeError: Error, CustomStringConvertible, Equatable {
     case accessibilityUnavailable
     case controlCenterUnavailable
     case controlCenterAccessibilityUnavailable
+    case statusItemPressFailed
+    case coachPopoverUnavailable
 
     var description: String {
         switch self {
@@ -37,6 +39,10 @@ enum VisibilityProbeError: Error, CustomStringConvertible, Equatable {
             "RED: ControlCenter was unavailable while verifying the status item"
         case .controlCenterAccessibilityUnavailable:
             "RED: ControlCenter status-item accessibility state was unavailable"
+        case .statusItemPressFailed:
+            "RED: the matched native status item could not be pressed"
+        case .coachPopoverUnavailable:
+            "RED: pressing the native status item did not expose AXSystemDialog containing menu-bar.coach"
         }
     }
 
@@ -52,6 +58,8 @@ enum VisibilityProbeError: Error, CustomStringConvertible, Equatable {
         case .accessibilityUnavailable: 16
         case .controlCenterUnavailable: 17
         case .controlCenterAccessibilityUnavailable: 18
+        case .statusItemPressFailed: 19
+        case .coachPopoverUnavailable: 21
         }
     }
 }
@@ -112,11 +120,13 @@ private let maximumDiagnosticWindows = 24
 private let diagnosticTimeLimit: TimeInterval = 0.25
 private let knownWindowTitles = Set(["Zoid 666", "Zoid 666 QA", "Background Agent"])
 private let controlCenterBundleIdentifier = "com.apple.controlcenter"
+private let systemEventsBundleIdentifier = "com.apple.systemevents"
 private let statusItemAccessibilityIdentifier = "menu-bar.status-item"
 private let statusItemTitle = "Zoid 666"
-private let maximumStatusNodes = 64
-private let maximumStatusDepth = 2
-private let statusScanTimeLimit: TimeInterval = 0.2
+private let coachPopoverAccessibilityIdentifier = "menu-bar.coach"
+private let maximumStatusNodes = 4_096
+private let maximumStatusDepth = 16
+private let statusScanTimeLimit: TimeInterval = 2
 
 enum StatusItemSample: Equatable {
     case present
@@ -131,7 +141,23 @@ struct StatusItemSource {
 
 struct StatusItemCandidate: Equatable {
     let identifier: String?
-    let labels: [String]
+    let role: String?
+    let subrole: String?
+    let title: String?
+    let description: String?
+    let help: String?
+    let stringValue: String?
+
+    var semanticFields: [String] {
+        [title, description, help, stringValue].compactMap { $0 }
+    }
+}
+
+struct LocatedStatusItem {
+    let source: String
+    let element: AXUIElement
+    let semantics: StatusItemCandidate
+    let frame: CGRect?
 }
 
 func statusItemIsPresent(in candidates: [StatusItemCandidate]) -> Bool {
@@ -139,7 +165,9 @@ func statusItemIsPresent(in candidates: [StatusItemCandidate]) -> Bool {
         return true
     }
     return candidates.contains { candidate in
-        candidate.labels.contains(statusItemTitle)
+        candidate.semanticFields.contains { field in
+            field == statusItemTitle || field.hasPrefix("\(statusItemTitle),")
+        }
     }
 }
 
@@ -182,72 +210,147 @@ func windowSample(_ application: AXUIElement) -> WindowSample {
     return windows.isEmpty ? .availableEmpty : .availableNonempty
 }
 
-func statusCandidateRole(_ element: AXUIElement) -> String? {
-    value(element, kAXRoleAttribute as CFString) as? String
+func stringAttribute(_ element: AXUIElement, _ attribute: CFString) -> String? {
+    if let string = value(element, attribute) as? String { return string }
+    return (value(element, attribute) as? NSNumber)?.stringValue
 }
 
-func isStatusCandidateRole(_ role: String?) -> Bool {
-    guard let role else { return false }
-    return role == (kAXMenuBarRole as String)
-        || role == (kAXMenuBarItemRole as String)
-        || role == (kAXGroupRole as String)
-        || role == "AXStatusItem"
+func frameAttribute(_ element: AXUIElement) -> CGRect? {
+    guard let raw = value(element, "AXFrame" as CFString),
+          CFGetTypeID(raw) == AXValueGetTypeID(),
+          AXValueGetType(raw as! AXValue) == .cgRect
+    else { return nil }
+    var frame = CGRect.zero
+    guard AXValueGetValue(raw as! AXValue, .cgRect, &frame) else { return nil }
+    return frame
 }
 
-func statusItemCandidates(in controlCenter: AXUIElement) -> [StatusItemCandidate]? {
-    var menuBarValue: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(
-        controlCenter,
-        kAXExtrasMenuBarAttribute as CFString,
-        &menuBarValue
-    ) == .success,
-          let menuBar = menuBarValue as! AXUIElement?
-    else {
-        return nil
-    }
+func statusSemantics(_ element: AXUIElement) -> StatusItemCandidate {
+    StatusItemCandidate(
+        identifier: stringAttribute(element, kAXIdentifierAttribute as CFString),
+        role: stringAttribute(element, kAXRoleAttribute as CFString),
+        subrole: stringAttribute(element, kAXSubroleAttribute as CFString),
+        title: stringAttribute(element, kAXTitleAttribute as CFString),
+        description: stringAttribute(element, kAXDescriptionAttribute as CFString),
+        help: stringAttribute(element, kAXHelpAttribute as CFString),
+        stringValue: stringAttribute(element, kAXValueAttribute as CFString)
+    )
+}
 
+func boundedHierarchy(
+    root: AXUIElement,
+    source: String,
+    initialDepth: Int = 0
+) -> [LocatedStatusItem] {
     let deadline = Date().addingTimeInterval(statusScanTimeLimit)
-    var queue: [(AXUIElement, Int)] = [(menuBar, 0)]
+    var queue: [(AXUIElement, Int)] = [(root, initialDepth)]
     var index = 0
-    var candidates: [StatusItemCandidate] = []
+    var result: [LocatedStatusItem] = []
     while index < queue.count,
           index < maximumStatusNodes,
           Date() < deadline {
         let (element, depth) = queue[index]
         index += 1
-        guard isStatusCandidateRole(statusCandidateRole(element)) else { continue }
-
-        let identifier = value(element, kAXIdentifierAttribute as CFString) as? String
-        let labels = [kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute]
-            .compactMap { value(element, $0 as CFString) as? String }
-        candidates.append(StatusItemCandidate(identifier: identifier, labels: labels))
-
+        result.append(LocatedStatusItem(
+            source: source,
+            element: element,
+            semantics: statusSemantics(element),
+            frame: frameAttribute(element)
+        ))
         guard depth < maximumStatusDepth,
               let children = value(element, kAXChildrenAttribute as CFString) as? [AXUIElement]
         else { continue }
         for child in children where queue.count < maximumStatusNodes {
-            if isStatusCandidateRole(statusCandidateRole(child)) {
-                queue.append((child, depth + 1))
-            }
+            queue.append((child, depth + 1))
         }
     }
-    return candidates
+    return result
 }
 
-func liveStatusItemSource() -> StatusItemSource {
-    StatusItemSource {
-        guard let application = NSRunningApplication
-            .runningApplications(withBundleIdentifier: controlCenterBundleIdentifier)
-            .first(where: { !$0.isTerminated })
-        else {
-            return .controlCenterUnavailable
-        }
-        let controlCenter = AXUIElementCreateApplication(application.processIdentifier)
-        guard let candidates = statusItemCandidates(in: controlCenter) else {
-            return .accessibilityUnavailable
-        }
-        return statusItemIsPresent(in: candidates) ? .present : .missing
+func statusItemCandidates(in application: AXUIElement, source: String) -> [LocatedStatusItem]? {
+    var menuBarValue: CFTypeRef?
+    let extrasResult = AXUIElementCopyAttributeValue(
+        application,
+        kAXExtrasMenuBarAttribute as CFString,
+        &menuBarValue
+    )
+    if extrasResult == .success, let menuBar = menuBarValue as! AXUIElement? {
+        return boundedHierarchy(root: menuBar, source: "\(source).AXExtrasMenuBar")
     }
+    let fallback = boundedHierarchy(root: application, source: "\(source).hierarchy")
+    return fallback.isEmpty ? nil : fallback
+}
+
+func liveStatusItem(pid: Int32) -> (item: LocatedStatusItem?, failure: VisibilityProbeError) {
+    var sources: [(String, AXUIElement)] = [("target-pid-\(pid)", AXUIElementCreateApplication(pid))]
+    for (name, bundleIdentifier) in [
+        ("ControlCenter", controlCenterBundleIdentifier),
+        ("System Events", systemEventsBundleIdentifier),
+    ] {
+        if let process = NSRunningApplication
+            .runningApplications(withBundleIdentifier: bundleIdentifier)
+            .first(where: { !$0.isTerminated }) {
+            sources.append((name, AXUIElementCreateApplication(process.processIdentifier)))
+        }
+    }
+
+    var scannedAny = false
+    for (source, application) in sources {
+        guard let located = statusItemCandidates(in: application, source: source) else { continue }
+        scannedAny = true
+        if let match = located.first(where: { statusItemIsPresent(in: [$0.semantics]) }) {
+            return (match, .statusItemUnavailable)
+        }
+    }
+    if !scannedAny { return (nil, .controlCenterAccessibilityUnavailable) }
+    if sources.count == 1 { return (nil, .controlCenterUnavailable) }
+    return (nil, .statusItemUnavailable)
+}
+
+func diagnosticString(for item: LocatedStatusItem) -> String {
+    let semantic = item.semantics
+    let frame = item.frame.map {
+        "x=\(Int($0.origin.x)) y=\(Int($0.origin.y)) w=\(Int($0.width)) h=\(Int($0.height))"
+    } ?? "unknown"
+    return "DIAGNOSTIC: status-item source=\(item.source) role=\(semantic.role ?? "unknown") "
+        + "subrole=\(semantic.subrole ?? "unknown") identifier=\(semantic.identifier ?? "unknown") "
+        + "title=\(semantic.title ?? "unknown") description=\(semantic.description ?? "unknown") "
+        + "help=\(semantic.help ?? "unknown") value=\(semantic.stringValue ?? "unknown") frame=\(frame)"
+}
+
+func pressStatusItem(_ item: LocatedStatusItem) -> Bool {
+    if AXUIElementPerformAction(item.element, kAXPressAction as CFString) == .success { return true }
+    guard let frame = item.frame, frame.width > 0, frame.height > 0 else { return false }
+    let point = CGPoint(x: frame.midX, y: frame.midY)
+    guard let down = CGEvent(
+        mouseEventSource: nil,
+        mouseType: .leftMouseDown,
+        mouseCursorPosition: point,
+        mouseButton: .left
+    ),
+          let up = CGEvent(
+              mouseEventSource: nil,
+              mouseType: .leftMouseUp,
+              mouseCursorPosition: point,
+              mouseButton: .left
+          )
+    else { return false }
+    down.post(tap: CGEventTapLocation.cghidEventTap)
+    up.post(tap: CGEventTapLocation.cghidEventTap)
+    return true
+}
+
+func coachPopoverIsPresent(in application: AXUIElement) -> Bool {
+    let nodes = boundedHierarchy(root: application, source: "target-popover")
+    for dialog in nodes where dialog.semantics.role == "AXSystemDialog" {
+        let descendants = boundedHierarchy(root: dialog.element, source: "target-popover.AXSystemDialog")
+        if descendants.contains(where: {
+            $0.semantics.identifier == coachPopoverAccessibilityIdentifier
+        }) {
+            return true
+        }
+    }
+    return false
 }
 
 func processIsAlive(_ pid: Int32) -> Bool {
@@ -305,17 +408,41 @@ func require(_ condition: @autoclosure () -> Bool, _ label: String) {
 func runSelfTests() {
     let identifierMatch = StatusItemCandidate(
         identifier: statusItemAccessibilityIdentifier,
-        labels: ["unrelated"]
+        role: "AXStatusItem",
+        subrole: nil,
+        title: "unrelated",
+        description: nil,
+        help: nil,
+        stringValue: nil
     )
     require(statusItemIsPresent(in: [identifierMatch]), "status identifier match")
     require(statusItemIsPresent(in: [StatusItemCandidate(
         identifier: nil,
-        labels: ["Zoid 666"]
+        role: "AXMenuBarItem",
+        subrole: nil,
+        title: "Zoid 666",
+        description: nil,
+        help: nil,
+        stringValue: nil
     )]), "exact status title fallback")
+    require(statusItemIsPresent(in: [StatusItemCandidate(
+        identifier: nil,
+        role: "AXMenuBarItem",
+        subrole: nil,
+        title: nil,
+        description: "Zoid 666, A task is active",
+        help: nil,
+        stringValue: nil
+    )]), "semantic status description fallback")
     require(!statusItemIsPresent(in: [StatusItemCandidate(
         identifier: nil,
-        labels: ["Zoid 666, A task is active", "another item"]
-    )]), "non-exact status title rejected")
+        role: "AXMenuBarItem",
+        subrole: nil,
+        title: "Unrelated Zoid 666 item",
+        description: nil,
+        help: nil,
+        stringValue: nil
+    )]), "embedded unrelated status title rejected")
 
     let injectedPresent = StatusItemSource { .present }
     let injectedMissing = StatusItemSource { .missing }
@@ -445,16 +572,17 @@ do {
         print("GREEN: foreground launch remained visible for \(timeout) seconds")
     case "background-windowless-menu-ready":
         var state = BackgroundVisibilityState()
-        let statusSource = liveStatusItemSource()
         var lastStatusFailure = VisibilityProbeError.statusItemUnavailable
+        var matchedStatusItem: LocatedStatusItem?
         repeat {
             guard processIsAlive(pid) else { throw VisibilityProbeError.processExited }
             if isHidden(application) { throw VisibilityProbeError.backgroundBecameHidden }
-            let status = statusItemObservation(from: statusSource)
+            let status = liveStatusItem(pid: pid)
             lastStatusFailure = status.failure
+            matchedStatusItem = status.item ?? matchedStatusItem
             let failure = state.observe(
                 windows: windowSample(application),
-                hasStatusItem: status.hasStatusItem,
+                hasStatusItem: status.item != nil,
                 elapsed: Date().timeIntervalSince(startedAt)
             )
             if let failure {
@@ -465,7 +593,20 @@ do {
         if let failure = state.finalError() {
             throw failure == .statusItemUnavailable ? lastStatusFailure : failure
         }
-        print("GREEN: --background-schedule stayed unhidden, stably windowless, and menu ready")
+        guard let matchedStatusItem else { throw lastStatusFailure }
+        print(diagnosticString(for: matchedStatusItem))
+        guard pressStatusItem(matchedStatusItem) else {
+            throw VisibilityProbeError.statusItemPressFailed
+        }
+        let popoverDeadline = Date().addingTimeInterval(min(5, timeout))
+        var popoverPresent = false
+        repeat {
+            guard processIsAlive(pid) else { throw VisibilityProbeError.processExited }
+            popoverPresent = coachPopoverIsPresent(in: application)
+            if !popoverPresent { Thread.sleep(forTimeInterval: 0.1) }
+        } while !popoverPresent && Date() < popoverDeadline
+        guard popoverPresent else { throw VisibilityProbeError.coachPopoverUnavailable }
+        print("GREEN: --background-schedule stayed unhidden and windowless; native status item opened AXSystemDialog containing menu-bar.coach")
     default:
         throw VisibilityProbeError.usage
     }
