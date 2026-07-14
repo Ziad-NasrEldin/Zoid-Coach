@@ -101,6 +101,13 @@ stop_exact_app() {
   done
 }
 
+# BEGIN RUNBOOK SELF-TEST: ordinary-launch-command
+ordinary_launch_command_is_valid() {
+  local command_line="$1"
+  [[ "$command_line" != *--qa-open-main* && "$command_line" != *--background-schedule* ]]
+}
+# END RUNBOOK SELF-TEST: ordinary-launch-command
+
 verify_state() {
   local fixture_state="$1"
   local expected_state="$2"
@@ -121,8 +128,7 @@ verify_state() {
   done
   test -n "$pid"
   command_line="$(ps -p "$pid" -o command=)"
-  test "$command_line" != *"--qa-open-main"*
-  test "$command_line" != *"--background-schedule"*
+  ordinary_launch_command_is_valid "$command_line"
   lsof -Fn -a -p "$pid" "$DATABASE" 2>/dev/null | grep -Fqx "n$DATABASE"
   swift "$PROBE" \
     --pid "$pid" \
@@ -185,7 +191,7 @@ for relaunch in first second; do
     sleep 0.2
   done
   test -n "$pid"
-  test "$(ps -p "$pid" -o command=)" != *"--qa-open-main"*
+  ordinary_launch_command_is_valid "$(ps -p "$pid" -o command=)"
   swift "$PROBE" \
     --pid "$pid" \
     --app-bundle "$APP" \
