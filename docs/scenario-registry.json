@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "ab8867bbdcc6e139ffbde170e056cad5599d7a166a0e27eb2342f24c781413eb",
+  "tracker_sha256": "a69205325f43b75f78509d7f36629199b5211274c49bcfcb4c6e08b41d31092c",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9368,8 +9368,8 @@
       "item_index": 2,
       "wording": "See evidence supporting a causal hypothesis.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9380,7 +9380,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No causal-hypothesis generator or evidence view exists.",
+      "audit_note": "Weekly pattern cards now separate the hypothesis, observed samples, confidence, evidence, alternative explanation, and an explicit not-proven-cause boundary; the signed app kept a private task title out of the collapsed accessibility summary, revealed it only after keyboard expansion, and removed it again on collapse. Focused presentation and store coverage passed 13/13, while a signed app-and-helper relaunch against unchanged persisted rows remains outstanding (`WeeklyReviewView.swift`; `WeeklyReviewPatternPresentation.swift`; `WeeklyReviewPatternPresentationTests.swift`; `.audit/runs/weekly-causal-evidence/verifier/REPORT.md`).",
       "tracker_line": 591
     },
     {
