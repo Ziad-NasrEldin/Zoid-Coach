@@ -112,4 +112,45 @@ test -s "$TEMP_ROOT/ordinary-launch-command.zsh" || fail "ordinary-launch comman
 /bin/zsh "$TEMP_ROOT/execute-ordinary-launch-command.zsh" \
     || fail "ordinary-launch predicate did not accept and reject representative command lines under zsh"
 
-print -- "PASS: ZC-013-001 runbook declares executable zsh blocks, portable arrays, and zsh-safe launch predicates"
+awk '
+    /^# BEGIN RUNBOOK SELF-TEST: database-readiness$/ { inside = 1; next }
+    /^# END RUNBOOK SELF-TEST: database-readiness$/ { inside = 0; exit }
+    inside { print }
+' "$RUNBOOK" > "$TEMP_ROOT/database-readiness.zsh"
+test -s "$TEMP_ROOT/database-readiness.zsh" || fail "database readiness helper was not found"
+readonly DATABASE_WAIT_CALLS="$(grep -Fxc '  wait_for_exact_database "$pid" "$DATABASE"' "$RUNBOOK")"
+(( DATABASE_WAIT_CALLS == 2 )) \
+    || fail "database readiness helper must guard every ordinary state and relaunch path"
+
+{
+    cat "$TEMP_ROOT/database-readiness.zsh"
+    cat <<'ZSH'
+EXPECTED_DATABASE="/private/tmp/expected/Application Support/Zoid 666/zoid-coach.sqlite"
+COUNTER_FILE="$TEST_ROOT/counter"
+print 0 > "$COUNTER_FILE"
+process_is_alive() { [[ "$1" == 4242 ]] }
+open_zoid_databases() {
+    local count="$(<"$COUNTER_FILE")"
+    (( count += 1 ))
+    print "$count" > "$COUNTER_FILE"
+    (( count >= 3 )) && print -r -- "$EXPECTED_DATABASE"
+    return 0
+}
+sleep() { : }
+wait_for_exact_database 4242 "$EXPECTED_DATABASE" 4 0
+
+open_zoid_databases() { return 0 }
+! wait_for_exact_database 4242 "$EXPECTED_DATABASE" 2 0
+
+process_is_alive() { return 1 }
+! wait_for_exact_database 4242 "$EXPECTED_DATABASE" 2 0
+
+process_is_alive() { return 0 }
+open_zoid_databases() { print -r -- "/private/tmp/wrong/Application Support/Zoid 666/zoid-coach.sqlite" }
+! wait_for_exact_database 4242 "$EXPECTED_DATABASE" 2 0
+ZSH
+} > "$TEMP_ROOT/execute-database-readiness.zsh"
+TEST_ROOT="$TEMP_ROOT" /bin/zsh "$TEMP_ROOT/execute-database-readiness.zsh" \
+    || fail "database readiness helper failed delayed-open or rejection cases under zsh"
+
+print -- "PASS: ZC-013-001 runbook validates zsh portability, launch predicates, and bounded exact-database readiness"
