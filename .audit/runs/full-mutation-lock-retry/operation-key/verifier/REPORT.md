@@ -41,13 +41,17 @@ The external Reminder relaunch path checks one outbox command, one history row, 
 ## Verification State
 
 Source review and `git diff --check` pass.
-No test, build, package, installed-app, native accessibility, lock, or lost-reply runtime probe has run in this verifier lane yet because another verifier holds the serialized build lease.
-The scenario remains `Partially implemented` until automated proof passes and the signed temporary-lock, persistent-lock, and Calendar-preservation lost-reply journeys are completed.
+The focused atomic local-Reminder crash-window regression passes.
+The focused QA-root pending-operation isolation regression passes.
+The combined operation, mutation, relaunch, lock, XPC-client, task-history, Reminder-completion, and raw-cardinality selections pass.
+Migration 43 and clean ordered migration coverage pass, including preservation of existing task history and a Calendar event identifier.
+The previously reported `deletingActiveAppleReminderPausesVisibleTaskAndSurvivesRestart` baseline failure passes on the authoritative verifier base and remains separate from this candidate.
+The production release build passes.
+No package, installed-app, native accessibility, lock, or lost-reply runtime probe has run in this verifier lane yet.
+The scenario remains `Partially implemented` until the signed temporary-lock, persistent-lock, and Calendar-preservation lost-reply journeys are completed.
 
 ## Pending Proof
 
-- Run focused migration, operation-store, task-execution, history, XPC endpoint, XPC client, Today agent, and related store tests under the serialized build lease.
-- Run the relevant broader regression groups and a release build.
 - Package and install an isolated signed-QA app.
 - Verify a visible task mutation succeeds exactly once after a temporary exclusive database lock is released.
 - Verify a persistent exclusive lock fails with truthful last-confirmed-state copy and no operation or side effect.
@@ -56,4 +60,4 @@ The scenario remains `Partially implemented` until automated proof passes and th
 
 ## Current Verdict
 
-The candidate plus verifier repairs are source-complete but are not yet fully usable end to end.
+The candidate plus verifier repairs pass the automated source acceptance boundary but are not yet fully usable end to end.
