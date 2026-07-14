@@ -13,7 +13,7 @@ struct ZoidCoachApplication: App {
     @StateObject private var wakeTaskReconfirmation: WakeTaskReconfirmationController
     @StateObject private var menuBarCoach: MenuBarCoachController
     @StateObject private var menuBarCoachingPause: MenuBarCoachingPauseController
-    private let launchesForBackgroundScheduling: Bool
+    private let initialMainWindowPresentationPolicy: InitialMainWindowPresentationPolicy
     private let shouldOpenMainWindow: Bool
 
     init() {
@@ -58,7 +58,7 @@ struct ZoidCoachApplication: App {
             arguments: CommandLine.arguments,
             packageMode: runtimeEnvironment.packageMode
         )
-        launchesForBackgroundScheduling = launchPresentation.launchesForBackgroundScheduling
+        initialMainWindowPresentationPolicy = launchPresentation.initialMainWindowPresentationPolicy
         shouldOpenMainWindow = launchPresentation.shouldOpenMainWindow
         _model = StateObject(wrappedValue: AppModel(runtimeEnvironment: runtimeEnvironment))
         _voiceModel = StateObject(wrappedValue: VoiceConversationModel())
@@ -140,12 +140,7 @@ struct ZoidCoachApplication: App {
                     if onboarding.route == .today {
                         voiceModel.startAlwaysAvailable()
                     }
-                    positionInitialWindow()
-                    if launchesForBackgroundScheduling {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            dismissInitialWindowsForBackgroundScheduling()
-                        }
-                    }
+                    presentInitialMainWindow()
                 }
                 .onChange(of: onboarding.route) { _, route in
                     if route == .today {
@@ -232,29 +227,34 @@ struct ZoidCoachApplication: App {
             || notifications.state == .unavailable
     }
 
-    private func positionInitialWindow() {
-        DispatchQueue.main.async {
-            let windows = NSApplication.shared.windows
-            guard let target = MainApplicationWindowSelector.select(
-                from: windows.map(ApplicationWindowDescriptor.init)
-            ),
-                  let window = windows.first(where: { $0.windowNumber == target.windowNumber })
-            else { return }
-
-            let frameAutosaveName = "ZoidCoachMainWindowFrame"
-            if !window.setFrameUsingName(frameAutosaveName) {
-                window.setContentSize(NSSize(width: 1180, height: 760))
-                window.center()
+    private func presentInitialMainWindow() {
+        InitialMainWindowPresentationCoordinator(
+            availableWindows: {
+                NSApplication.shared.windows.map(ApplicationWindowDescriptor.init)
+            },
+            positionWindow: { windowNumber in
+                guard let window = NSApplication.shared.windows.first(where: {
+                    $0.windowNumber == windowNumber
+                }) else {
+                    return
+                }
+                let frameAutosaveName = "ZoidCoachMainWindowFrame"
+                if !window.setFrameUsingName(frameAutosaveName) {
+                    window.setContentSize(NSSize(width: 1180, height: 760))
+                    window.center()
+                }
+                window.setFrameAutosaveName(frameAutosaveName)
+                window.makeKeyAndOrderFront(nil)
+            },
+            dismissWindow: { windowNumber in
+                NSApplication.shared.windows
+                    .first(where: { $0.windowNumber == windowNumber })?
+                    .orderOut(nil)
+            },
+            schedulePosition: { action in
+                DispatchQueue.main.async(execute: action)
             }
-            window.setFrameAutosaveName(frameAutosaveName)
-            window.makeKeyAndOrderFront(nil)
-        }
-    }
-
-    private func dismissInitialWindowsForBackgroundScheduling() {
-        for window in NSApp.windows where window.level == .normal {
-            window.orderOut(nil)
-        }
+        ).apply(policy: initialMainWindowPresentationPolicy)
     }
 
     private func reconcileTaskAfterWake() {
