@@ -54,7 +54,9 @@ It requires the helper's stripped-environment runtime identity and open SQLite f
 
 A clean isolated runtime starts at onboarding and intentionally has no Dashboard Settings route.
 ZC-044-004 tests Settings after onboarding, so establish the repository's supported 12-of-12 QA ready state before preparing the scenario database.
-This is fixture state, not a product launch argument or product backdoor.
+This is fixture state, not a product backdoor.
+An ordinary launch intentionally preserves the app's previous scene state and does not force the main window to appear.
+The signed QA package already provides the tested `--qa-open-main` presentation argument so verification can request the same main window that users open from the menu bar without changing production launch behavior.
 
 ```sh
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/Info.plist")"
@@ -64,12 +66,13 @@ kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$READY_STATE" "$READY_MANIFEST" "$PRIVATE_ROOT" --replace
 "$APP_EXECUTABLE" --qa-register-agent
-open "$APP"
-PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+open "$APP" --args --qa-open-main
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --require-qa-open-main)"
 PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
 swift "$WINDOW_PROBE" "$PID" --expect-today
 ```
 
+The preflight binds the PID to the installed executable and requires that exact process to contain the supported QA foreground argument.
 The Today assertion proves onboarding is complete and the normal Dashboard navigation is visible.
 Do not continue if the app still exposes onboarding.
 
@@ -83,8 +86,8 @@ kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$FIXTURE" prepare "$DATABASE"
 "$FIXTURE" assert-prepared "$DATABASE"
-open "$APP"
-PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+open "$APP" --args --qa-open-main
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --require-qa-open-main)"
 PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
 ```
 
@@ -116,8 +119,8 @@ The probe must navigate to Settings again through the normal user-facing route.
 ```sh
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
-open "$APP"
-PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+open "$APP" --args --qa-open-main
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --require-qa-open-main)"
 PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
 swift "$PROBE" --pid "$PID" --phase settings-persisted \
   --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
@@ -210,8 +213,8 @@ Open the menu-bar popover.
 ```sh
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
-open "$APP"
-PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+open "$APP" --args --qa-open-main
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --require-qa-open-main)"
 PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
 swift "$PROBE" --pid "$PID" --phase ended \
   --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"

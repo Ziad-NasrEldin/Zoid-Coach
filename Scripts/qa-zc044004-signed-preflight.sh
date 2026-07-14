@@ -8,6 +8,7 @@ readonly VERIFIER_BASE="0068cd2d9da540818feea90ff1e39fc5270b97ee"
 readonly APP="${1:-}"
 readonly DATABASE="${2:-}"
 readonly EXPECTED_COMMIT="${3:-}"
+readonly PRESENTATION_REQUIREMENT="${4:-}"
 
 fail() {
     print -u2 -- "FAIL: $*"
@@ -18,16 +19,28 @@ is_full_lowercase_sha() {
     [[ "$1" =~ '^[0-9a-f]{40}$' ]]
 }
 
+command_has_exact_argument() {
+    local command="$1"
+    local expected_argument="$2"
+    [[ " $command " == *" $expected_argument "* ]]
+}
+
 if [[ "$APP" == "--self-test" ]]; then
     is_full_lowercase_sha "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a" \
         || fail "valid SHA was rejected without extendedglob"
     ! is_full_lowercase_sha "B3FF3D3E8EFF70F60301C5BE3FAFFB9C00CCFC2A" \
         || fail "uppercase SHA was accepted"
     ! is_full_lowercase_sha "b3ff3d3" || fail "abbreviated SHA was accepted"
-    print -- "PASS: ZC-044-004 signed preflight SHA validation self-test"
+    command_has_exact_argument "/tmp/ZoidCoachQA --qa-open-main" "--qa-open-main" \
+        || fail "exact QA foreground argument was rejected"
+    ! command_has_exact_argument "/tmp/ZoidCoachQA --qa-open-main-extra" "--qa-open-main" \
+        || fail "prefixed QA foreground argument was accepted"
+    print -- "PASS: ZC-044-004 signed preflight validation self-test"
     exit 0
 fi
 
+[[ -z "$PRESENTATION_REQUIREMENT" || "$PRESENTATION_REQUIREMENT" == "--require-qa-open-main" ]] \
+    || fail "unsupported presentation requirement: $PRESENTATION_REQUIREMENT"
 [[ -d "$APP" ]] || fail "signed app does not exist: $APP"
 [[ -f "$DATABASE" ]] || fail "isolated database does not exist: $DATABASE"
 is_full_lowercase_sha "$EXPECTED_COMMIT" || fail "expected commit must be a full 40-character lowercase SHA"
@@ -84,6 +97,11 @@ matching_app_pid() {
 
 app_pid="$(matching_app_pid)" || fail "app is not running from the expected installed bundle"
 readonly APP_PID="$app_pid"
+if [[ "$PRESENTATION_REQUIREMENT" == "--require-qa-open-main" ]]; then
+    readonly APP_COMMAND="$(ps -ww -p "$APP_PID" -o command=)"
+    command_has_exact_argument "$APP_COMMAND" "--qa-open-main" \
+        || fail "installed QA app was not launched through the supported foreground main-window argument"
+fi
 service="$(launchctl print "gui/$(id -u)/$AGENT_LABEL" 2>/dev/null)" \
     || fail "installed helper service is unavailable: $AGENT_LABEL"
 readonly SERVICE="$service"
