@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "2feac077605d7864ae2df6a74c11868df6bdab2744d7bde58376f5957a9dd51e",
+  "tracker_sha256": "becf57cb15cb8efca66e89be07663f409447b5cf7665d26cacba59419208c4ab",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -4711,8 +4711,8 @@
       "item_index": 6,
       "wording": "Choose whether to keep a deleted Reminder as a local historical task.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -4723,7 +4723,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No deleted-task decision UI or historical preservation choice exists.",
+      "audit_note": "Settings now presents privacy-safe deleted-Reminder choices with distinct Keep Local History and Remove Local Copy controls. Twelve focused decision, rollback, retry, and migration tests passed; the signed app created exactly two pending choices after real fixture deletion, exposed no private notes or URLs, preserved both choices after Cancel, and changed only the selected row to Kept. Signed confirmation of Remove, matching reappearance cleanup, the final app-and-helper relaunch, and controlled signed failure/retry remain (`DeletedReminderDecisionController.swift`; `RemindersConnectionView.swift`; `ReminderSnapshotStore.swift`; `.audit/runs/deleted-reminder-choice/verifier/REPORT.md`).",
       "tracker_line": 324
     },
     {
