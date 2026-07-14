@@ -2,6 +2,38 @@ import AppKit
 import SwiftUI
 import ZoidCoachCore
 
+struct TodayPromptInboxLedgerPresentation {
+    enum Placement: Equatable {
+        case beforeTaskDetail
+        case afterTaskDetail
+    }
+
+    static func placement(for timeline: PromptInboxTimeline) -> Placement {
+        timeline.awaitingResponse.isEmpty ? .afterTaskDetail : .beforeTaskDetail
+    }
+
+    static func shouldRefresh(_ timeline: PromptInboxTimeline) -> Bool {
+        timeline.isEmpty
+    }
+
+    static func actions(for entry: PromptInboxTimelineEntry) -> PromptActionPublicInterface {
+        PromptActionPublicInterface(promptID: entry.id, actions: entry.episode.actions)
+    }
+
+    static func historyIdentifier(for entry: PromptInboxTimelineEntry) -> String {
+        "today.prompt.\(entry.id).history"
+    }
+
+    static func historyState(for entry: PromptInboxTimelineEntry) -> String {
+        switch entry.episode.state {
+        case .responded: entry.isReplay ? "ANSWERED · RETURNED" : "ANSWERED"
+        case .timedOut: "EXPIRED"
+        case .dismissed: "DISMISSED"
+        case .detected, .queued, .presented: "WAITING"
+        }
+    }
+}
+
 struct TodayPromptInboxLedger: View {
     @EnvironmentObject private var model: AppModel
     private let timelineOverride: PromptInboxTimeline?
@@ -131,7 +163,7 @@ struct TodayPromptInboxLedger: View {
             promptBlockSheet(request)
         }
         .task {
-            guard timeline.isEmpty else { return }
+            guard TodayPromptInboxLedgerPresentation.shouldRefresh(timeline) else { return }
             if let refreshInboxOverride {
                 await refreshInboxOverride()
             } else {
@@ -173,7 +205,7 @@ struct TodayPromptInboxLedger: View {
             pendingPromptID: model.pendingPromptID,
             replayed: entry.isReplay
         )
-        let interface = PromptActionPublicInterface(promptID: entry.id, actions: entry.episode.actions)
+        let interface = TodayPromptInboxLedgerPresentation.actions(for: entry)
         return VStack(alignment: .leading, spacing: 8) {
             promptHeading(entry, state: presentation.stateLabel)
             Text(entry.episode.summary).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
@@ -254,7 +286,7 @@ struct TodayPromptInboxLedger: View {
 
     private func historyRow(_ entry: PromptInboxTimelineEntry) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            promptHeading(entry, state: historyState(entry))
+            promptHeading(entry, state: TodayPromptInboxLedgerPresentation.historyState(for: entry))
             Text(entry.episode.summary).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
             if let response = entry.response {
                 Text("CHOICE · \(response.action.rawValue.replacingOccurrences(of: "_", with: " ").uppercased()) · \(response.respondedAt.formatted(date: .abbreviated, time: .shortened))")
@@ -271,7 +303,7 @@ struct TodayPromptInboxLedger: View {
                 }
             }
         }
-        .promptRow(identifier: "today.prompt.\(entry.id).history")
+        .promptRow(identifier: TodayPromptInboxLedgerPresentation.historyIdentifier(for: entry))
     }
 
     private func promptHeading(_ entry: PromptInboxTimelineEntry, state: String) -> some View {
@@ -279,15 +311,6 @@ struct TodayPromptInboxLedger: View {
             Text(entry.episode.title).font(Sumi.body(15)).foregroundStyle(Sumi.ink)
             Spacer(minLength: 12)
             Text(state).font(Sumi.label(8)).sumiLabelTracking().foregroundStyle(Sumi.muted)
-        }
-    }
-
-    private func historyState(_ entry: PromptInboxTimelineEntry) -> String {
-        switch entry.episode.state {
-        case .responded: entry.isReplay ? "ANSWERED · RETURNED" : "ANSWERED"
-        case .timedOut: "EXPIRED"
-        case .dismissed: "DISMISSED"
-        case .detected, .queued, .presented: "WAITING"
         }
     }
 
