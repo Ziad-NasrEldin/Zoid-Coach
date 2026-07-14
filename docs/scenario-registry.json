@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "df06f128fe681a77398384cba91e56cea151b3207669f68f9c07d228e81e7f40",
+  "tracker_sha256": "cfe8ed96267d59f0deea8360fc5cf8bb6d95cb31aa59e73aad11576395e14a56",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12572,12 +12572,10 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [
-        ".audit/runs/stable-notification-content-replacement/verifier/REPORT.md"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Prompt notifications now use a privacy-safe stable SHA-256 identity for the logical decision, and focused golden-vector tests prove that a new episode for the same decision replaces its predecessor while distinct decisions remain distinct without exposing the raw decision key or episode identifier. A persisted cross-coordinator QA journey retains exactly one notification with the newest title, body, and prompt identifier, then proves cancellation survives relaunch; all 40 notification tests, the release build, and signed package, install, and helper validation passed. The installed app still has no safe visible control for producing two changed episodes for one decision, so actual Notification Center one-card replacement, newest-action routing, and relaunch non-resurrection remain outstanding (`PromptNotificationCoordinator.swift`; `PromptNotificationCoordinatorTests.swift`; `.audit/runs/stable-notification-content-replacement/verifier/REPORT.md`).",
+      "audit_note": "A signed-QA-only Settings control now drives the real `PromptNotificationCoordinator` and `UNUserNotificationCenter` path while production and unpackaged QA fail closed. Deterministic proof replaces `PLAN_READY` with changed `PLAN_CHANGED` content and actions under one privacy-safe stable request identity, routes only the newest Undo action, persists that response, and prevents obsolete resurrection after reconstructed-store relaunch; focused tests and the release build pass. The signed app rendered the control and four distinct native accessibility identifiers, but the existing QA bundle notification permission was unavailable, so the safe original attempt reported that macOS did not accept it and the run stopped without requesting permission or changing System Settings. Actual Notification Center one-card replacement, newest-action routing, and relaunch non-resurrection therefore remain the final gate (`PromptNotificationCoordinator.swift`; `QANotificationReplacementProbe.swift`; `QANotificationReplacementProbeView.swift`; `QANotificationReplacementProbeTests.swift`; `.audit/runs/stable-notification-content-replacement/verifier/REPORT.md`; `.audit/runs/qa-notification-replacement-seam/verifier/REPORT.md`).",
       "tracker_line": 769
     },
     {
