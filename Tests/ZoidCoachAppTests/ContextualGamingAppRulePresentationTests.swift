@@ -27,7 +27,7 @@ struct ContextualGamingAppRulePresentationTests {
         #expect(automatic.detail.contains("local window title or URL"))
         #expect(automatic.detail.contains("future sessions"))
         #expect(gaming.title == "ALWAYS GAMING")
-        #expect(gaming.detail.contains("every future Twitch session"))
+        #expect(gaming.detail.contains("Every future Twitch session"))
     }
 
     @Test("Twitch uses local context rather than a permanent gaming label")
