@@ -38,15 +38,53 @@ private struct ReviewsNavigationState {
     let deepEvidenceChildVisible: Bool
 }
 
-private func reviewsNavigationSucceeded(
-    beforePress: ReviewsNavigationState,
-    pressSucceeded _: Bool,
-    afterPress: ReviewsNavigationState
-) -> Bool {
-    guard beforePress.destination != .ambiguous,
-          afterPress.destination != .ambiguous
-    else { return false }
-    return beforePress.destination == .unique || afterPress.destination == .unique
+private enum ReviewsDestinationPollFailure: Equatable {
+    case processExited
+    case ambiguous
+    case timedOut
+}
+
+private enum ReviewsDestinationPollDecision: Equatable {
+    case success
+    case retry
+    case failure(ReviewsDestinationPollFailure)
+}
+
+private func reviewsDestinationPollDecision(
+    state: ReviewsNavigationState,
+    processAlive: Bool,
+    poll: Int,
+    maximumPolls: Int
+) -> ReviewsDestinationPollDecision {
+    guard processAlive else { return .failure(.processExited) }
+    switch state.destination {
+    case .unique: return .success
+    case .ambiguous: return .failure(.ambiguous)
+    case .missing:
+        return poll < maximumPolls ? .retry : .failure(.timedOut)
+    }
+}
+
+private func simulateReviewsDestinationPolling(
+    states: [ReviewsNavigationState],
+    processAlive: [Bool],
+    maximumPolls: Int
+) -> (decision: ReviewsDestinationPollDecision, polls: Int) {
+    guard maximumPolls > 0, !states.isEmpty, !processAlive.isEmpty else {
+        return (.failure(.timedOut), 0)
+    }
+    for poll in 1...maximumPolls {
+        let state = states[min(poll - 1, states.count - 1)]
+        let alive = processAlive[min(poll - 1, processAlive.count - 1)]
+        let decision = reviewsDestinationPollDecision(
+            state: state,
+            processAlive: alive,
+            poll: poll,
+            maximumPolls: maximumPolls
+        )
+        if decision != .retry { return (decision, poll) }
+    }
+    return (.failure(.timedOut), maximumPolls)
 }
 
 private enum ReviewScrollStep: Equatable {
@@ -163,36 +201,36 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
           selectMainWindow(from: [auxiliary]) == .missing,
           selectMainWindow(from: [minimizedMain]) == .missing,
           selectMainWindow(from: [hiddenMain]) == .missing,
-          reviewsNavigationSucceeded(
-              beforePress: selectedReviews,
-              pressSucceeded: false,
-              afterPress: selectedReviews
-          ),
-          reviewsNavigationSucceeded(
-              beforePress: missingReviews,
-              pressSucceeded: true,
-              afterPress: selectedReviews
-          ),
-          !reviewsNavigationSucceeded(
-              beforePress: missingReviews,
-              pressSucceeded: true,
-              afterPress: missingReviews
-          ),
-          !reviewsNavigationSucceeded(
-              beforePress: deepChildOnly,
-              pressSucceeded: false,
-              afterPress: deepChildOnly
-          ),
-          !reviewsNavigationSucceeded(
-              beforePress: ambiguousReviews,
-              pressSucceeded: true,
-              afterPress: selectedReviews
-          ),
-          !reviewsNavigationSucceeded(
-              beforePress: missingReviews,
-              pressSucceeded: true,
-              afterPress: ambiguousReviews
-          ),
+          simulateReviewsDestinationPolling(
+              states: [missingReviews, missingReviews, selectedReviews],
+              processAlive: [true],
+              maximumPolls: 5
+          ).decision == .success,
+          simulateReviewsDestinationPolling(
+              states: [missingReviews, missingReviews, selectedReviews],
+              processAlive: [true],
+              maximumPolls: 5
+          ).polls == 3,
+          simulateReviewsDestinationPolling(
+              states: [missingReviews],
+              processAlive: [true],
+              maximumPolls: 3
+          ).decision == .failure(.timedOut),
+          simulateReviewsDestinationPolling(
+              states: [deepChildOnly],
+              processAlive: [true],
+              maximumPolls: 3
+          ).decision == .failure(.timedOut),
+          simulateReviewsDestinationPolling(
+              states: [missingReviews, ambiguousReviews],
+              processAlive: [true],
+              maximumPolls: 5
+          ).decision == .failure(.ambiguous),
+          simulateReviewsDestinationPolling(
+              states: [missingReviews],
+              processAlive: [false],
+              maximumPolls: 5
+          ).decision == .failure(.processExited),
           reviewScrollStep(
               page: 0,
               maximumPages: 16,
@@ -237,6 +275,7 @@ private let phase = arguments[4]
 private let application = AXUIElementCreateApplication(pid)
 private let maximumNodes = 4_000
 private let maximumScrollPages = 16
+private let maximumNavigationPolls = 20
 
 private func attribute(_ element: AXUIElement, _ name: CFString) -> CFTypeRef? {
     var value: CFTypeRef?
@@ -382,17 +421,30 @@ private func navigateToReviews(window: AXUIElement) throws {
     guard actionNames(reviews).contains(kAXPressAction as String) else {
         throw ProbeError.failure("visible Reviews navigation has no AXPress action")
     }
-    let beforePress = try reviewsNavigationState(in: window)
     _ = AXUIElementPerformAction(reviews, "AXScrollToVisible" as CFString)
-    let pressSucceeded = AXUIElementPerformAction(reviews, kAXPressAction as CFString) == .success
-    Thread.sleep(forTimeInterval: 0.3)
-    let afterPress = try reviewsNavigationState(in: window)
-    guard reviewsNavigationSucceeded(
-        beforePress: beforePress,
-        pressSucceeded: pressSucceeded,
-        afterPress: afterPress
-    ) else {
-        throw ProbeError.failure("could not navigate to the unique Daily Review destination")
+    _ = AXUIElementPerformAction(reviews, kAXPressAction as CFString)
+    for poll in 1...maximumNavigationPolls {
+        let processAlive = kill(pid, 0) == 0
+        let state = processAlive
+            ? try reviewsNavigationState(in: mainWindow())
+            : ReviewsNavigationState(destination: .missing, deepEvidenceChildVisible: false)
+        switch reviewsDestinationPollDecision(
+            state: state,
+            processAlive: processAlive,
+            poll: poll,
+            maximumPolls: maximumNavigationPolls
+        ) {
+        case .success:
+            return
+        case .retry:
+            Thread.sleep(forTimeInterval: 0.1)
+        case .failure(.processExited):
+            throw ProbeError.failure("app process exited while opening Daily Review")
+        case .failure(.ambiguous):
+            throw ProbeError.failure("Daily Review destination root is ambiguous")
+        case .failure(.timedOut):
+            throw ProbeError.failure("timed out waiting for the unique Daily Review destination")
+        }
     }
 }
 
