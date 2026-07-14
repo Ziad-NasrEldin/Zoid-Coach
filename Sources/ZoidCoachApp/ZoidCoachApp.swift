@@ -11,6 +11,8 @@ struct ZoidCoachApplication: App {
     @StateObject private var onboarding: OnboardingCoordinator
     @StateObject private var agentLifecycle: AgentLifecycleController
     @StateObject private var wakeTaskReconfirmation: WakeTaskReconfirmationController
+    @StateObject private var menuBarCoach: MenuBarCoachController
+    @StateObject private var menuBarCoachingPause: MenuBarCoachingPauseController
     private let launchesForBackgroundScheduling: Bool
 
     init() {
@@ -45,12 +47,19 @@ struct ZoidCoachApplication: App {
             Darwin.exit(exitCode)
         }
         let isBackgroundLaunch = CommandLine.arguments.contains("--background-schedule")
+        let runtimeEnvironment = RuntimeEnvironment.current()
         launchesForBackgroundScheduling = isBackgroundLaunch
-        _model = StateObject(wrappedValue: AppModel())
+        _model = StateObject(wrappedValue: AppModel(runtimeEnvironment: runtimeEnvironment))
         _voiceModel = StateObject(wrappedValue: VoiceConversationModel())
         _onboarding = StateObject(wrappedValue: OnboardingCoordinator())
         _agentLifecycle = StateObject(wrappedValue: AgentLifecycleController())
         _wakeTaskReconfirmation = StateObject(wrappedValue: WakeTaskReconfirmationController())
+        _menuBarCoach = StateObject(wrappedValue: MenuBarCoachController(
+            runtimeEnvironment: runtimeEnvironment
+        ))
+        _menuBarCoachingPause = StateObject(wrappedValue: MenuBarCoachingPauseController(
+            runtimeEnvironment: runtimeEnvironment
+        ))
     }
 
     var body: some Scene {
@@ -177,7 +186,12 @@ struct ZoidCoachApplication: App {
         .defaultSize(width: 760, height: 660)
 
         MenuBarExtra {
-            MenuBarCoachView(appModel: model, voiceModel: voiceModel)
+            MenuBarCoachView(
+                appModel: model,
+                voiceModel: voiceModel,
+                controller: menuBarCoach,
+                pauseController: menuBarCoachingPause
+            )
         } label: {
             Image(systemName: menuBarState.menuBarSymbol)
                 .accessibilityLabel(menuBarState.menuBarLabel)
