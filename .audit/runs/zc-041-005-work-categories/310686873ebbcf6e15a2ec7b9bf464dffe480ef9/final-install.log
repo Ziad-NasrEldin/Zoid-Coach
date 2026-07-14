@@ -1,0 +1,24 @@
+/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA: replacing existing signature
+/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachQA: replacing existing signature
+/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app: replacing existing signature
+--prepared:/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA
+--validated:/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA
+/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app: valid on disk
+/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app: satisfies its Designated Requirement
+--prepared:/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA
+--validated:/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA
+/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app: valid on disk
+/private/tmp/zoid-666-zc041005-final/.build/app-qa/Zoid 666 QA.app: satisfies its Designated Requirement
+--prepared:/private/tmp/zoid-666-zc041005-final-install/.Zoid 666 QA E2E.installing.app/Contents/MacOS/ZoidCoachAgentQA
+--validated:/private/tmp/zoid-666-zc041005-final-install/.Zoid 666 QA E2E.installing.app/Contents/MacOS/ZoidCoachAgentQA
+/private/tmp/zoid-666-zc041005-final-install/.Zoid 666 QA E2E.installing.app: valid on disk
+/private/tmp/zoid-666-zc041005-final-install/.Zoid 666 QA E2E.installing.app: satisfies its Designated Requirement
+PASS: QA XPC runtime is writable and prompt timeline is available
+PASS: QA LaunchAgent registered and left enabled
+QA app-open attempt=1/20 app=/private/tmp/zoid-666-zc041005-final-install/Zoid 666 QA E2E.app
+PASS: LaunchServices opened installed signed QA app pid=14898 executable=/private/tmp/zoid-666-zc041005-final-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachQA
+PASS: signed QA runtime installed
+app=/private/tmp/zoid-666-zc041005-final-install/Zoid 666 QA E2E.app
+qa_root=/private/tmp/zoid-666-zc041005-final-runtime
+agent_label=qa.ziadnasreldin.ZoidCoach.agent
+agent_executable=/private/tmp/zoid-666-zc041005-final-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA

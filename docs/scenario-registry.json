@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "e65f1946dd1fcd2f5f2fe102d0cf1e96c0c8c237285f776c5e9de9e8d8fcbe61",
+  "tracker_sha256": "10c59ed93ed45c1de7319a8cf07879085be03d67b03cc95463f040709595f7e1",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8942,7 +8942,9 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "No review draft/persistence lifecycle exists.",
@@ -9119,8 +9121,8 @@
       "item_index": 5,
       "wording": "See work broken down by category.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9131,7 +9133,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Today can group application observations by classification, but no review categories or historical review presentation exist.",
+      "audit_note": "Daily Review now implements six conservative corrected-work categories, persisted correction and chosen-left merge reconstruction, honest empty and Uncategorized states, stable accessibility identities, and seven passing focused tests. Signed QA passed release packaging, deep signing, LaunchAgent, Mach service, XPC readiness, exact app/helper/root/database binding, foreground-before-helper ordering, visible Today, and the non-work-only fixture database assertion, but the category probe rejected an auxiliary AX window before the empty ledger, exact 2/3/4/5/6/8-minute rows, 28-minute total, authority and exclusion copy, recursive privacy, and relaunch journey could pass (`.audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md`).",
       "tracker_line": 576
     },
     {
