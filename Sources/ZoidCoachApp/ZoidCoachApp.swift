@@ -110,6 +110,7 @@ struct ZoidCoachApplication: App {
                 .environmentObject(voiceModel)
                 .frame(minWidth: 980, minHeight: 680)
                 .background(Sumi.paper)
+                .background(MainApplicationWindowIdentityInstaller())
                 .overlay(alignment: .topTrailing) {
                     if let notice = wakeTaskReconfirmation.notice {
                         WakeTaskReconciliationNoticeView(
@@ -233,9 +234,12 @@ struct ZoidCoachApplication: App {
 
     private func positionInitialWindow() {
         DispatchQueue.main.async {
-            guard let window = NSApplication.shared.windows.first(where: {
-                $0.canBecomeKey && $0.level == .normal
-            }) else { return }
+            let windows = NSApplication.shared.windows
+            guard let target = MainApplicationWindowSelector.select(
+                from: windows.map(ApplicationWindowDescriptor.init)
+            ),
+                  let window = windows.first(where: { $0.windowNumber == target.windowNumber })
+            else { return }
 
             let frameAutosaveName = "ZoidCoachMainWindowFrame"
             if !window.setFrameUsingName(frameAutosaveName) {
