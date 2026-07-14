@@ -320,6 +320,66 @@ func invalidScreenwatchWithdrawalAloneAllowsSafeSameSessionRecovery() throws {
 }
 
 @Test
+func newestAmbiguousEvidenceWithdrawsStrongCoachingUntilCertainGamingReturns() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(
+        level: .accountability,
+        dailyPromptCap: 1,
+        promptCooldownMinutes: 35
+    )
+
+    guard case let .queued(original, _) = try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected certain gaming evidence to queue the initial accountability prompt")
+        return
+    }
+    #expect(try fixture.promptStore.unresolved().map(\.id) == [original.id])
+
+    try fixture.insertLatestObservation(
+        app: "Unclassified Browser",
+        classification: .unknown,
+        windowTitle: "Unclear local activity"
+    )
+    #expect(try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.limitedCoverage))
+    #expect(try fixture.promptStore.unresolved().isEmpty)
+    let storedWithdrawal = try fixture.promptStore.episode(promptID: original.id)
+    let withdrawn = try #require(storedWithdrawal)
+    #expect(withdrawn.state == .dismissed)
+    #expect(withdrawn.resolutionOrigin == .system)
+    #expect(withdrawn.resolutionReason == .screenwatchEvidenceInvalid)
+
+    fixture.advance(minutes: 11)
+    try fixture.insertGaming(minutes: 10)
+    guard case let .queued(recovered, wasInserted) = try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected fresh certain gaming evidence to restore one normal prompt")
+        return
+    }
+    #expect(wasInserted)
+    #expect(recovered.id != original.id)
+    #expect(try fixture.promptStore.unresolved().map(\.id) == [recovered.id])
+    #expect(try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.sessionAlreadyHandled))
+    #expect(try fixture.promptStore.unresolved().map(\.id) == [recovered.id])
+}
+
+@Test
 func explicitUserDismissalStillEnforcesSessionDeduplicationCooldownAndDailyCap() throws {
     let sameSession = try GamingPromptFixture()
     defer { sameSession.remove() }

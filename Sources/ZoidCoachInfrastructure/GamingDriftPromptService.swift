@@ -131,6 +131,12 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             try dismissUnresolvedGamingDriftPrompts()
             return .suppressed(.limitedCoverage)
         }
+        if observation.isAmbiguous {
+            try dismissUnresolvedGamingDriftPrompts()
+            return .suppressed(
+                observation.isNeutralSupporting ? .neutralSupportingActivity : .limitedCoverage
+            )
+        }
         if observation.isNeutralSupporting {
             return .suppressed(.neutralSupportingActivity)
         }
@@ -350,6 +356,11 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         let app: String
         let windowTitle: String
         let url: String
+        let classification: BehaviorClassification?
+
+        var isAmbiguous: Bool {
+            classification == nil || classification == .unknown
+        }
 
         var isNeutralSupporting: Bool {
             let normalizedApp = app.lowercased()
@@ -379,7 +390,22 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
-            "SELECT epoch, app_name, window_title, url FROM behavior_records WHERE source_day = ? ORDER BY epoch DESC LIMIT 1;",
+            """
+            SELECT behavior.epoch, behavior.app_name, behavior.window_title, behavior.url,
+                   COALESCE(
+                       (SELECT correction.classification
+                        FROM daily_review_corrections correction
+                        WHERE correction.source_day = behavior.source_day
+                          AND behavior.epoch >= correction.start_epoch
+                          AND behavior.epoch < correction.end_epoch
+                        ORDER BY correction.created_at_utc DESC, correction.rowid DESC LIMIT 1),
+                       behavior.classification
+                   )
+            FROM behavior_records behavior
+            WHERE behavior.source_day = ?
+            ORDER BY behavior.epoch DESC
+            LIMIT 1;
+            """,
             -1,
             &statement,
             nil
@@ -392,7 +418,8 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             epoch: epoch,
             app: text(statement, 1) ?? "",
             windowTitle: text(statement, 2) ?? "",
-            url: text(statement, 3) ?? ""
+            url: text(statement, 3) ?? "",
+            classification: text(statement, 4).flatMap(BehaviorClassification.init(rawValue:))
         )
     }
 
