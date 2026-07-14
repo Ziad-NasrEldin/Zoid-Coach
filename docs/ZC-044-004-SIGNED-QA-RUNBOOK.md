@@ -20,6 +20,7 @@ Set the exact installed paths and full signed integration commit.
 The database path must be the database embedded in the QA bundle runtime root.
 
 ```sh
+set -euo pipefail
 APP="/absolute/path/to/Zoid 666 QA E2E.app"
 DATABASE="/private/tmp/zc044004/Application Support/Zoid 666/zoid-coach.sqlite"
 EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_INTEGRATION_COMMIT"
@@ -31,11 +32,15 @@ READY_MANIFEST="$PWD/Scripts/fixtures/qa-ready-state.example.json"
 WINDOW_PROBE="$PWD/Scripts/qa-window-content-probe.swift"
 TASK_TITLE="QA ZC-044-004 manual workday task"
 PRIVATE_ROOT="${DATABASE%/Application Support/Zoid 666/zoid-coach.sqlite}"
+"$PREFLIGHT" --self-test
 ```
+
+The preflight self-test parses this runbook and fails if helper registration appears before the foreground launch and PID binding after ready-state preparation.
 
 Open the installed bundle and bind the session to its real executable, helper, signature, build identity, and isolated database.
 
 ```sh
+set -euo pipefail
 open "$APP"
 PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
 printf '%s\n' "$PREFLIGHT_OUTPUT"
@@ -59,20 +64,31 @@ An ordinary launch intentionally preserves the app's previous scene state and do
 The signed QA package already provides the tested `--qa-open-main` presentation argument so verification can request the same main window that users open from the menu bar without changing production launch behavior.
 
 ```sh
+set -euo pipefail
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/Info.plist")"
 APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
 "$APP_EXECUTABLE" --qa-unregister-agent
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$READY_STATE" "$READY_MANIFEST" "$PRIVATE_ROOT" --replace
-"$APP_EXECUTABLE" --qa-register-agent
 open "$APP" --args --qa-open-main
-PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --require-qa-open-main)"
-PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
+FOREGROUND_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
+  --require-qa-open-main --require-helper-unregistered)"
+printf '%s\n' "$FOREGROUND_OUTPUT"
+PID="$(printf '%s\n' "$FOREGROUND_OUTPUT" | sed -n 's/^APP_PID=//p')"
+test -n "$PID"
+"$APP_EXECUTABLE" --qa-register-agent
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
+  --require-qa-open-main --expected-app-pid "$PID")"
+printf '%s\n' "$PREFLIGHT_OUTPUT"
+CONFIRMED_PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
+test "$CONFIRMED_PID" = "$PID"
 swift "$WINDOW_PROBE" "$PID" --expect-today
 ```
 
-The preflight binds the PID to the installed executable and requires that exact process to contain the supported QA foreground argument.
+The first preflight binds the foreground PID and argument while proving the helper is still unregistered.
+The helper is registered only after that foreground binding succeeds.
+The second preflight requires the same foreground PID and argument, the installed helper executable, the shared QA root, and the exact open database.
 The Today assertion proves onboarding is complete and the normal Dashboard navigation is visible.
 Do not continue if the app still exposes onboarding.
 
@@ -82,6 +98,7 @@ Quit the app before fixture mutation.
 The helper may remain registered, but it must not mutate the owned fixture namespace.
 
 ```sh
+set -euo pipefail
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$FIXTURE" prepare "$DATABASE"
@@ -100,6 +117,7 @@ If the menu-bar popover is already open, it may instead press the production `me
 It then binds the one visible window containing `SETTINGS / POLICY` and scrolls at most 12 pages to the Command schedule controls.
 
 ```sh
+set -euo pipefail
 swift "$PROBE" --pid "$PID" --phase settings-select-manual \
   --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" assert-manual "$DATABASE"
@@ -117,6 +135,7 @@ Leave the normal Today window visible after relaunch.
 The probe must navigate to Settings again through the normal user-facing route.
 
 ```sh
+set -euo pipefail
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 open "$APP" --args --qa-open-main
@@ -136,6 +155,9 @@ Open the menu-bar popover and leave the ready `START WORKDAY` control visible.
 Inject the stale state only after the control is visible.
 
 ```sh
+set -euo pipefail
+swift "$PROBE" --pid "$PID" --phase ready-visible \
+  --expected-task-title "$TASK_TITLE" --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" inject-start-stale "$DATABASE"
 swift "$PROBE" --pid "$PID" --phase stale-start \
   --expected-task-title "$TASK_TITLE" --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
@@ -155,6 +177,9 @@ The ready phase requires the owned task title in the accessible task summary.
 It requires `START WORKDAY`, requires `END WORKDAY` to be absent, and presses the production Start control.
 
 ```sh
+set -euo pipefail
+swift "$PROBE" --pid "$PID" --phase ready-visible \
+  --expected-task-title "$TASK_TITLE" --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 swift "$PROBE" --pid "$PID" --phase ready-start \
   --expected-task-title "$TASK_TITLE" --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" assert-active "$DATABASE"
@@ -168,6 +193,9 @@ Reopen the menu-bar popover and leave the active `END WORKDAY` control visible.
 Inject the stale state only after the control is visible.
 
 ```sh
+set -euo pipefail
+swift "$PROBE" --pid "$PID" --phase active-visible \
+  --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" inject-end-stale "$DATABASE"
 swift "$PROBE" --pid "$PID" --phase stale-end \
   --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
@@ -187,6 +215,9 @@ The active phase requires Start to be absent.
 It presses the real End control and the destructive confirmation.
 
 ```sh
+set -euo pipefail
+swift "$PROBE" --pid "$PID" --phase active-visible \
+  --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 swift "$PROBE" --pid "$PID" --phase active-end \
   --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 "$FIXTURE" assert-ended "$DATABASE"
@@ -198,6 +229,7 @@ It requires both invalid Start and End actions to be absent.
 It requires the paused-task resume path to be labeled `START WORKDAY`.
 
 ```sh
+set -euo pipefail
 swift "$PROBE" --pid "$PID" --phase ended \
   --forbid "$DATABASE" --forbid "$PRIVATE_ROOT"
 ```
@@ -211,6 +243,7 @@ Quit and relaunch the same installed bundle once more.
 Open the menu-bar popover.
 
 ```sh
+set -euo pipefail
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 open "$APP" --args --qa-open-main
@@ -228,6 +261,7 @@ The database must still contain the manual active policy, paused task, no open a
 Quit the app before cleanup.
 
 ```sh
+set -euo pipefail
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$FIXTURE" cleanup "$DATABASE"
