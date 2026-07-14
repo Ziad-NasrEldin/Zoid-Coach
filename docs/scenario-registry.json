@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "9c5d9599e8c3aa8c30b4d908f71d6bb03d5e268da3c2cd4d05110b0c77aa183e",
+  "tracker_sha256": "05528e83afa3ebad2fe8275d2f81232d91ac69cec0c715c23ebf02ee27860835",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12085,10 +12085,16 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/full-mutation-lock-retry/operation-key/verifier/REPORT.md",
+        ".audit/runs/full-mutation-lock-retry/operation-key/verifier/runtime/acceptance.sqlite",
+        ".audit/runs/full-mutation-lock-retry/operation-key/verifier/runtime/final-before-cleanup.png",
+        ".audit/runs/full-mutation-lock-retry/operation-key/verifier/runtime/ready.png",
+        ".audit/runs/full-mutation-lock-retry/operation-key/verifier/runtime/temporary-lock-success.png"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "ActionOutboxStore now retries only SQLite busy and locked results on a bounded schedule, inserts exactly once after a real temporary lock clears, fails closed when a lock persists, and leaves non-lock failures immediate in focused tests. In the installed signed app, however, completing a task after releasing a real exclusive lock still failed before reaching the outbox because upstream task and history writes share the locked database. A Calendar approval later persisted its four distinct commands exactly once but falsely displayed `NOTHING WAS WRITTEN`, so the full user mutation boundary and visible receipt still require repair (`ActionOutboxStore.swift`; `ActionOutboxStoreTests.swift`; `.audit/runs/database-lock-retry/verifier/REPORT.md`).",
+      "audit_note": "Migration 43 now adds a durable task-mutation operation ledger and step receipts, with atomic execution and local-task completion crash windows, raw exactly-once guards, stable QA-root client identities, terminal validation, and bounded lock retries covered by focused migration, store, XPC, agent, relaunch, and release proof. In the installed signed-QA app, a visible local task started and completed after real temporary exclusive locks were released within the retry bound; the completion persisted across app and helper relaunch with one completed operation, six receipts, one completed history row, one reward, one learning sample, and one final Today snapshot. The local completion copy now truthfully says it completed on this Mac, while external Reminder completion retains pending-sync copy. The scenario remains partial because the external-Reminder outbox lock journey, persistent-lock visible failure with zero partial rows, pending client-ID lost-reply relaunch, and Calendar committed-command receipt reconciliation are still unverified (`TaskMutationOperationStore.swift`; `TodayDashboardAgent.swift`; `TodayDashboardXPC.swift`; `AppModel.swift`; `.audit/runs/full-mutation-lock-retry/operation-key/verifier/REPORT.md`; `.audit/runs/full-mutation-lock-retry/operation-key/verifier/runtime/temporary-lock-success.png`; `.audit/runs/full-mutation-lock-retry/operation-key/verifier/runtime/acceptance.sqlite`).",
       "tracker_line": 741
     },
     {
