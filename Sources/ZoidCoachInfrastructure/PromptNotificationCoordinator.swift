@@ -339,16 +339,20 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         })
     }
 
-    /// Removes only coaching-prompt notifications when the user disables prompt delivery.
-    /// The prompt episode itself remains in `PromptInboxStore`, so it is still available in Today.
-    public func reconcilePromptNotificationPreference() async throws {
-        guard !promptNotificationsEnabled() else { return }
-
+    /// Reconciles notification delivery against the unresolved prompt inbox.
+    /// Resolved prompt notifications are removed even while prompt delivery remains enabled.
+    public func reconcilePromptNotifications() async throws {
+        let unresolvedPromptIDs = Set(try promptStore.unresolved().map(\.id))
+        let removesAllPromptNotifications = !promptNotificationsEnabled()
         let requestPrefix = notificationIdentity.promptRequestPrefix
         if let fixtureAdapter {
             let promptCategories = Set(PromptNotificationCategory.allCases.map(\.rawValue))
-            let identifiers = Set(try fixtureAdapter.snapshot().notifications.compactMap { notification in
-                promptCategories.contains(notification.desired.category) ? notification.id : nil
+            let identifiers: Set<String> = Set(try fixtureAdapter.snapshot().notifications.compactMap { notification in
+                guard promptCategories.contains(notification.desired.category),
+                      removesAllPromptNotifications
+                        || !unresolvedPromptIDs.contains(notification.desired.promptID)
+                else { return nil }
+                return notification.id
             })
             try fixtureAdapter.cancelNotifications(withIdentifiers: identifiers)
             return
@@ -357,12 +361,28 @@ public final class PromptNotificationCoordinator: NSObject, UNUserNotificationCe
         guard let center else { return }
         let pending = await center.pendingNotificationRequests()
         let delivered = await center.deliveredNotifications()
-        center.removePendingNotificationRequests(withIdentifiers: pending.map(\.identifier).filter {
-            $0.hasPrefix(requestPrefix)
+        center.removePendingNotificationRequests(withIdentifiers: pending.compactMap { request in
+            guard request.identifier.hasPrefix(requestPrefix) else { return nil }
+            guard !removesAllPromptNotifications else { return request.identifier }
+            guard let promptID = request.content.userInfo["promptID"] as? String else {
+                return request.identifier
+            }
+            return unresolvedPromptIDs.contains(promptID) ? nil : request.identifier
         })
-        center.removeDeliveredNotifications(withIdentifiers: delivered.map(\.request.identifier).filter {
-            $0.hasPrefix(requestPrefix)
+        center.removeDeliveredNotifications(withIdentifiers: delivered.compactMap { notification in
+            let request = notification.request
+            guard request.identifier.hasPrefix(requestPrefix) else { return nil }
+            guard !removesAllPromptNotifications else { return request.identifier }
+            guard let promptID = request.content.userInfo["promptID"] as? String else {
+                return request.identifier
+            }
+            return unresolvedPromptIDs.contains(promptID) ? nil : request.identifier
         })
+    }
+
+    /// Preserves the compatibility entry point while using inbox truth for every reconciliation.
+    public func reconcilePromptNotificationPreference() async throws {
+        try await reconcilePromptNotifications()
     }
 
     private func acceptedBreakRequestPrefix(taskID: String) -> String {
