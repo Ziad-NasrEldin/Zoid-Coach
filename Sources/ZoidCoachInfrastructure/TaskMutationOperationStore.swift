@@ -17,6 +17,7 @@ public struct TaskMutationOperation: Equatable, Sendable {
 
 public final class TaskMutationOperationStore: @unchecked Sendable {
     private let database: OpaquePointer
+    private let lock = NSRecursiveLock()
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
     private let formatter = ISO8601DateFormatter()
@@ -42,6 +43,8 @@ public final class TaskMutationOperationStore: @unchecked Sendable {
     }
 
     public func begin(id: UUID, taskID: String, command: TaskActivityCommand, blockedReason: String? = nil, requestedAt: Date) throws -> TaskMutationOperation {
+        lock.lock()
+        defer { lock.unlock() }
         let fingerprint = Self.fingerprint(command: command, blockedReason: blockedReason)
         let sql = "INSERT OR IGNORE INTO task_mutation_operations(operation_id, task_id, command, request_fingerprint, requested_at_utc, state) VALUES (?, ?, ?, ?, ?, 'pending');"
         try execute(sql, bindings: [id.uuidString, taskID, command.rawValue, fingerprint, formatter.string(from: requestedAt)])
@@ -52,6 +55,8 @@ public final class TaskMutationOperationStore: @unchecked Sendable {
     }
 
     public func load(id: UUID) throws -> TaskMutationOperation? {
+        lock.lock()
+        defer { lock.unlock() }
         let sql = "SELECT task_id, command, request_fingerprint, requested_at_utc, state, last_diagnostic, result_json FROM task_mutation_operations WHERE operation_id = ?;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskMutationOperationStoreError.read }
@@ -70,6 +75,8 @@ public final class TaskMutationOperationStore: @unchecked Sendable {
     }
 
     public func hasCompletedStep(operationID: UUID, step: String) throws -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
         let sql = "SELECT 1 FROM task_mutation_steps WHERE operation_id = ? AND step = ?;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskMutationOperationStoreError.read }
@@ -79,10 +86,77 @@ public final class TaskMutationOperationStore: @unchecked Sendable {
     }
 
     public func completeStep(operationID: UUID, step: String, at date: Date = Date()) throws {
+        lock.lock()
+        defer { lock.unlock() }
         try execute("INSERT OR IGNORE INTO task_mutation_steps(operation_id, step, completed_at_utc) VALUES (?, ?, ?);", bindings: [operationID.uuidString, step, formatter.string(from: date)])
     }
 
+    public func completeLocalReminder(
+        operationID: UUID,
+        taskID: String,
+        completedAt: Date,
+        timeZone: TimeZone
+    ) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        if try hasCompletedStep(operationID: operationID, step: "reminder-completion") { return }
+        guard let operation = try load(id: operationID),
+              operation.taskID == taskID,
+              operation.command == .complete else {
+            throw TaskMutationOperationStoreError.operationKeyConflict
+        }
+        guard sqlite3_exec(database, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil) == SQLITE_OK else {
+            throw TaskMutationOperationStoreError.write
+        }
+        var committed = false
+        defer {
+            if !committed { _ = sqlite3_exec(database, "ROLLBACK;", nil, nil, nil) }
+        }
+
+        let source = try localReminderState(taskID: taskID)
+        guard source.sourceKind == ReminderSourceKind.local.rawValue else {
+            throw TaskMutationOperationStoreError.operationKeyConflict
+        }
+        if !source.isCompleted {
+            let timestamp = formatter.string(from: completedAt)
+            try execute(
+                "UPDATE source_tasks SET is_completed = 1, modified_at = ?, updated_at = ? WHERE source_id = ? AND source_kind = 'local';",
+                bindings: [timestamp, timestamp, taskID]
+            )
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = timeZone
+            let components = calendar.dateComponents([.year, .month, .day], from: completedAt)
+            let localDay = String(
+                format: "%04d-%02d-%02d",
+                components.year ?? 0,
+                components.month ?? 0,
+                components.day ?? 0
+            )
+            try execute(
+                "INSERT OR IGNORE INTO domain_events(id, event_type, entity_id, local_day, timezone_identifier, occurred_at_utc, schema_version, evidence_ids_json, payload_json) VALUES (?, 'source_task.local_completed', ?, ?, ?, ?, 1, '[]', ?);",
+                bindings: [
+                    "task-mutation:\(operationID.uuidString):local-reminder-completion",
+                    taskID,
+                    localDay,
+                    timeZone.identifier,
+                    timestamp,
+                    "{\"sourceHash\":\"\(source.sourceHash)\"}"
+                ]
+            )
+        }
+        try execute(
+            "INSERT OR IGNORE INTO task_mutation_steps(operation_id, step, completed_at_utc) VALUES (?, 'reminder-completion', ?);",
+            bindings: [operationID.uuidString, formatter.string(from: completedAt)]
+        )
+        guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
+            throw TaskMutationOperationStoreError.write
+        }
+        committed = true
+    }
+
     public func complete(operationID: UUID, result: TodaySnapshot) throws {
+        lock.lock()
+        defer { lock.unlock() }
         let data = try encoder.encode(result)
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, "UPDATE task_mutation_operations SET state = 'completed', result_json = ?, last_diagnostic = NULL WHERE operation_id = ?;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskMutationOperationStoreError.write }
@@ -93,11 +167,39 @@ public final class TaskMutationOperationStore: @unchecked Sendable {
     }
 
     public func recordPendingFailure(operationID: UUID, diagnostic: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
         try execute("UPDATE task_mutation_operations SET state = 'pending', last_diagnostic = ? WHERE operation_id = ?;", bindings: [diagnostic, operationID.uuidString])
     }
 
     public func failValidation(operationID: UUID, diagnostic: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
         try execute("UPDATE task_mutation_operations SET state = 'failed', last_diagnostic = ? WHERE operation_id = ?;", bindings: [diagnostic, operationID.uuidString])
+    }
+
+    private func localReminderState(taskID: String) throws -> (sourceKind: String, isCompleted: Bool, sourceHash: String) {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            database,
+            "SELECT source_kind, is_completed, source_hash FROM source_tasks WHERE source_id = ?;",
+            -1,
+            &statement,
+            nil
+        ) == SQLITE_OK, let statement else {
+            throw TaskMutationOperationStoreError.read
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let sourceKind = string(statement, 0) else {
+            throw TaskMutationOperationStoreError.read
+        }
+        return (
+            sourceKind,
+            sqlite3_column_int(statement, 1) == 1,
+            string(statement, 2) ?? ""
+        )
     }
 
     private func execute(_ sql: String, bindings: [String]) throws {

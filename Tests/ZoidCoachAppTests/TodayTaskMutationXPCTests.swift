@@ -47,3 +47,42 @@ func terminalValidationClearsFailedClientIdentityForACorrectedGesture() throws {
 
     #expect(corrected.operationID != failed.operationID)
 }
+
+@Test
+func pendingMutationIdentityUsesTheRuntimeIsolatedDefaultsSuite() throws {
+    let first = try taskMutationQARuntime("first")
+    let second = try taskMutationQARuntime("second")
+    defer {
+        if let suite = first.userDefaultsSuiteName {
+            first.makeUserDefaults().removePersistentDomain(forName: suite)
+        }
+        if let suite = second.userDefaultsSuiteName {
+            second.makeUserDefaults().removePersistentDomain(forName: suite)
+        }
+    }
+
+    let initialClient = TodayDashboardXPCClient(runtimeEnvironment: first)
+    let initial = initialClient.mutationState.request(command: .complete, taskID: "task-1")
+    let relaunched = TodayDashboardXPCClient(runtimeEnvironment: first)
+        .mutationState.request(command: .complete, taskID: "task-1")
+    let otherRun = TodayDashboardXPCClient(runtimeEnvironment: second)
+        .mutationState.request(command: .complete, taskID: "task-1")
+
+    #expect(relaunched.operationID == initial.operationID)
+    #expect(otherRun.operationID != initial.operationID)
+}
+
+private func taskMutationQARuntime(_ label: String) throws -> RuntimeEnvironment {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("task-mutation-client-\(label)-\(UUID().uuidString)", isDirectory: true)
+    return try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: root,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+}

@@ -75,6 +75,54 @@ func executionSideEffectAndReceiptCommitExactlyOnce() throws {
 }
 
 @Test
+func localReminderCompletionAndReceiptCommitExactlyOnceAcrossRelaunch() throws {
+    let databaseURL = temporaryDatabaseURL("task-mutation-local-reminder-atomicity")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    let operationID = UUID()
+    let completedAt = Date(timeIntervalSince1970: 1_752_489_600)
+    let reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
+    _ = try reminders.createLocal(
+        ReminderSourceSnapshot(
+            id: "local-1",
+            title: "Finish local task",
+            dueDate: completedAt,
+            priority: 9,
+            sourceKind: .local
+        ),
+        observedAt: completedAt
+    )
+
+    do {
+        let operations = try TaskMutationOperationStore(databaseURL: databaseURL)
+        _ = try operations.begin(
+            id: operationID,
+            taskID: "local-1",
+            command: .complete,
+            requestedAt: completedAt
+        )
+        try operations.completeLocalReminder(
+            operationID: operationID,
+            taskID: "local-1",
+            completedAt: completedAt,
+            timeZone: try #require(TimeZone(secondsFromGMT: 0))
+        )
+    }
+
+    let reopened = try TaskMutationOperationStore(databaseURL: databaseURL)
+    try reopened.completeLocalReminder(
+        operationID: operationID,
+        taskID: "local-1",
+        completedAt: completedAt,
+        timeZone: try #require(TimeZone(secondsFromGMT: 0))
+    )
+
+    #expect(try reopened.hasCompletedStep(operationID: operationID, step: "reminder-completion"))
+    #expect(try ReminderSnapshotStore(databaseURL: databaseURL).snapshot(forID: "local-1")?.isCompleted == true)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM domain_events WHERE event_type = 'source_task.local_completed' AND entity_id = 'local-1';") == 1)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_mutation_steps WHERE operation_id = '\(operationID.uuidString)' AND step = 'reminder-completion';") == 1)
+}
+
+@Test
 func historySideEffectUsesOperationKeyAsRawStorageIdempotencyGuard() throws {
     let databaseURL = temporaryDatabaseURL("task-mutation-history")
     defer { removeDatabaseFiles(at: databaseURL) }
@@ -121,8 +169,12 @@ func relaunchAfterEachCompletionStepResumesWithoutDuplicatingRawHistory(failingS
 
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_history WHERE operation_id = '\(operationID.uuidString)' AND state = 'completed';") == 1)
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_mutation_operations WHERE operation_id = '\(operationID.uuidString)' AND state = 'completed';") == 1)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_execution_states WHERE task_id = 'task-1' AND state = 'completed';") == 1)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM domain_events WHERE event_type = 'source_task.local_completed' AND entity_id = 'task-1';") == 1)
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM learning_samples WHERE id = 'task-completion:task-1:\(Int(now.timeIntervalSince1970))';") == 1)
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM gaming_reward_ledger WHERE task_id = 'task-1';") == 1)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM today_snapshots;") == 1)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_mutation_steps WHERE operation_id = '\(operationID.uuidString)';") == 6)
 }
 
 @Test
@@ -166,6 +218,9 @@ func relaunchAfterPlanPromotionReceiptDoesNotRepeatBlockExecution() throws {
 
     #expect(snapshot.mainObjective == "Next task")
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_pause_events WHERE task_id = 'blocked' AND reason = 'blocked';") == 1)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM daily_plan_revisions;") == 1)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM today_snapshots;") == 1)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_mutation_steps WHERE operation_id = '\(operationID.uuidString)';") == 3)
 }
 
 @Test

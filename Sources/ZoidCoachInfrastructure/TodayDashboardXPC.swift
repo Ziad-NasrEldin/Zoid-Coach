@@ -602,7 +602,7 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         encoder.dateEncodingStrategy = .secondsSince1970
         return encoder
     }()
-    private let mutationState: TaskMutationClientState
+    let mutationState: TaskMutationClientState
 
     public init(machServiceName: String? = todayDashboardMachServiceName, pendingMutationDefaults: UserDefaults = .standard) {
         self.machServiceName = machServiceName
@@ -616,7 +616,10 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         let configuration = TodayDashboardXPCConfiguration(
             runtimeEnvironment: runtimeEnvironment
         )
-        self.init(machServiceName: configuration.machServiceName)
+        self.init(
+            machServiceName: configuration.machServiceName,
+            pendingMutationDefaults: runtimeEnvironment.makeUserDefaults()
+        )
     }
 
     public static var disabled: TodayDashboardXPCClient {
