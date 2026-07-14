@@ -9,6 +9,7 @@ struct SettingsPolicyDraft: Equatable {
     var workStart: LocalTime
     var workEnd: LocalTime
     var workWeekdays: [Weekday]
+    var workdayControlMode: WorkdayControlMode
     var quietStart: LocalTime
     var quietEnd: LocalTime
     var nightlyPlanningTime: LocalTime
@@ -66,6 +67,7 @@ struct SettingsPolicyDraft: Equatable {
         workStart = policy.schedule.workWindows.first?.start ?? LocalTime(hour: 9, minute: 0)
         workEnd = policy.schedule.workWindows.first?.end ?? LocalTime(hour: 18, minute: 0)
         workWeekdays = Array(Set(policy.schedule.workWindows.flatMap(\.weekdays))).sorted()
+        workdayControlMode = policy.schedule.effectiveWorkdayControlMode
         quietStart = policy.schedule.quietHours.start
         quietEnd = policy.schedule.quietHours.end
         nightlyPlanningTime = policy.schedule.nightlyPlanningTime
@@ -255,6 +257,7 @@ struct SettingsPolicyDraft: Equatable {
             schedule: SchedulePolicy(
                 timeZoneIdentifier: timeZoneIdentifier,
                 workWindows: workWindows,
+                workdayControlMode: workdayControlMode,
                 quietHours: DailyTimeWindow(start: quietStart, end: quietEnd),
                 nightlyPlanningTime: nightlyPlanningTime,
                 morningConfirmationTime: morningConfirmationTime,
