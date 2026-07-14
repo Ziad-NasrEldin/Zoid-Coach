@@ -1796,26 +1796,17 @@ private struct PlannedReminderRow: View {
                     selectUnknown: { model.setEstimateUnknown(for: entry) }
                 )
 
-                if let selectionReason = entry.selectionReason {
-                    HStack(alignment: .firstTextBaseline, spacing: 7) {
-                        Text("EVIDENCE")
-                            .font(Sumi.label(8))
-                            .sumiLabelTracking()
-                            .foregroundStyle(Sumi.seal)
-                        Text(selectionReason)
-                            .font(Sumi.body(12))
-                            .foregroundStyle(Sumi.muted)
-                    }
-                } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 7) {
-                        Text("EVIDENCE")
-                            .font(Sumi.label(8))
-                            .sumiLabelTracking()
-                            .foregroundStyle(Sumi.seal)
-                        Text("Manually selected from Apple Reminders. No ranking claim was made.")
-                            .font(Sumi.body(12))
-                            .foregroundStyle(Sumi.muted)
-                    }
+                let selectionEvidence = PlanSelectionEvidencePresentation.make(
+                    storedSelectionReason: entry.selectionReason
+                )
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Text(selectionEvidence.heading)
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Text(selectionEvidence.detail)
+                        .font(Sumi.body(12))
+                        .foregroundStyle(Sumi.muted)
                 }
 
                 HStack(spacing: 14) {
