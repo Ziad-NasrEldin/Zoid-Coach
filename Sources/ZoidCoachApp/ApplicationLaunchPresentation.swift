@@ -24,10 +24,31 @@ struct ApplicationLaunchPresentation: Equatable {
 enum InitialMainWindowPresentationPolicy: Equatable {
     case ordinary
     case backgroundScheduling
+
+    var logLabel: String {
+        switch self {
+        case .ordinary: "ordinary"
+        case .backgroundScheduling: "background-scheduling"
+        }
+    }
+}
+
+enum ApplicationTerminationDecision: Equatable {
+    case cancel
+    case permit
+
+    var logLabel: String {
+        switch self {
+        case .cancel: "cancel"
+        case .permit: "permit"
+        }
+    }
 }
 
 @MainActor
 final class BackgroundApplicationLifecycleHook {
+    static let backgroundStartupTerminationProtectionDuration: TimeInterval = 6
+
     let policy: InitialMainWindowPresentationPolicy
     let isAccessoryActivationPolicySet: () -> Bool
     let setAccessoryActivationPolicy: () -> Void
@@ -35,6 +56,9 @@ final class BackgroundApplicationLifecycleHook {
     let releaseAutomaticTerminationHold: () -> Void
     let availableWindows: () -> [ApplicationWindowDescriptor]
     let dismissWindow: (Int) -> Void
+    private let startupTime: TimeInterval
+    private let currentTime: () -> TimeInterval
+    private let startupTerminationProtectionDuration: TimeInterval
     private var didRequestAccessoryActivation = false
     private var holdsAutomaticTermination = false
     private var isDismissingWindows = false
@@ -46,7 +70,9 @@ final class BackgroundApplicationLifecycleHook {
         acquireAutomaticTerminationHold: @escaping () -> Void = {},
         releaseAutomaticTerminationHold: @escaping () -> Void = {},
         availableWindows: @escaping () -> [ApplicationWindowDescriptor],
-        dismissWindow: @escaping (Int) -> Void
+        dismissWindow: @escaping (Int) -> Void,
+        currentTime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+        startupTerminationProtectionDuration: TimeInterval = BackgroundApplicationLifecycleHook.backgroundStartupTerminationProtectionDuration
     ) {
         self.policy = policy
         self.isAccessoryActivationPolicySet = isAccessoryActivationPolicySet
@@ -55,6 +81,9 @@ final class BackgroundApplicationLifecycleHook {
         self.releaseAutomaticTerminationHold = releaseAutomaticTerminationHold
         self.availableWindows = availableWindows
         self.dismissWindow = dismissWindow
+        self.currentTime = currentTime
+        self.startupTime = currentTime()
+        self.startupTerminationProtectionDuration = startupTerminationProtectionDuration
     }
 
     var shouldObserveWindowVisibility: Bool {
@@ -97,6 +126,12 @@ final class BackgroundApplicationLifecycleHook {
 
     func shouldTerminateAfterLastWindowClosed(defaultDecision: Bool) -> Bool {
         policy == .backgroundScheduling ? false : defaultDecision
+    }
+
+    func applicationTerminationDecision() -> ApplicationTerminationDecision {
+        guard policy == .backgroundScheduling else { return .permit }
+        let startupAge = currentTime() - startupTime
+        return startupAge < startupTerminationProtectionDuration ? .cancel : .permit
     }
 
     private func applyBackgroundLifetimePolicy() {

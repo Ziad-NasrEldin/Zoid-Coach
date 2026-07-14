@@ -332,6 +332,44 @@ import ZoidCoachCore
 }
 
 @MainActor
+@Test func backgroundLifecycleCancelsRepeatedStartupTerminationThenPermitsQuit() {
+    var now: Double = 100
+    let hook = BackgroundApplicationLifecycleHook(
+        policy: .backgroundScheduling,
+        setAccessoryActivationPolicy: {},
+        availableWindows: { [] },
+        dismissWindow: { _ in },
+        currentTime: { now }
+    )
+
+    #expect(hook.applicationTerminationDecision() == .cancel)
+    now = 105.999
+    #expect(hook.applicationTerminationDecision() == .cancel)
+    #expect(hook.applicationTerminationDecision() == .cancel)
+
+    now = 106
+    #expect(hook.applicationTerminationDecision() == .permit)
+    now = 120
+    #expect(hook.applicationTerminationDecision() == .permit)
+}
+
+@MainActor
+@Test func ordinaryLifecycleAlwaysPermitsTermination() {
+    var now: Double = 100
+    let hook = BackgroundApplicationLifecycleHook(
+        policy: .ordinary,
+        setAccessoryActivationPolicy: {},
+        availableWindows: { [] },
+        dismissWindow: { _ in },
+        currentTime: { now }
+    )
+
+    #expect(hook.applicationTerminationDecision() == .permit)
+    now = 101
+    #expect(hook.applicationTerminationDecision() == .permit)
+}
+
+@MainActor
 @Test func ordinaryQAAndProductionLifecyclePoliciesAreStrictNoOps() {
     for packageMode in [RuntimePackageMode.qa, .production] {
         let presentation = ApplicationLaunchPresentation(
@@ -357,6 +395,7 @@ import ZoidCoachCore
 
         #expect(events.isEmpty)
         #expect(hook.shouldTerminateAfterLastWindowClosed(defaultDecision: true))
+        #expect(hook.applicationTerminationDecision() == .permit)
     }
 }
 
