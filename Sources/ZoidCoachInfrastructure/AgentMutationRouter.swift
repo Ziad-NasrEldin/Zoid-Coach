@@ -14,7 +14,9 @@ public final class AgentMutationRouter: @unchecked Sendable {
     private let privacyData: PrivacyDataService
     private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
     private let recommendationFeedback: RecommendationFeedbackStore?
+    private let gamingManualAdjustments: GamingManualAdjustmentStore?
     private let draftPlan: (@Sendable (Date, Bool) async throws -> Int)?
+    private let now: @Sendable () -> Date
 
     public init(
         outbox: ActionOutboxStore,
@@ -28,7 +30,9 @@ public final class AgentMutationRouter: @unchecked Sendable {
         privacyData: PrivacyDataService,
         writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(),
         recommendationFeedback: RecommendationFeedbackStore? = nil,
-        draftPlan: (@Sendable (Date, Bool) async throws -> Int)? = nil
+        gamingManualAdjustments: GamingManualAdjustmentStore? = nil,
+        draftPlan: (@Sendable (Date, Bool) async throws -> Int)? = nil,
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.outbox = outbox
         self.stateStore = stateStore
@@ -41,7 +45,9 @@ public final class AgentMutationRouter: @unchecked Sendable {
         self.privacyData = privacyData
         self.writeCircuitBreaker = writeCircuitBreaker
         self.recommendationFeedback = recommendationFeedback
+        self.gamingManualAdjustments = gamingManualAdjustments
         self.draftPlan = draftPlan
+        self.now = now
     }
 
     public func apply(_ command: AgentMutationCommand) async throws -> AgentMutationReceipt {
@@ -74,6 +80,15 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 throw error
             case .openDatabase, .read, .write, .receiptConflict:
                 writeCircuitBreaker.trip(reason: "calendar_plan_operation_write_failed")
+                throw error
+            }
+        } catch let error as GamingManualAdjustmentStoreError {
+            switch error {
+            case .invalidRequest, .idempotencyConflict, .removalExceedsManualGrant,
+                 .dailyLimitExceeded:
+                throw error
+            case .openDatabase, .read, .write:
+                writeCircuitBreaker.trip(reason: "agent_mutation_write_failed")
                 throw error
             }
         } catch {
@@ -183,6 +198,31 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 accepted: true,
                 message: request.kind.confirmationMessage
             )
+
+        case let .recordGamingManualAdjustment(request):
+            guard let gamingManualAdjustments else {
+                throw AgentMutationRouterError.invalidCommand
+            }
+            let currentTimeZoneIdentifier = try policyStore.current()?.policy.schedule.timeZoneIdentifier
+                ?? TimeZone.current.identifier
+            guard request.timeZoneIdentifier == currentTimeZoneIdentifier,
+                  Self.localDay(request.day, timeZoneIdentifier: request.timeZoneIdentifier)
+                    == Self.localDay(now(), timeZoneIdentifier: currentTimeZoneIdentifier) else {
+                return .init(
+                    accepted: false,
+                    message: "Today or its time zone changed. Review the refreshed allowance before saving this adjustment."
+                )
+            }
+            let result = try gamingManualAdjustments.record(request)
+            let message: String
+            if result.replayed {
+                message = "This gaming-time adjustment was already saved."
+            } else if result.adjustment.minutes > 0 {
+                message = "Added \(result.adjustment.minutes) minutes to today's gaming allowance."
+            } else {
+                message = "Removed \(result.adjustment.minutes.magnitude) manually granted minutes from today's gaming allowance."
+            }
+            return .init(accepted: true, message: message)
 
         case let .recordSourceCheck(sourceID, state, detail, evidence, checkedAt):
             try stateStore.recordSourceCheck(
@@ -402,6 +442,15 @@ public final class AgentMutationRouter: @unchecked Sendable {
             let count = try await draftPlan(day, overwriteExisting)
             return .init(accepted: true, message: "Drafted \(count) commitments through the agent.")
         }
+    }
+
+    private static func localDay(_ date: Date, timeZoneIdentifier: String) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 
     public func recentActionAudit(limit: Int = 50) throws -> [ActionAuditEntry] {
