@@ -12,14 +12,19 @@ private struct WindowTraits {
     let hasReviews: Bool
 }
 private enum WindowSelection: Equatable { case selected(Int), missing, ambiguous }
+private struct ReviewsNavigationState {
+    let destinationRootVisible: Bool
+    let deepEvidenceChildVisible: Bool
+}
 private func reviewsNavigationSucceeded(
-    targetVisibleBeforePress: Bool,
+    beforePress: ReviewsNavigationState,
     pressSucceeded: Bool,
-    targetVisibleAfterPress: Bool
+    afterPress: ReviewsNavigationState
 ) -> Bool {
-    targetVisibleBeforePress || targetVisibleAfterPress
+    beforePress.destinationRootVisible || afterPress.destinationRootVisible
 }
 private let mainWindowID = "zoid-666.main-window"
+private let reviewDestinationID = "reviews.daily"
 private let evidenceContainerID = "reviews.evidence-layers"
 private let layerIDs = [
     "reviews.evidence-layers.facts",
@@ -51,24 +56,48 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           selectMainWindow([minimized]) == .missing,
           selectMainWindow([hidden]) == .missing,
           reviewsNavigationSucceeded(
-              targetVisibleBeforePress: true,
+              beforePress: ReviewsNavigationState(
+                  destinationRootVisible: true,
+                  deepEvidenceChildVisible: false
+              ),
               pressSucceeded: false,
-              targetVisibleAfterPress: true
+              afterPress: ReviewsNavigationState(
+                  destinationRootVisible: true,
+                  deepEvidenceChildVisible: false
+              )
           ),
           reviewsNavigationSucceeded(
-              targetVisibleBeforePress: false,
+              beforePress: ReviewsNavigationState(
+                  destinationRootVisible: false,
+                  deepEvidenceChildVisible: false
+              ),
               pressSucceeded: true,
-              targetVisibleAfterPress: true
+              afterPress: ReviewsNavigationState(
+                  destinationRootVisible: true,
+                  deepEvidenceChildVisible: false
+              )
           ),
           !reviewsNavigationSucceeded(
-              targetVisibleBeforePress: false,
+              beforePress: ReviewsNavigationState(
+                  destinationRootVisible: false,
+                  deepEvidenceChildVisible: false
+              ),
               pressSucceeded: true,
-              targetVisibleAfterPress: false
+              afterPress: ReviewsNavigationState(
+                  destinationRootVisible: false,
+                  deepEvidenceChildVisible: false
+              )
           ),
           !reviewsNavigationSucceeded(
-              targetVisibleBeforePress: false,
+              beforePress: ReviewsNavigationState(
+                  destinationRootVisible: false,
+                  deepEvidenceChildVisible: true
+              ),
               pressSucceeded: false,
-              targetVisibleAfterPress: false
+              afterPress: ReviewsNavigationState(
+                  destinationRootVisible: false,
+                  deepEvidenceChildVisible: true
+              )
           ),
           Set(layerIDs).count == 3
     else {
@@ -151,10 +180,18 @@ private func mainWindow() throws -> AXUIElement {
     case .ambiguous: throw ProbeError.failure("multiple visible main Today/Reviews windows are ambiguous")
     }
 }
+private func reviewsNavigationState(_ window: AXUIElement) throws -> ReviewsNavigationState {
+    ReviewsNavigationState(
+        destinationRootVisible: try walk(window, matching: {
+            identifier($0) == reviewDestinationID
+        }) != nil,
+        deepEvidenceChildVisible: try walk(window, matching: {
+            identifier($0) == evidenceContainerID
+        }) != nil
+    )
+}
 private func pressReviews(_ window: AXUIElement) throws {
-    let targetVisibleBeforePress = try walk(window, matching: {
-        identifier($0) == evidenceContainerID
-    }) != nil
+    let beforePress = try reviewsNavigationState(window)
     guard let reviews = try walk(window, matching: {
         role($0) == (kAXButtonRole as String) && labels($0).contains("Reviews")
     }) else { throw ProbeError.failure("normal Reviews navigation is unavailable") }
@@ -162,29 +199,41 @@ private func pressReviews(_ window: AXUIElement) throws {
     _ = AXUIElementPerformAction(reviews, "AXScrollToVisible" as CFString)
     let pressSucceeded = AXUIElementPerformAction(reviews, kAXPressAction as CFString) == .success
     Thread.sleep(forTimeInterval: 0.3)
-    let targetVisibleAfterPress = try walk(window, matching: {
-        identifier($0) == evidenceContainerID
-    }) != nil
+    let afterPress = try reviewsNavigationState(window)
     guard reviewsNavigationSucceeded(
-        targetVisibleBeforePress: targetVisibleBeforePress,
+        beforePress: beforePress,
         pressSucceeded: pressSucceeded,
-        targetVisibleAfterPress: targetVisibleAfterPress
+        afterPress: afterPress
     ) else {
         throw ProbeError.failure("could not press Reviews")
     }
+}
+private func reviewsScrollArea(in window: AXUIElement) throws -> AXUIElement {
+    var scrollAreas: [AXUIElement] = []
+    _ = try walk(window) {
+        if role($0) == (kAXScrollAreaRole as String) { scrollAreas.append($0) }
+        return false
+    }
+    let matches = try scrollAreas.filter { scrollArea in
+        try walk(scrollArea, matching: { identifier($0) == reviewDestinationID }) != nil
+    }
+    guard matches.count == 1, let match = matches.first else {
+        throw ProbeError.failure(
+            matches.isEmpty
+                ? "Daily Review content scroll area is unavailable"
+                : "Daily Review content scroll area is ambiguous"
+        )
+    }
+    return match
 }
 private func find(_ expected: String, in window: AXUIElement) throws -> AXUIElement {
     for page in 0...maximumPages {
         if let element = try walk(window, matching: { identifier($0) == expected }) { return element }
         guard page < maximumPages else { break }
-        var scrollAreas: [AXUIElement] = []
-        _ = try walk(window) {
-            if role($0) == (kAXScrollAreaRole as String) { scrollAreas.append($0) }
-            return false
+        let scrollArea = try reviewsScrollArea(in: window)
+        guard AXUIElementPerformAction(scrollArea, "AXScrollDownByPage" as CFString) == .success else {
+            throw ProbeError.failure("could not scroll Daily Review toward \(expected)")
         }
-        guard scrollAreas.reversed().contains(where: {
-            AXUIElementPerformAction($0, "AXScrollDownByPage" as CFString) == .success
-        }) else { throw ProbeError.failure("could not scroll Reviews toward \(expected)") }
         Thread.sleep(forTimeInterval: 0.15)
     }
     throw ProbeError.failure("required evidence layer is unavailable: \(expected)")
