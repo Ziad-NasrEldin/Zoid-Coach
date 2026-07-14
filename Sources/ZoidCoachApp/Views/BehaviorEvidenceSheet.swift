@@ -16,6 +16,7 @@ struct BehaviorEvidenceSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     categoryLedger
+                    workCategoryLedger
                     uncertaintyCard
                     coverageCard
                 }
@@ -54,7 +55,7 @@ struct BehaviorEvidenceSheet: View {
 
     private var categoryLedger: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("FIVE SEPARATE TOTALS")
+            Text("BEHAVIOR TOTALS")
                 .font(Sumi.label(9))
                 .sumiLabelTracking()
             HStack(spacing: 0) {
@@ -89,6 +90,46 @@ struct BehaviorEvidenceSheet: View {
             }
         }
         .accessibilityIdentifier("today.behavior-evidence.categories")
+    }
+
+    private var workCategoryLedger: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("WORK CATEGORIES")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+            Text(evidence.workCategoryDetail)
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 180), spacing: 8)],
+                alignment: .leading,
+                spacing: 8
+            ) {
+                ForEach(evidence.workCategories) { category in
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("\(category.minutes)m")
+                            .font(Sumi.display(18))
+                        Text(category.title.uppercased())
+                            .font(Sumi.label(7))
+                            .sumiLabelTracking()
+                            .foregroundStyle(category.category == .uncategorized ? Sumi.seal : Sumi.muted)
+                        Text(category.explanation)
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(11)
+                    .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+                    .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(category.accessibilityLabel)
+                    .accessibilityHint(category.explanation)
+                    .accessibilityIdentifier(category.accessibilityIdentifier)
+                }
+            }
+        }
+        .accessibilityIdentifier("today.behavior-evidence.work-categories")
     }
 
     private var uncertaintyCard: some View {
