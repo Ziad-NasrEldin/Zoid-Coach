@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "3b5c3d0b62645a1a36a000a25f1bc129f2fad98790121091fef725efa4ff78c7",
+  "tracker_sha256": "3e27ce1dbbf3e5d7133625b54c39a7f790234f06f20ef68b66c12fab4e4a6bf0",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7750,11 +7750,12 @@
       "affected_capability": "gaming_and_coaching",
       "evidence_paths": [
         ".audit/runs/prompt-blocked-finish/independent-verifier/REPORT.md",
-        ".audit/runs/prompt-blocked-finish/verifier/REPORT.md"
+        ".audit/runs/prompt-blocked-finish/verifier/REPORT.md",
+        ".audit/runs/zc-034-011-mark-task-blocked/signed-semantic/REPORT.md"
       ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The builder's signed flow exposed all six prompt actions as direct stable controls, rejected a two-character reason without mutation, preserved the prompt on Cancel, saved `Waiting for approval.` exactly once, closed the active interval, blocked the original task, promoted `Prepare launch notes`, restored the reason in answered history after app and helper relaunch, and kept the database unchanged with the specific recovery message when the helper was unavailable. A fresh independent run first exposed a degraded helper that returned an empty XPC timeline despite the canonical presented prompt; the signed registration-continuity repair now requires a writable XPC prompt timeline and heartbeat, preserved the same helper PID across foreground relaunch, and independently restored all six controls plus invalid and Cancel behavior. One fresh independent activation of valid Save Blocker, followed by exactly-once SQLite, answered-history, app/helper relaunch, and helper-unavailable checks, remains before completion (`TodayPromptInboxLedger.swift`; `PromptTaskBlockState.swift`; `AppModel.swift`; `AgentLaunchService.swift`; `.audit/runs/prompt-blocked-finish/verifier/REPORT.md`; `.audit/runs/prompt-blocked-finish/independent-verifier/REPORT.md`).",
+      "audit_note": "The current-base signed core journey started with `today.prompt-inbox.empty`, then exposed one delayed `WAITING` decision with six unique direct actions; Mark blocked opened the native reason sheet, a too-short submission and Cancel both preserved the presented prompt with zero responses, and selecting `Waiting for approval.` plus Save Blocker produced exactly one response, blocked the original task, closed its open interval, persisted the exact reason, promoted `Prepare launch notes` as the replacement main objective, and rendered answered blocker history. App and helper relaunch preserved the result, while a helper-unavailable attempt preserved the waiting prompt, active task, open interval, and zero responses and showed `The blocker was not saved. The last confirmed task and plan state are still shown.` Full qualification still requires semantic and pixel proof of the native Zoid 666 menu-bar item and compact coach surface, plus an independent AX run proving the exact typed invalid value `no`; the signed run observed the required too-short validation but its temporary text setter did not establish that exact input (`TodayPromptInboxLedger.swift`; `PromptTaskBlockState.swift`; `ApplicationLaunchPresentation.swift`; `.audit/runs/prompt-blocked-finish/verifier/REPORT.md`; `.audit/runs/prompt-blocked-finish/independent-verifier/REPORT.md`; `.audit/runs/zc-034-011-mark-task-blocked/signed-semantic/REPORT.md`).",
       "tracker_line": 494
     },
     {
