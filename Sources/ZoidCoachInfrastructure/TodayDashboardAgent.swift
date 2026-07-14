@@ -480,8 +480,15 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         switch command {
         case .complete:
             if try !mutationOperations.hasCompletedStep(operationID: operationID, step: "reminder-completion") && sourceKind == .local {
-                try reminders.completeLocal(id: taskID, completedAt: now)
-                try completeMutationStep(operationID: operationID, step: "reminder-completion", at: now)
+                let timeZoneIdentifier = (try? userPolicyStore.current()?.policy.schedule.timeZoneIdentifier)
+                    ?? TimeZone.current.identifier
+                try mutationOperations.completeLocalReminder(
+                    operationID: operationID,
+                    taskID: taskID,
+                    completedAt: now,
+                    timeZone: TimeZone(identifier: timeZoneIdentifier) ?? .current
+                )
+                try mutationStepObserver("reminder-completion")
             } else if sourceKind != .local,
                       try !mutationOperations.hasCompletedStep(operationID: operationID, step: "outbox") {
                 _ = try outbox.enqueue(

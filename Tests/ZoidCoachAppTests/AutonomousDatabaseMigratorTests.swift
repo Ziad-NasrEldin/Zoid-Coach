@@ -51,6 +51,8 @@ func migration43AddsDurableMutationReceiptsWithoutLosingHistory() throws {
         source_kind TEXT NOT NULL DEFAULT 'unknown'
     );
     INSERT INTO task_history(task_id, state, occurred_at) VALUES ('existing', 'completed', '2026-07-14T00:00:00Z');
+    CREATE TABLE scheduled_blocks (calendar_event_id TEXT NOT NULL);
+    INSERT INTO scheduled_blocks(calendar_event_id) VALUES ('calendar-event-preserved');
     """)
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
@@ -60,6 +62,7 @@ func migration43AddsDurableMutationReceiptsWithoutLosingHistory() throws {
     #expect(try tableExists(databaseURL, "task_mutation_steps"))
     #expect(try columnExists(databaseURL, table: "task_history", column: "operation_id"))
     #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM task_history WHERE task_id = 'existing';") == 1)
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM scheduled_blocks WHERE calendar_event_id = 'calendar-event-preserved';") == 1)
 }
 
 @Test
