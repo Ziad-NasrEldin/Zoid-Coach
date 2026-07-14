@@ -4,6 +4,7 @@ set -euo pipefail
 readonly COMMAND="${1:-}"
 readonly DATABASE="${2:-}"
 readonly SOURCE_DAY="${ZOID_COACH_QA_REVIEW_SOURCE_DAY:-2026-07-13}"
+readonly CATEGORY_SOURCE_DAY="${ZOID_COACH_QA_CATEGORY_SOURCE_DAY:-$(date '+%Y-%m-%d')}"
 readonly PERSONAL_NOTE="qa-review-personal-note: Protect the first focused block tomorrow."
 readonly PRIVATE_TITLE_PREFIX="qa-review-private-sentinel"
 readonly PRIVATE_URL_PREFIX="https://private.invalid/qa-review"
@@ -22,6 +23,7 @@ usage() {
 [[ -n "$COMMAND" && -n "$DATABASE" ]] || usage
 [[ -f "$DATABASE" ]] || fail "database does not exist: $DATABASE"
 [[ "$SOURCE_DAY" == <->-<->-<-> ]] || fail "review source day must use YYYY-MM-DD"
+[[ "$CATEGORY_SOURCE_DAY" == <->-<->-<-> ]] || fail "category source day must use YYYY-MM-DD"
 command -v sqlite3 >/dev/null 2>&1 || fail "sqlite3 is required"
 command -v date >/dev/null 2>&1 || fail "date is required"
 [[ "$(date -j -u -f '%Y-%m-%d' "$SOURCE_DAY" '+%u' 2>/dev/null)" == "1" ]] \
@@ -31,6 +33,9 @@ readonly STARTED_AT="${SOURCE_DAY}T08:00:00Z"
 readonly UPDATED_AT="${SOURCE_DAY}T09:00:00Z"
 readonly BASE_EPOCH="$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$STARTED_AT" '+%s' 2>/dev/null)"
 [[ "$BASE_EPOCH" == <-> ]] || fail "could not derive fixture epoch"
+readonly CATEGORY_STARTED_AT="${CATEGORY_SOURCE_DAY}T08:00:00Z"
+readonly CATEGORY_BASE_EPOCH="$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$CATEGORY_STARTED_AT" '+%s' 2>/dev/null)"
+[[ "$CATEGORY_BASE_EPOCH" == <-> ]] || fail "could not derive category fixture epoch"
 readonly WEEKLY_DAY_1="$(date -j -u -v-6d -f '%Y-%m-%d' "$SOURCE_DAY" '+%Y-%m-%d' 2>/dev/null)"
 readonly WEEKLY_DAY_2="$(date -j -u -v-5d -f '%Y-%m-%d' "$SOURCE_DAY" '+%Y-%m-%d' 2>/dev/null)"
 readonly WEEKLY_DAY_3="$(date -j -u -v-4d -f '%Y-%m-%d' "$SOURCE_DAY" '+%Y-%m-%d' 2>/dev/null)"
@@ -103,6 +108,18 @@ expected_behavior_values() {
 SQL
 }
 
+expected_category_behavior_values() {
+    cat <<SQL
+('$CATEGORY_SOURCE_DAY', $((CATEGORY_BASE_EPOCH + 0)),    '08:00', 'Xcode qa-review-category-deep', 'qa-review-private-sentinel-category-deep SECRET-REVIEW-CATEGORY-DEEP', 'https://private.invalid/qa-review/category-deep', 0, NULL, '${CATEGORY_SOURCE_DAY}T08:00:00Z', 'work', 1),
+('$CATEGORY_SOURCE_DAY', $((CATEGORY_BASE_EPOCH + 300)),  '08:05', 'Figma qa-review-category-creative', 'qa-review-private-sentinel-category-creative SECRET-REVIEW-CATEGORY-CREATIVE', 'https://private.invalid/qa-review/category-creative', 0, NULL, '${CATEGORY_SOURCE_DAY}T08:05:00Z', 'work', 1),
+('$CATEGORY_SOURCE_DAY', $((CATEGORY_BASE_EPOCH + 600)),  '08:10', 'Zotero qa-review-category-research', 'qa-review-private-sentinel-category-research SECRET-REVIEW-CATEGORY-RESEARCH', 'https://private.invalid/qa-review/category-research', 0, NULL, '${CATEGORY_SOURCE_DAY}T08:10:00Z', 'work', 1),
+('$CATEGORY_SOURCE_DAY', $((CATEGORY_BASE_EPOCH + 900)),  '08:15', 'Slack qa-review-category-communication', 'qa-review-private-sentinel-category-communication SECRET-REVIEW-CATEGORY-COMMUNICATION', 'https://private.invalid/qa-review/category-communication', 0, NULL, '${CATEGORY_SOURCE_DAY}T08:15:00Z', 'work', 1),
+('$CATEGORY_SOURCE_DAY', $((CATEGORY_BASE_EPOCH + 1200)), '08:20', 'Calendar qa-review-category-administration', 'qa-review-private-sentinel-category-administration SECRET-REVIEW-CATEGORY-ADMINISTRATION', 'https://private.invalid/qa-review/category-administration', 0, NULL, '${CATEGORY_SOURCE_DAY}T08:20:00Z', 'work', 1),
+('$CATEGORY_SOURCE_DAY', $((CATEGORY_BASE_EPOCH + 1500)), '08:25', 'qa-review-category-uncategorized-tool', 'qa-review-private-sentinel-category-uncategorized SECRET-REVIEW-CATEGORY-UNCATEGORIZED', 'https://private.invalid/qa-review/category-uncategorized', 0, NULL, '${CATEGORY_SOURCE_DAY}T08:25:00Z', 'work', 1),
+('$CATEGORY_SOURCE_DAY', $((CATEGORY_BASE_EPOCH + 1800)), '08:30', 'qa-review-category-uncategorized-tool', 'qa-review-private-sentinel-category-close SECRET-REVIEW-CATEGORY-CLOSE', 'https://private.invalid/qa-review/category-close', 0, NULL, '${CATEGORY_SOURCE_DAY}T08:30:00Z', 'work', 1)
+SQL
+}
+
 expected_weekly_behavior_values() {
     cat <<SQL
 ('$WEEKLY_DAY_1', $WEEKLY_EPOCH_1,          '08:00', 'qa-review-weekly-observation-1', '${PRIVATE_TITLE_PREFIX}-weekly-1 SECRET-REVIEW-WEEKLY-1', '${PRIVATE_URL_PREFIX}/weekly-1', 0, NULL, '${WEEKLY_DAY_1}T08:00:00Z', 'work', 1),
@@ -130,9 +147,17 @@ assert_prepared() {
         "7" \
         "owned behavior row count"
     assert_scalar \
+        "SELECT COUNT(*) FROM behavior_records WHERE source_day = '$CATEGORY_SOURCE_DAY' AND epoch BETWEEN $CATEGORY_BASE_EPOCH AND $((CATEGORY_BASE_EPOCH + 1800)) AND app_name LIKE '%qa-review-category-%';" \
+        "7" \
+        "owned current-day category row count"
+    assert_scalar \
         "WITH expected(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) AS (VALUES $(expected_behavior_values)) SELECT COUNT(*) FROM expected e JOIN behavior_records b ON b.source_day = e.source_day AND b.epoch = e.epoch AND b.time_label = e.time_label AND b.app_name = e.app_name AND b.window_title = e.window_title AND b.url = e.url AND b.has_screenshot = e.has_screenshot AND b.screenshot_path IS e.screenshot_path AND b.ingested_at = e.ingested_at AND b.classification = e.classification AND b.classification_policy_version = e.classification_policy_version;" \
         "7" \
         "raw behavior evidence unchanged"
+    assert_scalar \
+        "WITH expected(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, screenshot_path, ingested_at, classification, classification_policy_version) AS (VALUES $(expected_category_behavior_values)) SELECT COUNT(*) FROM expected e JOIN behavior_records b ON b.source_day = e.source_day AND b.epoch = e.epoch AND b.time_label = e.time_label AND b.app_name = e.app_name AND b.window_title = e.window_title AND b.url = e.url AND b.has_screenshot = e.has_screenshot AND b.screenshot_path IS e.screenshot_path AND b.ingested_at = e.ingested_at AND b.classification = e.classification AND b.classification_policy_version = e.classification_policy_version;" \
+        "7" \
+        "current-day category evidence unchanged"
     assert_scalar \
         "SELECT COUNT(*) FROM behavior_records WHERE source_day = '$SOURCE_DAY' AND epoch BETWEEN $BASE_EPOCH AND $((BASE_EPOCH + 1800)) AND window_title LIKE '$PRIVATE_TITLE_PREFIX%' AND url LIKE '$PRIVATE_URL_PREFIX%';" \
         "7" \
@@ -182,6 +207,10 @@ prepare() {
         "0" \
         "daily review ownership collision"
     assert_scalar \
+        "SELECT COUNT(*) FROM behavior_records WHERE source_day = '$CATEGORY_SOURCE_DAY' AND epoch IN ($CATEGORY_BASE_EPOCH, $((CATEGORY_BASE_EPOCH + 300)), $((CATEGORY_BASE_EPOCH + 600)), $((CATEGORY_BASE_EPOCH + 900)), $((CATEGORY_BASE_EPOCH + 1200)), $((CATEGORY_BASE_EPOCH + 1500)), $((CATEGORY_BASE_EPOCH + 1800))) AND app_name NOT LIKE '%qa-review-category-%';" \
+        "0" \
+        "current-day category ownership collision"
+    assert_scalar \
         "SELECT COUNT(*) FROM behavior_records WHERE ((source_day = '$WEEKLY_DAY_1' AND epoch IN ($WEEKLY_EPOCH_1, $((WEEKLY_EPOCH_1 + 1800)))) OR (source_day = '$WEEKLY_DAY_2' AND epoch IN ($WEEKLY_EPOCH_2, $((WEEKLY_EPOCH_2 + 1800)))) OR (source_day = '$WEEKLY_DAY_3' AND epoch IN ($WEEKLY_EPOCH_3, $((WEEKLY_EPOCH_3 + 1800))))) AND app_name NOT LIKE '${WEEKLY_ID_PREFIX}observation-%';" \
         "0" \
         "weekly behavior ownership collision"
@@ -201,6 +230,22 @@ INSERT INTO behavior_records(
     classification_policy_version
 ) VALUES
 $(expected_behavior_values)
+ON CONFLICT(source_day, epoch) DO UPDATE SET
+    time_label = excluded.time_label,
+    app_name = excluded.app_name,
+    window_title = excluded.window_title,
+    url = excluded.url,
+    has_screenshot = excluded.has_screenshot,
+    screenshot_path = excluded.screenshot_path,
+    ingested_at = excluded.ingested_at,
+    classification = excluded.classification,
+    classification_policy_version = excluded.classification_policy_version;
+INSERT INTO behavior_records(
+    source_day, epoch, time_label, app_name, window_title, url,
+    has_screenshot, screenshot_path, ingested_at, classification,
+    classification_policy_version
+) VALUES
+$(expected_category_behavior_values)
 ON CONFLICT(source_day, epoch) DO UPDATE SET
     time_label = excluded.time_label,
     app_name = excluded.app_name,
@@ -272,7 +317,7 @@ ON CONFLICT(id) DO UPDATE SET
 COMMIT;
 SQL
     assert_prepared
-    print -- "PASS: combined review fixture prepared for $SOURCE_DAY"
+    print -- "PASS: combined review fixture prepared for review day $SOURCE_DAY and category day $CATEGORY_SOURCE_DAY"
     print -- "NON-DISPLAY EXPECTATION: UI must not expose '$PRIVATE_TITLE_PREFIX', 'SECRET-REVIEW-', or '$PRIVATE_URL_PREFIX'."
     print -- "WEEKLY INPUT READY: 3 adequately covered confirmed days and 4 eligible estimate samples allow WeeklyReviewStore to derive one pattern; no pattern or experiment output was inserted."
 }
@@ -297,12 +342,20 @@ DELETE FROM behavior_records
 WHERE source_day = '$SOURCE_DAY'
   AND epoch IN ($BASE_EPOCH, $((BASE_EPOCH + 300)), $((BASE_EPOCH + 600)), $((BASE_EPOCH + 900)), $((BASE_EPOCH + 1200)), $((BASE_EPOCH + 1500)), $((BASE_EPOCH + 1800)))
   AND app_name LIKE '%qa-review-%';
+DELETE FROM behavior_records
+WHERE source_day = '$CATEGORY_SOURCE_DAY'
+  AND epoch IN ($CATEGORY_BASE_EPOCH, $((CATEGORY_BASE_EPOCH + 300)), $((CATEGORY_BASE_EPOCH + 600)), $((CATEGORY_BASE_EPOCH + 900)), $((CATEGORY_BASE_EPOCH + 1200)), $((CATEGORY_BASE_EPOCH + 1500)), $((CATEGORY_BASE_EPOCH + 1800)))
+  AND app_name LIKE '%qa-review-category-%';
 COMMIT;
 SQL
     assert_scalar \
         "SELECT COUNT(*) FROM behavior_records WHERE source_day = '$SOURCE_DAY' AND epoch BETWEEN $BASE_EPOCH AND $((BASE_EPOCH + 1800)) AND app_name LIKE '%qa-review-%';" \
         "0" \
         "cleaned behavior rows"
+    assert_scalar \
+        "SELECT COUNT(*) FROM behavior_records WHERE source_day = '$CATEGORY_SOURCE_DAY' AND epoch BETWEEN $CATEGORY_BASE_EPOCH AND $((CATEGORY_BASE_EPOCH + 1800)) AND app_name LIKE '%qa-review-category-%';" \
+        "0" \
+        "cleaned current-day category rows"
     assert_scalar \
         "SELECT COUNT(*) FROM daily_reviews WHERE source_day = '$SOURCE_DAY' AND personal_note LIKE 'qa-review-personal-note:%';" \
         "0" \

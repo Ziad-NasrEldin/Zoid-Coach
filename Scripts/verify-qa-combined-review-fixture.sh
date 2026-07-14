@@ -98,6 +98,7 @@ INSERT INTO learning_samples(
 SQL
 
 export ZOID_COACH_QA_REVIEW_SOURCE_DAY=2026-07-13
+export ZOID_COACH_QA_CATEGORY_SOURCE_DAY=2026-07-14
 
 "$FIXTURE" prepare "$DATABASE"
 "$FIXTURE" prepare "$DATABASE"
@@ -135,6 +136,6 @@ grep -Fq "NON-DISPLAY EXPECTATION" "$FIXTURE" \
     || fail "private evidence non-display expectation is not documented"
 
 print -- "PASS: combined review fixture schema, transactions, idempotency, relaunch, privacy, and cleanup are deterministic"
-print -- "OWNED: 13 behavior rows, 4 daily review rows, and 4 estimate learning samples"
+print -- "OWNED: 20 behavior rows, 4 daily review rows, and 4 estimate learning samples"
 print -- "DERIVATION READY: product runtime may derive exactly one estimate-accuracy pattern from 3 covered days and 4 eligible samples"
 print -- "OMITTED: direct weekly pattern and experiment output because both are product-derived"
