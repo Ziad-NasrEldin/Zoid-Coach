@@ -5,6 +5,7 @@ import ZoidCoachCore
 
 @MainActor
 final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
+    private static let automaticTerminationReason = "Zoid 666 background scheduling menu"
     private let lifecycleHook: BackgroundApplicationLifecycleHook
 
     override init() {
@@ -15,8 +16,17 @@ final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
         )
         lifecycleHook = BackgroundApplicationLifecycleHook(
             policy: launchPresentation.initialMainWindowPresentationPolicy,
+            isAccessoryActivationPolicySet: {
+                NSApplication.shared.activationPolicy() == .accessory
+            },
             setAccessoryActivationPolicy: {
                 NSApplication.shared.setActivationPolicy(.accessory)
+            },
+            acquireAutomaticTerminationHold: {
+                ProcessInfo.processInfo.disableAutomaticTermination(Self.automaticTerminationReason)
+            },
+            releaseAutomaticTerminationHold: {
+                ProcessInfo.processInfo.enableAutomaticTermination(Self.automaticTerminationReason)
             },
             availableWindows: {
                 NSApplication.shared.windows.map(ApplicationWindowDescriptor.init)
@@ -47,6 +57,10 @@ final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidUpdate(_ notification: Notification) {
         lifecycleHook.applicationDidUpdate()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        lifecycleHook.applicationWillTerminate()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
