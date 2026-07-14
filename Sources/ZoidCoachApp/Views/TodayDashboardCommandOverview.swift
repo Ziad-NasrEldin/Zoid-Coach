@@ -24,25 +24,10 @@ struct TodayDashboardCommandOverview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .lastTextBaseline) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("TODAY / ONE DELIBERATE MOVE")
-                        .font(Sumi.label(9))
-                        .sumiLabelTracking()
-                        .foregroundStyle(Sumi.seal)
-                    Text(snapshot.localDate.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                        .font(Sumi.display(30))
-                        .foregroundStyle(Sumi.ink)
-                }
-                Spacer(minLength: 20)
-                Text("One working surface for the next commitment, its time, and the choices still waiting for you.")
-                    .font(Sumi.body(12))
-                    .foregroundStyle(Sumi.muted)
-                    .frame(maxWidth: 300, alignment: .trailing)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 28)
-            .padding(.vertical, 20)
+            TodayDayStateHeader(
+                date: snapshot.localDate,
+                presentation: .resolve(snapshot: snapshot)
+            )
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 0) {
