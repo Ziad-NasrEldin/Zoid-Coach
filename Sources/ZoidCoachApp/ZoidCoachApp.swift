@@ -122,7 +122,7 @@ struct ZoidCoachApplication: App {
                     positionInitialWindow()
                     if launchesForBackgroundScheduling {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            NSApp.hide(nil)
+                            dismissInitialWindowsForBackgroundScheduling()
                         }
                     }
                 }
@@ -215,6 +215,12 @@ struct ZoidCoachApplication: App {
             }
             window.setFrameAutosaveName(frameAutosaveName)
             window.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    private func dismissInitialWindowsForBackgroundScheduling() {
+        for window in NSApp.windows where window.level == .normal {
+            window.orderOut(nil)
         }
     }
 
