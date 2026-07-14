@@ -30,6 +30,7 @@ import ZoidCoachCore
 
     #expect(presentation.launchesForBackgroundScheduling)
     #expect(!presentation.shouldOpenMainWindow)
+    #expect(presentation.initialMainWindowPresentationPolicy == .backgroundScheduling)
 }
 
 @Test func ordinaryQALaunchKeepsNormalSceneRestoration() {
@@ -95,6 +96,76 @@ import ZoidCoachCore
 
     #expect(events == ["request-main", "activate", "foreground-42"])
     #expect(gate.hasOpenedMainWindow)
+}
+
+@MainActor
+@Test func backgroundSchedulingSuppressesOpeningForegroundingAndPositioning() {
+    let presentation = ApplicationLaunchPresentation(
+        arguments: ["ZoidCoachQA", "--background-schedule", "--qa-open-main"],
+        packageMode: .qa
+    )
+    var events: [String] = []
+    let backgroundWindow = applicationWindow(
+        number: 41,
+        identifier: "agent-lifecycle",
+        title: "Background Agent"
+    )
+    let mainWindow = applicationWindow(
+        number: 42,
+        identifier: MainApplicationWindowSelector.mainWindowIdentifier,
+        title: "Zoid 666"
+    )
+    let openingCoordinator = QAMainWindowOpeningCoordinator(
+        requestMainWindow: { events.append("request-main") },
+        activateApplication: { events.append("activate") },
+        availableWindows: { [backgroundWindow, mainWindow] },
+        foregroundWindow: { events.append("foreground-\($0)") },
+        scheduleRetry: { _ in events.append("retry") }
+    )
+    let presentationCoordinator = InitialMainWindowPresentationCoordinator(
+        availableWindows: { [backgroundWindow, mainWindow] },
+        positionWindow: { events.append("position-\($0)") },
+        dismissWindow: { events.append("dismiss-\($0)") },
+        schedulePosition: { _ in events.append("schedule-position") }
+    )
+    var gate = QAMainWindowLaunchGate()
+
+    gate.openIfNeeded(
+        shouldOpenMainWindow: presentation.shouldOpenMainWindow,
+        coordinator: openingCoordinator
+    )
+    presentationCoordinator.apply(policy: presentation.initialMainWindowPresentationPolicy)
+
+    #expect(events == ["dismiss-41", "dismiss-42"])
+    #expect(!gate.hasOpenedMainWindow)
+}
+
+@MainActor
+@Test func ordinaryLaunchPositionsOnlyTheSelectedMainWindow() {
+    var events: [String] = []
+    let backgroundWindow = applicationWindow(
+        number: 41,
+        identifier: "agent-lifecycle",
+        title: "Background Agent"
+    )
+    let mainWindow = applicationWindow(
+        number: 42,
+        identifier: MainApplicationWindowSelector.mainWindowIdentifier,
+        title: "Zoid 666"
+    )
+    let coordinator = InitialMainWindowPresentationCoordinator(
+        availableWindows: { [backgroundWindow, mainWindow] },
+        positionWindow: { events.append("position-\($0)") },
+        dismissWindow: { events.append("dismiss-\($0)") },
+        schedulePosition: { action in
+            events.append("schedule-position")
+            action()
+        }
+    )
+
+    coordinator.apply(policy: .ordinary)
+
+    #expect(events == ["schedule-position", "position-42"])
 }
 
 @MainActor
