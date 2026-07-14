@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "00b14b4a7f39e8e968abbaa7e5d91a812dcabad0d4f6859b18eef7dc75f68b04",
+  "tracker_sha256": "260068dd1c5a766862f890cd217ae6c6265651f8f230b0460c46d5c4ff7fb7e3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -539,9 +539,9 @@
       "section_title": "Screenwatch setup during onboarding",
       "item_index": 6,
       "wording": "Open the repair path when folder access is denied.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -549,10 +549,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/settings-safety-6038/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Choose Folder and Recheck are now present and the repository rejects stale, invalid, unsafe, and cross-run bookmarks deterministically; the actual denied-access picker recovery was not visibly exercised (`ScreenwatchSourceRepositoryTests.swift`).",
+      "audit_note": "In the isolated signed-QA Settings journey, the user discovered and activated `CHOOSE FOLDER`, selected a deterministic alternate Screenwatch days folder through the native picker, rechecked to `CHOSEN FOLDER HEALTHY`, and relaunched the app with the bookmark still selected and `CHANGE FOLDER` plus `USE EXPECTED FOLDER` available. The fixture's private title and URL never appeared in accessibility output, and 11 focused repair-action tests passed (`ScreenwatchRepairActionPresentation.swift`; `ScreenwatchConnectionView.swift`; `ScreenwatchRepairActionPresentationTests.swift`; `.audit/runs/settings-safety-6038/REPORT.md`).",
       "tracker_line": 83
     },
     {
@@ -5535,8 +5537,8 @@
       "item_index": 5,
       "wording": "Avoid a strong drift warning based only on uncertain activity.",
       "checkbox_state": "unchecked",
-      "audit_status": "Barely started",
-      "delivery_status": "barely_started",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5545,10 +5547,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/settings-safety-6038/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Unknown classification exists, but drift warning generation does not.",
+      "audit_note": "The ambiguity-aware behavior service now suppresses coaching when evidence is uncertain, and 23 focused tests plus the deterministic fixture prove idempotent baseline, ambiguity, withdrawal, recovery, privacy, and cleanup transitions. Full status is not yet justified because the installed helper has no bounded QA command that invokes `GamingDriftPromptService.produce` with every runtime-owned gate, so the live prompt withdrawal and exactly-once recovery prompt remain unproven in the signed UI (`GamingDriftPromptService.swift`; `GamingDriftPromptServiceTests.swift`; `Scripts/qa-ambiguous-drift-fixture.sh`; `.audit/runs/settings-safety-6038/REPORT.md`).",
       "tracker_line": 372
     },
     {
@@ -6422,9 +6426,9 @@
       "section_title": "Gaming policy setup",
       "item_index": 7,
       "wording": "Decide whether Discord or Twitch count only in a gaming context.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6432,10 +6436,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/settings-safety-6038/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Rules are global by application name; Discord is built-in gaming and Twitch is not context aware.",
+      "audit_note": "The signed-QA Settings ledger exposed Discord and Twitch with `AUTO BY CONTEXT` guidance, let the user explicitly set Discord to Work and Twitch to Gaming, persisted Discord after app termination and relaunch, and then restored both applications to Automatic. The final active policy contained no explicit override, proving that contextual behavior was restored, while four presentation tests and the 42-test batch passed (`ContextualGamingAppRulePresentation.swift`; `AppClassificationLedger.swift`; `ContextualGamingAppRulePresentationTests.swift`; `.audit/runs/settings-safety-6038/REPORT.md`).",
       "tracker_line": 422
     },
     {
@@ -10474,19 +10480,21 @@
       "section_title": "Coaching and classification settings",
       "item_index": 9,
       "wording": "Review domain rules.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/settings-safety-6038/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "URL/domain classification rules are not exposed or modeled.",
+      "audit_note": "The signed-QA user expanded Domain Rules in Settings and reviewed the exact 14 ordered built-in domain rows with a clear privacy explanation. Accessibility output proved the complete first-to-last rule set without exposing any visited URL, browsing history, or private window title, and four focused domain-rule tests passed (`DomainRuleReviewState.swift`; `AppClassificationLedger.swift`; `ContextualDomainRuleReviewTests.swift`; `.audit/runs/settings-safety-6038/REPORT.md`).",
       "tracker_line": 648
     },
     {

@@ -53,15 +53,14 @@ def main() -> None:
     )
     lede = (
         f"This tracker is current through authoritative integration tip <code>{html.escape(arguments.commit)}</code>. "
-        "Notification delivery now has a privacy-safe local outcome ledger, truthful fallback and scheduling states, "
-        "stable replacement evidence, and a direct Settings repair surface. "
-        "The signed verifier found an onboarding policy-store blocker and corrected a QA isolation bug, so no notification scenario was overstated as fully implemented."
+        "The latest signed Settings acceptance proves Screenwatch folder repair, Domain Rules review, and Discord and Twitch contextual controls end to end. "
+        "Ambiguous-drift suppression remains Partial because installed-helper production-cycle and visible prompt recovery proof are still missing."
     )
     document = re.sub(r'<p class="lede">.*?</p>', f'<p class="lede">{lede}</p>', document, count=1, flags=re.DOTALL)
     critical = (
-        '<div class="critical"><strong>Notification delivery moved forward without weakening the end-to-end bar.</strong> '
-        "Automated evidence proves fallback, delivery, failure, replacement, restart, retention, and redaction. "
-        "The signed card rendered, but populated visible acceptance remains a finishing touch after the verifier correctly stopped at an unrelated onboarding persistence failure.</div>"
+        '<div class="critical"><strong>Three Settings journeys are now fully usable without weakening the end-to-end bar.</strong> '
+        "The isolated signed app proved alternate Screenwatch folder recovery and persistence, all 14 privacy-safe domain rules, and contextual Discord and Twitch controls across relaunch. "
+        "Ambiguous-drift logic moved from Barely started to Partial, with the missing installed-helper cycle stated explicitly.</div>"
     )
     document = re.sub(r'<div class="critical">.*?</div>', critical, document, count=1, flags=re.DOTALL)
     metrics = '<div class="metrics">' + "".join(
