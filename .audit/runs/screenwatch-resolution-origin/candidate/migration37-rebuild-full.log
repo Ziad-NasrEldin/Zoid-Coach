@@ -1,0 +1,21 @@
+^D[0/1] Planning build
+Building for debugging...
+[0/7] Write sources
+[1/7] Write swift-version--58304C5D6DBC2206.txt
+[3/5] Emitting module ZoidCoachAppTests
+[4/5] Compiling ZoidCoachAppTests BaselineObservationTests.swift
+[4/6] Write Objects.LinkFileList
+[5/6] Linking ZoidCoachPackageTests
+Build complete! (9.74s)
+Test Suite 'Selected tests' started at 2026-07-14 08:17:29.680.
+Test Suite 'ZoidCoachPackageTests.xctest' started at 2026-07-14 08:17:29.681.
+Test Suite 'ZoidCoachPackageTests.xctest' passed at 2026-07-14 08:17:29.682.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-07-14 08:17:29.682.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test migration37AddsNonDestructiveBaselineLedgerAfterCorrectionRules() started.
+✔ Test migration37AddsNonDestructiveBaselineLedgerAfterCorrectionRules() passed after 0.053 seconds.
+✔ Test run with 1 test in 0 suites passed after 0.053 seconds.
