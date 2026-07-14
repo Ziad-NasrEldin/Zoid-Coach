@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "260068dd1c5a766862f890cd217ae6c6265651f8f230b0460c46d5c4ff7fb7e3",
+  "tracker_sha256": "9f350bca6c81ea4a9b1cee33653af0354a61a6fa6f3c51c7440e1fc5857fa500",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5206,9 +5206,9 @@
       "section_title": "Understanding behavior totals",
       "item_index": 1,
       "wording": "See deep work, creative work, research, communication, and administration represented as work categories.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5217,10 +5217,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/review-hypothesis-learning/84623d934a4eff76ef56eb4787de4ac6fc4640f5/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The behavior model has only `work`, `gaming`, `distracting`, `idle`, and `unknown`.",
+      "audit_note": "The installed signed-QA app exposed six distinct ordered accessibility elements labeled Deep work, Creative work, Research, Communication, Administration, and Uncategorized work, each with exactly five deterministic current-day minutes and the expected user-facing hint. The exact identifiers, labels, order, values, and separate element identities survived hypothesis acceptance, app relaunch, review-and-learning privacy deletion, deterministic re-seeding, and another relaunch. Private fixture titles and URLs never appeared in the accessibility subtree, while the focused post-integration category, behavior-state, accessibility, migration, and privacy suites passed (`Sources/ZoidCoachCore/WorkCategory.swift`; `Sources/ZoidCoachApp/BehaviorEvidenceState.swift`; `Sources/ZoidCoachApp/Views/BehaviorEvidenceSheet.swift`; `.audit/runs/review-hypothesis-learning/84623d934a4eff76ef56eb4787de4ac6fc4640f5/REPORT.md`).",
       "tracker_line": 355
     },
     {
@@ -9600,9 +9602,9 @@
       "section_title": "Facts, hypotheses, and review corrections",
       "item_index": 12,
       "wording": "Prevent unconfirmed hypotheses from becoming learned facts.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9610,10 +9612,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/review-hypothesis-learning/84623d934a4eff76ef56eb4787de4ac6fc4640f5/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Learning aggregates have evidence/confidence safeguards, but no hypothesis-confirmation boundary exists.",
+      "audit_note": "In the installed signed-QA Weekly Review, one deterministically derived pattern began as `NOT LEARNED`; activating `ACCEPT HYPOTHESIS` once changed it to `LEARNED FROM EXPLICIT ACCEPTANCE`, removed the acceptance action, and created exactly one durable `review_hypothesis_promotions` row. Relaunch restored the learned state with one row, focused production-service tests proved repeated acceptance is idempotent, and the signed Settings Records flow then confirmed review-and-learning deletion, reduced the table to zero rows, re-seeded the same factual inputs, and relaunched to the same candidate as `NOT LEARNED` with zero promotions. This proves that derivation alone, restart, and re-derivation never cross the explicit user-confirmation boundary (`Sources/ZoidCoachApp/HypothesisLearningBoundary.swift`; `Sources/ZoidCoachApp/ReviewHypothesisLearningService.swift`; `Sources/ZoidCoachInfrastructure/ReviewHypothesisPromotionStore.swift`; `.audit/runs/review-hypothesis-learning/84623d934a4eff76ef56eb4787de4ac6fc4640f5/REPORT.md`).",
       "tracker_line": 601
     },
     {

@@ -8,18 +8,18 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-14 against branch `codex/full-system` through the independently verified Settings and safety signed-QA batch, the exact 666-scenario registry, and capped native macOS accessibility, pixel, persistence, and raw-database testing.
+Updated on 2026-07-14 against branch `codex/full-system` through the independently verified review categories and hypothesis-learning signed-QA batch, the exact 666-scenario registry, and capped native macOS accessibility, pixel, persistence, privacy-deletion, and raw-database testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 183
+- **Fully implemented:** 185
 - **Touches remaining:** 304
 - **Frontend only left:** 3
 - **Partially implemented:** 102
 - **Barely started:** 6
-- **Not implemented:** 41
+- **Not implemented:** 39
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -352,7 +352,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 
 ## 24. Understanding behavior totals
 
-- [ ] See deep work, creative work, research, communication, and administration represented as work categories. **Status: Not implemented.** The behavior model has only `work`, `gaming`, `distracting`, `idle`, and `unknown`.
+- [x] See deep work, creative work, research, communication, and administration represented as work categories. **Status: Fully implemented.** The installed signed-QA app exposed six distinct ordered accessibility elements labeled Deep work, Creative work, Research, Communication, Administration, and Uncategorized work, each with exactly five deterministic current-day minutes and the expected user-facing hint. The exact identifiers, labels, order, values, and separate element identities survived hypothesis acceptance, app relaunch, review-and-learning privacy deletion, deterministic re-seeding, and another relaunch. Private fixture titles and URLs never appeared in the accessibility subtree, while the focused post-integration category, behavior-state, accessibility, migration, and privacy suites passed (`Sources/ZoidCoachCore/WorkCategory.swift`; `Sources/ZoidCoachApp/BehaviorEvidenceState.swift`; `Sources/ZoidCoachApp/Views/BehaviorEvidenceSheet.swift`; `.audit/runs/review-hypothesis-learning/84623d934a4eff76ef56eb4787de4ac6fc4640f5/REPORT.md`).
 - [ ] See gaming, entertainment, passive consumption, distraction, system-neutral, idle, and unknown time represented distinctly. **Status: Partially implemented.** Gaming, distraction, idle, and unknown are distinct. Entertainment, passive consumption, and system-neutral are not modeled.
 - [ ] See a useful summary without needing to inspect raw five-second records. **Status: Touches remaining.** The live dashboard exposes an observed-use popover with application percentages and category totals. It does not present a complete, task-aligned behavioral summary.
 - [ ] See totals update as new activity is observed. **Status: Partially implemented.** The background agent regenerates snapshots while ingesting, but `AppModel` does not poll Today snapshots while the window stays open; refresh is tied mainly to launch, foreground activation, or commands.
@@ -598,7 +598,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [ ] Change tomorrow's main task. **Status: Partially implemented.** A user can choose the main objective for the current daily plan, but there is no tomorrow/review-specific flow.
 - [ ] See totals and conclusions update after corrections. **Status: Touches remaining.** Daily Review now recalculates factual category totals immediately and reopens a prior confirmation after edits, but every downstream conclusion and weekly statement has not been visibly rechecked for this correction journey.
 - [ ] Confirm the corrected review. **Status: Touches remaining.** Confirmation state, invalidation after a later correction, and restart persistence are implemented and focused-tested, but this signed acceptance stopped after proving correction-to-rule adaptation rather than pressing the final confirmation control.
-- [ ] Prevent unconfirmed hypotheses from becoming learned facts. **Status: Not implemented.** Learning aggregates have evidence/confidence safeguards, but no hypothesis-confirmation boundary exists.
+- [x] Prevent unconfirmed hypotheses from becoming learned facts. **Status: Fully implemented.** In the installed signed-QA Weekly Review, one deterministically derived pattern began as `NOT LEARNED`; activating `ACCEPT HYPOTHESIS` once changed it to `LEARNED FROM EXPLICIT ACCEPTANCE`, removed the acceptance action, and created exactly one durable `review_hypothesis_promotions` row. Relaunch restored the learned state with one row, focused production-service tests proved repeated acceptance is idempotent, and the signed Settings Records flow then confirmed review-and-learning deletion, reduced the table to zero rows, re-seeded the same factual inputs, and relaunched to the same candidate as `NOT LEARNED` with zero promotions. This proves that derivation alone, restart, and re-derivation never cross the explicit user-confirmation boundary (`Sources/ZoidCoachApp/HypothesisLearningBoundary.swift`; `Sources/ZoidCoachApp/ReviewHypothesisLearningService.swift`; `Sources/ZoidCoachInfrastructure/ReviewHypothesisPromotionStore.swift`; `.audit/runs/review-hypothesis-learning/84623d934a4eff76ef56eb4787de4ac6fc4640f5/REPORT.md`).
 
 ## 43. Weekly review
 
