@@ -152,6 +152,7 @@ public enum AgentMutationCommand: Equatable, Codable, Sendable {
     case replaceReminderListOrder([String])
     case recordTaskHistory(taskID: String, state: AgentTaskHistoryState, occurredAt: Date)
     case recordRecommendationFeedback(RecommendationFeedbackRequest)
+    case recordGamingManualAdjustment(GamingManualAdjustmentRequest)
     case recordSourceCheck(sourceID: String, state: String, detail: String, evidence: String, checkedAt: Date)
     case synchronizeReminderSnapshots([AgentReminderSnapshot])
     case savePolicyMutation(PolicyMutationRequest)

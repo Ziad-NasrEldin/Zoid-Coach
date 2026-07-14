@@ -17,7 +17,7 @@ func migration46AddsDeletedReminderDecisionHistory() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 45)
-    #expect(result.appliedVersions == [46, 47])
+    #expect(result.appliedVersions == [46, 47, 48])
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try tableExists(databaseURL, "deleted_reminder_decisions"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "state"))
@@ -39,10 +39,29 @@ func migration47AddsDurableReviewHypothesisPromotions() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 46)
-    #expect(result.appliedVersions == [47])
+    #expect(result.appliedVersions == [47, 48])
     #expect(try tableExists(databaseURL, "review_hypothesis_promotions"))
     #expect(try columnExists(databaseURL, table: "review_hypothesis_promotions", column: "candidate_id"))
     #expect(try columnExists(databaseURL, table: "review_hypothesis_promotions", column: "evidence_json"))
+}
+
+@Test
+func migration48AddsDurableGamingManualAdjustments() throws {
+    let databaseURL = temporaryDatabaseURL("v48-gaming-manual-adjustments")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (47, '2026-07-14T00:00:00Z');
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.previousVersion == 47)
+    #expect(result.appliedVersions == [48])
+    #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
+    #expect(try tableExists(databaseURL, "gaming_manual_adjustments"))
+    #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "request_id"))
+    #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "recorded_at_utc"))
 }
 
 @Test

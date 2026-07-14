@@ -336,6 +336,9 @@ struct ZoidCoachAgentMain {
                 recommendationFeedback: try RecommendationFeedbackStore(
                     databaseURL: configuration.databaseURL
                 ),
+                gamingManualAdjustments: try GamingManualAdjustmentStore(
+                    databaseURL: configuration.databaseURL
+                ),
                 draftPlan: { day, overwriteExisting in
                     let policy = try policyStore.current()?.policy ?? UserPolicy.defaults()
                     let behavior = try archive.recentBehaviorEvidence(since: Date().addingTimeInterval(-7 * 24 * 60 * 60))
