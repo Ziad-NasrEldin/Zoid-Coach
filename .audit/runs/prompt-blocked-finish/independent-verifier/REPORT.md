@@ -40,3 +40,21 @@ The QA LaunchAgent was absent after uninstall.
 The isolated QA root and install directory were removed.
 Free disk after cleanup was 2.8 GiB.
 
+## Infrastructure repair recheck
+
+Candidate `6122a87249364712d6fef5b0bd3700f6f10c5f73` removed the degraded-helper mismatch in a fresh signed runtime.
+The installer refused PID-only acceptance and reported both `PASS: QA XPC runtime is writable and prompt timeline is available` and a canonical `agent-runtime` heartbeat.
+The QA defaults domain stored the canonical build-and-bundle fingerprint and enabled choice.
+The installed helper stayed on PID `73610` across a foreground app termination and relaunch, proving that the app no longer unregistered and registered the installer-created helper.
+
+After the verifier inserted the same presented six-action prompt into the canonical database and relaunched only the app, Today exposed `1 WAITING` and six direct native buttons with the stable `today.prompt.qa-block-1.action.*` identifiers.
+This confirms that the prior `0 WAITING` result came from the degraded XPC service rather than PromptInboxStore filtering or a database identity mismatch.
+
+The independent native flow opened the blocker sheet, entered `no`, submitted it, and exposed `Explain the blocker in at least 3 characters.`.
+SQLite remained presented with zero responses, an active task, and no blocked reason.
+Cancel closed the sheet and restored the reachable prompt action.
+The verifier reopened the sheet and selected the `Waiting for approval.` preset, which populated the editable field with 21 characters.
+
+The runtime lease cap arrived before the verifier activated the final valid Save Blocker control.
+Therefore this recheck still does not independently claim valid confirmation, exactly-once response, blocked history, replacement-main promotion, post-success relaunch, or helper-down state preservation.
+The runtime and owned build artifacts were removed at the cap, and free disk returned to 2.8 GiB.
