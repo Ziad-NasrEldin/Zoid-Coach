@@ -1,0 +1,31 @@
+Building for debugging...
+[0/18] /private/tmp/zoid-666-integrate-zc047006/.build/arm64-apple-macosx/debug/ZoidCoachPackageTests.derived/runner.swift
+[1/18] Write sources
+[4/18] Write ZoidCoachAgent-entitlement.plist
+[4/18] Write ZoidCoach-entitlement.plist
+[3522 lines omitted, 20 safety-relevant lines preserved]
+/private/tmp/zoid-666-integrate-zc047006/Sources/ZoidCoachInfrastructure/CodexJobCoordinator.swift:227:13: warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+226 |         errorHandle = try FileHandle(forWritingTo: errorURL)
+    |             `- warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+/private/tmp/zoid-666-integrate-zc047006/Sources/ZoidCoachInfrastructure/CodexJobCoordinator.swift:227:13: warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+226 |         errorHandle = try FileHandle(forWritingTo: errorURL)
+    |             `- warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+/private/tmp/zoid-666-integrate-zc047006/Sources/ZoidCoachInfrastructure/CodexJobCoordinator.swift:227:13: warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+226 |         errorHandle = try FileHandle(forWritingTo: errorURL)
+    |             `- warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+/private/tmp/zoid-666-integrate-zc047006/Sources/ZoidCoachInfrastructure/CodexJobCoordinator.swift:227:13: warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+226 |         errorHandle = try FileHandle(forWritingTo: errorURL)
+    |             `- warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+/private/tmp/zoid-666-integrate-zc047006/Sources/ZoidCoachInfrastructure/CodexJobCoordinator.swift:227:13: warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+226 |         errorHandle = try FileHandle(forWritingTo: errorURL)
+    |             `- warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+/private/tmp/zoid-666-integrate-zc047006/Sources/ZoidCoachInfrastructure/CodexJobCoordinator.swift:227:13: warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+226 |         errorHandle = try FileHandle(forWritingTo: errorURL)
+    |             `- warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+/private/tmp/zoid-666-integrate-zc047006/Sources/ZoidCoachInfrastructure/CodexJobCoordinator.swift:227:13: warning: variable 'codexArguments' was never mutated; consider changing to 'let' constant
+226 |         errorHandle = try FileHandle(forWritingTo: errorURL)
+◇ Test "Retention adjustments preserve the existing bounded binding semantics" started.
+✔ Test "Retention adjustments preserve the existing bounded binding semantics" passed after 0.001 seconds.
+✔ Test "Retention controls expose stable value and adjustment identifiers" passed after 0.001 seconds.
+✔ Test "Retention controls keep readable single-line values at constrained widths" passed after 0.001 seconds.
+✔ Test run with 3 tests in 0 suites passed after 0.001 seconds.

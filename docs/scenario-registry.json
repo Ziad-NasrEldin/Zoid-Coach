@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "18114f1af16ea44286f391239bc04ca16a9f43478edc7d5e70990aa728e53adf",
+  "tracker_sha256": "7b18f9382afca1d1e44da10f20b81a4060c281df2add713be53f59603caab28d",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11004,10 +11004,18 @@
         "ui_automation"
       ],
       "affected_capability": "privacy_and_data_control",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/retention-stepper-polish/candidate/REPORT.md",
+        ".audit/runs/retention-stepper-polish/integration/REPORT.md",
+        ".audit/runs/retention-stepper-polish/integration/focused-test.log",
+        ".audit/runs/retention-stepper-polish/verifier/REPORT.md",
+        ".audit/runs/retention-stepper-polish/verifier/default-retention-bottom.png",
+        ".audit/runs/retention-stepper-polish/verifier/default-retention-grid.png",
+        ".audit/runs/retention-stepper-polish/verifier/narrow-retention-grid.png"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Independent local retention now covers screenshots, extracted text, raw behavior, task sessions, prompts, reviews and learning, and diagnostics with migration-safe defaults and maintenance tests; the packaged Settings controls still need a visible save-and-reload pass.",
+      "audit_note": "The signed installed Settings app now renders separate controls for screenshots, extracted text, diagnostics, behavior records, task sessions, prompts, and reviews plus learning in a responsive three-column default grid and two-column narrow grid, with readable single-line values, 44-point actions, and stable category-specific accessibility identifiers. The independent journey discarded a Behavior records change, saved Task sessions from 365 to 366 days through the running helper, verified the exact policy row, and restored both values after app and helper relaunch. Distinct saved-and-reloaded journeys for every remaining retention category still need end-to-end proof before this broader scenario is complete (`SettingsView.swift`; `SettingsRetentionControlsTests.swift`; `.audit/runs/retention-stepper-polish/verifier/REPORT.md`; `.audit/runs/retention-stepper-polish/integration/REPORT.md`).",
       "tracker_line": 678
     },
     {
