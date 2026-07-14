@@ -101,6 +101,24 @@ stop_exact_app() {
   done
 }
 
+# BEGIN RUNBOOK SELF-TEST: database-quiescence
+database_has_open_process() {
+  lsof -t "$1" 2>/dev/null | grep -q .
+}
+
+wait_for_database_quiescence() {
+  local database="$1"
+  local attempts="${2:-40}"
+  local delay_seconds="${3:-0.2}"
+
+  for (( attempt = 1; attempt <= attempts; attempt += 1 )); do
+    database_has_open_process "$database" || return 0
+    sleep "$delay_seconds"
+  done
+  return 1
+}
+# END RUNBOOK SELF-TEST: database-quiescence
+
 # BEGIN RUNBOOK SELF-TEST: ordinary-launch-command
 ordinary_launch_command_is_valid() {
   local command_line="$1"
@@ -146,6 +164,7 @@ verify_state() {
   local expected_state="$2"
   local candidate pid command_line
   stop_exact_app
+  wait_for_database_quiescence "$DATABASE"
   "$FIXTURE" set "$fixture_state" --database "$DATABASE" --backup "$BACKUP"
   open "$APP"
   pid=""
@@ -208,6 +227,7 @@ Keep the planned snapshot unchanged and relaunch twice.
 
 ```zsh
 stop_exact_app
+wait_for_database_quiescence "$DATABASE"
 "$FIXTURE" set planned --database "$DATABASE" --backup "$BACKUP"
 open "$APP"
 
@@ -235,6 +255,7 @@ for relaunch in first second; do
     2>&1 | tee "$EVIDENCE/relaunch-$relaunch.log"
   if test "$relaunch" = first; then
     stop_exact_app
+    wait_for_database_quiescence "$DATABASE"
     open "$APP"
   fi
 done
@@ -248,6 +269,7 @@ Stop the exact installed app, restore the original snapshot, verify cleanup, and
 
 ```zsh
 stop_exact_app
+wait_for_database_quiescence "$DATABASE"
 "$FIXTURE" cleanup --database "$DATABASE" --backup "$BACKUP" 2>&1 | tee "$EVIDENCE/cleanup.log"
 test ! -e "$BACKUP"
 ZOID_COACH_QA_RUN_ROOT="$QA_ROOT" \
