@@ -126,7 +126,7 @@ func contextSensitiveApplicationsUseLocalWindowAndURLMeaningInsteadOfPermanentLa
     {"t":"09-00-00","epoch":1783663200,"app":"Safari","window":"Swift concurrency documentation","url":"https://developer.apple.com/documentation/swift","img":false}
     {"t":"09-00-05","epoch":1783663205,"app":"YouTube","window":"Swift concurrency documentation tutorial","url":"https://youtube.com/watch?v=work","img":false}
     {"t":"09-00-10","epoch":1783663210,"app":"YouTube","window":"Shorts - YouTube","url":"https://youtube.com/shorts/fun","img":false}
-    {"t":"09-00-15","epoch":1783663215,"app":"Discord","window":"Zoid Coach project","url":"","img":false}
+    {"t":"09-00-15","epoch":1783663215,"app":"Discord","window":"Zoid 666 project","url":"","img":false}
     {"t":"09-00-20","epoch":1783663220,"app":"Discord","window":"Minecraft server","url":"","img":false}
     {"t":"09-00-25","epoch":1783663225,"app":"Notion","window":"Product roadmap","url":"https://notion.so/work","img":false}
     {"t":"09-00-30","epoch":1783663230,"app":"Preview","window":"Client proposal.pdf","url":"","img":false}

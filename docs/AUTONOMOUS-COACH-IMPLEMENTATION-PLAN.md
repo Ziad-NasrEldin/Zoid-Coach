@@ -69,7 +69,7 @@ That shape is appropriate for the current foundation but must not become the aut
 
 Use two processes and shared domain modules:
 
-- `ZoidCoach.app` owns settings, permissions, visible review, manual decisions, and recovery UI.
+- `Zoid 666.app` owns settings, permissions, visible review, manual decisions, and recovery UI.
 - `ZoidCoachAgent` runs as a bundled LaunchAgent while the user is logged in and the Mac is awake.
 - `ZoidCoachAgent` owns ingestion, scheduled planning, action execution, prompt expiry, and recovery.
 - The agent is the only production database writer.

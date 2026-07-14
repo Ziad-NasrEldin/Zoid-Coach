@@ -1836,7 +1836,7 @@ The legacy script remains available only as a migration and rollback path until 
 
 The product contains:
 
-- `ZoidCoach.app`, which owns UI, permissions, settings, and user actions.
+- `Zoid 666.app`, which owns UI, permissions, settings, and user actions.
 - `ZoidCoachAgent`, a bundled launch-at-login helper that tails telemetry and evaluates scheduled policies.
 - A shared application group or explicitly controlled local storage directory.
 - An optional local AI worker process when a local model is enabled.
