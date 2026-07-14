@@ -17,6 +17,16 @@ public enum PromptEpisodeState: String, Codable, CaseIterable, Sendable {
     }
 }
 
+public enum PromptResolutionOrigin: String, Codable, Sendable {
+    case user
+    case system
+}
+
+public enum PromptResolutionReason: String, Codable, Sendable {
+    case explicitDismissal = "explicit_dismissal"
+    case screenwatchEvidenceInvalid = "screenwatch_evidence_invalid"
+}
+
 public enum PromptEpisodeEvent: Equatable, Sendable {
     case queue
     case present
@@ -113,6 +123,8 @@ public struct PromptEpisode: Identifiable, Equatable, Codable, Sendable {
     public let expiresAt: Date?
     public let presentedAt: Date?
     public let resolvedAt: Date?
+    public let resolutionOrigin: PromptResolutionOrigin?
+    public let resolutionReason: PromptResolutionReason?
 
     public var allowsDismissal: Bool {
         payload["allowsDismissal"] == "true"
@@ -130,7 +142,9 @@ public struct PromptEpisode: Identifiable, Equatable, Codable, Sendable {
         createdAt: Date,
         expiresAt: Date? = nil,
         presentedAt: Date? = nil,
-        resolvedAt: Date? = nil
+        resolvedAt: Date? = nil,
+        resolutionOrigin: PromptResolutionOrigin? = nil,
+        resolutionReason: PromptResolutionReason? = nil
     ) {
         self.id = id
         self.decisionKey = decisionKey
@@ -144,6 +158,8 @@ public struct PromptEpisode: Identifiable, Equatable, Codable, Sendable {
         self.expiresAt = expiresAt
         self.presentedAt = presentedAt
         self.resolvedAt = resolvedAt
+        self.resolutionOrigin = resolutionOrigin
+        self.resolutionReason = resolutionReason
     }
 
     public func applying(_ event: PromptEpisodeEvent, at date: Date) throws -> PromptEpisode {
@@ -160,7 +176,31 @@ public struct PromptEpisode: Identifiable, Equatable, Codable, Sendable {
             createdAt: createdAt,
             expiresAt: expiresAt,
             presentedAt: event == .present ? date : presentedAt,
-            resolvedAt: nextState.isUnresolved ? nil : date
+            resolvedAt: nextState.isUnresolved ? nil : date,
+            resolutionOrigin: resolutionOrigin,
+            resolutionReason: resolutionReason
+        )
+    }
+
+    package func recordingResolution(
+        origin: PromptResolutionOrigin,
+        reason: PromptResolutionReason
+    ) -> PromptEpisode {
+        PromptEpisode(
+            id: id,
+            decisionKey: decisionKey,
+            type: type,
+            state: state,
+            title: title,
+            summary: summary,
+            actions: actions,
+            payload: payload,
+            createdAt: createdAt,
+            expiresAt: expiresAt,
+            presentedAt: presentedAt,
+            resolvedAt: resolvedAt,
+            resolutionOrigin: origin,
+            resolutionReason: reason
         )
     }
 }

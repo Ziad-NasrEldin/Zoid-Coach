@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 44
+    public static let currentVersion = 45
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1182,6 +1182,18 @@ private extension AutonomousDatabaseMigrator {
             CREATE INDEX IF NOT EXISTS calendar_plan_operations_state
             ON calendar_plan_operations(state, requested_at_utc);
             """)
+        ]),
+        Migration(version: 45, isDestructive: false, operations: [
+            .addColumnIfTableExists(
+                table: "prompt_episodes",
+                column: "resolution_origin",
+                declaration: "TEXT CHECK(resolution_origin IN ('user', 'system'))"
+            ),
+            .addColumnIfTableExists(
+                table: "prompt_episodes",
+                column: "resolution_reason",
+                declaration: "TEXT CHECK(resolution_reason IN ('explicit_dismissal', 'screenwatch_evidence_invalid'))"
+            )
         ])
     ]
 }
