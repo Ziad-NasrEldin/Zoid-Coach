@@ -3,6 +3,7 @@ set -euo pipefail
 
 readonly PRIVATE_TITLE="qa-zc013001-private-window-title"
 readonly PRIVATE_URL="https://qa-zc013001-private.invalid/client"
+SQLITE3_COMMAND="${ZC013001_SQLITE3_COMMAND:-sqlite3}"
 
 fail() {
     printf 'FAIL: %s\n' "$*" >&2
@@ -14,7 +15,28 @@ usage() {
 }
 
 scalar() {
-    sqlite3 -batch -noheader "$DATABASE" "$1"
+    "$SQLITE3_COMMAND" -batch -noheader "$DATABASE" "$1"
+}
+
+sqlite_write() {
+    local sql attempts timeout_ms retry_delay output
+    sql="$(cat)"
+    attempts="${ZC013001_SQLITE_WRITE_ATTEMPTS:-4}"
+    timeout_ms="${ZC013001_SQLITE_BUSY_TIMEOUT_MS:-1000}"
+    retry_delay="${ZC013001_SQLITE_RETRY_DELAY_SECONDS:-0.1}"
+    [[ "$attempts" =~ ^[1-9][0-9]*$ ]] || fail "invalid SQLite write attempt bound"
+    [[ "$timeout_ms" =~ ^[0-9]+$ ]] || fail "invalid SQLite busy timeout"
+
+    local attempt
+    for (( attempt = 1; attempt <= attempts; attempt += 1 )); do
+        if output="$({ printf '.timeout %s\n' "$timeout_ms"; printf '%s\n' "$sql"; } \
+            | "$SQLITE3_COMMAND" -batch "$DATABASE" 2>&1)"; then
+            return 0
+        fi
+        (( attempt == attempts )) || sleep "$retry_delay"
+    done
+    printf 'FAIL: SQLite write remained locked after %s attempts: %s\n' "$attempts" "$output" >&2
+    return 1
 }
 
 assert_scalar() {
@@ -41,7 +63,7 @@ read_backup() {
 
 restore_snapshot() {
     read_backup
-    sqlite3 -batch "$DATABASE" <<SQL
+    sqlite_write <<SQL
 BEGIN IMMEDIATE;
 INSERT INTO today_snapshots(day_key, payload, updated_at)
 VALUES('$BACKUP_DAY', X'$BACKUP_HEX', '$BACKUP_UPDATED')
@@ -55,7 +77,7 @@ prepare() {
     [[ ! -e "$BACKUP" ]] || fail "refusing to replace existing snapshot backup: $BACKUP"
     assert_scalar "SELECT COUNT(*) FROM today_snapshots WHERE day_key = '$LOCAL_DAY' AND json_valid(CAST(payload AS TEXT));" "1" "valid current-day snapshot"
     mkdir -p "$(dirname "$BACKUP")"
-    sqlite3 -batch -noheader -separator $'\t' "$DATABASE" \
+    "$SQLITE3_COMMAND" -batch -noheader -separator $'\t' "$DATABASE" \
         "SELECT day_key, updated_at, hex(payload) FROM today_snapshots WHERE day_key = '$LOCAL_DAY';" > "$BACKUP"
     chmod 600 "$BACKUP"
     read_backup
@@ -66,7 +88,11 @@ set_state() {
     local state="$1"
     [[ "$state" != "preparing" ]] || {
         read_backup
-        sqlite3 -batch "$DATABASE" "DELETE FROM today_snapshots WHERE day_key = '$LOCAL_DAY';"
+        sqlite_write <<SQL
+BEGIN IMMEDIATE;
+DELETE FROM today_snapshots WHERE day_key = '$LOCAL_DAY';
+COMMIT;
+SQL
         assert_state preparing
         return
     }
@@ -105,7 +131,7 @@ set_state() {
         *) fail "unsupported day state: $state" ;;
     esac
     restore_snapshot
-    sqlite3 -batch "$DATABASE" <<SQL
+    sqlite_write <<SQL
 BEGIN IMMEDIATE;
 UPDATE today_snapshots
 SET payload = CAST(json_set(
@@ -166,16 +192,17 @@ cleanup() {
 }
 
 self_test() {
-    local root original_database original_backup original_day
+    local root original_database original_backup original_day original_sqlite3
     root="$(mktemp -d /private/tmp/zoid-666-zc013001-fixture.XXXXXX)"
     trap 'rm -rf "$root"' EXIT
     original_database="$DATABASE"
     original_backup="$BACKUP"
     original_day="$LOCAL_DAY"
+    original_sqlite3="$SQLITE3_COMMAND"
     DATABASE="$root/test.sqlite"
     BACKUP="$root/original-snapshot.tsv"
     LOCAL_DAY="2026-07-14"
-    sqlite3 -batch "$DATABASE" <<'SQL'
+    "$SQLITE3_COMMAND" -batch "$DATABASE" <<'SQL'
 CREATE TABLE today_snapshots(day_key TEXT PRIMARY KEY, payload BLOB NOT NULL, updated_at TEXT NOT NULL);
 INSERT INTO today_snapshots(day_key, payload, updated_at) VALUES(
     '2026-07-14',
@@ -186,8 +213,51 @@ INSERT INTO today_snapshots(day_key, payload, updated_at) VALUES(
     '2026-07-13', CAST('{"foreign":true}' AS BLOB), '2026-07-13T08:00:00Z'
 );
 SQL
-    local original_hex
+    local sqlite_wrapper="$root/sqlite-lock-wrapper"
+    cat > "$sqlite_wrapper" <<'SH'
+#!/bin/bash
+set -euo pipefail
+sql="$(cat)"
+count="$(cat "$ZC013001_LOCK_COUNTER")"
+count=$((count + 1))
+printf '%s\n' "$count" > "$ZC013001_LOCK_COUNTER"
+mode="$(cat "$ZC013001_LOCK_MODE")"
+if [[ "$mode" == "never" || ( "$mode" == "delayed" && "$count" -lt 3 ) ]]; then
+    printf 'Error: database is locked (5)\n' >&2
+    exit 5
+fi
+printf '%s\n' "$sql" | "$ZC013001_REAL_SQLITE3" "$@"
+SH
+    chmod +x "$sqlite_wrapper"
+    export ZC013001_REAL_SQLITE3="$original_sqlite3"
+    export ZC013001_LOCK_COUNTER="$root/lock-counter"
+    export ZC013001_LOCK_MODE="$root/lock-mode"
+    SQLITE3_COMMAND="$sqlite_wrapper"
+    printf '0\n' > "$ZC013001_LOCK_COUNTER"
+    printf 'delayed\n' > "$ZC013001_LOCK_MODE"
+    ZC013001_SQLITE_WRITE_ATTEMPTS=3 ZC013001_SQLITE_BUSY_TIMEOUT_MS=0 \
+        ZC013001_SQLITE_RETRY_DELAY_SECONDS=0 sqlite_write <<SQL
+BEGIN IMMEDIATE;
+UPDATE today_snapshots SET updated_at = updated_at WHERE day_key = '$LOCAL_DAY';
+COMMIT;
+SQL
+    [[ "$(<"$ZC013001_LOCK_COUNTER")" == "3" ]] || fail "delayed lock release did not exercise bounded retries"
+    printf '0\n' > "$ZC013001_LOCK_COUNTER"
+    printf 'never\n' > "$ZC013001_LOCK_MODE"
+    if ZC013001_SQLITE_WRITE_ATTEMPTS=3 ZC013001_SQLITE_BUSY_TIMEOUT_MS=0 \
+        ZC013001_SQLITE_RETRY_DELAY_SECONDS=0 sqlite_write >/dev/null 2>&1 <<SQL
+BEGIN IMMEDIATE;
+UPDATE today_snapshots SET updated_at = updated_at WHERE day_key = '$LOCAL_DAY';
+COMMIT;
+SQL
+    then
+        fail "permanent SQLite lock unexpectedly succeeded"
+    fi
+    [[ "$(<"$ZC013001_LOCK_COUNTER")" == "3" ]] || fail "permanent lock did not stop at the retry bound"
+    SQLITE3_COMMAND="$original_sqlite3"
+    local original_hex foreign_hex
     original_hex="$(scalar "SELECT hex(payload) FROM today_snapshots WHERE day_key = '$LOCAL_DAY';")"
+    foreign_hex="$(scalar "SELECT hex(payload) FROM today_snapshots WHERE day_key = '2026-07-13';")"
     prepare >/dev/null
     local state
     for state in invitation snoozed dismissed planned unplanned active; do
@@ -198,10 +268,11 @@ SQL
     assert_state preparing >/dev/null
     cleanup >/dev/null
     assert_scalar "SELECT hex(payload) FROM today_snapshots WHERE day_key = '$LOCAL_DAY';" "$original_hex" "self-test exact restoration"
-    assert_scalar "SELECT COUNT(*) FROM today_snapshots WHERE day_key = '2026-07-13' AND json_extract(CAST(payload AS TEXT), '$.foreign') = 1;" "1" "foreign snapshot preservation"
+    assert_scalar "SELECT hex(payload) FROM today_snapshots WHERE day_key = '2026-07-13';" "$foreign_hex" "byte-exact foreign snapshot preservation"
     DATABASE="$original_database"
     BACKUP="$original_backup"
     LOCAL_DAY="$original_day"
+    SQLITE3_COMMAND="$original_sqlite3"
     rm -rf "$root"
     trap - EXIT
     printf 'PASS: ZC-013-001 fixture self-test covered every state, exact restore, cleanup, and foreign-row preservation\n'
@@ -226,7 +297,7 @@ while (( $# > 0 )); do
     esac
 done
 
-command -v sqlite3 >/dev/null 2>&1 || fail "sqlite3 is required"
+command -v "$SQLITE3_COMMAND" >/dev/null 2>&1 || fail "sqlite3 is required"
 if [[ "$ACTION" == "self-test" ]]; then
     self_test
     exit 0
