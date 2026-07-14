@@ -69,11 +69,17 @@ func workHoursMaximumCapsBaseAndEarnedGamingWithoutChangingAfterWorkAllowance() 
         isWithinWorkWindow: true
     )
     #expect(lockedDuringWork.budgetMinutes == 60)
+    #expect(lockedDuringWork.earnedMinutes == 0)
     #expect(lockedDuringWork.lockedMinutes == 10)
+    #expect(lockedDuringWork.unlockedRemainingMinutes == 60)
+    #expect(lockedDuringWork.workHoursMaximumEvaluation == .init(
+        configuredMaximumMinutes: 70,
+        isApplied: true
+    ))
 }
 
 @Test
-func configuredWorkWindowUsesPolicyTimeZoneAndRejectsAnInvalidMaximum() throws {
+func configuredWorkWindowUsesPolicyTimeZoneAndAcceptsATotalAllowanceMaximum() throws {
     let original = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
     let mondayAtNoonUTC = try #require(ISO8601DateFormatter().date(from: "2026-07-13T09:00:00Z"))
     let mondayAfterWorkUTC = try #require(ISO8601DateFormatter().date(from: "2026-07-13T20:00:00Z"))
@@ -81,12 +87,12 @@ func configuredWorkWindowUsesPolicyTimeZoneAndRejectsAnInvalidMaximum() throws {
     #expect(original.schedule.isWithinWorkWindow(at: mondayAtNoonUTC))
     #expect(!original.schedule.isWithinWorkWindow(at: mondayAfterWorkUTC))
 
-    let invalidGaming = GamingPolicy(
+    let partialRewardGaming = GamingPolicy(
         dailyBudgetMinutes: 60,
         priorityTaskRewardMinutes: 15,
-        workHoursDailyMaximumMinutes: 75
+        workHoursDailyMaximumMinutes: 70
     )
-    let invalid = UserPolicy(
+    let valid = UserPolicy(
         operatingMode: original.operatingMode,
         automationPause: original.automationPause,
         schedule: original.schedule,
@@ -95,8 +101,20 @@ func configuredWorkWindowUsesPolicyTimeZoneAndRejectsAnInvalidMaximum() throws {
         wake: original.wake,
         behavior: original.behavior,
         capture: original.capture,
-        gaming: invalidGaming,
+        gaming: partialRewardGaming,
         reminderLists: original.reminderLists
+    )
+    #expect(!valid.validationViolations().contains {
+        $0.field == "gaming.workHoursDailyMaximumMinutes"
+    })
+
+    let invalid = policyReplacingGaming(
+        original,
+        GamingPolicy(
+            dailyBudgetMinutes: 60,
+            priorityTaskRewardMinutes: 15,
+            workHoursDailyMaximumMinutes: 1_441
+        )
     )
     #expect(invalid.validationViolations().contains {
         $0.field == "gaming.workHoursDailyMaximumMinutes"
@@ -127,6 +145,57 @@ func workWindowUsesStartDayForTheAfterMidnightHalfOfAnOvernightWindow() throws {
     #expect(schedule.isWithinWorkWindow(at: mondayLate))
     #expect(schedule.isWithinWorkWindow(at: tuesdayEarly))
     #expect(!schedule.isWithinWorkWindow(at: tuesdayAfter))
+    let interval = try #require(schedule.workIntervals(on: mondayLate).first)
+    #expect(interval.end.timeIntervalSince(interval.start) == 8 * 60 * 60)
+
+    let policy = policyReplacingSchedule(.defaults(timeZoneIdentifier: "Africa/Cairo"), schedule)
+    #expect(!policy.validationViolations().contains { $0.code == .invalidWorkWindow })
+
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-overnight-work-window-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let databaseURL = root.appendingPathComponent("zoid.sqlite")
+    let store = try PolicyStore(databaseURL: databaseURL)
+    _ = try store.saveSystemMaintenancePolicy(policy)
+    let reopened = try #require(try PolicyStore(databaseURL: databaseURL).current()?.policy)
+    #expect(reopened.schedule.workWindows == schedule.workWindows)
+    #expect(reopened.schedule.isWithinWorkWindow(at: tuesdayEarly))
+}
+
+@Test
+func cyclicOverlapValidationDetectsTheAfterMidnightHalfWithoutRejectingTouchingEdges() {
+    let defaults = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
+    func policy(secondStart: LocalTime) -> UserPolicy {
+        policyReplacingSchedule(defaults, SchedulePolicy(
+            timeZoneIdentifier: "Africa/Cairo",
+            workWindows: [
+                WeeklyWorkWindow(
+                    weekdays: [.monday],
+                    start: LocalTime(hour: 23, minute: 0),
+                    end: LocalTime(hour: 7, minute: 0)
+                ),
+                WeeklyWorkWindow(
+                    weekdays: [.tuesday],
+                    start: secondStart,
+                    end: LocalTime(hour: 8, minute: 0)
+                ),
+            ],
+            quietHours: defaults.schedule.quietHours,
+            nightlyPlanningTime: defaults.schedule.nightlyPlanningTime,
+            morningConfirmationTime: defaults.schedule.morningConfirmationTime,
+            dailyReviewTime: defaults.schedule.dailyReviewTime,
+            planningCapacityPercent: defaults.schedule.planningCapacityPercent,
+            defaultCoachingPauseDuration: defaults.schedule.defaultCoachingPauseDuration
+        ))
+    }
+
+    #expect(policy(secondStart: LocalTime(hour: 6, minute: 0)).validationViolations().contains {
+        $0.code == .overlappingWorkWindows
+    })
+    #expect(!policy(secondStart: LocalTime(hour: 7, minute: 0)).validationViolations().contains {
+        $0.code == .overlappingWorkWindows
+    })
 }
 
 @Test
@@ -193,6 +262,23 @@ func disabledWorkHoursMaximumRoundTripsAsNoSeparateCap() {
 }
 
 @Test
+func settingsAllowsTheTotalAllowanceMaximumAcrossTheFullDailyRange() {
+    let original = UserPolicy.defaults(timeZoneIdentifier: "Africa/Cairo")
+    var draft = SettingsPolicyDraft(policy: original)
+    draft.gamingDailyBudgetMinutes = 60
+    draft.gamingPriorityTaskRewardMinutes = 15
+    draft.gamingWorkHoursMaximumEnabled = true
+    draft.gamingWorkHoursDailyMaximumMinutes = 1_440
+
+    let saved = draft.policy(preserving: original)
+
+    #expect(saved.gaming.workHoursDailyMaximumMinutes == 1_440)
+    #expect(!saved.validationViolations().contains {
+        $0.field == "gaming.workHoursDailyMaximumMinutes"
+    })
+}
+
+@Test
 func settingsConflictPreservesIndependentWorkHoursMaximumChange() {
     let base = SettingsPolicyDraft(policy: .defaults(timeZoneIdentifier: "Africa/Cairo"))
     var mine = base
@@ -236,7 +322,8 @@ func workHoursMaximumSettingsExposeStableAccessibilityContracts() throws {
     #expect(source.contains("settings.gaming.work-hours-maximum-enabled"))
     #expect(source.contains("settings.gaming.work-hours-maximum"))
     #expect(source.contains("settings.gaming.work-hours-maximum-detail"))
-    #expect(source.contains("Outside work hours, the normal daily allowance applies."))
+    #expect(source.contains("the total daily allowance, including base and unlocked rewards"))
+    #expect(source.contains("in: 0...1_440"))
     #expect(agent.contains("isWithinWorkWindow: userPolicy.schedule.isWithinWorkWindow(at: now)"))
     #expect(drift.contains("policy.schedule.isWithinWorkWindow(at: date)"))
     #expect(conflict.contains("Work-hours gaming maximum enabled"))
@@ -376,6 +463,50 @@ func menuBarOmitsDisabledMaximumOnlyAfterAProvenanceMatchedRefresh() {
 }
 
 @Test
+func menuBarUsesTheManualAdjustedAuthoritativeGamingStatus() {
+    let raw = GamingStatus(
+        budgetMinutes: 60,
+        earnedMinutes: 15,
+        usedMinutes: 20,
+        unlockedRemainingMinutes: 55,
+        nextUnlockReason: "Priority-task reward already applied today.",
+        confidenceIsLimited: false,
+        workHoursMaximumEvaluation: .init(configuredMaximumMinutes: 30, isApplied: false)
+    )
+    let adjusted = raw.applyingManualAdjustment(10)
+    let presentation = MenuBarCoachState(
+        snapshot: workHoursMenuSnapshot(raw),
+        gamingWorkHoursContext: .init(maximumMinutes: 30, isWithinWorkWindow: false),
+        authoritativeGamingStatus: adjusted,
+        gamingStatusIsConfirmed: true
+    ).gamingWorkHours
+
+    #expect(presentation?.remainingMinutes == 65)
+    #expect(presentation?.status == "Not active now · Normal allowance has 65m remaining")
+}
+
+@Test
+func menuBarWaitsWhenTheAuthoritativeGamingStatusIsNotConfirmedFresh() {
+    let status = GamingStatus(
+        budgetMinutes: 30,
+        usedMinutes: 20,
+        unlockedRemainingMinutes: 10,
+        nextUnlockReason: "Work-hours gaming is capped at 30 minutes.",
+        confidenceIsLimited: false,
+        workHoursMaximumEvaluation: .init(configuredMaximumMinutes: 30, isApplied: true)
+    )
+    let presentation = MenuBarCoachState(
+        snapshot: workHoursMenuSnapshot(status),
+        gamingWorkHoursContext: .init(maximumMinutes: 30, isWithinWorkWindow: true),
+        authoritativeGamingStatus: status,
+        gamingStatusIsConfirmed: false
+    ).gamingWorkHours
+
+    #expect(presentation?.isAwaitingRefresh == true)
+    #expect(presentation?.status == "Current allowance is awaiting a work-hours policy refresh")
+}
+
+@Test
 func menuBarWorkHoursMaximumExposesStableReadOnlyAccessibilityContracts() throws {
     let repositoryRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -390,6 +521,30 @@ func menuBarWorkHoursMaximumExposesStableReadOnlyAccessibilityContracts() throws
     #expect(source.contains("menu-bar.gaming.work-hours.maximum"))
     #expect(source.contains("menu-bar.gaming.work-hours.status"))
     #expect(!source.contains("menu-bar.gaming.work-hours.toggle"))
+    #expect(source.contains("authoritativeGamingStatus: appModel.todaySnapshot?.gaming"))
+    #expect(source.contains("controller.syncPresentation == .confirmed"))
+}
+
+@Test
+func workHoursMaximumProbeSelectsTheRequestedSurfaceAndScansPrivacyRecursively() throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let source = try String(
+        contentsOf: repositoryRoot.appendingPathComponent(
+            "Scripts/zc-029-010-work-hours-gaming-maximum-ax-probe.swift"
+        ),
+        encoding: .utf8
+    )
+
+    #expect(!source.contains("windows.first(where:"))
+    #expect(source.contains("usesApplicationRoot(mode)"))
+    #expect(source.contains("settings.gaming.work-hours-maximum-enabled"))
+    #expect(source.contains("today.gaming.status"))
+    #expect(source.contains("menu-bar.gaming.work-hours"))
+    #expect(source.contains("privacyViolation(in: elements.flatMap(strings))"))
+    #expect(source.contains("runSelfTest"))
 }
 
 private func workHoursMenuSnapshot(_ gaming: GamingStatus) -> TodaySnapshot {
@@ -405,5 +560,35 @@ private func workHoursMenuSnapshot(_ gaming: GamingStatus) -> TodaySnapshot {
         gaming: gaming,
         sourceFreshnessExplanation: "Current",
         sources: []
+    )
+}
+
+private func policyReplacingSchedule(_ policy: UserPolicy, _ schedule: SchedulePolicy) -> UserPolicy {
+    UserPolicy(
+        operatingMode: policy.operatingMode,
+        automationPause: policy.automationPause,
+        schedule: schedule,
+        calendar: policy.calendar,
+        privacy: policy.privacy,
+        wake: policy.wake,
+        behavior: policy.behavior,
+        capture: policy.capture,
+        gaming: policy.gaming,
+        reminderLists: policy.reminderLists
+    )
+}
+
+private func policyReplacingGaming(_ policy: UserPolicy, _ gaming: GamingPolicy) -> UserPolicy {
+    UserPolicy(
+        operatingMode: policy.operatingMode,
+        automationPause: policy.automationPause,
+        schedule: policy.schedule,
+        calendar: policy.calendar,
+        privacy: policy.privacy,
+        wake: policy.wake,
+        behavior: policy.behavior,
+        capture: policy.capture,
+        gaming: gaming,
+        reminderLists: policy.reminderLists
     )
 }

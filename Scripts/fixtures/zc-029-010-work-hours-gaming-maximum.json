@@ -14,7 +14,7 @@
     "toggleIdentifier": "settings.gaming.work-hours-maximum-enabled",
     "controlIdentifier": "settings.gaming.work-hours-maximum",
     "detailIdentifier": "settings.gaming.work-hours-maximum-detail",
-    "enabledDetail": "During configured work windows, total available gaming cannot exceed this maximum, including unlocked rewards. Outside work hours, the normal daily allowance applies.",
+    "enabledDetail": "During configured work windows, the total daily allowance, including base and unlocked rewards, cannot exceed this maximum. Outside work hours, the normal daily allowance applies.",
     "disabledDetail": "No separate work-hours maximum is applied. The normal daily allowance applies all day."
   },
   "menu": {

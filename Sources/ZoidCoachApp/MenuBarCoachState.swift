@@ -109,7 +109,9 @@ struct MenuBarCoachState: Equatable {
         coachingIsPaused: Bool = false,
         unresolvedPromptCount: Int = 0,
         notificationsUnavailable: Bool = false,
-        gamingWorkHoursContext: MenuBarGamingWorkHoursContext? = nil
+        gamingWorkHoursContext: MenuBarGamingWorkHoursContext? = nil,
+        authoritativeGamingStatus: GamingStatus? = nil,
+        gamingStatusIsConfirmed: Bool = true
     ) {
         self.snapshot = snapshot
         self.snapshotConfirmedAt = snapshotConfirmedAt
@@ -117,11 +119,12 @@ struct MenuBarCoachState: Equatable {
         self.unresolvedPromptCount = max(0, unresolvedPromptCount)
         notificationFallbackIsActive = notificationsUnavailable && unresolvedPromptCount > 0
         if let context = gamingWorkHoursContext,
-           let gaming = snapshot?.gaming,
+           let gaming = authoritativeGamingStatus ?? snapshot?.gaming,
            gaming.budgetEnabled {
             let evaluation = gaming.workHoursMaximumEvaluation
             let shouldApply = context.maximumMinutes != nil && context.isWithinWorkWindow
-            let provenanceMatches = evaluation?.configuredMaximumMinutes == context.maximumMinutes
+            let provenanceMatches = gamingStatusIsConfirmed
+                && evaluation?.configuredMaximumMinutes == context.maximumMinutes
                 && evaluation?.isApplied == shouldApply
             if context.maximumMinutes == nil, provenanceMatches {
                 gamingWorkHours = nil

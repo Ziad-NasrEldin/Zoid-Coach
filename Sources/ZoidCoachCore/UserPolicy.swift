@@ -759,7 +759,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
             } else if Set(window.weekdays).count != window.weekdays.count {
                 violations.append(.init(code: .duplicateWeekday, field: "schedule.workWindows[\(index)].weekdays"))
             }
-            if window.start >= window.end {
+            if window.start == window.end {
                 violations.append(.init(code: .invalidWorkWindow, field: "schedule.workWindows[\(index)]"))
             }
         }
@@ -827,7 +827,7 @@ public struct UserPolicy: Codable, Equatable, Sendable {
             violations.append(.init(code: .invalidGamingBudget, field: "gaming.dailyBudgetMinutes"))
         }
         if let maximum = gaming.workHoursDailyMaximumMinutes,
-           !(0...gaming.dailyBudgetMinutes).contains(maximum) {
+           !(0...1_440).contains(maximum) {
             violations.append(.init(code: .invalidGamingBudget, field: "gaming.workHoursDailyMaximumMinutes"))
         }
         if !(0...1_440).contains(gaming.priorityTaskRewardMinutes) {
@@ -882,19 +882,46 @@ public struct UserPolicy: Codable, Equatable, Sendable {
     }
 
     private func appendOverlappingWorkWindowViolations(to violations: inout [PolicyViolation]) {
-        for weekday in Weekday.allCases {
-            let indexed = schedule.workWindows.enumerated().filter { $0.element.weekdays.contains(weekday) }
-            for left in indexed.indices {
-                for right in indexed.indices where right > left {
-                    let first = indexed[left]
-                    let second = indexed[right]
-                    if first.element.start < second.element.end, second.element.start < first.element.end {
-                        violations.append(.init(
-                            code: .overlappingWorkWindows,
-                            field: "schedule.workWindows[\(first.offset),\(second.offset)].\(weekday.rawValue)"
-                        ))
-                    }
+        struct Segment {
+            let windowIndex: Int
+            let startMinute: Int
+            let endMinute: Int
+        }
+
+        let weekMinutes = 7 * 24 * 60
+        var segments: [Segment] = []
+        for (windowIndex, window) in schedule.workWindows.enumerated() where window.start != window.end {
+            for weekday in Set(window.weekdays) {
+                let dayStart = (weekday.rawValue - 1) * 24 * 60
+                let start = dayStart + window.start.minuteOfDay
+                let unwrappedEnd = dayStart + window.end.minuteOfDay
+                    + (window.end < window.start ? 24 * 60 : 0)
+                if unwrappedEnd <= weekMinutes {
+                    segments.append(Segment(windowIndex: windowIndex, startMinute: start, endMinute: unwrappedEnd))
+                } else {
+                    segments.append(Segment(windowIndex: windowIndex, startMinute: start, endMinute: weekMinutes))
+                    segments.append(Segment(windowIndex: windowIndex, startMinute: 0, endMinute: unwrappedEnd - weekMinutes))
                 }
+            }
+        }
+
+        var reportedPairs = Set<String>()
+        for leftIndex in segments.indices {
+            for rightIndex in segments.indices where rightIndex > leftIndex {
+                let left = segments[leftIndex]
+                let right = segments[rightIndex]
+                guard left.windowIndex != right.windowIndex,
+                      left.startMinute < right.endMinute,
+                      right.startMinute < left.endMinute
+                else { continue }
+                let first = min(left.windowIndex, right.windowIndex)
+                let second = max(left.windowIndex, right.windowIndex)
+                let pair = "\(first),\(second)"
+                guard reportedPairs.insert(pair).inserted else { continue }
+                violations.append(.init(
+                    code: .overlappingWorkWindows,
+                    field: "schedule.workWindows[\(pair)].cyclic"
+                ))
             }
         }
     }

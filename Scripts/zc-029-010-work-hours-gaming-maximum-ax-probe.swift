@@ -92,9 +92,15 @@ private func requireEnabled(_ element: AXUIElement, name: String) throws {
 }
 
 private func assertPrivacy(_ elements: [AXUIElement]) throws {
-    let exposed = elements.flatMap(strings).joined(separator: "\n")
-    for fragment in forbiddenPrivacyFragments where exposed.localizedCaseInsensitiveContains(fragment) {
+    if let fragment = privacyViolation(in: elements.flatMap(strings)) {
         throw Failure(message: "private fixture evidence leaked into accessibility: \(fragment)")
+    }
+}
+
+private func privacyViolation(in values: [String]) -> String? {
+    let exposed = values.joined(separator: "\n")
+    return forbiddenPrivacyFragments.first {
+        exposed.localizedCaseInsensitiveContains($0)
     }
 }
 
@@ -126,12 +132,71 @@ private func press(_ element: AXUIElement, name: String) throws {
     Thread.sleep(forTimeInterval: 0.35)
 }
 
-private func singleWindow(pid: pid_t) throws -> AXUIElement {
+private func requiredIdentifier(for mode: Mode) -> String {
+    switch mode {
+    case .settingsEnabled, .settingsPersisted, .settingsLowerBound, .settingsUpperBound:
+        "settings.gaming.work-hours-maximum-enabled"
+    case .withinWorkWindow, .outsideWorkWindow, .disabled, .partialLockedReward:
+        "today.gaming.status"
+    case .menuWithinWorkWindow, .menuOutsideWorkWindow, .menuAwaitingRefresh, .menuPrivacyScan:
+        "menu-bar.gaming.work-hours"
+    case .menuOmitted:
+        "menu-bar.coach"
+    }
+}
+
+private func usesApplicationRoot(_ mode: Mode) -> Bool {
+    switch mode {
+    case .menuWithinWorkWindow, .menuOutsideWorkWindow, .menuAwaitingRefresh, .menuPrivacyScan, .menuOmitted:
+        true
+    default:
+        false
+    }
+}
+
+private func selectedWindowIndex(mode: Mode, identifiersByWindow: [[String]]) -> Int? {
+    let required = requiredIdentifier(for: mode)
+    return identifiersByWindow.firstIndex { $0.contains(required) }
+}
+
+private func modeRoot(pid: pid_t, mode: Mode) throws -> AXUIElement {
     let app = AXUIElementCreateApplication(pid)
+    if usesApplicationRoot(mode) {
+        guard walk(app, limit: 10_000).contains(where: { identifier($0) == requiredIdentifier(for: mode) }) else {
+            throw Failure(message: "application accessibility tree does not contain \(requiredIdentifier(for: mode))")
+        }
+        return app
+    }
     guard let windows = attribute(app, kAXWindowsAttribute as CFString) as? [AXUIElement],
-          let window = windows.first(where: { (attribute($0, kAXMinimizedAttribute as CFString) as? Bool) != true })
-    else { throw Failure(message: "no non-minimized application window") }
-    return window
+          !windows.isEmpty
+    else { throw Failure(message: "no application windows") }
+    let candidates = windows.filter {
+        (attribute($0, kAXMinimizedAttribute as CFString) as? Bool) != true
+    }
+    let identifiers = candidates.map { window in walk(window).compactMap(identifier) }
+    let matches = identifiers.indices.filter { identifiers[$0].contains(requiredIdentifier(for: mode)) }
+    guard matches.count == 1, let index = matches.first else {
+        throw Failure(message: "no application window contains \(requiredIdentifier(for: mode))")
+    }
+    return candidates[index]
+}
+
+private func runSelfTest() throws {
+    let identifiers = [
+        ["today.gaming.status", "settings.navigation"],
+        ["menu-bar.coach", "menu-bar.gaming.work-hours"],
+        ["settings.gaming.work-hours-maximum-enabled"],
+    ]
+    guard selectedWindowIndex(mode: .settingsEnabled, identifiersByWindow: identifiers) == 2,
+          selectedWindowIndex(mode: .withinWorkWindow, identifiersByWindow: identifiers) == 0,
+          usesApplicationRoot(.menuPrivacyScan),
+          usesApplicationRoot(.menuOmitted),
+          !usesApplicationRoot(.settingsEnabled)
+    else { throw Failure(message: "mode-specific AX window selection failed") }
+    guard privacyViolation(in: ["30 MIN MAXIMUM", "10m remaining"]) == nil,
+          privacyViolation(in: ["PRIVATE-ZC029010-WINDOW-SENTINEL"]) == forbiddenPrivacyFragments[0]
+    else { throw Failure(message: "recursive accessibility privacy scan failed") }
+    print("PASS: ZC-029-010 accessibility probe selection and privacy self-test")
 }
 
 private func assertSettings(elements: [AXUIElement], exercise: Bool) throws {
@@ -139,7 +204,7 @@ private func assertSettings(elements: [AXUIElement], exercise: Bool) throws {
     let control = try requireIdentifier("settings.gaming.work-hours-maximum", in: elements)
     let detail = try requireIdentifier("settings.gaming.work-hours-maximum-detail", in: elements)
     try requireEnabled(toggle, name: "work-hours maximum toggle")
-    guard strings(detail).contains("During configured work windows, total available gaming cannot exceed this maximum, including unlocked rewards. Outside work hours, the normal daily allowance applies.") else {
+    guard strings(detail).contains("During configured work windows, the total daily allowance, including base and unlocked rewards, cannot exceed this maximum. Outside work hours, the normal daily allowance applies.") else {
         throw Failure(message: "enabled consequence copy is missing")
     }
     guard walk(control).flatMap(strings).contains("MAXIMUM DURING WORK HOURS, 30 MIN") else {
@@ -159,13 +224,18 @@ private func assertSettings(elements: [AXUIElement], exercise: Bool) throws {
 }
 
 private func run() throws {
+    if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
+        try runSelfTest()
+        return
+    }
     guard CommandLine.arguments.count == 3,
           let pid = pid_t(CommandLine.arguments[1]),
           let mode = Mode(rawValue: CommandLine.arguments[2])
     else { throw Failure(message: "usage: probe <pid> <settings-enabled|settings-persisted|settings-lower-bound|settings-upper-bound|within-work-window|outside-work-window|disabled|partial-locked-reward|menu-within-work-window|menu-outside-work-window|menu-awaiting-refresh|menu-privacy-scan|menu-omitted>") }
     guard AXIsProcessTrusted() else { throw Failure(message: "Accessibility permission is required") }
     guard kill(pid, 0) == 0 else { throw Failure(message: "process is not running") }
-    let elements = walk(try singleWindow(pid: pid))
+    let root = try modeRoot(pid: pid, mode: mode)
+    let elements = walk(root, limit: usesApplicationRoot(mode) ? 10_000 : 2_500)
     try assertPrivacy(elements)
     switch mode {
     case .settingsEnabled:
@@ -175,7 +245,7 @@ private func run() throws {
     case .settingsLowerBound:
         try assertSettingsBound(elements: elements, value: 0, decreaseEnabled: false, increaseEnabled: true)
     case .settingsUpperBound:
-        try assertSettingsBound(elements: elements, value: 60, decreaseEnabled: true, increaseEnabled: false)
+        try assertSettingsBound(elements: elements, value: 1_440, decreaseEnabled: true, increaseEnabled: false)
     case .withinWorkWindow, .outsideWorkWindow, .disabled, .partialLockedReward:
         _ = try requireIdentifier("today.gaming.status", in: elements)
         for value in expected[mode, default: []] where !containsExact(value, in: elements) {

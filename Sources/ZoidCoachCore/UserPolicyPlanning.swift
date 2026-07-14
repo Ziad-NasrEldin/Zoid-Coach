@@ -34,9 +34,17 @@ public extension SchedulePolicy {
         let startOfDay = calendar.startOfDay(for: day)
         guard let weekday = Weekday(rawValue: calendar.component(.weekday, from: day)) else { return [] }
         return workWindows.compactMap { window in
-            guard window.weekdays.contains(weekday),
-                  let start = calendar.date(bySettingHour: window.start.hour, minute: window.start.minute, second: 0, of: startOfDay),
-                  let end = calendar.date(bySettingHour: window.end.hour, minute: window.end.minute, second: 0, of: startOfDay),
+            guard window.weekdays.contains(weekday), window.start != window.end,
+                  let start = calendar.date(bySettingHour: window.start.hour, minute: window.start.minute, second: 0, of: startOfDay)
+            else { return nil }
+            let endDay: Date
+            if window.end < window.start {
+                guard let nextDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return nil }
+                endDay = nextDay
+            } else {
+                endDay = startOfDay
+            }
+            guard let end = calendar.date(bySettingHour: window.end.hour, minute: window.end.minute, second: 0, of: endDay),
                   start < end
             else { return nil }
             return CalendarInterval(start: start, end: end)
@@ -51,7 +59,8 @@ public extension SchedulePolicy {
         let configuredMinutes = workWindows
             .filter { $0.weekdays.contains(weekday) }
             .reduce(0) { total, window in
-                total + max(0, window.end.minuteOfDay - window.start.minuteOfDay)
+                let difference = window.end.minuteOfDay - window.start.minuteOfDay
+                return total + (difference > 0 ? difference : difference < 0 ? difference + 24 * 60 : 0)
             }
         let flexibleMinutes = max(0, configuredMinutes - max(0, fixedCommitmentMinutes))
         return Int((Double(flexibleMinutes) * Double(planningCapacityPercent) / 100).rounded(.down))

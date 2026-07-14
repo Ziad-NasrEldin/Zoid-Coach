@@ -38,6 +38,8 @@
   },
   "screenwatch": {
     "state": "healthy",
+    "rebaseToNow": true,
+    "timeZoneIdentifier": "Africa/Cairo",
     "days": [
       {
         "date": "2026-07-14",
@@ -45,6 +47,30 @@
           {
             "t": "2026-07-14T12:00:00Z",
             "epoch": 1784030400,
+            "app": "Steam",
+            "window": "PRIVATE-ZC029010-WINDOW-SENTINEL",
+            "url": "https://private-zc029010.invalid/raw?secret=sentinel",
+            "img": false
+          },
+          {
+            "t": "2026-07-14T12:05:00Z",
+            "epoch": 1784030700,
+            "app": "Steam",
+            "window": "PRIVATE-ZC029010-WINDOW-SENTINEL",
+            "url": "https://private-zc029010.invalid/raw?secret=sentinel",
+            "img": false
+          },
+          {
+            "t": "2026-07-14T12:10:00Z",
+            "epoch": 1784031000,
+            "app": "Steam",
+            "window": "PRIVATE-ZC029010-WINDOW-SENTINEL",
+            "url": "https://private-zc029010.invalid/raw?secret=sentinel",
+            "img": false
+          },
+          {
+            "t": "2026-07-14T12:15:00Z",
+            "epoch": 1784031300,
             "app": "Steam",
             "window": "PRIVATE-ZC029010-WINDOW-SENTINEL",
             "url": "https://private-zc029010.invalid/raw?secret=sentinel",

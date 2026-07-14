@@ -283,8 +283,27 @@ struct MenuBarCoachView: View {
             coachingIsPaused: pauseController.isPaused,
             unresolvedPromptCount: appModel.promptEpisodes.count,
             notificationsUnavailable: notificationsUnavailable,
-            gamingWorkHoursContext: appModel.menuBarGamingWorkHoursContext(at: date)
+            gamingWorkHoursContext: appModel.menuBarGamingWorkHoursContext(at: date),
+            authoritativeGamingStatus: appModel.todaySnapshot?.gaming,
+            gamingStatusIsConfirmed: menuGamingStatusIsConfirmed
         )
+    }
+
+    private var menuGamingStatusIsConfirmed: Bool {
+        guard controller.syncPresentation == .confirmed,
+              let confirmed = controller.snapshot,
+              let authoritative = appModel.todaySnapshot,
+              confirmed.localDate == authoritative.localDate,
+              confirmed.timeZoneIdentifier == authoritative.timeZoneIdentifier
+        else { return false }
+        let confirmedGaming = confirmed.gaming
+        let authoritativeGaming = authoritative.gaming
+        return confirmedGaming.budgetMinutes == authoritativeGaming.budgetMinutes
+            && confirmedGaming.earnedMinutes == authoritativeGaming.earnedMinutes
+            && confirmedGaming.usedMinutes == authoritativeGaming.usedMinutes
+            && confirmedGaming.lockedMinutes == authoritativeGaming.lockedMinutes
+            && confirmedGaming.budgetEnabled == authoritativeGaming.budgetEnabled
+            && confirmedGaming.workHoursMaximumEvaluation == authoritativeGaming.workHoursMaximumEvaluation
     }
 
     private var notificationsUnavailable: Bool {

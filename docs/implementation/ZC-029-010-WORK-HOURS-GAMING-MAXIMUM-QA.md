@@ -9,6 +9,9 @@ Use [the namespaced fixture](../../Scripts/fixtures/zc-029-010-work-hours-gaming
 Use [the namespaced ready-state fixture](../../Scripts/fixtures/zc-029-010-work-hours-gaming-maximum-ready-state.json) only through the existing QA ready-state preparer so reminders and Screenwatch data enter through their production fixture schemas.
 The ready-state schema intentionally has no policy field, so configure and persist the policy through Settings instead of inventing a fixture-only policy mutation.
 Run `Scripts/verify-zc-029-010-work-hours-gaming-maximum-fixture.sh` before starting.
+Prepare the isolated root with `python3 Scripts/prepare-qa-ready-state.py Scripts/fixtures/zc-029-010-work-hours-gaming-maximum-ready-state.json "$QA_ROOT" --replace` immediately before launching the signed app.
+The preparer rebases the five production-shaped Steam observations to the current `Africa/Cairo` day, keeps every adjacent gap at 300 seconds, and leaves the newest observation fresh.
+It fails closed during the first 20 minutes of that local day rather than splitting the meaningful session across two daily archives.
 
 Use an isolated signed QA root and the canonical installed-app lifecycle.
 Complete onboarding, connect the real local sources required by Today, and keep the app and agent on the same database.
@@ -19,9 +22,9 @@ Record the installed build identity and signing result before acceptance.
 1. Open Settings > Command in the installed signed app.
 2. Keep the gaming budget enabled, set the base to 60 minutes, and set the priority reward to 15 minutes.
 3. Enable `Use a separate maximum during configured work hours` and set `MAXIMUM DURING WORK HOURS` to 30 minutes.
-4. Confirm the separate maximum cannot be decremented below zero or incremented above the current base allowance.
+4. Confirm the separate total-allowance maximum cannot be decremented below zero or incremented above 1,440 minutes.
 Set the value to zero and run the probe with `settings-lower-bound`.
-Set the value to 60 and run the probe with `settings-upper-bound`.
+Set the value to 1,440 and run the probe with `settings-upper-bound`.
 Return the value to 30 before saving.
 5. Confirm the enabled consequence explains that base plus unlocked rewards are capped only in configured work windows and that the normal allowance returns outside them.
 6. Run `Scripts/zc-029-010-work-hours-gaming-maximum-ax-probe.swift <app-pid> settings-enabled`.
@@ -30,7 +33,7 @@ Return the value to 30 before saving.
 
 ## Real Today evidence
 
-Create 20 meaningful gaming minutes through connected production observation data.
+Confirm the freshly rebased production Screenwatch fixture produces exactly 20 meaningful gaming minutes.
 Do not insert a `today_snapshots` row or replace the rendered snapshot payload.
 Complete the real priority task so the production reward ledger records the configured 15-minute reward.
 Wait for the agent to publish a fresh Today snapshot, then refresh the app.
@@ -57,6 +60,7 @@ Open the menu and run `menu-omitted` to prove the read-only summary disappears w
 The menu must remain in `menu-awaiting-refresh` until a fresh snapshot confirms the disabled policy, then become omitted.
 
 For the partial-lock boundary, set the base to 60, reward to 15, and separate work-hours maximum to 70.
+The maximum is a total daily allowance, so 70 is valid even though it is above the 60-minute base and below the 75-minute base-plus-reward potential.
 Use a fresh QA local day with no reward ledger entry and no meaningful gaming observation.
 While inside the saved work window, confirm `Base 60m`, `Earned 0m`, `Locked 10m`, and `Remaining 60m`, then run `partial-locked-reward`.
 
@@ -66,7 +70,9 @@ Keep the Mac and policy on intentionally different time zones.
 Set an `Africa/Cairo` work window whose start or end lies between the two zones' current local times.
 Capture the saved schedule, system time, policy time zone, Today state before the Cairo boundary, and Today state after it.
 Acceptance requires the cap to switch at the saved policy-time-zone boundary, not the Mac's current time zone, with no manual snapshot replacement.
-Include an overnight window whose after-midnight portion belongs to the selected start weekday.
+Before the refresh, require `menu-awaiting-refresh`.
+After the refresh, require `workHoursMaximumEvaluation.configuredMaximumMinutes` to remain unchanged while `isApplied` flips.
+Save an overnight window, relaunch Settings to prove it persisted, and confirm its after-midnight portion belongs to the selected start weekday.
 
 ## Conflict and privacy proof
 

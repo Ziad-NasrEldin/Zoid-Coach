@@ -430,6 +430,36 @@ import ZoidCoachInfrastructure
 }
 
 @MainActor
+@Test func failedMenuRefreshLeavesWorkHoursAllowanceAwaitingConfirmation() async {
+    let gaming = GamingStatus(
+        budgetMinutes: 30,
+        usedMinutes: 20,
+        unlockedRemainingMinutes: 10,
+        nextUnlockReason: "Work-hours gaming is capped at 30 minutes.",
+        confidenceIsLimited: false,
+        workHoursMaximumEvaluation: .init(configuredMaximumMinutes: 30, isApplied: true)
+    )
+    let lastKnown = menuSnapshot(gaming: gaming)
+    let controller = MenuBarCoachController(client: RecordingMenuBarTodayClient(
+        fetchResult: .failure(MenuBarClientError.failed),
+        applyResults: []
+    ))
+
+    controller.adoptLastKnownSnapshot(lastKnown)
+    await controller.refresh()
+    let presentation = MenuBarCoachState(
+        snapshot: controller.snapshot,
+        gamingWorkHoursContext: .init(maximumMinutes: 30, isWithinWorkWindow: true),
+        authoritativeGamingStatus: gaming,
+        gamingStatusIsConfirmed: controller.syncPresentation == .confirmed
+    ).gamingWorkHours
+
+    #expect(controller.syncPresentation == .stale)
+    #expect(presentation?.isAwaitingRefresh == true)
+    #expect(presentation?.status == "Current allowance is awaiting a work-hours policy refresh")
+}
+
+@MainActor
 @Test func compactMenuFallbackNeverOverwritesNewerControllerTruth() async {
     let staleReady = menuSnapshot(
         rows: [menuTask(id: "task", title: "Task", state: .ready)]
@@ -935,7 +965,14 @@ private func menuSnapshot(
     rows: [TodayTaskRow] = [],
     activeTask: ActiveTaskSnapshot? = nil,
     recommendation: NextTaskRecommendation = .init(taskID: nil, sentence: "Nothing ready", reasons: []),
-    sources: [SourceFreshnessSnapshot] = []
+    sources: [SourceFreshnessSnapshot] = [],
+    gaming: GamingStatus = GamingStatus(
+        budgetMinutes: 60,
+        usedMinutes: 0,
+        unlockedRemainingMinutes: 0,
+        nextUnlockReason: "Finish one priority task",
+        confidenceIsLimited: false
+    )
 ) -> TodaySnapshot {
     TodaySnapshot(
         localDate: Date(timeIntervalSince1970: 1_800_000_000),
@@ -946,7 +983,7 @@ private func menuSnapshot(
         recommendation: recommendation,
         behavior: BehaviorSummary(),
         coverage: TelemetryCoverage(isLimited: sources.contains { $0.state == "limited" }, explanation: "Fixture coverage", lastObservationAt: nil),
-        gaming: GamingStatus(budgetMinutes: 60, usedMinutes: 0, unlockedRemainingMinutes: 0, nextUnlockReason: "Finish one priority task", confidenceIsLimited: false),
+        gaming: gaming,
         sourceFreshnessExplanation: "Fixture sources",
         sources: sources
     )
