@@ -430,6 +430,30 @@ import ZoidCoachInfrastructure
 }
 
 @MainActor
+@Test func compactMenuFallbackNeverOverwritesNewerControllerTruth() async {
+    let staleReady = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Task", state: .ready)]
+    )
+    let confirmedActive = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Task", state: .active, elapsedMinutes: 11)],
+        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 11)
+    )
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(confirmedActive),
+        applyResults: []
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.refresh()
+    controller.adoptLastKnownSnapshot(staleReady)
+
+    #expect(controller.state.activeTask?.taskID == "task")
+    #expect(controller.state.taskStatus == "Active · Open-ended · 11 min tracked")
+    #expect(controller.syncPresentation == .confirmed)
+    #expect(controller.errorMessage == nil)
+}
+
+@MainActor
 @Test func activeTaskCanBeMarkedBlockedWithARequiredReasonAndConfirmedSnapshot() async {
     let activeRow = menuTask(id: "task", title: "Write proposal", state: .active)
     let active = menuSnapshot(
