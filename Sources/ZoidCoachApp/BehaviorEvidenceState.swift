@@ -28,8 +28,21 @@ struct BehaviorEvidenceCategory: Identifiable, Equatable, Sendable {
     }
 }
 
+struct BehaviorEvidenceWorkCategory: Identifiable, Equatable, Sendable {
+    let category: WorkCategory
+    let minutes: Int
+
+    var id: WorkCategory { category }
+    var title: String { category.title }
+    var explanation: String { category.explanation }
+    var accessibilityLabel: String { "\(title), \(minutes) minute\(minutes == 1 ? "" : "s")" }
+    var accessibilityIdentifier: String { "today.behavior-evidence.work-category.\(category.rawValue)" }
+}
+
 struct BehaviorEvidenceState: Equatable, Sendable {
     let categories: [BehaviorEvidenceCategory]
+    let workCategories: [BehaviorEvidenceWorkCategory]
+    let workCategoryDetail: String
     let coverageTitle: String
     let coverageDetail: String
     let sourceIssueTitle: String?
@@ -57,6 +70,33 @@ struct BehaviorEvidenceState: Equatable, Sendable {
             BehaviorEvidenceCategory(classification: .idle, minutes: behavior.idleMinutes),
             BehaviorEvidenceCategory(classification: .unknown, minutes: behavior.unknownMinutes)
         ]
+        let workCategoryUsage = behavior.workCategoryUsage
+        workCategories = workCategoryUsage.map {
+            BehaviorEvidenceWorkCategory(category: $0.category, minutes: $0.observedMinutes)
+        }
+        let categorizedSeconds = workCategoryUsage
+            .filter { $0.category != .uncategorized }
+            .reduce(0) { $0 + $1.observedSeconds }
+        let uncategorizedSeconds = workCategoryUsage
+            .first { $0.category == .uncategorized }?.observedSeconds ?? 0
+        let categorizedMinutes = workCategories
+            .filter { $0.category != .uncategorized }
+            .reduce(0) { $0 + $1.minutes }
+        let uncategorizedMinutes = workCategories
+            .first { $0.category == .uncategorized }?.minutes ?? 0
+        if behavior.workMinutes == 0 && categorizedSeconds == 0 && uncategorizedSeconds == 0 {
+            workCategoryDetail = "No work-category time was observed today."
+        } else if categorizedSeconds == 0 && uncategorizedSeconds == 0 {
+            workCategoryDetail = "Work was observed, but the available application evidence does not identify a safe category. No category was guessed."
+        } else if categorizedMinutes == 0 && uncategorizedMinutes == 0 {
+            workCategoryDetail = "Work-category evidence exists, but every total is below one complete observed minute. Totals are never rounded up."
+        } else if uncategorizedSeconds > 0 && uncategorizedMinutes == 0 {
+            workCategoryDetail = "Less than one complete observed minute remains Uncategorized because application evidence alone cannot safely identify the kind of work."
+        } else if uncategorizedMinutes > 0 {
+            workCategoryDetail = "\(uncategorizedMinutes) minute\(uncategorizedMinutes == 1 ? " remains" : "s remain") Uncategorized because application evidence alone cannot safely identify the kind of work."
+        } else {
+            workCategoryDetail = "Only work observed in explicitly recognized tools is included in these categories."
+        }
         coverageTitle = coverage.isLimited ? "LIMITED COVERAGE" : "CURRENT COVERAGE"
         coverageDetail = coverage.explanation.isEmpty
             ? sourceFreshnessExplanation

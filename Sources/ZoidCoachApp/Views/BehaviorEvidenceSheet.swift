@@ -16,6 +16,7 @@ struct BehaviorEvidenceSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     categoryLedger
+                    workCategoryLedger
                     uncertaintyCard
                     coverageCard
                 }
@@ -54,7 +55,7 @@ struct BehaviorEvidenceSheet: View {
 
     private var categoryLedger: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("FIVE SEPARATE TOTALS")
+            Text("BEHAVIOR TOTALS")
                 .font(Sumi.label(9))
                 .sumiLabelTracking()
             HStack(spacing: 0) {
@@ -89,6 +90,13 @@ struct BehaviorEvidenceSheet: View {
             }
         }
         .accessibilityIdentifier("today.behavior-evidence.categories")
+    }
+
+    private var workCategoryLedger: some View {
+        BehaviorEvidenceWorkCategoryLedger(
+            categories: evidence.workCategories,
+            detail: evidence.workCategoryDetail
+        )
     }
 
     private var uncertaintyCard: some View {
@@ -153,5 +161,61 @@ struct BehaviorEvidenceSheet: View {
         }
         .padding(18)
         .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+    }
+}
+
+struct BehaviorEvidenceWorkCategoryLedger: View {
+    let categories: [BehaviorEvidenceWorkCategory]
+    let detail: String
+
+    private var rows: [[BehaviorEvidenceWorkCategory]] {
+        stride(from: 0, to: categories.count, by: 3).map { start in
+            Array(categories[start..<min(start + 3, categories.count)])
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("WORK CATEGORIES")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+            Text(detail)
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 8) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    HStack(alignment: .top, spacing: 8) {
+                        ForEach(row) { category in
+                            categoryCard(category)
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.behavior-evidence.work-categories")
+    }
+
+    private func categoryCard(_ category: BehaviorEvidenceWorkCategory) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("\(category.minutes)m")
+                .font(Sumi.display(18))
+            Text(category.title.uppercased())
+                .font(Sumi.label(7))
+                .sumiLabelTracking()
+                .foregroundStyle(category.category == .uncategorized ? Sumi.seal : Sumi.muted)
+            Text(category.explanation)
+                .font(Sumi.body(10))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(11)
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+        .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(category.accessibilityLabel)
+        .accessibilityHint(category.explanation)
+        .accessibilityIdentifier(category.accessibilityIdentifier)
     }
 }
