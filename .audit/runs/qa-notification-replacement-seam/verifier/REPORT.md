@@ -62,6 +62,19 @@ After another completed lane released disk space, the orchestrator granted one f
 
 The verifier repair therefore has a green release build.
 
+## Signed installed-app checkpoint
+
+- A release QA package was created against an isolated QA root and passed package, signing, LaunchAgent, Mach service, and designated-requirement validation.
+- The signed app visibly rendered the `SIGNED QA - NOTIFICATION REPLACEMENT` control and all three named actions inside Notification Delivery.
+- The safe Create Original path checked the real `UNUserNotificationCenter` without requesting authorization.
+- The app visibly reported `Original prompt is in Today, but macOS did not accept the notification.`.
+- No notification permission prompt was approved and no System Settings value was changed.
+- Because the QA bundle was not already authorized, the run stopped before replacement, action routing, or relaunch as required by the runtime safety boundary.
+- The native accessibility tree also revealed that the containing view's identifier overwrites the intended child button and status identifiers, so every probe element appeared as `settings.qa-notification-replacement` even though the visible names remained reachable.
+- The verifier removed that overriding container identifier, centralized four distinct child identifiers, and added a source-level uniqueness contract test.
+- No Notification Center card, changed action set, newest response, or relaunch behavior is claimed from this run.
+- The QA LaunchAgent was unregistered and the isolated app, database, and temporary accessibility artifacts were removed at the cap.
+
 ## Remaining signed acceptance
 
 1. Confirm that notification permission is already authorized for the isolated QA bundle without changing System Settings or approving a prompt.
@@ -69,5 +82,7 @@ The verifier repair therefore has a green release build.
 3. Replace it and inspect exactly one card with the updated title, body, and plan-changed actions.
 4. Invoke Undo from the newest card and prove the response belongs only to the replacement episode.
 5. Restart app and helper and prove the response remains durable and the original card does not return.
+
+The repaired child identifiers still require a short signed native AX recheck after the build lease becomes available.
 
 The signed runtime lease may now be requested because the repaired focused tests and release build are green.
