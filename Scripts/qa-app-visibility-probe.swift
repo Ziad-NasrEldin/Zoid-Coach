@@ -98,7 +98,6 @@ struct BackgroundVisibilityState {
         return .statusItemUnavailable
     }
 }
-
 private let maximumDiagnosticWindows = 24
 private let diagnosticTimeLimit: TimeInterval = 0.25
 private let knownWindowTitles = Set(["Zoid 666", "Zoid 666 QA", "Background Agent"])
@@ -142,7 +141,6 @@ func processIsAlive(_ pid: Int32) -> Bool {
     if kill(pid, 0) == 0 { return true }
     return errno == EPERM
 }
-
 func attributeDescription(_ element: AXUIElement, _ attribute: CFString) -> String {
     guard let result = value(element, attribute) else { return "unknown" }
     if let flag = result as? Bool { return flag ? "true" : "false" }
@@ -260,7 +258,6 @@ func runSelfTests() {
             "process and accessibility exit codes differ")
     print("PASS: visibility probe state-machine self-tests")
 }
-
 var diagnosticApplication: AXUIElement?
 var diagnosticPID: Int32?
 
