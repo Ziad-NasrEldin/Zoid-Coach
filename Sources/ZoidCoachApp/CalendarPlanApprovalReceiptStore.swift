@@ -21,4 +21,8 @@ final class CalendarPlanApprovalReceiptStore: @unchecked Sendable {
     func save(_ receipt: CalendarPlanApprovalReceipt) throws {
         defaults.set(try encoder.encode(receipt), forKey: key)
     }
+
+    func clear() {
+        defaults.removeObject(forKey: key)
+    }
 }

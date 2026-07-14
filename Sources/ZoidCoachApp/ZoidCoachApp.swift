@@ -14,6 +14,12 @@ struct ZoidCoachApplication: App {
     private let launchesForBackgroundScheduling: Bool
 
     init() {
+        if CommandLine.arguments.contains(ZC052005AcceptanceProbe.argument) {
+            let exitCode = ZC052005AcceptanceProbe.run()
+            fflush(stdout)
+            fflush(stderr)
+            Darwin.exit(exitCode)
+        }
         if CommandLine.arguments.contains(ReminderCompletionSyncXPCProbe.argument) {
             let exitCode = ReminderCompletionSyncXPCProbe.run()
             fflush(stdout)

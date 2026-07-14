@@ -72,6 +72,40 @@ func pendingMutationIdentityUsesTheRuntimeIsolatedDefaultsSuite() throws {
     #expect(otherRun.operationID != initial.operationID)
 }
 
+@Test
+func calendarPlanOperationIdentitySurvivesLostReplyAndClientRelaunch() throws {
+    let suiteName = "zoid666-calendar-plan-client-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let day = Date(timeIntervalSince1970: 1_752_489_600)
+
+    let firstClient = TaskMutationClientState(defaults: defaults, namespace: "test-agent")
+    let first = firstClient.calendarPlanRequest(day: day)
+    let relaunchedClient = TaskMutationClientState(defaults: defaults, namespace: "test-agent")
+    let replay = relaunchedClient.calendarPlanRequest(day: day)
+
+    #expect(replay.operationID == first.operationID)
+    #expect(replay.day == first.day)
+    #expect(relaunchedClient.pendingCalendarPlanRequests() == [first])
+
+    relaunchedClient.completeCalendarPlan(first)
+    #expect(relaunchedClient.pendingCalendarPlanRequests().isEmpty)
+    #expect(relaunchedClient.calendarPlanRequest(day: day).operationID != first.operationID)
+}
+
+@Test
+func pendingTaskMutationRequestsRemainReplayableAfterLostReply() throws {
+    let suiteName = "zoid666-pending-task-replay-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let firstClient = TaskMutationClientState(defaults: defaults, namespace: "test-agent")
+    let request = firstClient.request(command: .complete, taskID: "reminder-1")
+    let relaunchedClient = TaskMutationClientState(defaults: defaults, namespace: "test-agent")
+
+    #expect(relaunchedClient.pendingTaskRequests() == [request])
+}
+
 private func taskMutationQARuntime(_ label: String) throws -> RuntimeEnvironment {
     let root = FileManager.default.temporaryDirectory
         .appendingPathComponent("task-mutation-client-\(label)-\(UUID().uuidString)", isDirectory: true)

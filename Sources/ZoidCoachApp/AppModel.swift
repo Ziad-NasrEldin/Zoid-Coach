@@ -198,6 +198,16 @@ final class AppModel: ObservableObject {
         }
         Task {
             updateSource(resolvedAgentLaunchService.reconcileAtLaunchAndInspect())
+            let reconciledTaskSnapshots = await resolvedTodayDashboardXPCClient.reconcilePendingTaskMutations()
+            if let latest = reconciledTaskSnapshots.last {
+                todaySnapshot = latest
+            }
+            let reconciledCalendarReceipts = await resolvedTodayDashboardXPCClient.reconcilePendingCalendarPlans()
+            if let receipt = reconciledCalendarReceipts.last, receipt.accepted {
+                calendarPlanApproval.queued(commandIDs: receipt.commandIDs)
+                persistCalendarPlanApprovalReceipt()
+                lastActionMessage = receipt.message
+            }
             await refreshAllSources()
             await refreshReminderTasks()
             await reloadDailyPlan()
@@ -207,6 +217,7 @@ final class AppModel: ObservableObject {
             await refreshTodaySnapshot()
             await refreshPromptInbox()
             await refreshActionAudit()
+            reconcileCalendarPlanApproval()
             await refreshRuntimeSafety()
             await refreshCaptureHealth()
         }
@@ -1117,13 +1128,15 @@ final class AppModel: ObservableObject {
         }
 
         isSchedulingDailyPlan = true
-        calendarPlanApproval.writeState = .queueing
+        calendarPlanApproval.markReconciling()
+        persistCalendarPlanApprovalReceipt()
         calendarScheduleError = nil
         Task {
             do {
-                let receipt = try await todayDashboardXPCClient.apply(.schedulePlan(day: Date()))
+                let receipt = try await todayDashboardXPCClient.schedulePlan(day: Date())
                 guard receipt.accepted else {
-                    calendarPlanApproval.writeState = .reviewing
+                    calendarPlanApproval.returnToReviewAfterAuthoritativeRefusal()
+                    calendarPlanApprovalReceiptStore.clear()
                     calendarScheduleError = receipt.message
                     isSchedulingDailyPlan = false
                     return
@@ -1134,8 +1147,9 @@ final class AppModel: ObservableObject {
                 await refreshActionAudit()
                 reconcileCalendarPlanApproval()
             } catch {
-                calendarScheduleError = "The background agent could not queue Calendar blocks. Check Source health and try again."
-                calendarPlanApproval.writeState = .reviewing
+                calendarScheduleError = nil
+                lastActionMessage = "The Calendar write reply was interrupted. The same approved operation remains pending and will be reconciled without duplicate changes after the agent reconnects."
+                persistCalendarPlanApprovalReceipt()
             }
             isSchedulingDailyPlan = false
         }
@@ -1196,6 +1210,12 @@ final class AppModel: ObservableObject {
 
     func recheckCalendarPlanWrite() {
         Task {
+            let receipts = await todayDashboardXPCClient.reconcilePendingCalendarPlans()
+            if let receipt = receipts.last, receipt.accepted {
+                calendarPlanApproval.queued(commandIDs: receipt.commandIDs)
+                persistCalendarPlanApprovalReceipt()
+                lastActionMessage = receipt.message
+            }
             await refreshActionAudit()
             reconcileCalendarPlanApproval()
         }
