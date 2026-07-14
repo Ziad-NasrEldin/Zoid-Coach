@@ -159,6 +159,31 @@ struct CalendarPlanApprovalStateTests {
         #expect(state.receipt?.commandCount == 2)
     }
 
+    @Test("authoritative zero-write refusal clears a pre-send reconciling receipt")
+    func authoritativeRefusalClearsReconcilingReceipt() throws {
+        let suite = "calendar-plan-refusal-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = CalendarPlanApprovalReceiptStore(defaults: defaults)
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 45)],
+            titlesByReminderID: ["main": "Write proposal"],
+            availableMinutes: 120,
+            fixedCommitmentMinutes: 30,
+            usesCalendarAvailability: true
+        )
+        state.markReconciling()
+        try store.save(try #require(state.receipt))
+
+        state.returnToReviewAfterAuthoritativeRefusal()
+        store.clear()
+
+        #expect(state.writeState == .reviewing)
+        #expect(state.receipt == nil)
+        #expect(store.load() == nil)
+    }
+
     @Test("partial command progress remains pending across receipt restore")
     func partialProgressRestoresPending() throws {
         var state = CalendarPlanApprovalState()

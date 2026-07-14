@@ -166,7 +166,7 @@ public enum AgentMutationCommand: Equatable, Codable, Sendable {
     case deleteReviewsAndLearnedRules
     case deleteAllUserData
     case draftPlan(day: Date, overwriteExisting: Bool)
-    case schedulePlan(day: Date)
+    case schedulePlan(day: Date, operationID: UUID)
     case resolveMeetingCandidate(
         candidateID: String,
         title: String,
