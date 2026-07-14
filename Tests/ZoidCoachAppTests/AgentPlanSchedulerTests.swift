@@ -79,6 +79,88 @@ func agentSchedulerConstrainsBlocksByFixedCalendarAndEnqueuesReminderMutations()
 }
 
 @Test
+func preparedCalendarScheduleFreezesReviewedInputsAcrossReplay() async throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-plan-scheduler-frozen-\(UUID().uuidString).sqlite")
+    defer { removePlanSchedulerDatabase(url) }
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    let day = try #require(calendar.date(from: DateComponents(year: 2026, month: 7, day: 6)))
+    let now = try #require(calendar.date(bySettingHour: 8, minute: 0, second: 0, of: day))
+    let plans = try AutonomousPlanStore(databaseURL: url)
+    try plans.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [
+                PlannedTask(
+                    taskID: "task-1",
+                    title: "Original title",
+                    rank: 1,
+                    estimateMinutes: 30,
+                    reason: "Reviewed",
+                    score: 100
+                )
+            ],
+            mainObjectiveTaskID: "task-1",
+            plannedFocusMinutes: 30,
+            availableFocusMinutes: 300
+        ),
+        for: day
+    )
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(
+            id: "task-1",
+            title: "Original title",
+            dueDate: nil,
+            priority: 0
+        )
+    ])
+    let outbox = try ActionOutboxStore(databaseURL: url)
+    let scheduler = AgentPlanScheduler(
+        plans: plans,
+        reminders: reminders,
+        outbox: outbox,
+        calendar: SchedulerCalendar(commitments: []),
+        now: { now }
+    )
+    let policy = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    let prepared = try await scheduler.prepareSchedule(
+        for: day,
+        policy: policy,
+        policyVersion: 1
+    )
+
+    try reminders.replace([
+        ReminderSourceSnapshot(
+            id: "task-1",
+            title: "Changed after lost reply",
+            dueDate: day,
+            priority: 9
+        )
+    ])
+    let changedFingerprint = try scheduler.makeRequestFingerprint(
+        for: day,
+        policy: policy,
+        policyVersion: 1
+    )
+    #expect(changedFingerprint != prepared.requestFingerprint)
+
+    let first = try scheduler.enqueuePreparedSchedule(prepared)
+    let replay = try scheduler.enqueuePreparedSchedule(prepared)
+    #expect(replay.commandIDs == first.commandIDs)
+    #expect(replay.requiredCommands == first.requiredCommands)
+    let commands = try outbox.recentCommands(limit: 20)
+    let calendarCommand = try #require(
+        commands.first { $0.type == .reconcileCalendarBlock && $0.entityID == "task-1" }
+    )
+    guard case let .calendarBlock(desired) = calendarCommand.desiredState else {
+        Issue.record("Expected a frozen Calendar block")
+        return
+    }
+    #expect(desired.title == "Original title")
+}
+
+@Test
 func daytimeReplanPreservesPastAndActiveOwnedBlocks() async throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-plan-scheduler-daytime-\(UUID().uuidString).sqlite")
     defer { removePlanSchedulerDatabase(url) }

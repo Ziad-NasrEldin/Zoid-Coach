@@ -176,9 +176,16 @@ struct CalendarPlanApprovalStateTests {
         state.markReconciling()
         try store.save(try #require(state.receipt))
 
-        state.returnToReviewAfterAuthoritativeRefusal()
-        store.clear()
+        let accepted = CalendarPlanReceiptReconciler.apply(
+            AgentMutationReceipt(
+                accepted: false,
+                message: "Calendar availability changed. Nothing was written."
+            ),
+            to: &state,
+            store: store
+        )
 
+        #expect(!accepted)
         #expect(state.writeState == .reviewing)
         #expect(state.receipt == nil)
         #expect(store.load() == nil)

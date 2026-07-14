@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 43
+    public static let currentVersion = 44
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1163,6 +1163,25 @@ private extension AutonomousDatabaseMigrator {
                 table: "task_history",
                 sql: "CREATE UNIQUE INDEX IF NOT EXISTS task_history_operation_state ON task_history(operation_id, state) WHERE operation_id IS NOT NULL;"
             )
+        ]),
+        Migration(version: 44, isDestructive: false, operations: [
+            .sql("""
+            CREATE TABLE IF NOT EXISTS calendar_plan_operations (
+                operation_id TEXT PRIMARY KEY,
+                request_fingerprint TEXT NOT NULL,
+                normalized_day_utc TEXT NOT NULL,
+                state TEXT NOT NULL CHECK(state IN ('pending', 'completed', 'refused')),
+                prepared_schedule_json BLOB NOT NULL,
+                required_commands_json BLOB NOT NULL,
+                command_ids_json BLOB,
+                receipt_json BLOB,
+                last_diagnostic TEXT,
+                requested_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS calendar_plan_operations_state
+            ON calendar_plan_operations(state, requested_at_utc);
+            """)
         ])
     ]
 }
