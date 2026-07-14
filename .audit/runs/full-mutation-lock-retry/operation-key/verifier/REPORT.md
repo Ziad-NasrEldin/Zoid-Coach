@@ -61,3 +61,36 @@ The scenario remains `Partially implemented` until the signed temporary-lock, pe
 ## Current Verdict
 
 The candidate plus verifier repairs pass the automated source acceptance boundary but are not yet fully usable end to end.
+
+## Partial Signed Acceptance
+
+The exact verifier tip was packaged in release mode as an installed signed-QA app using `/private/tmp/zoid-666-operation-key-signed` and `/private/tmp/zoid-666-operation-key-install`.
+The ready-state window exposed `111` native accessibility content nodes and the real Today controls.
+
+The initial fixture Reminder inventory circle routed through the separate generic Reminder action command rather than `TodayDashboardAgent.apply`.
+It produced one successful `completeReminder` outbox action but no task-mutation operation row, so it was rejected as proof for the durable operation-key path.
+
+The verifier then created the visible local task `Temporary lock acceptance`, started it through the task-activity XPC path while a real exclusive SQLite lock was released within the bounded interval, and saw the visible `Task started.` confirmation.
+The verifier completed the same visible task during a second temporary exclusive lock and saw the task disappear, the gaming budget advance from `60m` to `75m`, and `Task completion is queued for Reminders sync.`
+The final completion operation had one completed operation row, exactly six completion receipts, one completed history row, one reward row, one learning sample, and one final Today snapshot row.
+The local-task path intentionally produced zero action-outbox rows because local tasks do not write Apple Reminders.
+The visible Reminders-sync confirmation is therefore inaccurate for a local task and remains an end-user copy defect outside the durable-operation repair.
+The installed app and QA helper were restarted, and the completed start and completion operation IDs plus the raw completion cardinalities remained in the database.
+The relaunched Today surface retained the `75m` rewarded budget and no ready planned task.
+
+The persistent-lock attempt was inconclusive.
+The visible `Persistent lock acceptance` start operation completed and the task became active, which means the external lock had released before that user mutation reached the guarded write boundary.
+It did not produce the required truthful failure state or zero-partial-row proof and must not be counted as persistent-lock acceptance.
+
+The deterministic signed Calendar fixture existed, but the runtime cap elapsed before a committed-command lost-reply and receipt journey could begin.
+No Calendar result is claimed.
+The signed run also did not simulate a lost XPC reply while the client operation identity was pending, so client-side pending-ID persistence remains covered only by the automated isolated-UserDefaults regression.
+
+Signed evidence is preserved in `runtime/ready.png`, `runtime/temporary-lock-success.png`, `runtime/final-before-cleanup.png`, and `runtime/acceptance.sqlite`.
+The signed app, QA helper, LaunchAgent, install directory, and QA run root were removed at the runtime cap.
+No isolated runtime process or LaunchAgent remains.
+
+## Signed Status Recommendation
+
+Keep `ZC-052-005` at `Partially implemented`.
+The temporary-lock task-activity path and relaunch persistence are now visibly and durably proven for a local task, but the required external-Reminder outbox cardinality, persistent-lock failure boundary, pending-client lost-reply relaunch, and Calendar receipt reconciliation remain unverified.
