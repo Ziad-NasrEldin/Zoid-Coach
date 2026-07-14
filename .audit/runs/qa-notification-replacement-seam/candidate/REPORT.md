@@ -19,21 +19,29 @@ Production mode and unpackaged QA mode render no control and cannot construct th
 
 The new view provides Create Original, Replace With Update, and Refresh Result controls with stable accessibility identifiers.
 It reports whether macOS accepted each request and whether the newest notification action was durably recorded.
-The view is not yet inserted into `SettingsView` because that shared file remains exclusively leased to the active time-zone lane.
-Wiring is intentionally a one-line follow-up after that lease transfers.
+After the time-zone lane integrated at `69fd38fcbb4969063abe1532d5dbaae9ad733cd8`, the candidate rebased onto that exact tip and added one `SettingsView` insertion.
+The signed-QA-only view now appears inside Notification Delivery while production and unpackaged QA render nothing.
 
 ## Deterministic coverage
 
 Focused tests were written red before the service existed.
 They cover production and unpackaged-QA refusal, different episode identifiers with one stable request identity, changed content replacement, distinct logical decisions, newest notification action routing, persisted response state, and reconstructed-store relaunch without obsolete-notification resurrection.
 
-The focused green run and release build are pending the serialized build lease.
+The first post-implementation compile found one controller initialization defect because retained optional dependencies were immutable across success and failure branches.
+The fix made only those two private optionals mutable.
+The next test run exposed that the fixed test clock was later than the probe's default expiry clock and that probe episodes had not opted into safe dismissal before supersession.
+The test now injects the same deterministic clock, and the QA-only prompt payload explicitly permits dismissal.
+
+`swift test --filter "QANotificationReplacementProbeTests|PromptNotificationCoordinatorTests"` then passed all focused probe and coordinator tests.
+`swift build -c release` passed.
+`git diff --check` passed.
+
 The real Notification Center and TCC journey remains pending a separate runtime lease and explicit user-controlled permission handling.
 
 ## Owned files
 
 - `Sources/ZoidCoachInfrastructure/QANotificationReplacementProbe.swift`
 - `Sources/ZoidCoachApp/Views/QANotificationReplacementProbeView.swift`
+- `Sources/ZoidCoachApp/Views/SettingsView.swift`
 - `Tests/ZoidCoachAppTests/QANotificationReplacementProbeTests.swift`
 - `.audit/runs/qa-notification-replacement-seam/candidate/REPORT.md`
-

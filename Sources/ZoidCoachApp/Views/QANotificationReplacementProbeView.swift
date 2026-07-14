@@ -10,8 +10,8 @@ final class QANotificationReplacementProbeController: ObservableObject {
 
     let isAvailable: Bool
 
-    private let coordinator: PromptNotificationCoordinator?
-    private let probe: QANotificationReplacementProbe?
+    private var coordinator: PromptNotificationCoordinator?
+    private var probe: QANotificationReplacementProbe?
 
     init(runtimeEnvironment: RuntimeEnvironment = .current()) {
         isAvailable = QANotificationReplacementProbe.isAvailable(in: runtimeEnvironment)
