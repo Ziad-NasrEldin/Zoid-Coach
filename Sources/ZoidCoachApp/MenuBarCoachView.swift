@@ -402,19 +402,26 @@ struct MenuBarCoachView: View {
                 }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(menuState.taskStatus(at: context.date))
-                            .font(Sumi.body(11))
-                            .foregroundStyle(Sumi.muted)
-                            .accessibilityIdentifier("menu-bar.task.status")
-                        Text(menuState.compactTaskFacts.joined(separator: " · "))
-                            .font(Sumi.body(10))
-                            .foregroundStyle(Sumi.muted)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .accessibilityIdentifier("menu-bar.task.facts")
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(menuState.taskStatus(at: context.date))
+                                .font(Sumi.body(11))
+                                .foregroundStyle(Sumi.muted)
+                                .accessibilityIdentifier("menu-bar.task.status")
+                            Text(menuState.compactTaskFacts.joined(separator: " · "))
+                                .font(Sumi.body(10))
+                                .foregroundStyle(Sumi.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("menu-bar.task.facts")
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(menuState.compactTaskAccessibilitySummary(at: context.date) ?? "No active task")
+                        .accessibilityIdentifier("menu-bar.task.summary")
+
+                        if let comparison = menuState.activeTimeComparison(at: context.date) {
+                            MenuBarActiveTimeComparisonView(comparison: comparison)
+                        }
                     }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(menuState.compactTaskAccessibilitySummary(at: context.date) ?? "No active task")
-                    .accessibilityIdentifier("menu-bar.task.summary")
+                    .accessibilityElement(children: .contain)
                 }
 
                 LazyVGrid(

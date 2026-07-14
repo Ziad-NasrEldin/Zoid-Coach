@@ -157,6 +157,17 @@ struct MenuBarCoachState: Equatable {
         activeTask.flatMap { ActiveCommitmentPresentation(task: $0) }
     }
 
+    func activeTimeComparison(at date: Date) -> MenuBarActiveTimeComparison? {
+        guard let activeTask,
+              let comparison = activeTask.activeTimeComparison
+        else { return nil }
+        return MenuBarActiveTimeComparison(
+            elapsedMinutes: liveElapsedMinutes(for: activeTask, at: date),
+            observedAlignedMinutes: comparison.observedAlignedMinutes,
+            evidenceExplanation: comparison.evidenceExplanation
+        )
+    }
+
     var compactTaskFacts: [String] {
         guard let task = primaryTask else { return [] }
         var facts: [String] = []
@@ -240,5 +251,30 @@ struct MenuBarCoachState: Equatable {
         state.trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
             .replacingOccurrences(of: " ", with: "_")
+    }
+}
+
+struct MenuBarActiveTimeComparison: Equatable {
+    let elapsedMinutes: Int
+    let observedAlignedMinutes: Int
+    let evidenceExplanation: String
+
+    init(elapsedMinutes: Int, observedAlignedMinutes: Int, evidenceExplanation: String) {
+        self.elapsedMinutes = max(0, elapsedMinutes)
+        self.observedAlignedMinutes = max(0, observedAlignedMinutes)
+        self.evidenceExplanation = evidenceExplanation
+    }
+
+    var elapsedText: String { "\(elapsedMinutes) MIN ELAPSED" }
+    var alignedText: String { "\(observedAlignedMinutes) MIN OBSERVED ALIGNED" }
+    var elapsedAccessibilityText: String { "Task elapsed, \(minuteDescription(elapsedMinutes))" }
+    var alignedAccessibilityText: String { "Observed aligned, \(minuteDescription(observedAlignedMinutes))" }
+
+    var accessibilitySummary: String {
+        "Task elapsed \(minuteDescription(elapsedMinutes)). Observed aligned \(minuteDescription(observedAlignedMinutes)). \(evidenceExplanation)"
+    }
+
+    private func minuteDescription(_ minutes: Int) -> String {
+        "\(minutes) \(minutes == 1 ? "minute" : "minutes")"
     }
 }
