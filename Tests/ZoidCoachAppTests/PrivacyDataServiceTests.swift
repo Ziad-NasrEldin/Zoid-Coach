@@ -78,6 +78,9 @@ func privacyDateDeletionRemovesCanonicalAndProjectedPlansForTheInclusiveLocalDay
     INSERT INTO daily_plan_entries (day_key, reminder_id, rank, is_main_objective, estimate_minutes, updated_at)
     VALUES ('2026-07-12', 'task-1', 0, 1, 30, '2026-07-12T06:00:00Z'),
            ('2026-07-13', 'task-2', 0, 1, 30, '2026-07-13T06:00:00Z');
+    INSERT INTO daily_review_session_merges (id, source_day, left_start_epoch, right_start_epoch, created_at_utc)
+    VALUES ('delete-merge', '2026-07-12', 1000, 1060, '2026-07-12T06:00:00Z'),
+           ('keep-merge', '2026-07-13', 2000, 2060, '2026-07-13T06:00:00Z');
     """
     #expect(sqlite3_exec(database, setup, nil, nil, nil) == SQLITE_OK)
     sqlite3_close(database)
@@ -85,8 +88,15 @@ func privacyDateDeletionRemovesCanonicalAndProjectedPlansForTheInclusiveLocalDay
     calendar.timeZone = try #require(TimeZone(identifier: "Africa/Cairo"))
     let start = try #require(calendar.date(from: DateComponents(year: 2026, month: 7, day: 12)))
     let end = try #require(calendar.date(byAdding: .day, value: 1, to: start))
+    let service = try PrivacyDataService(databaseURL: databaseURL)
+    let inventoryBeforeDeletion = try service.storedDataInventory()
+    let learningBeforeDeletion = try #require(inventoryBeforeDeletion.dataClasses.first { $0.id == "learning" })
+    #expect(learningBeforeDeletion.recordCount == 2)
 
-    _ = try PrivacyDataService(databaseURL: databaseURL).deleteDateRange(start: start, end: end)
+    _ = try service.deleteDateRange(start: start, end: end)
+    let inventoryAfterDeletion = try service.storedDataInventory()
+    let learningAfterDeletion = try #require(inventoryAfterDeletion.dataClasses.first { $0.id == "learning" })
+    #expect(learningAfterDeletion.recordCount == 1)
 
     #expect(sqlite3_open(databaseURL.path, &database) == SQLITE_OK)
     defer { sqlite3_close(database) }
@@ -102,9 +112,11 @@ func privacyDateDeletionRemovesCanonicalAndProjectedPlansForTheInclusiveLocalDay
     #expect(count("daily_plans", id: "delete-plan") == 0)
     #expect(count("daily_plan_items", id: "delete-item") == 0)
     #expect(count("daily_plan_entries", id: "task-1") == 0)
+    #expect(count("daily_review_session_merges", id: "delete-merge") == 0)
     #expect(count("daily_plans", id: "keep-plan") == 1)
     #expect(count("daily_plan_items", id: "keep-item") == 1)
     #expect(count("daily_plan_entries", id: "task-2") == 1)
+    #expect(count("daily_review_session_merges", id: "keep-merge") == 1)
 }
 
 @Test
@@ -196,6 +208,8 @@ func deleteReviewsAndLearnedRulesClearsEveryReviewAndLearningStoreButPreservesSo
     VALUES ('task', 'completed', '2026-07-12T11:00:00Z');
     INSERT INTO daily_review_corrections (id, source_day, start_epoch, end_epoch, classification, task_id, created_at_utc)
     VALUES ('correction', '2026-07-12', 1000, 1060, 'work', 'task', '2026-07-12T11:00:00Z');
+    INSERT INTO daily_review_session_merges (id, source_day, left_start_epoch, right_start_epoch, created_at_utc)
+    VALUES ('merge', '2026-07-12', 1000, 1060, '2026-07-12T11:00:00Z');
     INSERT INTO daily_reviews (source_day, hypothesis_state, confirmed_at_utc, updated_at_utc, personal_note)
     VALUES ('2026-07-12', 'accepted', '2026-07-12T18:00:00Z', '2026-07-12T18:00:00Z', 'Private note');
     INSERT INTO weekly_review_experiments (id, review_week_start, title, instruction, measurement, state, tracking_week_start, updated_at_utc)
@@ -220,11 +234,12 @@ func deleteReviewsAndLearnedRulesClearsEveryReviewAndLearningStoreButPreservesSo
     )
     #expect(learningInventory.title == ReviewLearningDeletionDisclosure.inventoryTitle)
     #expect(learningInventory.detail == ReviewLearningDeletionDisclosure.inventoryDetail)
-    #expect(learningInventory.recordCount == 8)
-    #expect(try service.deleteReviewsAndLearnedRules() == 8)
+    #expect(learningInventory.recordCount == 9)
+    #expect(try service.deleteReviewsAndLearnedRules() == 9)
 
     for table in [
         "daily_review_corrections",
+        "daily_review_session_merges",
         "daily_reviews",
         "weekly_review_experiments",
         "review_hypothesis_promotions",
@@ -297,6 +312,7 @@ private func privacyRowCount(databaseURL: URL, table: String) throws -> Int {
     defer { sqlite3_close(database) }
     let allowed = Set([
         "daily_review_corrections",
+        "daily_review_session_merges",
         "daily_reviews",
         "weekly_review_experiments",
         "review_hypothesis_promotions",

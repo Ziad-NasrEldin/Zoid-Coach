@@ -14,6 +14,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
     private let privacyData: PrivacyDataService
     private let writeCircuitBreaker: DatabaseWriteCircuitBreaker
     private let recommendationFeedback: RecommendationFeedbackStore?
+    private let gamingManualAdjustments: GamingManualAdjustmentStore?
     private let draftPlan: (@Sendable (Date, Bool) async throws -> Int)?
 
     public init(
@@ -28,6 +29,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
         privacyData: PrivacyDataService,
         writeCircuitBreaker: DatabaseWriteCircuitBreaker = DatabaseWriteCircuitBreaker(),
         recommendationFeedback: RecommendationFeedbackStore? = nil,
+        gamingManualAdjustments: GamingManualAdjustmentStore? = nil,
         draftPlan: (@Sendable (Date, Bool) async throws -> Int)? = nil
     ) {
         self.outbox = outbox
@@ -41,6 +43,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
         self.privacyData = privacyData
         self.writeCircuitBreaker = writeCircuitBreaker
         self.recommendationFeedback = recommendationFeedback
+        self.gamingManualAdjustments = gamingManualAdjustments
         self.draftPlan = draftPlan
     }
 
@@ -74,6 +77,15 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 throw error
             case .openDatabase, .read, .write, .receiptConflict:
                 writeCircuitBreaker.trip(reason: "calendar_plan_operation_write_failed")
+                throw error
+            }
+        } catch let error as GamingManualAdjustmentStoreError {
+            switch error {
+            case .invalidRequest, .idempotencyConflict, .removalExceedsManualGrant,
+                 .dailyLimitExceeded:
+                throw error
+            case .openDatabase, .read, .write:
+                writeCircuitBreaker.trip(reason: "agent_mutation_write_failed")
                 throw error
             }
         } catch {
@@ -183,6 +195,21 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 accepted: true,
                 message: request.kind.confirmationMessage
             )
+
+        case let .recordGamingManualAdjustment(request):
+            guard let gamingManualAdjustments else {
+                throw AgentMutationRouterError.invalidCommand
+            }
+            let result = try gamingManualAdjustments.record(request)
+            let message: String
+            if result.replayed {
+                message = "This gaming-time adjustment was already saved."
+            } else if result.adjustment.minutes > 0 {
+                message = "Added \(result.adjustment.minutes) minutes to today's gaming allowance."
+            } else {
+                message = "Removed \(result.adjustment.minutes.magnitude) manually granted minutes from today's gaming allowance."
+            }
+            return .init(accepted: true, message: message)
 
         case let .recordSourceCheck(sourceID, state, detail, evidence, checkedAt):
             try stateStore.recordSourceCheck(

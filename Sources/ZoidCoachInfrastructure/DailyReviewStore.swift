@@ -45,7 +45,11 @@ public final class DailyReviewStore: @unchecked Sendable {
         defer { lock.unlock() }
         let corrections = try readCorrections(sourceDay: sourceDay)
         let observations = try readObservations(sourceDay: sourceDay, corrections: corrections)
-        let sessions = DailyReviewSessionizer.sessions(from: observations)
+        let rawSessions = DailyReviewSessionizer.sessions(from: observations)
+        let sessions = DailyReviewSessionMerger.applying(
+            try readSessionMerges(sourceDay: sourceDay),
+            to: rawSessions
+        )
         let totals = DailyReviewSessionizer.totals(for: sessions)
         let state = try readReviewState(sourceDay: sourceDay)
         let offlineWork = try readOfflineWork(sourceDay: sourceDay)
@@ -403,6 +407,16 @@ public final class DailyReviewStore: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         try transaction {
+            if splitDate != nil, session.applications.count > 1 {
+                try execute(
+                    "DELETE FROM daily_review_session_merges WHERE source_day = ? AND left_start_epoch >= ? AND right_start_epoch < ?;",
+                    bindings: [
+                        .text(session.sourceDay),
+                        .integer(Int64(session.start.timeIntervalSince1970)),
+                        .integer(Int64(session.end.timeIntervalSince1970))
+                    ]
+                )
+            }
             try execute(
                 "INSERT INTO daily_review_corrections(id, source_day, start_epoch, end_epoch, classification, task_id, created_at_utc) VALUES (?, ?, ?, ?, ?, ?, ?);",
                 bindings: [
@@ -422,6 +436,44 @@ public final class DailyReviewStore: @unchecked Sendable {
             if applyToFuture {
                 _ = try insertClassificationRule(for: session, classification: classification)
             }
+        }
+    }
+
+    public func merge(
+        _ left: DailyReviewSession,
+        with right: DailyReviewSession
+    ) throws {
+        guard left.sourceDay == right.sourceDay else {
+            throw DailyReviewStoreError.sessionsNotAdjacent
+        }
+        lock.lock()
+        defer { lock.unlock() }
+        let corrections = try readCorrections(sourceDay: left.sourceDay)
+        let observations = try readObservations(sourceDay: left.sourceDay, corrections: corrections)
+        let sessions = DailyReviewSessionMerger.applying(
+            try readSessionMerges(sourceDay: left.sourceDay),
+            to: DailyReviewSessionizer.sessions(from: observations)
+        )
+        guard let leftIndex = sessions.firstIndex(of: left),
+              sessions.indices.contains(leftIndex + 1),
+              sessions[leftIndex + 1] == right
+        else { throw DailyReviewStoreError.sessionsNotAdjacent }
+        guard DailyReviewSessionMerger.canMerge(left, with: right) else {
+            throw DailyReviewStoreError.sessionsNotAdjacent
+        }
+        let timestamp = Self.timestamp(now())
+        try transaction {
+            try execute(
+                "INSERT INTO daily_review_session_merges(id, source_day, left_start_epoch, right_start_epoch, created_at_utc) VALUES (?, ?, ?, ?, ?);",
+                bindings: [
+                    .text(UUID().uuidString),
+                    .text(left.sourceDay),
+                    .integer(Int64(left.start.timeIntervalSince1970)),
+                    .integer(Int64(right.start.timeIntervalSince1970)),
+                    .text(timestamp)
+                ]
+            )
+            try reopenReview(sourceDay: left.sourceDay, timestamp: timestamp)
         }
     }
 
@@ -524,7 +576,8 @@ public final class DailyReviewStore: @unchecked Sendable {
         guard [.work, .gaming, .distracting].contains(classification) else {
             throw DailyReviewStoreError.invalidFutureRuleClassification
         }
-        guard !BehaviorPolicy.normalize(session.application).isEmpty else {
+        guard session.applications.count == 1,
+              !BehaviorPolicy.normalize(session.application).isEmpty else {
             throw DailyReviewStoreError.invalidFutureRuleApplication
         }
     }
@@ -737,6 +790,27 @@ public final class DailyReviewStore: @unchecked Sendable {
         return result
     }
 
+    private func readSessionMerges(sourceDay: String) throws -> [DailyReviewSessionMerge] {
+        var statement: OpaquePointer?
+        let sql = "SELECT left_start_epoch, right_start_epoch FROM daily_review_session_merges WHERE source_day = ? ORDER BY created_at_utc ASC, rowid ASC;"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else { throw databaseError(.read) }
+        defer { sqlite3_finalize(statement) }
+        bind(sourceDay, statement, 1)
+        var result: [DailyReviewSessionMerge] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            result.append(DailyReviewSessionMerge(
+                sourceDay: sourceDay,
+                leftSessionStart: Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 0))),
+                rightSessionStart: Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(statement, 1)))
+            ))
+        }
+        if sqlite3_errcode(database) != SQLITE_OK && sqlite3_errcode(database) != SQLITE_DONE {
+            throw databaseError(.read)
+        }
+        return result
+    }
+
     private func readOfflineWork(sourceDay: String) throws -> [OfflineWorkEntry] {
         var statement: OpaquePointer?
         let sql = "SELECT id, task_id, started_at_utc, duration_minutes, note, created_at_utc, updated_at_utc FROM offline_work_entries WHERE source_day = ? ORDER BY started_at_utc, id;"
@@ -886,6 +960,7 @@ public enum DailyReviewStoreError: LocalizedError {
     case invalidDeferralDate
     case invalidFutureRuleClassification
     case invalidFutureRuleApplication
+    case sessionsNotAdjacent
     case database(Operation, String)
 
     public var errorDescription: String? {
@@ -908,6 +983,8 @@ public enum DailyReviewStoreError: LocalizedError {
             "Future app rules can be Work, Gaming, or Distracting. Idle and Unknown remain observation states."
         case .invalidFutureRuleApplication:
             "This activity does not include an application name that can become a future rule."
+        case .sessionsNotAdjacent:
+            "Those activity sessions are no longer next to each other. Reload the review and try again."
         case let .database(operation, detail):
             "The daily review could not \(operation.rawValue) local data. \(detail)"
         }
