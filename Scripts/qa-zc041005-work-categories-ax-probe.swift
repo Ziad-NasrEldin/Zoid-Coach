@@ -27,7 +27,89 @@ private enum MainWindowSelection: Equatable {
     case ambiguous
 }
 
+private enum ReviewsDestinationSelection: Equatable {
+    case unique
+    case missing
+    case ambiguous
+}
+
+private struct ReviewsNavigationState {
+    let destination: ReviewsDestinationSelection
+    let deepEvidenceChildVisible: Bool
+}
+
+private enum ReviewsDestinationPollFailure: Equatable {
+    case processExited
+    case ambiguous
+    case timedOut
+}
+
+private enum ReviewsDestinationPollDecision: Equatable {
+    case success
+    case retry
+    case failure(ReviewsDestinationPollFailure)
+}
+
+private func reviewsDestinationPollDecision(
+    state: ReviewsNavigationState,
+    processAlive: Bool,
+    poll: Int,
+    maximumPolls: Int
+) -> ReviewsDestinationPollDecision {
+    guard processAlive else { return .failure(.processExited) }
+    switch state.destination {
+    case .unique: return .success
+    case .ambiguous: return .failure(.ambiguous)
+    case .missing:
+        return poll < maximumPolls ? .retry : .failure(.timedOut)
+    }
+}
+
+private func simulateReviewsDestinationPolling(
+    states: [ReviewsNavigationState],
+    processAlive: [Bool],
+    maximumPolls: Int
+) -> (decision: ReviewsDestinationPollDecision, polls: Int) {
+    guard maximumPolls > 0, !states.isEmpty, !processAlive.isEmpty else {
+        return (.failure(.timedOut), 0)
+    }
+    for poll in 1...maximumPolls {
+        let state = states[min(poll - 1, states.count - 1)]
+        let alive = processAlive[min(poll - 1, processAlive.count - 1)]
+        let decision = reviewsDestinationPollDecision(
+            state: state,
+            processAlive: alive,
+            poll: poll,
+            maximumPolls: maximumPolls
+        )
+        if decision != .retry { return (decision, poll) }
+    }
+    return (.failure(.timedOut), maximumPolls)
+}
+
+private enum ReviewScrollStep: Equatable {
+    case verticalScrollBar(Double)
+    case pageAction
+}
+
+private func reviewScrollStep(
+    page: Int,
+    maximumPages: Int,
+    verticalScrollBarIsWritable: Bool,
+    minimumValue: Double,
+    maximumValue: Double
+) -> ReviewScrollStep {
+    guard verticalScrollBarIsWritable,
+          maximumPages > 0,
+          maximumValue > minimumValue
+    else { return .pageAction }
+    let boundedPage = min(max(page + 1, 1), maximumPages)
+    let fraction = Double(boundedPage) / Double(maximumPages)
+    return .verticalScrollBar(minimumValue + ((maximumValue - minimumValue) * fraction))
+}
+
 private let mainWindowIdentifier = "zoid-666.main-window"
+private let reviewsNavigationIdentifier = "sidebar.navigation.reviews"
 
 private func selectMainWindow(from windows: [WindowTraits]) -> MainWindowSelection {
     let matches = windows.indices.filter { index in
@@ -91,6 +173,22 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
         hasTodayNavigation: true,
         hasReviewsNavigation: true
     )
+    let selectedReviews = ReviewsNavigationState(
+        destination: .unique,
+        deepEvidenceChildVisible: false
+    )
+    let missingReviews = ReviewsNavigationState(
+        destination: .missing,
+        deepEvidenceChildVisible: false
+    )
+    let deepChildOnly = ReviewsNavigationState(
+        destination: .missing,
+        deepEvidenceChildVisible: true
+    )
+    let ambiguousReviews = ReviewsNavigationState(
+        destination: .ambiguous,
+        deepEvidenceChildVisible: false
+    )
     guard expectedCategories.count == 6,
           expectedCategories.reduce(0, { $0 + $1.minutes }) == 28,
           privateSentinels.contains(where: { "qa-zc041005-private-deep".localizedCaseInsensitiveContains($0) }),
@@ -102,7 +200,58 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
           selectMainWindow(from: [main, contentIdentifiedMain]) == .ambiguous,
           selectMainWindow(from: [auxiliary]) == .missing,
           selectMainWindow(from: [minimizedMain]) == .missing,
-          selectMainWindow(from: [hiddenMain]) == .missing
+          selectMainWindow(from: [hiddenMain]) == .missing,
+          simulateReviewsDestinationPolling(
+              states: [missingReviews, missingReviews, selectedReviews],
+              processAlive: [true],
+              maximumPolls: 5
+          ).decision == .success,
+          simulateReviewsDestinationPolling(
+              states: [missingReviews, missingReviews, selectedReviews],
+              processAlive: [true],
+              maximumPolls: 5
+          ).polls == 3,
+          simulateReviewsDestinationPolling(
+              states: [missingReviews],
+              processAlive: [true],
+              maximumPolls: 3
+          ).decision == .failure(.timedOut),
+          simulateReviewsDestinationPolling(
+              states: [deepChildOnly],
+              processAlive: [true],
+              maximumPolls: 3
+          ).decision == .failure(.timedOut),
+          simulateReviewsDestinationPolling(
+              states: [missingReviews, ambiguousReviews],
+              processAlive: [true],
+              maximumPolls: 5
+          ).decision == .failure(.ambiguous),
+          simulateReviewsDestinationPolling(
+              states: [missingReviews],
+              processAlive: [false],
+              maximumPolls: 5
+          ).decision == .failure(.processExited),
+          reviewScrollStep(
+              page: 0,
+              maximumPages: 16,
+              verticalScrollBarIsWritable: true,
+              minimumValue: 0,
+              maximumValue: 1
+          ) == .verticalScrollBar(0.0625),
+          reviewScrollStep(
+              page: 15,
+              maximumPages: 16,
+              verticalScrollBarIsWritable: true,
+              minimumValue: 0,
+              maximumValue: 1
+          ) == .verticalScrollBar(1),
+          reviewScrollStep(
+              page: 0,
+              maximumPages: 16,
+              verticalScrollBarIsWritable: false,
+              minimumValue: 0,
+              maximumValue: 1
+          ) == .pageAction
     else {
         fputs("FAIL: ZC-041-005 AX probe self-test\n", stderr)
         exit(1)
@@ -126,6 +275,7 @@ private let phase = arguments[4]
 private let application = AXUIElementCreateApplication(pid)
 private let maximumNodes = 4_000
 private let maximumScrollPages = 16
+private let maximumNavigationPolls = 20
 
 private func attribute(_ element: AXUIElement, _ name: CFString) -> CFTypeRef? {
     var value: CFTypeRef?
@@ -149,9 +299,26 @@ private func bool(_ element: AXUIElement, _ name: CFString) -> Bool? {
     (attribute(element, name) as? NSNumber)?.boolValue
 }
 
+private func number(_ element: AXUIElement, _ name: CFString) -> Double? {
+    (attribute(element, name) as? NSNumber)?.doubleValue
+}
+
+private func element(_ element: AXUIElement, _ name: CFString) -> AXUIElement? {
+    guard let value = attribute(element, name),
+          CFGetTypeID(value) == AXUIElementGetTypeID()
+    else { return nil }
+    return unsafeBitCast(value, to: AXUIElement.self)
+}
+
 private func labels(_ element: AXUIElement) -> [String] {
     [kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute, kAXHelpAttribute]
         .compactMap { string(element, $0 as CFString) }
+}
+
+private func actionNames(_ element: AXUIElement) -> [String] {
+    var names: CFArray?
+    guard AXUIElementCopyActionNames(element, &names) == .success else { return [] }
+    return names as? [String] ?? []
 }
 
 private func children(_ element: AXUIElement) -> [AXUIElement] {
@@ -208,24 +375,77 @@ private func mainWindow() throws -> AXUIElement {
     }
 }
 
-private func press(_ element: AXUIElement, name: String) throws {
-    _ = AXUIElementPerformAction(element, "AXScrollToVisible" as CFString)
-    guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else {
-        throw ProbeError.failure("could not press \(name)")
+private func reviewsNavigationState(in window: AXUIElement) throws -> ReviewsNavigationState {
+    var destinationCount = 0
+    var deepEvidenceChildVisible = false
+    _ = try walk(root: window) { element in
+        switch identifier(element) {
+        case "reviews.daily": destinationCount += 1
+        case "reviews.work-categories": deepEvidenceChildVisible = true
+        default: break
+        }
+        return false
     }
-    Thread.sleep(forTimeInterval: 0.3)
+    let destination: ReviewsDestinationSelection
+    switch destinationCount {
+    case 1: destination = .unique
+    case 0: destination = .missing
+    default: destination = .ambiguous
+    }
+    return ReviewsNavigationState(
+        destination: destination,
+        deepEvidenceChildVisible: deepEvidenceChildVisible
+    )
 }
 
 private func navigateToReviews(window: AXUIElement) throws {
-    guard let reviews = try walk(root: window, matching: {
-        role($0) == (kAXButtonRole as String) && labels($0).contains("Reviews")
-    }) else {
+    var reviewItems: [AXUIElement] = []
+    _ = try walk(root: window) { element in
+        if role(element) == (kAXButtonRole as String),
+           identifier(element) == reviewsNavigationIdentifier,
+           labels(element).contains("Reviews") {
+            reviewItems.append(element)
+        }
+        return false
+    }
+    guard reviewItems.count == 1, let reviews = reviewItems.first else {
         if try walk(root: window, matching: { identifier($0) == "onboarding.root" }) != nil {
             throw ProbeError.failure("onboarding is visible; establish the supported QA ready state")
         }
-        throw ProbeError.failure("normal Reviews navigation is unavailable")
+        throw ProbeError.failure(
+            reviewItems.isEmpty
+                ? "normal Reviews navigation is unavailable"
+                : "normal Reviews navigation is ambiguous"
+        )
     }
-    try press(reviews, name: "Reviews")
+    guard actionNames(reviews).contains(kAXPressAction as String) else {
+        throw ProbeError.failure("visible Reviews navigation has no AXPress action")
+    }
+    _ = AXUIElementPerformAction(reviews, "AXScrollToVisible" as CFString)
+    _ = AXUIElementPerformAction(reviews, kAXPressAction as CFString)
+    for poll in 1...maximumNavigationPolls {
+        let processAlive = kill(pid, 0) == 0
+        let state = processAlive
+            ? try reviewsNavigationState(in: mainWindow())
+            : ReviewsNavigationState(destination: .missing, deepEvidenceChildVisible: false)
+        switch reviewsDestinationPollDecision(
+            state: state,
+            processAlive: processAlive,
+            poll: poll,
+            maximumPolls: maximumNavigationPolls
+        ) {
+        case .success:
+            return
+        case .retry:
+            Thread.sleep(forTimeInterval: 0.1)
+        case .failure(.processExited):
+            throw ProbeError.failure("app process exited while opening Daily Review")
+        case .failure(.ambiguous):
+            throw ProbeError.failure("Daily Review destination root is ambiguous")
+        case .failure(.timedOut):
+            throw ProbeError.failure("timed out waiting for the unique Daily Review destination")
+        }
+    }
 }
 
 private func findIdentifierByScrolling(
@@ -238,19 +458,71 @@ private func findIdentifierByScrolling(
             return element
         }
         guard page < maximumScrollPages else { break }
-        var scrollAreas: [AXUIElement] = []
-        _ = try walk(root: window) { element in
-            if role(element) == (kAXScrollAreaRole as String) { scrollAreas.append(element) }
-            return false
-        }
-        guard scrollAreas.reversed().contains(where: {
-            AXUIElementPerformAction($0, "AXScrollDownByPage" as CFString) == .success
-        }) else {
+        let scrollArea = try reviewsScrollArea(in: window)
+        guard scrollReviews(scrollArea, page: page) else {
             throw ProbeError.failure("could not scroll Daily Review toward \(expected)")
         }
         Thread.sleep(forTimeInterval: 0.15)
     }
     throw ProbeError.failure("required Daily Review target is unavailable after bounded scrolling: \(expected)")
+}
+
+private func reviewsScrollArea(in window: AXUIElement) throws -> AXUIElement {
+    var scrollAreas: [AXUIElement] = []
+    _ = try walk(root: window) { candidate in
+        if role(candidate) == (kAXScrollAreaRole as String) { scrollAreas.append(candidate) }
+        return false
+    }
+    let matches = try scrollAreas.filter { scrollArea in
+        try walk(root: scrollArea, matching: { identifier($0) == "reviews.daily" }) != nil
+    }
+    guard matches.count == 1, let match = matches.first else {
+        throw ProbeError.failure(
+            matches.isEmpty
+                ? "Daily Review content scroll area is unavailable"
+                : "Daily Review content scroll area is ambiguous"
+        )
+    }
+    return match
+}
+
+private func scrollReviews(_ scrollArea: AXUIElement, page: Int) -> Bool {
+    let verticalScrollBar = element(scrollArea, kAXVerticalScrollBarAttribute as CFString)
+    var scrollBarIsWritable = DarwinBoolean(false)
+    if let verticalScrollBar {
+        _ = AXUIElementIsAttributeSettable(
+            verticalScrollBar,
+            kAXValueAttribute as CFString,
+            &scrollBarIsWritable
+        )
+    }
+    let minimumValue = verticalScrollBar.flatMap {
+        number($0, kAXMinValueAttribute as CFString)
+    } ?? 0
+    let maximumValue = verticalScrollBar.flatMap {
+        number($0, kAXMaxValueAttribute as CFString)
+    } ?? 1
+
+    switch reviewScrollStep(
+        page: page,
+        maximumPages: maximumScrollPages,
+        verticalScrollBarIsWritable: scrollBarIsWritable.boolValue,
+        minimumValue: minimumValue,
+        maximumValue: maximumValue
+    ) {
+    case let .verticalScrollBar(value):
+        guard let verticalScrollBar else { return false }
+        return AXUIElementSetAttributeValue(
+            verticalScrollBar,
+            kAXValueAttribute as CFString,
+            NSNumber(value: value)
+        ) == .success
+    case .pageAction:
+        return AXUIElementPerformAction(
+            scrollArea,
+            "AXScrollDownByPage" as CFString
+        ) == .success
+    }
 }
 
 private func subtreeSnapshot(_ root: AXUIElement) throws -> (identifiers: [String], strings: [String]) {

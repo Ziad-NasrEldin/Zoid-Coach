@@ -410,6 +410,8 @@ struct DailyReviewView: View {
                 .padding(.vertical, 8)
             WeeklyReviewView()
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reviews.daily")
         .padding(34)
         .frame(maxWidth: 980, alignment: .leading)
         .task { controller.load() }
@@ -425,7 +427,6 @@ struct DailyReviewView: View {
         } message: {
             Text("No review conclusions will be confirmed. Local activity, corrections, and notes stay available, and a later edit will reopen the review.")
         }
-        .accessibilityIdentifier("reviews.daily")
     }
 
     @ViewBuilder

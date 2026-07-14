@@ -85,6 +85,34 @@ struct DailyReviewWorkCategoryStateTests {
         ])
     }
 
+    @Test("daily review exposes one contained destination root and unique static child identifiers")
+    func uniqueDailyReviewAccessibilityTreeContract() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: root.appendingPathComponent("Sources/ZoidCoachApp/Views/DailyReviewView.swift"),
+            encoding: .utf8
+        )
+        let rootAssignment = #".accessibilityIdentifier("reviews.daily")"#
+        let containedRootAssignment = ".accessibilityElement(children: .contain)\n        .accessibilityIdentifier(\"reviews.daily\")"
+        let pattern = #"\.accessibilityIdentifier\("(reviews\.[^"\\]+)"\)"#
+        let regularExpression = try NSRegularExpression(pattern: pattern)
+        let range = NSRange(source.startIndex..<source.endIndex, in: source)
+        let staticIdentifiers = regularExpression.matches(in: source, range: range).compactMap { match in
+            Range(match.range(at: 1), in: source).map { String(source[$0]) }
+        }
+
+        #expect(source.components(separatedBy: rootAssignment).count - 1 == 1)
+        #expect(source.contains(containedRootAssignment))
+        #expect(staticIdentifiers.filter { $0 == "reviews.daily" }.count == 1)
+        #expect(Set(staticIdentifiers).count == staticIdentifiers.count)
+        #expect(staticIdentifiers.contains("reviews.work-categories"))
+        #expect(staticIdentifiers.contains("reviews.work-categories.detail"))
+        #expect(staticIdentifiers.contains("reviews.work-categories.empty"))
+    }
+
     private func session(
         application: String,
         classification: BehaviorClassification,

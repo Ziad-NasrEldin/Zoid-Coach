@@ -1831,6 +1831,15 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var sidebarAccessibilityIdentifier: String {
+        switch self {
+        case .today: "sidebar.navigation.today"
+        case .diagnostics: "sidebar.navigation.source-health"
+        case .reviews: "sidebar.navigation.reviews"
+        case .settings: "sidebar.navigation.settings"
+        }
+    }
+
     var symbol: String {
         switch self {
         case .today: "checklist"
@@ -1838,6 +1847,14 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .reviews: "doc.text.magnifyingglass"
         case .settings: "slider.horizontal.3"
         }
+    }
+}
+
+struct SidebarNavigationAction: Equatable {
+    let destination: AppSection
+
+    func perform(select: (AppSection) -> Void) {
+        select(destination)
     }
 }
 
