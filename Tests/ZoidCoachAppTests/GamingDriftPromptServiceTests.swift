@@ -197,7 +197,7 @@ func gamingDriftSuppressesPromptsWhenScreenwatchBecomesStaleAndRecoversWithFresh
     #expect(try lifecycle.promptStore.unresolved().isEmpty)
 
     try lifecycle.insertGaming(minutes: 10)
-    guard case .queued = try lifecycle.service.produce(
+    guard case let .queued(lifecyclePrompt, _) = try lifecycle.service.produce(
         policy: lifecycle.policy(),
         gamingStatus: lifecycle.gamingStatus,
         baselineStatus: lifecycle.baseline()
@@ -221,6 +221,8 @@ func gamingDriftSuppressesPromptsWhenScreenwatchBecomesStaleAndRecoversWithFresh
     ) == .suppressed(.limitedCoverage))
     let reopened = try PromptInboxStore(databaseURL: lifecycle.databaseURL, now: { lifecycle.clock.now })
     #expect(try reopened.unresolved().isEmpty)
+    #expect(try reopened.episode(promptID: lifecyclePrompt.id)?.resolutionOrigin == .system)
+    #expect(try reopened.episode(promptID: lifecyclePrompt.id)?.resolutionReason == .screenwatchEvidenceInvalid)
 
     let exactBoundary = try GamingPromptFixture()
     defer { exactBoundary.remove() }
@@ -257,6 +259,119 @@ func gamingDriftSuppressesPromptsWhenScreenwatchBecomesStaleAndRecoversWithFresh
         gamingStatus: futureDated.gamingStatus,
         baselineStatus: futureDated.baseline()
     ) == .suppressed(.limitedCoverage))
+}
+
+@Test
+func invalidScreenwatchWithdrawalAloneAllowsSafeSameSessionRecovery() throws {
+    let fixture = try GamingPromptFixture()
+    defer { fixture.remove() }
+    try fixture.insertPriorityTask()
+    try fixture.insertGaming(minutes: 10)
+    let policy = fixture.policy(level: .accountability, dailyPromptCap: 1, promptCooldownMinutes: 35)
+    guard case let .queued(original, _) = try fixture.service.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected the initial gaming prompt")
+        return
+    }
+
+    let limitedStatus = GamingStatus(
+        budgetMinutes: fixture.gamingStatus.budgetMinutes,
+        usedMinutes: fixture.gamingStatus.usedMinutes,
+        unlockedRemainingMinutes: fixture.gamingStatus.unlockedRemainingMinutes,
+        nextUnlockReason: fixture.gamingStatus.nextUnlockReason,
+        confidenceIsLimited: true
+    )
+    #expect(try fixture.service.produce(
+        policy: policy,
+        gamingStatus: limitedStatus,
+        baselineStatus: fixture.baseline()
+    ) == .suppressed(.limitedCoverage))
+
+    let reopenedStore = try PromptInboxStore(
+        databaseURL: fixture.databaseURL,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+    let withdrawn = try #require(reopenedStore.episode(promptID: original.id))
+    #expect(withdrawn.state == .dismissed)
+    #expect(withdrawn.resolutionOrigin == .system)
+    #expect(withdrawn.resolutionReason == .screenwatchEvidenceInvalid)
+    let restartedService = try GamingDriftPromptService(
+        databaseURL: fixture.databaseURL,
+        promptStore: reopenedStore,
+        now: { [clock = fixture.clock] in clock.now }
+    )
+
+    guard case let .queued(recovered, wasInserted) = try restartedService.produce(
+        policy: policy,
+        gamingStatus: fixture.gamingStatus,
+        baselineStatus: fixture.baseline()
+    ) else {
+        Issue.record("Expected fresh evidence to recover the same session without consuming cap or cooldown")
+        return
+    }
+    #expect(wasInserted)
+    #expect(recovered.id != original.id)
+    #expect(recovered.decisionKey == original.decisionKey)
+    #expect(try reopenedStore.unresolved().map(\.id) == [recovered.id])
+}
+
+@Test
+func explicitUserDismissalStillEnforcesSessionDeduplicationCooldownAndDailyCap() throws {
+    let sameSession = try GamingPromptFixture()
+    defer { sameSession.remove() }
+    try sameSession.insertPriorityTask()
+    try sameSession.insertGaming(minutes: 10)
+    let sameSessionPolicy = sameSession.policy(level: .accountability, dailyPromptCap: 6, promptCooldownMinutes: 35)
+    guard case let .queued(original, _) = try sameSession.service.produce(
+        policy: sameSessionPolicy,
+        gamingStatus: sameSession.gamingStatus,
+        baselineStatus: sameSession.baseline()
+    ) else {
+        Issue.record("Expected a prompt to dismiss explicitly")
+        return
+    }
+    let dismissed = try sameSession.promptStore.dismiss(promptID: original.id)
+    #expect(dismissed.resolutionOrigin == .user)
+    #expect(dismissed.resolutionReason == .explicitDismissal)
+    try sameSession.clearPromptResolutionMetadata(promptID: original.id)
+    #expect(try sameSession.service.produce(
+        policy: sameSessionPolicy,
+        gamingStatus: sameSession.gamingStatus,
+        baselineStatus: sameSession.baseline()
+    ) == .suppressed(.sessionAlreadyHandled))
+
+    sameSession.advance(minutes: 30)
+    try sameSession.insertGaming(minutes: 10)
+    #expect(try sameSession.service.produce(
+        policy: sameSessionPolicy,
+        gamingStatus: sameSession.gamingStatus,
+        baselineStatus: sameSession.baseline()
+    ) == .suppressed(.cooldownActive))
+
+    let capped = try GamingPromptFixture()
+    defer { capped.remove() }
+    try capped.insertPriorityTask()
+    try capped.insertGaming(minutes: 10)
+    let cappedPolicy = capped.policy(level: .accountability, dailyPromptCap: 1, promptCooldownMinutes: 5)
+    guard case let .queued(cappedOriginal, _) = try capped.service.produce(
+        policy: cappedPolicy,
+        gamingStatus: capped.gamingStatus,
+        baselineStatus: capped.baseline()
+    ) else {
+        Issue.record("Expected a prompt that counts toward the daily cap")
+        return
+    }
+    _ = try capped.promptStore.dismiss(promptID: cappedOriginal.id)
+    capped.advance(minutes: 15)
+    try capped.insertGaming(minutes: 10)
+    #expect(try capped.service.produce(
+        policy: cappedPolicy,
+        gamingStatus: capped.gamingStatus,
+        baselineStatus: capped.baseline()
+    ) == .suppressed(.dailyLimitReached))
 }
 
 @Test
@@ -1053,6 +1168,11 @@ private final class GamingPromptFixture: @unchecked Sendable {
 
     func quietDriftObservedMinutes() throws -> Int {
         try scalar("SELECT COALESCE(MAX(observed_minutes), 0) FROM quiet_drift_episodes;")
+    }
+
+    func clearPromptResolutionMetadata(promptID: String) throws {
+        let safePromptID = promptID.replacingOccurrences(of: "'", with: "''")
+        try execute("UPDATE prompt_episodes SET resolution_origin = NULL, resolution_reason = NULL WHERE id = '\(safePromptID)';")
     }
 
     func priorityTaskIsIncomplete() throws -> Bool {
