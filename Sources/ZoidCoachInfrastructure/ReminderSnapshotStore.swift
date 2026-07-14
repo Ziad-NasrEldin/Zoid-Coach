@@ -40,6 +40,41 @@ public struct ReminderSyncResult: Equatable, Sendable {
     public let unchangedCount: Int
 }
 
+public enum DeletedReminderDecisionState: String, Equatable, Sendable {
+    case pending
+    case kept
+}
+
+public struct DeletedReminderDecision: Identifiable, Equatable, Sendable {
+    public let sourceID: String
+    public let title: String
+    public let dueDate: Date?
+    public let listName: String?
+    public let deletedAt: Date
+    public let state: DeletedReminderDecisionState
+    public let decidedAt: Date?
+
+    public var id: String { sourceID }
+
+    public init(
+        sourceID: String,
+        title: String,
+        dueDate: Date?,
+        listName: String?,
+        deletedAt: Date,
+        state: DeletedReminderDecisionState,
+        decidedAt: Date?
+    ) {
+        self.sourceID = sourceID
+        self.title = title
+        self.dueDate = dueDate
+        self.listName = listName
+        self.deletedAt = deletedAt
+        self.state = state
+        self.decidedAt = decidedAt
+    }
+}
+
 public final class ReminderSnapshotStore: @unchecked Sendable {
     private let database: OpaquePointer
     private let lock = NSRecursiveLock()
@@ -87,6 +122,10 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
         var unchanged = 0
         let existing = try existingHashes()
         let incomingIDs = Set(reminders.map(\.id))
+
+        for id in incomingIDs {
+            try clearDeletedReminderDecision(sourceID: id)
+        }
         let sql = """
         INSERT INTO source_tasks
         (source_id, title, notes, list_id, list_name, due_at, priority, is_completed, modified_at, source_hash, updated_at, source_kind)
@@ -137,6 +176,7 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
         }
         let removedIDs = Set(existing.keys).subtracting(incomingIDs)
         for id in removedIDs {
+            try archiveDeletedReminderDecision(sourceID: id, deletedAt: observedAt)
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(database, "DELETE FROM source_tasks WHERE source_id = ? AND source_kind = 'reminders';", -1, &statement, nil) == SQLITE_OK, let statement else { throw ReminderSnapshotStoreError.write }
             bind(id, statement, 1)
@@ -149,6 +189,72 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
         }
         committed = true
         return ReminderSyncResult(insertedCount: inserted, updatedCount: updated, removedCount: removedIDs.count, unchangedCount: unchanged)
+    }
+
+    public func deletedReminderDecisions() throws -> [DeletedReminderDecision] {
+        lock.lock()
+        defer { lock.unlock() }
+        var statement: OpaquePointer?
+        let sql = """
+        SELECT source_id, title, due_at, list_name, deleted_at_utc, state, decided_at_utc
+        FROM deleted_reminder_decisions
+        ORDER BY CASE state WHEN 'pending' THEN 0 ELSE 1 END, deleted_at_utc DESC;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw ReminderSnapshotStoreError.read
+        }
+        defer { sqlite3_finalize(statement) }
+
+        var decisions: [DeletedReminderDecision] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let sourceID = text(statement, 0),
+                  let title = text(statement, 1),
+                  let deletedAtValue = text(statement, 4),
+                  let deletedAt = formatter.date(from: deletedAtValue),
+                  let stateValue = text(statement, 5),
+                  let state = DeletedReminderDecisionState(rawValue: stateValue)
+            else { throw ReminderSnapshotStoreError.read }
+            decisions.append(DeletedReminderDecision(
+                sourceID: sourceID,
+                title: title,
+                dueDate: text(statement, 2).flatMap(formatter.date(from:)),
+                listName: text(statement, 3),
+                deletedAt: deletedAt,
+                state: state,
+                decidedAt: text(statement, 6).flatMap(formatter.date(from:))
+            ))
+        }
+        return decisions
+    }
+
+    @discardableResult
+    public func keepDeletedReminderInLocalHistory(sourceID: String, decidedAt: Date = Date()) throws -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        var statement: OpaquePointer?
+        let sql = "UPDATE deleted_reminder_decisions SET state = 'kept', decided_at_utc = ? WHERE source_id = ? AND state = 'pending';"
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw ReminderSnapshotStoreError.write
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(formatter.string(from: decidedAt), statement, 1)
+        bind(sourceID, statement, 2)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw ReminderSnapshotStoreError.write }
+        return sqlite3_changes(database) == 1
+    }
+
+    @discardableResult
+    public func removeDeletedReminderLocalCopy(sourceID: String) throws -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "DELETE FROM deleted_reminder_decisions WHERE source_id = ? AND state = 'pending';", -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw ReminderSnapshotStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        bind(sourceID, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw ReminderSnapshotStoreError.write }
+        return sqlite3_changes(database) == 1
     }
 
     @discardableResult
@@ -358,6 +464,39 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
             result[id] = text(statement, 1) ?? ""
         }
         return result
+    }
+
+    private func archiveDeletedReminderDecision(sourceID: String, deletedAt: Date) throws {
+        var statement: OpaquePointer?
+        let sql = """
+        INSERT INTO deleted_reminder_decisions(source_id, title, due_at, list_name, deleted_at_utc, state, decided_at_utc)
+        SELECT src_id, title, due_at, list_name, ?, 'pending', NULL
+        FROM src_tasks WHERE src_id = ? AND src_kind = 'reminders'
+        ON CONFLICT(source_id) DO UPDATE SET
+            title = excluded.title,
+            due_at = excluded.due_at,
+            list_name = excluded.list_name,
+            deleted_at_utc = excluded.deleted_at_utc,
+            state = 'pending',
+            decided_at_utc = NULL;
+        """
+        guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw ReminderSnapshotStoreError.write
+        }
+        defer { sqlite3_finalize(statement) }
+        bind(formatter.string(from: deletedAt), statement, 1)
+        bind(sourceID, statement, 2)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw ReminderSnapshotStoreError.write }
+    }
+
+    private func clearDeletedReminderDecision(sourceID: String) throws {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "DELETE FROM deleted_reminder_decisions WHERE source_id = ?;", -1, &statement, nil) == SQLITE_OK,
+              let statement
+        else { throw ReminderSnapshotStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        bind(sourceID, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw ReminderSnapshotStoreError.write }
     }
 
     private func sourceKind(for id: String) throws -> ReminderSourceKind? {
