@@ -26,6 +26,7 @@ FIXTURE="$PWD/Scripts/qa-zc013001-day-state-fixture.sh"
 PROBE="$PWD/Scripts/qa-zc013001-day-state-ax-probe.swift"
 READY_STATE="$PWD/Scripts/prepare-qa-ready-state.py"
 READY_MANIFEST="$PWD/Scripts/fixtures/qa-ready-state.example.json"
+FIXTURE_PREPARED=false
 
 test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor db0a5305604bfb372da20fb95c8f05d22c4660b8 "$EXPECTED_SIGNED_COMMIT"
@@ -80,6 +81,7 @@ Stop the helper and app before fixture ownership begins.
 pkill -x "$APP_EXECUTABLE_NAME" || true
 ! launchctl print "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1
 "$FIXTURE" prepare --database "$DATABASE" --backup "$BACKUP"
+FIXTURE_PREPARED=true
 ```
 
 The accessibility probe resolves the installed bundle's preferred localization and formats the current instant with that locale, `Calendar.current`, `TimeZone.current`, and the product's exact weekday, wide-month, and day fields.
@@ -190,6 +192,30 @@ verify_state() {
     --reject "qa-zc013001-private.invalid"
   "$FIXTURE" assert "$fixture_state" --database "$DATABASE" --backup "$BACKUP"
 }
+
+# BEGIN RUNBOOK SELF-TEST: failure-cleanup
+cleanup_on_exit() {
+  local exit_code=$?
+  trap - EXIT INT TERM
+  set +e
+  stop_exact_app
+  if test -f "$DATABASE"; then
+    wait_for_database_quiescence "$DATABASE"
+  fi
+  if test "$FIXTURE_PREPARED" = true && test -f "$BACKUP" && test -f "$DATABASE"; then
+    "$FIXTURE" cleanup --database "$DATABASE" --backup "$BACKUP" \
+      2>&1 | tee "$EVIDENCE/failure-cleanup.log"
+  fi
+  if test -x "$APP_EXECUTABLE"; then
+    "$APP_EXECUTABLE" --qa-unregister-agent || true
+  fi
+  ZOID_COACH_QA_RUN_ROOT="$QA_ROOT" \
+  ZOID_COACH_QA_INSTALL_ROOT="$INSTALL_ROOT" \
+    Scripts/uninstall-signed-qa-runtime.sh || true
+  exit "$exit_code"
+}
+trap cleanup_on_exit EXIT INT TERM
+# END RUNBOOK SELF-TEST: failure-cleanup
 ```
 
 ## Prove every relevant state
@@ -271,12 +297,14 @@ Stop the exact installed app, restore the original snapshot, verify cleanup, and
 stop_exact_app
 wait_for_database_quiescence "$DATABASE"
 "$FIXTURE" cleanup --database "$DATABASE" --backup "$BACKUP" 2>&1 | tee "$EVIDENCE/cleanup.log"
+FIXTURE_PREPARED=false
 test ! -e "$BACKUP"
 ZOID_COACH_QA_RUN_ROOT="$QA_ROOT" \
 ZOID_COACH_QA_INSTALL_ROOT="$INSTALL_ROOT" \
 Scripts/uninstall-signed-qa-runtime.sh
 test ! -e "$APP"
 test ! -e "$QA_ROOT"
+trap - EXIT INT TERM
 ```
 
 Do not mark ZC-013-001 fully usable until the same signed identity passes every state, both ordinary relaunches, accessibility semantics, privacy rejection, exact snapshot restoration, and isolated runtime cleanup.
