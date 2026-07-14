@@ -1,11 +1,16 @@
 import AppKit
 import Darwin
+import OSLog
 import SwiftUI
 import ZoidCoachCore
 
 @MainActor
 final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
     private static let automaticTerminationReason = "Zoid 666 background scheduling menu"
+    private static let lifecycleLogger = Logger(
+        subsystem: "com.zoidcoach.app",
+        category: "background-lifecycle"
+    )
     private let lifecycleHook: BackgroundApplicationLifecycleHook
 
     override init() {
@@ -23,9 +28,15 @@ final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
                 NSApplication.shared.setActivationPolicy(.accessory)
             },
             acquireAutomaticTerminationHold: {
+                Self.lifecycleLogger.notice(
+                    "lifecycle-hold action=acquire policy=background-scheduling"
+                )
                 ProcessInfo.processInfo.disableAutomaticTermination(Self.automaticTerminationReason)
             },
             releaseAutomaticTerminationHold: {
+                Self.lifecycleLogger.notice(
+                    "lifecycle-hold action=release policy=background-scheduling"
+                )
                 ProcessInfo.processInfo.enableAutomaticTermination(Self.automaticTerminationReason)
             },
             availableWindows: {
@@ -38,6 +49,9 @@ final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
             }
         )
         super.init()
+        Self.lifecycleLogger.notice(
+            "delegate-init policy=\(self.lifecycleHook.policy.logLabel, privacy: .public)"
+        )
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -61,6 +75,19 @@ final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         lifecycleHook.applicationWillTerminate()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let decision = lifecycleHook.applicationTerminationDecision()
+        Self.lifecycleLogger.notice(
+            "termination-decision policy=\(self.lifecycleHook.policy.logLabel, privacy: .public) decision=\(decision.logLabel, privacy: .public)"
+        )
+        switch decision {
+        case .cancel:
+            return .terminateCancel
+        case .permit:
+            return .terminateNow
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
