@@ -169,6 +169,65 @@ import ZoidCoachCore
 }
 
 @MainActor
+@Test func backgroundLifecycleSuppressesExistingAndLateNormalWindowsWithoutAView() {
+    var events: [String] = []
+    let mainWindow = applicationWindow(
+        number: 42,
+        identifier: MainApplicationWindowSelector.mainWindowIdentifier,
+        title: "Zoid 666"
+    )
+    let utilityWindow = ApplicationWindowDescriptor(
+        windowNumber: 43,
+        identifier: "utility",
+        title: "Utility",
+        canBecomeKey: false,
+        isNormalLevel: false
+    )
+    let lateMainWindow = applicationWindow(
+        number: 44,
+        identifier: MainApplicationWindowSelector.mainWindowIdentifier,
+        title: "Zoid 666"
+    )
+    let hook = BackgroundApplicationLifecycleHook(
+        policy: .backgroundScheduling,
+        setAccessoryActivationPolicy: { events.append("accessory") },
+        availableWindows: { [mainWindow, utilityWindow] },
+        dismissWindow: { events.append("dismiss-\($0)") }
+    )
+
+    hook.applicationWillFinishLaunching()
+    hook.applicationDidFinishLaunching()
+    hook.windowDidBecomeVisible(lateMainWindow)
+    hook.windowDidBecomeVisible(utilityWindow)
+
+    #expect(events == ["accessory", "dismiss-42", "dismiss-42", "dismiss-44"])
+    #expect(hook.shouldObserveWindowVisibility)
+}
+
+@MainActor
+@Test func ordinaryLifecycleLeavesActivationAndWindowsUntouched() {
+    var events: [String] = []
+    let hook = BackgroundApplicationLifecycleHook(
+        policy: .ordinary,
+        setAccessoryActivationPolicy: { events.append("accessory") },
+        availableWindows: {
+            [applicationWindow(
+                number: 42,
+                identifier: MainApplicationWindowSelector.mainWindowIdentifier,
+                title: "Zoid 666"
+            )]
+        },
+        dismissWindow: { events.append("dismiss-\($0)") }
+    )
+
+    hook.applicationWillFinishLaunching()
+    hook.applicationDidFinishLaunching()
+
+    #expect(events.isEmpty)
+    #expect(!hook.shouldObserveWindowVisibility)
+}
+
+@MainActor
 @Test func qaMainWindowLaunchWaitsForTheMainWindowToExist() {
     var events: [String] = []
     var polls = 0
