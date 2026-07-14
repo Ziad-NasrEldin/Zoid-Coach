@@ -539,7 +539,7 @@ private struct ReminderCompletionSyncLedger: View {
                                 model.retryReminderCompletionSync(taskID: state.taskID)
                             }
                             .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                            .accessibilityIdentifier("today.completion-sync.\(state.taskID).retry")
+                            .accessibilityIdentifier("today.completion-sync.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: state.taskID)).retry")
                             .disabled(model.isAnyTaskCommandPending)
                         }
                     }
@@ -547,7 +547,7 @@ private struct ReminderCompletionSyncLedger: View {
                     .padding(.vertical, 11)
                     .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
                     .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("today.completion-sync.\(state.taskID)")
+                    .accessibilityIdentifier("today.completion-sync.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: state.taskID))")
                 }
             }
         }
@@ -598,7 +598,7 @@ private struct ReminderRescheduleSyncLedger: View {
                     .padding(.vertical, 11)
                     .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
                     .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("today.reschedule-sync.\(state.taskID)")
+                    .accessibilityIdentifier("today.reschedule-sync.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: state.taskID))")
                 }
             }
         }
@@ -1012,17 +1012,17 @@ private struct TodayTaskRowView: View {
                     Text("BLOCKED - \(blockedReason)")
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.seal)
-                        .accessibilityIdentifier("today.task.\(row.taskID).blocked-reason")
+                        .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).blocked-reason")
                 } else if let deferredUntil = row.deferredUntil, deferredUntil > Date() {
                     Text("DEFERRED UNTIL \(deferredUntil.formatted(date: .abbreviated, time: .shortened))")
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.seal)
-                        .accessibilityIdentifier("today.task.\(row.taskID).deferred-until")
+                        .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).deferred-until")
                 } else if row.isOptional == true {
                     Text("OPTIONAL - NOT RESERVED ON CALENDAR")
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.muted)
-                        .accessibilityIdentifier("today.task.\(row.taskID).optional")
+                        .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).optional")
                 }
             }
             Spacer()
@@ -1077,10 +1077,10 @@ private struct TodayTaskRowView: View {
                         model.applyTaskCommand(.resume, taskID: row.taskID)
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("today.task.\(row.taskID).break.resume")
+                    .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).break.resume")
                 }
                 .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("today.task.\(row.taskID).accepted-break")
+                .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).accepted-break")
             }
         }
 
@@ -1110,12 +1110,12 @@ private struct TodayTaskRowView: View {
                         model.retryReminderCompletionSync(taskID: row.taskID)
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("today.task.\(row.taskID).retry-reminders-completion")
+                    .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).retry-reminders-completion")
                     .disabled(model.isAnyTaskCommandPending)
                 }
             }
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("today.task.\(row.taskID).reminders-completion-sync")
+            .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).reminders-completion-sync")
         }
         }
         .font(Sumi.label(8))
@@ -1159,12 +1159,12 @@ private struct TodayTaskRowView: View {
                     displayedComponents: .date
                 )
                 .datePickerStyle(.graphical)
-                .accessibilityIdentifier("today.task.\(row.taskID).reschedule-date")
+                .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).reschedule-date")
                 if let rescheduleError {
                     Text(rescheduleError)
                         .font(Sumi.body(12))
                         .foregroundStyle(Sumi.sealDeep)
-                        .accessibilityIdentifier("today.task.\(row.taskID).reschedule-error")
+                        .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).reschedule-error")
                 }
                 HStack {
                     Button("CANCEL") { isReschedulePresented = false }
@@ -1180,13 +1180,13 @@ private struct TodayTaskRowView: View {
                         }
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
-                    .accessibilityIdentifier("today.task.\(row.taskID).reschedule-confirm")
+                    .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).reschedule-confirm")
                 }
             }
             .padding(24)
             .frame(width: 440)
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("today.task.\(row.taskID).reschedule-sheet")
+            .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).reschedule-sheet")
         }
     }
 
@@ -1767,24 +1767,24 @@ private struct PlannedReminderRow: View {
                     Text("BLOCKED - \(blockedReason)")
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.seal)
-                        .accessibilityIdentifier("plan.task.\(entry.reminderID).blocked-reason")
+                        .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).blocked-reason")
                 } else if let deferredUntil = entry.deferredUntil, deferredUntil > Date() {
                     Text("DEFERRED UNTIL \(deferredUntil.formatted(date: .abbreviated, time: .shortened)) - NOT INCLUDED IN CAPACITY")
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.seal)
-                        .accessibilityIdentifier("plan.task.\(entry.reminderID).deferred-state")
+                        .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).deferred-state")
                 } else if entry.isOptional {
                     Text("OPTIONAL - NOT INCLUDED IN CAPACITY OR CALENDAR")
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.muted)
-                        .accessibilityIdentifier("plan.task.\(entry.reminderID).optional-state")
+                        .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).optional-state")
                 }
 
                 if let unlockLabel = gamingUnlock.conditionLabel(isMainObjective: entry.isMainObjective) {
                     Text(unlockLabel)
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.sealDeep)
-                        .accessibilityIdentifier("plan.task.\(entry.reminderID).gaming-unlock-condition")
+                        .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).gaming-unlock-condition")
                 }
 
                 TimeBlockSelector(
@@ -1813,11 +1813,11 @@ private struct PlannedReminderRow: View {
                     Button("MOVE UP") { model.moveDailyPlanEntry(entry, by: -1) }
                         .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                         .disabled(entry.rank <= 1)
-                        .accessibilityIdentifier("plan.task.\(entry.reminderID).move-up")
+                        .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).move-up")
                     Button("MOVE DOWN") { model.moveDailyPlanEntry(entry, by: 1) }
                         .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                         .disabled(entry.rank >= model.dailyPlan.count)
-                        .accessibilityIdentifier("plan.task.\(entry.reminderID).move-down")
+                        .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).move-down")
                     Spacer()
                     Button(gamingUnlock.makeMainTitle(isMainObjective: entry.isMainObjective)) {
                         if gamingUnlock.isConfigurable {
@@ -1831,7 +1831,7 @@ private struct PlannedReminderRow: View {
                         .accessibilityHint(gamingUnlock.isConfigurable
                             ? "Moves both today's main objective and the one-time gaming reward condition to this task."
                             : "Makes this task today's main objective.")
-                        .accessibilityIdentifier("plan.task.\(entry.reminderID).make-main")
+                        .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).make-main")
                     Button("EXCLUDE") { model.removeFromDailyPlan(entry) }
                         .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
                 }
@@ -1841,7 +1841,7 @@ private struct PlannedReminderRow: View {
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                     .disabled(entry.isMainObjective)
-                    .accessibilityIdentifier("plan.task.\(entry.reminderID).optional")
+                    .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).optional")
                     Button(entry.deferredUntil == nil ? "DEFER TO TOMORROW" : "RETURN TO TODAY") {
                         if entry.deferredUntil == nil {
                             model.deferTaskUntilTomorrow(entry)
@@ -1850,13 +1850,13 @@ private struct PlannedReminderRow: View {
                         }
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-                    .accessibilityIdentifier("plan.task.\(entry.reminderID).defer")
+                    .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).defer")
                     Button("MARK BLOCKED") {
                         blockReason = entry.blockedReason ?? ""
                         isBlockReasonPresented = true
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
-                    .accessibilityIdentifier("plan.task.\(entry.reminderID).block")
+                    .accessibilityIdentifier("plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: entry.reminderID)).block")
                     Spacer()
                 }
             }
@@ -2084,7 +2084,7 @@ private struct TimeBlockSelector: View {
                     .frame(height: 22)
                     .background(Sumi.seal)
                     .accessibilityLabel("Unknown estimate. Uses a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder for planning.")
-                    .accessibilityIdentifier("task-estimate-unknown-selected-\(taskID)")
+                    .accessibilityIdentifier("task-estimate-unknown-selected-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 Button {
                     isChanging = true
                 } label: {
@@ -2138,11 +2138,11 @@ private struct TimeBlockSelector: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 78)
                     .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
-                    .accessibilityIdentifier("task-estimate-custom-input-\(taskID)")
+                    .accessibilityIdentifier("task-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                     .onSubmit(saveCustomEstimate)
                 Button("SAVE", action: saveCustomEstimate)
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("task-estimate-custom-save-\(taskID)")
+                    .accessibilityIdentifier("task-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 Button("CANCEL") {
                     isEnteringCustom = false
                     isChanging = false
@@ -2150,13 +2150,13 @@ private struct TimeBlockSelector: View {
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
                 .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("task-estimate-custom-cancel-\(taskID)")
+                .accessibilityIdentifier("task-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 if let customError {
                     Text(customError)
                         .font(Sumi.body(11))
                         .foregroundStyle(Sumi.sealDeep)
                         .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("task-estimate-custom-error-\(taskID)")
+                        .accessibilityIdentifier("task-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 }
             } else {
                 ForEach(durations, id: \.self) { minutes in
@@ -2180,7 +2180,7 @@ private struct TimeBlockSelector: View {
                 }
                 .buttonStyle(TimeSlotButtonStyle())
                 .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
-                .accessibilityIdentifier("task-estimate-custom-\(taskID)")
+                .accessibilityIdentifier("task-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 Button("UNKNOWN") {
                     selectUnknown()
                     isChanging = false
@@ -2188,7 +2188,7 @@ private struct TimeBlockSelector: View {
                 }
                 .buttonStyle(TimeSlotButtonStyle())
                 .accessibilityLabel("Set \(taskTitle) estimate to unknown and use a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder")
-                .accessibilityIdentifier("task-estimate-unknown-\(taskID)")
+                .accessibilityIdentifier("task-estimate-unknown-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
             }
             Spacer()
         }
@@ -2273,7 +2273,7 @@ private struct InboxReminderTaskRow: View {
             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
             .disabled(model.isAnyTaskCommandPending)
             .accessibilityLabel("Start \(task.title) without planning the day")
-            .accessibilityIdentifier("planning.unplanned.start.\(task.id)")
+            .accessibilityIdentifier("planning.unplanned.start.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: task.id))")
 
             Button("PLAN") {
                 model.addToDailyPlan(task)

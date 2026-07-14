@@ -240,7 +240,7 @@ struct TodayDashboardCommandOverview: View {
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
                             .help("Record intentional work completed away from this Mac")
                             .accessibilityLabel("Add away-from-Mac work for \(row.title)")
-                            .accessibilityIdentifier("today.focus.offline-work.\(row.taskID)")
+                            .accessibilityIdentifier("today.focus.offline-work.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
                     }
                 }
                 .disabled(model.isAnyTaskCommandPending)
@@ -773,7 +773,7 @@ struct TodayDashboardCommandOverview: View {
         .menuStyle(.borderlessButton)
         .fixedSize()
         .disabled(model.isAnyTaskCommandPending)
-        .accessibilityIdentifier("today.sprint.start.\(row.taskID)")
+        .accessibilityIdentifier("today.sprint.start.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
         .accessibilityHint("Choose a time boundary. The task will stay incomplete when the sprint ends.")
     }
 }
@@ -1025,14 +1025,14 @@ private struct SprintCommitmentPanel: View {
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .disabled(model.isAnyTaskCommandPending)
-                    .accessibilityIdentifier("today.sprint.continue.\(taskID)")
+                    .accessibilityIdentifier("today.sprint.continue.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 }
             }
             .padding(12)
             .background(Sumi.mist)
             .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("today.sprint.status.\(taskID)")
+            .accessibilityIdentifier("today.sprint.status.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
         }
     }
 
@@ -1444,23 +1444,23 @@ private struct TodayPlanTaskRow: View {
                         Text("BLOCKED - \(blockedReason)")
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.seal)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).blocked-reason")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).blocked-reason")
                     } else if let deferredUntil = entry.deferredUntil, deferredUntil > Date() {
                         Text("DEFERRED UNTIL \(deferredUntil.formatted(date: .abbreviated, time: .shortened)) - NOT INCLUDED IN CAPACITY OR CALENDAR")
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.seal)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).deferred-state")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).deferred-state")
                     } else if entry.isOptional {
                         Text("OPTIONAL - NOT INCLUDED IN CAPACITY OR CALENDAR")
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.muted)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).optional-state")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).optional-state")
                     }
                     if let conditionLabel = gamingUnlock.conditionLabel {
                         Text(conditionLabel)
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.sealDeep)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).gaming-unlock-condition")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).gaming-unlock-condition")
                     }
                     TodayEstimateStrip(
                         selectedMinutes: entry.estimateMinutes,
@@ -1483,11 +1483,11 @@ private struct TodayPlanTaskRow: View {
                         Button("MOVE UP", action: moveUp)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .disabled(entry.rank <= 1)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).move-up")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).move-up")
                         Button("MOVE DOWN", action: moveDown)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .disabled(entry.rank >= planCount)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).move-down")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).move-down")
                         if !isMainObjective {
                             Button(gamingUnlock.makeMainTitle) {
                                 if gamingUnlock.requiresConfirmation {
@@ -1498,7 +1498,7 @@ private struct TodayPlanTaskRow: View {
                             }
                                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                                 .accessibilityHint(gamingUnlock.accessibilityHint)
-                                .accessibilityIdentifier("today.plan.\(row.taskID).make-main")
+                                .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).make-main")
                         }
                         Button("REMOVE", action: remove)
                             .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
@@ -1508,16 +1508,16 @@ private struct TodayPlanTaskRow: View {
                         Button(entry.isOptional ? "MAKE COMMITTED" : "MARK OPTIONAL", action: toggleOptional)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .disabled(entry.isMainObjective)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).optional")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).optional")
                         Button(entry.deferredUntil == nil ? "DEFER TO TOMORROW" : "RETURN TO TODAY", action: toggleDeferral)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-                            .accessibilityIdentifier("today.plan.\(row.taskID).defer")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).defer")
                         Button("MARK BLOCKED") {
                             blockReason = entry.blockedReason ?? ""
                             isBlockReasonPresented = true
                         }
                         .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
-                        .accessibilityIdentifier("today.plan.\(row.taskID).block")
+                        .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).block")
                     }
                 }
                 .padding(.leading, 50)
@@ -1622,30 +1622,30 @@ private struct TodayEstimateStrip: View {
             .sumiLabelTracking()
             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
             .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
-            .accessibilityIdentifier("today-estimate-custom-\(taskID)")
+            .accessibilityIdentifier("today-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
             if isEnteringCustom {
                 TextField("Minutes", text: $customMinutes)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 78)
                     .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
-                    .accessibilityIdentifier("today-estimate-custom-input-\(taskID)")
+                    .accessibilityIdentifier("today-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                     .onSubmit(saveCustomEstimate)
                 Button("SAVE", action: saveCustomEstimate)
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("today-estimate-custom-save-\(taskID)")
+                    .accessibilityIdentifier("today-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 Button("CANCEL") {
                     isEnteringCustom = false
                     customError = nil
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
                 .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("today-estimate-custom-cancel-\(taskID)")
+                .accessibilityIdentifier("today-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 if let customError {
                     Text(customError)
                         .font(Sumi.body(10))
                         .foregroundStyle(Sumi.sealDeep)
                         .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("today-estimate-custom-error-\(taskID)")
+                        .accessibilityIdentifier("today-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 }
             }
             if let selectedMinutes {

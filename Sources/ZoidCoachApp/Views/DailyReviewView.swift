@@ -1109,7 +1109,7 @@ struct DailyReviewView: View {
                         .frame(minHeight: 38)
                         .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
                         .accessibilityElement(children: .combine)
-                        .accessibilityIdentifier("reviews.plan.task.\(task.taskID)")
+                        .accessibilityIdentifier("reviews.plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: task.taskID))")
                     }
                 }
             }
