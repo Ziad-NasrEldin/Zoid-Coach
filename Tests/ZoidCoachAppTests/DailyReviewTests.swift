@@ -893,6 +893,31 @@ func offlineWorkValidatesDurationAndCanBeDeletedWithoutTouchingObservations() th
 }
 
 @Test
+func workCategoryBreakdownReconstructsFromPersistedCorrectedSessionsAfterReopen() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    let start: Int64 = 1_783_663_200
+    try fixture.insert(epoch: start, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: start + 60, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: start + 120, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: start + 600, app: "Safari", classification: .work)
+    try fixture.insert(epoch: start + 900, app: "Steam", classification: .gaming)
+
+    let first = DailyReviewWorkCategoryState(
+        sessions: try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+    )
+    let reopenedStore = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let relaunched = DailyReviewWorkCategoryState(
+        sessions: try reopenedStore.load(sourceDay: fixture.sourceDay).sessions
+    )
+
+    #expect(relaunched == first)
+    #expect(relaunched.categories.first { $0.category == .deepWork }?.minutes == 3)
+    #expect(relaunched.categories.first { $0.category == .uncategorized }?.minutes == 1)
+    #expect(relaunched.workMinutes == 4)
+}
+
+@Test
 func migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
