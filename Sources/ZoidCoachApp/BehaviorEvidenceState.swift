@@ -39,9 +39,38 @@ struct BehaviorEvidenceWorkCategory: Identifiable, Equatable, Sendable {
     var accessibilityIdentifier: String { "today.behavior-evidence.work-category.\(category.rawValue)" }
 }
 
+struct BehaviorEvidenceWorkUncertainty: Identifiable, Equatable, Sendable {
+    let application: String
+    let observedSeconds: Int
+
+    var id: String { application }
+
+    var durationText: String {
+        let minutes = observedSeconds / 60
+        if minutes == 0 {
+            return "less than one complete minute"
+        }
+        return "\(minutes) complete minute\(minutes == 1 ? "" : "s")"
+    }
+
+    var explanation: String {
+        "Observed as Work, but application evidence alone cannot prove it supported the active task or safely label it Research. It remains Uncategorized for review."
+    }
+
+    var accessibilityLabel: String {
+        "\(application), \(durationText), work category uncertain"
+    }
+
+    var accessibilityIdentifier: String {
+        let applicationID = application.utf8.map { String(format: "%02x", $0) }.joined()
+        return "today.behavior-evidence.work-uncertainty.\(applicationID)"
+    }
+}
+
 struct BehaviorEvidenceState: Equatable, Sendable {
     let categories: [BehaviorEvidenceCategory]
     let workCategories: [BehaviorEvidenceWorkCategory]
+    let workUncertainties: [BehaviorEvidenceWorkUncertainty]
     let workCategoryDetail: String
     let coverageTitle: String
     let coverageDetail: String
@@ -73,6 +102,26 @@ struct BehaviorEvidenceState: Equatable, Sendable {
         let workCategoryUsage = behavior.workCategoryUsage
         workCategories = workCategoryUsage.map {
             BehaviorEvidenceWorkCategory(category: $0.category, minutes: $0.observedMinutes)
+        }
+        let workCategoryClassifier = WorkCategoryClassifier()
+        workUncertainties = Dictionary(
+            grouping: behavior.appUsage.filter {
+                $0.classification == .work
+                    && workCategoryClassifier.category(for: $0.application) == nil
+            },
+            by: \.application
+        )
+        .map { application, observations in
+            BehaviorEvidenceWorkUncertainty(
+                application: application,
+                observedSeconds: observations.reduce(0) { $0 + $1.observedSeconds }
+            )
+        }
+        .sorted {
+            if $0.observedSeconds != $1.observedSeconds {
+                return $0.observedSeconds > $1.observedSeconds
+            }
+            return $0.application.localizedCaseInsensitiveCompare($1.application) == .orderedAscending
         }
         let categorizedSeconds = workCategoryUsage
             .filter { $0.category != .uncategorized }

@@ -62,6 +62,58 @@ struct BehaviorEvidenceAccessibilityTests {
 
         withExtendedLifetime(host) {}
     }
+
+    @Test("hosted uncertain work rows expose privacy-safe stable elements")
+    @MainActor
+    func hostedWorkUncertaintiesExposeStablePrivacySafeElements() async throws {
+        let uncertainties = [
+            BehaviorEvidenceWorkUncertainty(application: "YouTube", observedSeconds: 600),
+            BehaviorEvidenceWorkUncertainty(application: "Safari", observedSeconds: 59),
+        ]
+        let host = NSHostingView(rootView: BehaviorEvidenceWorkUncertaintyLedger(
+            uncertainties: uncertainties
+        ))
+        host.frame = NSRect(x: 0, y: 0, width: 616, height: 260)
+
+        let window = NSWindow(
+            contentRect: host.frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = host
+        window.makeKeyAndOrderFront(nil)
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+
+        for _ in 0..<4 {
+            host.layoutSubtreeIfNeeded()
+            await Task.yield()
+        }
+
+        let prefix = "today.behavior-evidence.work-uncertainty."
+        let records = accessibilityDescendants(of: host).compactMap { element -> AccessibilityRecord? in
+            guard let identifier = accessibilityIdentifier(element),
+                  identifier.hasPrefix(prefix) else { return nil }
+            return AccessibilityRecord(
+                identifier: identifier,
+                label: accessibilityLabel(element) ?? "",
+                hint: accessibilityHelp(element) ?? ""
+            )
+        }
+
+        #expect(records.map(\.identifier) == uncertainties.map(\.accessibilityIdentifier))
+        #expect(records.map(\.label) == uncertainties.map(\.accessibilityLabel))
+        #expect(records.map(\.hint) == uncertainties.map(\.explanation))
+        #expect(records.allSatisfy {
+            !$0.label.contains("Swift concurrency")
+                && !$0.hint.contains("youtube.com/watch")
+        })
+
+        withExtendedLifetime(host) {}
+    }
 }
 
 private struct AccessibilityRecord: Equatable {

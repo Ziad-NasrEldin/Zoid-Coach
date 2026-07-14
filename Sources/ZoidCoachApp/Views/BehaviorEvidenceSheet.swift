@@ -18,6 +18,9 @@ struct BehaviorEvidenceSheet: View {
                 VStack(alignment: .leading, spacing: 18) {
                     categoryLedger
                     workCategoryLedger
+                    if !evidence.workUncertainties.isEmpty {
+                        workUncertaintyLedger
+                    }
                     uncertaintyCard
                     coverageCard
                 }
@@ -100,6 +103,10 @@ struct BehaviorEvidenceSheet: View {
         )
     }
 
+    private var workUncertaintyLedger: some View {
+        BehaviorEvidenceWorkUncertaintyLedger(uncertainties: evidence.workUncertainties)
+    }
+
     private var uncertaintyCard: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(evidence.unknownMinutes > 0 ? "ZOID 666 MAY BE WRONG HERE" : "NO UNKNOWN TIME OBSERVED")
@@ -162,6 +169,51 @@ struct BehaviorEvidenceSheet: View {
         }
         .padding(18)
         .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+    }
+}
+
+struct BehaviorEvidenceWorkUncertaintyLedger: View {
+    let uncertainties: [BehaviorEvidenceWorkUncertainty]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("WORK CONTEXT LEFT UNCERTAIN")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            Text("These applications were observed as Work, but Zoid 666 did not prove they supported the active task. They remain Uncategorized instead of being guessed as Research.")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 8) {
+                ForEach(uncertainties) { uncertainty in
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(uncertainty.application)
+                                .font(Sumi.body(12))
+                            Text(uncertainty.durationText.uppercased())
+                                .font(Sumi.label(7))
+                                .sumiLabelTracking()
+                                .foregroundStyle(Sumi.seal)
+                        }
+                        .frame(width: 150, alignment: .leading)
+                        Text(uncertainty.explanation)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.sealWash)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(uncertainty.accessibilityLabel)
+                    .accessibilityHint(uncertainty.explanation)
+                    .accessibilityIdentifier(uncertainty.accessibilityIdentifier)
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.behavior-evidence.work-uncertainties")
     }
 }
 

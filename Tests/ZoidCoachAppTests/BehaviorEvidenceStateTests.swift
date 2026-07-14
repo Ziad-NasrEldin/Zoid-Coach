@@ -66,6 +66,73 @@ struct BehaviorEvidenceStateTests {
         #expect(missingAppEvidence.workCategories.allSatisfy { $0.minutes == 0 })
     }
 
+    @Test("technical tutorial work stays explicitly uncertain instead of being guessed as research")
+    func technicalTutorialWorkStaysUncertain() {
+        let state = makeState(behavior: BehaviorSummary(
+            workMinutes: 10,
+            appUsage: [
+                AppUsageBreakdown(
+                    application: "YouTube",
+                    observedSeconds: 600,
+                    percentage: 100,
+                    classification: .work
+                ),
+            ]
+        ))
+
+        #expect(state.workUncertainties.count == 1)
+        #expect(state.workUncertainties.first?.application == "YouTube")
+        #expect(state.workUncertainties.first?.durationText == "10 complete minutes")
+        #expect(state.workUncertainties.first?.explanation.contains("active task") == true)
+        #expect(state.workUncertainties.first?.explanation.contains("Research") == true)
+        #expect(state.workUncertainties.first?.accessibilityIdentifier == "today.behavior-evidence.work-uncertainty.596f7554756265")
+        #expect(state.workCategories.first { $0.category == .research }?.minutes == 0)
+        #expect(state.workCategories.first { $0.category == .uncategorized }?.minutes == 10)
+    }
+
+    @Test("non-work activity and recognized research tools do not create false work uncertainty")
+    func onlyUncategorizedWorkCreatesUncertainty() {
+        let state = makeState(behavior: BehaviorSummary(
+            workMinutes: 10,
+            distractingMinutes: 10,
+            appUsage: [
+                AppUsageBreakdown(
+                    application: "YouTube",
+                    observedSeconds: 600,
+                    percentage: 50,
+                    classification: .distracting
+                ),
+                AppUsageBreakdown(
+                    application: "Zotero",
+                    observedSeconds: 600,
+                    percentage: 50,
+                    classification: .work
+                ),
+            ]
+        ))
+
+        #expect(state.workUncertainties.isEmpty)
+        #expect(state.workCategories.first { $0.category == .research }?.minutes == 10)
+        #expect(state.workCategories.first { $0.category == .uncategorized }?.minutes == 0)
+    }
+
+    @Test("sub-minute uncertain work is described without rounding up")
+    func subMinuteUncertainWorkDoesNotRoundUp() {
+        let state = makeState(behavior: BehaviorSummary(
+            appUsage: [
+                AppUsageBreakdown(
+                    application: "Safari",
+                    observedSeconds: 59,
+                    percentage: 100,
+                    classification: .work
+                ),
+            ]
+        ))
+
+        #expect(state.workUncertainties.first?.durationText == "less than one complete minute")
+        #expect(state.workUncertainties.first?.accessibilityLabel.contains("less than one complete minute") == true)
+    }
+
     @Test("sub-minute evidence is floored without claiming that no safe category exists")
     func subMinuteEvidenceIsTruthful() {
         let recognized = makeState(behavior: BehaviorSummary(
