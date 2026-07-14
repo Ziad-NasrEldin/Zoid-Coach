@@ -50,12 +50,13 @@ struct DailyReviewWorkCategoryState: Equatable, Sendable {
         if !hasWork {
             return "No corrected work sessions were observed for this review day. No category was invented."
         }
+        let authority = "Totals follow each saved corrected-session classification. After a merge, the chosen left session supplies that classification."
         if uncategorizedMinutes == workMinutes {
-            return "Work was observed, but the application evidence does not identify one safe category. No category was guessed."
+            return "\(authority) Work was observed, but the application evidence does not identify one safe category. No category was guessed."
         }
         if uncategorizedMinutes > 0 {
-            return "\(uncategorizedMinutes) work minute\(uncategorizedMinutes == 1 ? " remains" : "s remain") Uncategorized because ambiguous application evidence is never guessed."
+            return "\(authority) \(uncategorizedMinutes) work minute\(uncategorizedMinutes == 1 ? " remains" : "s remain") Uncategorized because ambiguous application evidence is never guessed."
         }
-        return "Corrected work sessions are grouped only when their application evidence identifies one safe category."
+        return "\(authority) Corrected work sessions are grouped only when their application evidence identifies one safe category."
     }
 }
