@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "8b01a8a9d929a038275263605b5dc4abf84a867e935f5ef84e7e64575ae422ed",
+  "tracker_sha256": "6b11901125f8ab1c90a2d7ac49d8b4dab6d6294041092218fc6c668f599642cb",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -11494,11 +11494,14 @@
       ],
       "affected_capability": "resilience_and_diagnostics",
       "evidence_paths": [
-        ".audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md"
+        ".audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md",
+        ".audit/runs/stale-screenwatch-suppression/signed-builder/fresh.png",
+        ".audit/runs/stale-screenwatch-suppression/signed-builder/stale.png",
+        ".audit/runs/stale-screenwatch-suppression/verifier/REPORT.md"
       ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Gaming-drift production now rejects missing, older-than-three-minute, and future-dated Screenwatch evidence, dismisses a queued gaming-drift prompt when coverage later becomes limited, and restores exactly-once eligibility when fresh evidence resumes. Four focused lifecycle and policy tests pass, and an installed signed-QA missing-source run plus relaunch showed Today with zero persisted or unresolved prompts. The signed stale-to-fresh prompt presentation journey still needs supported baseline and current-plan fixture prerequisites before this can be marked fully usable end to end (`Sources/ZoidCoachInfrastructure/GamingDriftPromptService.swift`; `Tests/ZoidCoachAppTests/GamingDriftPromptServiceTests.swift`; `.audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md`).",
+      "audit_note": "Gaming-drift production rejects missing, future-dated, and older-than-180-second evidence, dismisses a queued prompt when coverage becomes stale, and now reconciles inbox truth on every helper loop and startup so pending or delivered prompt notifications are removed while unrelated notifications remain. All 20 focused gaming-drift tests, the delivered-and-pending notification fixture, privacy assertions, and an isolated release build passed; signed-builder evidence shows Build 8 with a complete baseline and no visible behavior prompt, one persisted dismissed gaming episode with zero unresolved prompts or responses, no remaining gaming notification, and unrelated review/test notifications preserved, while the older signed missing-source run remained prompt-free after relaunch. This stays at Touches because the signed package identity was not preserved, the stale screenshot is unreadable provenance, and persistence still cannot distinguish a system withdrawal from a user dismissal, so same-session stale-withdrawn-to-fresh recovery cannot safely bypass dismissal, cooldown, or daily-cap semantics and the complete signed stale-to-fresh-to-stale relaunch journey remains (`PromptNotificationCoordinator.swift`; `GamingDriftPromptService.swift`; `PromptNotificationCoordinatorTests.swift`; `GamingDriftPromptServiceTests.swift`; `.audit/runs/stale-screenwatch-prompt-suppression/verifier/REPORT.md`; `.audit/runs/stale-screenwatch-suppression/verifier/REPORT.md`).",
       "tracker_line": 706
     },
     {
