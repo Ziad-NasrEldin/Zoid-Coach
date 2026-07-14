@@ -64,6 +64,20 @@ print -r -- '${AGENT_PLISTS[0]}' >> "$TEMP_ROOT/invalid-zero-index.md"
 contains_zero_based_array_index "$TEMP_ROOT/invalid-zero-index.md" >/dev/null \
     || fail "zero-based zsh array guard did not reject a known-invalid fixture"
 
+contains_unsafe_test_glob() {
+    grep -En '(^|[[:space:]])test[[:space:]].*(=|!=)[[:space:]]+\*' "$1"
+}
+
+if contains_unsafe_test_glob "$RUNBOOK" > "$TEMP_ROOT/unsafe-test-glob.txt"; then
+    cat "$TEMP_ROOT/unsafe-test-glob.txt" >&2
+    fail "runbook uses an unquoted glob operand with test under zsh"
+fi
+
+cp "$RUNBOOK" "$TEMP_ROOT/invalid-test-glob.md"
+print -r -- 'test "$command_line" != *--qa-open-main*' >> "$TEMP_ROOT/invalid-test-glob.md"
+contains_unsafe_test_glob "$TEMP_ROOT/invalid-test-glob.md" >/dev/null \
+    || fail "unsafe test glob guard did not reject a known-invalid fixture"
+
 awk '
     /^# BEGIN RUNBOOK SELF-TEST: launch-agent-array$/ { inside = 1; next }
     /^# END RUNBOOK SELF-TEST: launch-agent-array$/ { inside = 0; exit }
@@ -82,4 +96,20 @@ touch "$FAKE_APP/Contents/Library/LaunchAgents/test.agent.plist"
 /bin/zsh "$TEMP_ROOT/execute-launch-agent-array.zsh" \
     || fail "extracted LaunchAgent block failed under declared $DECLARED_SHELL"
 
-print -- "PASS: ZC-013-001 runbook declares executable zsh blocks and portable one-based array indexing"
+awk '
+    /^# BEGIN RUNBOOK SELF-TEST: ordinary-launch-command$/ { inside = 1; next }
+    /^# END RUNBOOK SELF-TEST: ordinary-launch-command$/ { inside = 0; exit }
+    inside { print }
+' "$RUNBOOK" > "$TEMP_ROOT/ordinary-launch-command.zsh"
+test -s "$TEMP_ROOT/ordinary-launch-command.zsh" || fail "ordinary-launch command predicate was not found"
+{
+    cat "$TEMP_ROOT/ordinary-launch-command.zsh"
+    print -r -- 'ordinary_launch_command_is_valid "/Applications/Zoid 666 QA.app/Contents/MacOS/ZoidCoachQA"'
+    print -r -- '! ordinary_launch_command_is_valid "/Applications/Zoid 666 QA.app/Contents/MacOS/ZoidCoachQA --qa-open-main"'
+    print -r -- '! ordinary_launch_command_is_valid "/Applications/Zoid 666 QA.app/Contents/MacOS/ZoidCoachQA --background-schedule"'
+    print -r -- '! ordinary_launch_command_is_valid "/Applications/Zoid 666 QA.app/Contents/MacOS/ZoidCoachQA --qa-open-main --background-schedule"'
+} > "$TEMP_ROOT/execute-ordinary-launch-command.zsh"
+/bin/zsh "$TEMP_ROOT/execute-ordinary-launch-command.zsh" \
+    || fail "ordinary-launch predicate did not accept and reject representative command lines under zsh"
+
+print -- "PASS: ZC-013-001 runbook declares executable zsh blocks, portable arrays, and zsh-safe launch predicates"
