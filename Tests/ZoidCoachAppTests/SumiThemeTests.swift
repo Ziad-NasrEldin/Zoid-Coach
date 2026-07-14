@@ -111,6 +111,71 @@ func standardMotionViewHostRetainsRepresentativePressedFeedbackAndMotion() async
     withExtendedLifetime(host) {}
 }
 
+@Test @MainActor
+func actionButtonWrapsConstrainedArabicWithoutHorizontalOverflow() async throws {
+    let measurement = ActionButtonMeasurement()
+    let host = NSHostingView(
+        rootView: LocalizedActionButtonFixture(
+            label: "تأكيد الخطة اليومية ومراجعة التفاصيل قبل المتابعة",
+            width: 180,
+            layoutDirection: .rightToLeft,
+            measurement: measurement
+        )
+    )
+    host.frame = NSRect(x: 0, y: 0, width: 180, height: 240)
+    await settle(host)
+
+    let size = try #require(measurement.size)
+    #expect(size.width <= 180)
+    #expect(size.height > 44)
+    #expect(size.height < 240)
+
+    withExtendedLifetime(host) {}
+}
+
+@Test @MainActor
+func actionButtonWrapsConstrainedLongEnglishWithoutHorizontalOverflow() async throws {
+    let measurement = ActionButtonMeasurement()
+    let host = NSHostingView(
+        rootView: LocalizedActionButtonFixture(
+            label: "CONFIRM THE DAILY PLAN AND REVIEW DETAILS BEFORE CONTINUING",
+            width: 180,
+            layoutDirection: .leftToRight,
+            measurement: measurement
+        )
+    )
+    host.frame = NSRect(x: 0, y: 0, width: 180, height: 240)
+    await settle(host)
+
+    let size = try #require(measurement.size)
+    #expect(size.width <= 180)
+    #expect(size.height > 44)
+    #expect(size.height < 240)
+
+    withExtendedLifetime(host) {}
+}
+
+@Test @MainActor
+func actionButtonKeepsShortEnglishAtMinimumTargetHeight() async throws {
+    let measurement = ActionButtonMeasurement()
+    let host = NSHostingView(
+        rootView: LocalizedActionButtonFixture(
+            label: "CONFIRM",
+            width: 180,
+            layoutDirection: .leftToRight,
+            measurement: measurement
+        )
+    )
+    host.frame = NSRect(x: 0, y: 0, width: 180, height: 120)
+    await settle(host)
+
+    let size = try #require(measurement.size)
+    #expect(size.width <= 180)
+    #expect(size.height == 44)
+
+    withExtendedLifetime(host) {}
+}
+
 private func assertReducedPolicy(_ snapshot: MotionInteractionSnapshot) {
     #expect(!snapshot.policy.animatesStateChanges)
     #expect(!snapshot.policy.allowsSpatialMotion)
@@ -145,6 +210,42 @@ private struct MotionInteractionSnapshot: Equatable {
     let usageLabel: String
     let estimateLabel: String
     let reminderOrder: [String]
+}
+
+@MainActor
+private final class ActionButtonMeasurement: ObservableObject {
+    @Published var size: CGSize?
+}
+
+private struct ActionButtonSizePreferenceKey: PreferenceKey {
+    static let defaultValue = CGSize.zero
+
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+}
+
+private struct LocalizedActionButtonFixture: View {
+    let label: String
+    let width: CGFloat
+    let layoutDirection: LayoutDirection
+    @ObservedObject var measurement: ActionButtonMeasurement
+
+    var body: some View {
+        Button(label) {}
+            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+            .frame(width: width)
+            .background {
+                GeometryReader { geometry in
+                    Color.clear.preference(
+                        key: ActionButtonSizePreferenceKey.self,
+                        value: geometry.size
+                    )
+                }
+            }
+            .onPreferenceChange(ActionButtonSizePreferenceKey.self) { measurement.size = $0 }
+            .environment(\.layoutDirection, layoutDirection)
+    }
 }
 
 @MainActor
