@@ -6,21 +6,28 @@ Every phase uses the production `behavior_records` and `daily_reviews` schemas i
 
 ## Bind the signed runtime
 
-Install a clean signed QA package under isolated runtime and install roots.
+Install a clean signed QA package under isolated runtime and install roots through the signed bootstrap.
+The bootstrap checks repository cleanliness before creating any evidence path, then creates only the external commit-scoped evidence root.
 Grant Accessibility permission to the terminal running the probes.
 Set these values from the repository containing the exact signed commit.
 
 ```sh
-APP="/absolute/path/to/Zoid 666 QA E2E.app"
 QA_ROOT="/private/tmp/zoid-666-zc042001-runtime"
+INSTALL_ROOT="/private/tmp/zoid-666-zc042001-install"
 DATABASE="$QA_ROOT/Application Support/Zoid 666/zoid-coach.sqlite"
 EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_COMMIT"
+EVIDENCE_ROOT="/private/tmp/zoid-zc042001-evidence/$EXPECTED_SIGNED_COMMIT"
+BOOTSTRAP="$PWD/Scripts/qa-zc042001-signed-bootstrap.sh"
 FIXTURE="$PWD/Scripts/qa-zc042001-evidence-layers-fixture.sh"
 PROBE="$PWD/Scripts/qa-zc042001-evidence-layers-ax-probe.swift"
 PREFLIGHT="$PWD/Scripts/qa-zc042001-signed-preflight.sh"
 READY_STATE="$PWD/Scripts/prepare-qa-ready-state.py"
 READY_MANIFEST="$PWD/Scripts/fixtures/qa-ready-state.example.json"
 WINDOW_PROBE="$PWD/Scripts/qa-window-content-probe.swift"
+"$BOOTSTRAP" --self-test
+"$BOOTSTRAP" "$EXPECTED_SIGNED_COMMIT" "$QA_ROOT" "$INSTALL_ROOT"
+APP="$INSTALL_ROOT/Zoid 666 QA E2E.app"
+exec > >(tee -a "$EVIDENCE_ROOT/runbook.log") 2>&1
 "$FIXTURE" self-test
 "$PREFLIGHT" --self-test
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/Info.plist")"
@@ -39,7 +46,8 @@ resolve_app_pid() {
 }
 ```
 
-The self-tests reject helper-before-foreground ordering, QA foreground arguments during relaunch, invalid fixture ownership, ambiguous main windows, and incomplete layer contracts.
+The self-tests reject repository evidence creation before the clean-identity gate, helper-before-foreground ordering, QA foreground arguments during relaunch, invalid fixture ownership, ambiguous main windows, and incomplete layer contracts.
+`install.log`, `runbook.log`, and all screenshots remain durable under `EVIDENCE_ROOT` without changing repository identity.
 
 Stop the exact installed app and helper before preparing the supported 12-of-12 ready state.
 Launch the initial main window with the packaged QA argument while the helper remains unregistered.
@@ -81,6 +89,7 @@ PID="$(resolve_app_pid)"
   --require-ordinary-open --expected-app-pid "$PID"
 swift "$PROBE" --pid "$PID" --phase positive
 "$FIXTURE" assert-positive "$DATABASE"
+screencapture -x "$EVIDENCE_ROOT/positive.png"
 ```
 
 Acceptance requires exactly three accessible layers.
@@ -99,6 +108,7 @@ PID="$(resolve_app_pid)"
   --require-ordinary-open --expected-app-pid "$PID"
 swift "$PROBE" --pid "$PID" --phase positive
 "$FIXTURE" assert-positive "$DATABASE"
+screencapture -x "$EVIDENCE_ROOT/positive-relaunch.png"
 ```
 
 ## Limited persisted evidence
@@ -115,6 +125,7 @@ PID="$(resolve_app_pid)"
   --require-ordinary-open --expected-app-pid "$PID"
 swift "$PROBE" --pid "$PID" --phase limited
 "$FIXTURE" assert-limited "$DATABASE"
+screencapture -x "$EVIDENCE_ROOT/limited.png"
 ```
 
 The context layer must expose the Unknown limit explicitly.
@@ -135,6 +146,7 @@ PID="$(resolve_app_pid)"
   --require-ordinary-open --expected-app-pid "$PID"
 swift "$PROBE" --pid "$PID" --phase empty
 "$FIXTURE" assert-empty "$DATABASE"
+screencapture -x "$EVIDENCE_ROOT/empty.png"
 ```
 
 The empty facts layer must say that no covered activity or completed task was recorded.
