@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "9e2bcc404b4de7f9042e133195888d17b087b87a9311a332fd8e13becb828ea6",
+  "tracker_sha256": "aeecfd392ae2c52baf14ae5e6694f7fee6237a0bf6203dc154f2d66a76d0eb2f",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -7729,11 +7729,12 @@
       ],
       "affected_capability": "gaming_and_coaching",
       "evidence_paths": [
-        ".audit/runs/prompt-blocker-reachability/verifier/REPORT.md"
+        ".audit/runs/prompt-blocked-finish/independent-verifier/REPORT.md",
+        ".audit/runs/prompt-blocked-finish/verifier/REPORT.md"
       ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The signed constrained Today window restored the exact six-action numeric-flag `GAMING_DRIFT` envelope and rendered `CHANGE THE TASK` before `RECOVERY OPTIONS`, but the task-change accessibility collection still had no button children, so `Mark blocked` remained unreachable without coordinate guessing. Focused partition and reason-boundary tests plus the signed release package pass. The reason sheet, two-character rejection, Cancel, successful block, replacement-main promotion, answered history, relaunch, and unavailable-agent journeys remain (`TodayPromptInboxLedger.swift`; `PromptTaskBlockState.swift`; `.audit/runs/prompt-blocker-reachability/verifier/REPORT.md`).",
+      "audit_note": "The builder's signed flow exposed all six prompt actions as direct stable controls, rejected a two-character reason without mutation, preserved the prompt on Cancel, saved `Waiting for approval.` exactly once, closed the active interval, blocked the original task, promoted `Prepare launch notes`, restored the reason in answered history after app and helper relaunch, and kept the database unchanged with the specific recovery message when the helper was unavailable. A fresh independent run first exposed a degraded helper that returned an empty XPC timeline despite the canonical presented prompt; the signed registration-continuity repair now requires a writable XPC prompt timeline and heartbeat, preserved the same helper PID across foreground relaunch, and independently restored all six controls plus invalid and Cancel behavior. One fresh independent activation of valid Save Blocker, followed by exactly-once SQLite, answered-history, app/helper relaunch, and helper-unavailable checks, remains before completion (`TodayPromptInboxLedger.swift`; `PromptTaskBlockState.swift`; `AppModel.swift`; `AgentLaunchService.swift`; `.audit/runs/prompt-blocked-finish/verifier/REPORT.md`; `.audit/runs/prompt-blocked-finish/independent-verifier/REPORT.md`).",
       "tracker_line": 494
     },
     {
