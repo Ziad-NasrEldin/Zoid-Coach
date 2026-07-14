@@ -405,7 +405,11 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func recordGamingManualAdjustment(minutes: Int, note: String?) {
+    func recordGamingManualAdjustment(
+        minutes: Int,
+        note: String?,
+        presentation: GamingManualAdjustmentPresentation
+    ) {
         guard !isSavingGamingManualAdjustment,
               let snapshot = todaySnapshot,
               snapshot.gaming.budgetEnabled,
@@ -414,10 +418,10 @@ final class AppModel: ObservableObject {
         gamingManualAdjustmentMessage = nil
         gamingManualAdjustmentError = nil
         let presentedDay = Self.gamingAdjustmentDayKey(
-            snapshot.localDate,
-            timeZoneIdentifier: snapshot.timeZoneIdentifier
+            presentation.localDate,
+            timeZoneIdentifier: presentation.timeZoneIdentifier
         )
-        let presentedTimeZone = snapshot.timeZoneIdentifier
+        let presentedTimeZone = presentation.timeZoneIdentifier
         Task {
             defer { isSavingGamingManualAdjustment = false }
             do {

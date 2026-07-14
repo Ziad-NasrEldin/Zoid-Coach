@@ -19,7 +19,7 @@ struct TodayDashboardCommandOverview: View {
     @State private var offlineWorkTask: TodayTaskRow?
     @State private var blockReasonTask: TodayTaskRow?
     @State private var blockReason = ""
-    @State private var isGamingAdjustmentPresented = false
+    @State private var gamingAdjustmentPresentation: GamingManualAdjustmentPresentation?
     @FocusState private var isUsageFocused: Bool
 
     var body: some View {
@@ -104,14 +104,18 @@ struct TodayDashboardCommandOverview: View {
             BehaviorEvidenceSheet(snapshot: snapshot)
                 .environmentObject(model)
         }
-        .sheet(isPresented: $isGamingAdjustmentPresented) {
+        .sheet(item: $gamingAdjustmentPresentation) { presentation in
             GamingManualAdjustmentSheet(
-                currentManualMinutes: snapshot.gaming.manualAdjustmentMinutes,
+                currentManualMinutes: presentation.currentManualMinutes,
                 isSaving: model.isSavingGamingManualAdjustment,
-                cancel: { isGamingAdjustmentPresented = false },
+                cancel: { gamingAdjustmentPresentation = nil },
                 save: { minutes, note in
-                    isGamingAdjustmentPresented = false
-                    model.recordGamingManualAdjustment(minutes: minutes, note: note)
+                    gamingAdjustmentPresentation = nil
+                    model.recordGamingManualAdjustment(
+                        minutes: minutes,
+                        note: note,
+                        presentation: presentation
+                    )
                 }
             )
         }
@@ -350,7 +354,11 @@ struct TodayDashboardCommandOverview: View {
                         .font(Sumi.body(9))
                         .foregroundStyle(Sumi.muted)
                     Button("ADJUST MANUAL TIME") {
-                        isGamingAdjustmentPresented = true
+                        gamingAdjustmentPresentation = GamingManualAdjustmentPresentation(
+                            localDate: snapshot.localDate,
+                            timeZoneIdentifier: snapshot.timeZoneIdentifier,
+                            currentManualMinutes: snapshot.gaming.manualAdjustmentMinutes
+                        )
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                     .disabled(
