@@ -79,6 +79,15 @@ func notificationReplacementProbeUsesStableIdentityForANewChangedEpisode() async
     #expect(original.episode.decisionKey == replacement.episode.decisionKey)
     #expect(original.episode.title != replacement.episode.title)
     #expect(original.episode.summary != replacement.episode.summary)
+    #expect(original.episode.type == PromptNotificationCategory.planReady.rawValue)
+    #expect(replacement.episode.type == PromptNotificationCategory.planChanged.rawValue)
+    #expect(original.episode.actions.map(\.kind) == [
+        .acceptPlan,
+        .reviewPlan,
+        .snoozePlanning,
+        .dismissPlanning,
+    ])
+    #expect(replacement.episode.actions.map(\.kind) == [.reviewPlan, .undoPlanChange])
     #expect(try store.episode(promptID: original.episode.id)?.state == .dismissed)
     #expect(replacement.episode.state.isUnresolved)
     #expect(
@@ -94,6 +103,7 @@ func notificationReplacementProbeUsesStableIdentityForANewChangedEpisode() async
     let notifications = try adapter.snapshot().notifications
     #expect(notifications.count == 1)
     #expect(notifications[0].desired.promptID == replacement.episode.id)
+    #expect(notifications[0].desired.category == PromptNotificationCategory.planChanged.rawValue)
     #expect(notifications[0].desired.title == replacement.episode.title)
     #expect(notifications[0].desired.body == replacement.episode.summary)
 }
@@ -124,7 +134,7 @@ func notificationReplacementProbeRoutesOnlyTheNewestActionAndSurvivesRelaunch() 
     let replacement = try await probe.scheduleReplacement()
     _ = try adapter.respondToNotification(
         identifier: replacement.episode.id,
-        actionIdentifier: PromptActionKind.continueIntentionally.rawValue
+        actionIdentifier: PromptActionKind.undoPlanChange.rawValue
     )
     try await coordinator.processFixtureActions()
 
@@ -132,7 +142,7 @@ func notificationReplacementProbeRoutesOnlyTheNewestActionAndSurvivesRelaunch() 
     let latestResponses = try store.responses(promptID: replacement.episode.id)
     #expect(latestResponses.count == 1)
     #expect(latestResponses[0].surface == .notification)
-    #expect(latestResponses[0].action == .continueIntentionally)
+    #expect(latestResponses[0].action == .undoPlanChange)
 
     let relaunchedAdapter = try QAFixtureOSComposition.makeAuthorizedAdapter(
         runtimeEnvironment: fixture.environment,

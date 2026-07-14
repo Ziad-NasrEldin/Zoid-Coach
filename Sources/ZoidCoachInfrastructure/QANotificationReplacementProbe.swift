@@ -104,9 +104,15 @@ public actor QANotificationReplacementProbe {
         }
         return try await schedule(
             phase: .original,
+            category: .planReady,
             title: "Original coaching update",
             summary: "Review the earlier plan before continuing.",
-            primaryActionTitle: "Continue with earlier plan"
+            actions: [
+                PromptAction(kind: .acceptPlan, title: "Accept", role: .primary),
+                PromptAction(kind: .reviewPlan, title: "Plan now"),
+                PromptAction(kind: .snoozePlanning, title: "Snooze 15 min"),
+                PromptAction(kind: .dismissPlanning, title: "Dismiss for now"),
+            ]
         )
     }
 
@@ -119,9 +125,13 @@ public actor QANotificationReplacementProbe {
         _ = try promptStore.dismiss(promptID: original.id)
         return try await schedule(
             phase: .replacement,
+            category: .planChanged,
             title: "Updated coaching direction",
             summary: "The plan changed. Continue with the newest guidance.",
-            primaryActionTitle: "Continue with updated plan"
+            actions: [
+                PromptAction(kind: .reviewPlan, title: "Review", role: .primary),
+                PromptAction(kind: .undoPlanChange, title: "Undo"),
+            ]
         )
     }
 
@@ -137,23 +147,17 @@ public actor QANotificationReplacementProbe {
 
     private func schedule(
         phase: QANotificationReplacementProbePhase,
+        category: PromptNotificationCategory,
         title: String,
         summary: String,
-        primaryActionTitle: String
+        actions: [PromptAction]
     ) async throws -> QANotificationReplacementProbeResult {
         let episode = try promptStore.enqueue(PromptDraft(
             decisionKey: decisionKey,
-            type: PromptNotificationCategory.onboardingTest.rawValue,
+            type: category.rawValue,
             title: title,
             summary: summary,
-            actions: [
-                PromptAction(
-                    kind: .continueIntentionally,
-                    title: primaryActionTitle,
-                    role: .primary
-                ),
-                PromptAction(kind: .ignore, title: "Use Today instead"),
-            ],
+            actions: actions,
             payload: [
                 "allowsDismissal": "true",
                 Self.phasePayloadKey: phase.rawValue,
