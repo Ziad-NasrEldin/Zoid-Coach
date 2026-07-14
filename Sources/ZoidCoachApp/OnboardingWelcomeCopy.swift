@@ -28,6 +28,11 @@ struct OnboardingWelcomeCopy {
         return english
     }
 
+    static func localized(for locale: Locale, isWelcomeStep: Bool) -> Self {
+        guard isWelcomeStep else { return english }
+        return localized(for: locale)
+    }
+
     var accessibilitySummary: String {
         [title, body, note].joined(separator: " ")
     }
@@ -78,7 +83,9 @@ struct OnboardingWelcomeCopy {
         currentState: "الحالية",
         upcomingState: "قادمة",
         stepAccessibilityLabel: { "الخطوة \($0)، \($1)" },
-        setupErrorLabel: { "تعذر إكمال الإعداد. \($0)" },
+        setupErrorLabel: { _ in
+            "تعذر إكمال الإعداد. حاول مرة أخرى، أو اخرج الآن واستأنف الإعداد لاحقًا."
+        },
         isRightToLeft: true
     )
 }
