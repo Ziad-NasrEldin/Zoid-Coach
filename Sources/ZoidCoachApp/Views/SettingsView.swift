@@ -836,6 +836,11 @@ struct SettingsView: View {
                 .accessibilityIdentifier("settings.schedule.time-zone.use-mac")
             }
 
+            SignedQATimeZonePickerControls(
+                selection: $controller.draft.timeZoneIdentifier,
+                sourceTimeZoneIdentifier: controller.policyTimeZone.identifier
+            )
+
             Text(timeZonePolicyDetail)
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
