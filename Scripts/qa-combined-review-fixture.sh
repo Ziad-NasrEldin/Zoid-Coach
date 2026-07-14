@@ -64,7 +64,11 @@ require_column() {
 }
 
 validate_schema() {
-    assert_scalar "PRAGMA user_version;" "46" "schema version"
+    if [[ "$(scalar "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations';")" == "1" ]]; then
+        assert_scalar "SELECT MAX(version) FROM schema_migrations;" "47" "migrated schema version"
+    else
+        assert_scalar "PRAGMA user_version;" "46" "standalone fixture schema version"
+    fi
     local table
     for table in behavior_records daily_reviews learning_samples weekly_review_experiments; do
         assert_scalar \
