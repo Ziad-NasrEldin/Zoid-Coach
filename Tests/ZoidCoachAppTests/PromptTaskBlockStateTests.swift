@@ -61,6 +61,103 @@ func promptActionReachabilityMovesTaskChangesAheadWithoutDuplicatingActions() th
     #expect(layout.taskChangeActions.count + layout.recoveryActions.count == original.count)
 }
 
+@Test
+func promptActionPublicInterfaceMakesEveryChoiceADirectStableControl() throws {
+    let original: [PromptAction] = [
+        .init(kind: .returnToActiveTask, title: "Return"),
+        .init(kind: .startWorkSprint, title: "Sprint", role: .primary),
+        .init(kind: .startBreak, title: "Break"),
+        .init(kind: .rescheduleTask, title: "Reschedule", role: .destructive),
+        .init(kind: .markBlocked, title: "Mark blocked", role: .destructive),
+        .init(kind: .continueIntentionally, title: "Continue")
+    ]
+
+    let interface = PromptActionPublicInterface(promptID: "qa-block-1", actions: original)
+
+    #expect(interface.presentation == .directButtonList)
+    #expect(interface.controls.map(\.action.kind) == [
+        .rescheduleTask,
+        .markBlocked,
+        .returnToActiveTask,
+        .startWorkSprint,
+        .startBreak,
+        .continueIntentionally
+    ])
+    #expect(interface.controls.map(\.accessibilityIdentifier) == [
+        "today.prompt.qa-block-1.action.reschedule_task",
+        "today.prompt.qa-block-1.action.mark_blocked",
+        "today.prompt.qa-block-1.action.return_to_active_task",
+        "today.prompt.qa-block-1.action.start_work_sprint",
+        "today.prompt.qa-block-1.action.start_break",
+        "today.prompt.qa-block-1.action.continue_intentionally"
+    ])
+    #expect(Set(interface.controls.map(\.accessibilityIdentifier)).count == original.count)
+}
+
+@Test
+func todayPromptActionSurfaceDoesNotVirtualizePublicControls() throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let sourceURL = repositoryRoot
+        .appendingPathComponent("Sources/ZoidCoachApp/Views/TodayPromptInboxLedger.swift")
+    let source = try String(contentsOf: sourceURL, encoding: .utf8)
+    let activeRowStart = try #require(source.range(of: "private func activeRow"))
+    let actionButtonStart = try #require(source.range(of: "private func promptActionButton"))
+    let activeRow = source[activeRowStart.lowerBound..<actionButtonStart.lowerBound]
+
+    #expect(!activeRow.contains("LazyVGrid"))
+    #expect(activeRow.contains("ForEach(interface.taskChangeControls)"))
+    #expect(activeRow.contains("ForEach(interface.recoveryControls)"))
+}
+
+@Test
+func promptBlockFormRejectsEmptyInputAndPreventsDuplicateSubmission() throws {
+    var form = PromptTaskBlockFormState()
+
+    #expect(form.beginSubmission() == .failure(.tooShort))
+    #expect(form.errorMessage == "Explain the blocker in at least 3 characters.")
+    #expect(!form.isSubmitting)
+
+    form.reason = "  Waiting for client approval.  "
+    #expect(form.beginSubmission() == .success("Waiting for client approval."))
+    #expect(form.isSubmitting)
+    #expect(form.beginSubmission() == .failure(.alreadySubmitting))
+
+    form.finishSubmission(error: "The helper is unavailable.")
+    #expect(!form.isSubmitting)
+    #expect(form.errorMessage == "The helper is unavailable.")
+
+    form.cancel()
+    #expect(form == PromptTaskBlockFormState())
+}
+
+@Test
+func promptBlockReasonSuggestionsAreValidAndHistoryFindsThePersistedReason() throws {
+    for suggestion in PromptTaskBlockReasonSuggestion.allCases {
+        #expect(try PromptTaskBlockReasonState().validated(suggestion.reason).get() == suggestion.reason)
+    }
+
+    let episode = promptEpisode(
+        id: "blocked-history",
+        actions: [.init(kind: .markBlocked, title: "Mark blocked")],
+        payload: ["taskID": "task-1", "taskTitle": "Prepare release"]
+    )
+    let plan = [
+        DailyPlanEntry(
+            reminderID: "task-1",
+            rank: 0,
+            isMainObjective: false,
+            estimateMinutes: 30,
+            blockedReason: "Waiting for client approval."
+        )
+    ]
+
+    #expect(PromptTaskBlockedHistoryState.reason(for: episode, in: plan) == "Waiting for client approval.")
+    #expect(PromptTaskBlockedHistoryState.reason(for: promptEpisode(id: "other", actions: []), in: plan) == nil)
+}
+
 private func promptEpisode(
     id: String,
     actions: [PromptAction],

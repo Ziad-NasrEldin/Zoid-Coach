@@ -35,13 +35,81 @@ struct PromptTaskBlockReasonState: Equatable, Sendable {
     enum ValidationError: Error, Equatable {
         case tooShort
         case tooLong
+        case alreadySubmitting
 
         var message: String {
             switch self {
             case .tooShort: "Explain the blocker in at least 3 characters."
             case .tooLong: "Keep the blocker to 240 characters or fewer."
+            case .alreadySubmitting: "The blocker is already being saved."
             }
         }
+    }
+}
+
+enum PromptTaskBlockReasonSuggestion: String, CaseIterable, Identifiable, Sendable {
+    case approval
+    case information
+    case externalDependency
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .approval: "WAITING FOR APPROVAL"
+        case .information: "WAITING FOR INFORMATION"
+        case .externalDependency: "EXTERNAL DEPENDENCY"
+        }
+    }
+
+    var reason: String {
+        switch self {
+        case .approval: "Waiting for approval."
+        case .information: "Waiting for required information."
+        case .externalDependency: "Waiting for an external dependency."
+        }
+    }
+}
+
+struct PromptTaskBlockFormState: Equatable, Sendable {
+    var reason = ""
+    private(set) var errorMessage: String?
+    private(set) var isSubmitting = false
+
+    mutating func select(_ suggestion: PromptTaskBlockReasonSuggestion) {
+        guard !isSubmitting else { return }
+        reason = suggestion.reason
+        errorMessage = nil
+    }
+
+    mutating func beginSubmission() -> Result<String, PromptTaskBlockReasonState.ValidationError> {
+        guard !isSubmitting else {
+            errorMessage = PromptTaskBlockReasonState.ValidationError.alreadySubmitting.message
+            return .failure(.alreadySubmitting)
+        }
+        let result = PromptTaskBlockReasonState().validated(reason)
+        switch result {
+        case .success:
+            errorMessage = nil
+            isSubmitting = true
+        case let .failure(error):
+            errorMessage = error.message
+        }
+        return result
+    }
+
+    mutating func finishSubmission(error: String? = nil) {
+        isSubmitting = false
+        errorMessage = error
+    }
+
+    mutating func showError(_ message: String) {
+        isSubmitting = false
+        errorMessage = message
+    }
+
+    mutating func cancel() {
+        self = Self()
     }
 }
 
@@ -56,6 +124,52 @@ struct PromptActionReachabilityLayout: Equatable, Sendable {
 
     private static func isTaskChange(_ action: PromptAction) -> Bool {
         action.kind == .rescheduleTask || action.kind == .markBlocked
+    }
+}
+
+enum PromptActionControlPresentation: Equatable, Sendable {
+    case directButtonList
+}
+
+struct PromptActionPublicControl: Identifiable, Equatable, Sendable {
+    let action: PromptAction
+    let accessibilityIdentifier: String
+
+    var id: String { accessibilityIdentifier }
+}
+
+struct PromptActionPublicInterface: Equatable, Sendable {
+    let presentation: PromptActionControlPresentation = .directButtonList
+    let taskChangeControls: [PromptActionPublicControl]
+    let recoveryControls: [PromptActionPublicControl]
+
+    var controls: [PromptActionPublicControl] { taskChangeControls + recoveryControls }
+
+    init(promptID: String, actions: [PromptAction]) {
+        let layout = PromptActionReachabilityLayout(actions: actions)
+        taskChangeControls = Self.controls(for: layout.taskChangeActions, promptID: promptID)
+        recoveryControls = Self.controls(for: layout.recoveryActions, promptID: promptID)
+    }
+
+    private static func controls(for actions: [PromptAction], promptID: String) -> [PromptActionPublicControl] {
+        actions.map { action in
+            PromptActionPublicControl(
+                action: action,
+                accessibilityIdentifier: "today.prompt.\(promptID).action.\(action.kind.rawValue)"
+            )
+        }
+    }
+}
+
+enum PromptTaskBlockedHistoryState {
+    static func reason(for episode: PromptEpisode, in plan: [DailyPlanEntry]) -> String? {
+        guard let taskID = episode.payload["taskID"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !taskID.isEmpty,
+              let reason = plan.first(where: { $0.reminderID == taskID })?.blockedReason?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              !reason.isEmpty
+        else { return nil }
+        return reason
     }
 }
 
