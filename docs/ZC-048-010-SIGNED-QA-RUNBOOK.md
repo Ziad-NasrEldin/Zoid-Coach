@@ -48,7 +48,8 @@ done
 "$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace
 open "$APP" --args --qa-open-main
 PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" "$EVIDENCE_ROOT" \
-  --require-qa-open-main --require-helper-unregistered)"
+  --require-qa-open-main --require-helper-unregistered \
+  --wait-for-foreground-database)"
 printf '%s\n' "$PREFLIGHT_OUTPUT"
 PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
 test -n "$PID"
@@ -56,6 +57,9 @@ test -n "$PID"
 "$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" "$EVIDENCE_ROOT" \
   --require-qa-open-main --expected-app-pid "$PID"
 ```
+
+The initial helper-absent preflight waits up to 30 seconds for the exact foreground PID to create the isolated database and for SQLite to open it read-only.
+It fails immediately if the PID exits, changes executable identity, or points at a database outside the embedded QA root, and it fails at the bounded timeout if the database never becomes readable.
 
 Do not continue unless the preflight binds the foreground app, helper, database, QA root, signed commit, and external evidence root.
 
