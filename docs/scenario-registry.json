@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "05528e83afa3ebad2fe8275d2f81232d91ac69cec0c715c23ebf02ee27860835",
+  "tracker_sha256": "8b01a8a9d929a038275263605b5dc4abf84a867e935f5ef84e7e64575ae422ed",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12351,9 +12351,9 @@
       "section_title": "Sleep, wake, and restart",
       "item_index": 10,
       "wording": "Confirm before a time-zone change moves a plan to another local day.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -12361,10 +12361,13 @@
         "ui_automation"
       ],
       "affected_capability": "resilience_and_diagnostics",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/time-zone-plan-move-confirmation/independent-verifier/REPORT.md",
+        ".audit/runs/time-zone-plan-move-confirmation/picker-finish-candidate/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings now detects when a policy time-zone change crosses the current local plan day, counts the affected plan entries, and requires a privacy-safe native Cancel or Confirm choice before saving. Deterministic controller, real SQLite, DST-boundary, failure, and controller-recreation tests prove that Cancel preserves the draft and durable policy, Confirm persists the new policy without silently rewriting the historical plan day, same-day and empty-plan changes do not over-prompt, and inspection failure blocks the save. A signed isolated QA app reached a real drafted plan and the Settings time-zone picker, but accessibility automation could not select a cross-day picker value, so the visible warning, Cancel, Confirm, database check, and relaunch sequence remain required before this can be fully implemented (`Sources/ZoidCoachInfrastructure/TimeZonePlanMoveInspector.swift`; `Sources/ZoidCoachApp/Views/SettingsPolicyController.swift`; `Sources/ZoidCoachApp/Views/SettingsView.swift`; `Tests/ZoidCoachAppTests/TimeZonePlanMoveInspectorTests.swift`; `Tests/ZoidCoachAppTests/SettingsPolicyDraftTests.swift`; `.audit/runs/time-zone-plan-move-confirmation/verifier/REPORT.md`).",
+      "audit_note": "The installed signed-QA Settings flow selected a cross-day zone through stable native accessibility controls, displayed a privacy-safe warning with the exact source and destination local days, preserved the unsaved draft and active policy after Cancel, repeated the same truthful warning, and saved only after explicit Confirm. SQLite proof showed policy versions 1 through 3 while the exact historical plan row remained unchanged, app and helper relaunch restored the confirmed zone, and a same-day change saved directly without an unnecessary warning. Focused signed-package gating, controller, real SQLite, DST-boundary, inspection-failure, and relaunch tests plus a release build passed (`Sources/ZoidCoachApp/Views/SignedQATimeZonePickerControl.swift`; `Sources/ZoidCoachInfrastructure/TimeZonePlanMoveInspector.swift`; `Sources/ZoidCoachApp/Views/SettingsPolicyController.swift`; `Tests/ZoidCoachAppTests/SignedQATimeZonePickerControlTests.swift`; `.audit/runs/time-zone-plan-move-confirmation/picker-finish-candidate/REPORT.md`; `.audit/runs/time-zone-plan-move-confirmation/independent-verifier/REPORT.md`).",
       "tracker_line": 756
     },
     {
