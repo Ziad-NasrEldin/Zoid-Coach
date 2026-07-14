@@ -587,6 +587,7 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
     public let taskStartGraceMinutes: Int
     public let returnFromIdleGraceMinutes: Int
     public let budgetEnabled: Bool
+    public let workHoursDailyMaximumMinutes: Int?
 
     public init(
         version: Int = 1,
@@ -598,7 +599,8 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
         promptCooldownMinutes: Int? = nil,
         taskStartGraceMinutes: Int = 3,
         returnFromIdleGraceMinutes: Int = 1,
-        budgetEnabled: Bool = true
+        budgetEnabled: Bool = true,
+        workHoursDailyMaximumMinutes: Int? = nil
     ) {
         self.version = version
         self.dailyBudgetMinutes = max(0, dailyBudgetMinutes)
@@ -610,10 +612,11 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
         self.taskStartGraceMinutes = max(0, taskStartGraceMinutes)
         self.returnFromIdleGraceMinutes = max(0, returnFromIdleGraceMinutes)
         self.budgetEnabled = budgetEnabled
+        self.workHoursDailyMaximumMinutes = workHoursDailyMaximumMinutes.map { max(0, $0) }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes, dailyPromptCap, promptCooldownMinutes, taskStartGraceMinutes, returnFromIdleGraceMinutes, budgetEnabled
+        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes, dailyPromptCap, promptCooldownMinutes, taskStartGraceMinutes, returnFromIdleGraceMinutes, budgetEnabled, workHoursDailyMaximumMinutes
     }
 
     public init(from decoder: Decoder) throws {
@@ -628,7 +631,8 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
             promptCooldownMinutes: try container.decodeIfPresent(Int.self, forKey: .promptCooldownMinutes),
             taskStartGraceMinutes: try container.decodeIfPresent(Int.self, forKey: .taskStartGraceMinutes) ?? 3,
             returnFromIdleGraceMinutes: try container.decodeIfPresent(Int.self, forKey: .returnFromIdleGraceMinutes) ?? 1,
-            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
+            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true,
+            workHoursDailyMaximumMinutes: try container.decodeIfPresent(Int.self, forKey: .workHoursDailyMaximumMinutes)
         )
     }
 }
@@ -958,12 +962,13 @@ public struct NextTaskRecommender: Sendable {
 public struct GamingStatusCalculator: Sendable {
     public init() {}
 
-    public func status(policy: GamingPolicy, gamingMinutes: Int, rewardApplied: Bool, coverage: TelemetryCoverage) -> GamingStatus {
+    public func status(policy: GamingPolicy, gamingMinutes: Int, rewardApplied: Bool, coverage: TelemetryCoverage, isWithinWorkWindow: Bool = false) -> GamingStatus {
         status(
             policy: policy,
             gamingMinutes: gamingMinutes,
             appliedRewardMinutes: rewardApplied ? policy.priorityTaskRewardMinutes : nil,
-            coverage: coverage
+            coverage: coverage,
+            isWithinWorkWindow: isWithinWorkWindow
         )
     }
 
@@ -971,7 +976,8 @@ public struct GamingStatusCalculator: Sendable {
         policy: GamingPolicy,
         gamingMinutes: Int,
         appliedRewardMinutes: Int?,
-        coverage: TelemetryCoverage
+        coverage: TelemetryCoverage,
+        isWithinWorkWindow: Bool = false
     ) -> GamingStatus {
         guard policy.budgetEnabled else {
             return GamingStatus(
@@ -983,10 +989,22 @@ public struct GamingStatusCalculator: Sendable {
                 budgetEnabled: false
             )
         }
-        let rewardMinutes = max(0, appliedRewardMinutes ?? 0)
-        let allowance = policy.dailyBudgetMinutes + rewardMinutes
+        let configuredRewardMinutes = max(0, appliedRewardMinutes ?? 0)
+        let uncappedAllowance = policy.dailyBudgetMinutes + configuredRewardMinutes
+        let workHoursMaximum = isWithinWorkWindow ? policy.workHoursDailyMaximumMinutes : nil
+        let allowance = workHoursMaximum.map { min(uncappedAllowance, $0) } ?? uncappedAllowance
+        let baseMinutes = min(policy.dailyBudgetMinutes, allowance)
+        let rewardMinutes = max(0, allowance - baseMinutes)
+        let potentialAllowance = workHoursMaximum.map {
+            min(policy.dailyBudgetMinutes + policy.priorityTaskRewardMinutes, $0)
+        } ?? (policy.dailyBudgetMinutes + policy.priorityTaskRewardMinutes)
+        let lockedRewardMinutes = appliedRewardMinutes == nil
+            ? max(0, potentialAllowance - baseMinutes)
+            : 0
         let nextUnlockReason: String
-        if rewardMinutes > 0 {
+        if let workHoursMaximum, potentialAllowance < policy.dailyBudgetMinutes + policy.priorityTaskRewardMinutes {
+            nextUnlockReason = "Work-hours gaming is capped at \(workHoursMaximum) minutes. The normal daily allowance returns outside configured work hours."
+        } else if rewardMinutes > 0 {
             nextUnlockReason = "Priority-task reward already applied today."
         } else if policy.priorityTaskRewardMinutes == 0 {
             nextUnlockReason = "This policy uses a fixed daily gaming budget."
@@ -994,11 +1012,11 @@ public struct GamingStatusCalculator: Sendable {
             nextUnlockReason = "Finish one priority task to unlock a one-time reward."
         }
         return GamingStatus(
-            budgetMinutes: policy.dailyBudgetMinutes,
+            budgetMinutes: baseMinutes,
             earnedMinutes: rewardMinutes,
             usedMinutes: gamingMinutes,
             unlockedRemainingMinutes: max(0, allowance - gamingMinutes),
-            lockedMinutes: rewardMinutes == 0 ? policy.priorityTaskRewardMinutes : 0,
+            lockedMinutes: lockedRewardMinutes,
             overageMinutes: max(0, gamingMinutes - allowance),
             nextUnlockReason: nextUnlockReason,
             confidenceIsLimited: coverage.isLimited

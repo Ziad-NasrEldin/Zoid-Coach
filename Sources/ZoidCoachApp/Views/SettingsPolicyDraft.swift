@@ -46,6 +46,8 @@ struct SettingsPolicyDraft: Equatable {
     var reminderListPolicy: ReminderListPolicy
     var coachingLevel: CoachingLevel
     var gamingDailyBudgetMinutes: Int
+    var gamingWorkHoursMaximumEnabled: Bool
+    var gamingWorkHoursDailyMaximumMinutes: Int
     var gamingPriorityTaskRewardMinutes: Int
     var gamingIntentionalOverrideMinutes: Int
     var gamingDailyPromptCap: Int
@@ -104,6 +106,11 @@ struct SettingsPolicyDraft: Equatable {
         reminderListPolicy = policy.reminderLists
         coachingLevel = policy.gaming.coachingLevel
         gamingDailyBudgetMinutes = policy.gaming.dailyBudgetMinutes
+        gamingWorkHoursMaximumEnabled = policy.gaming.workHoursDailyMaximumMinutes != nil
+        gamingWorkHoursDailyMaximumMinutes = min(
+            policy.gaming.workHoursDailyMaximumMinutes ?? policy.gaming.dailyBudgetMinutes,
+            policy.gaming.dailyBudgetMinutes
+        )
         gamingPriorityTaskRewardMinutes = policy.gaming.priorityTaskRewardMinutes
         gamingIntentionalOverrideMinutes = policy.gaming.intentionalOverrideMinutes
         gamingDailyPromptCap = policy.gaming.dailyPromptCap
@@ -306,7 +313,10 @@ struct SettingsPolicyDraft: Equatable {
                 promptCooldownMinutes: gamingPromptCooldownMinutes,
                 taskStartGraceMinutes: gamingTaskStartGraceMinutes,
                 returnFromIdleGraceMinutes: gamingReturnFromIdleGraceMinutes,
-                budgetEnabled: gamingBudgetEnabled
+                budgetEnabled: gamingBudgetEnabled,
+                workHoursDailyMaximumMinutes: gamingWorkHoursMaximumEnabled
+                    ? min(gamingWorkHoursDailyMaximumMinutes, gamingDailyBudgetMinutes)
+                    : nil
             ),
             reminderLists: reminderListPolicy
         )
