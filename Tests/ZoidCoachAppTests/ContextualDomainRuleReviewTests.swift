@@ -76,4 +76,39 @@ struct ContextualDomainRuleReviewTests {
         #expect(state.rows.allSatisfy { !$0.accessibilityLabel.contains("https://") })
         #expect(state.rows.allSatisfy { !$0.explanation.isEmpty })
     }
+
+    @Test("domain review catalog stays compatible with Discord and Twitch context")
+    func domainCatalogAndContextSensitiveAppsStayCompatible() {
+        let rules = ContextualClassificationRuleCatalog.domainRules
+        let classifier = ContextualAppClassification()
+
+        #expect(rules.count == 14)
+        #expect(rules.filter { $0.id == "gaming-twitch" }.count == 1)
+        #expect(rules.first { $0.id == "gaming-twitch" }?.classification == .gaming)
+        #expect(classifier.classify(
+            application: "Discord",
+            windowTitle: "Client code review",
+            url: ""
+        ) == .work)
+        #expect(classifier.classify(
+            application: "Discord",
+            windowTitle: "Game lobby",
+            url: ""
+        ) == .gaming)
+        #expect(classifier.classify(
+            application: "Discord",
+            windowTitle: "Friends",
+            url: ""
+        ) == .unknown)
+        #expect(classifier.classify(
+            application: "Twitch",
+            windowTitle: "Client research stream",
+            url: "https://twitch.tv/research"
+        ) == .work)
+        #expect(classifier.classify(
+            application: "Twitch",
+            windowTitle: "Following",
+            url: ""
+        ) == .unknown)
+    }
 }
