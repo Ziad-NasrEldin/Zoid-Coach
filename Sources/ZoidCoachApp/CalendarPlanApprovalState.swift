@@ -213,16 +213,37 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
         guard case let .pending(commandIDs) = writeState else { return }
         let relevant = audit.filter { commandIDs.contains($0.id) }
         guard relevant.count == commandIDs.count else { return }
+        let isFinal: (ActionAuditEntry) -> Bool = {
+            $0.state == ActionCommandState.succeeded.rawValue
+                || $0.state == ActionCommandState.terminalFailure.rawValue
+                || $0.state == ActionCommandState.cancelled.rawValue
+        }
+        guard relevant.allSatisfy(isFinal) else { return }
+        let completedBeforeCurrentAttempt = max(
+            0,
+            (receipt?.commandCount ?? commandIDs.count) - commandIDs.count
+        )
         let failed = relevant.filter {
             $0.state == ActionCommandState.terminalFailure.rawValue
                 || $0.state == ActionCommandState.cancelled.rawValue
         }
         if !failed.isEmpty {
-            writeState = .failed(commandIDs: Set(failed.map(\.id)))
-            updateReceipt(outcome: .failed, commandIDs: Set(failed.map(\.id)), commandCount: failed.count)
+            let failedCommandIDs = Set(failed.map(\.id))
+            let totalCommandCount = completedBeforeCurrentAttempt + relevant.count
+            writeState = .failed(commandIDs: failedCommandIDs)
+            updateReceipt(
+                outcome: .failed,
+                commandIDs: failedCommandIDs,
+                commandCount: totalCommandCount
+            )
         } else if relevant.allSatisfy({ $0.state == ActionCommandState.succeeded.rawValue }) {
-            writeState = .applied(commandCount: relevant.count)
-            updateReceipt(outcome: .applied, commandIDs: commandIDs, commandCount: relevant.count)
+            let totalCommandCount = completedBeforeCurrentAttempt + relevant.count
+            writeState = .applied(commandCount: totalCommandCount)
+            updateReceipt(
+                outcome: .applied,
+                commandIDs: commandIDs,
+                commandCount: totalCommandCount
+            )
         }
     }
 
@@ -238,14 +259,22 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
     mutating func retryFailedCommands() -> [String] {
         guard case let .failed(commandIDs) = writeState else { return [] }
         writeState = .pending(commandIDs: commandIDs)
-        updateReceipt(outcome: .pending, commandIDs: commandIDs, commandCount: commandIDs.count)
+        updateReceipt(
+            outcome: .pending,
+            commandIDs: commandIDs,
+            commandCount: max(receipt?.commandCount ?? 0, commandIDs.count)
+        )
         return commandIDs.sorted()
     }
 
     mutating func retryRequestFailed(commandIDs: [String]) {
         let identifiers = Set(commandIDs)
         writeState = .failed(commandIDs: identifiers)
-        updateReceipt(outcome: .failed, commandIDs: identifiers, commandCount: identifiers.count)
+        updateReceipt(
+            outcome: .failed,
+            commandIDs: identifiers,
+            commandCount: max(receipt?.commandCount ?? 0, identifiers.count)
+        )
     }
 
     mutating func restore(_ receipt: CalendarPlanApprovalReceipt) {
