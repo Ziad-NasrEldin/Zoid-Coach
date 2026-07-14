@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "3e27ce1dbbf3e5d7133625b54c39a7f790234f06f20ef68b66c12fab4e4a6bf0",
+  "tracker_sha256": "e65f1946dd1fcd2f5f2fe102d0cf1e96c0c8c237285f776c5e9de9e8d8fcbe61",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10109,18 +10109,20 @@
       "item_index": 4,
       "wording": "Use manual workday start and end without fixed hours.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-044-004-manual-workday/6ca83f4103f6470bb788b7ef4534b35accfdd242/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No manual-workday mode or start/end controls exist.",
+      "audit_note": "Settings, versioned policy persistence, disabled fixed-hour semantics, menu-bar Start and confirmed End controls, stale-action rejection, cleanup tooling, and five focused tests are implemented. Signed QA passed release packaging, deep signing, exact app/helper/database binding, LaunchAgent, Mach service, XPC readiness, and supported post-onboarding preparation, but the final verifier registered the helper before launching the foreground app, so it reused a `--background-schedule` process and stopped before the complete Settings, Start, End, stale-race, relaunch, omission, and privacy journey (`.audit/runs/zc-044-004-manual-workday/6ca83f4103f6470bb788b7ef4534b35accfdd242/REPORT.md`).",
       "tracker_line": 627
     },
     {
