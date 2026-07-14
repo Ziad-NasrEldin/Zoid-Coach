@@ -25,10 +25,18 @@ private struct ProbeFailure: Error {
 private struct Arguments {
     let pid: pid_t
     let expandWeekly: Bool
+    let skipDaily: Bool
+    let acceptHypothesis: Bool
+    let expectLearned: Bool
+    let deleteLearning: Bool
 
     static func parse() throws -> Arguments {
         var pid: pid_t?
         var expandWeekly = false
+        var skipDaily = false
+        var acceptHypothesis = false
+        var expectLearned = false
+        var deleteLearning = false
         var index = 1
         while index < CommandLine.arguments.count {
             switch CommandLine.arguments[index] {
@@ -42,6 +50,14 @@ private struct Arguments {
                 pid = value
             case "--expand-weekly":
                 expandWeekly = true
+            case "--skip-daily":
+                skipDaily = true
+            case "--accept-hypothesis":
+                acceptHypothesis = true
+            case "--expect-learned":
+                expectLearned = true
+            case "--delete-learning":
+                deleteLearning = true
             case "--help", "-h":
                 throw ProbeFailure(code: .usage, message: usage)
             default:
@@ -52,11 +68,21 @@ private struct Arguments {
         guard let pid else {
             throw ProbeFailure(code: .usage, message: "--pid is required")
         }
-        return Arguments(pid: pid, expandWeekly: expandWeekly)
+        guard !(acceptHypothesis && expectLearned) else {
+            throw ProbeFailure(code: .usage, message: "--accept-hypothesis and --expect-learned are mutually exclusive")
+        }
+        return Arguments(
+            pid: pid,
+            expandWeekly: expandWeekly,
+            skipDaily: skipDaily,
+            acceptHypothesis: acceptHypothesis,
+            expectLearned: expectLearned,
+            deleteLearning: deleteLearning
+        )
     }
 }
 
-private let usage = "Usage: qa-combined-review-ax-probe.swift --pid <pid> [--expand-weekly]"
+private let usage = "Usage: qa-combined-review-ax-probe.swift --pid <pid> [--expand-weekly] [--skip-daily] [--accept-hypothesis|--expect-learned] [--delete-learning]"
 private let maximumNodesPerTarget = 2_000
 private let targetTimeout: TimeInterval = 4
 private let scrollToVisibleAction = "AXScrollToVisible" as CFString
@@ -283,7 +309,12 @@ private func assertDailyReview(window: AXUIElement) throws {
     try assertNoPrivateSentinel(snapshot.strings, code: .dailyReview, scope: "Daily Review collapsed evidence")
 }
 
-private func assertWeeklyReview(window: AXUIElement, expand: Bool) throws {
+private func assertWeeklyReview(
+    window: AXUIElement,
+    expand: Bool,
+    acceptHypothesis: Bool,
+    expectLearned: Bool
+) throws {
     let weekly = try requireIdentifier("reviews.weekly", in: window, code: .weeklyReview)
     _ = AXUIElementPerformAction(weekly, scrollToVisibleAction)
     let patterns = try requireIdentifier("reviews.weekly.patterns", in: weekly, code: .weeklyReview)
@@ -299,8 +330,16 @@ private func assertWeeklyReview(window: AXUIElement, expand: Bool) throws {
 
     var card = try requireIdentifier(patternID, in: patterns, code: .weeklyReview)
     var status = try requireIdentifier("\(patternID).learning-status", in: card, code: .weeklyReview)
-    guard hasExactPublicString("NOT LEARNED", element: status) else {
-        throw ProbeFailure(code: .weeklyReview, message: "Weekly Review pattern is missing NOT LEARNED")
+    let initialStatus = expectLearned ? "LEARNED FROM EXPLICIT ACCEPTANCE" : "NOT LEARNED"
+    guard hasExactPublicString(initialStatus, element: status) else {
+        throw ProbeFailure(code: .weeklyReview, message: "Weekly Review pattern is missing \(initialStatus)")
+    }
+    if expectLearned {
+        let acceptID = "\(patternID).accept-hypothesis"
+        let accept = try boundedWalk(from: card, targetName: acceptID) { identifier(of: $0) == acceptID }
+        guard accept == nil else {
+            throw ProbeFailure(code: .weeklyReview, message: "learned Weekly Review pattern still exposes acceptance")
+        }
     }
     var evidenceButton = try requireIdentifier("\(patternID).evidence", in: card, code: .weeklyReview)
     guard hasExactPublicString("SHOW EVIDENCE", element: evidenceButton) else {
@@ -315,13 +354,36 @@ private func assertWeeklyReview(window: AXUIElement, expand: Bool) throws {
     }
     try assertNoPrivateSentinel(cardSnapshot.strings, code: .weeklyReview, scope: "Weekly Review collapsed pattern")
 
+    if acceptHypothesis {
+        let acceptID = "\(patternID).accept-hypothesis"
+        let accept = try requireIdentifier(acceptID, in: card, code: .weeklyReview)
+        _ = AXUIElementPerformAction(accept, scrollToVisibleAction)
+        guard AXUIElementPerformAction(accept, kAXPressAction as CFString) == .success,
+              AXUIElementPerformAction(accept, kAXPressAction as CFString) == .success else {
+            throw ProbeFailure(code: .action, message: "could not activate Weekly Review hypothesis acceptance twice")
+        }
+        pauseForPresentation()
+        card = try requireIdentifier(patternID, in: patterns, code: .weeklyReview)
+        status = try requireIdentifier("\(patternID).learning-status", in: card, code: .weeklyReview)
+        guard hasExactPublicString("LEARNED FROM EXPLICIT ACCEPTANCE", element: status) else {
+            throw ProbeFailure(code: .weeklyReview, message: "accepted Weekly Review hypothesis did not become learned")
+        }
+        let remainingAccept = try boundedWalk(from: card, targetName: acceptID) { identifier(of: $0) == acceptID }
+        guard remainingAccept == nil else {
+            throw ProbeFailure(code: .weeklyReview, message: "accepted Weekly Review hypothesis still exposes acceptance")
+        }
+    }
+
     guard expand else { return }
     try press(evidenceButton, name: "Weekly Review evidence", code: .action)
     pauseForPresentation()
     card = try requireIdentifier(patternID, in: patterns, code: .weeklyReview)
     status = try requireIdentifier("\(patternID).learning-status", in: card, code: .weeklyReview)
     evidenceButton = try requireIdentifier("\(patternID).evidence", in: card, code: .weeklyReview)
-    guard hasExactPublicString("NOT LEARNED", element: status),
+    let expandedStatus = (acceptHypothesis || expectLearned)
+        ? "LEARNED FROM EXPLICIT ACCEPTANCE"
+        : "NOT LEARNED"
+    guard hasExactPublicString(expandedStatus, element: status),
           hasExactPublicString("HIDE EVIDENCE", element: evidenceButton) else {
         throw ProbeFailure(code: .weeklyReview, message: "expanded Weekly Review did not retain its learning boundary")
     }
@@ -331,6 +393,42 @@ private func assertWeeklyReview(window: AXUIElement, expand: Bool) throws {
         throw ProbeFailure(code: .weeklyReview, message: "expanded Weekly Review did not expose evidence and an alternative")
     }
     try assertNoPrivateSentinel(cardSnapshot.strings, code: .weeklyReview, scope: "Weekly Review expanded pattern")
+}
+
+private func deleteReviewsAndLearning(window: AXUIElement) throws {
+    try navigate("Settings", in: window)
+    let delete = try requireIdentifier(
+        "settings.data.delete-reviews-learning",
+        in: window,
+        code: .action
+    )
+    try press(delete, name: "Delete reviews and learned rules", code: .action)
+    pauseForPresentation()
+    let confirm = try requireTarget(
+        in: window,
+        name: "DELETE REVIEWS AND LEARNED RULES confirmation",
+        code: .action
+    ) {
+        role(of: $0) == (kAXButtonRole as String)
+            && hasExactPublicString("DELETE REVIEWS AND LEARNED RULES", element: $0)
+    }
+    try press(confirm, name: "Delete reviews and learned rules confirmation", code: .action)
+
+    let deadline = Date().addingTimeInterval(5)
+    while Date() < deadline {
+        if let status = try boundedWalk(
+            from: window,
+            targetName: "settings.data.deletion-status",
+            visit: { identifier(of: $0) == "settings.data.deletion-status" }
+        ), publicStrings(of: status).contains(where: {
+            $0.localizedCaseInsensitiveContains("deleted")
+                || $0.localizedCaseInsensitiveContains("already clear")
+        }) {
+            return
+        }
+        Thread.sleep(forTimeInterval: 0.2)
+    }
+    throw ProbeFailure(code: .action, message: "review and learning deletion did not report completion")
 }
 
 private func assertBehaviorEvidence(window: AXUIElement) throws {
@@ -375,9 +473,21 @@ private func run() throws {
 
     let application = AXUIElementCreateApplication(arguments.pid)
     let window = try singleMainWindow(application: application)
+    if arguments.deleteLearning {
+        try deleteReviewsAndLearning(window: window)
+        print("PASS: review and learning privacy deletion completed through signed UI")
+        return
+    }
     try navigate("Reviews", in: window)
-    try assertDailyReview(window: window)
-    try assertWeeklyReview(window: window, expand: arguments.expandWeekly)
+    if !arguments.skipDaily {
+        try assertDailyReview(window: window)
+    }
+    try assertWeeklyReview(
+        window: window,
+        expand: arguments.expandWeekly,
+        acceptHypothesis: arguments.acceptHypothesis,
+        expectLearned: arguments.expectLearned
+    )
     try navigate("Today", in: window)
     try assertBehaviorEvidence(window: window)
 
