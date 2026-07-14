@@ -1,0 +1,169 @@
+^D[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-07-14 08:17:36.413.
+Test Suite 'ZoidCoachPackageTests.xctest' started at 2026-07-14 08:17:36.414.
+Test Suite 'ZoidCoachPackageTests.xctest' passed at 2026-07-14 08:17:36.414.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-07-14 08:17:36.414.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test resolvedGamingPromptStillDeduplicatesAndEnforcesCooldownAfterRestart() started.
+◇ Test planningAndSourcePromptsDoNotConsumeTheBehaviorInterventionCap() started.
+◇ Test migration34AddsDurableFutureClassificationRulesWithoutRewritingHistory() started.
+◇ Test fiveMinuteFollowUpOffersEndDayAndSuppressesFurtherPromptsAfterSelection() started.
+◇ Test expiredPromptReleasesItsDecisionForANewEpisode() started.
+◇ Test gentleResponsePausesNewBehaviorInterventionsForExactlyFifteenMinutes() started.
+◇ Test promptInboxPersistsWhyAResolvedPromptWasDismissedAcrossRestart() started.
+◇ Test migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals() started.
+◇ Test cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() started.
+◇ Test recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() started.
+◇ Test migration37AddsNonDestructiveBaselineLedgerAfterCorrectionRules() started.
+◇ Test weeklyReviewMigrationAddsOneExperimentPerReviewWeekWithoutChangingReviewHistory() started.
+◇ Test versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() started.
+◇ Test promptBlockFailurePresentationSurvivesInboxRefreshOutcome() started.
+◇ Test versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() started.
+◇ Test promptTaskBlockRequestRequiresExplicitActionAndTaskIdentity() started.
+◇ Test promptNotificationContractMapsRequiredCategoriesAndActions() started.
+◇ Test promptActionPublicInterfaceMakesEveryChoiceADirectStableControl() started.
+◇ Test promptInboxPreservesActionsFromLegacyNumericConfirmationFlags() started.
+◇ Test migration36AddsPrivacyBoundedNotificationDeliveryHistoryAfterDailyPlanRevision() started.
+◇ Test migration32CreatesRestartSafeBoundedSprintStorage() started.
+◇ Test migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() started.
+◇ Test newTaskAndIdleReturnReceiveExplicitGraceWhileSustainedGamingBypassesIt() started.
+◇ Test gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() started.
+◇ Test versionFourPolicyKeepsLegacyAllListsBehaviorUntilExplicitlyConfigured() started.
+◇ Test gamingObservationModeKeepsFactsWithoutInventingABudget() started.
+◇ Test versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() started.
+◇ Test migration40AddsBoundedPersonalReviewNoteWithoutChangingExistingRows() started.
+◇ Test promptRescheduleRequestRequiresAnExplicitActionAndTaskIdentity() started.
+◇ Test intentionalGamingOverrideUsesConfiguredDurationAcrossRestart() started.
+◇ Test migration42AddsRestartSafeDailyReviewDeferral() started.
+◇ Test versionFourMutationReceiptReplaysAfterSchemaFiveWithoutRewritingPolicy() started.
+◇ Test migration39AddsRestartSafeQuietDriftLedger() started.
+◇ Test legacyGamingPolicyDefaultsToGentleCoaching() started.
+◇ Test migration33AddsAppendOnlyCompletedTaskHistoryContext() started.
+◇ Test promptInboxKeepsOnlyOneUnresolvedEpisodePerDecision() started.
+◇ Test behaviorClassificationMigrationFreezesLegacyRecords() started.
+◇ Test invalidScreenwatchWithdrawalAloneAllowsSafeSameSessionRecovery() started.
+◇ Test promptResponseIsAppliedExactlyOnceAcrossRepeatedSurfaceDelivery() started.
+◇ Test gamingDriftSuppressesPromptsWhenScreenwatchBecomesStaleAndRecoversWithFreshEvidence() started.
+◇ Test migration35CompletesPartiallyUpgradedDailyPlanTable() started.
+◇ Test savedGraceDurationsAffectTheNextDecisionWithoutRestart() started.
+◇ Test failedUpgradeDoesNotClaimRecoveryWhenTheSnapshotCannotBeRestored() started.
+◇ Test explicitUserDismissalStillEnforcesSessionDeduplicationCooldownAndDailyCap() started.
+◇ Test promptBlockFormRejectsEmptyInputAndPreventsDuplicateSubmission() started.
+◇ Test migration38AddsEstimateUncertaintyWithoutChangingExistingPlanRows() started.
+◇ Test fiveMoreMinutesSurvivesRestartAndProducesExactlyOneFollowUpAfterFiveMinutes() started.
+◇ Test promptInboxRefusesToDismissAMandatoryDecision() started.
+◇ Test migration35AddsDurableDailyPlanRevisionFieldsWithoutChangingExistingRows() started.
+◇ Test gamingDriftRequiresTenFreshCertainMinutesAndAnExhaustedAllowance() started.
+◇ Test gamingDriftStaysQuietUntilBaselineCompletesThenQueuesEvidenceFirstPrompt() started.
+◇ Test versionTwentySevenRebrandsPersistedPromptSummaries() started.
+◇ Test migration35ToleratesLegacyFixtureWithoutDailyPlanTable() started.
+◇ Test gamingDriftHonorsPauseWorkWindowBreakEndDayAndIncompleteWorkGates() started.
+◇ Test gamingObservationModeNeverProducesABehaviorPrompt() started.
+◇ Test promptResponseTokensAreStableAndBoundToOnePromptActionPair() started.
+◇ Test configuredCooldownAndDailyPromptLimitApplyAcrossSeparateSessions() started.
+◇ Test failedUpgradeRestoresReadablePreUpgradeDataAndAHealthyRestartCanContinue() started.
+◇ Test promptInboxRejectsATokenBoundToAnotherAction() started.
+◇ Test accountabilityResponsePausesNewBehaviorInterventionsForExactlyTwentyMinutes() started.
+◇ Test versionTwoFixtureUpgradesWithoutLosingExistingPlanOrSourceHistory() started.
+◇ Test neutralSupportingActivitySuppressesCoachingWithoutMutatingTheActiveTask() started.
+◇ Test behaviorPromptContractRejectsUnreliableCoerciveOrIntentAssertingCopy() started.
+◇ Test promptBlockReasonSuggestionsAreValidAndHistoryFindsThePersistedReason() started.
+◇ Test promptNotificationRelevanceGroupsPlanningUpdatesWithoutCollapsingOtherDecisions() started.
+◇ Test promptInboxTimelineSeparatesWaitingSnoozedAndRecentChoicesAcrossRestart() started.
+◇ Test promptInboxSerializesConcurrentResponseDelivery() started.
+◇ Test migration43AddsDurableMutationReceiptsWithoutLosingHistory() started.
+◇ Test intentionalGamingOverrideRequiresTwoMinutesOfWorkBeforeEarlyReprompt() started.
+◇ Test promptTaskBlockReasonTrimsMeaningfulCopyAndRejectsUnsafeLengths() started.
+◇ Test gamingDriftOffersBreakOnlyWhenATaskIsActivelyTracking() started.
+◇ Test promptInboxTimelineExpiresDueEpisodesAndRejectsInvalidHistoryLimits() started.
+◇ Test promptResponseAndPendingEffectAreCommittedAtomically() started.
+◇ Test legacyGamingAndBehaviorSnapshotsDecodeWithoutLosingObservedMinutes() started.
+◇ Test promptInboxRejectsMoreThanThreeSecondaryActionsOnEverySurface() started.
+◇ Test versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() started.
+◇ Test promptActionReachabilityMovesTaskChangesAheadWithoutDuplicatingActions() started.
+◇ Test promptEpisodeStateMachineEnforcesTheDocumentedLifecycle() started.
+◇ Test dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEvidence() started.
+✔ Test migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals() passed after 1.453 seconds.
+✔ Test expiredPromptReleasesItsDecisionForANewEpisode() passed after 1.453 seconds.
+✔ Test promptInboxPersistsWhyAResolvedPromptWasDismissedAcrossRestart() passed after 1.453 seconds.
+✔ Test migration34AddsDurableFutureClassificationRulesWithoutRewritingHistory() passed after 1.453 seconds.
+✔ Test promptBlockFailurePresentationSurvivesInboxRefreshOutcome() passed after 1.453 seconds.
+✔ Test promptTaskBlockRequestRequiresExplicitActionAndTaskIdentity() passed after 1.453 seconds.
+✔ Test promptNotificationContractMapsRequiredCategoriesAndActions() passed after 1.453 seconds.
+✔ Test migration37AddsNonDestructiveBaselineLedgerAfterCorrectionRules() passed after 1.453 seconds.
+✔ Test promptActionPublicInterfaceMakesEveryChoiceADirectStableControl() passed after 1.453 seconds.
+✔ Test recoveryBackupIncludesCommittedWalRowsAndRemainsReadable() passed after 1.453 seconds.
+✔ Test planningAndSourcePromptsDoNotConsumeTheBehaviorInterventionCap() passed after 1.454 seconds.
+✔ Test cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() passed after 1.454 seconds.
+✔ Test weeklyReviewMigrationAddsOneExperimentPerReviewWeekWithoutChangingReviewHistory() passed after 1.454 seconds.
+✔ Test resolvedGamingPromptStillDeduplicatesAndEnforcesCooldownAfterRestart() passed after 1.454 seconds.
+✔ Test gentleResponsePausesNewBehaviorInterventionsForExactlyFifteenMinutes() passed after 1.454 seconds.
+✔ Test versionFourPolicyKeepsLegacyAllListsBehaviorUntilExplicitlyConfigured() passed after 1.453 seconds.
+✔ Test gamingObservationModeKeepsFactsWithoutInventingABudget() passed after 1.453 seconds.
+✔ Test versionOnePolicyDecodesWithAutomaticAppClassificationAndUpgradesOnSave() passed after 1.453 seconds.
+✔ Test fiveMinuteFollowUpOffersEndDayAndSuppressesFurtherPromptsAfterSelection() passed after 1.454 seconds.
+✔ Test promptRescheduleRequestRequiresAnExplicitActionAndTaskIdentity() passed after 1.453 seconds.
+✔ Test promptInboxPreservesActionsFromLegacyNumericConfirmationFlags() passed after 1.454 seconds.
+✔ Test migration42AddsRestartSafeDailyReviewDeferral() passed after 1.453 seconds.
+✔ Test versionTwentyThreePurgesRetiredSurfaceResponsesAndCreatesBackup() passed after 1.454 seconds.
+✔ Test legacyGamingPolicyDefaultsToGentleCoaching() passed after 1.453 seconds.
+✔ Test migration32CreatesRestartSafeBoundedSprintStorage() passed after 1.454 seconds.
+✔ Test versionTwentyFiveCreatesPolicyMutationReceiptsExactlyOnce() passed after 1.454 seconds.
+✔ Test migration36AddsPrivacyBoundedNotificationDeliveryHistoryAfterDailyPlanRevision() passed after 1.454 seconds.
+✔ Test migration39AddsRestartSafeQuietDriftLedger() passed after 1.454 seconds.
+✔ Test migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() passed after 1.454 seconds.
+✔ Test migration40AddsBoundedPersonalReviewNoteWithoutChangingExistingRows() passed after 1.454 seconds.
+✔ Test versionFourMutationReceiptReplaysAfterSchemaFiveWithoutRewritingPolicy() passed after 1.454 seconds.
+✔ Test migration33AddsAppendOnlyCompletedTaskHistoryContext() passed after 1.454 seconds.
+✔ Test promptInboxKeepsOnlyOneUnresolvedEpisodePerDecision() passed after 1.454 seconds.
+✔ Test behaviorClassificationMigrationFreezesLegacyRecords() passed after 1.454 seconds.
+✔ Test failedUpgradeDoesNotClaimRecoveryWhenTheSnapshotCannotBeRestored() passed after 1.454 seconds.
+✔ Test promptBlockFormRejectsEmptyInputAndPreventsDuplicateSubmission() passed after 1.454 seconds.
+✔ Test migration38AddsEstimateUncertaintyWithoutChangingExistingPlanRows() passed after 1.454 seconds.
+✔ Test promptResponseIsAppliedExactlyOnceAcrossRepeatedSurfaceDelivery() passed after 1.454 seconds.
+✔ Test intentionalGamingOverrideUsesConfiguredDurationAcrossRestart() passed after 1.454 seconds.
+✔ Test invalidScreenwatchWithdrawalAloneAllowsSafeSameSessionRecovery() passed after 1.455 seconds.
+✔ Test migration35CompletesPartiallyUpgradedDailyPlanTable() passed after 1.454 seconds.
+✔ Test gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() passed after 1.455 seconds.
+✔ Test promptInboxRefusesToDismissAMandatoryDecision() passed after 1.454 seconds.
+✔ Test migration35AddsDurableDailyPlanRevisionFieldsWithoutChangingExistingRows() passed after 1.454 seconds.
+✔ Test fiveMoreMinutesSurvivesRestartAndProducesExactlyOneFollowUpAfterFiveMinutes() passed after 1.454 seconds.
+✔ Test versionTwentySevenRebrandsPersistedPromptSummaries() passed after 1.454 seconds.
+✔ Test promptResponseTokensAreStableAndBoundToOnePromptActionPair() passed after 1.454 seconds.
+✔ Test newTaskAndIdleReturnReceiveExplicitGraceWhileSustainedGamingBypassesIt() passed after 1.455 seconds.
+✔ Test gamingDriftStaysQuietUntilBaselineCompletesThenQueuesEvidenceFirstPrompt() passed after 1.455 seconds.
+✔ Test savedGraceDurationsAffectTheNextDecisionWithoutRestart() passed after 1.454 seconds.
+✔ Test migration35ToleratesLegacyFixtureWithoutDailyPlanTable() passed after 1.454 seconds.
+✔ Test promptInboxRejectsATokenBoundToAnotherAction() passed after 1.454 seconds.
+✔ Test gamingObservationModeNeverProducesABehaviorPrompt() passed after 1.454 seconds.
+✔ Test explicitUserDismissalStillEnforcesSessionDeduplicationCooldownAndDailyCap() passed after 1.455 seconds.
+✔ Test promptBlockReasonSuggestionsAreValidAndHistoryFindsThePersistedReason() passed after 1.454 seconds.
+✔ Test promptNotificationRelevanceGroupsPlanningUpdatesWithoutCollapsingOtherDecisions() passed after 1.454 seconds.
+✔ Test failedUpgradeRestoresReadablePreUpgradeDataAndAHealthyRestartCanContinue() passed after 1.454 seconds.
+✔ Test versionTwoFixtureUpgradesWithoutLosingExistingPlanOrSourceHistory() passed after 1.454 seconds.
+✔ Test accountabilityResponsePausesNewBehaviorInterventionsForExactlyTwentyMinutes() passed after 1.455 seconds.
+✔ Test gamingDriftHonorsPauseWorkWindowBreakEndDayAndIncompleteWorkGates() passed after 1.455 seconds.
+✔ Test promptTaskBlockReasonTrimsMeaningfulCopyAndRejectsUnsafeLengths() passed after 1.455 seconds.
+✔ Test configuredCooldownAndDailyPromptLimitApplyAcrossSeparateSessions() passed after 1.455 seconds.
+✔ Test behaviorPromptContractRejectsUnreliableCoerciveOrIntentAssertingCopy() passed after 1.455 seconds.
+✔ Test migration43AddsDurableMutationReceiptsWithoutLosingHistory() passed after 1.455 seconds.
+✔ Test legacyGamingAndBehaviorSnapshotsDecodeWithoutLosingObservedMinutes() passed after 1.455 seconds.
+✔ Test promptInboxTimelineSeparatesWaitingSnoozedAndRecentChoicesAcrossRestart() passed after 1.462 seconds.
+✔ Test promptActionReachabilityMovesTaskChangesAheadWithoutDuplicatingActions() passed after 1.463 seconds.
+✔ Test promptEpisodeStateMachineEnforcesTheDocumentedLifecycle() passed after 1.462 seconds.
+✔ Test gamingDriftRequiresTenFreshCertainMinutesAndAnExhaustedAllowance() passed after 1.463 seconds.
+✔ Test promptInboxTimelineExpiresDueEpisodesAndRejectsInvalidHistoryLimits() passed after 1.464 seconds.
+✔ Test promptInboxSerializesConcurrentResponseDelivery() passed after 1.472 seconds.
+✔ Test promptInboxRejectsMoreThanThreeSecondaryActionsOnEverySurface() passed after 1.512 seconds.
+✔ Test promptResponseAndPendingEffectAreCommittedAtomically() passed after 1.517 seconds.
+✔ Test versionTwentyFourPreservesLegacyGamingRewardsAsFifteenMinutes() passed after 1.533 seconds.
+✔ Test dailyReviewMigrationAppliesAfterBrandMigrationWithoutChangingBehaviorEvidence() passed after 1.539 seconds.
+✔ Test intentionalGamingOverrideRequiresTwoMinutesOfWorkBeforeEarlyReprompt() passed after 1.555 seconds.
+✔ Test gamingDriftOffersBreakOnlyWhenATaskIsActivelyTracking() passed after 1.568 seconds.
+✔ Test gamingDriftSuppressesPromptsWhenScreenwatchBecomesStaleAndRecoversWithFreshEvidence() passed after 1.588 seconds.
+✔ Test neutralSupportingActivitySuppressesCoachingWithoutMutatingTheActiveTask() passed after 1.865 seconds.
+✔ Test run with 79 tests in 0 suites passed after 1.866 seconds.

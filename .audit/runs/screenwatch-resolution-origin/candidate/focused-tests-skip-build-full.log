@@ -1,0 +1,21 @@
+^D[0/1] Planning build
+Test Suite 'Selected tests' started at 2026-07-14 08:15:53.376.
+Test Suite 'ZoidCoachPackageTests.xctest' started at 2026-07-14 08:15:53.376.
+Test Suite 'ZoidCoachPackageTests.xctest' passed at 2026-07-14 08:15:53.377.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-07-14 08:15:53.377.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Test migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals() started.
+◇ Test promptInboxPersistsWhyAResolvedPromptWasDismissedAcrossRestart() started.
+◇ Test invalidScreenwatchWithdrawalAloneAllowsSafeSameSessionRecovery() started.
+◇ Test explicitUserDismissalStillEnforcesSessionDeduplicationCooldownAndDailyCap() started.
+◇ Test gamingDriftSuppressesPromptsWhenScreenwatchBecomesStaleAndRecoversWithFreshEvidence() started.
+✔ Test migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals() passed after 0.049 seconds.
+✔ Test promptInboxPersistsWhyAResolvedPromptWasDismissedAcrossRestart() passed after 0.230 seconds.
+✔ Test invalidScreenwatchWithdrawalAloneAllowsSafeSameSessionRecovery() passed after 0.308 seconds.
+✔ Test explicitUserDismissalStillEnforcesSessionDeduplicationCooldownAndDailyCap() passed after 0.448 seconds.
+✔ Test gamingDriftSuppressesPromptsWhenScreenwatchBecomesStaleAndRecoversWithFreshEvidence() passed after 0.708 seconds.
+✔ Test run with 5 tests in 0 suites passed after 0.708 seconds.
