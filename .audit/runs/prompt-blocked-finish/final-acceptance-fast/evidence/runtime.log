@@ -49,3 +49,45 @@ success-final-helper-pid=69880
 success-final-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
 PASS: 6 native AXButton controls match today.prompt.qa-block-1.action.
 GREEN: Today is visible in a non-minimized 1180x760 window with 176 AX content nodes
+PASS: harness preflight complete
+DRY RUN: no install, app launch, helper registration, or runtime mutation performed
+PASS: harness preflight complete
+install-helper-pid=81203
+install-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+install-app-pid=81204
+install-helper-pid=81203
+success-migration-helper-pid=81276
+success-migration-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+success-final-helper-pid=81304
+success-final-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+PASS: 6 native AXButton controls match today.prompt.qa-block-1.action.
+GREEN: Today is visible in a non-minimized 1180x760 window with 176 AX content nodes
+PASS: harness preflight complete
+install-helper-pid=82345
+install-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+install-app-pid=82373
+install-helper-pid=82345
+success-migration-helper-pid=82466
+success-migration-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+success-final-helper-pid=82573
+success-final-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+PASS: 6 native AXButton controls match today.prompt.qa-block-1.action.
+GREEN: Today is visible in a non-minimized 1180x760 window with 176 AX content nodes
+PASS: harness preflight complete
+install-helper-pid=84567
+install-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+install-app-pid=84568
+install-helper-pid=84567
+success-migration-helper-pid=84676
+success-migration-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+PASS: harness preflight complete
+install-helper-pid=85199
+install-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+install-app-pid=84691
+install-helper-pid=85199
+success-migration-helper-pid=85240
+success-migration-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+success-final-helper-pid=85268
+success-final-helper-executable=/private/tmp/zoid-666-zc034011-fast-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+PASS: 6 native AXButton controls match today.prompt.qa-block-1.action.
+GREEN: Today is visible in a non-minimized 1180x760 window with 176 AX content nodes

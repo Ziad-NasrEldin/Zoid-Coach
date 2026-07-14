@@ -1,4 +1,5 @@
 import ApplicationServices
+import AppKit
 import CoreGraphics
 import Foundation
 
@@ -11,7 +12,7 @@ enum DriverError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .usage:
-            return "usage: ax-driver PID dump | wait ID [seconds] | press ID [seconds] | click ID [seconds] | text ID [seconds] | wait-count-prefix PREFIX EXPECTED [seconds]"
+            return "usage: ax-driver PID dump | wait ID [seconds] | frame ID [seconds] | scroll-visible ID [seconds] | press ID [seconds] | click ID [seconds] | text ID [seconds] | wait-count-prefix PREFIX EXPECTED [seconds]"
         case let .missing(identifier):
             return "AX identifier did not become reachable: \(identifier)"
         case let .count(prefix, expected, actual):
@@ -101,6 +102,87 @@ func click(_ element: AXUIElement, identifier: String) throws {
     print("PASS: clicked \(identifier) at \(Int(center.x)),\(Int(center.y))")
 }
 
+func frame(_ element: AXUIElement) -> CGRect? {
+    guard let origin = point(element), let bounds = size(element), bounds.width > 0, bounds.height > 0 else {
+        return nil
+    }
+    return CGRect(origin: origin, size: bounds)
+}
+
+func visibleWindowFrame(pid: pid_t) -> CGRect? {
+    let application = AXUIElementCreateApplication(pid)
+    let windows = attribute(application, kAXWindowsAttribute as CFString) as? [AXUIElement] ?? []
+    return windows.compactMap(frame).first(where: { $0.width > 500 && $0.height > 400 })
+}
+
+func scrollToVisible(pid: pid_t, identifier expected: String, timeout: TimeInterval) throws -> (CGRect, CGRect, Int) {
+    let deadline = Date().addingTimeInterval(timeout)
+    var attempts = 0
+    NSRunningApplication(processIdentifier: pid)?.activate(options: [.activateIgnoringOtherApps])
+    while Date() < deadline {
+        guard let element = waitForElement(pid: pid, identifier: expected, timeout: 0.2),
+              let elementFrame = frame(element),
+              let windowFrame = visibleWindowFrame(pid: pid)
+        else {
+            usleep(100_000)
+            continue
+        }
+
+        let visibleContent = windowFrame.insetBy(dx: 8, dy: 44)
+        if visibleContent.contains(CGPoint(x: elementFrame.midX, y: elementFrame.midY)) {
+            return (elementFrame, visibleContent, attempts)
+        }
+
+        if attempts == 0 {
+            _ = AXUIElementPerformAction(element, "AXScrollToVisible" as CFString)
+            attempts += 1
+            usleep(500_000)
+            continue
+        }
+
+        let scrollAreas = snapshot(pid: pid).filter {
+            string($0, kAXRoleAttribute as CFString) == kAXScrollAreaRole as String
+                && frame($0)?.intersects(visibleContent) == true
+        }
+        var movedScrollbar = false
+        for area in scrollAreas {
+            guard let rawScrollbar = attribute(area, kAXVerticalScrollBarAttribute as CFString),
+                  CFGetTypeID(rawScrollbar) == AXUIElementGetTypeID()
+            else { continue }
+            let scrollbar = rawScrollbar as! AXUIElement
+            let current = (attribute(scrollbar, kAXValueAttribute as CFString) as? NSNumber)?.doubleValue ?? 0
+            let next = elementFrame.midY > visibleContent.maxY
+                ? min(1, current + 0.18)
+                : max(0, current - 0.18)
+            if AXUIElementSetAttributeValue(scrollbar, kAXValueAttribute as CFString, NSNumber(value: next)) == .success {
+                movedScrollbar = true
+                break
+            }
+        }
+        if movedScrollbar {
+            attempts += 1
+            usleep(350_000)
+            continue
+        }
+
+        let cursor = CGPoint(x: windowFrame.midX, y: windowFrame.midY)
+        CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: cursor, mouseButton: .left)?.post(tap: .cghidEventTap)
+        if attempts == 0 {
+            CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: cursor, mouseButton: .left)?.post(tap: .cghidEventTap)
+            CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: cursor, mouseButton: .left)?.post(tap: .cghidEventTap)
+        }
+        let keyCode: CGKeyCode = elementFrame.midY > visibleContent.maxY ? 121 : 116
+        guard let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true),
+              let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false)
+        else { throw DriverError.missing("\(expected) page-scroll event") }
+        keyDown.post(tap: .cghidEventTap)
+        keyUp.post(tap: .cghidEventTap)
+        attempts += 1
+        usleep(300_000)
+    }
+    throw DriverError.missing("\(expected) visible frame after scrolling")
+}
+
 func snapshot(pid: pid_t) -> [AXUIElement] {
     descendants(of: AXUIElementCreateApplication(pid))
 }
@@ -169,6 +251,16 @@ do {
 
     if command == "wait" {
         print("PASS: \(target) role=\(string(element, kAXRoleAttribute as CFString)) text=\(visibleText(element))")
+    } else if command == "frame" {
+        guard let elementFrame = frame(element), let windowFrame = visibleWindowFrame(pid: pid) else {
+            throw DriverError.missing("\(target) frame")
+        }
+        let visibleContent = windowFrame.insetBy(dx: 8, dy: 44)
+        let intersects = visibleContent.contains(CGPoint(x: elementFrame.midX, y: elementFrame.midY))
+        print("FRAME: \(target) element=\(NSStringFromRect(elementFrame)) visible=\(NSStringFromRect(visibleContent)) center-visible=\(intersects)")
+    } else if command == "scroll-visible" {
+        let result = try scrollToVisible(pid: pid, identifier: target, timeout: timeout(at: 4))
+        print("PASS: scrolled \(target) into visible content after \(result.2) wheel events; element=\(NSStringFromRect(result.0)) visible=\(NSStringFromRect(result.1)) center-visible=true")
     } else if command == "text" {
         print(visibleText(element))
     } else if command == "press" {

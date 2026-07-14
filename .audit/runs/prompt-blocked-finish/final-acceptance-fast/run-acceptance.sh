@@ -29,8 +29,12 @@ log() {
 
 stop_app() {
     pkill -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
+    pkill -f "${INSTALLED_APP}/Contents/MacOS/${APP_EXECUTABLE}" >/dev/null 2>&1 || true
     for _ in {1..20}; do
-        pgrep -x "$APP_EXECUTABLE" >/dev/null 2>&1 || return 0
+        if ! pgrep -x "$APP_EXECUTABLE" >/dev/null 2>&1 \
+            && ! pgrep -f "${INSTALLED_APP}/Contents/MacOS/${APP_EXECUTABLE}" >/dev/null 2>&1; then
+            return 0
+        fi
         sleep 0.1
     done
     print -u2 "FAIL: foreground QA app did not stop"
@@ -317,6 +321,14 @@ success_helper_pid="$(helper_pid)"
 success_app_pid="$(launch_and_wait_for_actions)"
 "$WINDOW_PROBE" "$success_app_pid" --expect-today --screenshot "$EVIDENCE/success-actions.png" \
     | tee -a "$EVIDENCE/runtime.log"
+"$AX_DRIVER" "$success_app_pid" frame "today.prompt.qa-block-1.action.mark_blocked" \
+    | tee "$EVIDENCE/success-mark-blocked-frame-before-scroll.txt"
+"$AX_DRIVER" "$success_app_pid" scroll-visible "today.prompt.qa-block-1.action.mark_blocked" 10 \
+    | tee "$EVIDENCE/success-mark-blocked-scroll.txt"
+"$AX_DRIVER" "$success_app_pid" frame "today.prompt.qa-block-1.action.mark_blocked" \
+    | tee "$EVIDENCE/success-mark-blocked-frame-visible.txt"
+"$WINDOW_PROBE" "$success_app_pid" --expect-today --screenshot "$EVIDENCE/success-actions-scrolled.png" \
+    | tee -a "$EVIDENCE/runtime.log"
 "$AX_DRIVER" "$success_app_pid" click "today.prompt.qa-block-1.action.mark_blocked"
 "$AX_DRIVER" "$success_app_pid" wait "today.prompt.block.suggestion.approval" 6
 "$AX_DRIVER" "$success_app_pid" click "today.prompt.block.suggestion.approval"
@@ -350,6 +362,8 @@ assert_success_database "helper-relaunch"
 
 prepare_presented_runtime "helper-down"
 failure_app_pid="$(launch_and_wait_for_actions)"
+"$AX_DRIVER" "$failure_app_pid" scroll-visible "today.prompt.qa-block-1.action.mark_blocked" 10 \
+    | tee "$EVIDENCE/helper-down-mark-blocked-scroll.txt"
 "$AX_DRIVER" "$failure_app_pid" click "today.prompt.qa-block-1.action.mark_blocked"
 "$AX_DRIVER" "$failure_app_pid" wait "today.prompt.block.suggestion.approval" 6
 "$AX_DRIVER" "$failure_app_pid" click "today.prompt.block.suggestion.approval"
