@@ -91,6 +91,60 @@ func menuForegroundRefreshReadsPersistedInvitation() async throws {
     #expect(controller.snapshot?.planningStatus?.mode == .invitation)
 }
 
+@Test
+func producerShapedSnapshotFetchesRemainLimitedToExplicitWorkflows() throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let appSources = repositoryRoot.appendingPathComponent("Sources/ZoidCoachApp")
+    let allowedCallCounts = [
+        "AppModel.swift": 2,
+        "DashboardEndWorkdayFlow.swift": 2,
+        "MenuBarCoachView.swift": 2,
+    ]
+    var observedCallCounts: [String: Int] = [:]
+    let enumerator = try #require(FileManager.default.enumerator(
+        at: appSources,
+        includingPropertiesForKeys: nil
+    ))
+
+    for case let fileURL as URL in enumerator where fileURL.pathExtension == "swift" {
+        guard !fileURL.lastPathComponent.hasSuffix("Probe.swift") else { continue }
+        let source = try String(contentsOf: fileURL, encoding: .utf8)
+        let callCount = source
+            .split(separator: "\n")
+            .count { $0.contains(".fetchTodaySnapshot()") }
+        guard callCount > 0 else { continue }
+        observedCallCounts[fileURL.lastPathComponent] = callCount
+    }
+
+    #expect(observedCallCounts == allowedCallCounts)
+}
+
+@MainActor
+@Test
+func delayedForegroundStartupDoesNotReregisterProducerOrCreateSnapshot() async throws {
+    let fixture = try TodaySnapshotOwnershipFixture()
+    defer { fixture.remove() }
+    _ = try TodaySnapshotStore(databaseURL: fixture.runtime.databaseURL)
+    AgentLaunchService.recordSuccessfulExternalUnregistration(
+        userDefaults: fixture.runtime.makeUserDefaults()
+    )
+    let registration = TodaySnapshotOwnershipNoopAgentRegistration()
+    let model = fixture.makeAppModel(registration: registration)
+
+    try await Task.sleep(for: .milliseconds(300))
+    await model.refreshTodaySnapshot()
+
+    #expect(registration.registerCount == 0)
+    #expect(model.todaySnapshot == nil)
+    #expect(try TodaySnapshotStore(
+        databaseURL: fixture.runtime.databaseURL,
+        readOnly: true
+    ).load() == nil)
+}
+
 private struct TodaySnapshotOwnershipFixture {
     let root: URL
     let runtime: RuntimeEnvironment
@@ -112,12 +166,15 @@ private struct TodaySnapshotOwnershipFixture {
     }
 
     @MainActor
-    func makeAppModel() -> AppModel {
+    func makeAppModel(
+        registration: TodaySnapshotOwnershipNoopAgentRegistration
+            = TodaySnapshotOwnershipNoopAgentRegistration()
+    ) -> AppModel {
         AppModel(
             runtimeEnvironment: runtime,
             agentLaunchService: AgentLaunchService(
                 runtimeEnvironment: runtime,
-                service: TodaySnapshotOwnershipNoopAgentRegistration()
+                service: registration
             )
         )
     }
@@ -130,12 +187,16 @@ private struct TodaySnapshotOwnershipFixture {
 @MainActor
 private final class TodaySnapshotOwnershipNoopAgentRegistration: AgentServiceRegistration {
     var status: AgentRegistrationStatus = .notRegistered
+    private(set) var registerCount = 0
+    private(set) var unregisterCount = 0
 
     func register() {
+        registerCount += 1
         status = .enabled
     }
 
     func unregister() {
+        unregisterCount += 1
         status = .notRegistered
     }
 }
