@@ -27,6 +27,28 @@ private enum MainWindowSelection: Equatable {
     case ambiguous
 }
 
+private enum ReviewsDestinationSelection: Equatable {
+    case unique
+    case missing
+    case ambiguous
+}
+
+private struct ReviewsNavigationState {
+    let destination: ReviewsDestinationSelection
+    let deepEvidenceChildVisible: Bool
+}
+
+private func reviewsNavigationSucceeded(
+    beforePress: ReviewsNavigationState,
+    pressSucceeded _: Bool,
+    afterPress: ReviewsNavigationState
+) -> Bool {
+    guard beforePress.destination != .ambiguous,
+          afterPress.destination != .ambiguous
+    else { return false }
+    return beforePress.destination == .unique || afterPress.destination == .unique
+}
+
 private enum ReviewScrollStep: Equatable {
     case verticalScrollBar(Double)
     case pageAction
@@ -112,6 +134,22 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
         hasTodayNavigation: true,
         hasReviewsNavigation: true
     )
+    let selectedReviews = ReviewsNavigationState(
+        destination: .unique,
+        deepEvidenceChildVisible: false
+    )
+    let missingReviews = ReviewsNavigationState(
+        destination: .missing,
+        deepEvidenceChildVisible: false
+    )
+    let deepChildOnly = ReviewsNavigationState(
+        destination: .missing,
+        deepEvidenceChildVisible: true
+    )
+    let ambiguousReviews = ReviewsNavigationState(
+        destination: .ambiguous,
+        deepEvidenceChildVisible: false
+    )
     guard expectedCategories.count == 6,
           expectedCategories.reduce(0, { $0 + $1.minutes }) == 28,
           privateSentinels.contains(where: { "qa-zc041005-private-deep".localizedCaseInsensitiveContains($0) }),
@@ -124,6 +162,36 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
           selectMainWindow(from: [auxiliary]) == .missing,
           selectMainWindow(from: [minimizedMain]) == .missing,
           selectMainWindow(from: [hiddenMain]) == .missing,
+          reviewsNavigationSucceeded(
+              beforePress: selectedReviews,
+              pressSucceeded: false,
+              afterPress: selectedReviews
+          ),
+          reviewsNavigationSucceeded(
+              beforePress: missingReviews,
+              pressSucceeded: true,
+              afterPress: selectedReviews
+          ),
+          !reviewsNavigationSucceeded(
+              beforePress: missingReviews,
+              pressSucceeded: true,
+              afterPress: missingReviews
+          ),
+          !reviewsNavigationSucceeded(
+              beforePress: deepChildOnly,
+              pressSucceeded: false,
+              afterPress: deepChildOnly
+          ),
+          !reviewsNavigationSucceeded(
+              beforePress: ambiguousReviews,
+              pressSucceeded: true,
+              afterPress: selectedReviews
+          ),
+          !reviewsNavigationSucceeded(
+              beforePress: missingReviews,
+              pressSucceeded: true,
+              afterPress: ambiguousReviews
+          ),
           reviewScrollStep(
               page: 0,
               maximumPages: 16,
@@ -261,24 +329,59 @@ private func mainWindow() throws -> AXUIElement {
     }
 }
 
-private func press(_ element: AXUIElement, name: String) throws {
-    _ = AXUIElementPerformAction(element, "AXScrollToVisible" as CFString)
-    guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else {
-        throw ProbeError.failure("could not press \(name)")
+private func reviewsNavigationState(in window: AXUIElement) throws -> ReviewsNavigationState {
+    var destinationCount = 0
+    var deepEvidenceChildVisible = false
+    _ = try walk(root: window) { element in
+        switch identifier(element) {
+        case "reviews.daily": destinationCount += 1
+        case "reviews.work-categories": deepEvidenceChildVisible = true
+        default: break
+        }
+        return false
     }
-    Thread.sleep(forTimeInterval: 0.3)
+    let destination: ReviewsDestinationSelection
+    switch destinationCount {
+    case 1: destination = .unique
+    case 0: destination = .missing
+    default: destination = .ambiguous
+    }
+    return ReviewsNavigationState(
+        destination: destination,
+        deepEvidenceChildVisible: deepEvidenceChildVisible
+    )
 }
 
 private func navigateToReviews(window: AXUIElement) throws {
-    guard let reviews = try walk(root: window, matching: {
-        role($0) == (kAXButtonRole as String) && labels($0).contains("Reviews")
-    }) else {
+    var reviewItems: [AXUIElement] = []
+    _ = try walk(root: window) { element in
+        if role(element) == (kAXButtonRole as String), labels(element).contains("Reviews") {
+            reviewItems.append(element)
+        }
+        return false
+    }
+    guard reviewItems.count == 1, let reviews = reviewItems.first else {
         if try walk(root: window, matching: { identifier($0) == "onboarding.root" }) != nil {
             throw ProbeError.failure("onboarding is visible; establish the supported QA ready state")
         }
-        throw ProbeError.failure("normal Reviews navigation is unavailable")
+        throw ProbeError.failure(
+            reviewItems.isEmpty
+                ? "normal Reviews navigation is unavailable"
+                : "normal Reviews navigation is ambiguous"
+        )
     }
-    try press(reviews, name: "Reviews")
+    let beforePress = try reviewsNavigationState(in: window)
+    _ = AXUIElementPerformAction(reviews, "AXScrollToVisible" as CFString)
+    let pressSucceeded = AXUIElementPerformAction(reviews, kAXPressAction as CFString) == .success
+    Thread.sleep(forTimeInterval: 0.3)
+    let afterPress = try reviewsNavigationState(in: window)
+    guard reviewsNavigationSucceeded(
+        beforePress: beforePress,
+        pressSucceeded: pressSucceeded,
+        afterPress: afterPress
+    ) else {
+        throw ProbeError.failure("could not navigate to the unique Daily Review destination")
+    }
 }
 
 private func findIdentifierByScrolling(
