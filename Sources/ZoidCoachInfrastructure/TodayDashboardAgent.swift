@@ -15,6 +15,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
     private let checkpoints: ProcessingCheckpointStore
     private let planningInvitations: PlanningInvitationService
     private let recommendationFeedback: RecommendationFeedbackStore
+    private let mutationOperations: TaskMutationOperationStore
 
     public init(databaseURL: URL = ZoidCoachStorage.databaseURL()) throws {
         reminders = try ReminderSnapshotStore(databaseURL: databaseURL)
@@ -34,6 +35,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         taskHistory = try TaskHistoryStore(databaseURL: databaseURL)
         checkpoints = try ProcessingCheckpointStore(databaseURL: databaseURL)
         recommendationFeedback = try RecommendationFeedbackStore(databaseURL: databaseURL)
+        mutationOperations = try TaskMutationOperationStore(databaseURL: databaseURL)
         planningInvitations = PlanningInvitationService(
             store: try PromptInboxStore(databaseURL: databaseURL)
         )
@@ -380,15 +382,52 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         _ command: TaskActivityCommand,
         taskID: String,
         blockedReason: String? = nil,
+        operationID: UUID = UUID(),
         now: Date = Date()
+    ) throws -> TodaySnapshot {
+        let operation = try mutationOperations.begin(
+            id: operationID,
+            taskID: taskID,
+            command: command,
+            requestedAt: now
+        )
+        if operation.state == .completed, let result = operation.result {
+            return result
+        }
+        do {
+            let result = try applyPending(
+                command,
+                taskID: taskID,
+                blockedReason: blockedReason,
+                operationID: operationID,
+                now: operation.requestedAt
+            )
+            try mutationOperations.complete(operationID: operationID, result: result)
+            return result
+        } catch {
+            try? mutationOperations.recordPendingFailure(operationID: operationID, diagnostic: error.localizedDescription)
+            throw error
+        }
+    }
+
+    private func applyPending(
+        _ command: TaskActivityCommand,
+        taskID: String,
+        blockedReason: String?,
+        operationID: UUID,
+        now: Date
     ) throws -> TodaySnapshot {
         let previousSnapshot = try snapshots.load(for: now)
         let previousExecution = try execution.snapshot(for: [taskID], now: now)[taskID]
         let activeBefore = try execution.activeTask(now: now)
         let reminderBefore = try reminders.loadIncomplete().first(where: { $0.id == taskID })
         let sourceKind = try reminders.sourceKind(forID: taskID)
-        try execution.apply(command, taskID: taskID, blockedReason: blockedReason, at: now)
-        if command == .block {
+        if try !mutationOperations.hasCompletedStep(operationID: operationID, step: "execution") {
+            try execution.apply(command, taskID: taskID, blockedReason: blockedReason, at: now)
+            try mutationOperations.completeStep(operationID: operationID, step: "execution", at: now)
+        }
+        if command == .block,
+           try !mutationOperations.hasCompletedStep(operationID: operationID, step: "plan-promotion") {
             let plan = try plans.loadDailyPlan(for: now)
             let executionByID = try execution.snapshot(for: plan.map(\.reminderID), now: now)
             let availableReminderIDs = Set(try reminders.loadIncomplete().map(\.id))
@@ -409,30 +448,37 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 eligibleTaskIDs: eligibleTaskIDs,
                 for: now
             )
+            try mutationOperations.completeStep(operationID: operationID, step: "plan-promotion", at: now)
         }
         switch command {
         case .complete:
-            if sourceKind == .local {
+            if try !mutationOperations.hasCompletedStep(operationID: operationID, step: "completion-source") && sourceKind == .local {
                 try reminders.completeLocal(id: taskID, completedAt: now)
-            } else {
+                try mutationOperations.completeStep(operationID: operationID, step: "completion-source", at: now)
+            } else if try !mutationOperations.hasCompletedStep(operationID: operationID, step: "completion-source") {
                 _ = try outbox.enqueue(
                     type: .completeReminder,
                     entityID: taskID,
                     desiredState: .completeReminder,
                     planVersion: 1
                 )
+                try mutationOperations.completeStep(operationID: operationID, step: "completion-source", at: now)
             }
             try taskHistory.record(
                 taskID: taskID,
                 state: .completed,
                 title: reminderBefore?.title,
                 sourceKind: reminderBefore?.sourceKind,
+                operationID: operationID,
                 at: now
             )
+            try mutationOperations.completeStep(operationID: operationID, step: "history", at: now)
         case .reschedule:
-            try taskHistory.record(taskID: taskID, state: .postponed, at: now)
+            try taskHistory.record(taskID: taskID, state: .postponed, operationID: operationID, at: now)
+            try mutationOperations.completeStep(operationID: operationID, step: "history", at: now)
         case .start, .startSprint10, .startSprint20, .startSprint25:
-            try taskHistory.record(taskID: taskID, state: .selected, at: now)
+            try taskHistory.record(taskID: taskID, state: .selected, operationID: operationID, at: now)
+            try mutationOperations.completeStep(operationID: operationID, step: "history", at: now)
         case .pause, .pauseForBreak, .pauseForExternalInterruption, .pauseDoneForNow, .pauseForEndOfDay, .resume, .block, .continueOpenEnded:
             break
         }
@@ -447,6 +493,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                     day: now
                 )
             }
+            try mutationOperations.completeStep(operationID: operationID, step: "reward", at: now)
         }
         if command == .complete,
            previousExecution?.state != .completed,
@@ -475,8 +522,11 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 _ = try learning.recordWorkWindowSample(workSample, timeZoneIdentifier: timeZoneIdentifier)
                 _ = try learning.updatePreferredWorkWindowAggregate(timeZoneIdentifier: timeZoneIdentifier)
             }
+            try mutationOperations.completeStep(operationID: operationID, step: "learning", at: now)
         }
-        return try snapshot(now: now)
+        let result = try snapshot(now: now)
+        try mutationOperations.completeStep(operationID: operationID, step: "today-snapshot", at: now)
+        return result
     }
 
     public func startSprint(taskID: String, durationMinutes: Int, now: Date = Date()) throws -> TodaySnapshot {

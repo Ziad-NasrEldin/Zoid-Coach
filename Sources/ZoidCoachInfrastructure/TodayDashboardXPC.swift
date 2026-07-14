@@ -5,6 +5,22 @@ import ZoidCoachCore
 
 public let todayDashboardMachServiceName = RuntimeIdentity.production.machServiceName
 
+public struct TaskMutationRequest: Codable, Equatable, Sendable {
+    public let operationID: UUID
+    public let command: TaskActivityCommand
+    public let taskID: String
+    public let blockedReason: String?
+    public let requestedAt: Date
+
+    public init(operationID: UUID, command: TaskActivityCommand, taskID: String, blockedReason: String? = nil, requestedAt: Date = Date()) {
+        self.operationID = operationID
+        self.command = command
+        self.taskID = taskID
+        self.blockedReason = blockedReason
+        self.requestedAt = requestedAt
+    }
+}
+
 private final class XPCDataReplyBox: @unchecked Sendable {
     let reply: (Data?, String?) -> Void
 
@@ -91,6 +107,7 @@ public struct SameUserXPCConnectionAuthorizer: XPCConnectionAuthorizing, Sendabl
     func fetchCaptureHealth(withReply reply: @escaping (Data?, String?) -> Void)
     func fetchTodaySnapshot(withReply reply: @escaping (Data?, String?) -> Void)
     func applyTaskCommand(_ command: String, taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
+    func applyTaskMutation(_ request: Data, withReply reply: @escaping (Data?, String?) -> Void)
     func blockTask(_ taskID: String, reason: String, withReply reply: @escaping (Data?, String?) -> Void)
     func fetchReminderCompletionSync(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
     func retryReminderCompletion(_ taskID: String, withReply reply: @escaping (Data?, String?) -> Void)
@@ -195,7 +212,6 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
         decoder.dateDecodingStrategy = .iso8601
         return decoder
     }()
-
     init(agent: TodayDashboardAgent?, promptStore: PromptInboxStore?, promptEffectRouter: PromptResponseEffectRouter?, onboardingTestPrompts: OnboardingTestPromptService?, mutationRouter: AgentMutationRouter?, voiceController: VoiceAgentController?, writeCircuitBreaker: DatabaseWriteCircuitBreaker, captureHealthStore: AgentCaptureHealthStore?) {
         self.agent = agent
         self.promptStore = promptStore
@@ -234,6 +250,23 @@ private final class TodayDashboardXPCEndpoint: NSObject, TodayDashboardXPCProtoc
         }
         do { reply(try encoder.encode(agent.apply(command, taskID: taskID)), nil) }
         catch { reply(nil, error.localizedDescription) }
+    }
+
+    func applyTaskMutation(_ requestData: Data, withReply reply: @escaping (Data?, String?) -> Void) {
+        do { try writeCircuitBreaker.throwIfTripped() }
+        catch { reply(nil, error.localizedDescription); return }
+        guard let agent else { reply(nil, "The agent database is unavailable."); return }
+        do {
+            let request = try decoder.decode(TaskMutationRequest.self, from: requestData)
+            let snapshot = try agent.apply(
+                request.command,
+                taskID: request.taskID,
+                blockedReason: request.blockedReason,
+                operationID: request.operationID,
+                now: request.requestedAt
+            )
+            reply(try encoder.encode(snapshot), nil)
+        } catch { reply(nil, error.localizedDescription) }
     }
 
     func blockTask(_ taskID: String, reason: String, withReply reply: @escaping (Data?, String?) -> Void) {
@@ -502,9 +535,22 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         decoder.dateDecodingStrategy = .iso8601
         return decoder
     }()
+    private let mutationEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }()
+    private let mutationDecoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
+    private let pendingMutationDefaults: UserDefaults
+    private let pendingMutationLock = NSLock()
 
-    public init(machServiceName: String? = todayDashboardMachServiceName) {
+    public init(machServiceName: String? = todayDashboardMachServiceName, pendingMutationDefaults: UserDefaults = .standard) {
         self.machServiceName = machServiceName
+        self.pendingMutationDefaults = pendingMutationDefaults
     }
 
     public convenience init(runtimeEnvironment: RuntimeEnvironment) {
@@ -534,7 +580,29 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
     }
 
     public func apply(_ command: TaskActivityCommand, taskID: String) async throws -> TodaySnapshot {
-        try await call { proxy, reply in proxy.applyTaskCommand(command.rawValue, taskID: taskID, withReply: reply) }
+        let key = pendingMutationKey(command: command, taskID: taskID)
+        let request = pendingMutationLock.withLock { () -> TaskMutationRequest in
+            if let data = pendingMutationDefaults.data(forKey: key),
+               let request = try? mutationDecoder.decode(TaskMutationRequest.self, from: data) {
+                return request
+            }
+            let request = TaskMutationRequest(operationID: UUID(), command: command, taskID: taskID)
+            if let data = try? mutationEncoder.encode(request) { pendingMutationDefaults.set(data, forKey: key) }
+            return request
+        }
+        let data = try mutationEncoder.encode(request)
+        let snapshot: TodaySnapshot = try await call { proxy, reply in proxy.applyTaskMutation(data, withReply: reply) }
+        pendingMutationLock.withLock { pendingMutationDefaults.removeObject(forKey: key) }
+        return snapshot
+    }
+
+    public func apply(_ request: TaskMutationRequest) async throws -> TodaySnapshot {
+        let data = try mutationEncoder.encode(request)
+        return try await call { proxy, reply in proxy.applyTaskMutation(data, withReply: reply) }
+    }
+
+    private func pendingMutationKey(command: TaskActivityCommand, taskID: String) -> String {
+        "zoid666.pending-task-mutation.\(machServiceName ?? "disabled").\(command.rawValue).\(taskID)"
     }
 
     public func blockTask(taskID: String, reason: String) async throws -> TodaySnapshot {
