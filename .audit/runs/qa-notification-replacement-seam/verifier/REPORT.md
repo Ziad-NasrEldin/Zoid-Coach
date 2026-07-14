@@ -54,7 +54,13 @@ The sole incremental release build started with 594 MiB free.
 
 Free space fell below the orchestrator's 400 MiB safety floor before completion, so only that build was interrupted at exit 130 and only this verifier worktree's reproducible `.build` directory was removed.
 
-The release build is not claimed as green for the verifier repair.
+The interrupted attempt is not claimed as a successful release build.
+
+After another completed lane released disk space, the orchestrator granted one fresh release-only build with 2.9 GiB free.
+
+`swift build -c release` then completed successfully at exit 0 and left 2.6 GiB free.
+
+The verifier repair therefore has a green release build.
 
 ## Remaining signed acceptance
 
@@ -64,4 +70,4 @@ The release build is not claimed as green for the verifier repair.
 4. Invoke Undo from the newest card and prove the response belongs only to the replacement episode.
 5. Restart app and helper and prove the response remains durable and the original card does not return.
 
-No runtime lease should be requested until the repaired release build completes successfully with safe disk headroom.
+The signed runtime lease may now be requested because the repaired focused tests and release build are green.
