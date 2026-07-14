@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import ZoidCoachApp
 @testable import ZoidCoachCore
+import ZoidCoachInfrastructure
 
 @Test
 func promptTaskBlockRequestRequiresExplicitActionAndTaskIdentity() throws {
@@ -110,6 +111,98 @@ func todayPromptActionSurfaceDoesNotVirtualizePublicControls() throws {
     #expect(!activeRow.contains("LazyVGrid"))
     #expect(activeRow.contains("ForEach(interface.taskChangeControls)"))
     #expect(activeRow.contains("ForEach(interface.recoveryControls)"))
+}
+
+@MainActor
+@Test
+func todayLoadsDelayedPromptTimelineIntoSixDirectRenderedActions() throws {
+    let episode = promptEpisode(
+        id: "qa-block-1",
+        actions: [
+            .init(kind: .returnToActiveTask, title: "Return"),
+            .init(kind: .startWorkSprint, title: "Sprint", role: .primary),
+            .init(kind: .startBreak, title: "Break"),
+            .init(kind: .rescheduleTask, title: "Reschedule", role: .destructive),
+            .init(kind: .markBlocked, title: "Mark blocked", role: .destructive),
+            .init(kind: .continueIntentionally, title: "Continue")
+        ],
+        payload: ["taskID": "task-1", "taskTitle": "Prepare release"]
+    )
+    let empty = PromptInboxTimeline.empty
+    #expect(TodayPromptInboxLedgerPresentation.shouldRefresh(empty))
+    #expect(TodayPromptInboxLedgerPresentation.placement(for: empty) == .afterTaskDetail)
+
+    let entry = PromptInboxTimelineEntry(episode: episode)
+    let loaded = PromptInboxTimeline(
+        awaitingResponse: [entry]
+    )
+    #expect(!TodayPromptInboxLedgerPresentation.shouldRefresh(loaded))
+    #expect(TodayPromptInboxLedgerPresentation.placement(for: loaded) == .beforeTaskDetail)
+    #expect(TodayPromptInboxLedgerPresentation.actions(for: entry).controls.map(\.accessibilityIdentifier) == [
+        "today.prompt.qa-block-1.action.reschedule_task",
+        "today.prompt.qa-block-1.action.mark_blocked",
+        "today.prompt.qa-block-1.action.return_to_active_task",
+        "today.prompt.qa-block-1.action.start_work_sprint",
+        "today.prompt.qa-block-1.action.start_break",
+        "today.prompt.qa-block-1.action.continue_intentionally",
+    ])
+}
+
+@MainActor
+@Test
+func todayPromptPlacementRefreshesOnceAndKeepsResolvedHistoryVisible() throws {
+    let episode = promptEpisode(
+        id: "qa-placement-1",
+        actions: [
+            .init(kind: .returnToActiveTask, title: "Return"),
+            .init(kind: .startWorkSprint, title: "Sprint", role: .primary),
+            .init(kind: .startBreak, title: "Break"),
+            .init(kind: .rescheduleTask, title: "Reschedule", role: .destructive),
+            .init(kind: .markBlocked, title: "Mark blocked", role: .destructive),
+            .init(kind: .continueIntentionally, title: "Continue")
+        ],
+        payload: ["taskID": "task-1", "taskTitle": "Prepare release"]
+    )
+    var refreshCount = 0
+    let empty = PromptInboxTimeline.empty
+    if TodayPromptInboxLedgerPresentation.shouldRefresh(empty) { refreshCount += 1 }
+
+    let waiting = PromptInboxTimeline(awaitingResponse: [.init(episode: episode)])
+    if TodayPromptInboxLedgerPresentation.shouldRefresh(waiting) { refreshCount += 1 }
+    #expect(TodayPromptInboxLedgerPresentation.placement(for: waiting) == .beforeTaskDetail)
+
+    let respondedAt = Date()
+    let resolvedEpisode = PromptEpisode(
+        id: episode.id,
+        decisionKey: episode.decisionKey,
+        type: episode.type,
+        state: .responded,
+        title: episode.title,
+        summary: episode.summary,
+        actions: episode.actions,
+        payload: episode.payload,
+        createdAt: episode.createdAt,
+        presentedAt: episode.presentedAt,
+        resolvedAt: respondedAt
+    )
+    let historyEntry = PromptInboxTimelineEntry(
+        episode: resolvedEpisode,
+        response: PromptResponse(
+            id: "response-qa-placement-1",
+            promptID: episode.id,
+            action: .markBlocked,
+            actionToken: PromptResponseToken.make(promptID: episode.id, action: .markBlocked),
+            surface: .dashboard,
+            respondedAt: respondedAt
+        )
+    )
+    let recent = PromptInboxTimeline(recent: [historyEntry])
+    if TodayPromptInboxLedgerPresentation.shouldRefresh(recent) { refreshCount += 1 }
+
+    #expect(refreshCount == 1)
+    #expect(TodayPromptInboxLedgerPresentation.placement(for: recent) == .afterTaskDetail)
+    #expect(TodayPromptInboxLedgerPresentation.historyIdentifier(for: historyEntry) == "today.prompt.qa-placement-1.history")
+    #expect(TodayPromptInboxLedgerPresentation.historyState(for: historyEntry) == "ANSWERED")
 }
 
 @Test

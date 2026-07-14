@@ -1,10 +1,109 @@
 import AppKit
 import Darwin
+import OSLog
 import SwiftUI
 import ZoidCoachCore
 
+@MainActor
+final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
+    private static let automaticTerminationReason = "Zoid 666 background scheduling menu"
+    private static let lifecycleLogger = Logger(
+        subsystem: "com.zoidcoach.app",
+        category: "background-lifecycle"
+    )
+    private let lifecycleHook: BackgroundApplicationLifecycleHook
+
+    override init() {
+        let runtimeEnvironment = RuntimeEnvironment.current()
+        let launchPresentation = ApplicationLaunchPresentation(
+            arguments: CommandLine.arguments,
+            packageMode: runtimeEnvironment.packageMode
+        )
+        lifecycleHook = BackgroundApplicationLifecycleHook(
+            policy: launchPresentation.initialMainWindowPresentationPolicy,
+            isAccessoryActivationPolicySet: {
+                NSApplication.shared.activationPolicy() == .accessory
+            },
+            setAccessoryActivationPolicy: {
+                NSApplication.shared.setActivationPolicy(.accessory)
+            },
+            acquireAutomaticTerminationHold: {
+                Self.lifecycleLogger.notice(
+                    "lifecycle-hold action=acquire policy=background-scheduling"
+                )
+                ProcessInfo.processInfo.disableAutomaticTermination(Self.automaticTerminationReason)
+            },
+            releaseAutomaticTerminationHold: {
+                Self.lifecycleLogger.notice(
+                    "lifecycle-hold action=release policy=background-scheduling"
+                )
+                ProcessInfo.processInfo.enableAutomaticTermination(Self.automaticTerminationReason)
+            },
+            availableWindows: {
+                NSApplication.shared.windows.map(ApplicationWindowDescriptor.init)
+            },
+            dismissWindow: { windowNumber in
+                NSApplication.shared.windows
+                    .first(where: { $0.windowNumber == windowNumber })?
+                    .orderOut(nil)
+            }
+        )
+        super.init()
+        Self.lifecycleLogger.notice(
+            "delegate-init policy=\(self.lifecycleHook.policy.logLabel, privacy: .public)"
+        )
+    }
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        lifecycleHook.applicationWillFinishLaunching()
+        guard lifecycleHook.shouldObserveWindowVisibility else { return }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowDidBecomeVisible(_:)),
+            name: NSWindow.didBecomeKeyNotification,
+            object: nil
+        )
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        lifecycleHook.applicationDidFinishLaunching()
+    }
+
+    func applicationDidUpdate(_ notification: Notification) {
+        lifecycleHook.applicationDidUpdate()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        lifecycleHook.applicationWillTerminate()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let decision = lifecycleHook.applicationTerminationDecision()
+        Self.lifecycleLogger.notice(
+            "termination-decision policy=\(self.lifecycleHook.policy.logLabel, privacy: .public) decision=\(decision.logLabel, privacy: .public)"
+        )
+        switch decision {
+        case .cancel:
+            return .terminateCancel
+        case .permit:
+            return .terminateNow
+        }
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        lifecycleHook.shouldTerminateAfterLastWindowClosed(defaultDecision: false)
+    }
+
+    @objc private func windowDidBecomeVisible(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        lifecycleHook.windowDidBecomeVisible(ApplicationWindowDescriptor(window: window))
+    }
+}
+
 @main
 struct ZoidCoachApplication: App {
+    @NSApplicationDelegateAdaptor(ZoidCoachApplicationDelegate.self)
+    private var applicationDelegate
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model: AppModel
     @StateObject private var voiceModel: VoiceConversationModel
@@ -13,7 +112,8 @@ struct ZoidCoachApplication: App {
     @StateObject private var wakeTaskReconfirmation: WakeTaskReconfirmationController
     @StateObject private var menuBarCoach: MenuBarCoachController
     @StateObject private var menuBarCoachingPause: MenuBarCoachingPauseController
-    private let launchesForBackgroundScheduling: Bool
+    private let initialMainWindowPresentationPolicy: InitialMainWindowPresentationPolicy
+    private let shouldOpenMainWindow: Bool
 
     init() {
         if CommandLine.arguments.contains(ZC052005AcceptanceProbe.argument) {
@@ -52,9 +152,13 @@ struct ZoidCoachApplication: App {
             fflush(stderr)
             Darwin.exit(exitCode)
         }
-        let isBackgroundLaunch = CommandLine.arguments.contains("--background-schedule")
         let runtimeEnvironment = RuntimeEnvironment.current()
-        launchesForBackgroundScheduling = isBackgroundLaunch
+        let launchPresentation = ApplicationLaunchPresentation(
+            arguments: CommandLine.arguments,
+            packageMode: runtimeEnvironment.packageMode
+        )
+        initialMainWindowPresentationPolicy = launchPresentation.initialMainWindowPresentationPolicy
+        shouldOpenMainWindow = launchPresentation.shouldOpenMainWindow
         _model = StateObject(wrappedValue: AppModel(runtimeEnvironment: runtimeEnvironment))
         _voiceModel = StateObject(wrappedValue: VoiceConversationModel())
         _onboarding = StateObject(wrappedValue: OnboardingCoordinator())
@@ -105,6 +209,7 @@ struct ZoidCoachApplication: App {
                 .environmentObject(voiceModel)
                 .frame(minWidth: 980, minHeight: 680)
                 .background(Sumi.paper)
+                .background(MainApplicationWindowIdentityInstaller())
                 .overlay(alignment: .topTrailing) {
                     if let notice = wakeTaskReconfirmation.notice {
                         WakeTaskReconciliationNoticeView(
@@ -134,12 +239,7 @@ struct ZoidCoachApplication: App {
                     if onboarding.route == .today {
                         voiceModel.startAlwaysAvailable()
                     }
-                    positionInitialWindow()
-                    if launchesForBackgroundScheduling {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            dismissInitialWindowsForBackgroundScheduling()
-                        }
-                    }
+                    presentInitialMainWindow()
                 }
                 .onChange(of: onboarding.route) { _, route in
                     if route == .today {
@@ -200,8 +300,13 @@ struct ZoidCoachApplication: App {
                 pauseController: menuBarCoachingPause
             )
         } label: {
-            Image(systemName: menuBarState.menuBarSymbol)
-                .accessibilityLabel(menuBarState.menuBarLabel)
+            Label("Zoid 666", systemImage: menuBarState.menuBarSymbol)
+                .labelStyle(.iconOnly)
+                .accessibilityValue(menuBarState.menuBarLabel)
+                .accessibilityIdentifier("menu-bar.status-item")
+                .modifier(QAMainWindowLaunchModifier(
+                    shouldOpenMainWindow: shouldOpenMainWindow
+                ))
         }
         .menuBarExtraStyle(.window)
     }
@@ -223,26 +328,34 @@ struct ZoidCoachApplication: App {
             || notifications.state == .unavailable
     }
 
-    private func positionInitialWindow() {
-        DispatchQueue.main.async {
-            guard let window = NSApplication.shared.windows.first(where: {
-                $0.canBecomeKey && $0.level == .normal
-            }) else { return }
-
-            let frameAutosaveName = "ZoidCoachMainWindowFrame"
-            if !window.setFrameUsingName(frameAutosaveName) {
-                window.setContentSize(NSSize(width: 1180, height: 760))
-                window.center()
+    private func presentInitialMainWindow() {
+        InitialMainWindowPresentationCoordinator(
+            availableWindows: {
+                NSApplication.shared.windows.map(ApplicationWindowDescriptor.init)
+            },
+            positionWindow: { windowNumber in
+                guard let window = NSApplication.shared.windows.first(where: {
+                    $0.windowNumber == windowNumber
+                }) else {
+                    return
+                }
+                let frameAutosaveName = "ZoidCoachMainWindowFrame"
+                if !window.setFrameUsingName(frameAutosaveName) {
+                    window.setContentSize(NSSize(width: 1180, height: 760))
+                    window.center()
+                }
+                window.setFrameAutosaveName(frameAutosaveName)
+                window.makeKeyAndOrderFront(nil)
+            },
+            dismissWindow: { windowNumber in
+                NSApplication.shared.windows
+                    .first(where: { $0.windowNumber == windowNumber })?
+                    .orderOut(nil)
+            },
+            schedulePosition: { action in
+                DispatchQueue.main.async(execute: action)
             }
-            window.setFrameAutosaveName(frameAutosaveName)
-            window.makeKeyAndOrderFront(nil)
-        }
-    }
-
-    private func dismissInitialWindowsForBackgroundScheduling() {
-        for window in NSApp.windows where window.level == .normal {
-            window.orderOut(nil)
-        }
+        ).apply(policy: initialMainWindowPresentationPolicy)
     }
 
     private func reconcileTaskAfterWake() {
