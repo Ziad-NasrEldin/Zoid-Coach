@@ -31,7 +31,10 @@ READY_MANIFEST="$PWD/Scripts/fixtures/qa-ready-state.example.json"
 WINDOW_PROBE="$PWD/Scripts/qa-window-content-probe.swift"
 TASK_TITLE="QA ZC-044-004 manual workday task"
 PRIVATE_ROOT="${DATABASE%/Application Support/Zoid 666/zoid-coach.sqlite}"
+"$PREFLIGHT" --self-test
 ```
+
+The preflight self-test parses this runbook and fails if helper registration appears before the foreground launch and PID binding after ready-state preparation.
 
 Open the installed bundle and bind the session to its real executable, helper, signature, build identity, and isolated database.
 
@@ -65,14 +68,24 @@ APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$READY_STATE" "$READY_MANIFEST" "$PRIVATE_ROOT" --replace
-"$APP_EXECUTABLE" --qa-register-agent
 open "$APP" --args --qa-open-main
-PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --require-qa-open-main)"
-PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
+FOREGROUND_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
+  --require-qa-open-main --require-helper-unregistered)"
+printf '%s\n' "$FOREGROUND_OUTPUT"
+PID="$(printf '%s\n' "$FOREGROUND_OUTPUT" | sed -n 's/^APP_PID=//p')"
+test -n "$PID"
+"$APP_EXECUTABLE" --qa-register-agent
+PREFLIGHT_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
+  --require-qa-open-main --expected-app-pid "$PID")"
+printf '%s\n' "$PREFLIGHT_OUTPUT"
+CONFIRMED_PID="$(printf '%s\n' "$PREFLIGHT_OUTPUT" | sed -n 's/^APP_PID=//p')"
+test "$CONFIRMED_PID" = "$PID"
 swift "$WINDOW_PROBE" "$PID" --expect-today
 ```
 
-The preflight binds the PID to the installed executable and requires that exact process to contain the supported QA foreground argument.
+The first preflight binds the foreground PID and argument while proving the helper is still unregistered.
+The helper is registered only after that foreground binding succeeds.
+The second preflight requires the same foreground PID and argument, the installed helper executable, the shared QA root, and the exact open database.
 The Today assertion proves onboarding is complete and the normal Dashboard navigation is visible.
 Do not continue if the app still exposes onboarding.
 
