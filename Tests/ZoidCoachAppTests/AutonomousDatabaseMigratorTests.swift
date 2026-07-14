@@ -40,8 +40,8 @@ func migration46AddsDeletedReminderDecisionHistory() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 45)
-    #expect(result.appliedVersions == [46])
-    #expect(result.currentVersion == 46)
+    #expect(result.appliedVersions == [46, 49])
+    #expect(result.currentVersion == 49)
     #expect(try tableExists(databaseURL, "deleted_reminder_decisions"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "state"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "decided_at_utc"))
