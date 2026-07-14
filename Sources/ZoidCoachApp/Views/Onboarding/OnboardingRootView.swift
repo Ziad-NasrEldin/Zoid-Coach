@@ -3,26 +3,33 @@ import SwiftUI
 import ZoidCoachCore
 
 struct OnboardingRootView: View {
+    @Environment(\.locale) private var locale
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var coordinator: OnboardingCoordinator
 
     var body: some View {
-        HStack(spacing: 0) {
-            progressRail
-            Rectangle().fill(Sumi.rule).frame(width: 1)
-            VStack(alignment: .leading, spacing: 0) {
-                header
-                Rectangle().fill(Sumi.paleRule).frame(height: 1)
-                ScrollView {
-                    stepContent
-                        .frame(maxWidth: 760, alignment: .leading)
-                        .padding(.horizontal, 44)
-                        .padding(.vertical, 36)
+        GeometryReader { geometry in
+            let layout = OnboardingWelcomeLayout(hostWidth: geometry.size.width)
+            HStack(spacing: 0) {
+                if coordinator.progress.currentStep != .welcome || layout.showsProgressRail {
+                    progressRail
+                    Rectangle().fill(Sumi.rule).frame(width: 1)
                 }
-                Rectangle().fill(Sumi.paleRule).frame(height: 1)
-                controls
+                VStack(alignment: .leading, spacing: 0) {
+                    header
+                    Rectangle().fill(Sumi.paleRule).frame(height: 1)
+                    ScrollView {
+                        stepContent
+                            .frame(maxWidth: 760, alignment: .leading)
+                            .padding(.horizontal, coordinator.progress.currentStep == .welcome ? layout.horizontalPadding : 44)
+                            .padding(.vertical, 36)
+                    }
+                    Rectangle().fill(Sumi.paleRule).frame(height: 1)
+                    controls
+                }
             }
         }
+        .environment(\.layoutDirection, welcomeCopy.isRightToLeft ? .rightToLeft : .leftToRight)
         .background(Sumi.paper)
         .foregroundStyle(Sumi.ink)
         .accessibilityElement(children: .contain)
@@ -48,8 +55,9 @@ struct OnboardingRootView: View {
     }
 
     private var progressRail: some View {
+        let copy = welcomeCopy
         VStack(alignment: .leading, spacing: 0) {
-            Text("PRIVATE COMMAND LEDGER")
+            Text(copy.progressTitle)
                 .font(Sumi.label())
                 .tracking(1.5)
                 .padding(.bottom, 24)
@@ -60,7 +68,7 @@ struct OnboardingRootView: View {
                         .font(Sumi.label())
                         .foregroundStyle(step == coordinator.progress.currentStep ? Sumi.paper : Sumi.muted)
                         .frame(width: 26)
-                    Text(shortTitle(for: step).uppercased())
+                    Text(shortTitle(for: step).uppercased(with: locale))
                         .font(Sumi.label())
                         .tracking(1.1)
                         .lineLimit(1)
@@ -69,11 +77,11 @@ struct OnboardingRootView: View {
                 .frame(height: 38)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(step == coordinator.progress.currentStep ? Sumi.ink : Color.clear)
-                .accessibilityLabel("Step \(index + 1), \(shortTitle(for: step))")
+                .accessibilityLabel(copy.stepAccessibilityLabel(index + 1, shortTitle(for: step)))
                 .accessibilityValue(stepState(step))
             }
             Spacer()
-            Text("LOCAL FIRST · RULES WORK WITHOUT AI")
+            Text(copy.progressFooter)
                 .font(Sumi.label(8))
                 .foregroundStyle(Sumi.muted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -86,16 +94,17 @@ struct OnboardingRootView: View {
     }
 
     private var header: some View {
+        let copy = welcomeCopy
         HStack {
-            Text("SETUP · \(currentPosition) OF 12")
+            Text(copy.setupProgress(currentPosition, OnboardingProgress.stepSequence.count))
                 .font(Sumi.label())
                 .tracking(1.4)
             Spacer()
-            Button("EXIT FOR NOW") { coordinator.exitToToday() }
+            Button(copy.exitTitle) { coordinator.exitToToday() }
                 .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
                 .keyboardShortcut(.cancelAction)
                 .disabled(coordinator.isWorking)
-                .accessibilityHint("Opens Today. Setup resumes from the latest saved step after restart.")
+                .accessibilityHint(copy.exitHint)
                 .accessibilityIdentifier("onboarding.exit")
         }
         .padding(.horizontal, 28)
@@ -107,13 +116,15 @@ struct OnboardingRootView: View {
         VStack(alignment: .leading, spacing: 22) {
             switch coordinator.progress.currentStep {
             case .welcome:
+                let copy = welcomeCopy
                 OnboardingEditorialStep(
-                    eyebrow: "WELCOME",
-                    title: OnboardingWelcomeCopy.title,
-                    bodyText: OnboardingWelcomeCopy.body,
-                    note: OnboardingWelcomeCopy.note
+                    eyebrow: copy.eyebrow,
+                    title: copy.title,
+                    bodyText: copy.body,
+                    note: copy.note
                 )
-                .accessibilityLabel(OnboardingWelcomeCopy.accessibilitySummary)
+                .environment(\.layoutDirection, copy.isRightToLeft ? .rightToLeft : .leftToRight)
+                .accessibilityLabel(copy.accessibilitySummary)
                 .accessibilityIdentifier("onboarding.welcome.positioning")
             case .localPrivacy:
                 OnboardingEditorialStep(
@@ -165,13 +176,13 @@ struct OnboardingRootView: View {
                 firstDailyPlanStep
             }
             if let error = coordinator.errorMessage {
-                Text(error)
+                Text(welcomeCopy.setupErrorLabel(error))
                     .font(Sumi.body(13))
                     .foregroundStyle(Sumi.sealDeep)
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Sumi.sealWash)
-                .accessibilityLabel("Setup error. \(error)")
+                .accessibilityLabel(welcomeCopy.setupErrorLabel(error))
             }
         }
         .accessibilityElement(children: .contain)
@@ -861,21 +872,40 @@ struct OnboardingRootView: View {
     }
 
     private var controls: some View {
-        HStack(spacing: 10) {
-            Spacer()
-            Text(coordinator.canContinue ? "READY TO CONTINUE" : "CHOOSE A PATH TO CONTINUE")
-                .font(Sumi.label(9))
-                .foregroundStyle(coordinator.canContinue ? Sumi.okay : Sumi.muted)
-            Button(coordinator.progress.currentStep == .firstDailyPlan ? "OPEN TODAY" : "CONTINUE") {
-                Task { try? await coordinator.continueFromCurrentStep() }
+        let copy = welcomeCopy
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                Spacer()
+                continueStatus(copy)
+                continueButton(copy)
             }
-            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .large))
-            .disabled(!coordinator.canContinue || coordinator.isWorking)
-            .keyboardShortcut(.defaultAction)
-            .accessibilityIdentifier("onboarding.continue")
+            VStack(alignment: .leading, spacing: 8) {
+                continueStatus(copy)
+                continueButton(copy)
+                    .frame(maxWidth: .infinity)
+            }
         }
         .padding(.horizontal, 28)
-        .frame(height: 72)
+        .padding(.vertical, 12)
+        .frame(minHeight: 72)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func continueStatus(_ copy: OnboardingWelcomeCopy) -> some View {
+        Text(coordinator.canContinue ? copy.readyStatus : copy.blockedStatus)
+            .font(Sumi.label(9))
+            .foregroundStyle(coordinator.canContinue ? Sumi.okay : Sumi.muted)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func continueButton(_ copy: OnboardingWelcomeCopy) -> some View {
+        Button(coordinator.progress.currentStep == .firstDailyPlan ? "OPEN TODAY" : copy.continueTitle) {
+            Task { try? await coordinator.continueFromCurrentStep() }
+        }
+        .buttonStyle(SumiActionButtonStyle(role: .primary, size: .large))
+        .disabled(!coordinator.canContinue || coordinator.isWorking)
+        .keyboardShortcut(.defaultAction)
+        .accessibilityIdentifier("onboarding.continue")
     }
 
     private var currentPosition: Int {
@@ -883,6 +913,10 @@ struct OnboardingRootView: View {
     }
 
     private func shortTitle(for step: OnboardingStep) -> String {
+        if coordinator.progress.currentStep == .welcome,
+           let index = OnboardingProgress.stepSequence.firstIndex(of: step) {
+            return welcomeCopy.stepTitles[index]
+        }
         switch step {
         case .welcome: "Welcome"
         case .localPrivacy: "Local privacy"
@@ -900,9 +934,20 @@ struct OnboardingRootView: View {
     }
 
     private func stepState(_ step: OnboardingStep) -> String {
+        if coordinator.progress.currentStep == .welcome {
+            if coordinator.progress.completedSteps.contains(step) { return welcomeCopy.completedState }
+            if step == coordinator.progress.currentStep { return welcomeCopy.currentState }
+            return welcomeCopy.upcomingState
+        }
         if coordinator.progress.completedSteps.contains(step) { return "Completed" }
         if step == coordinator.progress.currentStep { return "Current" }
         return "Upcoming"
+    }
+
+    private var welcomeCopy: OnboardingWelcomeCopy {
+        OnboardingWelcomeCopy.localized(
+            for: coordinator.progress.currentStep == .welcome ? locale : Locale(identifier: "en")
+        )
     }
 }
 
@@ -918,10 +963,12 @@ private struct OnboardingEditorialStep: View {
             Text(title).font(Sumi.display(38)).tracking(-1).fixedSize(horizontal: false, vertical: true)
             Text(bodyText).font(Sumi.body(16)).lineSpacing(6).foregroundStyle(Sumi.ink)
                 .frame(maxWidth: 680, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
             Text(note).font(Sumi.body(13)).lineSpacing(4).foregroundStyle(Sumi.muted)
                 .padding(14).frame(maxWidth: .infinity, alignment: .leading)
                 .background(Sumi.softPaper)
                 .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
