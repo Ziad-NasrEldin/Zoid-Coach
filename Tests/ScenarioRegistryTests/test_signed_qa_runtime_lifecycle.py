@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 LIBRARY = ROOT / "Scripts/lib/signed-qa-runtime-lifecycle.sh"
+INSTALLER = ROOT / "Scripts/install-signed-qa-runtime.sh"
+REGISTRATION_PROBE = ROOT / "Sources/ZoidCoachApp/PolicyMutationXPCProbe.swift"
 
 
 class SignedQARuntimeLifecycleTests(unittest.TestCase):
@@ -105,6 +107,24 @@ class SignedQARuntimeLifecycleTests(unittest.TestCase):
             )
 
             self.assertFalse(log.exists())
+
+    def test_install_acceptance_requires_writable_xpc_prompt_timeline_and_heartbeat(self) -> None:
+        installer = INSTALLER.read_text()
+        probe = REGISTRATION_PROBE.read_text()
+
+        self.assertIn(
+            "PASS: QA XPC runtime is writable and prompt timeline is available",
+            installer,
+        )
+        self.assertIn("processing_checkpoints", installer)
+        self.assertIn("source_id = 'agent-runtime'", installer)
+        self.assertLess(
+            installer.index("--qa-register-agent"),
+            installer.index('open "$INSTALLED_APP"'),
+        )
+        self.assertIn("fetchRuntimeSafety", probe)
+        self.assertIn("fetchPromptInboxTimeline", probe)
+        self.assertIn("readAgentHeartbeat", probe)
 
 
 if __name__ == "__main__":

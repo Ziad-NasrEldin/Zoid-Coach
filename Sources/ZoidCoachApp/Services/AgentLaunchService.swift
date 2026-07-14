@@ -54,8 +54,8 @@ struct AgentServiceRegistrationFactory {
 @MainActor
 final class AgentLaunchService {
     private let plistName: String
-    private let registrationFingerprintKey = "ZoidCoachAgentRegistrationFingerprint"
-    private let launchAtLoginChoiceKey = "ZoidCoachAgentLaunchAtLoginChoice"
+    private nonisolated static let registrationFingerprintKey = "ZoidCoachAgentRegistrationFingerprint"
+    private nonisolated static let launchAtLoginChoiceKey = "ZoidCoachAgentLaunchAtLoginChoice"
     private let userDefaults: UserDefaults
     private let service: (any AgentServiceRegistration)?
     private let isControlDisabled: Bool
@@ -173,7 +173,7 @@ final class AgentLaunchService {
     }
 
     func reconcileAtLaunchAndInspect() -> SourceHealth {
-        if userDefaults.object(forKey: launchAtLoginChoiceKey) as? Bool == false {
+        if userDefaults.object(forKey: Self.launchAtLoginChoiceKey) as? Bool == false {
             return inspect()
         }
         return enableAndInspect()
@@ -199,16 +199,19 @@ final class AgentLaunchService {
             )
             if !forceRepair,
                service.status == .enabled,
-               userDefaults.string(forKey: registrationFingerprintKey) == fingerprint {
-                userDefaults.set(true, forKey: launchAtLoginChoiceKey)
+               userDefaults.string(forKey: Self.registrationFingerprintKey) == fingerprint {
+                userDefaults.set(true, forKey: Self.launchAtLoginChoiceKey)
                 return inspect()
             }
             if service.status == .enabled {
                 try service.unregister()
             }
             try service.register()
-            userDefaults.set(fingerprint, forKey: registrationFingerprintKey)
-            userDefaults.set(true, forKey: launchAtLoginChoiceKey)
+            Self.recordSuccessfulExternalRegistration(
+                userDefaults: userDefaults,
+                bundleURL: bundleURL,
+                buildVersion: buildVersion
+            )
         } catch {
             return SourceHealth(
                 id: .agent,
@@ -231,8 +234,8 @@ final class AgentLaunchService {
             if service.status != .notRegistered && service.status != .notFound {
                 try service.unregister()
             }
-            userDefaults.removeObject(forKey: registrationFingerprintKey)
-            userDefaults.set(false, forKey: launchAtLoginChoiceKey)
+            userDefaults.removeObject(forKey: Self.registrationFingerprintKey)
+            userDefaults.set(false, forKey: Self.launchAtLoginChoiceKey)
         } catch {
             return SourceHealth(
                 id: .agent,
@@ -338,6 +341,18 @@ final class AgentLaunchService {
 
     nonisolated static func registrationFingerprint(build: String, bundleURL: URL) -> String {
         "\(build)|\(bundleURL.standardizedFileURL.path)"
+    }
+
+    nonisolated static func recordSuccessfulExternalRegistration(
+        userDefaults: UserDefaults,
+        bundleURL: URL,
+        buildVersion: String
+    ) {
+        userDefaults.set(
+            registrationFingerprint(build: buildVersion, bundleURL: bundleURL),
+            forKey: registrationFingerprintKey
+        )
+        userDefaults.set(true, forKey: launchAtLoginChoiceKey)
     }
 
     nonisolated static func isDevelopmentBundle(_ bundleURL: URL) -> Bool {

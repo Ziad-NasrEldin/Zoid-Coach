@@ -26,12 +26,53 @@ enum PolicyMutationXPCProbe {
                 fputs("FAIL: QA LaunchAgent did not become enabled\n", stderr)
                 return 4
             }
+            AgentLaunchService.recordSuccessfulExternalRegistration(
+                userDefaults: runtime.makeUserDefaults(),
+                bundleURL: Bundle.main.bundleURL,
+                buildVersion: Bundle.main.object(
+                    forInfoDictionaryKey: "CFBundleVersion"
+                ) as? String ?? "unknown"
+            )
+            guard waitForRegisteredRuntime(runtime: runtime) else {
+                fputs("FAIL: QA agent registered but did not expose a writable XPC prompt timeline and heartbeat\n", stderr)
+                return 6
+            }
             print("PASS: QA LaunchAgent registered and left enabled")
             return 0
         } catch {
             fputs("FAIL: QA LaunchAgent registration failed: \(error.localizedDescription)\n", stderr)
             return 5
         }
+    }
+
+    private static func waitForRegisteredRuntime(runtime: RuntimeEnvironment) -> Bool {
+        let completion = ProbeCompletion()
+        let semaphore = DispatchSemaphore(value: 0)
+        Task.detached {
+            completion.set(await verifyRegisteredRuntime(runtime: runtime) ? 0 : 1)
+            semaphore.signal()
+        }
+        guard semaphore.wait(timeout: .now() + 30) == .success else { return false }
+        return completion.value == 0
+    }
+
+    private static func verifyRegisteredRuntime(runtime: RuntimeEnvironment) async -> Bool {
+        let client = TodayDashboardXPCClient(runtimeEnvironment: runtime)
+        for _ in 0 ..< 30 {
+            do {
+                let safety = try await client.fetchRuntimeSafety()
+                _ = try await client.fetchPromptInboxTimeline()
+                if !safety.isTripped,
+                   AgentLaunchService.readAgentHeartbeat(databaseURL: runtime.databaseURL) != nil {
+                    print("PASS: QA XPC runtime is writable and prompt timeline is available")
+                    return true
+                }
+            } catch {
+                // Registration can become enabled before the helper finishes starting.
+            }
+            try? await Task.sleep(for: .milliseconds(500))
+        }
+        return false
     }
 
     static func unregisterAgent() -> Int32 {

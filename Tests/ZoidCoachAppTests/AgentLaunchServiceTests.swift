@@ -191,6 +191,33 @@ struct AgentLaunchServiceTests {
 
     @MainActor
     @Test
+    func installerRegistrationMetadataPreventsForegroundRegistrationChurn() throws {
+        let suiteName = "zoid-installer-registration-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let bundleURL = URL(fileURLWithPath: "/Users/test/Applications/Zoid 666 QA E2E.app")
+        let registration = RecordingAgentServiceRegistration(status: .enabled)
+
+        AgentLaunchService.recordSuccessfulExternalRegistration(
+            userDefaults: defaults,
+            bundleURL: bundleURL,
+            buildVersion: "8"
+        )
+        let foreground = AgentLaunchService(
+            service: registration,
+            userDefaults: defaults,
+            bundleURL: bundleURL,
+            buildVersion: "8",
+            heartbeat: { Date() }
+        )
+
+        #expect(foreground.reconcileAtLaunchAndInspect().state == .healthy)
+        #expect(registration.unregisterCount == 0)
+        #expect(registration.registerCount == 0)
+    }
+
+    @MainActor
+    @Test
     func forcedRepairReregistersEvenWhenRegistrationLooksEnabled() {
         let registration = RecordingAgentServiceRegistration(status: .enabled)
         let service = AgentLaunchService(
