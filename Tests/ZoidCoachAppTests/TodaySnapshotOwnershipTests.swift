@@ -51,6 +51,46 @@ func foregroundRefreshReadsPersistedInvitation() async throws {
     #expect(model.todaySnapshot?.planningStatus?.mode == .invitation)
 }
 
+@MainActor
+@Test
+func menuForegroundRefreshDoesNotGenerateAMissingTodaySnapshot() async throws {
+    let fixture = try TodaySnapshotOwnershipFixture()
+    defer { fixture.remove() }
+    _ = try TodaySnapshotStore(databaseURL: fixture.runtime.databaseURL)
+    let loader = ReadOnlyTodaySnapshotLoader(runtimeEnvironment: fixture.runtime)
+    let controller = MenuBarCoachController(
+        client: TodaySnapshotOwnershipUnexpectedMenuClient(),
+        loadTodaySnapshot: loader.load
+    )
+
+    await controller.refresh()
+
+    #expect(controller.snapshot == nil)
+    #expect(try TodaySnapshotStore(
+        databaseURL: fixture.runtime.databaseURL,
+        readOnly: true
+    ).load() == nil)
+}
+
+@MainActor
+@Test
+func menuForegroundRefreshReadsPersistedInvitation() async throws {
+    let fixture = try TodaySnapshotOwnershipFixture()
+    defer { fixture.remove() }
+    _ = try TodayDashboardAgent(
+        databaseURL: fixture.runtime.databaseURL
+    ).snapshot()
+    let loader = ReadOnlyTodaySnapshotLoader(runtimeEnvironment: fixture.runtime)
+    let controller = MenuBarCoachController(
+        client: TodaySnapshotOwnershipUnexpectedMenuClient(),
+        loadTodaySnapshot: loader.load
+    )
+
+    await controller.refresh()
+
+    #expect(controller.snapshot?.planningStatus?.mode == .invitation)
+}
+
 private struct TodaySnapshotOwnershipFixture {
     let root: URL
     let runtime: RuntimeEnvironment
@@ -98,4 +138,25 @@ private final class TodaySnapshotOwnershipNoopAgentRegistration: AgentServiceReg
     func unregister() {
         status = .notRegistered
     }
+}
+
+private actor TodaySnapshotOwnershipUnexpectedMenuClient: MenuBarTodayClient {
+    func fetchTodaySnapshot() throws -> TodaySnapshot {
+        Issue.record("Foreground menu refresh must not call the producer-shaped XPC fetch")
+        throw TodaySnapshotOwnershipUnexpectedMenuClientError.unexpectedCall
+    }
+
+    func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
+        Issue.record("Foreground menu refresh must not apply a task command")
+        throw TodaySnapshotOwnershipUnexpectedMenuClientError.unexpectedCall
+    }
+
+    func blockTask(taskID: String, reason: String) throws -> TodaySnapshot {
+        Issue.record("Foreground menu refresh must not block a task")
+        throw TodaySnapshotOwnershipUnexpectedMenuClientError.unexpectedCall
+    }
+}
+
+private enum TodaySnapshotOwnershipUnexpectedMenuClientError: Error {
+    case unexpectedCall
 }
