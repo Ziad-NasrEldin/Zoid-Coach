@@ -58,10 +58,10 @@ The signed app, helper, LaunchAgent, isolated QA root, installed application, in
 No `ZoidCoachQA` or `ZoidCoachAgentQA` process remained and the QA LaunchAgent was absent.
 Free disk after cleanup was 5.2 GiB.
 
-## Current verdict
+## Initial verdict before repair
 
 The repair makes the scenario reachable, deliberate, durable, and reward-correct, but it is not completely usable end to end because the confirmed move is visibly stale until refresh or relaunch.
-The independent recommendation is `Touches remaining`, not `Fully implemented`.
+The initial independent recommendation was `Touches remaining`, not `Fully implemented`.
 The smallest repair is to derive `TodayPlanTaskRow.isMainObjective` from the matching live `DailyPlanEntry` when available and fall back to the snapshot row only when no plan entry exists.
 
 ## Immediate-state repair
@@ -72,4 +72,15 @@ The resolver now uses `livePlanEntry?.isMainObjective ?? snapshotIsMainObjective
 The focused five-test run across both gaming-unlock suites passed with process exit 0 after the repair.
 The single release build passed with process exit 0 and produced executable `.build/release/ZoidCoach`.
 Free disk after the build gate was 5.1 GiB.
-The immediate post-confirm and relaunch signed recheck is pending.
+The signed recheck confirmed that the fix takes effect immediately.
+Within half a second of confirming `Move unlock condition`, raw storage held `qa-gaming-old` as the only main objective, native AX placed `GAMING UNLOCK - COMPLETE THIS TASK FOR 15 MIN` on `qa-gaming-old`, and native AX offered `MAKE MAIN + GAMING UNLOCK` only on `qa-gaming-new`.
+The immediate state required no refresh or relaunch.
+One relaunch preserved the same single-main storage state, label ownership, action ownership, exact action help, and visible 1180 by 760 Today surface.
+Pixel evidence is stored in `evidence/09-immediate-fixed.png` and `evidence/10-relaunch-fixed.png`.
+The short signed runtime was uninstalled completely, leaving no QA app, helper, LaunchAgent, run root, install root, or temporary AX driver.
+Free disk after cleanup was 5.1 GiB.
+
+## Final verdict
+
+The repaired flow now passes the complete end-user journey and the prior reward evidence remains exact and unchanged.
+The independent recommendation for `ZC-008-016` is `Fully implemented`.
