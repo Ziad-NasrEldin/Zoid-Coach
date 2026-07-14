@@ -1,6 +1,23 @@
+import Foundation
 import Testing
 @testable import ZoidCoachApp
 import ZoidCoachCore
+
+@Test func menuBarExtraPublishesStableControlCenterAccessibilityIdentity() throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let source = try String(
+        contentsOf: repositoryRoot.appendingPathComponent("Sources/ZoidCoachApp/ZoidCoachApp.swift"),
+        encoding: .utf8
+    )
+
+    #expect(source.contains("MenuBarExtra {"))
+    #expect(source.contains(".accessibilityLabel(\"Zoid 666, \\(menuBarState.menuBarLabel)\")"))
+    #expect(source.contains(".accessibilityIdentifier(\"menu-bar.status-item\")"))
+    #expect(!source.contains("MenuBarExtra(isInserted:"))
+}
 
 @Test func packagedQAOpenMainArgumentRequestsThePrimaryWindow() {
     let presentation = ApplicationLaunchPresentation(

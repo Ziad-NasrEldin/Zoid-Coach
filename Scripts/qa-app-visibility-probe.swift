@@ -1,4 +1,5 @@
 import ApplicationServices
+import AppKit
 import Darwin
 import Foundation
 
@@ -11,6 +12,8 @@ enum VisibilityProbeError: Error, CustomStringConvertible, Equatable {
     case statusItemUnavailable
     case processExited
     case accessibilityUnavailable
+    case controlCenterUnavailable
+    case controlCenterAccessibilityUnavailable
 
     var description: String {
         switch self {
@@ -30,6 +33,10 @@ enum VisibilityProbeError: Error, CustomStringConvertible, Equatable {
             "RED: target application process exited during visibility verification"
         case .accessibilityUnavailable:
             "RED: target application window accessibility state was unavailable"
+        case .controlCenterUnavailable:
+            "RED: ControlCenter was unavailable while verifying the status item"
+        case .controlCenterAccessibilityUnavailable:
+            "RED: ControlCenter status-item accessibility state was unavailable"
         }
     }
 
@@ -43,6 +50,8 @@ enum VisibilityProbeError: Error, CustomStringConvertible, Equatable {
         case .statusItemUnavailable: 14
         case .processExited: 15
         case .accessibilityUnavailable: 16
+        case .controlCenterUnavailable: 17
+        case .controlCenterAccessibilityUnavailable: 18
         }
     }
 }
@@ -101,6 +110,52 @@ struct BackgroundVisibilityState {
 private let maximumDiagnosticWindows = 24
 private let diagnosticTimeLimit: TimeInterval = 0.25
 private let knownWindowTitles = Set(["Zoid 666", "Zoid 666 QA", "Background Agent"])
+private let controlCenterBundleIdentifier = "com.apple.controlcenter"
+private let statusItemAccessibilityIdentifier = "menu-bar.status-item"
+private let statusItemLabelPrefix = "Zoid 666, "
+private let maximumStatusNodes = 64
+private let maximumStatusDepth = 2
+private let statusScanTimeLimit: TimeInterval = 0.2
+
+enum StatusItemSample: Equatable {
+    case present
+    case missing
+    case controlCenterUnavailable
+    case accessibilityUnavailable
+}
+
+struct StatusItemSource {
+    let sample: () -> StatusItemSample
+}
+
+struct StatusItemCandidate: Equatable {
+    let identifier: String?
+    let labels: [String]
+}
+
+func statusItemIsPresent(in candidates: [StatusItemCandidate]) -> Bool {
+    if candidates.contains(where: { $0.identifier == statusItemAccessibilityIdentifier }) {
+        return true
+    }
+    return candidates.contains { candidate in
+        candidate.labels.contains(where: { $0.hasPrefix(statusItemLabelPrefix) })
+    }
+}
+
+func statusItemObservation(
+    from source: StatusItemSource
+) -> (hasStatusItem: Bool, failure: VisibilityProbeError) {
+    switch source.sample() {
+    case .present:
+        return (true, .statusItemUnavailable)
+    case .missing:
+        return (false, .statusItemUnavailable)
+    case .controlCenterUnavailable:
+        return (false, .controlCenterUnavailable)
+    case .accessibilityUnavailable:
+        return (false, .controlCenterAccessibilityUnavailable)
+    }
+}
 
 func value(_ element: AXUIElement, _ attribute: CFString) -> AnyObject? {
     var result: CFTypeRef?
@@ -126,14 +181,71 @@ func windowSample(_ application: AXUIElement) -> WindowSample {
     return windows.isEmpty ? .availableEmpty : .availableNonempty
 }
 
-func hasStatusItem(_ application: AXUIElement) -> Bool {
-    guard let menuBar = value(application, kAXExtrasMenuBarAttribute as CFString) as! AXUIElement?,
-          let children = value(menuBar, kAXChildrenAttribute as CFString) as? [AXUIElement]
+func statusCandidateRole(_ element: AXUIElement) -> String? {
+    value(element, kAXRoleAttribute as CFString) as? String
+}
+
+func isStatusCandidateRole(_ role: String?) -> Bool {
+    guard let role else { return false }
+    return role == (kAXMenuBarRole as String)
+        || role == (kAXMenuBarItemRole as String)
+        || role == (kAXGroupRole as String)
+        || role == "AXStatusItem"
+}
+
+func statusItemCandidates(in controlCenter: AXUIElement) -> [StatusItemCandidate]? {
+    var menuBarValue: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(
+        controlCenter,
+        kAXExtrasMenuBarAttribute as CFString,
+        &menuBarValue
+    ) == .success,
+          let menuBar = menuBarValue as! AXUIElement?
     else {
-        return false
+        return nil
     }
-    return children.contains { element in
-        (value(element, kAXRoleAttribute as CFString) as? String) == (kAXMenuBarItemRole as String)
+
+    let deadline = Date().addingTimeInterval(statusScanTimeLimit)
+    var queue: [(AXUIElement, Int)] = [(menuBar, 0)]
+    var index = 0
+    var candidates: [StatusItemCandidate] = []
+    while index < queue.count,
+          index < maximumStatusNodes,
+          Date() < deadline {
+        let (element, depth) = queue[index]
+        index += 1
+        guard isStatusCandidateRole(statusCandidateRole(element)) else { continue }
+
+        let identifier = value(element, kAXIdentifierAttribute as CFString) as? String
+        let labels = [kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute]
+            .compactMap { value(element, $0 as CFString) as? String }
+        candidates.append(StatusItemCandidate(identifier: identifier, labels: labels))
+
+        guard depth < maximumStatusDepth,
+              let children = value(element, kAXChildrenAttribute as CFString) as? [AXUIElement]
+        else { continue }
+        for child in children where queue.count < maximumStatusNodes {
+            if isStatusCandidateRole(statusCandidateRole(child)) {
+                queue.append((child, depth + 1))
+            }
+        }
+    }
+    return candidates
+}
+
+func liveStatusItemSource() -> StatusItemSource {
+    StatusItemSource {
+        guard let application = NSRunningApplication
+            .runningApplications(withBundleIdentifier: controlCenterBundleIdentifier)
+            .first(where: { !$0.isTerminated })
+        else {
+            return .controlCenterUnavailable
+        }
+        let controlCenter = AXUIElementCreateApplication(application.processIdentifier)
+        guard let candidates = statusItemCandidates(in: controlCenter) else {
+            return .accessibilityUnavailable
+        }
+        return statusItemIsPresent(in: candidates) ? .present : .missing
     }
 }
 
@@ -189,6 +301,33 @@ func require(_ condition: @autoclosure () -> Bool, _ label: String) {
 }
 
 func runSelfTests() {
+    let identifierMatch = StatusItemCandidate(
+        identifier: statusItemAccessibilityIdentifier,
+        labels: ["unrelated"]
+    )
+    require(statusItemIsPresent(in: [identifierMatch]), "status identifier match")
+    require(statusItemIsPresent(in: [StatusItemCandidate(
+        identifier: nil,
+        labels: ["Zoid 666, A task is active"]
+    )]), "safe status label fallback")
+    require(!statusItemIsPresent(in: [StatusItemCandidate(
+        identifier: nil,
+        labels: ["A task is active", "another item"]
+    )]), "generic status label rejected")
+
+    let injectedPresent = StatusItemSource { .present }
+    let injectedMissing = StatusItemSource { .missing }
+    let injectedControlCenterUnavailable = StatusItemSource { .controlCenterUnavailable }
+    let injectedAccessibilityUnavailable = StatusItemSource { .accessibilityUnavailable }
+    require(statusItemObservation(from: injectedPresent).hasStatusItem, "injected status present")
+    require(statusItemObservation(from: injectedMissing).failure == .statusItemUnavailable,
+            "injected status missing")
+    require(statusItemObservation(from: injectedControlCenterUnavailable).failure == .controlCenterUnavailable,
+            "injected ControlCenter unavailable")
+    require(statusItemObservation(from: injectedAccessibilityUnavailable).failure
+            == .controlCenterAccessibilityUnavailable,
+            "injected ControlCenter accessibility unavailable")
+
     var initiallyWindowless = BackgroundVisibilityState()
     require(initiallyWindowless.observe(
         windows: .availableEmpty,
@@ -256,6 +395,9 @@ func runSelfTests() {
 
     require(VisibilityProbeError.processExited.exitCode != VisibilityProbeError.accessibilityUnavailable.exitCode,
             "process and accessibility exit codes differ")
+    require(VisibilityProbeError.controlCenterUnavailable.exitCode
+            != VisibilityProbeError.controlCenterAccessibilityUnavailable.exitCode,
+            "ControlCenter failure exit codes differ")
     print("PASS: visibility probe state-machine self-tests")
 }
 var diagnosticApplication: AXUIElement?
@@ -300,18 +442,26 @@ do {
         print("GREEN: foreground launch remained visible for \(timeout) seconds")
     case "background-windowless-menu-ready":
         var state = BackgroundVisibilityState()
+        let statusSource = liveStatusItemSource()
+        var lastStatusFailure = VisibilityProbeError.statusItemUnavailable
         repeat {
             guard processIsAlive(pid) else { throw VisibilityProbeError.processExited }
             if isHidden(application) { throw VisibilityProbeError.backgroundBecameHidden }
+            let status = statusItemObservation(from: statusSource)
+            lastStatusFailure = status.failure
             let failure = state.observe(
                 windows: windowSample(application),
-                hasStatusItem: hasStatusItem(application),
+                hasStatusItem: status.hasStatusItem,
                 elapsed: Date().timeIntervalSince(startedAt)
             )
-            if let failure { throw failure }
+            if let failure {
+                throw failure == .statusItemUnavailable ? lastStatusFailure : failure
+            }
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < deadline
-        if let failure = state.finalError() { throw failure }
+        if let failure = state.finalError() {
+            throw failure == .statusItemUnavailable ? lastStatusFailure : failure
+        }
         print("GREEN: --background-schedule stayed unhidden, stably windowless, and menu ready")
     default:
         throw VisibilityProbeError.usage
