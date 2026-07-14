@@ -1,0 +1,29 @@
+Arabic Welcome corrected candidate focused verification
+Date: 2026-07-14
+Base: 100c5055fbf9d45072d5483182ed04f50d307fd7
+Candidate before verifier repair: 53e4dda
+Compile repair: b58427f
+
+Command:
+swift test --filter 'arabicWelcomeLocalizesEveryVisibleAndAccessibleString|englishWelcomeRemainsTheExactFallback|unsupportedLocaleFallsBackToEnglishWithoutMixedCopy|leavingArabicWelcomeRestoresTheExactEnglishLeftToRightShell|welcomeLayoutRemovesTheFixedRailAndReducesPaddingAtHostedWidths|freshOnboardingPersistsEachStepAndResumesAfterRestart|realStorePersistsExactResumeStepAcrossCoordinatorRestart|existingUnreadablePolicyDatabaseStillFailsOnboardingClosed'
+
+Result: PASS, 8 of 8 selected Swift Testing cases, 0 failures, exit code 0.
+
+Selected cases:
+1. arabicWelcomeLocalizesEveryVisibleAndAccessibleString
+2. englishWelcomeRemainsTheExactFallback
+3. unsupportedLocaleFallsBackToEnglishWithoutMixedCopy
+4. leavingArabicWelcomeRestoresTheExactEnglishLeftToRightShell
+5. welcomeLayoutRemovesTheFixedRailAndReducesPaddingAtHostedWidths
+6. freshOnboardingPersistsEachStepAndResumesAfterRestart
+7. realStorePersistsExactResumeStepAcrossCoordinatorRestart
+8. existingUnreadablePolicyDatabaseStillFailsOnboardingClosed
+
+Initial candidate compile findings repaired before the passing run:
+- Localized copy closures are explicitly Sendable.
+- SwiftUI opaque-return properties return their constructed views explicitly.
+- The short-title switch returns its selected string explicitly after the localized early-return path.
+
+Packaging and installed runtime were not started.
+The debug build reduced free disk to 357 MiB, below the required 400 MiB stop threshold.
+Deleting only this verifier worktree's generated .build restored free disk to 1.1 GiB.
