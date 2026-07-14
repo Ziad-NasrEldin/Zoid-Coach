@@ -153,4 +153,35 @@ ZSH
 TEST_ROOT="$TEMP_ROOT" /bin/zsh "$TEMP_ROOT/execute-database-readiness.zsh" \
     || fail "database readiness helper failed delayed-open or rejection cases under zsh"
 
-print -- "PASS: ZC-013-001 runbook validates zsh portability, launch predicates, and bounded exact-database readiness"
+awk '
+    /^# BEGIN RUNBOOK SELF-TEST: database-quiescence$/ { inside = 1; next }
+    /^# END RUNBOOK SELF-TEST: database-quiescence$/ { inside = 0; exit }
+    inside { print }
+' "$RUNBOOK" > "$TEMP_ROOT/database-quiescence.zsh"
+test -s "$TEMP_ROOT/database-quiescence.zsh" || fail "database quiescence helper was not found"
+readonly STOP_CALLS="$(grep -Ec '^[[:space:]]*stop_exact_app$' "$RUNBOOK")"
+readonly QUIESCENCE_CALLS="$(grep -Ec '^[[:space:]]*wait_for_database_quiescence "\$DATABASE"$' "$RUNBOOK")"
+(( STOP_CALLS == QUIESCENCE_CALLS )) \
+    || fail "every exact app stop must wait for isolated database quiescence"
+{
+    cat "$TEMP_ROOT/database-quiescence.zsh"
+    cat <<'ZSH'
+COUNTER_FILE="$TEST_ROOT/quiescence-counter"
+print 0 > "$COUNTER_FILE"
+database_has_open_process() {
+    local count="$(<"$COUNTER_FILE")"
+    (( count += 1 ))
+    print "$count" > "$COUNTER_FILE"
+    (( count < 3 ))
+}
+sleep() { : }
+wait_for_database_quiescence "/private/tmp/expected/zoid-coach.sqlite" 4 0
+
+database_has_open_process() { return 0 }
+! wait_for_database_quiescence "/private/tmp/expected/zoid-coach.sqlite" 2 0
+ZSH
+} > "$TEMP_ROOT/execute-database-quiescence.zsh"
+TEST_ROOT="$TEMP_ROOT" /bin/zsh "$TEMP_ROOT/execute-database-quiescence.zsh" \
+    || fail "database quiescence helper failed delayed-release or timeout cases under zsh"
+
+print -- "PASS: ZC-013-001 runbook validates zsh portability, launch predicates, database readiness, and quiescence"
