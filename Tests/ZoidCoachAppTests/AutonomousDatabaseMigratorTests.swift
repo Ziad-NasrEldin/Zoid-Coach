@@ -46,7 +46,7 @@ func migration47AddsDurableReviewHypothesisPromotions() throws {
 }
 
 @Test
-func migration48AddsDurableGamingManualAdjustments() throws {
+func migration48AddsDurableGamingManualAdjustmentsAfterReviewMigration() throws {
     let databaseURL = temporaryDatabaseURL("v48-gaming-manual-adjustments")
     defer { removeDatabaseFiles(at: databaseURL) }
     try execute(databaseURL, """
@@ -61,6 +61,8 @@ func migration48AddsDurableGamingManualAdjustments() throws {
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try tableExists(databaseURL, "gaming_manual_adjustments"))
     #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "request_id"))
+    #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "local_day"))
+    #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "minutes"))
     #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "recorded_at_utc"))
 }
 
@@ -158,7 +160,7 @@ func migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [45, 46, 47])
+    #expect(result.appliedVersions == [45, 46, 47, 48])
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_origin"))
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_reason"))
     #expect(try scalarText(databaseURL, "SELECT state FROM prompt_episodes WHERE id = 'legacy-dismissal';") == "dismissed")

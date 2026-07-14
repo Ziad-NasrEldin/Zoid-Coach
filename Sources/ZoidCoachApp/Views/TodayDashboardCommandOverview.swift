@@ -325,9 +325,7 @@ struct TodayDashboardCommandOverview: View {
                         Text(snapshot.gaming.budgetEnabled ? "GAMING BUDGET" : "GAMING OBSERVED")
                             .font(Sumi.label(8))
                             .sumiLabelTracking()
-                        Text(snapshot.gaming.budgetEnabled
-                             ? "\(snapshot.gaming.unlockedRemainingMinutes)m left"
-                             : "\(snapshot.gaming.usedMinutes)m")
+                        Text(gamingAllowanceHeadline)
                             .font(Sumi.display(19))
                     }
                     Spacer()
@@ -341,11 +339,13 @@ struct TodayDashboardCommandOverview: View {
                 .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
                 .padding(.top, 10)
                 if snapshot.gaming.budgetEnabled {
-                    Text(snapshot.gaming.allowanceBreakdown)
-                        .font(Sumi.body(9))
-                        .foregroundStyle(Sumi.muted)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityIdentifier("today.gaming.breakdown")
+                    if model.gamingManualAdjustmentLedgerError == nil {
+                        Text(snapshot.gaming.allowanceBreakdown)
+                            .font(Sumi.body(9))
+                            .foregroundStyle(Sumi.muted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityIdentifier("today.gaming.breakdown")
+                    }
                     Text(GamingStatus.meaningfulSessionExplanation)
                         .font(Sumi.body(9))
                         .foregroundStyle(Sumi.muted)
@@ -353,10 +353,37 @@ struct TodayDashboardCommandOverview: View {
                         isGamingAdjustmentPresented = true
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-                    .disabled(model.runtimeSafety.isReadOnly || model.isSavingGamingManualAdjustment)
+                    .disabled(
+                        model.runtimeSafety.isReadOnly
+                            || model.isSavingGamingManualAdjustment
+                            || model.gamingManualAdjustmentLedgerError != nil
+                    )
                     .accessibilityLabel("Adjust manually granted gaming time")
                     .accessibilityHint("Add time to today's allowance or remove time that you manually granted earlier today.")
                     .accessibilityIdentifier("today.gaming.manual-adjustment.open")
+                    if let ledgerError = model.gamingManualAdjustmentLedgerError {
+                        Text(ledgerError)
+                            .font(Sumi.body(9))
+                            .foregroundStyle(Sumi.seal)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("today.gaming.manual-adjustment.unavailable")
+                    } else if !model.gamingManualAdjustments.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("MANUAL ADJUSTMENT HISTORY")
+                                .font(Sumi.label(8))
+                                .sumiLabelTracking()
+                            ScrollView {
+                                LazyVStack(alignment: .leading, spacing: 7) {
+                                    ForEach(Array(model.gamingManualAdjustments.reversed())) { adjustment in
+                                        GamingManualAdjustmentLedgerRow(adjustment: adjustment)
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 132)
+                        }
+                        .padding(.top, 4)
+                        .accessibilityIdentifier("today.gaming.manual-adjustment.history")
+                    }
                     if let message = model.gamingManualAdjustmentMessage {
                         Text(message)
                             .font(Sumi.body(9))
@@ -379,6 +406,16 @@ struct TodayDashboardCommandOverview: View {
     private func presentUsage() {
         cancelUsageDismissal()
         isUsagePresented = true
+    }
+
+    private var gamingAllowanceHeadline: String {
+        guard snapshot.gaming.budgetEnabled else {
+            return "\(snapshot.gaming.usedMinutes)m"
+        }
+        guard model.gamingManualAdjustmentLedgerError == nil else {
+            return "Allowance unavailable"
+        }
+        return "\(snapshot.gaming.unlockedRemainingMinutes)m left"
     }
 
     private func scheduleUsageDismissal() {
@@ -803,7 +840,8 @@ private struct GamingManualAdjustmentSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Spacer()
                 Button(isSaving ? "SAVING" : form.direction == .add ? "ADD TIME" : "REMOVE TIME") {
-                    save(form.signedMinutes, form.normalizedNote)
+                    guard let signedMinutes = form.signedMinutes else { return }
+                    save(signedMinutes, form.normalizedNote)
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
                 .disabled(!form.canSubmit || isSaving)
@@ -813,6 +851,34 @@ private struct GamingManualAdjustmentSheet: View {
         }
         .padding(24)
         .frame(width: 440)
+    }
+}
+
+private struct GamingManualAdjustmentLedgerRow: View {
+    let adjustment: GamingManualAdjustment
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(adjustment.minutes > 0 ? "+\(adjustment.minutes)m" : "\(adjustment.minutes)m")
+                .font(Sumi.label(8))
+                .foregroundStyle(adjustment.minutes > 0 ? Sumi.okay : Sumi.seal)
+                .frame(width: 42, alignment: .leading)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(adjustment.note ?? (adjustment.minutes > 0 ? "Manual grant" : "Manual removal"))
+                    .font(Sumi.body(9))
+                    .foregroundStyle(Sumi.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))
+                    .font(Sumi.body(8))
+                    .foregroundStyle(Sumi.muted)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(adjustment.minutes > 0 ? "Added" : "Removed") \(adjustment.minutes.magnitude) minutes, "
+                + "\(adjustment.note ?? "No note"), \(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))"
+        )
+        .accessibilityIdentifier("today.gaming.manual-adjustment.entry.\(adjustment.id)")
     }
 }
 

@@ -65,6 +65,148 @@ func manualGamingAllowanceRemovalCannotExceedPriorManualGrants() throws {
 }
 
 @Test
+func manualGamingAllowanceRejectsUnsafeIntegerBoundariesWithoutMutation() throws {
+    let databaseURL = temporaryGamingAdjustmentDatabaseURL()
+    defer { removeGamingAdjustmentDatabase(at: databaseURL) }
+    let day = Date(timeIntervalSince1970: 1_752_489_600)
+    let store = try GamingManualAdjustmentStore(databaseURL: databaseURL)
+
+    for (index, minutes) in [Int.min, -241, 0, 241, Int.max].enumerated() {
+        #expect(throws: GamingManualAdjustmentStoreError.invalidRequest) {
+            _ = try store.record(.init(
+                requestID: "gaming-adjustment-v1:unsafe-\(index)",
+                day: day,
+                timeZoneIdentifier: "UTC",
+                minutes: minutes,
+                note: nil
+            ))
+        }
+    }
+    #expect(try store.netMinutes(for: day, timeZoneIdentifier: "UTC") == 0)
+    #expect(try store.adjustments(for: day, timeZoneIdentifier: "UTC").isEmpty)
+}
+
+@Test
+func manualGamingAllowanceRejectsIdempotencyConflictsAndPreservesOriginalEntry() throws {
+    let databaseURL = temporaryGamingAdjustmentDatabaseURL()
+    defer { removeGamingAdjustmentDatabase(at: databaseURL) }
+    let day = Date(timeIntervalSince1970: 1_752_489_600)
+    let store = try GamingManualAdjustmentStore(databaseURL: databaseURL)
+    let requestID = "gaming-adjustment-v1:conflict"
+    _ = try store.record(.init(
+        requestID: requestID,
+        day: day,
+        timeZoneIdentifier: "UTC",
+        minutes: 20,
+        note: "Original"
+    ))
+
+    #expect(throws: GamingManualAdjustmentStoreError.idempotencyConflict) {
+        _ = try store.record(.init(
+            requestID: requestID,
+            day: day,
+            timeZoneIdentifier: "UTC",
+            minutes: 25,
+            note: "Different"
+        ))
+    }
+    #expect(try store.netMinutes(for: day, timeZoneIdentifier: "UTC") == 20)
+    #expect(try store.adjustments(for: day, timeZoneIdentifier: "UTC").map(\.note) == ["Original"])
+}
+
+@Test
+func manualGamingAllowanceEnforcesDailyCapAndRollsBackRejectedWrite() throws {
+    let databaseURL = temporaryGamingAdjustmentDatabaseURL()
+    defer { removeGamingAdjustmentDatabase(at: databaseURL) }
+    let day = Date(timeIntervalSince1970: 1_752_489_600)
+    let store = try GamingManualAdjustmentStore(databaseURL: databaseURL)
+    for index in 0..<6 {
+        _ = try store.record(.init(
+            requestID: "gaming-adjustment-v1:cap-\(index)",
+            day: day,
+            timeZoneIdentifier: "UTC",
+            minutes: 240,
+            note: nil
+        ))
+    }
+
+    #expect(throws: GamingManualAdjustmentStoreError.dailyLimitExceeded) {
+        _ = try store.record(.init(
+            requestID: "gaming-adjustment-v1:cap-overflow",
+            day: day,
+            timeZoneIdentifier: "UTC",
+            minutes: 5,
+            note: nil
+        ))
+    }
+    #expect(try store.netMinutes(for: day, timeZoneIdentifier: "UTC") == 1_440)
+    #expect(try store.adjustments(for: day, timeZoneIdentifier: "UTC").count == 6)
+}
+
+@Test
+func concurrentManualGamingAllowanceWritesSerializeWithoutLoss() async throws {
+    let databaseURL = temporaryGamingAdjustmentDatabaseURL()
+    defer { removeGamingAdjustmentDatabase(at: databaseURL) }
+    let day = Date(timeIntervalSince1970: 1_752_489_600)
+    let store = try GamingManualAdjustmentStore(databaseURL: databaseURL)
+
+    try await withThrowingTaskGroup(of: Void.self) { group in
+        for index in 0..<12 {
+            group.addTask {
+                _ = try store.record(.init(
+                    requestID: "gaming-adjustment-v1:concurrent-\(index)",
+                    day: day,
+                    timeZoneIdentifier: "UTC",
+                    minutes: 5,
+                    note: "Entry \(index)"
+                ))
+            }
+        }
+        try await group.waitForAll()
+    }
+
+    #expect(try store.netMinutes(for: day, timeZoneIdentifier: "UTC") == 60)
+    #expect(try store.adjustments(for: day, timeZoneIdentifier: "UTC").count == 12)
+}
+
+@Test
+func manualGamingAdjustmentAuditTrailSurvivesReopenAndPrivacyRangeDeletion() throws {
+    let databaseURL = temporaryGamingAdjustmentDatabaseURL()
+    defer { removeGamingAdjustmentDatabase(at: databaseURL) }
+    let timeZoneIdentifier = TimeZone.current.identifier
+    let day = Date()
+    let store = try GamingManualAdjustmentStore(databaseURL: databaseURL)
+    _ = try store.record(.init(
+        requestID: "gaming-adjustment-v1:audit-add",
+        day: day,
+        timeZoneIdentifier: timeZoneIdentifier,
+        minutes: 30,
+        note: "Friends online"
+    ))
+    _ = try store.record(.init(
+        requestID: "gaming-adjustment-v1:audit-remove",
+        day: day,
+        timeZoneIdentifier: timeZoneIdentifier,
+        minutes: -10,
+        note: "Plans changed"
+    ))
+
+    let reopened = try GamingManualAdjustmentStore(databaseURL: databaseURL)
+    let audit = try reopened.adjustments(for: day, timeZoneIdentifier: timeZoneIdentifier)
+    #expect(audit.map(\.minutes) == [30, -10])
+    #expect(audit.map(\.note) == ["Friends online", "Plans changed"])
+    #expect(try reopened.netMinutes(for: day, timeZoneIdentifier: timeZoneIdentifier) == 20)
+
+    let privacy = try PrivacyDataService(databaseURL: databaseURL)
+    let plans = try privacy.storedDataInventory().dataClasses.first { $0.id == "plans" }
+    #expect((plans?.recordCount ?? 0) >= 2)
+    let start = Calendar.current.startOfDay(for: day)
+    let end = try #require(Calendar.current.date(byAdding: .day, value: 1, to: start))
+    #expect(try privacy.deleteDateRange(start: start, end: end) >= 2)
+    #expect(try reopened.adjustments(for: day, timeZoneIdentifier: timeZoneIdentifier).isEmpty)
+}
+
+@Test
 func manualGamingAllowanceChangesRemainingTimeWithoutChangingObservedUseOrAutomaticReward() {
     let status = GamingStatus(
         budgetMinutes: 60,
@@ -100,6 +242,43 @@ func manualGamingAdjustmentFormExplainsInvalidRemovalBeforeSubmission() {
     form.minutes = 10
     #expect(form.canSubmit)
     #expect(form.signedMinutes == -10)
+}
+
+@Test
+func manualGamingAdjustmentFormNeverNegatesUnsafeIntegerInput() {
+    let form = GamingManualAdjustmentForm(
+        direction: .remove,
+        minutes: Int.min,
+        note: "",
+        currentManualMinutes: 10
+    )
+
+    #expect(form.signedMinutes == nil)
+    #expect(!form.canSubmit)
+}
+
+@Test
+func manualGamingAdjustmentFormExplainsDailyCapBeforeSubmission() {
+    var form = GamingManualAdjustmentForm(
+        direction: .add,
+        minutes: 10,
+        note: "",
+        currentManualMinutes: 1_435
+    )
+
+    #expect(!form.canSubmit)
+    #expect(form.validationMessage == "You can add up to 5 more manual minutes today.")
+    form.minutes = 5
+    #expect(form.canSubmit)
+
+    let capped = GamingManualAdjustmentForm(
+        direction: .add,
+        minutes: 5,
+        note: "",
+        currentManualMinutes: 1_440
+    )
+    #expect(!capped.canSubmit)
+    #expect(capped.validationMessage == "Today's manual allowance is already at the 1,440-minute maximum.")
 }
 
 @Test
@@ -159,19 +338,27 @@ func todayAdjustmentActionSavesThroughAgentBoundaryAndRefreshesVisibleAllowance(
         ),
         saveGamingManualAdjustment: { request in
             let result = try adjustments.record(request)
+            let message: String
+            if result.replayed {
+                message = "This gaming-time adjustment was already saved."
+            } else if result.adjustment.minutes > 0 {
+                message = "Added \(result.adjustment.minutes) minutes to today's gaming allowance."
+            } else {
+                message = "Removed \(result.adjustment.minutes.magnitude) manually granted minutes from today's gaming allowance."
+            }
             return AgentMutationReceipt(
                 accepted: true,
-                message: result.replayed
-                    ? "This gaming-time adjustment was already saved."
-                    : "Added \(result.adjustment.minutes) minutes to today's gaming allowance."
+                message: message
             )
         },
-        loadGamingManualAdjustmentMinutes: { adjustmentDay, timeZoneIdentifier in
-            try adjustments.netMinutes(
+        loadGamingManualAdjustments: { adjustmentDay, timeZoneIdentifier in
+            try adjustments.adjustments(
                 for: adjustmentDay,
                 timeZoneIdentifier: timeZoneIdentifier
             )
-        }
+        },
+        fetchAuthoritativeGamingSnapshot: { rawSnapshot },
+        now: { day }
     )
     await model.refreshTodaySnapshot()
     #expect(model.todaySnapshot?.gaming.manualAdjustmentMinutes == 0)
@@ -184,9 +371,186 @@ func todayAdjustmentActionSavesThroughAgentBoundaryAndRefreshesVisibleAllowance(
     #expect(model.todaySnapshot?.gaming.manualAdjustmentMinutes == 20)
     #expect(model.todaySnapshot?.gaming.unlockedRemainingMinutes == 30)
     #expect(model.todaySnapshot?.gaming.usedMinutes == 50)
+    #expect(model.gamingManualAdjustments.map(\.minutes) == [20])
+    #expect(model.gamingManualAdjustmentLedgerError == nil)
     #expect(model.gamingManualAdjustmentMessage == "Added 20 minutes to today's gaming allowance.")
     #expect(model.gamingManualAdjustmentError == nil)
     #expect(try adjustments.adjustments(for: day, timeZoneIdentifier: "UTC").map(\.note) == ["Weekend exception"])
+
+    model.recordGamingManualAdjustment(minutes: -5, note: "Leaving early")
+    while model.isSavingGamingManualAdjustment {
+        await Task.yield()
+    }
+    #expect(model.todaySnapshot?.gaming.manualAdjustmentMinutes == 15)
+    #expect(model.todaySnapshot?.gaming.unlockedRemainingMinutes == 25)
+    #expect(model.gamingManualAdjustments.map(\.minutes) == [20, -5])
+    #expect(model.gamingManualAdjustments.map(\.note) == ["Weekend exception", "Leaving early"])
+
+    let relaunched = AppModel(
+        runtimeEnvironment: runtime,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: runtime,
+            service: GamingAdjustmentNoopAgentRegistration()
+        ),
+        loadGamingManualAdjustments: { adjustmentDay, timeZoneIdentifier in
+            try adjustments.adjustments(
+                for: adjustmentDay,
+                timeZoneIdentifier: timeZoneIdentifier
+            )
+        },
+        fetchAuthoritativeGamingSnapshot: { rawSnapshot },
+        now: { day }
+    )
+    await relaunched.refreshTodaySnapshot()
+    #expect(relaunched.todaySnapshot?.gaming.manualAdjustmentMinutes == 15)
+    #expect(relaunched.todaySnapshot?.gaming.unlockedRemainingMinutes == 25)
+    #expect(relaunched.gamingManualAdjustments.map(\.minutes) == [20, -5])
+    #expect(relaunched.gamingManualAdjustments.map(\.note) == ["Weekend exception", "Leaving early"])
+}
+
+@MainActor
+@Test
+func todayAdjustmentDisablesMutationWhenAuthoritativeLedgerCannotBeRead() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-gaming-adjustment-unavailable-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: root,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+    let day = Date()
+    let snapshot = gamingAdjustmentTodaySnapshot(day: day)
+    try TodaySnapshotStore(databaseURL: runtime.databaseURL).save(snapshot, for: day)
+    let model = AppModel(
+        runtimeEnvironment: runtime,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: runtime,
+            service: GamingAdjustmentNoopAgentRegistration()
+        ),
+        saveGamingManualAdjustment: { _ in
+            Issue.record("A ledger-unavailable Today surface must not send a mutation")
+            return AgentMutationReceipt(accepted: true, message: "Unexpected")
+        },
+        loadGamingManualAdjustments: { _, _ in
+            throw GamingAdjustmentTestError.unavailable
+        },
+        fetchAuthoritativeGamingSnapshot: { snapshot },
+        now: { day }
+    )
+
+    await model.refreshTodaySnapshot()
+    #expect(model.gamingManualAdjustments.isEmpty)
+    #expect(model.gamingManualAdjustmentLedgerError == "Manual allowance history is unavailable. Refresh Today after checking Agent source health.")
+    model.recordGamingManualAdjustment(minutes: 15, note: nil)
+    #expect(!model.isSavingGamingManualAdjustment)
+    #expect(model.gamingManualAdjustmentMessage == nil)
+}
+
+@MainActor
+@Test
+func todayAdjustmentRejectsStaleDayAndTimeZoneBeforeAgentMutation() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-gaming-adjustment-stale-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: root,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+    let presentedDay = Date()
+    let authoritativeDay = presentedDay.addingTimeInterval(24 * 60 * 60)
+    let presented = gamingAdjustmentTodaySnapshot(day: presentedDay)
+    let authoritative = gamingAdjustmentTodaySnapshot(day: authoritativeDay)
+    try TodaySnapshotStore(databaseURL: runtime.databaseURL).save(presented, for: presentedDay)
+    let model = AppModel(
+        runtimeEnvironment: runtime,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: runtime,
+            service: GamingAdjustmentNoopAgentRegistration()
+        ),
+        saveGamingManualAdjustment: { _ in
+            Issue.record("A stale Today surface must not send a mutation")
+            return AgentMutationReceipt(accepted: true, message: "Unexpected")
+        },
+        loadGamingManualAdjustments: { _, _ in [] },
+        fetchAuthoritativeGamingSnapshot: { authoritative },
+        now: { authoritativeDay }
+    )
+
+    await model.refreshTodaySnapshot()
+    let loadedPresentedDay = try #require(model.todaySnapshot?.localDate)
+    #expect(abs(loadedPresentedDay.timeIntervalSince(presentedDay)) < 1)
+    model.recordGamingManualAdjustment(minutes: 15, note: nil)
+    while model.isSavingGamingManualAdjustment {
+        await Task.yield()
+    }
+
+    #expect(model.todaySnapshot?.localDate == authoritativeDay)
+    #expect(model.gamingManualAdjustmentError == "Today or its time zone changed. Review the refreshed allowance before saving this adjustment.")
+    #expect(model.gamingManualAdjustments.isEmpty)
+}
+
+@MainActor
+@Test
+func todayAdjustmentRejectsChangedTimeZoneEvenWhenLocalDayLabelMatches() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-gaming-adjustment-zone-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let runtime = try RuntimeEnvironment.resolve(
+        arguments: [],
+        processEnvironment: [:],
+        packagedRuntime: .init(
+            mode: .qa,
+            qaRunRoot: root,
+            appBundleIdentifier: RuntimeIdentity.qa.appBundleIdentifier
+        ),
+        executableSigningIdentifier: RuntimeIdentity.qa.appSigningIdentifier
+    ).environment
+    let day = Date()
+    let presented = gamingAdjustmentTodaySnapshot(day: day, timeZoneIdentifier: "UTC")
+    let authoritative = gamingAdjustmentTodaySnapshot(
+        day: day,
+        timeZoneIdentifier: "Africa/Cairo"
+    )
+    try TodaySnapshotStore(databaseURL: runtime.databaseURL).save(presented, for: day)
+    let model = AppModel(
+        runtimeEnvironment: runtime,
+        agentLaunchService: AgentLaunchService(
+            runtimeEnvironment: runtime,
+            service: GamingAdjustmentNoopAgentRegistration()
+        ),
+        saveGamingManualAdjustment: { _ in
+            Issue.record("A changed time zone must not reuse the stale adjustment form")
+            return AgentMutationReceipt(accepted: true, message: "Unexpected")
+        },
+        loadGamingManualAdjustments: { _, _ in [] },
+        fetchAuthoritativeGamingSnapshot: { authoritative },
+        now: { day }
+    )
+
+    await model.refreshTodaySnapshot()
+    #expect(model.todaySnapshot?.timeZoneIdentifier == "UTC")
+    model.recordGamingManualAdjustment(minutes: 15, note: nil)
+    while model.isSavingGamingManualAdjustment {
+        await Task.yield()
+    }
+
+    #expect(model.todaySnapshot?.timeZoneIdentifier == "Africa/Cairo")
+    #expect(model.gamingManualAdjustmentError == "Today or its time zone changed. Review the refreshed allowance before saving this adjustment.")
 }
 
 private struct EmptyGamingAdjustmentCalendar: CalendarAvailabilitySource {
@@ -212,10 +576,13 @@ private final class GamingAdjustmentNoopAgentRegistration: AgentServiceRegistrat
     }
 }
 
-private func gamingAdjustmentTodaySnapshot(day: Date) -> TodaySnapshot {
+private func gamingAdjustmentTodaySnapshot(
+    day: Date,
+    timeZoneIdentifier: String = "UTC"
+) -> TodaySnapshot {
     TodaySnapshot(
         localDate: day,
-        timeZoneIdentifier: "UTC",
+        timeZoneIdentifier: timeZoneIdentifier,
         mainObjective: nil,
         taskRows: [],
         activeTask: nil,
@@ -274,4 +641,8 @@ private func removeGamingAdjustmentDatabase(at url: URL) {
     for suffix in ["", "-wal", "-shm"] {
         try? FileManager.default.removeItem(atPath: url.path + suffix)
     }
+}
+
+private enum GamingAdjustmentTestError: Error {
+    case unavailable
 }

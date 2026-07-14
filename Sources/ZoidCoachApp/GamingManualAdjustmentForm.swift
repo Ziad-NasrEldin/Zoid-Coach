@@ -20,13 +20,21 @@ struct GamingManualAdjustmentForm: Equatable {
     var note = ""
     let currentManualMinutes: Int
 
-    var signedMinutes: Int {
-        direction == .add ? minutes : -minutes
+    var signedMinutes: Int? {
+        guard (5...240).contains(minutes), minutes.isMultiple(of: 5) else {
+            return nil
+        }
+        return direction == .add ? minutes : -minutes
     }
 
     var validationMessage: String? {
         guard (5...240).contains(minutes), minutes.isMultiple(of: 5) else {
             return "Choose 5 to 240 minutes in five-minute steps."
+        }
+        if direction == .add, currentManualMinutes > 1_440 - minutes {
+            return currentManualMinutes >= 1_440
+                ? "Today's manual allowance is already at the 1,440-minute maximum."
+                : "You can add up to \(1_440 - currentManualMinutes) more manual minutes today."
         }
         if direction == .remove, minutes > currentManualMinutes {
             return "You can remove up to \(currentManualMinutes) manually granted minutes today."
