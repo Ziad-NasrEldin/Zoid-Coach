@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "068a4719d521240e259d16300f7204e47bfd2de121fd23eefdecf5ad3b2bc681",
+  "tracker_sha256": "dcb4a4226cd3c4376ffa329ee266cef40683df8acd65695f2c584cd77725fbb3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -12715,8 +12715,8 @@
       "item_index": 5,
       "wording": "Correct and confirm reviews using only the keyboard.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "accessibility",
@@ -12727,7 +12727,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Review correction and confirmation UI is absent.",
+      "audit_note": "Reviews now exposes a visible `⌥⌘R` route, native `Navigate > Open Reviews` command, chronological previous/next session shortcuts, five classification shortcuts, correction-before-confirm gating, Apply, and Confirm, and all six focused routing and state tests pass. The exact signed canonical package exposed the shortcut hint and enabled native command with valid signing, the exact helper, and writable XPC, but the automation host could not deliver the navigation keystroke through three trusted injection paths, so the downstream correction, database truth, confirmation, and relaunch journey remain unclaimed (`DailyReviewKeyboardFlow.swift`; `DailyReviewView.swift`; `DashboardView.swift`; `ZoidCoachApp.swift`; `DailyReviewKeyboardFlowTests.swift`; `.audit/runs/keyboard-only-daily-review/verifier/REPORT.md`).",
       "tracker_line": 777
     },
     {
