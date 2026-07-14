@@ -22,16 +22,26 @@ final class WeeklyReviewController: ObservableObject {
     @Published var editTitle = ""
     @Published var editInstruction = ""
     @Published var editMeasurement = ""
+    @Published private(set) var hypothesisLearningBoundaries: [String: HypothesisLearningBoundary] = [:]
 
     private let service: WeeklyReviewServicing
+    private let hypothesisLearningService: ReviewHypothesisLearningService?
 
-    init(service: WeeklyReviewServicing) {
+    init(
+        service: WeeklyReviewServicing,
+        hypothesisLearningService: ReviewHypothesisLearningService? = nil
+    ) {
         self.service = service
+        self.hypothesisLearningService = hypothesisLearningService
     }
 
     convenience init(runtimeEnvironment: RuntimeEnvironment = .current()) {
         do {
-            try self.init(service: WeeklyReviewStore(databaseURL: runtimeEnvironment.databaseURL))
+            let promotionStore = try ReviewHypothesisPromotionStore(databaseURL: runtimeEnvironment.databaseURL)
+            try self.init(
+                service: WeeklyReviewStore(databaseURL: runtimeEnvironment.databaseURL),
+                hypothesisLearningService: ReviewHypothesisLearningService(sink: promotionStore)
+            )
         } catch {
             self.init(service: UnavailableWeeklyReviewService(error: error))
             errorMessage = error.localizedDescription
@@ -44,6 +54,7 @@ final class WeeklyReviewController: ObservableObject {
         defer { isLoading = false }
         do {
             snapshot = try service.load(referenceDate: nil)
+            try reconcileHypothesisLearningBoundaries()
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -89,6 +100,41 @@ final class WeeklyReviewController: ObservableObject {
         mutate(success: "Experiment rejected. No experiment will be treated as active.") {
             try service.rejectExperiment(id: id)
         }
+    }
+
+    func acceptHypothesis(_ pattern: WeeklyReviewPattern) {
+        guard let hypothesisLearningService else {
+            errorMessage = "Hypothesis learning is unavailable until the local database is ready."
+            return
+        }
+        do {
+            let outcome = try hypothesisLearningService.reconcile(
+                candidate: pattern.learningCandidate,
+                decision: .accepted
+            )
+            hypothesisLearningBoundaries[pattern.id] = outcome.boundary
+            successMessage = outcome.kind == .promoted
+                ? "Hypothesis accepted and learned locally with its supporting evidence."
+                : "This hypothesis was already learned from the same explicit acceptance."
+            errorMessage = nil
+        } catch {
+            successMessage = nil
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func learningBoundary(for pattern: WeeklyReviewPattern) -> HypothesisLearningBoundary? {
+        hypothesisLearningBoundaries[pattern.id]
+    }
+
+    private func reconcileHypothesisLearningBoundaries() throws {
+        guard let hypothesisLearningService, let patterns = snapshot?.patterns else {
+            hypothesisLearningBoundaries = [:]
+            return
+        }
+        hypothesisLearningBoundaries = try Dictionary(uniqueKeysWithValues: patterns.map { pattern in
+            (pattern.id, try hypothesisLearningService.boundary(for: pattern.learningCandidate))
+        })
     }
 
     private func mutate(success: String, operation: () throws -> WeeklyExperiment) {
@@ -242,7 +288,11 @@ struct WeeklyReviewView: View {
                     .font(Sumi.label())
                     .sumiLabelTracking()
                 ForEach(snapshot.patterns) { pattern in
-                    WeeklyPatternCard(pattern: pattern)
+                    WeeklyPatternCard(
+                        pattern: pattern,
+                        learningBoundary: controller.learningBoundary(for: pattern),
+                        onAcceptHypothesis: { controller.acceptHypothesis(pattern) }
+                    )
                 }
             }
             .accessibilityIdentifier("reviews.weekly.patterns")
@@ -339,10 +389,22 @@ struct WeeklyReviewView: View {
 
 struct WeeklyPatternCard: View {
     let pattern: WeeklyReviewPattern
+    let learningBoundary: HypothesisLearningBoundary?
+    let onAcceptHypothesis: () -> Void
     @State private var showsEvidence = false
 
+    init(
+        pattern: WeeklyReviewPattern,
+        learningBoundary: HypothesisLearningBoundary? = nil,
+        onAcceptHypothesis: @escaping () -> Void = {}
+    ) {
+        self.pattern = pattern
+        self.learningBoundary = learningBoundary
+        self.onAcceptHypothesis = onAcceptHypothesis
+    }
+
     private var presentation: WeeklyReviewPatternPresentation {
-        WeeklyReviewPatternPresentation(pattern: pattern)
+        WeeklyReviewPatternPresentation(pattern: pattern, learningBoundary: learningBoundary)
     }
 
     var body: some View {
@@ -384,6 +446,14 @@ struct WeeklyPatternCard: View {
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("reviews.weekly.pattern.\(pattern.id).learning-source")
+                if presentation.hasSufficientEvidence && learningBoundary?.status != .learned {
+                    Button("ACCEPT HYPOTHESIS") {
+                        onAcceptHypothesis()
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                    .accessibilityHint("Promotes this hypothesis once as a learned local fact with the visible source range and supporting evidence.")
+                    .accessibilityIdentifier("reviews.weekly.pattern.\(pattern.id).accept-hypothesis")
+                }
             }
             .padding(10)
             .background(Sumi.sealWash)

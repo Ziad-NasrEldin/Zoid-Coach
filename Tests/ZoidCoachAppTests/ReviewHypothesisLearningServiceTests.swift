@@ -85,6 +85,7 @@ func reusedPromotionIdentityCannotSilentlyChangeItsEvidence() throws {
 private final class RecordingHypothesisPromotionSink: ReviewHypothesisPromotionSink {
     let insertsPromotion: Bool
     private(set) var promotions: [ReviewHypothesisPromotion] = []
+    private var persisted: [String: ReviewHypothesisPromotion] = [:]
 
     init(insertsPromotion: Bool = true) {
         self.insertsPromotion = insertsPromotion
@@ -92,7 +93,18 @@ private final class RecordingHypothesisPromotionSink: ReviewHypothesisPromotionS
 
     func promote(_ promotion: ReviewHypothesisPromotion) throws -> Bool {
         promotions.append(promotion)
+        if let existing = persisted[promotion.candidate.id] {
+            guard existing == promotion else {
+                throw ReviewHypothesisLearningError.candidateConflict(promotion.candidate.id)
+            }
+            return false
+        }
+        persisted[promotion.candidate.id] = promotion
         return insertsPromotion
+    }
+
+    func existingPromotion(candidateID: String) throws -> ReviewHypothesisPromotion? {
+        persisted[candidateID]
     }
 }
 

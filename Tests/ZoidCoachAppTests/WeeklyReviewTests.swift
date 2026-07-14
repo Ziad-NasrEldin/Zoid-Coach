@@ -85,6 +85,56 @@ func weeklyReviewAggregatesOutcomesPatternsAndOnlyOneExperiment() throws {
     #expect(try weeklyScalarInt(databaseURL, "SELECT COUNT(*) FROM weekly_review_experiments;") == 1)
 }
 
+@Test @MainActor
+func weeklyReviewAcceptanceUsesDurableProductionLearningAcrossControllerRestart() throws {
+    let databaseURL = weeklyTemporaryDatabaseURL("hypothesis-learning")
+    defer { weeklyRemoveDatabaseFiles(at: databaseURL) }
+    _ = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+    for (offset, day) in ["2026-06-30", "2026-07-01", "2026-07-02"].enumerated() {
+        try insertCoveredDay(databaseURL, day: day, epoch: 1_751_328_000 + Int64(offset * 86_400))
+    }
+
+    let firstController = WeeklyReviewController(
+        service: try WeeklyReviewStore(
+            databaseURL: databaseURL,
+            calendar: weeklyCalendar,
+            now: { weeklyReferenceDate }
+        ),
+        hypothesisLearningService: ReviewHypothesisLearningService(
+            sink: try ReviewHypothesisPromotionStore(databaseURL: databaseURL)
+        )
+    )
+    firstController.load()
+    let pattern = try #require(firstController.snapshot?.patterns.first)
+
+    #expect(firstController.learningBoundary(for: pattern)?.status == .notLearned)
+    firstController.acceptHypothesis(pattern)
+    firstController.acceptHypothesis(pattern)
+    #expect(firstController.errorMessage == nil)
+    #expect(firstController.learningBoundary(for: pattern)?.status == .learned)
+    #expect(try weeklyScalarInt(databaseURL, "SELECT COUNT(*) FROM review_hypothesis_promotions;") == 1)
+
+    let restartedController = WeeklyReviewController(
+        service: try WeeklyReviewStore(
+            databaseURL: databaseURL,
+            calendar: weeklyCalendar,
+            now: { weeklyReferenceDate }
+        ),
+        hypothesisLearningService: ReviewHypothesisLearningService(
+            sink: try ReviewHypothesisPromotionStore(databaseURL: databaseURL)
+        )
+    )
+    restartedController.load()
+    let restartedPattern = try #require(restartedController.snapshot?.patterns.first(where: { $0.id == pattern.id }))
+
+    #expect(restartedController.errorMessage == nil)
+    #expect(restartedController.learningBoundary(for: restartedPattern)?.status == .learned)
+    #expect(WeeklyReviewPatternPresentation(
+        pattern: restartedPattern,
+        learningBoundary: restartedController.learningBoundary(for: restartedPattern)
+    ).learningStatusLabel == "LEARNED FROM EXPLICIT ACCEPTANCE")
+}
+
 @Test
 func weeklyReviewDoesNotUseLearningEvidenceOutsideThePriorWeek() throws {
     let databaseURL = weeklyTemporaryDatabaseURL("stable-window")

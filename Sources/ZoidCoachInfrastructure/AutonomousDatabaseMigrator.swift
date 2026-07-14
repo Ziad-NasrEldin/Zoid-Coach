@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 46
+    public static let currentVersion = 47
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1208,6 +1208,19 @@ private extension AutonomousDatabaseMigrator {
             );
             CREATE INDEX IF NOT EXISTS deleted_reminder_decisions_state
             ON deleted_reminder_decisions(state, deleted_at_utc DESC);
+            """)
+        ]),
+        Migration(version: 47, isDestructive: false, operations: [
+            .sql("""
+            CREATE TABLE IF NOT EXISTS review_hypothesis_promotions (
+                candidate_id TEXT PRIMARY KEY CHECK(length(candidate_id) BETWEEN 1 AND 240),
+                hypothesis TEXT NOT NULL CHECK(length(hypothesis) BETWEEN 1 AND 2000),
+                source_day TEXT NOT NULL CHECK(length(source_day) BETWEEN 1 AND 64),
+                evidence_json BLOB NOT NULL,
+                promoted_at_utc TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS review_hypothesis_promotions_source
+            ON review_hypothesis_promotions(source_day, promoted_at_utc DESC);
             """)
         ])
     ]

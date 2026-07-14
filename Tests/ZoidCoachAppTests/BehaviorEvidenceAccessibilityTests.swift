@@ -1,5 +1,4 @@
 import AppKit
-import ApplicationServices
 import SwiftUI
 import Testing
 @testable import ZoidCoachApp
@@ -38,18 +37,14 @@ struct BehaviorEvidenceAccessibilityTests {
             await Task.yield()
         }
 
-        let application = AXUIElementCreateApplication(ProcessInfo.processInfo.processIdentifier)
         let prefix = "today.behavior-evidence.work-category."
-        let records = accessibilityDescendants(of: application).compactMap { element -> AccessibilityRecord? in
-            guard let identifier = accessibilityText(element, kAXIdentifierAttribute as CFString),
+        let records = accessibilityDescendants(of: host).compactMap { element -> AccessibilityRecord? in
+            guard let identifier = accessibilityIdentifier(element),
                   identifier.hasPrefix(prefix) else { return nil }
             return AccessibilityRecord(
                 identifier: identifier,
-                label: accessibilityText(element, kAXDescriptionAttribute as CFString)
-                    ?? accessibilityText(element, kAXTitleAttribute as CFString)
-                    ?? accessibilityText(element, kAXValueAttribute as CFString)
-                    ?? "",
-                hint: accessibilityText(element, kAXHelpAttribute as CFString) ?? ""
+                label: accessibilityLabel(element) ?? "",
+                hint: accessibilityHelp(element) ?? ""
             )
         }
 
@@ -75,24 +70,43 @@ private struct AccessibilityRecord: Equatable {
     let hint: String
 }
 
-private func accessibilityValue(_ element: AXUIElement, _ attribute: CFString) -> CFTypeRef? {
-    var value: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success else { return nil }
-    return value
+@MainActor
+private func accessibilityIdentifier(_ element: Any) -> String? {
+    if let element = element as? NSAccessibilityElement { return element.accessibilityIdentifier() }
+    if let element = element as? NSView { return element.accessibilityIdentifier() }
+    return nil
 }
 
-private func accessibilityText(_ element: AXUIElement, _ attribute: CFString) -> String? {
-    accessibilityValue(element, attribute) as? String
+@MainActor
+private func accessibilityLabel(_ element: Any) -> String? {
+    if let element = element as? NSAccessibilityElement { return element.accessibilityLabel() }
+    if let element = element as? NSView { return element.accessibilityLabel() }
+    return nil
 }
 
-private func accessibilityDescendants(of root: AXUIElement) -> [AXUIElement] {
-    var result: [AXUIElement] = []
-    var queue = [root]
+@MainActor
+private func accessibilityHelp(_ element: Any) -> String? {
+    if let element = element as? NSAccessibilityElement { return element.accessibilityHelp() }
+    if let element = element as? NSView { return element.accessibilityHelp() }
+    return nil
+}
+
+@MainActor
+private func accessibilityDescendants(of root: Any) -> [Any] {
+    var result: [Any] = []
+    var queue: [Any] = [root]
+    var visited: Set<ObjectIdentifier> = []
     while !queue.isEmpty {
         let element = queue.removeFirst()
+        if let object = element as? NSObject {
+            guard visited.insert(ObjectIdentifier(object)).inserted else { continue }
+        }
         result.append(element)
-        if let children = accessibilityValue(element, kAXChildrenAttribute as CFString) as? [AXUIElement] {
-            queue.append(contentsOf: children)
+        if let element = element as? NSAccessibilityElement {
+            queue.append(contentsOf: element.accessibilityChildren() ?? [])
+        } else if let element = element as? NSView {
+            queue.append(contentsOf: element.accessibilityChildren() ?? [])
+            queue.append(contentsOf: element.subviews)
         }
     }
     return result
