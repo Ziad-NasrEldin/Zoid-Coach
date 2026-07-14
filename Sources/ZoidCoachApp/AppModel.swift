@@ -398,11 +398,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshTodaySnapshot() async {
-        do {
-            installTodaySnapshot(try await todayDashboardXPCClient.fetchTodaySnapshot())
-        } catch {
-            installTodaySnapshot(try? todaySnapshotStore?.load())
-        }
+        installTodaySnapshot(try? todaySnapshotStore?.load())
     }
 
     func recordGamingManualAdjustment(
