@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "cfe8ed96267d59f0deea8360fc5cf8bb6d95cb31aa59e73aad11576395e14a56",
+  "tracker_sha256": "1556c6d6efd61cc436d20b70f3e53bc52219113cce50d60552702205efb0c0af",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10250,10 +10250,15 @@
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/settings-notification-delivery-test/independent-verifier/REPORT.md",
+        ".audit/runs/settings-notification-delivery-test/independent-verifier/settings-signals-before.png",
+        ".audit/runs/settings-notification-delivery-test/independent-verifier/settings-signals-denied.png",
+        ".audit/runs/settings-notification-delivery-test/independent-verifier/today-ready-state.png"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Onboarding now exposes a bounded local delivery test and records whether macOS or the isolated QA fixture accepted and delivered it; the visible run has not reached this step (`OnboardingDeliveryTestService.swift`; `QAFixtureOSCompositionTests.swift`).",
+      "audit_note": "The installed signed-QA Settings flow reached Signals and activated Send Test through stable native accessibility controls, truthfully reported the existing unavailable authorization with the exact manual repair route and Today fallback, converted two immediate AX press requests into exactly one privacy-safe ledger attempt, and restored the readable `TODAY FALLBACK ... TRY 1` history after app and helper relaunch; seven focused tests and one release build pass, while an already-authorized identity must still prove real macOS acceptance and visible notification appearance (`OnboardingDeliveryTestService.swift`; `SettingsNotificationDeliveryTestController.swift`; `.audit/runs/settings-notification-delivery-test/independent-verifier/REPORT.md`).",
       "tracker_line": 635
     },
     {
