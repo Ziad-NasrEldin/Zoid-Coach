@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "83cf0a4337133d02b260c75230956942a4c4135223e3a3827205eab7adc31ed1",
+  "tracker_sha256": "8e74c8c629b765eaa7a177a32751680f98e0c1c08dc73cdbb9f9f487bc2e65af",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9120,9 +9120,9 @@
       "section_title": "Understanding the daily review",
       "item_index": 5,
       "wording": "See work broken down by category.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9130,10 +9130,13 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-041-005-daily-review-work-categories/final-window-navigation/REPORT.md",
+        ".audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Daily Review implements six conservative corrected-work categories, persisted correction and chosen-left merge reconstruction, honest empty and Uncategorized states, and stable accessibility identities. The latest exact signed candidate passed verifier typechecking and self-test, packaging, deep signing, identity, foreground-before-helper startup, LaunchAgent, Mach/XPC, exact app/helper/root/database/PID binding, visible Today, the empty non-work database fixture, and an ordinary relaunch with exactly one restored main window. Normal Reviews navigation was reached after foreground activation, but scrolling to the work-category ledger still failed, so the visible empty result, exact 2/3/4/5/6/8-minute rows and 28-minute total, chosen-left authority, non-work exclusions, recursive privacy, and ordinary relaunch persistence remain (`.audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md`; `.audit/runs/zc-041-005-daily-review-work-categories/final-window-navigation/REPORT.md`).",
+      "audit_note": "Exact signed candidate `bf4d4a0b1a66c33969ceed5304256be7b7d56897` visibly proved the honest empty state, the exact 2/3/4/5/6/8-minute category rows and 28-minute total, chosen-left correction authority, non-work exclusions, recursive accessibility privacy, and ordinary relaunch persistence while remaining bound to the expected foreground app, helper, isolated root, database, and build identity (`DailyReviewView.swift`; `DailyReviewWorkCategoryState.swift`; `DailyReviewWorkCategoryStateTests.swift`; `.audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md`; `.audit/runs/zc-041-005-daily-review-work-categories/final-window-navigation/REPORT.md`; `/private/tmp/zoid-zc041005-evidence/bf4d4a0b1a66c33969ceed5304256be7b7d56897`).",
       "tracker_line": 576
     },
     {

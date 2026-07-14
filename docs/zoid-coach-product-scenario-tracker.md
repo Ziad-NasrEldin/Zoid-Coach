@@ -14,12 +14,12 @@ This update includes the implemented twelve-step onboarding flow, crash-safe onb
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 185
-- **Touches remaining:** 304
+- **Fully implemented:** 190
+- **Touches remaining:** 307
 - **Frontend only left:** 3
 - **Partially implemented:** 102
-- **Barely started:** 6
-- **Not implemented:** 39
+- **Barely started:** 5
+- **Not implemented:** 32
 - **Blocked from verification:** 27
 - **Total:** 666
 
@@ -573,7 +573,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 - [x] See how many priority tasks were completed. **Status: Fully implemented.** The signed review showed one of two non-optional priorities completed, omitted a completed optional task, kept a priority completed the next day open for the selected day, exposed explicit zero-count and no-plan states, and reproduced the same count after relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-plan-outcomes/verifier/REPORT.md`).
 - [ ] See total active-task time. **Status: Touches remaining.** The installed signed Daily Review visibly rendered the selected day's 60-minute active-task total from persisted task intervals and restored the same local evidence after application relaunch (`DailySourceCoverageStore.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).
 - [ ] See aligned work time separately. **Status: Touches remaining.** The signed review visibly separated active-task, Screenwatch-observed, and work-aligned minutes, while focused tests prove interval merging and correction-aware alignment without rewriting source evidence (`DailySourceCoverageStore.swift`; `DailySourceCoverageTests.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).
-- [ ] See work broken down by category. **Status: Touches remaining.** Daily Review implements six conservative corrected-work categories, persisted correction and chosen-left merge reconstruction, honest empty and Uncategorized states, and stable accessibility identities. The latest exact signed candidate passed verifier typechecking and self-test, packaging, deep signing, identity, foreground-before-helper startup, LaunchAgent, Mach/XPC, exact app/helper/root/database/PID binding, visible Today, the empty non-work database fixture, and an ordinary relaunch with exactly one restored main window. Normal Reviews navigation was reached after foreground activation, but scrolling to the work-category ledger still failed, so the visible empty result, exact 2/3/4/5/6/8-minute rows and 28-minute total, chosen-left authority, non-work exclusions, recursive privacy, and ordinary relaunch persistence remain (`.audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md`; `.audit/runs/zc-041-005-daily-review-work-categories/final-window-navigation/REPORT.md`).
+- [x] See work broken down by category. **Status: Fully implemented.** Exact signed candidate `bf4d4a0b1a66c33969ceed5304256be7b7d56897` visibly proved the honest empty state, the exact 2/3/4/5/6/8-minute category rows and 28-minute total, chosen-left correction authority, non-work exclusions, recursive accessibility privacy, and ordinary relaunch persistence while remaining bound to the expected foreground app, helper, isolated root, database, and build identity (`DailyReviewView.swift`; `DailyReviewWorkCategoryState.swift`; `DailyReviewWorkCategoryStateTests.swift`; `.audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md`; `.audit/runs/zc-041-005-daily-review-work-categories/final-window-navigation/REPORT.md`; `/private/tmp/zoid-zc041005-evidence/bf4d4a0b1a66c33969ceed5304256be7b7d56897`).
 - [ ] See gaming and distraction time. **Status: Touches remaining.** The installed signed review visibly rendered separate gaming and distraction totals and distinct source sessions, while missing time remained outside both categories (`DailySourceCoverageStore.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).
 - [ ] See reliable idle time. **Status: Touches remaining.** The signed limited-coverage review visibly rendered idle as `not reliable`, and focused tests prove that healthy adequate coverage exposes observed idle minutes, but the reliable-idle branch was not captured visibly in the installed app (`DailySourceCoverage.swift`; `DailySourceCoverageTests.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).
 - [ ] See unknown or missing coverage. **Status: Touches remaining.** The signed review visibly exposed unknown, missing, observed-task, and source-cause fields, explicitly refused to infer unobserved minutes into a behavioral category, and retained the underlying sessions separately (`DailySourceCoverage.swift`; `DailySourceCoverageView.swift`; `.audit/runs/daily-source-coverage/verifier/REPORT.md`).
