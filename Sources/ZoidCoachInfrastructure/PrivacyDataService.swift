@@ -79,7 +79,7 @@ public final class PrivacyDataService: @unchecked Sendable {
                 "learning",
                 ReviewLearningDeletionDisclosure.inventoryTitle,
                 ReviewLearningDeletionDisclosure.inventoryDetail,
-                ["daily_review_corrections", "daily_reviews", "weekly_review_experiments", "review_hypothesis_promotions", "app_classification_correction_rules", "learning_samples", "learning_aggregates", "planner_trust_cycles"]
+                ["daily_review_corrections", "daily_review_session_merges", "daily_reviews", "weekly_review_experiments", "review_hypothesis_promotions", "app_classification_correction_rules", "learning_samples", "learning_aggregates", "planner_trust_cycles"]
             ),
             ("voice", "Voice conversations", "Local voice sessions, turns, confirmed memory facts, approvals, and tool history.", ["voice_sessions", "conversation_turns", "conversation_memory_facts", "voice_tool_invocations", "voice_approval_requests"]),
             ("ai", "AI request metadata", "Local provider run metadata, cache records, Codex jobs, and transmission receipts. Credentials are stored separately in Keychain.", ["model_runs", "codex_jobs", "screen_context_transmissions"]),
@@ -206,6 +206,7 @@ public final class PrivacyDataService: @unchecked Sendable {
     public func deleteReviewsAndLearnedRules() throws -> Int {
         try deleteFromTables([
             "daily_review_corrections",
+            "daily_review_session_merges",
             "daily_reviews",
             "weekly_review_experiments",
             "review_hypothesis_promotions",
