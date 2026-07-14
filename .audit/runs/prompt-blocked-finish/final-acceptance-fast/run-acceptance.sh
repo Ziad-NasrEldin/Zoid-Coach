@@ -14,8 +14,9 @@ AGENT_EXECUTABLE="ZoidCoachAgentQA"
 AGENT_LABEL="qa.ziadnasreldin.ZoidCoach.agent"
 APP_COMMAND="$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE"
 DB="$QA_ROOT/Application Support/Zoid 666/zoid-coach.sqlite"
-AX_DRIVER="$SCRIPT_DIR/bin/ax-driver"
-WINDOW_PROBE="$SCRIPT_DIR/bin/qa-window-content-probe"
+TOOL_DIR="$ROOT/.build/zc034011-fast"
+AX_DRIVER="$TOOL_DIR/ax-driver"
+WINDOW_PROBE="$TOOL_DIR/qa-window-content-probe"
 MANIFEST="$SCRIPT_DIR/ready-state.json"
 EVIDENCE="$SCRIPT_DIR/evidence"
 USER_DOMAIN="gui/$(id -u)"
@@ -282,7 +283,7 @@ preflight() {
     python3 -m json.tool "$MANIFEST" >/dev/null
     "$ROOT/Scripts/verify-build-identity.sh" \
         "$PACKAGE_APP/Contents/Info.plist" \
-        --expected-cmt "$EXPECTED_COMMIT" --require-clean \
+        --expected-commit "$EXPECTED_COMMIT" --require-clean \
         | tee "$EVIDENCE/package-identity.txt"
     codesign --verify --deep --strict --verbose=2 "$PACKAGE_APP"
     log "PASS: harness preflight complete"

@@ -1,0 +1,2 @@
+PASS: harness preflight complete
+DRY RUN: no install, app launch, helper registration, or runtime mutation performed

@@ -23,4 +23,11 @@ Finally, it repeats from a fresh presented fixture, unregisters the helper immed
 
 The default invocation refuses to run without `ZOID_ACCEPT_RUNTIME_LEASE=granted`.
 `--dry-run` validates only the package identity, signatures, compiled tools, manifest, and paths.
+The compiled verifier tools live under the ignored `.build/zc034011-fast` directory and are not committed as source artifacts.
 The exit trap always stops the isolated app, unregisters the QA LaunchAgent, and removes only the harness-owned install and QA roots.
+
+## Preparation status
+
+The exact clean package, signing evidence, and both compiled verifier tools are ready.
+The guarded non-runtime dry run passed without installing or launching the app or helper.
+Detailed preparation evidence is recorded in `PREPARATION.md` and the `evidence` directory.
