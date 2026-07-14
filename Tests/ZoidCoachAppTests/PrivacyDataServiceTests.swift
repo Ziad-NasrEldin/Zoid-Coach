@@ -200,6 +200,8 @@ func deleteReviewsAndLearnedRulesClearsEveryReviewAndLearningStoreButPreservesSo
     VALUES ('2026-07-12', 'accepted', '2026-07-12T18:00:00Z', '2026-07-12T18:00:00Z', 'Private note');
     INSERT INTO weekly_review_experiments (id, review_week_start, title, instruction, measurement, state, tracking_week_start, updated_at_utc)
     VALUES ('experiment', '2026-07-06', 'Try focus', 'Work in one block', 'Minutes aligned', 'accepted', '2026-07-13', '2026-07-12T18:00:00Z');
+    INSERT INTO review_hypothesis_promotions (candidate_id, hypothesis, source_day, evidence_json, promoted_at_utc)
+    VALUES ('weekly-review:2026-07-06:2026-07-12:focus', 'Focused work may be easier before noon.', '2026-07-06 TO 2026-07-12', '["privacy-safe evidence"]', '2026-07-12T18:00:00Z');
     INSERT INTO app_classification_correction_rules (normalized_app, display_app, classification, state, source_day, source_session_start_epoch, effective_from_epoch, created_at_utc)
     VALUES ('safari', 'Safari', 'work', 'active', '2026-07-12', 1000, 1000, '2026-07-12T18:00:00Z');
     INSERT INTO learning_samples (id, sample_type, context_key, actual_value, timezone_identifier, evidence_id, occurred_at_utc)
@@ -218,13 +220,14 @@ func deleteReviewsAndLearnedRulesClearsEveryReviewAndLearningStoreButPreservesSo
     )
     #expect(learningInventory.title == ReviewLearningDeletionDisclosure.inventoryTitle)
     #expect(learningInventory.detail == ReviewLearningDeletionDisclosure.inventoryDetail)
-    #expect(learningInventory.recordCount == 7)
-    #expect(try service.deleteReviewsAndLearnedRules() == 7)
+    #expect(learningInventory.recordCount == 8)
+    #expect(try service.deleteReviewsAndLearnedRules() == 8)
 
     for table in [
         "daily_review_corrections",
         "daily_reviews",
         "weekly_review_experiments",
+        "review_hypothesis_promotions",
         "app_classification_correction_rules",
         "learning_samples",
         "learning_aggregates",
@@ -296,6 +299,7 @@ private func privacyRowCount(databaseURL: URL, table: String) throws -> Int {
         "daily_review_corrections",
         "daily_reviews",
         "weekly_review_experiments",
+        "review_hypothesis_promotions",
         "app_classification_correction_rules",
         "learning_samples",
         "learning_aggregates",

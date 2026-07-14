@@ -32,6 +32,31 @@ func weeklyPatternPresentationSeparatesHypothesisEvidenceAndAlternative() {
 }
 
 @Test
+func explicitlyAcceptedWeeklyPatternPresentsDurableLearnedBoundary() {
+    let pattern = pattern(
+        sampleCount: 4,
+        examples: ["Monday: 42 focused minutes"],
+        confidencePercent: 72
+    )
+    let boundary = HypothesisLearningBoundary(
+        candidate: pattern.learningCandidate,
+        decision: .accepted,
+        isPromoted: true
+    )
+    let presentation = WeeklyReviewPatternPresentation(
+        pattern: pattern,
+        learningBoundary: boundary
+    )
+
+    #expect(presentation.learningStatusLabel == "LEARNED FROM EXPLICIT ACCEPTANCE")
+    #expect(presentation.learningBoundaryDetail.contains("explicitly accepted and promoted once"))
+    #expect(presentation.accessibilitySummary(showsEvidence: false).contains("LEARNED FROM EXPLICIT ACCEPTANCE"))
+    #expect(pattern.learningCandidate.id == "weekly-review:2026-07-06:2026-07-12:best-work-window")
+    #expect(pattern.learningCandidate.sourceDay == "2026-07-06 TO 2026-07-12")
+    #expect(pattern.learningCandidate.evidence == ["Monday: 42 focused minutes"])
+}
+
+@Test
 func weeklyPatternPresentationDoesNotPresentZeroSamplesAsCausal() {
     let presentation = WeeklyReviewPatternPresentation(pattern: pattern(
         sampleCount: 0,

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import ZoidCoachCore
 
@@ -192,6 +193,10 @@ struct BehaviorEvidenceWorkCategoryLedger: View {
                     }
                 }
             }
+            .accessibilityHidden(true)
+            .overlay {
+                BehaviorEvidenceWorkCategoryAccessibilityBridge(categories: categories)
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.behavior-evidence.work-categories")
@@ -217,5 +222,88 @@ struct BehaviorEvidenceWorkCategoryLedger: View {
         .accessibilityLabel(category.accessibilityLabel)
         .accessibilityHint(category.explanation)
         .accessibilityIdentifier(category.accessibilityIdentifier)
+    }
+}
+
+private struct BehaviorEvidenceWorkCategoryAccessibilityBridge: NSViewRepresentable {
+    let categories: [BehaviorEvidenceWorkCategory]
+
+    func makeNSView(context: Context) -> WorkCategoryAccessibilityView {
+        WorkCategoryAccessibilityView(categories: categories)
+    }
+
+    func updateNSView(_ nsView: WorkCategoryAccessibilityView, context: Context) {
+        nsView.update(categories: categories)
+    }
+}
+
+private final class WorkCategoryAccessibilityView: NSView {
+    private var categories: [BehaviorEvidenceWorkCategory]
+    private var categoryElements: [NSAccessibilityElement] = []
+
+    init(categories: [BehaviorEvidenceWorkCategory]) {
+        self.categories = categories
+        super.init(frame: .zero)
+        setAccessibilityElement(false)
+        rebuildAccessibilityElements()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(categories: [BehaviorEvidenceWorkCategory]) {
+        guard self.categories != categories else { return }
+        self.categories = categories
+        rebuildAccessibilityElements()
+    }
+
+    override func layout() {
+        super.layout()
+        updateAccessibilityFrames()
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
+    override func accessibilityChildren() -> [Any]? {
+        categoryElements
+    }
+
+    private func rebuildAccessibilityElements() {
+        categoryElements = categories.map { category in
+            let element = NSAccessibilityElement()
+            element.setAccessibilityParent(self)
+            element.setAccessibilityRole(.staticText)
+            element.setAccessibilityLabel(category.accessibilityLabel)
+            element.setAccessibilityHelp(category.explanation)
+            element.setAccessibilityIdentifier(category.accessibilityIdentifier)
+            return element
+        }
+        setAccessibilityChildren(categoryElements)
+        updateAccessibilityFrames()
+    }
+
+    private func updateAccessibilityFrames() {
+        guard !categoryElements.isEmpty else { return }
+        let columnCount = 3
+        let rowCount = Int(ceil(Double(categoryElements.count) / Double(columnCount)))
+        let horizontalSpacing: CGFloat = 8
+        let verticalSpacing: CGFloat = 8
+        let cellWidth = max(0, (bounds.width - horizontalSpacing * CGFloat(columnCount - 1)) / CGFloat(columnCount))
+        let cellHeight = max(0, (bounds.height - verticalSpacing * CGFloat(max(0, rowCount - 1))) / CGFloat(rowCount))
+        for (index, element) in categoryElements.enumerated() {
+            let column = index % columnCount
+            let row = index / columnCount
+            let frame = NSRect(
+                x: CGFloat(column) * (cellWidth + horizontalSpacing),
+                y: bounds.height - CGFloat(row + 1) * cellHeight - CGFloat(row) * verticalSpacing,
+                width: cellWidth,
+                height: cellHeight
+            )
+            element.setAccessibilityFrameInParentSpace(frame)
+        }
     }
 }

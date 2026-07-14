@@ -16,7 +16,10 @@ struct WeeklyReviewPatternPresentation: Equatable, Sendable {
     let expandedAccessibilitySummary: String
     let hasSufficientEvidence: Bool
 
-    init(pattern: WeeklyReviewPattern) {
+    init(
+        pattern: WeeklyReviewPattern,
+        learningBoundary: HypothesisLearningBoundary? = nil
+    ) {
         let evidenceLines = pattern.examples.filter {
             !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
@@ -39,9 +42,10 @@ struct WeeklyReviewPatternPresentation: Equatable, Sendable {
         let causalityCaveat = hasSufficientEvidence
             ? "NOT PROVEN CAUSE · These observations can support a hypothesis, but they do not prove why it happened."
             : "NOT PROVEN CAUSE · Keep this as a question until observed evidence is available."
-        let learningStatusLabel = "NOT LEARNED"
+        let learningStatusLabel = learningBoundary?.statusLabel ?? "NOT LEARNED"
         let learningSourceLabel = "SOURCE DAYS \(pattern.dateRange.startDay) TO \(pattern.dateRange.endDay) · \(sampleLabel)"
-        let learningBoundaryDetail = "This weekly pattern remains a hypothesis and is not a learned fact. It can only be promoted after you explicitly accept the corresponding review hypothesis."
+        let learningBoundaryDetail = learningBoundary?.detail
+            ?? "This weekly pattern remains a hypothesis and is not a learned fact. It can only be promoted after you explicitly accept the corresponding review hypothesis."
 
         self.hypothesis = pattern.conclusion
         self.confidenceLabel = confidenceLabel
@@ -74,5 +78,16 @@ struct WeeklyReviewPatternPresentation: Equatable, Sendable {
 
     func accessibilitySummary(showsEvidence: Bool) -> String {
         showsEvidence ? expandedAccessibilitySummary : collapsedAccessibilitySummary
+    }
+}
+
+extension WeeklyReviewPattern {
+    var learningCandidate: ReviewHypothesisLearningCandidate {
+        ReviewHypothesisLearningCandidate(
+            id: "weekly-review:\(dateRange.startDay):\(dateRange.endDay):\(id)",
+            hypothesis: conclusion,
+            sourceDay: "\(dateRange.startDay) TO \(dateRange.endDay)",
+            evidence: examples
+        )
     }
 }

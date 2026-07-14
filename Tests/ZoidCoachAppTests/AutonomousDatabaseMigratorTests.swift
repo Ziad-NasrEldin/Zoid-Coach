@@ -17,14 +17,32 @@ func migration46AddsDeletedReminderDecisionHistory() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 45)
-    #expect(result.appliedVersions == [46])
-    #expect(result.currentVersion == 46)
+    #expect(result.appliedVersions == [46, 47])
+    #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try tableExists(databaseURL, "deleted_reminder_decisions"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "state"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "decided_at_utc"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "notes") == false)
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "url") == false)
     #expect(try scalarText(databaseURL, "SELECT title FROM legacy_reminder_history WHERE source_id = 'preserved';") == "Existing history")
+}
+
+@Test
+func migration47AddsDurableReviewHypothesisPromotions() throws {
+    let databaseURL = temporaryDatabaseURL("v47-review-hypothesis-promotions")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (46, '2026-07-14T00:00:00Z');
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.previousVersion == 46)
+    #expect(result.appliedVersions == [47])
+    #expect(try tableExists(databaseURL, "review_hypothesis_promotions"))
+    #expect(try columnExists(databaseURL, table: "review_hypothesis_promotions", column: "candidate_id"))
+    #expect(try columnExists(databaseURL, table: "review_hypothesis_promotions", column: "evidence_json"))
 }
 
 @Test
