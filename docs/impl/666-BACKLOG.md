@@ -58,6 +58,14 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 
 ## Delivered Batches Awaiting Parallel Verification
 
+### Gaming unlock rule selection - partially implemented
+
+- Owns `ZC-029-009`.
+- Canonical source and signed acceptance prove that the user can move the one-time gaming reward condition from the current main objective to another planned task, cancel without mutation, see the ownership change immediately, retain it after relaunch, and award the reward exactly once from the selected task.
+- The tracker advances conservatively from Not implemented to Partially implemented because policy mode, arbitrary task set or completion count, focus threshold or reward ratio, and hybrid rules remain absent.
+- Invalid values, Cancel, disabled-policy, and accessibility acceptance must be repeated against the future configurable modes.
+- A `ZC-029-009`-bound immutable manifest remains required even though the reusable signed journey is recorded in `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/REPORT.md` and `.audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/evidence.json`.
+
 ### Daily review deferral - candidate
 
 - Owns `ZC-040-004`.

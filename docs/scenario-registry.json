@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "6e84f274d763170316ff9dc1710ea7f00d2d575284a6ded039580bb176e56bd3",
+  "tracker_sha256": "204685da4cd0effe5d041cae44cd1cd563f2b69482d1aeac19d4dfa56eec4ebd",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -6467,8 +6467,8 @@
       "item_index": 9,
       "wording": "Set the unlock tasks or focus-time rule.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Partially implemented",
+      "delivery_status": "partially_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6479,7 +6479,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Unlock selection and focus ratios are not modeled.",
+      "audit_note": "The installed signed Today journey exposes the current main objective as the one-time gaming reward condition, lets the user choose another planned task through `MAKE MAIN + GAMING UNLOCK`, requires an explicit Cancel-or-confirm decision, moves the single unlock owner immediately, restores it after relaunch, withholds the reward from the former task, and awards the configured minutes exactly once after the selected task is completed (`Sources/ZoidCoachApp/GamingUnlockConditionPresentation.swift`; `Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift`; `Tests/ZoidCoachAppTests/GamingUnlockConditionPresentationTests.swift`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/REPORT.md`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/evidence/03-confirmation.png`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/evidence/09-immediate-fixed.png`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/evidence/10-relaunch-fixed.png`; `.audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/evidence.json`). The policy still cannot choose task-based, focus-time, or hybrid mode; configure an arbitrary task set or completion count; configure a focus threshold or reward ratio; or validate invalid values, Cancel, disabled-policy, and accessibility branches across those missing modes. A `ZC-029-009`-bound immutable evidence manifest remains required.",
       "tracker_line": 424
     },
     {
