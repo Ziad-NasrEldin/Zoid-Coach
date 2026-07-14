@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "873a42c288e0b0213758f991385d75a6c9c5265ceba4dd0abf98ec8923d8ac0b",
+  "tracker_sha256": "068a4719d521240e259d16300f7204e47bfd2de121fd23eefdecf5ad3b2bc681",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10805,10 +10805,13 @@
         "ui_automation"
       ],
       "affected_capability": "settings",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/calendar-zero-block-refresh/verifier/REPORT.md",
+        ".audit/runs/calendar-zero-block-refresh/verifier/final-after-repair.png"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Calendar-unavailable planning now offers a truthful local-only approval with zero Calendar or Reminder command identities, durable receipt restore, and no false external-write claim. Focused tests prove that partial results stay pending across restore, only the exact failed command can be retried, duplicate retry requests are suppressed while pending, and the original total survives successful recovery. A signed isolated app visibly showed Calendar-unavailable configured-work-window capacity and durably added the intended task, but the planning card remained stale at zero blocks and zero minutes, so `USE PLAN LOCALLY`, the zero-write receipt, relaunch persistence, and the visible recovery sequence remain unproved (`CalendarPlanApprovalState.swift`; `CalendarPlanApprovalStateTests.swift`; `.audit/runs/calendar-offline-local-plan/verifier/REPORT.md`).",
+      "audit_note": "Calendar-unavailable planning is now usable end to end in the signed isolated app. Adding the known Reminder immediately replaced the stale helper snapshot with one visible planned block, a 45-minute estimate immediately produced truthful configured-work-window capacity, Close created no receipt, and `USE PLAN LOCALLY` produced the exact local plan with zero Calendar or Reminder commands. App and helper restart restored the exact main task, estimate, local-only receipt, and no approval replay. After isolated Calendar repair, the normal conflict-aware path returned and one confirmation produced one completed four-command operation, one owned Calendar commitment, one Reminder, and one daily-plan row without duplication. This remains Touches because denied notification delivery made the restored receipt incorrectly call the notification failure a Calendar change needing repair even though every Calendar and Reminder mutation succeeded (`TodayPlanPresentation.swift`; `TodayPlanPresentationTests.swift`; `.audit/runs/calendar-zero-block-refresh/verifier/REPORT.md`).",
       "tracker_line": 666
     },
     {
