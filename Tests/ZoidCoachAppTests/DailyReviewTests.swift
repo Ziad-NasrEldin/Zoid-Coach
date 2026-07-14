@@ -893,6 +893,81 @@ func offlineWorkValidatesDurationAndCanBeDeletedWithoutTouchingObservations() th
 }
 
 @Test
+func workCategoryBreakdownReconstructsFromPersistedCorrectedSessionsAfterReopen() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    let start: Int64 = 1_783_663_200
+    try fixture.insert(epoch: start, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: start + 60, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: start + 120, app: "Xcode", classification: .work)
+    try fixture.insert(epoch: start + 600, app: "Safari", classification: .work)
+    try fixture.insert(epoch: start + 900, app: "Steam", classification: .gaming)
+
+    let first = DailyReviewWorkCategoryState(
+        sessions: try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+    )
+    let reopenedStore = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let relaunched = DailyReviewWorkCategoryState(
+        sessions: try reopenedStore.load(sourceDay: fixture.sourceDay).sessions
+    )
+
+    #expect(relaunched == first)
+    #expect(relaunched.categories.first { $0.category == .deepWork }?.minutes == 3)
+    #expect(relaunched.categories.first { $0.category == .uncategorized }?.minutes == 1)
+    #expect(relaunched.workMinutes == 4)
+}
+
+@Test
+func workCategoryBreakdownHonorsPersistedWorkLeftMergeTruthAfterReopen() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    let start: Int64 = 1_783_663_200
+    try fixture.insert(epoch: start, app: "Xcode", classification: .unknown)
+    try fixture.insert(epoch: start + 60, app: "Steam", classification: .gaming)
+
+    let initial = try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+    try fixture.store.correct(initial[0], to: .work)
+    let corrected = try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+    try fixture.store.merge(corrected[0], with: corrected[1])
+
+    let reopenedStore = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let reopened = try reopenedStore.load(sourceDay: fixture.sourceDay)
+    let state = DailyReviewWorkCategoryState(sessions: reopened.sessions)
+
+    #expect(reopened.sessions.count == 1)
+    #expect(reopened.sessions[0].classification == .work)
+    #expect(reopened.sessions[0].applications == ["Xcode", "Steam"])
+    #expect(state.workMinutes == 2)
+    #expect(state.uncategorizedMinutes == 2)
+    #expect(state.detail.contains("chosen left session supplies that classification"))
+}
+
+@Test
+func workCategoryBreakdownExcludesPersistedNonWorkLeftMergeTruthAfterReopen() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    let start: Int64 = 1_783_663_200
+    try fixture.insert(epoch: start, app: "Steam", classification: .gaming)
+    try fixture.insert(epoch: start + 60, app: "Xcode", classification: .unknown)
+
+    let initial = try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+    try fixture.store.correct(initial[1], to: .work)
+    let corrected = try fixture.store.load(sourceDay: fixture.sourceDay).sessions
+    try fixture.store.merge(corrected[0], with: corrected[1])
+
+    let reopenedStore = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let reopened = try reopenedStore.load(sourceDay: fixture.sourceDay)
+    let state = DailyReviewWorkCategoryState(sessions: reopened.sessions)
+
+    #expect(reopened.sessions.count == 1)
+    #expect(reopened.sessions[0].classification == .gaming)
+    #expect(reopened.sessions[0].applications == ["Steam", "Xcode"])
+    #expect(!state.hasWork)
+    #expect(state.workMinutes == 0)
+    #expect(state.categories.allSatisfy { $0.minutes == 0 })
+}
+
+@Test
 func migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }

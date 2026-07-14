@@ -506,6 +506,7 @@ struct DailyReviewView: View {
         planOutcomes(snapshot)
         behavioralHighlights(snapshot)
         DailySourceCoverageView(selectedDay: controller.selectedDay)
+        workCategoryLedger(DailyReviewWorkCategoryState(sessions: snapshot.sessions))
         if snapshot.sessions.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 Text("NO COVERED ACTIVITY")
@@ -1173,6 +1174,58 @@ struct DailyReviewView: View {
             }
         }
         .accessibilityIdentifier("reviews.totals")
+    }
+
+    private func workCategoryLedger(_ state: DailyReviewWorkCategoryState) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("WORK BY CATEGORY")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            Text(state.detail)
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("reviews.work-categories.detail")
+
+            if state.hasWork {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 3),
+                    spacing: 0
+                ) {
+                    ForEach(state.categories) { category in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("\(category.minutes) MIN")
+                                .font(Sumi.display(18))
+                            Text(category.title.uppercased())
+                                .font(Sumi.label(8))
+                                .sumiLabelTracking()
+                                .foregroundStyle(category.category == .uncategorized ? Sumi.seal : Sumi.muted)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+                        .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(category.accessibilityLabel)
+                        .accessibilityHint(category.explanation)
+                        .accessibilityIdentifier(category.accessibilityIdentifier)
+                    }
+                }
+            } else {
+                Text("NO CORRECTED WORK TO CATEGORIZE")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                    .accessibilityIdentifier("reviews.work-categories.empty")
+            }
+        }
+        .padding(18)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reviews.work-categories")
     }
 
     private func hypothesis(_ snapshot: DailyReviewSnapshot) -> some View {
