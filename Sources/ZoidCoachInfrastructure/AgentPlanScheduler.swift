@@ -1,6 +1,25 @@
 import Foundation
 import ZoidCoachCore
 
+public struct AgentPlanCommandRequirement: Equatable, Hashable, Sendable {
+    public let type: ActionCommandType
+    public let entityID: String
+
+    public init(type: ActionCommandType, entityID: String) {
+        self.type = type
+        self.entityID = entityID
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.type == rhs.type && lhs.entityID == rhs.entityID
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(type.rawValue)
+        hasher.combine(entityID)
+    }
+}
+
 public struct AgentPlanSchedulingResult: Equatable, Sendable {
     public let scheduledBlockCount: Int
     public let unscheduledTaskIDs: [String]
@@ -8,14 +27,16 @@ public struct AgentPlanSchedulingResult: Equatable, Sendable {
     public let taskStartReminderCount: Int
     public let obsoleteBlockDeletionCount: Int
     public let commandIDs: [String]
+    public let requiredCommands: Set<AgentPlanCommandRequirement>
 
-    public init(scheduledBlockCount: Int, unscheduledTaskIDs: [String], reminderMutationCount: Int, taskStartReminderCount: Int = 0, obsoleteBlockDeletionCount: Int, commandIDs: [String] = []) {
+    public init(scheduledBlockCount: Int, unscheduledTaskIDs: [String], reminderMutationCount: Int, taskStartReminderCount: Int = 0, obsoleteBlockDeletionCount: Int, commandIDs: [String] = [], requiredCommands: Set<AgentPlanCommandRequirement> = []) {
         self.scheduledBlockCount = scheduledBlockCount
         self.unscheduledTaskIDs = unscheduledTaskIDs
         self.reminderMutationCount = reminderMutationCount
         self.taskStartReminderCount = taskStartReminderCount
         self.obsoleteBlockDeletionCount = obsoleteBlockDeletionCount
         self.commandIDs = commandIDs
+        self.requiredCommands = requiredCommands
     }
 }
 
@@ -111,6 +132,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
         let desiredTokens = Set(schedule.blocks.map { ownershipToken(dayKey: dayKey, taskID: $0.taskID) }).union(protectedTokens)
         var deletions = 0
         var commandIDs: [String] = []
+        var requiredCommands: Set<AgentPlanCommandRequirement> = []
         for existing in commitments where existing.ownershipToken != nil && existing.start > schedulingTime {
             guard let token = existing.ownershipToken, !desiredTokens.contains(token) else { continue }
             let result = try outbox.enqueue(
@@ -123,6 +145,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             )
             if result.wasInserted { deletions += 1 }
             commandIDs.append(result.command.id)
+            requiredCommands.insert(.init(type: .deleteCalendarBlock, entityID: existing.id))
         }
 
         var blockCount = 0
@@ -146,6 +169,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             )
             if result.wasInserted { blockCount += 1 }
             commandIDs.append(result.command.id)
+            requiredCommands.insert(.init(type: .reconcileCalendarBlock, entityID: block.taskID))
 
             let reminderID = "task-start:\(dayKey):\(block.taskID)"
             let notificationResult = try outbox.enqueue(
@@ -164,6 +188,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             )
             if notificationResult.wasInserted { taskStartReminders += 1 }
             commandIDs.append(notificationResult.command.id)
+            requiredCommands.insert(.init(type: .scheduleNotification, entityID: block.taskID))
         }
 
         var reminderMutations = 0
@@ -181,6 +206,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             )
             if priorityResult.wasInserted { reminderMutations += 1 }
             commandIDs.append(priorityResult.command.id)
+            requiredCommands.insert(.init(type: .setReminderPriority, entityID: entry.reminderID))
             if task.dueDate == nil {
                 let dueResult = try outbox.enqueue(
                     type: .setReminderDueDate,
@@ -192,6 +218,7 @@ public final class AgentPlanScheduler: @unchecked Sendable {
                 )
                 if dueResult.wasInserted { reminderMutations += 1 }
                 commandIDs.append(dueResult.command.id)
+                requiredCommands.insert(.init(type: .setReminderDueDate, entityID: entry.reminderID))
             }
         }
         return AgentPlanSchedulingResult(
@@ -200,7 +227,8 @@ public final class AgentPlanScheduler: @unchecked Sendable {
             reminderMutationCount: reminderMutations,
             taskStartReminderCount: taskStartReminders,
             obsoleteBlockDeletionCount: deletions,
-            commandIDs: Array(Set(commandIDs)).sorted()
+            commandIDs: Array(Set(commandIDs)).sorted(),
+            requiredCommands: requiredCommands
         )
     }
 

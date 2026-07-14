@@ -22,6 +22,16 @@ public struct TaskMutationRequest: Codable, Equatable, Sendable {
     }
 }
 
+public struct CalendarPlanMutationRequest: Codable, Equatable, Sendable {
+    public let operationID: UUID
+    public let day: Date
+
+    public init(operationID: UUID, day: Date) {
+        self.operationID = operationID
+        self.day = Date(timeIntervalSince1970: day.timeIntervalSince1970.rounded(.down))
+    }
+}
+
 public final class TaskMutationClientState: @unchecked Sendable {
     private let defaults: UserDefaults
     private let namespace: String
@@ -67,9 +77,55 @@ public final class TaskMutationClientState: @unchecked Sendable {
         }
     }
 
-    private func storageKey(command: TaskActivityCommand, taskID: String) -> String {
-        "zoid666.pending-task-mutation.\(namespace).\(command.rawValue).\(taskID)"
+    public func pendingTaskRequests() -> [TaskMutationRequest] {
+        Self.sharedLock.withLock {
+            defaults.dictionaryRepresentation().keys
+                .filter { $0.hasPrefix(taskStoragePrefix) }
+                .compactMap { key in
+                    defaults.data(forKey: key).flatMap { try? decoder.decode(TaskMutationRequest.self, from: $0) }
+                }
+                .sorted { $0.requestedAt < $1.requestedAt }
+        }
     }
+
+    public func calendarPlanRequest(day: Date) -> CalendarPlanMutationRequest {
+        Self.sharedLock.withLock {
+            let key = calendarPlanStorageKey
+            if let data = defaults.data(forKey: key),
+               let request = try? decoder.decode(CalendarPlanMutationRequest.self, from: data) {
+                return request
+            }
+            let request = CalendarPlanMutationRequest(operationID: UUID(), day: day)
+            if let data = try? encoder.encode(request) { defaults.set(data, forKey: key) }
+            return request
+        }
+    }
+
+    public func pendingCalendarPlanRequests() -> [CalendarPlanMutationRequest] {
+        Self.sharedLock.withLock {
+            guard let data = defaults.data(forKey: calendarPlanStorageKey),
+                  let request = try? decoder.decode(CalendarPlanMutationRequest.self, from: data) else {
+                return []
+            }
+            return [request]
+        }
+    }
+
+    public func completeCalendarPlan(_ request: CalendarPlanMutationRequest) {
+        Self.sharedLock.withLock {
+            guard let data = defaults.data(forKey: calendarPlanStorageKey),
+                  let stored = try? decoder.decode(CalendarPlanMutationRequest.self, from: data),
+                  stored.operationID == request.operationID else { return }
+            defaults.removeObject(forKey: calendarPlanStorageKey)
+        }
+    }
+
+    private func storageKey(command: TaskActivityCommand, taskID: String) -> String {
+        "\(taskStoragePrefix)\(command.rawValue).\(taskID)"
+    }
+
+    private var taskStoragePrefix: String { "zoid666.pending-task-mutation.\(namespace)." }
+    private var calendarPlanStorageKey: String { "zoid666.pending-calendar-plan.\(namespace)" }
 }
 
 private final class XPCDataReplyBox: @unchecked Sendable {
@@ -657,6 +713,52 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
     public func apply(_ request: TaskMutationRequest) async throws -> TodaySnapshot {
         let data = try mutationEncoder.encode(request)
         return try await call { proxy, reply in proxy.applyTaskMutation(data, withReply: reply) }
+    }
+
+    public func reconcilePendingTaskMutations() async -> [TodaySnapshot] {
+        var reconciled: [TodaySnapshot] = []
+        for request in mutationState.pendingTaskRequests() {
+            for attempt in 0..<8 {
+                do {
+                    let snapshot = try await apply(request)
+                    mutationState.complete(request)
+                    reconciled.append(snapshot)
+                    break
+                } catch TodayDashboardXPCError.remote(let message) where message.hasPrefix(terminalTaskMutationPrefix) {
+                    mutationState.complete(request)
+                    break
+                } catch {
+                    guard attempt < 7 else { break }
+                    try? await Task.sleep(for: .milliseconds(250))
+                }
+            }
+        }
+        return reconciled
+    }
+
+    public func schedulePlan(day: Date) async throws -> AgentMutationReceipt {
+        let request = mutationState.calendarPlanRequest(day: day)
+        let receipt = try await apply(.schedulePlan(day: request.day, operationID: request.operationID))
+        mutationState.completeCalendarPlan(request)
+        return receipt
+    }
+
+    public func reconcilePendingCalendarPlans() async -> [AgentMutationReceipt] {
+        var reconciled: [AgentMutationReceipt] = []
+        for request in mutationState.pendingCalendarPlanRequests() {
+            for attempt in 0..<8 {
+                do {
+                    let receipt = try await apply(.schedulePlan(day: request.day, operationID: request.operationID))
+                    mutationState.completeCalendarPlan(request)
+                    reconciled.append(receipt)
+                    break
+                } catch {
+                    guard attempt < 7 else { break }
+                    try? await Task.sleep(for: .milliseconds(250))
+                }
+            }
+        }
+        return reconciled
     }
 
     public func blockTask(taskID: String, reason: String) async throws -> TodaySnapshot {

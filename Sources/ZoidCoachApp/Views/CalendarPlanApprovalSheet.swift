@@ -10,6 +10,13 @@ struct CalendarPlanApprovalSheet: View {
             switch model.calendarPlanApproval.writeState {
             case .reviewing, .queueing:
                 preview
+            case .reconciling:
+                resultPanel(
+                    eyebrow: "CALENDAR RECEIPT RECONCILING",
+                    title: "Your plan may already be queued",
+                    detail: "The local agent committed or began committing the approved Calendar and Reminder changes, but the reply was interrupted. Zoid 666 is checking the same operation before it claims success. Do not confirm again. Recheck here after the agent reconnects.",
+                    symbol: "arrow.triangle.2.circlepath"
+                )
             case let .pending(commandIDs):
                 resultPanel(
                     eyebrow: "CALENDAR WRITE IN PROGRESS",
@@ -46,7 +53,7 @@ struct CalendarPlanApprovalSheet: View {
 
     private var showsRestoredReceipt: Bool {
         switch model.calendarPlanApproval.writeState {
-        case .pending, .applied, .failed:
+        case .reconciling, .pending, .applied, .failed:
             true
         case .idle, .reviewing, .queueing:
             false
@@ -261,12 +268,15 @@ struct CalendarPlanApprovalSheet: View {
                 } else {
                     Button("RECHECK", action: model.recheckCalendarPlanWrite)
                         .buttonStyle(SumiActionButtonStyle(role: .accent, size: .standard))
+                        .accessibilityIdentifier("calendar-plan-approval.recheck")
                 }
                 Button("DONE", action: model.dismissCalendarPlanApproval)
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
             }
         }
         .padding(24)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("calendar-plan-approval.result")
     }
 
     private func metric(_ label: String, _ value: Int) -> some View {
