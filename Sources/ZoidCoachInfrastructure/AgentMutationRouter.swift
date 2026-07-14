@@ -8,6 +8,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
     private let taskHistory: TaskHistoryStore
     private let meetingArchive: ScreenwatchArchive
     private let planScheduler: AgentPlanScheduler
+    private let calendarPlanOperations: CalendarPlanOperationStore?
     private let policyStore: PolicyStore
     private let reminderSnapshots: ReminderSnapshotStore
     private let privacyData: PrivacyDataService
@@ -21,6 +22,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
         taskHistory: TaskHistoryStore,
         meetingArchive: ScreenwatchArchive,
         planScheduler: AgentPlanScheduler,
+        calendarPlanOperations: CalendarPlanOperationStore? = nil,
         policyStore: PolicyStore,
         reminderSnapshots: ReminderSnapshotStore,
         privacyData: PrivacyDataService,
@@ -33,6 +35,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
         self.taskHistory = taskHistory
         self.meetingArchive = meetingArchive
         self.planScheduler = planScheduler
+        self.calendarPlanOperations = calendarPlanOperations
         self.policyStore = policyStore
         self.reminderSnapshots = reminderSnapshots
         self.privacyData = privacyData
@@ -63,6 +66,14 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 throw error
             case .openDatabase, .schema, .read, .write:
                 writeCircuitBreaker.trip(reason: "agent_mutation_write_failed")
+                throw error
+            }
+        } catch let error as CalendarPlanOperationStoreError {
+            switch error {
+            case .operationKeyConflict:
+                throw error
+            case .openDatabase, .read, .write, .receiptConflict:
+                writeCircuitBreaker.trip(reason: "calendar_plan_operation_write_failed")
                 throw error
             }
         } catch {
@@ -212,7 +223,14 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 policyMutationReceipt: receipt
             )
 
-        case let .schedulePlan(day):
+        case let .schedulePlan(day, operationID):
+            if let calendarPlanOperations {
+                return try await applyDurableCalendarPlan(
+                    day: day,
+                    operationID: operationID,
+                    operations: calendarPlanOperations
+                )
+            }
             let versioned = try policyStore.current()
             let policy = versioned?.policy ?? UserPolicy.defaults()
             guard !policy.automationPause.isPaused else { throw AgentMutationRouterError.automationPaused }
@@ -221,17 +239,32 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 policy: policy,
                 policyVersion: versioned?.version ?? 1
             )
-            let total = result.scheduledBlockCount + result.reminderMutationCount + result.obsoleteBlockDeletionCount
             guard result.unscheduledTaskIDs.isEmpty else {
                 return .init(
                     accepted: false,
                     message: "The plan could not fit around current Calendar commitments. No Calendar or Reminder changes were queued."
                 )
             }
+            let uniqueCommandIDs = Set(result.commandIDs)
+            let committedCommands = try uniqueCommandIDs.compactMap { commandID in
+                try outbox.command(commandID: commandID).map {
+                    AgentPlanCommandRequirement(type: $0.type, entityID: $0.entityID)
+                }
+            }
+            guard uniqueCommandIDs.count == result.commandIDs.count,
+                  committedCommands.count == uniqueCommandIDs.count,
+                  Self.isCompleteScheduleCommandSet(
+                    required: result.requiredCommands,
+                    committed: Set(committedCommands)
+                  ) else {
+                throw AgentMutationRouterError.incompleteScheduleReceipt
+            }
             return .init(
                 accepted: true,
                 commandIDs: result.commandIDs,
-                message: "Queued \(total) Calendar and Reminder updates."
+                message: result.commandIDs.isEmpty
+                    ? "The approved plan already matches Calendar and Reminders."
+                    : "Reconciled \(result.commandIDs.count) exact Calendar and Reminder updates."
             )
 
         case let .resolveMeetingCandidate(candidateID, title, start, durationMinutes, destination):
@@ -406,8 +439,111 @@ public final class AgentMutationRouter: @unchecked Sendable {
         return try recentActionAudit()
     }
 
+    private func applyDurableCalendarPlan(
+        day: Date,
+        operationID: UUID,
+        operations: CalendarPlanOperationStore
+    ) async throws -> AgentMutationReceipt {
+        let normalizedDay = Date(timeIntervalSince1970: day.timeIntervalSince1970.rounded(.down))
+        let operation: CalendarPlanOperation
+        if let existing = try operations.load(id: operationID) {
+            try operations.validate(
+                existing,
+                requestFingerprint: existing.requestFingerprint,
+                normalizedDay: normalizedDay
+            )
+            operation = existing
+        } else {
+            let versioned = try policyStore.current()
+            let policy = versioned?.policy ?? UserPolicy.defaults()
+            guard !policy.automationPause.isPaused else {
+                throw AgentMutationRouterError.automationPaused
+            }
+            let prepared = try await planScheduler.prepareSchedule(
+                for: normalizedDay,
+                policy: policy,
+                policyVersion: versioned?.version ?? 1
+            )
+            operation = try operations.begin(
+                id: operationID,
+                requestFingerprint: prepared.requestFingerprint,
+                normalizedDay: normalizedDay,
+                preparedSchedule: prepared
+            )
+        }
+
+        if let receipt = operation.receipt {
+            return receipt
+        }
+
+        let prepared = operation.preparedSchedule
+        if !prepared.unscheduledTaskIDs.isEmpty || prepared.commands.isEmpty {
+            let message = prepared.commands.isEmpty
+                ? "The reviewed daily plan is no longer available. Nothing was written. Draft or review the current plan before confirming again."
+                : "The reviewed plan no longer fits the available Calendar window. Nothing was written. Review updated availability before confirming again."
+            let receipt = AgentMutationReceipt(
+                accepted: false,
+                message: message
+            )
+            try operations.finish(
+                id: operationID,
+                requestFingerprint: operation.requestFingerprint,
+                receipt: receipt
+            )
+            return receipt
+        }
+
+        let result: AgentPlanSchedulingResult
+        do {
+            result = try planScheduler.enqueuePreparedSchedule(prepared)
+        } catch {
+            try? operations.recordPendingFailure(
+                id: operationID,
+                requestFingerprint: operation.requestFingerprint,
+                diagnostic: error.localizedDescription
+            )
+            throw error
+        }
+
+        let uniqueCommandIDs = Set(result.commandIDs)
+        let committedCommands = try uniqueCommandIDs.compactMap { commandID in
+            try outbox.command(commandID: commandID).map {
+                AgentPlanCommandRequirement(type: $0.type, entityID: $0.entityID)
+            }
+        }
+        guard uniqueCommandIDs.count == result.commandIDs.count,
+              committedCommands.count == uniqueCommandIDs.count,
+              Self.isCompleteScheduleCommandSet(
+                required: prepared.requiredCommands,
+                committed: Set(committedCommands)
+              ) else {
+            throw AgentMutationRouterError.incompleteScheduleReceipt
+        }
+
+        let receipt = AgentMutationReceipt(
+            accepted: true,
+            commandIDs: result.commandIDs,
+            message: result.commandIDs.isEmpty
+                ? "The approved plan already matches Calendar and Reminders."
+                : "Reconciled \(result.commandIDs.count) exact Calendar and Reminder updates."
+        )
+        try operations.finish(
+            id: operationID,
+            requestFingerprint: operation.requestFingerprint,
+            receipt: receipt
+        )
+        return receipt
+    }
+
     private func activePolicyVersion() -> Int {
         (try? policyStore.current()?.version) ?? 1
+    }
+
+    public static func isCompleteScheduleCommandSet(
+        required: Set<AgentPlanCommandRequirement>,
+        committed: Set<AgentPlanCommandRequirement>
+    ) -> Bool {
+        required == committed
     }
 
     private func meetingFingerprint(candidateID: String, title: String, start: Date, durationMinutes: Int) -> String {
@@ -421,6 +557,7 @@ public enum AgentMutationRouterError: LocalizedError {
     case automationPaused
     case notReversible
     case unavailable
+    case incompleteScheduleReceipt
 
     public var errorDescription: String? {
         switch self {
@@ -428,6 +565,7 @@ public enum AgentMutationRouterError: LocalizedError {
         case .automationPaused: return "Automation is paused in Settings."
         case .notReversible: return "This action cannot be safely reversed automatically."
         case .unavailable: return "The requested agent capability is unavailable."
+        case .incompleteScheduleReceipt: return "The Calendar write result is incomplete. Zoid 666 will reconcile the exact approved command set before claiming success."
         }
     }
 }
