@@ -63,6 +63,16 @@ rg -F 'open "$APP" --args --qa-open-main' \
   docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
 rg -F -- '--require-qa-open-main --require-helper-unregistered' \
   docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
+rg -F -- '--wait-for-foreground-database' \
+  docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
+rg -F 'READINESS_TEST_CASE="delayed-success"' \
+  Scripts/qa-zc048010-signed-preflight.sh >/dev/null
+rg -F 'READINESS_TEST_CASE="never-appears"' \
+  Scripts/qa-zc048010-signed-preflight.sh >/dev/null
+rg -F 'READINESS_TEST_CASE="pid-exit"' \
+  Scripts/qa-zc048010-signed-preflight.sh >/dev/null
+rg -F 'wrong database root was accepted' \
+  Scripts/qa-zc048010-signed-preflight.sh >/dev/null
 rg -F -- '--require-qa-open-main --expected-app-pid "$PID"' \
   docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
 rg -F '! has_argument "$APP_COMMAND" "--background-schedule"' \
