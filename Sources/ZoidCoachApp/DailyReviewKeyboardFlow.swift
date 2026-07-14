@@ -177,6 +177,33 @@ extension AppSection {
     }
 }
 
+struct DailyReviewNavigationCommandState: Equatable {
+    let isAvailable: Bool
+
+    var destination: AppSection? {
+        isAvailable ? .reviews : nil
+    }
+}
+
+@MainActor
+struct DailyReviewNavigationCommands: Commands {
+    @ObservedObject var model: AppModel
+    let isAvailable: Bool
+
+    var body: some Commands {
+        let state = DailyReviewNavigationCommandState(isAvailable: isAvailable)
+        let shortcut = DailyReviewKeyboardShortcut.openReviews.descriptor
+        CommandMenu("Navigate") {
+            Button("Open Reviews") {
+                guard let destination = state.destination else { return }
+                model.selectedSection = destination
+            }
+            .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.eventModifiers)
+            .disabled(state.destination == nil)
+        }
+    }
+}
+
 struct DailyReviewKeyboardShortcutDescriptor: Equatable {
     let key: DailyReviewKeyboardShortcutKey
     let modifiers: Set<DailyReviewKeyboardShortcutModifier>

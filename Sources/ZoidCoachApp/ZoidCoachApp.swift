@@ -183,6 +183,7 @@ struct ZoidCoachApplication: App {
         .commands {
             CommandGroup(replacing: .newItem) { }
             TaskKeyboardCommands(model: model, isAvailable: onboarding.route == .today)
+            DailyReviewNavigationCommands(model: model, isAvailable: onboarding.route == .today)
             AgentLifecycleCommands()
         }
 

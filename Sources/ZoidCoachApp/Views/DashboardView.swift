@@ -2319,7 +2319,6 @@ private struct SidebarView: View {
             ForEach(AppSection.allCases) { section in
                 if let shortcut = section.dailyReviewKeyboardShortcut?.descriptor {
                     sectionButton(section, shortcut: shortcut)
-                        .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.eventModifiers)
                 } else {
                     sectionButton(section)
                 }

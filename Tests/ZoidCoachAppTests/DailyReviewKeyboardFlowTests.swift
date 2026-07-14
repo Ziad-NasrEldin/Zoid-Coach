@@ -114,6 +114,8 @@ func keyboardReviewNavigationShortcutIsVisibleAndRoutesOnlyToReviews() {
     #expect(shortcut.signature == "command+option+r")
     #expect(shortcut.visibleLegend == "option-command-r")
     #expect(shortcut.glyphLegend == "⌥⌘r")
+    #expect(DailyReviewNavigationCommandState(isAvailable: true).destination == .reviews)
+    #expect(DailyReviewNavigationCommandState(isAvailable: false).destination == nil)
 }
 
 private func reviewSession(
