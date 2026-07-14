@@ -1149,12 +1149,14 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("settings.ai.clear-cache.status")
             }
-            HStack(spacing: 18) {
+            LazyVGrid(
+                columns: RetentionControlMetrics.adaptiveColumns,
+                alignment: .leading,
+                spacing: RetentionControlMetrics.spacing
+            ) {
                 RetentionField(title: "Screenshots", days: $controller.draft.rawScreenshotRetentionDays)
                 RetentionField(title: "Extracted text", days: $controller.draft.extractedTextRetentionDays)
                 RetentionField(title: "Diagnostics", days: $controller.draft.diagnosticRetentionDays)
-            }
-            HStack(spacing: 18) {
                 RetentionField(title: "Behavior records", days: $controller.draft.behaviorRecordRetentionDays)
                 RetentionField(title: "Task sessions", days: $controller.draft.taskSessionRetentionDays)
                 RetentionField(title: "Prompts", days: $controller.draft.promptRetentionDays)
@@ -2021,12 +2023,102 @@ private struct LocalTimeField: View {
     }
 }
 
-private struct RetentionField: View {
+enum RetentionControlMetrics {
+    static let spacing: CGFloat = 18
+    static let minimumColumnWidth: CGFloat = 160
+    static let adjustmentWidth: CGFloat = 44
+    static let controlHeight: CGFloat = 44
+
+    static var adaptiveColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: minimumColumnWidth), spacing: spacing)]
+    }
+
+    static func valueLabel(days: Int) -> String {
+        "\(days) DAYS"
+    }
+
+    static func identifierStem(title: String) -> String {
+        let slug = title.lowercased().map { character in
+            character.isLetter || character.isNumber ? character : "-"
+        }
+        return "settings.retention." + String(slug)
+            .split(separator: "-", omittingEmptySubsequences: true)
+            .joined(separator: "-")
+    }
+
+    static func valueIdentifier(title: String) -> String {
+        "\(identifierStem(title: title)).value"
+    }
+
+    static func adjustmentIdentifier(title: String, adjustment: Int) -> String {
+        "\(identifierStem(title: title)).\(adjustment < 0 ? "decrement" : "increment")"
+    }
+
+    static func adjustedValue(_ value: Int, adjustment: Int) -> Int {
+        min(3_650, max(0, value + adjustment))
+    }
+
+    static var minimumValueWidth: CGFloat {
+        minimumColumnWidth - (2 * adjustmentWidth)
+    }
+
+    static func fittedColumnCount(availableWidth: CGFloat) -> Int {
+        let count = Int((max(0, availableWidth) + spacing) / (minimumColumnWidth + spacing))
+        return max(1, count)
+    }
+}
+
+struct RetentionField: View {
     let title: String
     @Binding var days: Int
 
     var body: some View {
-        SumiStepper(title, value: $days, in: 0...3_650, valueLabel: { "\($0) DAYS" })
+        VStack(alignment: .leading, spacing: 7) {
+            SumiControlLabel(title)
+            HStack(spacing: 0) {
+                adjustmentButton(symbol: "minus", adjustment: -1)
+                Text(RetentionControlMetrics.valueLabel(days: days))
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .frame(maxWidth: .infinity, minHeight: RetentionControlMetrics.controlHeight)
+                    .accessibilityLabel("\(title), \(RetentionControlMetrics.valueLabel(days: days))")
+                    .accessibilityIdentifier(RetentionControlMetrics.valueIdentifier(title: title))
+                adjustmentButton(symbol: "plus", adjustment: 1)
+            }
+            .frame(height: RetentionControlMetrics.controlHeight)
+            .background(Sumi.paper)
+            .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func adjustmentButton(symbol: String, adjustment: Int) -> some View {
+        let isDisabled = adjustment < 0 ? days <= 0 : days >= 3_650
+        let accessibilityAction = adjustment < 0 ? "Decrease" : "Increase"
+        return Button {
+            days = RetentionControlMetrics.adjustedValue(days, adjustment: adjustment)
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isDisabled ? Sumi.muted : Sumi.ink)
+                .frame(
+                    width: RetentionControlMetrics.adjustmentWidth,
+                    height: RetentionControlMetrics.controlHeight
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: adjustment < 0 ? .trailing : .leading) {
+            Rectangle().fill(Sumi.rule).frame(width: 1)
+        }
+        .disabled(isDisabled)
+        .accessibilityLabel("\(accessibilityAction) \(title)")
+        .accessibilityIdentifier(
+            RetentionControlMetrics.adjustmentIdentifier(title: title, adjustment: adjustment)
+        )
     }
 }
 
