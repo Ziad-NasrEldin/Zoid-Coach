@@ -176,6 +176,100 @@ func actionButtonKeepsShortEnglishAtMinimumTargetHeight() async throws {
     withExtendedLifetime(host) {}
 }
 
+@Test @MainActor
+func compactActionButtonWrapsLocalizedCopyAboveTheMinimumTargetHeight() async throws {
+    let measurement = ActionButtonMeasurement()
+    let host = NSHostingView(
+        rootView: LocalizedActionButtonFixture(
+            label: "فتح إعدادات الخصوصية ومراجعة الإذن",
+            width: 150,
+            layoutDirection: .rightToLeft,
+            controlSize: .compact,
+            measurement: measurement
+        )
+    )
+    host.frame = NSRect(x: 0, y: 0, width: 150, height: 240)
+    await settle(host)
+
+    let size = try #require(measurement.size)
+    #expect(size.width <= 150)
+    #expect(size.height > 44)
+    #expect(size.height < 240)
+
+    withExtendedLifetime(host) {}
+}
+
+@Test @MainActor
+func largeActionButtonWrapsLocalizedCopyAboveTheMinimumTargetHeight() async throws {
+    let measurement = ActionButtonMeasurement()
+    let host = NSHostingView(
+        rootView: LocalizedActionButtonFixture(
+            label: "مراجعة الخطة اليومية والمتابعة إلى شاشة اليوم",
+            width: 180,
+            layoutDirection: .rightToLeft,
+            controlSize: .large,
+            measurement: measurement
+        )
+    )
+    host.frame = NSRect(x: 0, y: 0, width: 180, height: 240)
+    await settle(host)
+
+    let size = try #require(measurement.size)
+    #expect(size.width <= 180)
+    #expect(size.height > 44)
+    #expect(size.height < 240)
+
+    withExtendedLifetime(host) {}
+}
+
+@Test @MainActor
+func localizedActionButtonsFitARepresentativeNarrowHorizontalStack() async throws {
+    let first = ActionButtonMeasurement()
+    let second = ActionButtonMeasurement()
+    let host = NSHostingView(
+        rootView: HStack(spacing: 8) {
+            LocalizedActionButtonFixture(
+                label: "فتح إعدادات النظام",
+                width: 156,
+                layoutDirection: .rightToLeft,
+                controlSize: .standard,
+                measurement: first
+            )
+            LocalizedActionButtonFixture(
+                label: "المتابعة من دون إذن",
+                width: 156,
+                layoutDirection: .rightToLeft,
+                controlSize: .standard,
+                measurement: second
+            )
+        }
+    )
+    host.frame = NSRect(x: 0, y: 0, width: 320, height: 240)
+    await settle(host)
+
+    let firstSize = try #require(first.size)
+    let secondSize = try #require(second.size)
+    #expect(firstSize.width + 8 + secondSize.width <= 320)
+    #expect(firstSize.height >= 44)
+    #expect(secondSize.height >= 44)
+    #expect(max(firstSize.height, secondSize.height) < 240)
+
+    withExtendedLifetime(host) {}
+}
+
+@Test @MainActor
+func iconOnlyActionButtonKeepsTheSharedStepperAtExactly44Points() async throws {
+    let measurement = ActionButtonMeasurement()
+    let host = NSHostingView(rootView: IconActionButtonFixture(measurement: measurement))
+    host.frame = NSRect(x: 0, y: 0, width: 44, height: 44)
+    await settle(host)
+
+    let size = try #require(measurement.size)
+    #expect(size == CGSize(width: 44, height: 44))
+
+    withExtendedLifetime(host) {}
+}
+
 private func assertReducedPolicy(_ snapshot: MotionInteractionSnapshot) {
     #expect(!snapshot.policy.animatesStateChanges)
     #expect(!snapshot.policy.allowsSpatialMotion)
@@ -229,11 +323,26 @@ private struct LocalizedActionButtonFixture: View {
     let label: String
     let width: CGFloat
     let layoutDirection: LayoutDirection
+    let controlSize: SumiControlSize
     @ObservedObject var measurement: ActionButtonMeasurement
+
+    init(
+        label: String,
+        width: CGFloat,
+        layoutDirection: LayoutDirection,
+        controlSize: SumiControlSize = .standard,
+        measurement: ActionButtonMeasurement
+    ) {
+        self.label = label
+        self.width = width
+        self.layoutDirection = layoutDirection
+        self.controlSize = controlSize
+        self.measurement = measurement
+    }
 
     var body: some View {
         Button(label) {}
-            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+            .buttonStyle(SumiActionButtonStyle(role: .primary, size: controlSize))
             .frame(width: width)
             .background {
                 GeometryReader { geometry in
@@ -245,6 +354,31 @@ private struct LocalizedActionButtonFixture: View {
             }
             .onPreferenceChange(ActionButtonSizePreferenceKey.self) { measurement.size = $0 }
             .environment(\.layoutDirection, layoutDirection)
+    }
+}
+
+private struct IconActionButtonFixture: View {
+    @ObservedObject var measurement: ActionButtonMeasurement
+
+    var body: some View {
+        Button {} label: {
+            Image(systemName: "plus")
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(SumiActionButtonStyle(
+            role: .text,
+            size: .compact,
+            usesContentPadding: false
+        ))
+        .background {
+            GeometryReader { geometry in
+                Color.clear.preference(
+                    key: ActionButtonSizePreferenceKey.self,
+                    value: geometry.size
+                )
+            }
+        }
+        .onPreferenceChange(ActionButtonSizePreferenceKey.self) { measurement.size = $0 }
     }
 }
 

@@ -263,10 +263,16 @@ struct SumiActionButtonStyle: ButtonStyle {
 
     let role: SumiActionRole
     let size: SumiControlSize
+    let usesContentPadding: Bool
 
-    init(role: SumiActionRole = .primary, size: SumiControlSize = .standard) {
+    init(
+        role: SumiActionRole = .primary,
+        size: SumiControlSize = .standard,
+        usesContentPadding: Bool = true
+    ) {
         self.role = role
         self.size = size
+        self.usesContentPadding = usesContentPadding
     }
 
     func makeBody(configuration: Configuration) -> some View {
@@ -277,8 +283,8 @@ struct SumiActionButtonStyle: ButtonStyle {
             .lineLimit(nil)
             .fixedSize(horizontal: false, vertical: true)
             .foregroundStyle(foregroundColor)
-            .padding(.horizontal, size.horizontalPadding)
-            .padding(.vertical, 6)
+            .padding(.horizontal, usesContentPadding ? size.horizontalPadding : 0)
+            .padding(.vertical, usesContentPadding ? 6 : 0)
             .frame(minHeight: max(44, size.height))
             .background(backgroundColor(isPressed: configuration.isPressed))
             .overlay { Rectangle().stroke(borderColor, lineWidth: 1) }
@@ -648,7 +654,7 @@ struct SumiStepper: View {
                     .accessibilityLabel("\(label), \(valueLabel(value))")
                 adjustmentButton(symbol: "plus", adjustment: step, disabled: value >= range.upperBound)
             }
-            .frame(height: 40)
+            .frame(height: 44)
             .background(Sumi.paper)
             .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
         }
@@ -660,10 +666,14 @@ struct SumiStepper: View {
         } label: {
             Image(systemName: symbol)
                 .font(.system(size: 11, weight: .medium))
-                .frame(width: 44, height: 40)
+                .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+        .buttonStyle(SumiActionButtonStyle(
+            role: .text,
+            size: .compact,
+            usesContentPadding: false
+        ))
         .disabled(disabled)
         .accessibilityLabel(adjustment > 0 ? "Increase \(label)" : "Decrease \(label)")
     }
