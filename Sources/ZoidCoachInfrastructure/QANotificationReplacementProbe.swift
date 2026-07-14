@@ -155,6 +155,7 @@ public actor QANotificationReplacementProbe {
                 PromptAction(kind: .ignore, title: "Use Today instead"),
             ],
             payload: [
+                "allowsDismissal": "true",
                 Self.phasePayloadKey: phase.rawValue,
                 "qaNotificationReplacementProbeID": probeID,
             ],
