@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "9f350bca6c81ea4a9b1cee33653af0354a61a6fa6f3c51c7440e1fc5857fa500",
+  "tracker_sha256": "57c8444993ffcf1e1f7ebe4e04fda4a1aa78714a5ea3247375dc162b0576ffc3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5586,9 +5586,9 @@
       "section_title": "Ambiguous applications and activity",
       "item_index": 7,
       "wording": "See a technical tutorial related to the active task treated as research or left uncertain.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5597,10 +5597,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-025-007-context-sensitive-work/verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Content/task semantic context is not used in behavior classification.",
+      "audit_note": "In the installed signed-QA app, the user started the related Swift concurrency task and the real helper classified ten minutes of a technical YouTube documentation tutorial as Work while the Behavior Evidence sheet kept Research at zero, left all ten minutes Uncategorized, and explicitly explained that application evidence could not prove support for the active task or safely label it Research. Two insufficient-context YouTube observations remained Unknown, stable privacy-safe identifiers, labels, and hints were present, private fixture titles and URLs never appeared in the sheet accessibility tree, and the outcome survived app and helper relaunch. The 14 focused state, accessibility, and contextual-classifier tests passed together with release packaging, deep signing, LaunchAgent, Mach/XPC, heartbeat, and cleanup gates (`Sources/ZoidCoachCore/ContextualAppClassification.swift`; `Sources/ZoidCoachApp/BehaviorEvidenceState.swift`; `Sources/ZoidCoachApp/Views/BehaviorEvidenceSheet.swift`; `.audit/runs/zc-025-007-context-sensitive-work/verifier/REPORT.md`).",
       "tracker_line": 374
     },
     {
