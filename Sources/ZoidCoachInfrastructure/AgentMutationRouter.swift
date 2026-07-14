@@ -212,7 +212,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 policyMutationReceipt: receipt
             )
 
-        case let .schedulePlan(day):
+        case let .schedulePlan(day, _):
             let versioned = try policyStore.current()
             let policy = versioned?.policy ?? UserPolicy.defaults()
             guard !policy.automationPause.isPaused else { throw AgentMutationRouterError.automationPaused }
@@ -221,17 +221,32 @@ public final class AgentMutationRouter: @unchecked Sendable {
                 policy: policy,
                 policyVersion: versioned?.version ?? 1
             )
-            let total = result.scheduledBlockCount + result.reminderMutationCount + result.obsoleteBlockDeletionCount
             guard result.unscheduledTaskIDs.isEmpty else {
                 return .init(
                     accepted: false,
                     message: "The plan could not fit around current Calendar commitments. No Calendar or Reminder changes were queued."
                 )
             }
+            let uniqueCommandIDs = Set(result.commandIDs)
+            let committedCommands = try uniqueCommandIDs.compactMap { commandID in
+                try outbox.command(commandID: commandID).map {
+                    AgentPlanCommandRequirement(type: $0.type, entityID: $0.entityID)
+                }
+            }
+            guard uniqueCommandIDs.count == result.commandIDs.count,
+                  committedCommands.count == uniqueCommandIDs.count,
+                  Self.isCompleteScheduleCommandSet(
+                    required: result.requiredCommands,
+                    committed: Set(committedCommands)
+                  ) else {
+                throw AgentMutationRouterError.incompleteScheduleReceipt
+            }
             return .init(
                 accepted: true,
                 commandIDs: result.commandIDs,
-                message: "Queued \(total) Calendar and Reminder updates."
+                message: result.commandIDs.isEmpty
+                    ? "The approved plan already matches Calendar and Reminders."
+                    : "Reconciled \(result.commandIDs.count) exact Calendar and Reminder updates."
             )
 
         case let .resolveMeetingCandidate(candidateID, title, start, durationMinutes, destination):
@@ -410,6 +425,13 @@ public final class AgentMutationRouter: @unchecked Sendable {
         (try? policyStore.current()?.version) ?? 1
     }
 
+    public static func isCompleteScheduleCommandSet(
+        required: Set<AgentPlanCommandRequirement>,
+        committed: Set<AgentPlanCommandRequirement>
+    ) -> Bool {
+        required == committed
+    }
+
     private func meetingFingerprint(candidateID: String, title: String, start: Date, durationMinutes: Int) -> String {
         let value = "\(candidateID)|\(title.lowercased())|\(start.timeIntervalSince1970)|\(durationMinutes)"
         return SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
@@ -421,6 +443,7 @@ public enum AgentMutationRouterError: LocalizedError {
     case automationPaused
     case notReversible
     case unavailable
+    case incompleteScheduleReceipt
 
     public var errorDescription: String? {
         switch self {
@@ -428,6 +451,7 @@ public enum AgentMutationRouterError: LocalizedError {
         case .automationPaused: return "Automation is paused in Settings."
         case .notReversible: return "This action cannot be safely reversed automatically."
         case .unavailable: return "The requested agent capability is unavailable."
+        case .incompleteScheduleReceipt: return "The Calendar write result is incomplete. Zoid 666 will reconcile the exact approved command set before claiming success."
         }
     }
 }

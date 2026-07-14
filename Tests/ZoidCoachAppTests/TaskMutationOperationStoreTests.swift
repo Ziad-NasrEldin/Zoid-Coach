@@ -281,6 +281,8 @@ func persistentDatabaseLockStopsBeforeCreatingAnOperationOrSideEffect() throws {
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_mutation_operations WHERE operation_id = '\(operationID.uuidString)';") == 0)
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM action_commands WHERE entity_id = 'reminder-1';") == 0)
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_history WHERE task_id = 'reminder-1';") == 0)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM gaming_reward_ledger WHERE task_id = 'reminder-1';") == 0)
+    #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM learning_samples WHERE id LIKE 'task-completion:reminder-1:%';") == 0)
 }
 
 @Test
@@ -310,6 +312,10 @@ func temporaryDatabaseLockRetriesTheSameOperationExactlyOnce() async throws {
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_mutation_operations WHERE operation_id = '\(operationID.uuidString)' AND state = 'completed';") == 1)
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM action_commands WHERE entity_id = 'reminder-1' AND action_type = 'completeReminder';") == 1)
     #expect(try scalarCount(databaseURL, "SELECT COUNT(*) FROM task_history WHERE operation_id = '\(operationID.uuidString)';") == 1)
+    let relaunched = try TodayDashboardAgent(databaseURL: databaseURL)
+    let sync = try relaunched.reminderCompletionSyncState(taskID: "reminder-1")
+    #expect(sync.phase == .pending)
+    #expect(sync.commandID != nil)
 }
 
 private func temporaryDatabaseURL(_ name: String) -> URL {
