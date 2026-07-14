@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "b2d575b5522104f5965fd562636a45b97413412c5d0499734bba66c02818a944",
+  "tracker_sha256": "df06f128fe681a77398384cba91e56cea151b3207669f68f9c07d228e81e7f40",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8972,9 +8972,9 @@
       "section_title": "End-of-day review trigger",
       "item_index": 6,
       "wording": "Skip the review explicitly and close the day.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8982,10 +8982,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/skip-daily-review/verifier-69fd38f/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No skip-review or close-day action exists.",
+      "audit_note": "The signed installed Review exposed an accessible consequence-first Skip action, preserved the open review after Cancel, closed it into one dated skipped state after confirmation, returned to Today without an unfinished prompt, preserved the state across app and helper relaunch, reopened after a note edit, and safely skipped again without losing the note. Focused persistence proof also preserved corrected classification, task attachment, and cleared deferral across repeated Skip and store reconstruction (`DailyReviewView.swift`; `DailyReviewStore.swift`; `DailyReviewTests.swift`; `.audit/runs/skip-daily-review/verifier-69fd38f/REPORT.md`).",
       "tracker_line": 568
     },
     {
