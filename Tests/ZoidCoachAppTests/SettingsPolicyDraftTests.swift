@@ -566,6 +566,47 @@ func timeZonePlanDayMoveRequiresExplicitConfirmationBeforeSaving() async throws 
 
 @MainActor
 @Test
+func discardSettingsChangesRestoresEntireCanonicalDraftAndClearsPendingState() throws {
+    let databaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-coach-discard-settings-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
+        }
+    }
+    let canonical = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    _ = try PolicyStore(databaseURL: databaseURL).saveSystemMaintenancePolicy(canonical)
+    let referenceDate = try #require(ISO8601DateFormatter().date(from: "2026-07-14T00:30:00Z"))
+    let warning = TimeZonePlanMoveWarning(
+        sourceTimeZoneIdentifier: "UTC",
+        destinationTimeZoneIdentifier: "America/Los_Angeles",
+        sourceDayKey: "2026-07-14",
+        destinationDayKey: "2026-07-13",
+        taskCount: 2,
+        referenceDate: referenceDate
+    )
+    let controller = SettingsPolicyController(
+        databaseURL: databaseURL,
+        inspectTimeZonePlanMove: { _, _, _ in warning }
+    )
+    controller.draft.timeZoneIdentifier = "America/Los_Angeles"
+    controller.draft.aiDailyRequestBudget = 20
+    controller.draft.aiMonthlyRequestBudget = 200
+    controller.draft.capacityPercent = 95
+    #expect(controller.save(now: referenceDate) == nil)
+    #expect(controller.timeZonePlanMoveConfirmation == warning)
+
+    controller.discardUnsavedChanges()
+
+    #expect(controller.draft == SettingsPolicyDraft(policy: canonical))
+    #expect(!controller.hasUnsavedChanges)
+    #expect(controller.timeZonePlanMoveConfirmation == nil)
+    #expect(controller.saveConflict == nil)
+    #expect(controller.statusMessage == "All unsaved Settings changes were discarded.")
+}
+
+@MainActor
+@Test
 func timeZoneChangeSavesDirectlyWhenNoPlanMovesLocalDay() async throws {
     let databaseURL = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-coach-time-zone-no-plan-\(UUID().uuidString).sqlite")

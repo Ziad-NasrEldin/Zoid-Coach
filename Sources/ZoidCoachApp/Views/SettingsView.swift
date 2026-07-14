@@ -16,6 +16,8 @@ struct SettingsView: View {
     @State private var deleteRangeStart = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
     @State private var deleteRangeEnd = Date()
     @State private var dataStatusMessage: String?
+    @State private var aiBudgetStatus: AIBudgetStatus?
+    @State private var aiBudgetStatusError: String?
     @State private var privacyInventory: PrivacyStoredDataInventory?
     @State private var recentBehaviorSessions: [PrivacyBehaviorSession] = []
     @State private var isLoadingPrivacyInventory = true
@@ -69,8 +71,12 @@ struct SettingsView: View {
         }
         .task { await refreshActionAudit() }
         .task { await refreshPrivacyInventory() }
+        .task { refreshAIBudgetStatus() }
         .task { await refreshCalendars() }
         .task { await controller.loadReminderLists() }
+        .onChange(of: controller.activeVersion) { _, _ in
+            refreshAIBudgetStatus()
+        }
         .onAppear {
             controller.setReminderListPolicySavedHandler {
                 model.refreshReminderTasks()
@@ -175,11 +181,20 @@ struct SettingsView: View {
             }
 
             if controller.hasUnsavedChanges || controller.isSaving {
-                Button(controller.isSaving ? "SAVING" : "SAVE CHANGES") {
-                    controller.save()
+                HStack(spacing: 8) {
+                    Button("DISCARD CHANGES") {
+                        controller.discardUnsavedChanges()
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
+                    .disabled(controller.isSaving)
+                    .help("Discard all unsaved Settings changes")
+                    .accessibilityIdentifier("settings.discardChanges")
+                    Button(controller.isSaving ? "SAVING" : "SAVE CHANGES") {
+                        controller.save()
+                    }
+                        .buttonStyle(SumiActionButtonStyle(role: .accent, size: .large))
+                        .disabled(controller.isSaving || controller.isReadOnly)
                 }
-                    .buttonStyle(SumiActionButtonStyle(role: .accent, size: .large))
-                    .disabled(controller.isSaving || controller.isReadOnly)
             } else {
                 HStack(spacing: 7) {
                     Image(systemName: "checkmark")
@@ -1120,6 +1135,7 @@ struct SettingsView: View {
                     .foregroundStyle(Sumi.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("settings.ai.request-budget.explanation")
+                aiBudgetStatusView
             }
             Button("CLEAR AI CACHE AND REQUEST HISTORY") {
                 presentConfirmation(.deleteAIMetadata)
@@ -1539,8 +1555,66 @@ struct SettingsView: View {
             }
             await model.refreshTodaySnapshot()
             await refreshPrivacyInventory()
+            refreshAIBudgetStatus()
         } catch {
             dataStatusMessage = "The background agent could not complete this data request."
+        }
+    }
+
+    @ViewBuilder
+    private var aiBudgetStatusView: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            SumiControlLabel("SAVED BUDGET STATUS")
+            if let aiBudgetStatus {
+                Text(aiBudgetStatus.scopeMessage)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.ink)
+                Text("TODAY  \(aiBudgetStatus.dailyUsed) / \(aiBudgetStatus.dailyLimit) REQUESTS")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(aiBudgetStatus.isExhausted || aiBudgetStatus.isDisabled ? Sumi.seal : Sumi.ink)
+                    .accessibilityIdentifier("settings.ai.daily-request-budget.status")
+                Text("THIS MONTH  \(aiBudgetStatus.monthlyUsed) / \(aiBudgetStatus.monthlyLimit) REQUESTS")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(aiBudgetStatus.isExhausted || aiBudgetStatus.isDisabled ? Sumi.seal : Sumi.ink)
+                    .accessibilityIdentifier("settings.ai.monthly-request-budget.status")
+                Text(
+                    "Daily count resets at \(aiBudgetStatus.nextDailyReset.formatted(date: .omitted, time: .shortened)) local time. "
+                        + "Monthly count resets \(aiBudgetStatus.nextMonthlyReset.formatted(date: .abbreviated, time: .shortened)) local time. "
+                        + "Enforcement uses UTC boundaries."
+                )
+                .font(Sumi.body(10))
+                .foregroundStyle(Sumi.muted)
+                Text(aiBudgetStatus.fallbackMessage)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(aiBudgetStatus.isExhausted || aiBudgetStatus.isDisabled ? Sumi.seal : Sumi.muted)
+                    .accessibilityIdentifier("settings.ai.request-budget.fallback")
+            } else if let aiBudgetStatusError {
+                Text(aiBudgetStatusError)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.seal)
+                    .accessibilityIdentifier("settings.ai.request-budget.status-error")
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel("Loading saved AI budget usage")
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Sumi.paper)
+        .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+        .accessibilityIdentifier("settings.ai.request-budget.status")
+    }
+
+    private func refreshAIBudgetStatus() {
+        do {
+            aiBudgetStatus = try AIBudgetStatusService().load()
+            aiBudgetStatusError = nil
+        } catch {
+            aiBudgetStatus = nil
+            aiBudgetStatusError = "Saved AI budget usage is temporarily unavailable. The background agent still enforces the saved limits."
         }
     }
 
@@ -1692,7 +1766,7 @@ struct SettingsView: View {
         case .deleteAIMetadata:
             presentDataDeletionConfirmation(
                 title: "Delete AI request metadata?",
-                message: "Local model-run metadata, cached responses, Codex job records, and transmission receipts will be deleted. Keychain credentials are not changed.",
+                message: "Local model-run metadata, cached responses, Codex job records, and transmission receipts will be deleted. This resets the counted daily and monthly AI usage immediately, so saved limits may allow requests again. Keychain credentials are not changed.",
                 confirmTitle: "DELETE AI METADATA",
                 command: .deleteAIRequestMetadata
             )

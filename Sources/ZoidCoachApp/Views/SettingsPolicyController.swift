@@ -98,7 +98,7 @@ final class SettingsPolicyController: ObservableObject {
     }
 
     var hasUnsavedChanges: Bool {
-        draft.policy(preserving: persistedPolicy) != persistedPolicy
+        draft != SettingsPolicyDraft(policy: persistedPolicy)
     }
 
     var previousPolicyVersion: Int? {
@@ -181,6 +181,14 @@ final class SettingsPolicyController: ObservableObject {
         timeZonePlanMoveConfirmation = nil
         confirmedTimeZonePlanMove = nil
         statusMessage = "The time-zone change was not saved. Your edits remain available to review."
+    }
+
+    func discardUnsavedChanges() {
+        draft = SettingsPolicyDraft(policy: persistedPolicy)
+        timeZonePlanMoveConfirmation = nil
+        confirmedTimeZonePlanMove = nil
+        saveConflict = nil
+        statusMessage = "All unsaved Settings changes were discarded."
     }
 
     func keepCurrentWinningValues() {
