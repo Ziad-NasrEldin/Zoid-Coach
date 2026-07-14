@@ -112,7 +112,7 @@ private let diagnosticTimeLimit: TimeInterval = 0.25
 private let knownWindowTitles = Set(["Zoid 666", "Zoid 666 QA", "Background Agent"])
 private let controlCenterBundleIdentifier = "com.apple.controlcenter"
 private let statusItemAccessibilityIdentifier = "menu-bar.status-item"
-private let statusItemLabelPrefix = "Zoid 666, "
+private let statusItemTitle = "Zoid 666"
 private let maximumStatusNodes = 64
 private let maximumStatusDepth = 2
 private let statusScanTimeLimit: TimeInterval = 0.2
@@ -138,7 +138,7 @@ func statusItemIsPresent(in candidates: [StatusItemCandidate]) -> Bool {
         return true
     }
     return candidates.contains { candidate in
-        candidate.labels.contains(where: { $0.hasPrefix(statusItemLabelPrefix) })
+        candidate.labels.contains(statusItemTitle)
     }
 }
 
@@ -308,12 +308,12 @@ func runSelfTests() {
     require(statusItemIsPresent(in: [identifierMatch]), "status identifier match")
     require(statusItemIsPresent(in: [StatusItemCandidate(
         identifier: nil,
-        labels: ["Zoid 666, A task is active"]
-    )]), "safe status label fallback")
+        labels: ["Zoid 666"]
+    )]), "exact status title fallback")
     require(!statusItemIsPresent(in: [StatusItemCandidate(
         identifier: nil,
-        labels: ["A task is active", "another item"]
-    )]), "generic status label rejected")
+        labels: ["Zoid 666, A task is active", "another item"]
+    )]), "non-exact status title rejected")
 
     let injectedPresent = StatusItemSource { .present }
     let injectedMissing = StatusItemSource { .missing }

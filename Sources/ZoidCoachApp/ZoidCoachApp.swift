@@ -300,8 +300,9 @@ struct ZoidCoachApplication: App {
                 pauseController: menuBarCoachingPause
             )
         } label: {
-            Image(systemName: menuBarState.menuBarSymbol)
-                .accessibilityLabel("Zoid 666, \(menuBarState.menuBarLabel)")
+            Label("Zoid 666", systemImage: menuBarState.menuBarSymbol)
+                .labelStyle(.iconOnly)
+                .accessibilityValue(menuBarState.menuBarLabel)
                 .accessibilityIdentifier("menu-bar.status-item")
                 .modifier(QAMainWindowLaunchModifier(
                     shouldOpenMainWindow: shouldOpenMainWindow
