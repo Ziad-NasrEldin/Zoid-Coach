@@ -139,13 +139,14 @@ final class DailyReviewController: ObservableObject {
         return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
     }
 
+    @discardableResult
     func correct(
         session: DailyReviewSession,
         classification: BehaviorClassification,
         taskID: String?,
         splitAtMidpoint: Bool,
         applyToFuture: Bool
-    ) {
+    ) -> Bool {
         do {
             let splitDate = splitAtMidpoint
                 ? session.start.addingTimeInterval(session.end.timeIntervalSince(session.start) / 2)
@@ -166,8 +167,10 @@ final class DailyReviewController: ObservableObject {
                 : splitAtMidpoint
                 ? "The second half of the session was \(action). Totals were recalculated."
                 : "The session was \(action). Totals were recalculated."
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -339,6 +342,7 @@ struct DailyReviewView: View {
     @StateObject private var controller: DailyReviewController
     @State private var confirmsRuleReset = false
     @State private var confirmsSkipReview = false
+    @State private var keyboardFlow = DailyReviewKeyboardFlowState()
 
     init(controller: DailyReviewController? = nil) {
         _controller = StateObject(wrappedValue: controller ?? DailyReviewController())
@@ -397,6 +401,7 @@ struct DailyReviewView: View {
         .frame(maxWidth: 980, alignment: .leading)
         .task { controller.load() }
         .onChange(of: controller.selectedDay) { controller.load() }
+        .onChange(of: controller.snapshot?.sessions) { reconcileKeyboardFlow() }
         .confirmationDialog(
             "Skip this daily review?",
             isPresented: $confirmsSkipReview,
@@ -483,6 +488,7 @@ struct DailyReviewView: View {
 
     @ViewBuilder
     private func snapshotContent(_ snapshot: DailyReviewSnapshot) -> some View {
+        keyboardCorrectionToolbar(snapshot)
         reviewCoverage(snapshot)
         planOutcomes(snapshot)
         behavioralHighlights(snapshot)
@@ -519,6 +525,165 @@ struct DailyReviewView: View {
         hypothesis(snapshot)
         personalNoteSection(snapshot)
         confirmation(snapshot)
+    }
+
+    private func keyboardCorrectionToolbar(_ snapshot: DailyReviewSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("KEYBOARD REVIEW")
+                    .font(Sumi.label())
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Text("Correct one session and confirm the review without using a pointer. Every shortcut is shown below and works without macOS Full Keyboard Access.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let session = keyboardFlow.selectedSession {
+                keyboardSessionSelector(session)
+                keyboardClassificationSelector
+                keyboardReviewActions(snapshot)
+            } else {
+                Text("No activity session is available to correct. Review confirmation remains available in the standard controls below.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("reviews.keyboard.empty")
+            }
+        }
+        .padding(16)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.seal, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reviews.keyboard")
+        .onAppear { reconcileKeyboardFlow() }
+    }
+
+    private func keyboardSessionSelector(_ session: DailyReviewSession) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            let previousShortcut = DailyReviewKeyboardShortcut.previousSession.descriptor
+            Button("PREVIOUS · \(previousShortcut.glyphLegend)") {
+                keyboardFlow.moveSelection(.previous)
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .keyboardShortcut(previousShortcut.keyEquivalent, modifiers: previousShortcut.eventModifiers)
+            .accessibilityIdentifier("reviews.keyboard.previous")
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(session.application)
+                    .font(Sumi.body(14))
+                Text("\(session.start.formatted(date: .omitted, time: .shortened)) - \(session.end.formatted(date: .omitted, time: .shortened)) · CURRENTLY \(session.classification.rawValue.uppercased())")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.muted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("reviews.keyboard.selected-session")
+
+            let nextShortcut = DailyReviewKeyboardShortcut.nextSession.descriptor
+            Button("NEXT · \(nextShortcut.glyphLegend)") {
+                keyboardFlow.moveSelection(.next)
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .keyboardShortcut(nextShortcut.keyEquivalent, modifiers: nextShortcut.eventModifiers)
+            .accessibilityIdentifier("reviews.keyboard.next")
+        }
+    }
+
+    private var keyboardClassificationSelector: some View {
+        HStack(spacing: 8) {
+            ForEach(BehaviorClassification.allCases, id: \.self) { classification in
+                let shortcut = DailyReviewKeyboardShortcut.classification(classification).descriptor
+                Button("\(classification.rawValue.uppercased()) · \(shortcut.glyphLegend)") {
+                    keyboardFlow.selectClassification(classification)
+                }
+                .buttonStyle(SumiActionButtonStyle(
+                    role: keyboardFlow.selectedClassification == classification ? .primary : .quiet,
+                    size: .compact
+                ))
+                .keyboardShortcut(shortcut.keyEquivalent, modifiers: shortcut.eventModifiers)
+                .accessibilityIdentifier("reviews.keyboard.classification.\(classification.rawValue)")
+                .accessibilityValue(keyboardFlow.selectedClassification == classification ? "Selected" : "Not selected")
+            }
+        }
+    }
+
+    private func keyboardReviewActions(_ snapshot: DailyReviewSnapshot) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(keyboardFlowStatus(snapshot))
+                .font(Sumi.body(11))
+                .foregroundStyle(keyboardFlow.pendingCorrection == nil ? Sumi.muted : Sumi.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("reviews.keyboard.status")
+
+            let applyShortcut = DailyReviewKeyboardShortcut.applyCorrection.descriptor
+            Button("APPLY CORRECTION · \(applyShortcut.glyphLegend)") {
+                applyKeyboardCorrection()
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+            .keyboardShortcut(applyShortcut.keyEquivalent, modifiers: applyShortcut.eventModifiers)
+            .disabled(keyboardFlow.pendingCorrection == nil)
+            .accessibilityIdentifier("reviews.keyboard.apply")
+
+            let confirmShortcut = DailyReviewKeyboardShortcut.confirmReview.descriptor
+            Button("CONFIRM REVIEW · \(confirmShortcut.glyphLegend)") {
+                confirmKeyboardReview(snapshot)
+            }
+            .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+            .keyboardShortcut(confirmShortcut.keyEquivalent, modifiers: confirmShortcut.eventModifiers)
+            .disabled(!keyboardConfirmationIsAvailable(snapshot))
+            .accessibilityIdentifier("reviews.keyboard.confirm")
+        }
+    }
+
+    private func reconcileKeyboardFlow() {
+        keyboardFlow.reconcile(
+            sourceDay: controller.sourceDay,
+            sessions: controller.snapshot?.sessions ?? []
+        )
+    }
+
+    private func applyKeyboardCorrection() {
+        guard let correction = keyboardFlow.pendingCorrection,
+              let session = controller.snapshot?.sessions.first(where: { $0.id == correction.sessionID })
+        else { return }
+        let applied = controller.correct(
+            session: session,
+            classification: correction.classification,
+            taskID: session.taskID,
+            splitAtMidpoint: false,
+            applyToFuture: false
+        )
+        if applied {
+            _ = keyboardFlow.recordAppliedCorrection()
+            reconcileKeyboardFlow()
+        }
+    }
+
+    private func confirmKeyboardReview(_ snapshot: DailyReviewSnapshot) {
+        guard keyboardConfirmationIsAvailable(snapshot) else { return }
+        controller.confirm()
+    }
+
+    private func keyboardConfirmationIsAvailable(_ snapshot: DailyReviewSnapshot) -> Bool {
+        keyboardFlow.canConfirm
+            && snapshot.confirmedAt == nil
+            && snapshot.skippedAt == nil
+            && snapshot.deferredUntil == nil
+    }
+
+    private func keyboardFlowStatus(_ snapshot: DailyReviewSnapshot) -> String {
+        if snapshot.confirmedAt != nil {
+            return "Review confirmed. The saved correction remains editable."
+        }
+        if keyboardFlow.canConfirm {
+            return "Correction saved. Confirm is now available."
+        }
+        if let pending = keyboardFlow.pendingCorrection {
+            return "Ready to save \(pending.classification.rawValue) for the selected session."
+        }
+        return "Choose a classification different from the selected session's current value."
     }
 
     @ViewBuilder
