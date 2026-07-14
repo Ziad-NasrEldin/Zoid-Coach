@@ -328,6 +328,7 @@ struct SettingsView: View {
             }
 
             NotificationDeliveryHealthView()
+            QANotificationReplacementProbeView()
         }
     }
 
