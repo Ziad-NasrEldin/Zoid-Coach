@@ -4,6 +4,30 @@ import ZoidCoachCore
 
 private let privacySQLiteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
+public enum PrivacyDiagnosticPackageContract {
+    public static let pathExtension = "zoiddiagnostics"
+    public static let fileNames = ["README.txt", "manifest.json", "counts.json"]
+    public static let exclusions = [
+        "Task and event titles",
+        "Conversation text",
+        "URLs and file paths",
+        "Screenshots",
+        "Request payloads",
+        "Credentials",
+    ]
+    public static let readme = """
+        Zoid 666 redacted diagnostic package
+
+        This package contains a manifest and grouped status counts for troubleshooting.
+        Task and event titles are excluded.
+        Conversation text is excluded.
+        URLs and file paths are excluded.
+        Screenshots are excluded.
+        Request payloads are excluded.
+        Credentials are excluded.
+        """
+}
+
 public struct PrivacyStoredDataClass: Equatable, Sendable, Identifiable {
     public let id: String
     public let title: String
@@ -125,24 +149,22 @@ public final class PrivacyDataService: @unchecked Sendable {
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         let url = destinationURL
             ?? exportRoot.appendingPathComponent("zoid-666-redacted-\(formatter.string(from: now)).json")
-        switch url.pathExtension.lowercased() {
-        case "json":
+        let pathExtension = url.pathExtension.lowercased()
+        if pathExtension == "json" {
             return try writeRedactedJSON(data, to: url)
-        case "zoiddiagnostics":
+        }
+        if pathExtension == PrivacyDiagnosticPackageContract.pathExtension {
             return try writeRedactedPackage(
                 countsData: data,
                 generatedAtUTC: generatedAtUTC,
                 to: url
             )
-        default:
-            throw PrivacyDataServiceError.invalidExportDestination
         }
+        throw PrivacyDataServiceError.invalidExportDestination
     }
 
     private func writeRedactedJSON(_ data: Data, to url: URL) throws -> URL {
-        if let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey]), values.isSymbolicLink == true {
-            throw PrivacyDataServiceError.invalidExportDestination
-        }
+        try validateExportDestination(url)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: url, options: .atomic)
         return url
@@ -153,39 +175,51 @@ public final class PrivacyDataService: @unchecked Sendable {
         guard !fileManager.fileExists(atPath: url.path) else {
             throw PrivacyDataServiceError.invalidExportDestination
         }
-        if let values = try? url.deletingLastPathComponent().resourceValues(forKeys: [.isSymbolicLinkKey]),
-           values.isSymbolicLink == true {
-            throw PrivacyDataServiceError.invalidExportDestination
-        }
+        try validateExportDestination(url)
         try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fileManager.createDirectory(at: url, withIntermediateDirectories: false)
         do {
-            let files = ["README.txt", "manifest.json", "counts.json"]
             let manifest: [String: Any] = [
                 "formatVersion": 1,
                 "generatedAtUTC": generatedAtUTC,
-                "files": files,
+                "files": PrivacyDiagnosticPackageContract.fileNames,
                 "privacy": "Only grouped counts and package metadata are included.",
             ]
             let manifestData = try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys])
-            let readme = """
-            Zoid 666 redacted diagnostic package
-
-            This package contains a manifest and grouped status counts for troubleshooting.
-            Task and event titles are excluded.
-            Conversation text is excluded.
-            URLs and file paths are excluded.
-            Screenshots are excluded.
-            Request payloads are excluded.
-            Credentials are excluded.
-            """
-            try Data(readme.utf8).write(to: url.appendingPathComponent("README.txt"), options: .atomic)
+            try Data(PrivacyDiagnosticPackageContract.readme.utf8)
+                .write(to: url.appendingPathComponent("README.txt"), options: .atomic)
             try manifestData.write(to: url.appendingPathComponent("manifest.json"), options: .atomic)
             try countsData.write(to: url.appendingPathComponent("counts.json"), options: .atomic)
             return url
         } catch {
             try? fileManager.removeItem(at: url)
             throw error
+        }
+    }
+
+    private func validateExportDestination(_ url: URL) throws {
+        let fileManager = FileManager.default
+        var candidate = url.standardizedFileURL
+        while !fileManager.fileExists(atPath: candidate.path) {
+            let parent = candidate.deletingLastPathComponent()
+            guard parent.path != candidate.path else {
+                throw PrivacyDataServiceError.invalidExportDestination
+            }
+            candidate = parent
+        }
+        while true {
+            let values: URLResourceValues
+            do {
+                values = try candidate.resourceValues(forKeys: [.isSymbolicLinkKey])
+            } catch {
+                throw PrivacyDataServiceError.invalidExportDestination
+            }
+            guard values.isSymbolicLink != true else {
+                throw PrivacyDataServiceError.invalidExportDestination
+            }
+            let parent = candidate.deletingLastPathComponent()
+            if parent.path == candidate.path { return }
+            candidate = parent
         }
     }
 

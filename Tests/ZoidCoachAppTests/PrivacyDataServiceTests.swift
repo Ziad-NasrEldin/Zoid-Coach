@@ -200,12 +200,21 @@ func redactedDiagnosticPackageRejectsExistingAndUnsupportedDestinations() throws
     let service = try PrivacyDataService(databaseURL: databaseURL)
     let existing = root.appendingPathComponent("Existing.zoiddiagnostics", isDirectory: true)
     try FileManager.default.createDirectory(at: existing, withIntermediateDirectories: false)
+    let realParent = root.appendingPathComponent("real-parent", isDirectory: true)
+    let linkedParent = root.appendingPathComponent("linked-parent", isDirectory: true)
+    try FileManager.default.createDirectory(at: realParent, withIntermediateDirectories: false)
+    try FileManager.default.createSymbolicLink(at: linkedParent, withDestinationURL: realParent)
 
     #expect(throws: PrivacyDataServiceError.self) {
         _ = try service.exportRedactedDiagnostics(destinationURL: existing)
     }
     #expect(throws: PrivacyDataServiceError.self) {
         _ = try service.exportRedactedDiagnostics(destinationURL: root.appendingPathComponent("unsupported.zip"))
+    }
+    #expect(throws: PrivacyDataServiceError.self) {
+        _ = try service.exportRedactedDiagnostics(
+            destinationURL: linkedParent.appendingPathComponent("Linked.zoiddiagnostics", isDirectory: true)
+        )
     }
 }
 
