@@ -4,6 +4,19 @@ import Testing
 @testable import ZoidCoachInfrastructure
 
 @Test
+func migration46AddsDeletedReminderDecisionHistory() throws {
+    let databaseURL = temporaryDatabaseURL("v46-deleted-reminder-decisions")
+    defer { removeDatabaseFiles(databaseURL) }
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.currentVersion == 46)
+    #expect(try tableExists(databaseURL, "deleted_reminder_decisions"))
+    #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "state"))
+    #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "decided_at_utc"))
+}
+
+@Test
 func cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() throws {
     let databaseURL = temporaryDatabaseURL("clean-migrations")
     defer { removeDatabaseFiles(at: databaseURL) }

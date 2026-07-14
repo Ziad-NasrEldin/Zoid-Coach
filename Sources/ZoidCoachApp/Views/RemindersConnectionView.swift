@@ -3,15 +3,19 @@ import SwiftUI
 struct RemindersConnectionView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var controller: RemindersConnectionController
+    @StateObject private var deletedReminderController: DeletedReminderDecisionController
+    @State private var removalCandidate: DeletedReminderDecision?
     let isLocalOnlyPlanningSelected: Bool
     let useLocalOnlyPlanning: () -> Void
 
     init(
         controller: @autoclosure @escaping () -> RemindersConnectionController = RemindersConnectionController(),
+        deletedReminderController: @autoclosure @escaping () -> DeletedReminderDecisionController = DeletedReminderDecisionController(),
         isLocalOnlyPlanningSelected: Bool = false,
         useLocalOnlyPlanning: @escaping () -> Void
     ) {
         _controller = StateObject(wrappedValue: controller())
+        _deletedReminderController = StateObject(wrappedValue: deletedReminderController())
         self.isLocalOnlyPlanningSelected = isLocalOnlyPlanningSelected
         self.useLocalOnlyPlanning = useLocalOnlyPlanning
     }
@@ -85,18 +89,112 @@ struct RemindersConnectionView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("settings.reminders.connection.repair-detail")
             }
+
+            deletedReminderChoices
         }
         .task {
             if case .idle = controller.state {
                 await controller.refresh()
             }
+            deletedReminderController.refresh()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task { await controller.applicationDidBecomeActive() }
+            deletedReminderController.refresh()
+        }
+        .alert(removalConfirmation.title, isPresented: Binding(
+            get: { removalCandidate != nil },
+            set: { if !$0 { removalCandidate = nil } }
+        )) {
+            Button("CANCEL", role: .cancel) { removalCandidate = nil }
+            Button("REMOVE LOCAL COPY", role: .destructive) {
+                guard let removalCandidate else { return }
+                deletedReminderController.removeConfirmed(removalCandidate)
+                self.removalCandidate = nil
+            }
+        } message: {
+            Text(removalConfirmation.message)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings.reminders.connection")
+    }
+
+    private var removalConfirmation: DeletedReminderRemovalConfirmation {
+        DeletedReminderRemovalConfirmation(
+            decision: removalCandidate ?? DeletedReminderDecision(
+                sourceID: "none",
+                title: "this task",
+                dueDate: nil,
+                listName: nil,
+                deletedAt: .distantPast,
+                state: .pending,
+                decidedAt: nil
+            )
+        )
+    }
+
+    @ViewBuilder
+    private var deletedReminderChoices: some View {
+        if !deletedReminderController.decisions.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("DELETED REMINDER CHOICES")
+                    .font(Sumi.label(10))
+                    .sumiLabelTracking()
+                Text("Choose whether each task should remain as local history. Zoid 666 stores only the task title, list name, and due date shown here.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                ForEach(deletedReminderController.decisions) { decision in
+                    let presentation = DeletedReminderDecisionPresentation(decision: decision)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(presentation.title).font(Sumi.body(13))
+                            Spacer()
+                            Text(presentation.status)
+                                .font(Sumi.label(9))
+                                .sumiLabelTracking()
+                                .foregroundStyle(decision.state == .kept ? Sumi.okay : Sumi.sealDeep)
+                        }
+                        Text(presentation.detail)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if decision.state == .pending {
+                            HStack(spacing: 8) {
+                                Button("KEEP LOCAL HISTORY") { deletedReminderController.keep(decision) }
+                                    .buttonStyle(SumiActionButtonStyle(role: .accent, size: .compact))
+                                    .accessibilityIdentifier(presentation.keepAccessibilityID)
+                                Button("REMOVE LOCAL COPY") { removalCandidate = decision }
+                                    .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
+                                    .accessibilityIdentifier(presentation.removeAccessibilityID)
+                            }
+                            .disabled(deletedReminderController.isWorking)
+                        }
+                    }
+                    .padding(12)
+                    .background(Sumi.paper)
+                    .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier(presentation.rowAccessibilityID)
+                }
+
+                if let feedback = deletedReminderController.feedback {
+                    Text(feedback).font(Sumi.body(11)).foregroundStyle(Sumi.okay)
+                        .accessibilityIdentifier("settings.reminders.deleted.feedback")
+                }
+                if let errorMessage = deletedReminderController.errorMessage {
+                    Text(errorMessage).font(Sumi.body(11)).foregroundStyle(Sumi.sealDeep)
+                        .accessibilityIdentifier("settings.reminders.deleted.error")
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("settings.reminders.deleted-choices")
+        } else if let errorMessage = deletedReminderController.errorMessage {
+            Text(errorMessage).font(Sumi.body(11)).foregroundStyle(Sumi.sealDeep)
+                .accessibilityIdentifier("settings.reminders.deleted.error")
+        }
     }
 
     @ViewBuilder
