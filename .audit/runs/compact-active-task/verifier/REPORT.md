@@ -76,3 +76,33 @@ No compact-popover pixel or native-control claim is inherited from either attemp
 - Confirm the native status item uses only the generic privacy-safe label.
 
 No tracker update or Full claim is justified until that signed journey succeeds.
+
+## Capped Signed Runtime On 14 July 2026
+
+The exact clean verifier tip packaged, signed, installed, and launched as an isolated QA application and helper.
+
+The installer completed before ready state was prepared, avoiding the earlier clean-root loss.
+
+The helper was unregistered, the canonical ready-state manifest was atomically prepared, and the exact installed helper and application were registered and relaunched.
+
+Native AX confirmed Today in a non-minimized 1180 by 760 window with 112 content nodes.
+
+The public unplanned-work control `planning.unplanned.start.qa-ready-task` started the fixture task successfully.
+
+The installed main surface exposed the exact title and advanced from zero to one tracked minute without another mutation.
+
+The native status-item label changed to `A task is active` and did not expose the private task title.
+
+System Events exposed the status item as the application's only item in menu bar 2 and accepted a click.
+
+After the main window was closed, that click created a separate `AXSystemDialog` window at 360 by 490 points.
+
+The system-dialog window rendered fully transparent in the captured pixels and exposed no usable compact descendants to the verifier's AX traversal.
+
+Pause, Resume, Complete, Blocked, Open Today, blocked-reason persistence, helper-failure stale truth, and app/helper relaunch could not be exercised through the invisible compact surface before the ten-minute cap.
+
+The runtime evidence is preserved under `runtime/` with the ready Today screenshot, ready-state AX dump, active-task AX dump, and transparent status-item screenshot.
+
+At the cap, the signed runtime was uninstalled and the isolated application, helper, LaunchAgent, QA root, and install root were removed.
+
+No QA application or helper process remained, and launchd reported that the QA service did not exist.
