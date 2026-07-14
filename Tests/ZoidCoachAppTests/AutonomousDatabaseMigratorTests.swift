@@ -4,6 +4,30 @@ import Testing
 @testable import ZoidCoachInfrastructure
 
 @Test
+func migration46AddsDeletedReminderDecisionHistory() throws {
+    let databaseURL = temporaryDatabaseURL("v46-deleted-reminder-decisions")
+    defer { removeDatabaseFiles(databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (45, '2026-07-14T00:00:00Z');
+    CREATE TABLE legacy_reminder_history (source_id TEXT PRIMARY KEY, title TEXT NOT NULL);
+    INSERT INTO legacy_reminder_history(source_id, title) VALUES ('preserved', 'Existing history');
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.previousVersion == 45)
+    #expect(result.appliedVersions == [46])
+    #expect(result.currentVersion == 46)
+    #expect(try tableExists(databaseURL, "deleted_reminder_decisions"))
+    #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "state"))
+    #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "decided_at_utc"))
+    #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "notes") == false)
+    #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "url") == false)
+    #expect(try scalarText(databaseURL, "SELECT title FROM legacy_reminder_history WHERE source_id = 'preserved';") == "Existing history")
+}
+
+@Test
 func cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() throws {
     let databaseURL = temporaryDatabaseURL("clean-migrations")
     defer { removeDatabaseFiles(at: databaseURL) }
