@@ -151,7 +151,7 @@ public struct ContextualAppClassification: Sendable {
 
     private static let contextSensitiveApplications = [
         "brave", "chrome", "chromium", "discord", "firefox", "microsoft edge",
-        "notion", "opera", "preview", "safari", "slack", "youtube",
+        "notion", "opera", "preview", "safari", "slack", "twitch", "youtube",
     ]
 
 }
