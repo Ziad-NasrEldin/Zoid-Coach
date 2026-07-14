@@ -44,6 +44,18 @@ CREATE TABLE daily_reviews (
     skipped_at_utc TEXT,
     deferred_until_utc TEXT
 );
+CREATE TABLE learning_samples (
+    id TEXT PRIMARY KEY,
+    sample_type TEXT NOT NULL,
+    context_key TEXT NOT NULL,
+    estimated_value REAL,
+    actual_value REAL NOT NULL,
+    local_minute_of_day INTEGER,
+    timezone_identifier TEXT NOT NULL,
+    evidence_id TEXT NOT NULL,
+    occurred_at_utc TEXT NOT NULL,
+    payload_json TEXT
+);
 CREATE TABLE weekly_review_experiments (
     id TEXT PRIMARY KEY,
     review_week_start TEXT NOT NULL UNIQUE,
@@ -76,6 +88,13 @@ INSERT INTO weekly_review_experiments(
     'foreign-experiment', '2026-07-06', 'Foreign', 'Keep it', 'Count it',
     'proposed', NULL, '2026-07-12T09:00:00Z'
 );
+INSERT INTO learning_samples(
+    id, sample_type, context_key, estimated_value, actual_value,
+    local_minute_of_day, timezone_identifier, evidence_id, occurred_at_utc, payload_json
+) VALUES (
+    'foreign-learning', 'estimate', 'foreign-context', 20, 20,
+    NULL, 'UTC', 'foreign-evidence', '2026-07-12T08:30:00Z', NULL
+);
 SQL
 
 export ZOID_COACH_QA_REVIEW_SOURCE_DAY=2026-07-13
@@ -91,6 +110,8 @@ export ZOID_COACH_QA_REVIEW_SOURCE_DAY=2026-07-13
     || fail "prepare changed foreign daily review"
 [[ "$(sqlite3 -batch -noheader "$DATABASE" "SELECT COUNT(*) FROM weekly_review_experiments WHERE id = 'foreign-experiment';")" == "1" ]] \
     || fail "prepare changed foreign weekly experiment"
+[[ "$(sqlite3 -batch -noheader "$DATABASE" "SELECT COUNT(*) FROM learning_samples WHERE id = 'foreign-learning';")" == "1" ]] \
+    || fail "prepare changed foreign learning evidence"
 
 "$FIXTURE" cleanup "$DATABASE"
 "$FIXTURE" cleanup "$DATABASE"
@@ -101,12 +122,19 @@ export ZOID_COACH_QA_REVIEW_SOURCE_DAY=2026-07-13
     || fail "cleanup removed unowned daily review"
 [[ "$(sqlite3 -batch -noheader "$DATABASE" "SELECT COUNT(*) FROM weekly_review_experiments;")" == "1" ]] \
     || fail "cleanup changed weekly experiments"
+[[ "$(sqlite3 -batch -noheader "$DATABASE" "SELECT COUNT(*) FROM learning_samples;")" == "1" ]] \
+    || fail "cleanup removed unowned learning evidence"
 
-grep -Fq "WEEKLY GAP: patterns are derived by WeeklyReviewStore" "$FIXTURE" \
-    || fail "weekly derived-pattern boundary is not documented"
+grep -Fq "WEEKLY INPUT READY:" "$FIXTURE" \
+    || fail "weekly derivation-input boundary is not documented"
+grep -Fq "no pattern or experiment output was inserted" "$FIXTURE" \
+    || fail "weekly output non-fabrication boundary is not documented"
+! grep -Eq "INSERT INTO weekly_review_experiments|DELETE FROM weekly_review_experiments" "$FIXTURE" \
+    || fail "fixture must not write derived weekly experiment output"
 grep -Fq "NON-DISPLAY EXPECTATION" "$FIXTURE" \
     || fail "private evidence non-display expectation is not documented"
 
 print -- "PASS: combined review fixture schema, transactions, idempotency, relaunch, privacy, and cleanup are deterministic"
-print -- "OWNED: 7 qa-review behavior rows and 1 qa-review daily review row"
-print -- "OMITTED: direct weekly NOT LEARNED pattern seed because patterns are derived, not stored"
+print -- "OWNED: 13 behavior rows, 4 daily review rows, and 4 estimate learning samples"
+print -- "DERIVATION READY: product runtime may derive exactly one estimate-accuracy pattern from 3 covered days and 4 eligible samples"
+print -- "OMITTED: direct weekly pattern and experiment output because both are product-derived"
