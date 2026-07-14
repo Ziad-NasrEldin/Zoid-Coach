@@ -9,8 +9,7 @@ struct TodayPromptInboxLedger: View {
     @State private var rescheduleDate = TaskRescheduleState().selectedDate
     @State private var rescheduleError: String?
     @State private var blockRequest: PromptTaskBlockRequest?
-    @State private var blockReason = ""
-    @State private var blockError: String?
+    @State private var blockForm = PromptTaskBlockFormState()
     @FocusState private var blockReasonIsFocused: Bool
 
     var body: some View {
@@ -49,7 +48,7 @@ struct TodayPromptInboxLedger: View {
                     .background(Sumi.sealWash)
                     .accessibilityIdentifier("today.prompt.reschedule.error")
             }
-            if let blockError, blockRequest == nil {
+            if let blockError = blockForm.errorMessage, blockRequest == nil {
                 Text(blockError)
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.sealDeep)
@@ -152,7 +151,7 @@ struct TodayPromptInboxLedger: View {
             pendingPromptID: model.pendingPromptID,
             replayed: entry.isReplay
         )
-        let actions = PromptActionReachabilityLayout(actions: entry.episode.actions)
+        let interface = PromptActionPublicInterface(promptID: entry.id, actions: entry.episode.actions)
         return VStack(alignment: .leading, spacing: 8) {
             promptHeading(entry, state: presentation.stateLabel)
             Text(entry.episode.summary).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
@@ -166,51 +165,56 @@ struct TodayPromptInboxLedger: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("today.prompt.\(entry.id).applying")
             }
-            if !actions.taskChangeActions.isEmpty {
+            if !interface.taskChangeControls.isEmpty {
                 Text("CHANGE THE TASK")
                     .font(Sumi.label(8))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("today.prompt.\(entry.id).task-change-label")
-                ForEach(actions.taskChangeActions) { action in
-                    promptActionButton(action, episode: entry.episode, presentation: presentation)
+                ForEach(interface.taskChangeControls) { control in
+                    promptActionButton(control, episode: entry.episode, presentation: presentation)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            if !actions.recoveryActions.isEmpty {
+            if !interface.recoveryControls.isEmpty {
                 Text("RECOVERY OPTIONS")
                     .font(Sumi.label(8))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("today.prompt.\(entry.id).recovery-label")
+                ForEach(interface.recoveryControls) { control in
+                    promptActionButton(control, episode: entry.episode, presentation: presentation)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 8)], alignment: .leading, spacing: 8) {
-                ForEach(actions.recoveryActions) { action in
-                    promptActionButton(action, episode: entry.episode, presentation: presentation)
-                }
-                if entry.episode.allowsDismissal {
-                    Button("DISMISS") { model.dismissPrompt(entry.episode) }
-                        .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
-                        .disabled(presentation.actionsDisabled)
-                        .accessibilityIdentifier("today.prompt.\(entry.id).dismiss")
-                }
+            if entry.episode.allowsDismissal {
+                Button("DISMISS") { model.dismissPrompt(entry.episode) }
+                    .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                    .disabled(presentation.actionsDisabled)
+                    .accessibilityIdentifier("today.prompt.\(entry.id).dismiss")
             }
         }
         .promptRow(identifier: "today.prompt.\(entry.id).waiting")
     }
 
     private func promptActionButton(
-        _ action: PromptAction,
+        _ control: PromptActionPublicControl,
         episode: PromptEpisode,
         presentation: PromptActionPresentation
     ) -> some View {
-        Button(action.title.uppercased()) { choose(action, for: episode) }
-            .buttonStyle(SumiActionButtonStyle(role: actionRole(action.role), size: .compact))
+        Button { choose(control.action, for: episode) } label: {
+            HStack(spacing: 8) {
+                Text(control.action.title.uppercased())
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+            .buttonStyle(SumiActionButtonStyle(role: actionRole(control.action.role), size: .compact))
             .disabled(presentation.actionsDisabled)
-            .accessibilityHint(action.kind == .markBlocked
+            .accessibilityHint(control.action.kind == .markBlocked
                 ? "Opens a reason sheet. The coaching decision stays waiting until the blocker is saved."
                 : "")
-            .accessibilityIdentifier("today.prompt.\(episode.id).action.\(action.kind.rawValue)")
+            .accessibilityIdentifier(control.accessibilityIdentifier)
     }
 
     private func snoozedRow(_ entry: PromptInboxTimelineEntry) -> some View {
@@ -235,6 +239,14 @@ struct TodayPromptInboxLedger: View {
                     .font(Sumi.label(8))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.muted)
+                if response.action == .markBlocked,
+                   let reason = PromptTaskBlockedHistoryState.reason(for: entry.episode, in: model.dailyPlan) {
+                    Text("BLOCKER · \(reason)")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("today.prompt.\(entry.id).history.blocked-reason")
+                }
             }
         }
         .promptRow(identifier: "today.prompt.\(entry.id).history")
@@ -259,7 +271,7 @@ struct TodayPromptInboxLedger: View {
 
     private func choose(_ action: PromptAction, for episode: PromptEpisode) {
         rescheduleError = nil
-        blockError = nil
+        blockForm.finishSubmission()
         if action.kind == .rescheduleTask {
             guard let request = PromptTaskRescheduleRequest(episode: episode) else {
                 rescheduleError = "This prompt no longer identifies a task that can be rescheduled. Refresh Decisions."
@@ -272,11 +284,10 @@ struct TodayPromptInboxLedger: View {
         }
         if action.kind == .markBlocked {
             guard let request = PromptTaskBlockRequest(episode: episode) else {
-                blockError = "This prompt no longer identifies a task that can be marked blocked. Refresh Decisions."
+                blockForm.showError("This prompt no longer identifies a task that can be marked blocked. Refresh Decisions.")
                 return
             }
-            blockReason = ""
-            blockError = nil
+            blockForm.cancel()
             blockRequest = request
             return
         }
@@ -357,7 +368,25 @@ struct TodayPromptInboxLedger: View {
                 .font(Sumi.body(13))
                 .foregroundStyle(Sumi.muted)
                 .fixedSize(horizontal: false, vertical: true)
-            TextEditor(text: $blockReason)
+            Text("CHOOSE A COMMON REASON OR WRITE YOUR OWN")
+                .font(Sumi.label(8))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.muted)
+            ForEach(PromptTaskBlockReasonSuggestion.allCases) { suggestion in
+                Button { blockForm.select(suggestion) } label: {
+                    HStack(spacing: 8) {
+                        Text(suggestion.title)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                    .disabled(blockForm.isSubmitting)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityHint("Fills the blocker reason with: \(suggestion.reason)")
+                    .accessibilityIdentifier("today.prompt.block.suggestion.\(suggestion.rawValue)")
+            }
+            TextEditor(text: $blockForm.reason)
                 .font(Sumi.body(13))
                 .frame(height: 104)
                 .padding(8)
@@ -373,12 +402,12 @@ struct TodayPromptInboxLedger: View {
                     .foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("today.prompt.block.requirement")
                 Spacer()
-                Text("\(blockReason.count) / \(PromptTaskBlockReasonState.maximumLength)")
+                Text("\(blockForm.reason.count) / \(PromptTaskBlockReasonState.maximumLength)")
                     .font(Sumi.label(8))
                     .sumiLabelTracking()
-                    .foregroundStyle(blockReason.count > PromptTaskBlockReasonState.maximumLength ? Sumi.sealDeep : Sumi.muted)
+                    .foregroundStyle(blockForm.reason.count > PromptTaskBlockReasonState.maximumLength ? Sumi.sealDeep : Sumi.muted)
             }
-            if let blockError {
+            if let blockError = blockForm.errorMessage {
                 Text(blockError)
                     .font(Sumi.body(12))
                     .foregroundStyle(Sumi.sealDeep)
@@ -386,26 +415,30 @@ struct TodayPromptInboxLedger: View {
                     .accessibilityIdentifier("today.prompt.block.error")
             }
             HStack {
-                Button("CANCEL") { blockRequest = nil }
+                Button("CANCEL") {
+                    blockForm.cancel()
+                    blockRequest = nil
+                }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .accessibilityIdentifier("today.prompt.block.cancel")
                 Spacer()
-                Button(model.pendingPromptID == request.episode.id ? "SAVING" : "SAVE BLOCKER") {
-                    switch PromptTaskBlockReasonState().validated(blockReason) {
+                Button(blockForm.isSubmitting || model.pendingPromptID == request.episode.id ? "SAVING" : "SAVE BLOCKER") {
+                    switch blockForm.beginSubmission() {
                     case let .success(reason):
                         Task {
                             if await model.blockTaskFromPrompt(request.episode, reason: reason) {
+                                blockForm.finishSubmission()
                                 blockRequest = nil
                             } else {
-                                blockError = model.promptInboxError ?? model.taskCommandError ?? "The blocker was not saved. The coaching decision is still waiting."
+                                blockForm.finishSubmission(error: model.promptInboxError ?? model.taskCommandError ?? "The blocker was not saved. The coaching decision is still waiting.")
                             }
                         }
-                    case let .failure(error):
-                        blockError = error.message
+                    case .failure:
+                        break
                     }
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .standard))
-                .disabled(model.pendingPromptID != nil)
+                .disabled(blockForm.isSubmitting || model.pendingPromptID != nil)
                 .accessibilityIdentifier("today.prompt.block.confirm")
             }
         }
