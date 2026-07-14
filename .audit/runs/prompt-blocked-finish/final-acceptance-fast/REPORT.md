@@ -31,3 +31,9 @@ The exit trap always stops the isolated app, unregisters the QA LaunchAgent, and
 The exact clean package, signing evidence, and both compiled verifier tools are ready.
 The guarded non-runtime dry run passed without installing or launching the app or helper.
 Detailed preparation evidence is recorded in `PREPARATION.md` and the `evidence` directory.
+
+## Latest signed result
+
+The final bounded signed acceptance did not reach the blocker sheet from the off-screen Mark blocked accessibility node.
+`ZC-034-011` therefore remains `Touches remaining`.
+The exact failure and cleanup evidence are recorded in `RUNTIME-RESULT.md`.

@@ -30,6 +30,20 @@
   },
   "screenwatch": {
     "state": "healthy",
-    "days": []
+    "days": [
+      {
+        "date": "2026-07-14",
+        "records": [
+          {
+            "t": "2026-07-14T04:00:00Z",
+            "epoch": 1784001600,
+            "app": "FixtureApp",
+            "window": "Fixture Window",
+            "url": "",
+            "img": false
+          }
+        ]
+      }
+    ]
   }
 }

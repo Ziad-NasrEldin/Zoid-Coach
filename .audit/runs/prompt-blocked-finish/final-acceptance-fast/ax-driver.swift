@@ -1,4 +1,5 @@
 import ApplicationServices
+import CoreGraphics
 import Foundation
 
 enum DriverError: Error, CustomStringConvertible {
@@ -10,7 +11,7 @@ enum DriverError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .usage:
-            return "usage: ax-driver PID dump | wait ID [seconds] | press ID [seconds] | text ID [seconds] | wait-count-prefix PREFIX EXPECTED [seconds]"
+            return "usage: ax-driver PID dump | wait ID [seconds] | press ID [seconds] | click ID [seconds] | text ID [seconds] | wait-count-prefix PREFIX EXPECTED [seconds]"
         case let .missing(identifier):
             return "AX identifier did not become reachable: \(identifier)"
         case let .count(prefix, expected, actual):
@@ -31,8 +32,13 @@ func string(_ element: AXUIElement, _ name: CFString) -> String {
     attribute(element, name) as? String ?? ""
 }
 
-func children(_ element: AXUIElement) -> [AXUIElement] {
-    attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? []
+func relatedElements(_ element: AXUIElement) -> [AXUIElement] {
+    let attributes: [CFString] = [
+        kAXChildrenAttribute as CFString,
+        kAXWindowsAttribute as CFString,
+        "AXSheets" as CFString,
+    ]
+    return attributes.flatMap { attribute(element, $0) as? [AXUIElement] ?? [] }
 }
 
 func descendants(of root: AXUIElement) -> [AXUIElement] {
@@ -44,7 +50,7 @@ func descendants(of root: AXUIElement) -> [AXUIElement] {
         let hash = CFHash(next)
         guard seen.insert(hash).inserted else { continue }
         result.append(next)
-        queue.append(contentsOf: children(next))
+        queue.append(contentsOf: relatedElements(next))
     }
     return result
 }
@@ -61,6 +67,38 @@ func visibleText(_ element: AXUIElement) -> String {
     ]
     .filter { !$0.isEmpty }
     .joined(separator: " | ")
+}
+
+func point(_ element: AXUIElement) -> CGPoint? {
+    guard let raw = attribute(element, kAXPositionAttribute as CFString),
+          CFGetTypeID(raw) == AXValueGetTypeID()
+    else { return nil }
+    var point = CGPoint.zero
+    guard AXValueGetValue(raw as! AXValue, .cgPoint, &point) else { return nil }
+    return point
+}
+
+func size(_ element: AXUIElement) -> CGSize? {
+    guard let raw = attribute(element, kAXSizeAttribute as CFString),
+          CFGetTypeID(raw) == AXValueGetTypeID()
+    else { return nil }
+    var size = CGSize.zero
+    guard AXValueGetValue(raw as! AXValue, .cgSize, &size) else { return nil }
+    return size
+}
+
+func click(_ element: AXUIElement, identifier: String) throws {
+    guard let origin = point(element), let bounds = size(element), bounds.width > 0, bounds.height > 0 else {
+        throw DriverError.missing("\(identifier) frame")
+    }
+    let center = CGPoint(x: origin.x + bounds.width / 2, y: origin.y + bounds.height / 2)
+    guard let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: center, mouseButton: .left),
+          let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: center, mouseButton: .left)
+    else { throw DriverError.missing("\(identifier) click event") }
+    down.post(tap: .cghidEventTap)
+    usleep(40_000)
+    up.post(tap: .cghidEventTap)
+    print("PASS: clicked \(identifier) at \(Int(center.x)),\(Int(center.y))")
 }
 
 func snapshot(pid: pid_t) -> [AXUIElement] {
@@ -137,6 +175,8 @@ do {
         let error = AXUIElementPerformAction(element, kAXPressAction as CFString)
         guard error == .success else { throw DriverError.action(target, error) }
         print("PASS: pressed \(target)")
+    } else if command == "click" {
+        try click(element, identifier: target)
     } else {
         throw DriverError.usage
     }

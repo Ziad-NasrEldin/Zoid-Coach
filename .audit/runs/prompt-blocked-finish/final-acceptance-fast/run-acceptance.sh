@@ -317,10 +317,10 @@ success_helper_pid="$(helper_pid)"
 success_app_pid="$(launch_and_wait_for_actions)"
 "$WINDOW_PROBE" "$success_app_pid" --expect-today --screenshot "$EVIDENCE/success-actions.png" \
     | tee -a "$EVIDENCE/runtime.log"
-"$AX_DRIVER" "$success_app_pid" press "today.prompt.qa-block-1.action.mark_blocked"
-"$AX_DRIVER" "$success_app_pid" wait "today.prompt.block.sheet" 6
-"$AX_DRIVER" "$success_app_pid" press "today.prompt.block.suggestion.approval"
-"$AX_DRIVER" "$success_app_pid" press "today.prompt.block.confirm"
+"$AX_DRIVER" "$success_app_pid" click "today.prompt.qa-block-1.action.mark_blocked"
+"$AX_DRIVER" "$success_app_pid" wait "today.prompt.block.suggestion.approval" 6
+"$AX_DRIVER" "$success_app_pid" click "today.prompt.block.suggestion.approval"
+"$AX_DRIVER" "$success_app_pid" click "today.prompt.block.confirm"
 "$AX_DRIVER" "$success_app_pid" wait "today.prompt.qa-block-1.history.blocked-reason" 10 \
     | tee "$EVIDENCE/success-history.txt"
 assert_success_database "success"
@@ -350,11 +350,11 @@ assert_success_database "helper-relaunch"
 
 prepare_presented_runtime "helper-down"
 failure_app_pid="$(launch_and_wait_for_actions)"
-"$AX_DRIVER" "$failure_app_pid" press "today.prompt.qa-block-1.action.mark_blocked"
-"$AX_DRIVER" "$failure_app_pid" wait "today.prompt.block.sheet" 6
-"$AX_DRIVER" "$failure_app_pid" press "today.prompt.block.suggestion.approval"
+"$AX_DRIVER" "$failure_app_pid" click "today.prompt.qa-block-1.action.mark_blocked"
+"$AX_DRIVER" "$failure_app_pid" wait "today.prompt.block.suggestion.approval" 6
+"$AX_DRIVER" "$failure_app_pid" click "today.prompt.block.suggestion.approval"
 unregister_helper
-"$AX_DRIVER" "$failure_app_pid" press "today.prompt.block.confirm"
+"$AX_DRIVER" "$failure_app_pid" click "today.prompt.block.confirm"
 failure_text="$($AX_DRIVER "$failure_app_pid" text "today.prompt.block.err" 10)"
 print -r -- "$failure_text" | tee "$EVIDENCE/helper-down-error.txt"
 grep -Fq "The blocker was not saved. The last confirmed task and plan state are still shown." <<<"$failure_text"
