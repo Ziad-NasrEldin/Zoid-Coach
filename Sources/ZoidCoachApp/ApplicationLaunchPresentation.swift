@@ -27,11 +27,35 @@ enum InitialMainWindowPresentationPolicy: Equatable {
 }
 
 @MainActor
-struct BackgroundApplicationLifecycleHook {
+final class BackgroundApplicationLifecycleHook {
     let policy: InitialMainWindowPresentationPolicy
+    let isAccessoryActivationPolicySet: () -> Bool
     let setAccessoryActivationPolicy: () -> Void
+    let acquireAutomaticTerminationHold: () -> Void
+    let releaseAutomaticTerminationHold: () -> Void
     let availableWindows: () -> [ApplicationWindowDescriptor]
     let dismissWindow: (Int) -> Void
+    private var didRequestAccessoryActivation = false
+    private var holdsAutomaticTermination = false
+    private var isDismissingWindows = false
+
+    init(
+        policy: InitialMainWindowPresentationPolicy,
+        isAccessoryActivationPolicySet: @escaping () -> Bool = { false },
+        setAccessoryActivationPolicy: @escaping () -> Void,
+        acquireAutomaticTerminationHold: @escaping () -> Void = {},
+        releaseAutomaticTerminationHold: @escaping () -> Void = {},
+        availableWindows: @escaping () -> [ApplicationWindowDescriptor],
+        dismissWindow: @escaping (Int) -> Void
+    ) {
+        self.policy = policy
+        self.isAccessoryActivationPolicySet = isAccessoryActivationPolicySet
+        self.setAccessoryActivationPolicy = setAccessoryActivationPolicy
+        self.acquireAutomaticTerminationHold = acquireAutomaticTerminationHold
+        self.releaseAutomaticTerminationHold = releaseAutomaticTerminationHold
+        self.availableWindows = availableWindows
+        self.dismissWindow = dismissWindow
+    }
 
     var shouldObserveWindowVisibility: Bool {
         policy == .backgroundScheduling
@@ -39,19 +63,26 @@ struct BackgroundApplicationLifecycleHook {
 
     func applicationWillFinishLaunching() {
         guard policy == .backgroundScheduling else { return }
-        setAccessoryActivationPolicy()
+        applyBackgroundLifetimePolicy()
         dismissVisibleNormalWindows()
     }
 
     func applicationDidFinishLaunching() {
         guard policy == .backgroundScheduling else { return }
+        applyBackgroundLifetimePolicy()
         dismissVisibleNormalWindows()
     }
 
     func applicationDidUpdate() {
         guard policy == .backgroundScheduling else { return }
-        setAccessoryActivationPolicy()
+        applyBackgroundLifetimePolicy()
         dismissVisibleNormalWindows()
+    }
+
+    func applicationWillTerminate() {
+        guard policy == .backgroundScheduling, holdsAutomaticTermination else { return }
+        holdsAutomaticTermination = false
+        releaseAutomaticTerminationHold()
     }
 
     func windowDidBecomeVisible(_ window: ApplicationWindowDescriptor) {
@@ -68,7 +99,23 @@ struct BackgroundApplicationLifecycleHook {
         policy == .backgroundScheduling ? false : defaultDecision
     }
 
+    private func applyBackgroundLifetimePolicy() {
+        if !didRequestAccessoryActivation {
+            didRequestAccessoryActivation = true
+            if !isAccessoryActivationPolicySet() {
+                setAccessoryActivationPolicy()
+            }
+        }
+        if !holdsAutomaticTermination {
+            acquireAutomaticTerminationHold()
+            holdsAutomaticTermination = true
+        }
+    }
+
     private func dismissVisibleNormalWindows() {
+        guard !isDismissingWindows else { return }
+        isDismissingWindows = true
+        defer { isDismissingWindows = false }
         for window in availableWindows() where window.isVisible && window.isNormalLevel {
             dismissWindow(window.windowNumber)
         }

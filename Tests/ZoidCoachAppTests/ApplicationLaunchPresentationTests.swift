@@ -171,6 +171,7 @@ import ZoidCoachCore
 @MainActor
 @Test func backgroundLifecycleSuppressesExistingAndLateNormalWindowsWithoutAView() {
     var events: [String] = []
+    var isAccessory = false
     let mainWindow = applicationWindow(
         number: 42,
         identifier: MainApplicationWindowSelector.mainWindowIdentifier,
@@ -188,11 +189,31 @@ import ZoidCoachCore
         identifier: MainApplicationWindowSelector.mainWindowIdentifier,
         title: "Zoid 666"
     )
+    var windows = [mainWindow, utilityWindow]
     let hook = BackgroundApplicationLifecycleHook(
         policy: .backgroundScheduling,
-        setAccessoryActivationPolicy: { events.append("accessory") },
-        availableWindows: { [mainWindow, utilityWindow] },
-        dismissWindow: { events.append("dismiss-\($0)") }
+        isAccessoryActivationPolicySet: { isAccessory },
+        setAccessoryActivationPolicy: {
+            isAccessory = true
+            events.append("accessory")
+        },
+        acquireAutomaticTerminationHold: { events.append("hold") },
+        releaseAutomaticTerminationHold: { events.append("release") },
+        availableWindows: { windows },
+        dismissWindow: { windowNumber in
+            events.append("dismiss-\(windowNumber)")
+            windows = windows.map { window in
+                guard window.windowNumber == windowNumber else { return window }
+                return ApplicationWindowDescriptor(
+                    windowNumber: window.windowNumber,
+                    identifier: window.identifier,
+                    title: window.title,
+                    canBecomeKey: window.canBecomeKey,
+                    isVisible: false,
+                    isNormalLevel: window.isNormalLevel
+                )
+            }
+        }
     )
 
     hook.applicationWillFinishLaunching()
@@ -200,8 +221,10 @@ import ZoidCoachCore
     hook.applicationDidUpdate()
     hook.windowDidBecomeVisible(lateMainWindow)
     hook.windowDidBecomeVisible(utilityWindow)
+    hook.applicationWillTerminate()
+    hook.applicationWillTerminate()
 
-    #expect(events == ["accessory", "dismiss-42", "dismiss-42", "accessory", "dismiss-42", "dismiss-44"])
+    #expect(events == ["accessory", "hold", "dismiss-42", "dismiss-44", "release"])
     #expect(hook.shouldObserveWindowVisibility)
     #expect(!hook.shouldTerminateAfterLastWindowClosed(defaultDecision: true))
 }
@@ -209,10 +232,16 @@ import ZoidCoachCore
 @MainActor
 @Test func backgroundLifecycleDismissesLateVisibleNonKeyWindowOnApplicationUpdate() {
     var events: [String] = []
+    var isAccessory = false
     var windows: [ApplicationWindowDescriptor] = []
     let hook = BackgroundApplicationLifecycleHook(
         policy: .backgroundScheduling,
-        setAccessoryActivationPolicy: { events.append("accessory") },
+        isAccessoryActivationPolicySet: { isAccessory },
+        setAccessoryActivationPolicy: {
+            isAccessory = true
+            events.append("accessory")
+        },
+        acquireAutomaticTerminationHold: { events.append("hold") },
         availableWindows: { windows },
         dismissWindow: { windowNumber in
             events.append("dismiss-\(windowNumber)")
@@ -242,7 +271,30 @@ import ZoidCoachCore
     hook.applicationDidUpdate()
     hook.applicationDidUpdate()
 
-    #expect(events == ["accessory", "dismiss-71", "accessory"])
+    #expect(events == ["accessory", "hold", "dismiss-71"])
+}
+
+@MainActor
+@Test func backgroundLifecycleWindowRescanRejectsReentrantDismissal() {
+    var events: [String] = []
+    var windows = [applicationWindow(number: 72, identifier: "late", title: "Late window")]
+    var hook: BackgroundApplicationLifecycleHook!
+    hook = BackgroundApplicationLifecycleHook(
+        policy: .backgroundScheduling,
+        isAccessoryActivationPolicySet: { true },
+        setAccessoryActivationPolicy: { events.append("unexpected-accessory") },
+        availableWindows: { windows },
+        dismissWindow: { windowNumber in
+            events.append("dismiss-\(windowNumber)")
+            hook.applicationDidUpdate()
+            windows = []
+        }
+    )
+
+    hook.applicationDidUpdate()
+    hook.applicationDidUpdate()
+
+    #expect(events == ["dismiss-72"])
 }
 
 @MainActor
@@ -251,6 +303,8 @@ import ZoidCoachCore
     let hook = BackgroundApplicationLifecycleHook(
         policy: .ordinary,
         setAccessoryActivationPolicy: { events.append("accessory") },
+        acquireAutomaticTerminationHold: { events.append("hold") },
+        releaseAutomaticTerminationHold: { events.append("release") },
         availableWindows: {
             [applicationWindow(
                 number: 42,
@@ -269,6 +323,7 @@ import ZoidCoachCore
         identifier: "late",
         title: "Late window"
     ))
+    hook.applicationWillTerminate()
 
     #expect(events.isEmpty)
     #expect(!hook.shouldObserveWindowVisibility)
@@ -287,6 +342,8 @@ import ZoidCoachCore
         let hook = BackgroundApplicationLifecycleHook(
             policy: presentation.initialMainWindowPresentationPolicy,
             setAccessoryActivationPolicy: { events.append("accessory") },
+            acquireAutomaticTerminationHold: { events.append("hold") },
+            releaseAutomaticTerminationHold: { events.append("release") },
             availableWindows: {
                 [applicationWindow(number: 81, identifier: "main", title: "Zoid 666")]
             },
@@ -296,6 +353,7 @@ import ZoidCoachCore
         hook.applicationWillFinishLaunching()
         hook.applicationDidFinishLaunching()
         hook.applicationDidUpdate()
+        hook.applicationWillTerminate()
 
         #expect(events.isEmpty)
         #expect(hook.shouldTerminateAfterLastWindowClosed(defaultDecision: true))
