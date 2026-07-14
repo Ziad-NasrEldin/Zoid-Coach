@@ -32,6 +32,62 @@ struct BehaviorEvidenceStateTests {
         #expect(state.categories.first { $0.classification == .unknown }?.minutes == 0)
     }
 
+    @Test("all named work categories and the honest uncategorized fallback stay visible")
+    func workCategoriesStayVisibleAndAccessible() {
+        let state = makeState(behavior: BehaviorSummary(
+            workMinutes: 20,
+            appUsage: [
+                AppUsageBreakdown(application: "Xcode", observedSeconds: 600, percentage: 50, classification: .work),
+                AppUsageBreakdown(application: "Safari", observedSeconds: 600, percentage: 50, classification: .work),
+            ]
+        ))
+
+        #expect(state.workCategories.map(\.title) == [
+            "Deep work",
+            "Creative work",
+            "Research",
+            "Communication",
+            "Administration",
+            "Uncategorized work",
+        ])
+        #expect(state.workCategories.map(\.minutes) == [10, 0, 0, 0, 0, 10])
+        #expect(state.workCategories[0].accessibilityLabel == "Deep work, 10 minutes")
+        #expect(state.workCategories[5].accessibilityIdentifier == "today.behavior-evidence.work-category.uncategorized")
+        #expect(state.workCategoryDetail.contains("10 minutes remain Uncategorized"))
+    }
+
+    @Test("work-category empty state does not invent a breakdown")
+    func workCategoryEmptyStateIsTruthful() {
+        let noWork = makeState(behavior: BehaviorSummary())
+        #expect(noWork.workCategoryDetail == "No work-category time was observed today.")
+
+        let missingAppEvidence = makeState(behavior: BehaviorSummary(workMinutes: 45))
+        #expect(missingAppEvidence.workCategoryDetail.contains("does not identify a safe category"))
+        #expect(missingAppEvidence.workCategories.allSatisfy { $0.minutes == 0 })
+    }
+
+    @Test("sub-minute evidence is floored without claiming that no safe category exists")
+    func subMinuteEvidenceIsTruthful() {
+        let recognized = makeState(behavior: BehaviorSummary(
+            appUsage: [
+                AppUsageBreakdown(application: "Xcode", observedSeconds: 59, percentage: 100, classification: .work),
+            ]
+        ))
+        #expect(recognized.workCategories.first?.minutes == 0)
+        #expect(recognized.workCategoryDetail.contains("below one complete observed minute"))
+        #expect(recognized.workCategoryDetail.contains("never rounded up"))
+
+        let mixed = makeState(behavior: BehaviorSummary(
+            workMinutes: 10,
+            appUsage: [
+                AppUsageBreakdown(application: "Xcode", observedSeconds: 600, percentage: 94, classification: .work),
+                AppUsageBreakdown(application: "Safari", observedSeconds: 59, percentage: 6, classification: .work),
+            ]
+        ))
+        #expect(mixed.workCategories.map(\.minutes) == [10, 0, 0, 0, 0, 0])
+        #expect(mixed.workCategoryDetail.contains("Less than one complete observed minute remains Uncategorized"))
+    }
+
     @Test("limited coverage names the unhealthy source without calling missing time idle")
     func limitedCoverageNamesSource() {
         let state = makeState(
