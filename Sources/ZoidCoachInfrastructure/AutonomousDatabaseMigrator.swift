@@ -1131,6 +1131,38 @@ private extension AutonomousDatabaseMigrator {
                 column: "deferred_until_utc",
                 declaration: "TEXT"
             )
+        ]),
+        Migration(version: 43, isDestructive: false, operations: [
+            .sql("""
+            CREATE TABLE IF NOT EXISTS task_mutation_operations (
+                operation_id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                command TEXT NOT NULL,
+                request_fingerprint TEXT NOT NULL,
+                requested_at_utc TEXT NOT NULL,
+                state TEXT NOT NULL CHECK(state IN ('pending', 'completed', 'failed')),
+                last_diagnostic TEXT,
+                result_json BLOB
+            );
+            CREATE TABLE IF NOT EXISTS task_mutation_steps (
+                operation_id TEXT NOT NULL,
+                step TEXT NOT NULL,
+                completed_at_utc TEXT NOT NULL,
+                PRIMARY KEY(operation_id, step),
+                FOREIGN KEY(operation_id) REFERENCES task_mutation_operations(operation_id)
+            );
+            CREATE INDEX IF NOT EXISTS task_mutation_operations_state
+            ON task_mutation_operations(state, requested_at_utc);
+            """),
+            .addColumnIfTableExists(
+                table: "task_history",
+                column: "operation_id",
+                declaration: "TEXT"
+            ),
+            .sqlIfTableExists(
+                table: "task_history",
+                sql: "CREATE UNIQUE INDEX IF NOT EXISTS task_history_operation_state ON task_history(operation_id, state) WHERE operation_id IS NOT NULL;"
+            )
         ])
     ]
 }

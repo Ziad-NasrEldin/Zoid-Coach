@@ -52,9 +52,10 @@ public final class TaskHistoryStore: @unchecked Sendable {
         state: TaskHistoryState,
         title: String? = nil,
         sourceKind: ReminderSourceKind? = nil,
+        operationID: UUID? = nil,
         at date: Date = Date()
     ) throws {
-        let sql = "INSERT INTO task_history (task_id, state, title_snapshot, source_kind, occurred_at) VALUES (?, ?, ?, ?, ?);"
+        let sql = "INSERT OR IGNORE INTO task_history (task_id, state, title_snapshot, source_kind, occurred_at, operation_id) VALUES (?, ?, ?, ?, ?, ?);"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement
@@ -65,6 +66,7 @@ public final class TaskHistoryStore: @unchecked Sendable {
         bindOptional(title?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty, statement, 3)
         bind((sourceKind.map(\.rawValue) ?? "unknown"), statement, 4)
         bind(ISO8601DateFormatter().string(from: date), statement, 5)
+        bindOptional(operationID?.uuidString, statement, 6)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskHistoryStoreError.write }
     }
 

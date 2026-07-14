@@ -22,6 +22,9 @@ func cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() throws {
     #expect(try tableExists(databaseURL, "prompt_episodes"))
     #expect(try tableExists(databaseURL, "quiet_drift_episodes"))
     #expect(try tableExists(databaseURL, "processing_checkpoints"))
+    #expect(try tableExists(databaseURL, "task_mutation_operations"))
+    #expect(try tableExists(databaseURL, "task_mutation_steps"))
+    #expect(try columnExists(databaseURL, table: "task_history", column: "operation_id"))
     #expect(try columnExists(databaseURL, table: "source_tasks", column: "source_kind"))
     #expect(try columnExists(databaseURL, table: "daily_plan_entries", column: "estimate_is_uncertain"))
     try execute(databaseURL, "INSERT INTO source_tasks(source_id, title, updated_at) VALUES ('legacy-default', 'Legacy default', '2026-01-01T00:00:00Z');")
@@ -30,6 +33,33 @@ func cleanDatabaseAppliesEveryOrderedMigrationExactlyOnce() throws {
     #expect(throws: (any Error).self) {
         try execute(databaseURL, "INSERT INTO source_tasks(source_id, title, updated_at, source_kind) VALUES ('invalid-kind', 'Invalid', '2026-01-01T00:00:00Z', 'unknown');")
     }
+}
+
+@Test
+func migration43AddsDurableMutationReceiptsWithoutLosingHistory() throws {
+    let databaseURL = temporaryDatabaseURL("v43-task-mutations")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (42, '2026-07-14T00:00:00Z');
+    CREATE TABLE task_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id TEXT NOT NULL,
+        state TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        title_snapshot TEXT,
+        source_kind TEXT NOT NULL DEFAULT 'unknown'
+    );
+    INSERT INTO task_history(task_id, state, occurred_at) VALUES ('existing', 'completed', '2026-07-14T00:00:00Z');
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.appliedVersions == [43])
+    #expect(try tableExists(databaseURL, "task_mutation_operations"))
+    #expect(try tableExists(databaseURL, "task_mutation_steps"))
+    #expect(try columnExists(databaseURL, table: "task_history", column: "operation_id"))
+    #expect(try scalarInt(databaseURL, "SELECT COUNT(*) FROM task_history WHERE task_id = 'existing';") == 1)
 }
 
 @Test
