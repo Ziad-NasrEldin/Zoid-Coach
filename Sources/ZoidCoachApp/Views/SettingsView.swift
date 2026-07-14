@@ -862,9 +862,35 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("settings.schedule.time-zone.detail")
 
+            VStack(alignment: .leading, spacing: 6) {
+                Text("WORKDAY START AND END")
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.sealDeep)
+                Picker("Workday start and end", selection: $controller.draft.workdayControlMode) {
+                    Text("Scheduled hours").tag(WorkdayControlMode.scheduled)
+                    Text("Manual start and end").tag(WorkdayControlMode.manual)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 420)
+                .accessibilityIdentifier("settings.schedule.workday-control")
+                Text(controller.draft.workdayControlMode == .manual
+                     ? "Start the recommended task from Today or the menu bar to begin your workday. End it explicitly from the menu bar. Saved hours remain available for planning capacity and switching back, but they do not define your manual workday boundary."
+                     : "Zoid 666 uses the saved work hours as the expected workday boundary.")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.schedule.workday-control.detail")
+            }
+
             HStack(spacing: 18) {
                 LocalTimeField(title: "Work starts", time: $controller.draft.workStart)
                 LocalTimeField(title: "Work ends", time: $controller.draft.workEnd)
+            }
+            .disabled(controller.draft.workdayControlMode == .manual)
+            .opacity(controller.draft.workdayControlMode == .manual ? 0.55 : 1)
+            .accessibilityIdentifier("settings.schedule.fixed-hours")
+            HStack(spacing: 18) {
                 LocalTimeField(title: "Quiet starts", time: $controller.draft.quietStart)
                 LocalTimeField(title: "Quiet ends", time: $controller.draft.quietEnd)
             }

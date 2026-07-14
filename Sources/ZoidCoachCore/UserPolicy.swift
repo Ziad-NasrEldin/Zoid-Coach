@@ -176,9 +176,15 @@ public enum CoachingPauseDuration: String, Codable, CaseIterable, Hashable, Send
     }
 }
 
+public enum WorkdayControlMode: String, Codable, CaseIterable, Hashable, Sendable {
+    case scheduled
+    case manual
+}
+
 public struct SchedulePolicy: Codable, Equatable, Sendable {
     public let timeZoneIdentifier: String
     public let workWindows: [WeeklyWorkWindow]
+    public let workdayControlMode: WorkdayControlMode?
     public let quietHours: DailyTimeWindow
     public let nightlyPlanningTime: LocalTime
     public let morningConfirmationTime: LocalTime
@@ -190,9 +196,14 @@ public struct SchedulePolicy: Codable, Equatable, Sendable {
         defaultCoachingPauseDuration ?? .indefinitely
     }
 
+    public var effectiveWorkdayControlMode: WorkdayControlMode {
+        workdayControlMode ?? .scheduled
+    }
+
     public init(
         timeZoneIdentifier: String,
         workWindows: [WeeklyWorkWindow],
+        workdayControlMode: WorkdayControlMode? = .scheduled,
         quietHours: DailyTimeWindow,
         nightlyPlanningTime: LocalTime,
         morningConfirmationTime: LocalTime,
@@ -202,6 +213,7 @@ public struct SchedulePolicy: Codable, Equatable, Sendable {
     ) {
         self.timeZoneIdentifier = timeZoneIdentifier
         self.workWindows = workWindows
+        self.workdayControlMode = workdayControlMode
         self.quietHours = quietHours
         self.nightlyPlanningTime = nightlyPlanningTime
         self.morningConfirmationTime = morningConfirmationTime

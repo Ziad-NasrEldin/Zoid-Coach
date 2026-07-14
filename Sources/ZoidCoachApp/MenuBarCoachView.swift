@@ -206,6 +206,10 @@ struct MenuBarCoachView: View {
             notificationFallbackSection
             coachingPauseSection
 
+            if pauseController.usesManualWorkday {
+                manualWorkdaySection
+            }
+
             Divider().overlay(Sumi.rule)
 
             taskSection
@@ -381,6 +385,34 @@ struct MenuBarCoachView: View {
         .accessibilityIdentifier("menu-bar.coaching-control")
     }
 
+    private var manualWorkdaySection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("MANUAL WORKDAY")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.sealDeep)
+            Text(manualWorkdayDetail)
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Sumi.softPaper)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("menu-bar.manual-workday.status")
+    }
+
+    private var manualWorkdayDetail: String {
+        if menuState.workdayHasEnded {
+            return "Your workday is ended and tracked time is saved. Start or resume a task when you are ready to begin again."
+        }
+        if menuState.activeTask != nil || menuState.pausedTask != nil {
+            return "Your workday is active. Use End Workday below when you are finished; fixed hours will not end it for you."
+        }
+        return "Your workday begins only when you start or resume a task. Fixed hours will not start it for you."
+    }
+
     @ViewBuilder
     private var taskSection: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -496,10 +528,10 @@ struct MenuBarCoachView: View {
     private func taskActionButton(_ action: MenuBarTaskAction, task: TodayTaskRow) -> some View {
         switch action {
         case .start:
-            taskButton("START", identifier: "menu-bar.task.start") {
+            taskButton(pauseController.usesManualWorkday ? "START WORKDAY" : "START", identifier: "menu-bar.task.start") {
                 await startRecommendedTask(taskID: task.taskID)
             }
-            .accessibilityLabel(action.accessibilityLabel)
+            .accessibilityLabel(pauseController.usesManualWorkday ? "Start workday with recommended task" : action.accessibilityLabel)
             .accessibilityHint("Rechecks that this is still the recommended ready task before starting it.")
         case .pause:
             taskButton("PAUSE", identifier: "menu-bar.task.pause") {
@@ -507,10 +539,10 @@ struct MenuBarCoachView: View {
             }
             .accessibilityLabel(action.accessibilityLabel)
         case .resume, .endBreak:
-            taskButton(action == .resume ? "RESUME" : "END BREAK", identifier: "menu-bar.task.resume") {
+            taskButton(resumeActionTitle(action), identifier: "menu-bar.task.resume") {
                 await apply(.resume, taskID: task.taskID)
             }
-            .accessibilityLabel(action.accessibilityLabel)
+            .accessibilityLabel(resumeActionAccessibilityLabel(action))
         case .startBreak:
             taskButton("BREAK 15", role: .quiet, identifier: "menu-bar.task.break") {
                 await apply(.pauseForBreak, taskID: task.taskID)
@@ -547,6 +579,20 @@ struct MenuBarCoachView: View {
             .accessibilityLabel(action.accessibilityLabel)
             .accessibilityIdentifier("menu-bar.task.end-workday")
         }
+    }
+
+    private func resumeActionTitle(_ action: MenuBarTaskAction) -> String {
+        if pauseController.usesManualWorkday, menuState.workdayHasEnded {
+            return "START WORKDAY"
+        }
+        return action == .resume ? "RESUME" : "END BREAK"
+    }
+
+    private func resumeActionAccessibilityLabel(_ action: MenuBarTaskAction) -> String {
+        if pauseController.usesManualWorkday, menuState.workdayHasEnded {
+            return "Start workday by resuming paused task"
+        }
+        return action.accessibilityLabel
     }
 
     private func apply(_ command: TaskActivityCommand, taskID: String) async {

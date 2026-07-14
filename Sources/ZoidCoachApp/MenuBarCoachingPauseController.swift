@@ -45,6 +45,7 @@ enum MenuBarCoachingPauseError: LocalizedError {
 final class MenuBarCoachingPauseController: ObservableObject {
     @Published private(set) var pause: AutomationPause = .running
     @Published private(set) var defaultPauseDuration: CoachingPauseDuration = .indefinitely
+    @Published private(set) var workdayControlMode: WorkdayControlMode = .scheduled
     @Published private(set) var policyVersion: Int?
     @Published private(set) var isLoading = false
     @Published private(set) var isSaving = false
@@ -74,6 +75,7 @@ final class MenuBarCoachingPauseController: ObservableObject {
     }
 
     var isPaused: Bool { pause.isPaused }
+    var usesManualWorkday: Bool { workdayControlMode == .manual }
     var pauseActionAccessibilityLabel: String {
         "Pause coaching \(pausePhrase(for: defaultPauseDuration))"
     }
@@ -147,6 +149,7 @@ final class MenuBarCoachingPauseController: ObservableObject {
     private func install(_ current: VersionedUserPolicy) {
         pause = current.policy.automationPause
         defaultPauseDuration = current.policy.schedule.effectiveDefaultCoachingPauseDuration
+        workdayControlMode = current.policy.schedule.effectiveWorkdayControlMode
         policyVersion = current.version
     }
 
