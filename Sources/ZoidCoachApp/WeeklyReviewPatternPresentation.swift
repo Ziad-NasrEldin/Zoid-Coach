@@ -9,6 +9,9 @@ struct WeeklyReviewPatternPresentation: Equatable, Sendable {
     let evidenceLines: [String]
     let alternativeExplanation: String
     let causalityCaveat: String
+    let learningStatusLabel: String
+    let learningSourceLabel: String
+    let learningBoundaryDetail: String
     let collapsedAccessibilitySummary: String
     let expandedAccessibilitySummary: String
     let hasSufficientEvidence: Bool
@@ -36,6 +39,9 @@ struct WeeklyReviewPatternPresentation: Equatable, Sendable {
         let causalityCaveat = hasSufficientEvidence
             ? "NOT PROVEN CAUSE · These observations can support a hypothesis, but they do not prove why it happened."
             : "NOT PROVEN CAUSE · Keep this as a question until observed evidence is available."
+        let learningStatusLabel = "NOT LEARNED"
+        let learningSourceLabel = "SOURCE DAYS \(pattern.dateRange.startDay) TO \(pattern.dateRange.endDay) · \(sampleLabel)"
+        let learningBoundaryDetail = "This weekly pattern remains a hypothesis and is not a learned fact. It can only be promoted after you explicitly accept the corresponding review hypothesis."
 
         self.hypothesis = pattern.conclusion
         self.confidenceLabel = confidenceLabel
@@ -44,15 +50,22 @@ struct WeeklyReviewPatternPresentation: Equatable, Sendable {
         self.evidenceLines = visibleEvidence
         self.alternativeExplanation = pattern.alternativeExplanation
         self.causalityCaveat = causalityCaveat
+        self.learningStatusLabel = learningStatusLabel
+        self.learningSourceLabel = learningSourceLabel
+        self.learningBoundaryDetail = learningBoundaryDetail
         self.hasSufficientEvidence = hasSufficientEvidence
         collapsedAccessibilitySummary = [
             "Hypothesis: \(pattern.conclusion)",
             "\(sampleLabel). \(confidenceLabel).",
+            "Learning status: \(learningStatusLabel). \(learningSourceLabel).",
+            learningBoundaryDetail,
             causalityCaveat,
         ].joined(separator: " ")
         expandedAccessibilitySummary = [
             "Hypothesis: \(pattern.conclusion)",
             "\(sampleLabel). \(confidenceLabel).",
+            "Learning status: \(learningStatusLabel). \(learningSourceLabel).",
+            learningBoundaryDetail,
             "\(accessibleEvidenceHeading): \(visibleEvidence.joined(separator: "; "))",
             "Alternative explanation: \(pattern.alternativeExplanation)",
             causalityCaveat,
