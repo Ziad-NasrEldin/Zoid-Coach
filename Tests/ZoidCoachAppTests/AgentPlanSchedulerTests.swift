@@ -43,6 +43,7 @@ func agentSchedulerConstrainsBlocksByFixedCalendarAndEnqueuesReminderMutations()
     )
 
     let result = try await scheduler.enqueueSchedule(for: day, policy: policy, policyVersion: 1)
+    let lostReplyReplay = try await scheduler.enqueueSchedule(for: day, policy: policy, policyVersion: 1)
     let commands = try outbox.recentCommands(limit: 20)
     let block = try #require(commands.first(where: { $0.type == .reconcileCalendarBlock }))
     let taskStartReminder = try #require(commands.first(where: { $0.type == .scheduleNotification }))
@@ -51,6 +52,14 @@ func agentSchedulerConstrainsBlocksByFixedCalendarAndEnqueuesReminderMutations()
     #expect(result.taskStartReminderCount == 1)
     #expect(result.reminderMutationCount == 2)
     #expect(Set(result.commandIDs) == Set(commands.map(\.id)))
+    #expect(lostReplyReplay.commandIDs == result.commandIDs)
+    #expect(lostReplyReplay.requiredCommands == result.requiredCommands)
+    #expect(result.requiredCommands == Set([
+        AgentPlanCommandRequirement(type: .reconcileCalendarBlock, entityID: "urgent"),
+        AgentPlanCommandRequirement(type: .scheduleNotification, entityID: "urgent"),
+        AgentPlanCommandRequirement(type: .setReminderPriority, entityID: "urgent"),
+        AgentPlanCommandRequirement(type: .setReminderDueDate, entityID: "urgent")
+    ]))
     if case let .calendarBlock(desired) = block.desiredState {
         #expect(desired.start >= fixed.end)
     } else {
