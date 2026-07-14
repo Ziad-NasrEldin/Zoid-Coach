@@ -106,3 +106,45 @@ The runtime evidence is preserved under `runtime/` with the ready Today screensh
 At the cap, the signed runtime was uninstalled and the isolated application, helper, LaunchAgent, QA root, and install root were removed.
 
 No QA application or helper process remained, and launchd reported that the QA service did not exist.
+
+## Transparent Popover Root Cause And Repair
+
+The transparent popover was not caused by the compact view's opacity, background color, material, frame, or hosting hierarchy.
+
+The helper launches the application with `--background-schedule`, and that path previously called `NSApp.hide(nil)` after two seconds.
+
+The hidden application retained a visible status item, but clicking it created a transparent and AX-empty MenuBarExtra system dialog.
+
+The verifier's first acceptance harness also used `open -n`, which created a second same-name foreground process and caused name-based System Events automation to select the hidden process.
+
+The repair now orders out only normal initial windows for `--background-schedule` while keeping the application unhidden and its status-item host alive.
+
+Normal foreground launches are unchanged.
+
+The signed visibility contract now requires the background launch to remove its normal window, remain unhidden, and retain a stable exact-process AX status item.
+
+The old signed package failed the new probe with `--background-schedule hid the application and made its status item unusable`.
+
+The repaired signed package passed foreground visibility, 1180 by 760 content visibility, background window removal, unhidden application state, and stable status-item presence.
+
+## Signed Repair Acceptance
+
+The exact repaired revision installed with one application PID at a time and an isolated helper and QA root.
+
+Clicking the exact PID's status item produced a visible, nontransparent 360-point compact popover with stable AX identifiers for the coach container, status, coaching control, task state, errors, navigation, refresh, and voice controls.
+
+The signed pixels and AX dumps are preserved under `visibility-fix/`.
+
+The main Today surface then started `qa-ready-task` through the public installed control.
+
+After closing Today and reopening the exact foreground PID's status item, the compact popover remained visible and nontransparent.
+
+The compact controller could not load a confirmed task snapshot from the running helper, even after its Refresh control was pressed.
+
+It truthfully displayed unavailable task and coaching states while the main Today surface had already confirmed and started the same task.
+
+This helper-boundary mismatch prevented signed compact clicks for Pause, Resume, Complete, Blocked, Open Today, blocked-reason persistence, and relaunch restoration.
+
+The visibility defect is fixed, but `ZC-037-006` remains Touches remaining until the compact controller can read the same installed helper truth as Today.
+
+The repaired runtime was uninstalled at the cap, its isolated roots were removed, no QA process remained, and launchd reported no QA service.
