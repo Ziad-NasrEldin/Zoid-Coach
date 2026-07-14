@@ -76,8 +76,10 @@ Stop the helper and app before fixture ownership begins.
 pkill -x "$APP_EXECUTABLE_NAME" || true
 ! launchctl print "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1
 "$FIXTURE" prepare --database "$DATABASE" --backup "$BACKUP"
-EXPECTED_DATE="$(swift -e 'import Foundation; print(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))')"
 ```
+
+The accessibility probe resolves the installed bundle's preferred localization and formats the current instant with that locale, `Calendar.current`, `TimeZone.current`, and the product's exact weekday, wide-month, and day fields.
+This keeps month-first and day-first localizations exact without accepting a partial or reordered date.
 
 ## Ordinary-launch acceptance helper
 
@@ -120,7 +122,7 @@ verify_state() {
   lsof -Fn -a -p "$pid" "$DATABASE" 2>/dev/null | grep -Fqx "n$DATABASE"
   swift "$PROBE" \
     --pid "$pid" \
-    --expected-date "$EXPECTED_DATE" \
+    --app-bundle "$APP" \
     --expected-state "$expected_state" \
     --reject "qa-zc013001-private-window-title" \
     --reject "qa-zc013001-private.invalid"
@@ -182,7 +184,7 @@ for relaunch in first second; do
   test "$(ps -p "$pid" -o command=)" != *"--qa-open-main"*
   swift "$PROBE" \
     --pid "$pid" \
-    --expected-date "$EXPECTED_DATE" \
+    --app-bundle "$APP" \
     --expected-state "PLANNED DAY" \
     --reject "qa-zc013001-private-window-title" \
     --reject "qa-zc013001-private.invalid" \
