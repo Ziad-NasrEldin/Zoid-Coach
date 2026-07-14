@@ -1,0 +1,22 @@
+/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA: replacing existing signature
+/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachQA: replacing existing signature
+/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app: replacing existing signature
+--prepared:/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA
+--validated:/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA
+/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app: valid on disk
+/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app: satisfies its Designated Requirement
+--prepared:/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA
+--validated:/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app/Contents/MacOS/ZoidCoachAgentQA
+/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app: valid on disk
+/Users/ziadnasreldin/Documents/GitHub/Zoid Coach/.build/app-qa/Zoid 666 QA.app: satisfies its Designated Requirement
+--prepared:/private/tmp/zoid-666-compact-helper-c8c478-install/.Zoid 666 QA E2E.installing.app/Contents/MacOS/ZoidCoachAgentQA
+--validated:/private/tmp/zoid-666-compact-helper-c8c478-install/.Zoid 666 QA E2E.installing.app/Contents/MacOS/ZoidCoachAgentQA
+/private/tmp/zoid-666-compact-helper-c8c478-install/.Zoid 666 QA E2E.installing.app: valid on disk
+/private/tmp/zoid-666-compact-helper-c8c478-install/.Zoid 666 QA E2E.installing.app: satisfies its Designated Requirement
+PASS: QA XPC runtime is writable and prompt timeline is available
+PASS: QA LaunchAgent registered and left enabled
+PASS: signed QA runtime installed
+app=/private/tmp/zoid-666-compact-helper-c8c478-install/Zoid 666 QA E2E.app
+qa_root=/private/tmp/zoid-666-compact-helper-c8c478-qa
+agent_label=qa.ziadnasreldin.ZoidCoach.agent
+agent_executable=/private/tmp/zoid-666-compact-helper-c8c478-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA

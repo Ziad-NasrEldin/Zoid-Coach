@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "4ba189ab6adcd60edf378806158bf2938fb89c69411fb3b973ac3ab483d0de70",
+  "tracker_sha256": "873a42c288e0b0213758f991385d75a6c9c5265ceba4dd0abf98ec8923d8ac0b",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -8397,14 +8397,10 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [
-        ".audit/runs/compact-active-task/verifier/REPORT.md",
-        ".audit/runs/compact-active-task/verifier/visibility-fix/active-popover-ax.txt",
-        ".audit/runs/compact-active-task/verifier/visibility-fix/active-popover-visible-but-helper-unavailable.png"
-      ],
+      "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The compact menu now derives one deduplicated action set for active, paused, break, recommended, and blocked states; advances open-ended elapsed time from the confirmed interval; retains the exact blocked reason; preserves the last confirmed snapshot on later failure; and keeps the status-item label privacy-safe. Focused tests and a release build passed, the signed background launch now keeps the app unhidden with no normal window and a stable status item, and exact-PID pixels plus AX prove a visible nontransparent 360-point popover. The installed Today surface started the fixture task, but the compact controller still reported the running helper's task and coaching state as unavailable after Refresh, so native compact Pause, Resume, Complete, Blocked, Open Today, blocked-reason persistence, and relaunch restoration remain unverified (`MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `ZoidCoachApp.swift`; `.audit/runs/compact-active-task/verifier/REPORT.md`).",
+      "audit_note": "The compact menu now shares the exact runtime boundary used by Today, rejects delayed fallback snapshots that would overwrite newer controller truth, and retains its previously tested deduplicated active, paused, break, recommended, and blocked action model. All 27 focused tests passed, and exact-PID signed QA acceptance proved that Today could start the fixture task, compact Refresh displayed the same active task with its full native action set, and compact Pause persisted one closed interval plus canonical paused state. Reopening the compact popover then incorrectly displayed no task instead of the paused task and Resume action, so native Resume, Complete, Blocked reason, helper-failure stale preservation, and relaunch restoration remain incomplete (`MenuBarCoachState.swift`; `MenuBarCoachView.swift`; `ZoidCoachApp.swift`; `.audit/runs/compact-active-task/helper-repair-c8c478/REPORT.md`).",
       "tracker_line": 533
     },
     {
