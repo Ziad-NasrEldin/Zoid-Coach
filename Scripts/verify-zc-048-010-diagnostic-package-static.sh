@@ -59,6 +59,14 @@ rg -F 'swift "$PROBE" --pid "$PID" --phase existing --destination "$EXISTING_PAC
   docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
 rg -F 'swift "$PROBE" --pid "$PID" --phase finder --destination "$RETRY_PACKAGE"' \
   docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
+rg -F 'open "$APP" --args --qa-open-main' \
+  docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
+rg -F -- '--require-qa-open-main --require-helper-unregistered' \
+  docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
+rg -F -- '--require-qa-open-main --expected-app-pid "$PID"' \
+  docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
+rg -F '! has_argument "$APP_COMMAND" "--background-schedule"' \
+  Scripts/qa-zc048010-signed-preflight.sh >/dev/null
 
 if git diff --unified=0 "$canonical" -- | rg -n '^\+.*\x{2014}' >/dev/null; then
   printf 'FAIL: ZC-048-010 diff contains an em dash.\n' >&2
@@ -73,7 +81,7 @@ swiftc -parse \
   Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift
 swiftc -typecheck Scripts/qa-zc048010-diagnostic-package-ax-probe.swift
 zsh -n Scripts/qa-zc048010-diagnostic-package-fixture.sh
-zsh -n Scripts/qa-zc048010-signed-preflight.sh
+zsh -n -c 'source Scripts/qa-zc048010-signed-preflight.sh'
 Scripts/qa-zc048010-signed-preflight.sh --self-test >/dev/null
 
 printf 'PASS: ZC-048-010 diagnostic package static verification\n'
