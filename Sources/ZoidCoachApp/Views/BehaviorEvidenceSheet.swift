@@ -18,6 +18,9 @@ struct BehaviorEvidenceSheet: View {
                 VStack(alignment: .leading, spacing: 18) {
                     categoryLedger
                     workCategoryLedger
+                    if !evidence.workUncertainties.isEmpty {
+                        workUncertaintyLedger
+                    }
                     uncertaintyCard
                     coverageCard
                 }
@@ -100,6 +103,10 @@ struct BehaviorEvidenceSheet: View {
         )
     }
 
+    private var workUncertaintyLedger: some View {
+        BehaviorEvidenceWorkUncertaintyLedger(uncertainties: evidence.workUncertainties)
+    }
+
     private var uncertaintyCard: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(evidence.unknownMinutes > 0 ? "ZOID 666 MAY BE WRONG HERE" : "NO UNKNOWN TIME OBSERVED")
@@ -162,6 +169,133 @@ struct BehaviorEvidenceSheet: View {
         }
         .padding(18)
         .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+    }
+}
+
+struct BehaviorEvidenceWorkUncertaintyLedger: View {
+    let uncertainties: [BehaviorEvidenceWorkUncertainty]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("WORK CONTEXT LEFT UNCERTAIN")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            Text("These applications were observed as Work, but Zoid 666 did not prove they supported the active task. They remain Uncategorized instead of being guessed as Research.")
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 8) {
+                ForEach(uncertainties) { uncertainty in
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(uncertainty.application)
+                                .font(Sumi.body(12))
+                            Text(uncertainty.durationText.uppercased())
+                                .font(Sumi.label(7))
+                                .sumiLabelTracking()
+                                .foregroundStyle(Sumi.seal)
+                        }
+                        .frame(width: 150, alignment: .leading)
+                        Text(uncertainty.explanation)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Sumi.sealWash)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(uncertainty.accessibilityLabel)
+                    .accessibilityHint(uncertainty.explanation)
+                    .accessibilityIdentifier(uncertainty.accessibilityIdentifier)
+                }
+            }
+            .accessibilityHidden(true)
+            .overlay {
+                BehaviorEvidenceWorkUncertaintyAccessibilityBridge(uncertainties: uncertainties)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.behavior-evidence.work-uncertainties")
+    }
+}
+
+private struct BehaviorEvidenceWorkUncertaintyAccessibilityBridge: NSViewRepresentable {
+    let uncertainties: [BehaviorEvidenceWorkUncertainty]
+
+    func makeNSView(context: Context) -> WorkUncertaintyAccessibilityView {
+        WorkUncertaintyAccessibilityView(uncertainties: uncertainties)
+    }
+
+    func updateNSView(_ nsView: WorkUncertaintyAccessibilityView, context: Context) {
+        nsView.update(uncertainties: uncertainties)
+    }
+}
+
+private final class WorkUncertaintyAccessibilityView: NSView {
+    private var uncertainties: [BehaviorEvidenceWorkUncertainty]
+    private var uncertaintyElements: [NSAccessibilityElement] = []
+
+    init(uncertainties: [BehaviorEvidenceWorkUncertainty]) {
+        self.uncertainties = uncertainties
+        super.init(frame: .zero)
+        setAccessibilityElement(false)
+        rebuildAccessibilityElements()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(uncertainties: [BehaviorEvidenceWorkUncertainty]) {
+        guard self.uncertainties != uncertainties else { return }
+        self.uncertainties = uncertainties
+        rebuildAccessibilityElements()
+    }
+
+    override func layout() {
+        super.layout()
+        updateAccessibilityFrames()
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
+    override func accessibilityChildren() -> [Any]? {
+        uncertaintyElements
+    }
+
+    private func rebuildAccessibilityElements() {
+        uncertaintyElements = uncertainties.map { uncertainty in
+            let element = NSAccessibilityElement()
+            element.setAccessibilityParent(self)
+            element.setAccessibilityRole(.staticText)
+            element.setAccessibilityLabel(uncertainty.accessibilityLabel)
+            element.setAccessibilityHelp(uncertainty.explanation)
+            element.setAccessibilityIdentifier(uncertainty.accessibilityIdentifier)
+            return element
+        }
+        setAccessibilityChildren(uncertaintyElements)
+        updateAccessibilityFrames()
+    }
+
+    private func updateAccessibilityFrames() {
+        guard !uncertaintyElements.isEmpty else { return }
+        let spacing: CGFloat = 8
+        let totalSpacing = spacing * CGFloat(max(0, uncertaintyElements.count - 1))
+        let rowHeight = max(0, (bounds.height - totalSpacing) / CGFloat(uncertaintyElements.count))
+        for (index, element) in uncertaintyElements.enumerated() {
+            let frame = NSRect(
+                x: 0,
+                y: bounds.height - CGFloat(index + 1) * rowHeight - CGFloat(index) * spacing,
+                width: bounds.width,
+                height: rowHeight
+            )
+            element.setAccessibilityFrameInParentSpace(frame)
+        }
     }
 }
 
