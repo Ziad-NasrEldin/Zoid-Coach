@@ -16,6 +16,41 @@ private struct ReviewsNavigationState {
     let destinationRootVisible: Bool
     let deepEvidenceChildVisible: Bool
 }
+private struct ScrollAreaTraits {
+    let containsDailyReview: Bool
+}
+private enum ScrollAreaSelection: Equatable { case selected(Int), missing, ambiguous }
+private enum ReviewScrollStep: Equatable { case verticalScrollBar(Double), pageAction }
+private func selectDailyReviewScrollArea(_ candidates: [ScrollAreaTraits]) -> ScrollAreaSelection {
+    let matches = candidates.indices.filter { candidates[$0].containsDailyReview }
+    if matches.count == 1 { return .selected(matches[0]) }
+    return matches.isEmpty ? .missing : .ambiguous
+}
+private func reviewScrollStep(
+    page: Int,
+    maximumPages: Int,
+    verticalScrollBarIsWritable: Bool,
+    minimumValue: Double,
+    maximumValue: Double
+) -> ReviewScrollStep {
+    guard verticalScrollBarIsWritable,
+          maximumPages > 0,
+          maximumValue > minimumValue
+    else { return .pageAction }
+    let boundedPage = min(max(page + 1, 1), maximumPages)
+    let fraction = Double(boundedPage) / Double(maximumPages)
+    return .verticalScrollBar(minimumValue + ((maximumValue - minimumValue) * fraction))
+}
+private func performReviewScrollStep(
+    _ step: ReviewScrollStep,
+    setScrollbar: (Double) -> Bool,
+    scrollPage: () -> Bool
+) -> Bool {
+    switch step {
+    case let .verticalScrollBar(value): return setScrollbar(value)
+    case .pageAction: return scrollPage()
+    }
+}
 private func reviewsNavigationSucceeded(
     beforePress: ReviewsNavigationState,
     pressSucceeded: Bool,
@@ -49,6 +84,13 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     let auxiliary = WindowTraits(identifier: "agent", minimized: false, hidden: false, hasToday: false, hasReviews: false)
     let minimized = WindowTraits(identifier: mainWindowID, minimized: true, hidden: false, hasToday: true, hasReviews: true)
     let hidden = WindowTraits(identifier: mainWindowID, minimized: false, hidden: true, hasToday: true, hasReviews: true)
+    var scrollbarWrites: [Double] = []
+    var unsupportedPageAttempts = 0
+    let scrollbarWithoutPageAction = performReviewScrollStep(
+        .verticalScrollBar(0.5),
+        setScrollbar: { scrollbarWrites.append($0); return true },
+        scrollPage: { unsupportedPageAttempts += 1; return false }
+    )
     guard selectMainWindow([main, auxiliary]) == .selected(0),
           selectMainWindow([auxiliary, content]) == .selected(1),
           selectMainWindow([main, content]) == .ambiguous,
@@ -99,6 +141,48 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
                   deepEvidenceChildVisible: true
               )
           ),
+          selectDailyReviewScrollArea([
+              ScrollAreaTraits(containsDailyReview: false),
+              ScrollAreaTraits(containsDailyReview: true),
+          ]) == .selected(1),
+          selectDailyReviewScrollArea([
+              ScrollAreaTraits(containsDailyReview: false),
+          ]) == .missing,
+          selectDailyReviewScrollArea([
+              ScrollAreaTraits(containsDailyReview: true),
+              ScrollAreaTraits(containsDailyReview: true),
+          ]) == .ambiguous,
+          reviewScrollStep(
+              page: 0,
+              maximumPages: 16,
+              verticalScrollBarIsWritable: true,
+              minimumValue: 0,
+              maximumValue: 1
+          ) == .verticalScrollBar(0.0625),
+          reviewScrollStep(
+              page: 15,
+              maximumPages: 16,
+              verticalScrollBarIsWritable: true,
+              minimumValue: 0,
+              maximumValue: 1
+          ) == .verticalScrollBar(1),
+          reviewScrollStep(
+              page: 99,
+              maximumPages: 16,
+              verticalScrollBarIsWritable: true,
+              minimumValue: -1,
+              maximumValue: 1
+          ) == .verticalScrollBar(1),
+          reviewScrollStep(
+              page: 0,
+              maximumPages: 16,
+              verticalScrollBarIsWritable: false,
+              minimumValue: 0,
+              maximumValue: 1
+          ) == .pageAction,
+          scrollbarWithoutPageAction,
+          scrollbarWrites == [0.5],
+          unsupportedPageAttempts == 0,
           Set(layerIDs).count == 3
     else {
         fputs("FAIL: ZC-042-001 AX probe self-test\n", stderr)
@@ -140,6 +224,15 @@ private func children(_ element: AXUIElement) -> [AXUIElement] {
 }
 private func bool(_ element: AXUIElement, _ name: CFString) -> Bool? {
     (attribute(element, name) as? NSNumber)?.boolValue
+}
+private func number(_ element: AXUIElement, _ name: CFString) -> Double? {
+    (attribute(element, name) as? NSNumber)?.doubleValue
+}
+private func element(_ element: AXUIElement, _ name: CFString) -> AXUIElement? {
+    guard let value = attribute(element, name),
+          CFGetTypeID(value) == AXUIElementGetTypeID()
+    else { return nil }
+    return unsafeBitCast(value, to: AXUIElement.self)
 }
 private func walk(_ root: AXUIElement, matching: (AXUIElement) -> Bool) throws -> AXUIElement? {
     var queue = [root]
@@ -214,29 +307,73 @@ private func reviewsScrollArea(in window: AXUIElement) throws -> AXUIElement {
         if role($0) == (kAXScrollAreaRole as String) { scrollAreas.append($0) }
         return false
     }
-    let matches = try scrollAreas.filter { scrollArea in
-        try walk(scrollArea, matching: { identifier($0) == reviewDestinationID }) != nil
-    }
-    guard matches.count == 1, let match = matches.first else {
-        throw ProbeError.failure(
-            matches.isEmpty
-                ? "Daily Review content scroll area is unavailable"
-                : "Daily Review content scroll area is ambiguous"
+    let traits = try scrollAreas.map { scrollArea in
+        ScrollAreaTraits(
+            containsDailyReview: try walk(
+                scrollArea,
+                matching: { identifier($0) == reviewDestinationID }
+            ) != nil
         )
     }
-    return match
+    switch selectDailyReviewScrollArea(traits) {
+    case let .selected(index):
+        return scrollAreas[index]
+    case .missing:
+        throw ProbeError.failure("Daily Review content scroll area is unavailable")
+    case .ambiguous:
+        throw ProbeError.failure("Daily Review content scroll area is ambiguous")
+    }
+}
+private func scrollReviews(_ scrollArea: AXUIElement, page: Int) -> Bool {
+    let verticalScrollBar = element(scrollArea, kAXVerticalScrollBarAttribute as CFString)
+    var scrollBarIsWritable = DarwinBoolean(false)
+    if let verticalScrollBar {
+        _ = AXUIElementIsAttributeSettable(
+            verticalScrollBar,
+            kAXValueAttribute as CFString,
+            &scrollBarIsWritable
+        )
+    }
+    let minimumValue = verticalScrollBar.flatMap {
+        number($0, kAXMinValueAttribute as CFString)
+    } ?? 0
+    let maximumValue = verticalScrollBar.flatMap {
+        number($0, kAXMaxValueAttribute as CFString)
+    } ?? 1
+    let step = reviewScrollStep(
+        page: page,
+        maximumPages: maximumPages,
+        verticalScrollBarIsWritable: scrollBarIsWritable.boolValue,
+        minimumValue: minimumValue,
+        maximumValue: maximumValue
+    )
+    return performReviewScrollStep(
+        step,
+        setScrollbar: { value in
+            guard let verticalScrollBar else { return false }
+            return AXUIElementSetAttributeValue(
+                verticalScrollBar,
+                kAXValueAttribute as CFString,
+                NSNumber(value: value)
+            ) == .success
+        },
+        scrollPage: {
+            AXUIElementPerformAction(
+                scrollArea,
+                "AXScrollDownByPage" as CFString
+            ) == .success
+        }
+    )
 }
 private func find(_ expected: String, in window: AXUIElement) throws -> AXUIElement {
-    for page in 0...maximumPages {
-        if let element = try walk(window, matching: { identifier($0) == expected }) { return element }
-        guard page < maximumPages else { break }
-        let scrollArea = try reviewsScrollArea(in: window)
-        guard AXUIElementPerformAction(scrollArea, "AXScrollDownByPage" as CFString) == .success else {
-            throw ProbeError.failure("could not scroll Daily Review toward \(expected)")
-        }
+    let scrollArea = try reviewsScrollArea(in: window)
+    for page in 0..<maximumPages {
+        if let match = try walk(window, matching: { identifier($0) == expected }) { return match }
+        guard scrollReviews(scrollArea, page: page) else { break }
         Thread.sleep(forTimeInterval: 0.15)
     }
-    throw ProbeError.failure("required evidence layer is unavailable: \(expected)")
+    if let match = try walk(window, matching: { identifier($0) == expected }) { return match }
+    throw ProbeError.failure("required evidence layer is unavailable after bounded scrolling: \(expected)")
 }
 private func subtree(_ root: AXUIElement) throws -> (ids: [String], strings: [String]) {
     var ids: [String] = []
