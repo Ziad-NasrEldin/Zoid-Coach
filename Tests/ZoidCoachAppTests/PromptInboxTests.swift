@@ -42,6 +42,38 @@ func promptEpisodeStateMachineEnforcesTheDocumentedLifecycle() throws {
 }
 
 @Test
+func promptInboxPersistsWhyAResolvedPromptWasDismissedAcrossRestart() throws {
+    let url = temporaryPromptInboxURL("resolution-origin")
+    defer { removePromptInboxDatabase(url) }
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    let ids = PromptInboxIDSequence(["system-prompt", "user-prompt"])
+    let store = try PromptInboxStore(databaseURL: url, now: { date }, makeID: { ids.next() })
+    let systemPrompt = try store.enqueue(promptDraft(decisionKey: "gaming:system-withdrawal")).episode
+    let userPrompt = try store.enqueue(promptDraft(decisionKey: "gaming:user-dismissal")).episode
+
+    let withdrawn = try store.withdrawForInvalidScreenwatchEvidence(promptID: systemPrompt.id)
+    let dismissed = try store.dismiss(promptID: userPrompt.id)
+    let userDismissalAfterSystemReconciliation = try store.withdrawForInvalidScreenwatchEvidence(
+        promptID: userPrompt.id
+    )
+
+    #expect(withdrawn.state == .dismissed)
+    #expect(withdrawn.resolutionOrigin == .system)
+    #expect(withdrawn.resolutionReason == .screenwatchEvidenceInvalid)
+    #expect(dismissed.state == .dismissed)
+    #expect(dismissed.resolutionOrigin == .user)
+    #expect(dismissed.resolutionReason == .explicitDismissal)
+    #expect(userDismissalAfterSystemReconciliation.resolutionOrigin == .user)
+    #expect(userDismissalAfterSystemReconciliation.resolutionReason == .explicitDismissal)
+
+    let reopened = try PromptInboxStore(databaseURL: url, now: { date })
+    #expect(try reopened.episode(promptID: systemPrompt.id)?.resolutionOrigin == .system)
+    #expect(try reopened.episode(promptID: systemPrompt.id)?.resolutionReason == .screenwatchEvidenceInvalid)
+    #expect(try reopened.episode(promptID: userPrompt.id)?.resolutionOrigin == .user)
+    #expect(try reopened.episode(promptID: userPrompt.id)?.resolutionReason == .explicitDismissal)
+}
+
+@Test
 func promptInboxSerializesConcurrentResponseDelivery() async throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("prompt-concurrency-\(UUID().uuidString).sqlite")
     defer { for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) } }

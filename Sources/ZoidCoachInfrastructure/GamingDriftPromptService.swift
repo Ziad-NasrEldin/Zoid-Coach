@@ -66,6 +66,12 @@ public final class GamingDriftPromptService: @unchecked Sendable {
     private let prompts: PromptInboxStore
     private let now: @Sendable () -> Date
     private let formatter = ISO8601DateFormatter()
+    private static let countsAsHandledPrompt = """
+    NOT (
+        COALESCE(resolution_origin, '') = 'system'
+        AND COALESCE(resolution_reason, '') = 'screenwatch_evidence_invalid'
+    )
+    """
 
     public init(
         databaseURL: URL = ZoidCoachStorage.databaseURL(),
@@ -393,7 +399,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
     private func dismissUnresolvedGamingDriftPrompts() throws {
         for episode in try prompts.unresolved()
             where episode.type == PromptNotificationCategory.gamingDrift.rawValue {
-            try prompts.dismiss(promptID: episode.id)
+            try prompts.withdrawForInvalidScreenwatchEvidence(promptID: episode.id)
         }
     }
 
@@ -634,7 +640,12 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
-            "SELECT COUNT(*) FROM prompt_episodes WHERE decision_key LIKE ? OR decision_key LIKE ?;",
+            """
+            SELECT COUNT(*)
+            FROM prompt_episodes
+            WHERE (decision_key LIKE ? OR decision_key LIKE ?)
+              AND \(Self.countsAsHandledPrompt);
+            """,
             -1,
             &statement,
             nil
@@ -650,7 +661,13 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
-            "SELECT 1 FROM prompt_episodes WHERE decision_key = ? OR decision_key LIKE ? LIMIT 1;",
+            """
+            SELECT 1
+            FROM prompt_episodes
+            WHERE (decision_key = ? OR decision_key LIKE ?)
+              AND \(Self.countsAsHandledPrompt)
+            LIMIT 1;
+            """,
             -1,
             &statement,
             nil
@@ -665,7 +682,14 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
-            "SELECT created_at_utc FROM prompt_episodes WHERE decision_key LIKE ? OR decision_key LIKE ? ORDER BY created_at_utc DESC, id DESC LIMIT 1;",
+            """
+            SELECT created_at_utc
+            FROM prompt_episodes
+            WHERE (decision_key LIKE ? OR decision_key LIKE ?)
+              AND \(Self.countsAsHandledPrompt)
+            ORDER BY created_at_utc DESC, id DESC
+            LIMIT 1;
+            """,
             -1,
             &statement,
             nil
