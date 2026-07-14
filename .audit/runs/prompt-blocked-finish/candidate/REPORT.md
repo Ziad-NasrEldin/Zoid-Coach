@@ -36,10 +36,14 @@ The focused suite covers all six actions, their order, their stable identifiers,
 It covers empty-input rejection, trimmed valid input, repeated-submit rejection, failure recovery, and Cancel reset.
 It validates every selectable reason and the durable-plan-to-history reason lookup.
 
-The combined focused command passed 10 tests with zero failures.
-The production release build passed.
+The final combined focused command passed 11 tests with zero failures.
+The final production release build passed in 33.29 seconds.
+
+The first signed helper-unavailable run found that the subsequent inbox refresh replaced the specific block-save failure with a generic inbox-refresh error.
+The repair captures the block-save failure before refresh and restores that same message afterward, regardless of whether inbox refresh succeeds or fails.
+The new public-outcome regression proves both refresh outcomes retain the block-save message.
 
 ## Remaining verification
 
-The candidate still requires the coordinated release build and one signed installed journey.
-That journey must prove native accessibility reachability, invalid input, Cancel preservation, one successful block, replacement-main promotion, exactly one answered decision, visible Today and history reason, app and helper relaunch durability, and helper-unavailable failure preservation.
+The coordinated signed installed journey is complete.
+Its independent acceptance evidence is recorded in `.audit/runs/prompt-blocked-finish/verifier/REPORT.md`.
