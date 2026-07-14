@@ -29,6 +29,23 @@ final class ScreenwatchRepairActionPresentationTests: XCTestCase {
         assertPrivacyBoundary(in: presentation)
     }
 
+    func testDeniedAlternateFolderOffersReauthorizationWithoutCallingAccessExpired() {
+        let presentation = ScreenwatchRepairActionPresentation(
+            status: status(
+                source: .alternateFolder,
+                health: .accessUnavailable,
+                repair: .reauthorizeFolder
+            )
+        )
+
+        XCTAssertEqual(presentation.state, .accessDenied)
+        XCTAssertEqual(presentation.primaryTitle, "REAUTHORIZE FOLDER")
+        XCTAssertTrue(presentation.accessibilityHint.contains("restore permission"))
+        XCTAssertTrue(presentation.explanation.contains("could not be accessed"))
+        XCTAssertFalse(presentation.explanation.contains("expired"))
+        assertPrivacyBoundary(in: presentation)
+    }
+
     func testUnavailableFolderOffersAReplacementFolder() {
         let presentation = ScreenwatchRepairActionPresentation(
             status: status(
@@ -59,6 +76,105 @@ final class ScreenwatchRepairActionPresentationTests: XCTestCase {
         XCTAssertTrue(presentation.accessibilityHint.contains("replace the connected"))
         XCTAssertTrue(presentation.explanation.contains("access is working"))
         XCTAssertTrue(presentation.explanation.contains("only if Screenwatch moved"))
+        assertPrivacyBoundary(in: presentation)
+    }
+
+    func testHealthyDefaultFolderOffersAnOptionalAlternateWithoutFirstConnectionCopy() {
+        let presentation = ScreenwatchRepairActionPresentation(
+            status: status(
+                source: .defaultLocation,
+                health: .healthy,
+                repair: .none
+            )
+        )
+
+        XCTAssertEqual(presentation.state, .connectedFolder)
+        XCTAssertEqual(presentation.primaryTitle, "CHOOSE FOLDER")
+        XCTAssertTrue(presentation.accessibilityHint.contains("alternate"))
+        XCTAssertTrue(presentation.explanation.contains("access is working"))
+        XCTAssertFalse(presentation.explanation.contains("first connection"))
+        assertPrivacyBoundary(in: presentation)
+    }
+
+    func testRecheckKeepsDefaultAndAlternateFolderActionsDistinct() {
+        let defaultFolder = ScreenwatchRepairActionPresentation(
+            status: status(
+                source: .defaultLocation,
+                health: .missing,
+                repair: .recheck
+            )
+        )
+        let alternateFolder = ScreenwatchRepairActionPresentation(
+            status: status(
+                source: .alternateFolder,
+                health: .stale,
+                repair: .recheck
+            )
+        )
+
+        XCTAssertEqual(defaultFolder.state, .recheck)
+        XCTAssertEqual(defaultFolder.primaryTitle, "CHOOSE FOLDER")
+        XCTAssertEqual(alternateFolder.state, .recheck)
+        XCTAssertEqual(alternateFolder.primaryTitle, "CHANGE FOLDER")
+        XCTAssertTrue(defaultFolder.explanation.contains("Recheck"))
+        assertPrivacyBoundary(in: defaultFolder)
+        assertPrivacyBoundary(in: alternateFolder)
+    }
+
+    func testUseDefaultLocationKeepsChangeActionAndTruthfulGuidance() {
+        let presentation = ScreenwatchRepairActionPresentation(
+            status: status(
+                source: .alternateFolder,
+                health: .stale,
+                repair: .useDefaultLocation
+            )
+        )
+
+        XCTAssertEqual(presentation.state, .useDefaultLocation)
+        XCTAssertEqual(presentation.primaryTitle, "CHANGE FOLDER")
+        XCTAssertTrue(presentation.explanation.contains("expected location"))
+        assertPrivacyBoundary(in: presentation)
+    }
+
+    func testUnsafeDefaultAndAlternatePathsKeepTheirRepairActionsWithoutExpiredCopy() {
+        let defaultFolder = ScreenwatchRepairActionPresentation(
+            status: status(
+                source: .defaultLocation,
+                health: .unsafePath,
+                repair: .chooseFolder
+            )
+        )
+        let alternateFolder = ScreenwatchRepairActionPresentation(
+            status: status(
+                source: .alternateFolder,
+                health: .unsafePath,
+                repair: .reauthorizeFolder
+            )
+        )
+
+        XCTAssertEqual(defaultFolder.state, .unsafeFolder)
+        XCTAssertEqual(defaultFolder.primaryTitle, "CHOOSE SAFE FOLDER")
+        XCTAssertEqual(alternateFolder.state, .unsafeFolder)
+        XCTAssertEqual(alternateFolder.primaryTitle, "REAUTHORIZE FOLDER")
+        XCTAssertTrue(defaultFolder.explanation.contains("cannot be used safely"))
+        XCTAssertFalse(alternateFolder.explanation.contains("expired"))
+        assertPrivacyBoundary(in: defaultFolder)
+        assertPrivacyBoundary(in: alternateFolder)
+    }
+
+    func testMissingAlternateFolderOffersReauthorizationWithoutExpiredCopy() {
+        let presentation = ScreenwatchRepairActionPresentation(
+            status: status(
+                source: .alternateFolder,
+                health: .missing,
+                repair: .reauthorizeFolder
+            )
+        )
+
+        XCTAssertEqual(presentation.state, .unavailableFolder)
+        XCTAssertEqual(presentation.primaryTitle, "REAUTHORIZE FOLDER")
+        XCTAssertTrue(presentation.explanation.contains("unavailable"))
+        XCTAssertFalse(presentation.explanation.contains("expired"))
         assertPrivacyBoundary(in: presentation)
     }
 
