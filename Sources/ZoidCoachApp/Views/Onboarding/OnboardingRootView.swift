@@ -946,7 +946,8 @@ struct OnboardingRootView: View {
 
     private var welcomeCopy: OnboardingWelcomeCopy {
         OnboardingWelcomeCopy.localized(
-            for: coordinator.progress.currentStep == .welcome ? locale : Locale(identifier: "en")
+            for: locale,
+            isWelcomeStep: coordinator.progress.currentStep == .welcome
         )
     }
 }
