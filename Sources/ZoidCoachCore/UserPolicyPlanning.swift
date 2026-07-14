@@ -11,11 +11,19 @@ public extension SchedulePolicy {
             minute: calendar.component(.minute, from: date)
         )
         return workWindows.contains { window in
-            guard window.weekdays.contains(weekday) else { return false }
             if window.end < window.start {
-                return localTime >= window.start || localTime <= window.end
+                if localTime >= window.start {
+                    return window.weekdays.contains(weekday)
+                }
+                guard localTime <= window.end,
+                      let previousDate = calendar.date(byAdding: .day, value: -1, to: date),
+                      let previousWeekday = Weekday(rawValue: calendar.component(.weekday, from: previousDate))
+                else { return false }
+                return window.weekdays.contains(previousWeekday)
             }
-            return localTime >= window.start && localTime <= window.end
+            return window.weekdays.contains(weekday)
+                && localTime >= window.start
+                && localTime <= window.end
         }
     }
 

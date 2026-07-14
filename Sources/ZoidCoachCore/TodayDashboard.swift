@@ -637,6 +637,16 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
     }
 }
 
+public struct GamingWorkHoursMaximumEvaluation: Equatable, Codable, Sendable {
+    public let configuredMaximumMinutes: Int?
+    public let isApplied: Bool
+
+    public init(configuredMaximumMinutes: Int?, isApplied: Bool) {
+        self.configuredMaximumMinutes = configuredMaximumMinutes.map { max(0, $0) }
+        self.isApplied = isApplied
+    }
+}
+
 public struct GamingStatus: Equatable, Codable, Sendable {
     public static let meaningfulSessionExplanation = "Gaming sessions under 2 continuous minutes are observed but do not use the allowance."
     public let budgetMinutes: Int
@@ -649,8 +659,9 @@ public struct GamingStatus: Equatable, Codable, Sendable {
     public let nextUnlockReason: String
     public let confidenceIsLimited: Bool
     public let budgetEnabled: Bool
+    public let workHoursMaximumEvaluation: GamingWorkHoursMaximumEvaluation?
 
-    public init(budgetMinutes: Int, earnedMinutes: Int = 0, manualAdjustmentMinutes: Int = 0, usedMinutes: Int, unlockedRemainingMinutes: Int, lockedMinutes: Int = 0, overageMinutes: Int = 0, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true) {
+    public init(budgetMinutes: Int, earnedMinutes: Int = 0, manualAdjustmentMinutes: Int = 0, usedMinutes: Int, unlockedRemainingMinutes: Int, lockedMinutes: Int = 0, overageMinutes: Int = 0, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true, workHoursMaximumEvaluation: GamingWorkHoursMaximumEvaluation? = nil) {
         self.budgetMinutes = max(0, budgetMinutes)
         self.earnedMinutes = max(0, earnedMinutes)
         self.manualAdjustmentMinutes = max(0, manualAdjustmentMinutes)
@@ -661,6 +672,7 @@ public struct GamingStatus: Equatable, Codable, Sendable {
         self.nextUnlockReason = nextUnlockReason
         self.confidenceIsLimited = confidenceIsLimited
         self.budgetEnabled = budgetEnabled
+        self.workHoursMaximumEvaluation = workHoursMaximumEvaluation
     }
 
     public var allowanceBreakdown: String {
@@ -682,12 +694,13 @@ public struct GamingStatus: Equatable, Codable, Sendable {
             overageMinutes: max(0, usedMinutes - allowance),
             nextUnlockReason: nextUnlockReason,
             confidenceIsLimited: confidenceIsLimited,
-            budgetEnabled: budgetEnabled
+            budgetEnabled: budgetEnabled,
+            workHoursMaximumEvaluation: workHoursMaximumEvaluation
         )
     }
 
     private enum CodingKeys: String, CodingKey {
-        case budgetMinutes, earnedMinutes, manualAdjustmentMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, overageMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled
+        case budgetMinutes, earnedMinutes, manualAdjustmentMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, overageMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled, workHoursMaximumEvaluation
     }
 
     public init(from decoder: Decoder) throws {
@@ -702,7 +715,8 @@ public struct GamingStatus: Equatable, Codable, Sendable {
             overageMinutes: try container.decodeIfPresent(Int.self, forKey: .overageMinutes) ?? 0,
             nextUnlockReason: try container.decode(String.self, forKey: .nextUnlockReason),
             confidenceIsLimited: try container.decode(Bool.self, forKey: .confidenceIsLimited),
-            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
+            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true,
+            workHoursMaximumEvaluation: try container.decodeIfPresent(GamingWorkHoursMaximumEvaluation.self, forKey: .workHoursMaximumEvaluation)
         )
     }
 }
@@ -986,7 +1000,11 @@ public struct GamingStatusCalculator: Sendable {
                 unlockedRemainingMinutes: 0,
                 nextUnlockReason: "Observation only. No gaming budget, unlock, debt, or coaching prompt is applied.",
                 confidenceIsLimited: coverage.isLimited,
-                budgetEnabled: false
+                budgetEnabled: false,
+                workHoursMaximumEvaluation: GamingWorkHoursMaximumEvaluation(
+                    configuredMaximumMinutes: policy.workHoursDailyMaximumMinutes,
+                    isApplied: false
+                )
             )
         }
         let configuredRewardMinutes = max(0, appliedRewardMinutes ?? 0)
@@ -1019,7 +1037,11 @@ public struct GamingStatusCalculator: Sendable {
             lockedMinutes: lockedRewardMinutes,
             overageMinutes: max(0, gamingMinutes - allowance),
             nextUnlockReason: nextUnlockReason,
-            confidenceIsLimited: coverage.isLimited
+            confidenceIsLimited: coverage.isLimited,
+            workHoursMaximumEvaluation: GamingWorkHoursMaximumEvaluation(
+                configuredMaximumMinutes: policy.workHoursDailyMaximumMinutes,
+                isApplied: workHoursMaximum != nil
+            )
         )
     }
 }

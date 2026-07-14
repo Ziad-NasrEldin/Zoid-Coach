@@ -1744,11 +1744,10 @@ final class AppModel: ObservableObject {
 
     func menuBarGamingWorkHoursContext(at date: Date) -> MenuBarGamingWorkHoursContext? {
         guard let policyStore,
-              let policy = try? policyStore.current()?.policy,
-              let maximum = policy.gaming.workHoursDailyMaximumMinutes
+              let policy = try? policyStore.current()?.policy
         else { return nil }
         return MenuBarGamingWorkHoursContext(
-            maximumMinutes: maximum,
+            maximumMinutes: policy.gaming.workHoursDailyMaximumMinutes,
             isWithinWorkWindow: policy.schedule.isWithinWorkWindow(at: date)
         )
     }

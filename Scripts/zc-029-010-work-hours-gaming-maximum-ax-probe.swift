@@ -6,12 +6,16 @@ import Foundation
 private enum Mode: String {
     case settingsEnabled = "settings-enabled"
     case settingsPersisted = "settings-persisted"
+    case settingsLowerBound = "settings-lower-bound"
+    case settingsUpperBound = "settings-upper-bound"
     case withinWorkWindow = "within-work-window"
     case outsideWorkWindow = "outside-work-window"
     case disabled
     case partialLockedReward = "partial-locked-reward"
     case menuWithinWorkWindow = "menu-within-work-window"
     case menuOutsideWorkWindow = "menu-outside-work-window"
+    case menuAwaitingRefresh = "menu-awaiting-refresh"
+    case menuPrivacyScan = "menu-privacy-scan"
     case menuOmitted = "menu-omitted"
 }
 
@@ -26,7 +30,14 @@ private let expected: [Mode: [String]] = [
     .disabled: ["Base 60m · Earned 15m · Used 20m · Locked 0m · Remaining 55m · Same-day overage 0m"],
     .partialLockedReward: ["Base 60m · Earned 0m · Used 0m · Locked 10m · Remaining 60m · Same-day overage 0m"],
     .menuWithinWorkWindow: ["30 MIN MAXIMUM", "Active in the current work window · 10m remaining"],
-    .menuOutsideWorkWindow: ["30 MIN MAXIMUM", "Not active now · Normal allowance has 55m remaining"]
+    .menuOutsideWorkWindow: ["30 MIN MAXIMUM", "Not active now · Normal allowance has 55m remaining"],
+    .menuAwaitingRefresh: ["Current allowance is awaiting a work-hours policy refresh"]
+]
+
+private let forbiddenPrivacyFragments = [
+    "PRIVATE-ZC029010-WINDOW-SENTINEL",
+    "private-zc029010.invalid",
+    "secret=sentinel"
 ]
 
 private func attribute(_ element: AXUIElement, _ name: CFString) -> AnyObject? {
@@ -80,6 +91,33 @@ private func requireEnabled(_ element: AXUIElement, name: String) throws {
     }
 }
 
+private func assertPrivacy(_ elements: [AXUIElement]) throws {
+    let exposed = elements.flatMap(strings).joined(separator: "\n")
+    for fragment in forbiddenPrivacyFragments where exposed.localizedCaseInsensitiveContains(fragment) {
+        throw Failure(message: "private fixture evidence leaked into accessibility: \(fragment)")
+    }
+}
+
+private func assertSettingsBound(
+    elements: [AXUIElement],
+    value: Int,
+    decreaseEnabled: Bool,
+    increaseEnabled: Bool
+) throws {
+    let control = try requireIdentifier("settings.gaming.work-hours-maximum", in: elements)
+    guard walk(control).flatMap(strings).contains("MAXIMUM DURING WORK HOURS, \(value) MIN") else {
+        throw Failure(message: "work-hours maximum does not expose the expected bound")
+    }
+    guard let decrease = elements.first(where: { strings($0).contains("Decrease MAXIMUM DURING WORK HOURS") }),
+          let increase = elements.first(where: { strings($0).contains("Increase MAXIMUM DURING WORK HOURS") })
+    else { throw Failure(message: "bounded decrement/increment controls are missing") }
+    let actualDecrease = (attribute(decrease, kAXEnabledAttribute as CFString) as? Bool) ?? true
+    let actualIncrease = (attribute(increase, kAXEnabledAttribute as CFString) as? Bool) ?? true
+    guard actualDecrease == decreaseEnabled, actualIncrease == increaseEnabled else {
+        throw Failure(message: "work-hours maximum bound controls are not truthful")
+    }
+}
+
 private func press(_ element: AXUIElement, name: String) throws {
     try requireEnabled(element, name: name)
     guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else {
@@ -124,21 +162,26 @@ private func run() throws {
     guard CommandLine.arguments.count == 3,
           let pid = pid_t(CommandLine.arguments[1]),
           let mode = Mode(rawValue: CommandLine.arguments[2])
-    else { throw Failure(message: "usage: probe <pid> <settings-enabled|settings-persisted|within-work-window|outside-work-window|disabled|partial-locked-reward|menu-within-work-window|menu-outside-work-window|menu-omitted>") }
+    else { throw Failure(message: "usage: probe <pid> <settings-enabled|settings-persisted|settings-lower-bound|settings-upper-bound|within-work-window|outside-work-window|disabled|partial-locked-reward|menu-within-work-window|menu-outside-work-window|menu-awaiting-refresh|menu-privacy-scan|menu-omitted>") }
     guard AXIsProcessTrusted() else { throw Failure(message: "Accessibility permission is required") }
     guard kill(pid, 0) == 0 else { throw Failure(message: "process is not running") }
     let elements = walk(try singleWindow(pid: pid))
+    try assertPrivacy(elements)
     switch mode {
     case .settingsEnabled:
         try assertSettings(elements: elements, exercise: true)
     case .settingsPersisted:
         try assertSettings(elements: elements, exercise: false)
+    case .settingsLowerBound:
+        try assertSettingsBound(elements: elements, value: 0, decreaseEnabled: false, increaseEnabled: true)
+    case .settingsUpperBound:
+        try assertSettingsBound(elements: elements, value: 60, decreaseEnabled: true, increaseEnabled: false)
     case .withinWorkWindow, .outsideWorkWindow, .disabled, .partialLockedReward:
         _ = try requireIdentifier("today.gaming.status", in: elements)
         for value in expected[mode, default: []] where !containsExact(value, in: elements) {
             throw Failure(message: "rendered Today gaming state did not match \(mode.rawValue)")
         }
-    case .menuWithinWorkWindow, .menuOutsideWorkWindow:
+    case .menuWithinWorkWindow, .menuOutsideWorkWindow, .menuAwaitingRefresh, .menuPrivacyScan:
         _ = try requireIdentifier("menu-bar.gaming.work-hours", in: elements)
         _ = try requireIdentifier("menu-bar.gaming.work-hours.maximum", in: elements)
         _ = try requireIdentifier("menu-bar.gaming.work-hours.status", in: elements)

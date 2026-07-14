@@ -45,7 +45,8 @@ jq -e '
   .menu.maximumIdentifier == "menu-bar.gaming.work-hours.maximum" and
   .menu.statusIdentifier == "menu-bar.gaming.work-hours.status" and
   .menu.withinWorkWindowStatus == "Active in the current work window · 10m remaining" and
-  .menu.outsideWorkWindowStatus == "Not active now · Normal allowance has 55m remaining"
+  .menu.outsideWorkWindowStatus == "Not active now · Normal allowance has 55m remaining" and
+  .menu.awaitingRefreshStatus == "Current allowance is awaiting a work-hours policy refresh"
 ' "$FIXTURE" >/dev/null || fail "fixture contract mismatch"
 
 jq -e '
@@ -59,6 +60,8 @@ jq -e '
   (.screenwatch.days | length) == 1 and
   (.screenwatch.days[0].records | length) == 2 and
   .screenwatch.days[0].records[0].app == "Steam" and
+  (.screenwatch.days[0].records | all(.window == "PRIVATE-ZC029010-WINDOW-SENTINEL")) and
+  (.screenwatch.days[0].records | all(.url == "https://private-zc029010.invalid/raw?secret=sentinel")) and
   (.screenwatch.days[0].records[1].epoch - .screenwatch.days[0].records[0].epoch) == 1200
 ' "$READY_STATE" >/dev/null || fail "ready-state production fixture contract mismatch"
 

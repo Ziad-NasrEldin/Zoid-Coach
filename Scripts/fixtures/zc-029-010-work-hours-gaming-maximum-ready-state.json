@@ -46,16 +46,16 @@
             "t": "2026-07-14T12:00:00Z",
             "epoch": 1784030400,
             "app": "Steam",
-            "window": "ZC-029-010 meaningful gaming start",
-            "url": "",
+            "window": "PRIVATE-ZC029010-WINDOW-SENTINEL",
+            "url": "https://private-zc029010.invalid/raw?secret=sentinel",
             "img": false
           },
           {
             "t": "2026-07-14T12:20:00Z",
             "epoch": 1784031600,
             "app": "Steam",
-            "window": "ZC-029-010 meaningful gaming end",
-            "url": "",
+            "window": "PRIVATE-ZC029010-WINDOW-SENTINEL",
+            "url": "https://private-zc029010.invalid/raw?secret=sentinel",
             "img": false
           }
         ]
