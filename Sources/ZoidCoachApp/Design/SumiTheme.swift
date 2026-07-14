@@ -273,9 +273,13 @@ struct SumiActionButtonStyle: ButtonStyle {
         configuration.label
             .font(Sumi.label(size.labelSize))
             .sumiLabelTracking()
+            .multilineTextAlignment(.center)
+            .lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
             .foregroundStyle(foregroundColor)
             .padding(.horizontal, size.horizontalPadding)
-            .frame(minHeight: size.height)
+            .padding(.vertical, 6)
+            .frame(minHeight: max(44, size.height))
             .background(backgroundColor(isPressed: configuration.isPressed))
             .overlay { Rectangle().stroke(borderColor, lineWidth: 1) }
             .contentShape(Rectangle())
