@@ -94,3 +94,11 @@ No isolated runtime process or LaunchAgent remains.
 
 Keep `ZC-052-005` at `Partially implemented`.
 The temporary-lock task-activity path and relaunch persistence are now visibly and durably proven for a local task, but the required external-Reminder outbox cardinality, persistent-lock failure boundary, pending-client lost-reply relaunch, and Calendar receipt reconciliation remain unverified.
+
+## Signed Copy Repair
+
+The signed run exposed an inaccurate app confirmation after local task completion.
+The AppModel confirmation mapping now recognizes the established `local:user:` task identity and reports `Local task completed on this Mac.` without mentioning a queue, sync, or Reminders.
+External Reminder completion continues to report the truthful pending state as `Task completion is pending Reminders sync.`
+Focused public-interface tests cover both messages.
+The focused tests and release build remain pending the serialized build lease.

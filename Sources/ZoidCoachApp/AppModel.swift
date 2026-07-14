@@ -350,7 +350,7 @@ final class AppModel: ObservableObject {
             do {
                 todaySnapshot = try await todayDashboardXPCClient.apply(command, taskID: taskID)
                 await reconcileAcceptedBreakReminder(taskID: taskID)
-                lastActionMessage = taskCommandConfirmation(command)
+                lastActionMessage = Self.taskCommandConfirmation(command, taskID: taskID)
                 if command == .complete {
                     await refreshActionAudit()
                     await monitorReminderCompletionSync(taskID: taskID)
@@ -495,7 +495,10 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func taskCommandConfirmation(_ command: TaskActivityCommand) -> String {
+    static func taskCommandConfirmation(
+        _ command: TaskActivityCommand,
+        taskID: String
+    ) -> String {
         switch command {
         case .start: "Task started."
         case .startSprint10: "10-minute recovery sprint started."
@@ -508,10 +511,15 @@ final class AppModel: ObservableObject {
         case .pauseForExternalInterruption: "Task paused for an external interruption."
         case .pauseDoneForNow: "Task paused. It will remain ready to resume later."
         case .pauseForEndOfDay: "Task paused for the end of the workday."
-        case .complete: "Task completion is queued for Reminders sync."
+        case .complete where isLocalTaskID(taskID): "Local task completed on this Mac."
+        case .complete: "Task completion is pending Reminders sync."
         case .block: "Task marked blocked."
         case .reschedule: "Task marked for replanning."
         }
+    }
+
+    private static func isLocalTaskID(_ taskID: String) -> Bool {
+        taskID.hasPrefix("local:user:")
     }
 
     func refreshPromptInbox() async {
