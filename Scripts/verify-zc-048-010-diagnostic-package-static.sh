@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-canonical="6dfb5886f4ca2d157745f10b5d737988a08d596a"
+canonical="8b1782c6ee2c213a408360554f19bf231b0f3e19"
 unexpected=""
 while IFS= read -r path; do
   case "$path" in
