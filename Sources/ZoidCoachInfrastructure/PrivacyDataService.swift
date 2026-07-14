@@ -71,7 +71,7 @@ public final class PrivacyDataService: @unchecked Sendable {
 
     public func storedDataInventory() throws -> PrivacyStoredDataInventory {
         let definitions: [(String, String, String, [String])] = [
-            ("plans", "Plans and task activity", "Daily plans, revisions, task status, estimates, and scheduling requests.", ["daily_plans", "daily_plan_items", "daily_plan_entries", "daily_plan_revisions", "task_execution_states", "task_activity_intervals", "task_history", "plan_schedule_requests"]),
+            ("plans", "Plans and task activity", "Daily plans, revisions, task status, estimates, gaming allowance adjustments, and scheduling requests.", ["daily_plans", "daily_plan_items", "daily_plan_entries", "daily_plan_revisions", "task_execution_states", "task_activity_intervals", "task_history", "plan_schedule_requests", "gaming_manual_adjustments"]),
             ("behavior", "Behavior evidence", "Local activity summaries, extracted facts, and app-owned screenshot indexes. Source screenshots are never owned or deleted by Zoid 666.", ["behavior_records", "screenshot_analyses", "screenshot_artifacts", "extracted_facts"]),
             ("prompts", "Prompts and responses", "Local coaching prompts, responses, and their durable effects.", ["prompt_episodes", "prompt_responses", "prompt_response_effects"]),
             ("meetings", "Meeting suggestions", "Locally extracted meeting candidates and encrypted supporting evidence.", ["meeting_candidates", "meeting_evidence"]),
@@ -273,6 +273,7 @@ public final class PrivacyDataService: @unchecked Sendable {
             try execute("DELETE FROM plan_schedule_requests WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM today_snapshots WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM gaming_reward_ledger WHERE day_key >= ? AND day_key < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
+            try execute("DELETE FROM gaming_manual_adjustments WHERE local_day >= ? AND local_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM planner_trust_cycles WHERE local_day >= ? AND local_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             try execute("DELETE FROM domain_events WHERE local_day >= ? AND local_day < ?;", bindings: [startDay, endDay]); deleted += Int(sqlite3_changes(database))
             let iso8601 = ISO8601DateFormatter()

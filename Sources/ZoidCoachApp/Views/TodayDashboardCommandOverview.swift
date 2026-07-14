@@ -19,6 +19,7 @@ struct TodayDashboardCommandOverview: View {
     @State private var offlineWorkTask: TodayTaskRow?
     @State private var blockReasonTask: TodayTaskRow?
     @State private var blockReason = ""
+    @State private var isGamingAdjustmentPresented = false
     @FocusState private var isUsageFocused: Bool
 
     var body: some View {
@@ -102,6 +103,17 @@ struct TodayDashboardCommandOverview: View {
         .sheet(isPresented: $isBehaviorEvidencePresented) {
             BehaviorEvidenceSheet(snapshot: snapshot)
                 .environmentObject(model)
+        }
+        .sheet(isPresented: $isGamingAdjustmentPresented) {
+            GamingManualAdjustmentSheet(
+                currentManualMinutes: snapshot.gaming.manualAdjustmentMinutes,
+                isSaving: model.isSavingGamingManualAdjustment,
+                cancel: { isGamingAdjustmentPresented = false },
+                save: { minutes, note in
+                    isGamingAdjustmentPresented = false
+                    model.recordGamingManualAdjustment(minutes: minutes, note: note)
+                }
+            )
         }
     }
 
@@ -337,6 +349,26 @@ struct TodayDashboardCommandOverview: View {
                     Text(GamingStatus.meaningfulSessionExplanation)
                         .font(Sumi.body(9))
                         .foregroundStyle(Sumi.muted)
+                    Button("ADJUST MANUAL TIME") {
+                        isGamingAdjustmentPresented = true
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                    .disabled(model.runtimeSafety.isReadOnly || model.isSavingGamingManualAdjustment)
+                    .accessibilityLabel("Adjust manually granted gaming time")
+                    .accessibilityHint("Add time to today's allowance or remove time that you manually granted earlier today.")
+                    .accessibilityIdentifier("today.gaming.manual-adjustment.open")
+                    if let message = model.gamingManualAdjustmentMessage {
+                        Text(message)
+                            .font(Sumi.body(9))
+                            .foregroundStyle(Sumi.okay)
+                            .accessibilityIdentifier("today.gaming.manual-adjustment.success")
+                    }
+                    if let error = model.gamingManualAdjustmentError {
+                        Text(error)
+                            .font(Sumi.body(9))
+                            .foregroundStyle(Sumi.seal)
+                            .accessibilityIdentifier("today.gaming.manual-adjustment.error")
+                    }
                 }
             }
             .padding(24)
@@ -698,6 +730,89 @@ struct TodayDashboardCommandOverview: View {
         .disabled(model.isAnyTaskCommandPending)
         .accessibilityIdentifier("today.sprint.start.\(row.taskID)")
         .accessibilityHint("Choose a time boundary. The task will stay incomplete when the sprint ends.")
+    }
+}
+
+private struct GamingManualAdjustmentSheet: View {
+    @State private var form: GamingManualAdjustmentForm
+    let isSaving: Bool
+    let cancel: () -> Void
+    let save: (Int, String?) -> Void
+
+    init(
+        currentManualMinutes: Int,
+        isSaving: Bool,
+        cancel: @escaping () -> Void,
+        save: @escaping (Int, String?) -> Void
+    ) {
+        _form = State(initialValue: GamingManualAdjustmentForm(
+            currentManualMinutes: currentManualMinutes
+        ))
+        self.isSaving = isSaving
+        self.cancel = cancel
+        self.save = save
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("GAMING ALLOWANCE")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            Text("Adjust manually granted time")
+                .font(Sumi.display(25))
+                .foregroundStyle(Sumi.ink)
+            Text("Observed gaming stays unchanged. This only changes today's manual allowance, and every change is saved as a separate local ledger entry.")
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Picker("Adjustment", selection: $form.direction) {
+                ForEach(GamingManualAdjustmentDirection.allCases) { direction in
+                    Text(direction.label).tag(direction)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("today.gaming.manual-adjustment.direction")
+
+            Stepper(value: $form.minutes, in: 5...240, step: 5) {
+                Text("\(form.minutes) minutes")
+                    .font(Sumi.body(13))
+            }
+            .accessibilityIdentifier("today.gaming.manual-adjustment.minutes")
+
+            TextField("Optional reason", text: $form.note)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("today.gaming.manual-adjustment.note")
+
+            if form.currentManualMinutes > 0 {
+                Text("Currently manually granted: \(form.currentManualMinutes) minutes")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+            }
+            if let validation = form.validationMessage {
+                Text(validation)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.seal)
+                    .accessibilityIdentifier("today.gaming.manual-adjustment.validation")
+            }
+
+            HStack {
+                Button("Cancel", action: cancel)
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button(isSaving ? "SAVING" : form.direction == .add ? "ADD TIME" : "REMOVE TIME") {
+                    save(form.signedMinutes, form.normalizedNote)
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                .disabled(!form.canSubmit || isSaving)
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("today.gaming.manual-adjustment.save")
+            }
+        }
+        .padding(24)
+        .frame(width: 440)
     }
 }
 

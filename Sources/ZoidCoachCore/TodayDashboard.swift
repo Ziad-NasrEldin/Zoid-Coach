@@ -625,6 +625,7 @@ public struct GamingStatus: Equatable, Codable, Sendable {
     public static let meaningfulSessionExplanation = "Gaming sessions under 2 continuous minutes are observed but do not use the allowance."
     public let budgetMinutes: Int
     public let earnedMinutes: Int
+    public let manualAdjustmentMinutes: Int
     public let usedMinutes: Int
     public let unlockedRemainingMinutes: Int
     public let lockedMinutes: Int
@@ -633,9 +634,10 @@ public struct GamingStatus: Equatable, Codable, Sendable {
     public let confidenceIsLimited: Bool
     public let budgetEnabled: Bool
 
-    public init(budgetMinutes: Int, earnedMinutes: Int = 0, usedMinutes: Int, unlockedRemainingMinutes: Int, lockedMinutes: Int = 0, overageMinutes: Int = 0, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true) {
+    public init(budgetMinutes: Int, earnedMinutes: Int = 0, manualAdjustmentMinutes: Int = 0, usedMinutes: Int, unlockedRemainingMinutes: Int, lockedMinutes: Int = 0, overageMinutes: Int = 0, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true) {
         self.budgetMinutes = max(0, budgetMinutes)
         self.earnedMinutes = max(0, earnedMinutes)
+        self.manualAdjustmentMinutes = max(0, manualAdjustmentMinutes)
         self.usedMinutes = max(0, usedMinutes)
         self.unlockedRemainingMinutes = max(0, unlockedRemainingMinutes)
         self.lockedMinutes = max(0, lockedMinutes)
@@ -646,11 +648,30 @@ public struct GamingStatus: Equatable, Codable, Sendable {
     }
 
     public var allowanceBreakdown: String {
-        "Base \(budgetMinutes)m · Earned \(earnedMinutes)m · Used \(usedMinutes)m · Locked \(lockedMinutes)m · Remaining \(unlockedRemainingMinutes)m · Same-day overage \(overageMinutes)m"
+        let manual = manualAdjustmentMinutes > 0 ? " · Manual +\(manualAdjustmentMinutes)m" : ""
+        return "Base \(budgetMinutes)m · Earned \(earnedMinutes)m\(manual) · Used \(usedMinutes)m · Locked \(lockedMinutes)m · Remaining \(unlockedRemainingMinutes)m · Same-day overage \(overageMinutes)m"
+    }
+
+    public func applyingManualAdjustment(_ minutes: Int) -> GamingStatus {
+        guard budgetEnabled else { return self }
+        let manualMinutes = max(0, minutes)
+        let allowance = budgetMinutes + earnedMinutes + manualMinutes
+        return GamingStatus(
+            budgetMinutes: budgetMinutes,
+            earnedMinutes: earnedMinutes,
+            manualAdjustmentMinutes: manualMinutes,
+            usedMinutes: usedMinutes,
+            unlockedRemainingMinutes: max(0, allowance - usedMinutes),
+            lockedMinutes: lockedMinutes,
+            overageMinutes: max(0, usedMinutes - allowance),
+            nextUnlockReason: nextUnlockReason,
+            confidenceIsLimited: confidenceIsLimited,
+            budgetEnabled: budgetEnabled
+        )
     }
 
     private enum CodingKeys: String, CodingKey {
-        case budgetMinutes, earnedMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, overageMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled
+        case budgetMinutes, earnedMinutes, manualAdjustmentMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, overageMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -658,6 +679,7 @@ public struct GamingStatus: Equatable, Codable, Sendable {
         self.init(
             budgetMinutes: try container.decode(Int.self, forKey: .budgetMinutes),
             earnedMinutes: try container.decodeIfPresent(Int.self, forKey: .earnedMinutes) ?? 0,
+            manualAdjustmentMinutes: try container.decodeIfPresent(Int.self, forKey: .manualAdjustmentMinutes) ?? 0,
             usedMinutes: try container.decode(Int.self, forKey: .usedMinutes),
             unlockedRemainingMinutes: try container.decode(Int.self, forKey: .unlockedRemainingMinutes),
             lockedMinutes: try container.decodeIfPresent(Int.self, forKey: .lockedMinutes) ?? 0,

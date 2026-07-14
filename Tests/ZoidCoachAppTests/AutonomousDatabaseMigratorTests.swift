@@ -18,7 +18,7 @@ func migration46AddsDeletedReminderDecisionHistory() throws {
 
     #expect(result.previousVersion == 45)
     #expect(result.appliedVersions == [46])
-    #expect(result.currentVersion == 46)
+    #expect(result.currentVersion == 47)
     #expect(try tableExists(databaseURL, "deleted_reminder_decisions"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "state"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "decided_at_utc"))
