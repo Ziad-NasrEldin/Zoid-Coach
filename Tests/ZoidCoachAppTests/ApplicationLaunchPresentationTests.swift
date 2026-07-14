@@ -14,7 +14,9 @@ import ZoidCoachCore
     )
 
     #expect(source.contains("MenuBarExtra {"))
-    #expect(source.contains(".accessibilityLabel(\"Zoid 666, \\(menuBarState.menuBarLabel)\")"))
+    #expect(source.contains("Label(\"Zoid 666\", systemImage: menuBarState.menuBarSymbol)"))
+    #expect(source.contains(".labelStyle(.iconOnly)"))
+    #expect(source.contains(".accessibilityValue(menuBarState.menuBarLabel)"))
     #expect(source.contains(".accessibilityIdentifier(\"menu-bar.status-item\")"))
     #expect(!source.contains("MenuBarExtra(isInserted:"))
 }
