@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "ec65f7163a58d650a471b60ea27f85bb3990cba38dbcda61573037b0991f1a23",
+  "tracker_sha256": "83cf0a4337133d02b260c75230956942a4c4135223e3a3827205eab7adc31ed1",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -10110,9 +10110,9 @@
       "section_title": "General settings",
       "item_index": 4,
       "wording": "Use manual workday start and end without fixed hours.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -10124,7 +10124,7 @@
       ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings, versioned policy persistence, disabled fixed-hour semantics, menu-bar Start and confirmed End controls, stale-action rejection, cleanup tooling, and five focused tests are implemented. Signed QA passed release packaging, deep signing, exact app/helper/database binding, LaunchAgent, Mach service, XPC readiness, and supported post-onboarding preparation, but the final verifier registered the helper before launching the foreground app, so it reused a `--background-schedule` process and stopped before the complete Settings, Start, End, stale-race, relaunch, omission, and privacy journey (`.audit/runs/zc-044-004-manual-workday/6ca83f4103f6470bb788b7ef4534b35accfdd242/REPORT.md`).",
+      "audit_note": "Exact signed candidate `243a3d8d6f98da29c84bf4fe25d722ad4c26f62f` visibly selected and persisted manual workday mode, exposed Start only while ready and confirmed End only while active, rejected stale Start and End actions without corrupting state, restored the ended state after an ordinary relaunch, kept private task evidence out of accessibility output, cleaned its namespaced fixture, and uninstalled the isolated runtime (`TaskAccessibilityIdentity.swift`; `DashboardView.swift`; `MenuBarCoachView.swift`; `docs/ZC-044-004-SIGNED-QA-RUNBOOK.md`; `.audit/runs/zc-044-004-manual-workday/6ca83f4103f6470bb788b7ef4534b35accfdd242/REPORT.md`; `/private/tmp/zc044004-243a-evidence`).",
       "tracker_line": 627
     },
     {
