@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "57c8444993ffcf1e1f7ebe4e04fda4a1aa78714a5ea3247375dc162b0576ffc3",
+  "tracker_sha256": "ff694ee16fd60f3efe66a1a056861624472d301179a4467478d6c59cd40b4ed1",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5683,8 +5683,8 @@
       "item_index": 3,
       "wording": "Merge adjacent sessions that are really one activity.",
       "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "audit_status": "Touches remaining",
+      "delivery_status": "touches_remaining",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5696,7 +5696,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No session editor exists.",
+      "audit_note": "Migration 49, the durable merge store, Daily Review merge candidate and confirmation controls, stale and non-adjacent rejection, deterministic left-session classification and task truth, split-after-merge restoration, privacy deletion, reversible owned fixture, and affected migration and review tests are integrated in the 108-test passing combined candidate. Full qualification still requires a signed installed journey that visibly presents two adjacent sessions, activates `MERGE WITH NEXT`, confirms one combined activity with the chosen left-session truth, proves raw private observations are absent and unchanged, and restores the merged result after app and helper relaunch (`Sources/ZoidCoachInfrastructure/DailyReviewStore.swift`; `Sources/ZoidCoachApp/Views/DailyReviewView.swift`; `Scripts/qa-daily-review-session-merge-fixture.sh`; `Tests/ZoidCoachAppTests/DailyReviewTests.swift`; `docs/implementation/GAMING-MANUAL-ADJUSTMENT-INTEGRATION.md`).",
       "tracker_line": 381
     },
     {
@@ -6841,9 +6841,9 @@
       "section_title": "Gaming budget use",
       "item_index": 11,
       "wording": "Add or remove gaming time manually.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6851,10 +6851,14 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-030-011-manual-gaming-adjustments/core-signed/REPORT.md",
+        ".audit/runs/zc-030-011-manual-gaming-adjustments/helper-suppression/REPORT.md",
+        ".audit/runs/zc-030-011-manual-gaming-adjustments/negative-paths/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No manual adjustment action or ledger exists.",
+      "audit_note": "The installed signed Today surface exposed the manual adjustment action, blocked an invalid removal before any grant, added 15 minutes with note `qa-grant`, displayed the positive append-only history row and 75-minute allowance, restored it after app and helper relaunch, removed 15 minutes with note `qa-remove`, displayed the negative row, and restored both timestamped rows with net zero after a second relaunch. Signed stale-day and changed-time-zone submissions visibly rejected and refreshed without writes, an unavailable ledger visibly disabled adjustment with zero writes, and the actual signed helper later returned `suppressed:gamingIsUnlocked` with 65 minutes remaining, no prompt, no delivery event, no QA notification, and unchanged raw observations and grant (`Sources/ZoidCoachInfrastructure/GamingManualAdjustmentStore.swift`; `Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift`; `.audit/runs/zc-030-011-manual-gaming-adjustments/core-signed/REPORT.md`; `.audit/runs/zc-030-011-manual-gaming-adjustments/negative-paths/REPORT.md`; `.audit/runs/zc-030-011-manual-gaming-adjustments/helper-suppression/REPORT.md`).",
       "tracker_line": 443
     },
     {
@@ -6863,9 +6867,9 @@
       "section_title": "Gaming budget use",
       "item_index": 12,
       "wording": "See manual adjustments separately from automatically earned rewards.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6873,10 +6877,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-030-011-manual-gaming-adjustments/core-signed/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No adjustment ledger exists.",
+      "audit_note": "The signed allowance ledger visibly exposed `Manual +15m` separately from Base and Earned minutes, showed distinct positive `qa-grant` and negative `qa-remove` history rows with timestamps, preserved exactly one then two append-only rows across two app and helper relaunches, and returned the manual component to net zero without changing the automatic reward fields (`Sources/ZoidCoachCore/TodayDashboard.swift`; `Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift`; `.audit/runs/zc-030-011-manual-gaming-adjustments/core-signed/REPORT.md`).",
       "tracker_line": 444
     },
     {
