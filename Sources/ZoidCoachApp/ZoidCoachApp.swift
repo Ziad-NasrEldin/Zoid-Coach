@@ -3,8 +3,58 @@ import Darwin
 import SwiftUI
 import ZoidCoachCore
 
+@MainActor
+final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
+    private let lifecycleHook: BackgroundApplicationLifecycleHook
+
+    override init() {
+        let runtimeEnvironment = RuntimeEnvironment.current()
+        let launchPresentation = ApplicationLaunchPresentation(
+            arguments: CommandLine.arguments,
+            packageMode: runtimeEnvironment.packageMode
+        )
+        lifecycleHook = BackgroundApplicationLifecycleHook(
+            policy: launchPresentation.initialMainWindowPresentationPolicy,
+            setAccessoryActivationPolicy: {
+                NSApplication.shared.setActivationPolicy(.accessory)
+            },
+            availableWindows: {
+                NSApplication.shared.windows.map(ApplicationWindowDescriptor.init)
+            },
+            dismissWindow: { windowNumber in
+                NSApplication.shared.windows
+                    .first(where: { $0.windowNumber == windowNumber })?
+                    .orderOut(nil)
+            }
+        )
+        super.init()
+    }
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        lifecycleHook.applicationWillFinishLaunching()
+        guard lifecycleHook.shouldObserveWindowVisibility else { return }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowDidBecomeVisible(_:)),
+            name: NSWindow.didBecomeKeyNotification,
+            object: nil
+        )
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        lifecycleHook.applicationDidFinishLaunching()
+    }
+
+    @objc private func windowDidBecomeVisible(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        lifecycleHook.windowDidBecomeVisible(ApplicationWindowDescriptor(window: window))
+    }
+}
+
 @main
 struct ZoidCoachApplication: App {
+    @NSApplicationDelegateAdaptor(ZoidCoachApplicationDelegate.self)
+    private var applicationDelegate
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model: AppModel
     @StateObject private var voiceModel: VoiceConversationModel
