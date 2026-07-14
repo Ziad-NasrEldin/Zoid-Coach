@@ -73,8 +73,8 @@ INSERT INTO source_tasks(
     is_completed, modified_at, source_hash, updated_at, source_kind
 ) VALUES (
     '$TASK_ID', 'Verify elapsed versus aligned time', 'ZC-024-008 verifier fixture',
-    'qa-zc024008-list', 'QA ZC-024-008', NULL, 9, 0,
-    '$timestamp', 'qa-zc024008-source-hash', '$timestamp', 'reminders'
+    'qa-zc024008-local-list', 'Zoid 666 Local QA', NULL, 9, 0,
+    '$timestamp', 'qa-zc024008-local-source-hash', '$timestamp', 'local'
 );
 INSERT INTO daily_plan_entries(
     day_key, reminder_id, rank, is_main_objective, estimate_minutes,
@@ -109,13 +109,14 @@ SQL
 }
 
 verify_fixture() {
-    assert_scalar "SELECT COUNT(*) FROM source_tasks WHERE source_id = '$TASK_ID' AND source_kind = 'reminders';" "1" "namespaced source task"
+    assert_scalar "SELECT COUNT(*) FROM source_tasks WHERE source_id = '$TASK_ID' AND source_kind = 'local' AND is_completed = 0;" "1" "permission-independent local source task"
     assert_scalar "SELECT COUNT(*) FROM daily_plan_entries WHERE day_key = '$LOCAL_DAY' AND reminder_id = '$TASK_ID';" "1" "namespaced plan entry"
     assert_scalar "SELECT COUNT(*) FROM task_execution_states WHERE task_id = '$TASK_ID' AND state = 'active';" "1" "active execution state"
     assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NULL;" "1" "open active interval"
+    assert_scalar "SELECT COUNT(*) FROM daily_plan_entries AS plan JOIN source_tasks AS source ON source.source_id = plan.reminder_id LEFT JOIN task_execution_states AS execution ON execution.task_id = source.source_id WHERE plan.day_key = '$LOCAL_DAY' AND source.source_id = '$TASK_ID' AND source.source_kind = 'local' AND source.is_completed = 0 AND execution.state = 'active';" "1" "Today task-row production inputs"
     assert_scalar "SELECT COUNT(*) FROM behavior_records WHERE source_day = '$LOCAL_DAY' AND app_name LIKE '$APP_PREFIX%';" "7" "namespaced observations"
     assert_scalar "SELECT COUNT(*) FROM behavior_records WHERE source_day = '$LOCAL_DAY' AND app_name LIKE '$APP_PREFIX%' AND classification = 'work';" "5" "five aligned work intervals"
-    printf 'PASS: ZC-024-008 fixture rows are ready\n'
+    printf 'PASS: ZC-024-008 fixture rows are ready through a permission-independent local task source\n'
 }
 
 verify_clean() {
@@ -138,18 +139,22 @@ CREATE TABLE daily_plan_entries(day_key TEXT NOT NULL, reminder_id TEXT NOT NULL
 CREATE TABLE task_execution_states(task_id TEXT PRIMARY KEY, state TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE task_activity_intervals(id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT);
 CREATE TABLE behavior_records(source_day TEXT NOT NULL, epoch INTEGER NOT NULL, time_label TEXT NOT NULL, app_name TEXT NOT NULL, window_title TEXT NOT NULL, url TEXT NOT NULL, has_screenshot INTEGER NOT NULL, screenshot_path TEXT, ingested_at TEXT NOT NULL, classification TEXT, classification_policy_version INTEGER, PRIMARY KEY(source_day, epoch));
-INSERT INTO source_tasks(source_id, title, priority, is_completed, updated_at, source_kind) VALUES ('foreign-task', 'Preserve me', 0, 0, '2026-07-14T00:00:00Z', 'reminders');
+INSERT INTO source_tasks(source_id, title, priority, is_completed, updated_at, source_kind) VALUES ('foreign-task', 'Preserve me', 0, 0, '2026-07-14T00:00:00Z', 'local');
+INSERT INTO source_tasks(source_id, title, priority, is_completed, updated_at, source_kind) VALUES ('external-reminder', 'External refresh probe', 0, 0, '2026-07-14T00:00:00Z', 'reminders');
 INSERT INTO behavior_records(source_day, epoch, time_label, app_name, window_title, url, has_screenshot, ingested_at, classification, classification_policy_version) VALUES ('2026-07-14', 1, 'foreign', 'foreign-app', '', '', 0, '2026-07-14T00:00:00Z', 'work', 0);
 SQL
     require_schema
     seed_fixture >/dev/null
+    verify_fixture >/dev/null
+    sqlite3 -batch "$DATABASE" "DELETE FROM source_tasks WHERE source_kind = 'reminders';"
+    assert_scalar "SELECT COUNT(*) FROM source_tasks WHERE source_id = 'external-reminder';" "0" "external Reminder refresh simulation"
     verify_fixture >/dev/null
     cleanup_owned_rows
     verify_clean >/dev/null
     assert_scalar "SELECT COUNT(*) FROM source_tasks WHERE source_id = 'foreign-task';" "1" "foreign source row preservation"
     assert_scalar "SELECT COUNT(*) FROM behavior_records WHERE app_name = 'foreign-app';" "1" "foreign behavior row preservation"
     DATABASE="$original_database"
-    printf 'PASS: temporary production-schema fixture self-test preserved foreign rows\n'
+    printf 'PASS: temporary production-schema fixture self-test preserved foreign rows and the local task survived an external Reminder refresh\n'
 }
 
 ACTION="${1:-}"

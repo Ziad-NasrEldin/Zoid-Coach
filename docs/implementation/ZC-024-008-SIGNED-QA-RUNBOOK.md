@@ -6,6 +6,10 @@ It must run against candidate `5accf2dac689797c39b7e409270fffddce1ad229` or a la
 
 It uses only an isolated signed-QA run root and never seeds a production database.
 
+The fixture uses the supported local-task source kind so an EventKit refresh cannot remove the task when Apple Reminders permission is unavailable.
+
+It still exercises the real `source_tasks`, `daily_plan_entries`, `task_execution_states`, `task_activity_intervals`, and `behavior_records` schemas used by `TodayDashboardAgent`.
+
 ## Preconditions
 
 Install the signed QA app with its normal installer before starting this runbook.
@@ -39,9 +43,14 @@ Quit the signed QA app and stop the QA helper before seeding so neither process 
 pkill -f "$EXECUTABLE" 2>/dev/null || true
 launchctl kill SIGTERM "$USER_DOMAIN/$AGENT_LABEL" 2>/dev/null || true
 "$FIXTURE" seed --database "$DATABASE" --local-day "$LOCAL_DAY"
+"$FIXTURE" verify --database "$DATABASE" --local-day "$LOCAL_DAY"
 ```
 
 The fixture must print `MINIMUM_ELAPSED_MINUTES=14` and `EXPECTED_ALIGNED_MINUTES=5`.
+
+The verification command must report that the fixture is ready through a permission-independent local task source.
+
+This preflight proves that the plan entry, incomplete local source task, active execution state, and open interval satisfy the same task-row inputs that `TodayDashboardAgent` resolves before the signed app starts.
 
 The fixture refuses to replace a foreign active interval and refuses to overwrite occupied observation epochs.
 
