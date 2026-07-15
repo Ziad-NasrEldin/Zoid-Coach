@@ -5,7 +5,7 @@ readonly COMMAND="${1:-}"
 readonly SQLITE3="/usr/bin/sqlite3"
 readonly JQ="/usr/bin/jq"
 readonly TIME_ZONE="Africa/Cairo"
-readonly PRIVATE_SENTINEL="zc006002-private-task-title"
+readonly PRIVATE_SENTINEL="qa-zc006001-private-window-title"
 
 fail() {
     print -u2 -- "FAIL: $*"

@@ -4,7 +4,7 @@ import ApplicationServices
 import Foundation
 
 private let expectedTitle = "Planning is available when you are ready"
-private let privateSentinel = "zc006002-private-task-title"
+private let privateSentinel = "qa-zc006001-private-window-title"
 
 private func isPrivacySafeInvitation(_ values: [String]) -> Bool {
     let combined = values.joined(separator: " ")
