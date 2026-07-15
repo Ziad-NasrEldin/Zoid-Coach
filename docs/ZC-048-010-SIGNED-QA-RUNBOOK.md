@@ -7,7 +7,7 @@ Do not create `.audit`, `.lavish`, tracker, registry, or other repository eviden
 ## Prepare the isolated signed candidate
 
 Start from a clean repository containing the exact signed commit.
-The candidate must contain commit `ce8f8d9c00f100dae55595a1ac995592ec381ed0`.
+The candidate must descend from canonical base `ed5d07a363e0f64049c07b0e1d309d754caa035b` and contain the exact reviewed raw patch sequence enforced by the signed preflight.
 Grant Accessibility permission to the terminal that runs the AX probe.
 
 ```sh

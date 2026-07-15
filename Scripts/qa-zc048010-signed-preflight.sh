@@ -3,9 +3,9 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly REVIEWED_BASE="76149705b3a301fafa832102a2e599358a16ff25"
+readonly REVIEWED_BASE="ed5d07a363e0f64049c07b0e1d309d754caa035b"
 readonly REVIEWED_PATCH_COUNT=8
-readonly TOTAL_LINEAGE_COMMIT_COUNT=9
+readonly TOTAL_LINEAGE_COMMIT_COUNT=10
 readonly -a REVIEWED_PATCH_IDS=(
     a2ec3cb7f8fa679e2c3201bc607eb86a4875967f
     8976e92e46d62fb0c250ca91c8bd6d93f4733272
@@ -30,13 +30,13 @@ readonly -a REVIEWED_PATHS=(
 )
 readonly REVIEWED_BLOBS="d6d4d18a0a585897ca0b3753e629b808eea90ee8 Scripts/qa-zc048010-diagnostic-package-ax-probe.swift
 f01f794237dbdd5c221cf1d2cb18d6d0fd6b9d23 Scripts/qa-zc048010-diagnostic-package-fixture.sh
-13acdecf46e2a377e5f5749c4438469909539de4 Scripts/verify-zc-048-010-diagnostic-package-static.sh
+256dd70603dce42237d1af7ab2ddbdcdad2cac7a Scripts/verify-zc-048-010-diagnostic-package-static.sh
 e5ffa132f1e96ebdb58d96c4e7d5c837bd9a648a Sources/ZoidCoachApp/DiagnosticExportPackagePresentation.swift
 297edbdd2e04ae40a56d06b16a5700d0647a5783 Sources/ZoidCoachApp/Views/SettingsView.swift
 10a14bb765d58d5861bbc172d8fd04ac00ca790c Sources/ZoidCoachInfrastructure/PrivacyDataService.swift
 d6d68beb73d1333c36a2d6c38678c893acbfc7ff Tests/ZoidCoachAppTests/DiagnosticExportPackagePresentationTests.swift
 0a9ae8b1e6db4fb765419c9374fc906fc0f0d838 Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift
-44d5c7818961f23e882984a9cda1f4d5dd97ee17 docs/ZC-048-010-SIGNED-QA-RUNBOOK.md"
+c0a0671e78d0b1fa1c67488057a47531c4fd49f3 docs/ZC-048-010-SIGNED-QA-RUNBOOK.md"
 readonly PROBE="$SCRIPT_DIR/qa-zc048010-diagnostic-package-ax-probe.swift"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc048010-diagnostic-package-fixture.sh"
 readonly APP="${1:-}"
@@ -60,7 +60,7 @@ is_visible_foreground_command() {
 }
 verify_reviewed_lineage() {
     local expected_commit="${1:-$EXPECTED_COMMIT}"
-    local scope reviewed_scope head_scope commit commit_index entry expected_blob file_path actual_blob
+    local scope reviewed_scope penultimate_scope head_scope commit commit_index entry expected_blob file_path actual_blob
     local -a lineage_commits observed_patch_ids
     [[ "$(git -C "$REPOSITORY" rev-parse HEAD)" == "$expected_commit" ]] \
         || fail "repository HEAD does not match signed commit $expected_commit"
@@ -87,9 +87,13 @@ verify_reviewed_lineage() {
         || fail "candidate lineage must contain exactly $TOTAL_LINEAGE_COMMIT_COUNT commits"
     [[ "${lineage_commits[-1]}" == "$expected_commit" ]] \
         || fail "signed commit is not the lineage HEAD"
+    penultimate_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "${lineage_commits[-2]}")"
+    [[ "$penultimate_scope" == 'Scripts/qa-zc048010-signed-preflight.sh' ]] \
+        || fail "privacy-fixture lineage maintenance commit contains unrelated files"
     head_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected_commit")"
-    [[ "$head_scope" == 'Scripts/qa-zc048010-signed-preflight.sh' ]] \
-        || fail "lineage maintenance commit contains unrelated files"
+    has_exact_lines "$head_scope" \
+        $'Scripts/qa-zc048010-signed-preflight.sh\nScripts/verify-zc-048-010-diagnostic-package-static.sh\ndocs/ZC-048-010-SIGNED-QA-RUNBOOK.md' \
+        || fail "current-base lineage maintenance commit contains unrelated files"
 
     observed_patch_ids=()
     for (( commit_index = 1; commit_index <= REVIEWED_PATCH_COUNT; commit_index += 1 )); do
