@@ -7,8 +7,10 @@ readonly ORIGINAL_PRODUCT_CANDIDATE="730677a66c265823ef9417af8abe55a8f0b0e998"
 readonly CURRENT_PRODUCT_CANDIDATE="c552ea29472ccb1de30a7f896e30f159003aa374"
 readonly ORIGINAL_TOOLING_CANDIDATE="39baf022157b53f36a96e1370b3342ed3793c65f"
 readonly CURRENT_TOOLING_CANDIDATE="e659575a3ecfcc9379e0c97332b32da4c5fd9ba7"
+readonly CURRENT_BASELINE_FIX="5482a1ed6bb7b73a255137937f0f458e9dd68294"
 readonly PRODUCT_PATCH_ID="b19bb45f10aa9dabcb1bde528139a75c3ef2f05f"
 readonly TOOLING_PATCH_ID="1570803ab40dc2f57785fb23babd984c93d3fc32"
+readonly BASELINE_FIX_PATCH_ID="467749eff5875502ea2f5a7c45276a4e6024806c"
 readonly CANONICAL_BASE="15d8e6ec42bf178e9de2ee055dd6915c8c74b786"
 readonly AX_PROBE="$SCRIPT_DIR/qa-zc025006-ambiguity-ax-probe.swift"
 readonly RUNBOOK="$REPOSITORY/docs/ZC-025-006-SIGNED-QA-RUNBOOK.md"
@@ -93,6 +95,8 @@ verify_current_base_lineage() {
         || fail "signed candidate omits the current-base product commit"
     git -C "$REPOSITORY" merge-base --is-ancestor "$CURRENT_TOOLING_CANDIDATE" "$expected" \
         || fail "signed candidate omits the current-base tooling commit"
+    git -C "$REPOSITORY" merge-base --is-ancestor "$CURRENT_BASELINE_FIX" "$expected" \
+        || fail "signed candidate omits the reviewed complete-baseline fixture fix"
 
     reviewed_scope="$(printf '%s\n' "${PRODUCT_FILES[@]}" "${TOOLING_FILES[@]}")"
     scope="$(git -C "$REPOSITORY" diff --name-only "$CANONICAL_BASE" "$expected")" \
@@ -105,7 +109,7 @@ verify_current_base_lineage() {
         || fail "signed candidate unexpectedly includes the scenario tracker"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    (( commit_count == 3 )) \
+    (( commit_count == 5 )) \
         || fail "signed candidate contains an unexpected number of current-base commits"
     head_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected")"
     has_exact_lines "$head_scope" 'Scripts/qa-zc025006-signed-preflight.sh'$'\n''docs/ZC-025-006-SIGNED-QA-RUNBOOK.md' \
@@ -115,9 +119,9 @@ verify_current_base_lineage() {
     for commit in ${(f)"$(git -C "$REPOSITORY" rev-list --reverse "$CANONICAL_BASE..$expected")"}; do
         patch_ids+="$(commit_patch_id "$commit")"$'\n'
     done
-    contains_required_lines "$patch_ids" "$PRODUCT_PATCH_ID"$'\n'"$TOOLING_PATCH_ID" \
+    contains_required_lines "$patch_ids" "$PRODUCT_PATCH_ID"$'\n'"$TOOLING_PATCH_ID"$'\n'"$BASELINE_FIX_PATCH_ID" \
         || fail "signed candidate is missing or alters a reviewed raw patch"
-    (( $(line_count "$patch_ids") == 3 )) \
+    (( $(line_count "$patch_ids") == 5 )) \
         || fail "signed candidate adds an unexpected raw patch identity"
 }
 
@@ -156,12 +160,16 @@ assert_runbook_contract() {
         || fail "runbook omits the current-base product identity"
     grep -Fq "$CURRENT_TOOLING_CANDIDATE" "$RUNBOOK" \
         || fail "runbook omits the current-base tooling identity"
+    grep -Fq "$CURRENT_BASELINE_FIX" "$RUNBOOK" \
+        || fail "runbook omits the reviewed complete-baseline fixture identity"
     grep -Fq "$CANONICAL_BASE" "$RUNBOOK" \
         || fail "runbook omits the current canonical base"
     grep -Fq "$PRODUCT_PATCH_ID" "$RUNBOOK" \
         || fail "runbook omits the raw product patch identity"
     grep -Fq "$TOOLING_PATCH_ID" "$RUNBOOK" \
         || fail "runbook omits the raw tooling patch identity"
+    grep -Fq "$BASELINE_FIX_PATCH_ID" "$RUNBOOK" \
+        || fail "runbook omits the complete-baseline fixture patch identity"
     local phase
     for phase in qualifying short no-task late-task stale certain; do
         grep -Fq "prepare $phase \"\$DATABASE\"" "$RUNBOOK" \
@@ -201,6 +209,8 @@ if [[ "$APP" == "--self-test" ]]; then
         || fail "embedded tooling patch identity drifted"
     [[ "$(commit_patch_id "$CURRENT_TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] \
         || fail "current-base tooling patch identity drifted"
+    [[ "$(commit_patch_id "$CURRENT_BASELINE_FIX")" == "$BASELINE_FIX_PATCH_ID" ]] \
+        || fail "complete-baseline fixture patch identity drifted"
     assert_reviewed_product_scope "$ORIGINAL_PRODUCT_CANDIDATE"
     assert_reviewed_product_scope "$CURRENT_PRODUCT_CANDIDATE"
     verify_current_base_lineage "$(git -C "$REPOSITORY" rev-parse HEAD)"

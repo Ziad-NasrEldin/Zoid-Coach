@@ -5,9 +5,11 @@ The original reviewed product candidate is `730677a66c265823ef9417af8abe55a8f0b0
 The current canonical base is `15d8e6ec42bf178e9de2ee055dd6915c8c74b786`.
 The exact current-base product commit is `c552ea29472ccb1de30a7f896e30f159003aa374`.
 The exact current-base tooling commit is `e659575a3ecfcc9379e0c97332b32da4c5fd9ba7`.
+The reviewed signed-runtime baseline fixture fix is `5482a1ed6bb7b73a255137937f0f458e9dd68294`.
 The raw product change has stable patch ID `b19bb45f10aa9dabcb1bde528139a75c3ef2f05f`.
 The raw signed acceptance tooling has stable patch ID `1570803ab40dc2f57785fb23babd984c93d3fc32`.
-The preflight binds the exact current-base lineage, exact 12-file ownership scope, both raw patch identities, and one two-file lineage-contract maintenance commit.
+The complete-baseline fixture fix has stable patch ID `467749eff5875502ea2f5a7c45276a4e6024806c`.
+The preflight binds the exact current-base lineage, exact 12-file ownership scope, all three reviewed raw patch identities, and two two-file lineage-contract maintenance commits.
 
 The acceptance journey uses an isolated QA root and never touches the user's production database.
 Every action branch and boundary branch starts from the same byte baseline.
@@ -130,6 +132,7 @@ ordinary_relaunch() {
 
 Stop all isolated runtime processes before replacing the QA root.
 Establish the repository's supported 12-of-12 QA ready state.
+Each scenario fixture also establishes exactly seven complete baseline-observation days so the production behavior-prompt gate is open before exercising ambiguity-specific eligibility.
 Launch the foreground app before registering the helper so the helper cannot create a windowless first-run state.
 
 ```sh
