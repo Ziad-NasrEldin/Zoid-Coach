@@ -78,6 +78,64 @@ func waitForNodes(_ application: AXUIElement, timeout: TimeInterval = 8, predica
     throw ProbeError.failure("expected accessibility state did not appear; visible text: \(nodes.map(\.searchableText).joined(separator: " | ").prefix(1200))")
 }
 
+func boundedPostconditionAfterAdvisoryAction<Value>(
+    _ actionResult: AXError,
+    maximumAttempts: Int,
+    pause: () -> Void,
+    observe: () throws -> Value?
+) rethrows -> Value? {
+    _ = actionResult
+    precondition(maximumAttempts > 0)
+    for attempt in 1...maximumAttempts {
+        if let value = try observe() {
+            return value
+        }
+        if attempt < maximumAttempts {
+            pause()
+        }
+    }
+    return nil
+}
+
+func dailyReviewSurfaceIsReady(_ nodes: [Node]) -> Bool {
+    nodes.contains { $0.identifier == "reviews.daily" }
+        && nodes.contains { $0.searchableText.localizedCaseInsensitiveContains("DAILY REVIEW") }
+}
+
+func waitForDailyReviewAfterAdvisoryPress(
+    _ actionResult: AXError,
+    application: AXUIElement,
+    maximumAttempts: Int = 54
+) throws -> [Node] {
+    let reviews = try boundedPostconditionAfterAdvisoryAction(
+        actionResult,
+        maximumAttempts: maximumAttempts,
+        pause: { RunLoop.current.run(until: Date().addingTimeInterval(0.15)) }
+    ) {
+        let nodes = try snapshot(application)
+        return dailyReviewSurfaceIsReady(nodes) ? nodes : nil
+    }
+    guard let reviews else {
+        throw ProbeError.failure("OPEN REVIEW did not reach the required Daily Review surface; AX result: \(actionResult.rawValue)")
+    }
+    return reviews
+}
+
+func runAdvisoryPressSelfTest() throws {
+    var observations = [false, true]
+    let recovered = boundedPostconditionAfterAdvisoryAction(.cannotComplete, maximumAttempts: 2, pause: {}) {
+        observations.removeFirst() ? "reviews.daily" : nil
+    }
+    guard recovered == "reviews.daily" else {
+        throw ProbeError.failure("advisory AX failure rejected a successful bounded postcondition")
+    }
+    let rejected: String? = boundedPostconditionAfterAdvisoryAction(.success, maximumAttempts: 2, pause: {}) { nil }
+    guard rejected == nil else {
+        throw ProbeError.failure("missing Daily Review postcondition was accepted")
+    }
+    print("PASS: ZC-010-007 advisory AX press self-test")
+}
+
 func requireIdentifier(_ identifier: String, in nodes: [Node]) throws -> Node {
     guard let match = nodes.first(where: { $0.identifier == identifier }) else {
         throw ProbeError.failure("missing accessibility identifier: \(identifier)")
@@ -169,6 +227,7 @@ func parseArguments() throws -> (pid: pid_t, phase: String) {
 do {
     if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
         try selfTest()
+        try runAdvisoryPressSelfTest()
         print("PASS: ZC-010-007 AX probe self-test")
         exit(0)
     }
@@ -209,11 +268,11 @@ do {
         guard let button = confirmation.first(where: {
             $0.role == kAXButtonRole as String && $0.searchableText.localizedCaseInsensitiveContains("OPEN REVIEW")
         }) else { throw ProbeError.failure("enabled OPEN REVIEW confirmation button is unavailable") }
-        try press(button)
-        let reviews = try waitForNodes(application) { nodes in
-            nodes.contains { $0.identifier == "reviews.daily" }
-        }
+        guard button.enabled != false else { throw ProbeError.failure("OPEN REVIEW confirmation button is disabled") }
+        let actionResult = AXUIElementPerformAction(button.element, kAXPressAction as CFString)
+        let reviews = try waitForDailyReviewAfterAdvisoryPress(actionResult, application: application)
         _ = try requireIdentifier("reviews.daily", in: reviews)
+        try requireText("DAILY REVIEW", in: reviews)
         try assertPrivacy(reviews)
     case "absent":
         let nodes = try waitForNodes(application) { nodes in
