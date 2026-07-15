@@ -4,7 +4,8 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly PRODUCT_CANDIDATE="1270c4a874247bce410b7c9b641303166725621d"
+readonly CANONICAL_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
+readonly PRODUCT_CANDIDATE="c8ea11afe0d479269fa21d697dd63a5f80688019"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc006001-planning-invitation-fixture.sh"
 readonly PROBE="$SCRIPT_DIR/qa-zc006001-planning-invitation-ax-probe.swift"
 readonly PREFLIGHT="$SCRIPT_DIR/qa-zc006001-signed-preflight.sh"
@@ -53,6 +54,8 @@ done
 
 /usr/bin/git -C "$REPOSITORY" merge-base --is-ancestor "$PRODUCT_CANDIDATE" HEAD \
     || fail "current branch does not contain the product candidate"
+/usr/bin/git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" HEAD \
+    || fail "current branch does not contain the current canonical base"
 
 /usr/bin/swift test --package-path "$REPOSITORY" --filter PlanningInvitation >/dev/null
 /usr/bin/swift test --package-path "$REPOSITORY" --filter PromptNotificationCoordinatorTests >/dev/null

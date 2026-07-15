@@ -3,7 +3,8 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly PRODUCT_CANDIDATE="1270c4a874247bce410b7c9b641303166725621d"
+readonly CANONICAL_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
+readonly PRODUCT_CANDIDATE="c8ea11afe0d479269fa21d697dd63a5f80688019"
 readonly APP="${1:-}"
 readonly DATABASE="${2:-}"
 readonly EXPECTED_COMMIT="${3:-}"
@@ -41,8 +42,9 @@ assert_fail_fast_blocks() {
 }
 
 if [[ "$APP" == "--self-test" ]]; then
+    is_full_sha "$CANONICAL_BASE" || fail "canonical base is not a full SHA"
     is_full_sha "$PRODUCT_CANDIDATE" || fail "product candidate is not a full SHA"
-    ! is_full_sha "1270c4a" || fail "abbreviated SHA was accepted"
+    ! is_full_sha "c8ea11a" || fail "abbreviated SHA was accepted"
     assert_runbook_order
     assert_fail_fast_blocks
     print -- "PASS: ZC-006-001 signed preflight self-test"
@@ -67,6 +69,8 @@ done
 [[ -d "$APP" ]] || fail "signed app does not exist"
 [[ "$EXPECTED_APP_PID" == "" || "$EXPECTED_APP_PID" == <-> ]] || fail "expected app PID must be numeric"
 is_full_sha "$EXPECTED_COMMIT" || fail "expected signed commit must be a full lowercase SHA"
+git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" "$EXPECTED_COMMIT" \
+    || fail "signed commit does not contain the current canonical base"
 git -C "$REPOSITORY" merge-base --is-ancestor "$PRODUCT_CANDIDATE" "$EXPECTED_COMMIT" \
     || fail "signed commit does not contain product candidate"
 readonly TOOLING_COMMIT="$(git -C "$REPOSITORY" log -1 --format=%H -- "$0")"
