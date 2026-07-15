@@ -6,7 +6,8 @@ The initial deterministic Today-scroll verifier fix is commit `fa95aeab65fb23a19
 The exact accessibility-label normalization correction is commit `d36cedc7da6146b4c8982c15733a3899e0d57013`.
 Its reviewed rebind is `fc15ea5f3014e2540984f4ede6dfcac090217ce9`, and the bounded fresh-tree navigation transition correction is `59bff184844871c8ad41d1e767f49a7455659e3c`.
 The navigation correction rebind is `2289e1e8d950ce0679eb50f5baa5c7811bf90a4b`, and the stable visible Settings-header correction is `963a94b243834c8e7a778cc9683ceebb0777db17`.
-The static verifier requires the signed commit to be the one preflight and runbook bind child of the Settings-header correction.
+The Settings-header correction rebind is `6e89c64c391b789fe7a61c329620006bd45d0872`, and the stable frontmost-application synchronization correction is `8acad7a3decb6e1a8b92ea81e81e3db9f4917da5`.
+The static verifier requires the signed commit to be the one preflight and runbook bind child of the frontmost-application synchronization correction.
 Each capture resets Today to the top, binds one app PID and main-window token, retains only normalized Working and Screenwatch values from the same bounded sequence, and reacquires a fresh unique Accessibility tree after every scroll step.
 The verifier rejects within-tree or cross-generation ambiguity, changed values, stale generations, PID or window replacement, privacy leakage, and timeout.
 
@@ -63,6 +64,7 @@ git merge-base --is-ancestor 69b16a3335867a43ef8ae7904705a3d40f3e738f "$EXPECTED
 git merge-base --is-ancestor d36cedc7da6146b4c8982c15733a3899e0d57013 "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor 59bff184844871c8ad41d1e767f49a7455659e3c "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor 963a94b243834c8e7a778cc9683ceebb0777db17 "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor 8acad7a3decb6e1a8b92ea81e81e3db9f4917da5 "$EXPECTED_SIGNED_COMMIT"
 Scripts/verify-zc-024-004-live-today-refresh-static.sh
 ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh \
   "$APP" --expected-commit "$EXPECTED_SIGNED_COMMIT" --require-clean
@@ -140,10 +142,12 @@ The delayed comparison proves the loop restarted after Today became selected aga
 
 ```sh
 osascript -e 'tell application "Finder" to activate'
+swift "$PROBE" --pid "$PID" --command wait-inactive --evidence-root "$EVIDENCE_ROOT"
 "$FIXTURE" advance-background "$DATABASE"
 sleep 20
 swift "$PROBE" --pid "$PID" --command expect-stable --evidence-root "$EVIDENCE_ROOT" --from settings-return.json
 osascript -e "tell application id \"$(plutil -extract CFBundleIdentifier raw -o - "$INFO_PLIST")\" to activate"
+swift "$PROBE" --pid "$PID" --command wait-active --evidence-root "$EVIDENCE_ROOT"
 swift "$PROBE" --pid "$PID" --command expect-stable --evidence-root "$EVIDENCE_ROOT" --from settings-return.json
 sleep 20
 swift "$PROBE" --pid "$PID" --command expect-change --evidence-root "$EVIDENCE_ROOT" \
