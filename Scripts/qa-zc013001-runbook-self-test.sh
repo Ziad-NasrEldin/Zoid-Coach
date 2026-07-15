@@ -4,6 +4,7 @@ set -euo pipefail
 
 readonly ROOT="${0:A:h:h}"
 readonly RUNBOOK="$ROOT/docs/ZC-013-001-SIGNED-QA-RUNBOOK.md"
+readonly LINEAGE_PREFLIGHT="$ROOT/Scripts/qa-zc013001-lineage-preflight.sh"
 readonly DECLARED_SHELL="zsh"
 
 fail() {
@@ -200,4 +201,9 @@ print -r -- 'cleanup_invalid() { local status=$?; }' >> "$TEMP_ROOT/invalid-fail
 grep -Eq '(^|[[:space:]])(local|typeset)[[:space:]]+status=' "$TEMP_ROOT/invalid-failure-cleanup.zsh" \
     || fail "reserved cleanup variable guard did not reject a known-invalid fixture"
 
-print -- "PASS: ZC-013-001 runbook validates zsh portability, launch predicates, database readiness, quiescence, and failure cleanup"
+grep -Fq '"$LINEAGE_PREFLIGHT" --expected-commit "$EXPECTED_SIGNED_COMMIT"' "$RUNBOOK" \
+    || fail "runbook does not bind the exact signed commit through the lineage preflight"
+"$LINEAGE_PREFLIGHT" --self-test >/dev/null \
+    || fail "lineage preflight negative cases failed"
+
+print -- "PASS: ZC-013-001 runbook validates lineage, zsh portability, launch predicates, database readiness, quiescence, and failure cleanup"
