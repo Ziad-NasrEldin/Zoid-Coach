@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "f47f4c34b74c117046536d9255093800bdca762dee1bf925bbd262d95cfa9fba",
+  "tracker_sha256": "cc6987a31ed83048ad1cb2bce042739ff119824e9310c9367c6a70bc6af2499b",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -5569,9 +5569,9 @@
       "section_title": "Ambiguous applications and activity",
       "item_index": 6,
       "wording": "Be asked for confirmation when ambiguity materially affects coaching.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5580,10 +5580,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-025-006-ambiguity-confirmation/1703824ed9d0e7a170b6632cbb9c4158ce146de4/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No ambiguity-confirmation prompt generator exists.",
+      "audit_note": "Exact signed candidate `1703824ed9d0e7a170b6632cbb9c4158ce146de4` visibly produced one privacy-safe confirmation only for a fresh ten-minute Unknown Safari session materially overlapping the active task, exposed exactly three accessible choices, applied exact Work, Gaming, and Keep Unknown outcomes with honest success copy, preserved each response across helper restart and ordinary app relaunch without re-prompting, kept nine-minute, no-task, five-minute-overlap, stale, and already-certain evidence unprompted, left raw observations unchanged, and restored the isolated root byte-for-byte with independently identical manifests (`AmbiguousActivityPromptService.swift`; `PromptResponseEffectRouter.swift`; `DashboardPromptActionOutcome.swift`; `docs/ZC-025-006-SIGNED-QA-RUNBOOK.md`; `.audit/runs/zc-025-006-ambiguity-confirmation/1703824ed9d0e7a170b6632cbb9c4158ce146de4/REPORT.md`; `/private/tmp/zoid-zc025006-evidence/1703824ed9d0e7a170b6632cbb9c4158ce146de4`).",
       "tracker_line": 373
     },
     {
