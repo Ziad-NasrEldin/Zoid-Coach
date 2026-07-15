@@ -40,6 +40,70 @@ func activeTaskIsTheDayStateRegardlessOfPlanningLifecycle() {
 }
 
 @Test
+func pausedTaskIsExplicitWhenNoTaskIsActive() {
+    let presentation = TodayDayStatePresentation.resolve(
+        snapshotIsAvailable: true,
+        planningMode: .planning,
+        hasActiveTask: false,
+        hasPlannedTasks: true,
+        hasPausedTask: true
+    )
+
+    #expect(presentation.kind == .paused)
+    #expect(presentation.title == "WORK PAUSED")
+    #expect(presentation.detail == "A task is paused and ready to resume.")
+    #expect(presentation.accessibilityValue == "paused")
+}
+
+@Test
+func allCompletedTasksProduceAnExplicitCompletedDayState() {
+    let presentation = TodayDayStatePresentation.resolve(
+        snapshotIsAvailable: true,
+        planningMode: .planning,
+        hasActiveTask: false,
+        hasPlannedTasks: true,
+        allPlannedTasksCompleted: true
+    )
+
+    #expect(presentation.kind == .completed)
+    #expect(presentation.title == "WORK COMPLETED")
+    #expect(presentation.detail == "Every visible task for today is completed.")
+    #expect(presentation.accessibilityValue == "completed")
+}
+
+@Test
+func activePausedAndCompletedStatesUseTruthfulPrecedence() {
+    let active = TodayDayStatePresentation.resolve(
+        snapshotIsAvailable: true,
+        planningMode: .planning,
+        hasActiveTask: true,
+        hasPlannedTasks: true,
+        hasPausedTask: true,
+        allPlannedTasksCompleted: true
+    )
+    let paused = TodayDayStatePresentation.resolve(
+        snapshotIsAvailable: true,
+        planningMode: .planning,
+        hasActiveTask: false,
+        hasPlannedTasks: true,
+        hasPausedTask: true,
+        allPlannedTasksCompleted: true
+    )
+    let mixedPlan = TodayDayStatePresentation.resolve(
+        snapshotIsAvailable: true,
+        planningMode: .planning,
+        hasActiveTask: false,
+        hasPlannedTasks: true,
+        hasPausedTask: false,
+        allPlannedTasksCompleted: false
+    )
+
+    #expect(active.kind == .active)
+    #expect(paused.kind == .paused)
+    #expect(mixedPlan.kind == .planned)
+}
+
+@Test
 func unavailableAndLegacySnapshotsRemainHonest() {
     #expect(TodayDayStatePresentation.resolve(
         snapshotIsAvailable: false,
