@@ -1,6 +1,37 @@
 import AppKit
 import SwiftUI
 
+enum ZC011007Trace {
+    static let path = "/private/tmp/zoid-zc011007-structured-trace.jsonl"
+    private static let lock = NSLock()
+
+    static func emit(_ event: String, _ fields: [String: String] = [:]) {
+        guard Bundle.main.bundleIdentifier == "qa.ziadnasreldin.ZoidCoach" else { return }
+        var payload = fields
+        payload["event"] = event
+        payload["timestamp"] = ISO8601DateFormatter().string(from: Date())
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
+              let newline = "\n".data(using: .utf8) else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        if !FileManager.default.fileExists(atPath: path) {
+            FileManager.default.createFile(atPath: path, contents: nil)
+        }
+        guard let handle = FileHandle(forWritingAtPath: path) else { return }
+        defer { try? handle.close() }
+        do {
+            try handle.seekToEnd()
+            try handle.write(contentsOf: data)
+            try handle.write(contentsOf: newline)
+        } catch {}
+    }
+
+    static func identity(_ object: AnyObject?) -> String {
+        guard let object else { return "nil" }
+        return "\(type(of: object))@\(ObjectIdentifier(object))"
+    }
+}
+
 struct CustomEstimateEditorState: Equatable {
     private(set) var isPresented = false
     var input = ""
@@ -14,25 +45,43 @@ struct CustomEstimateEditorState: Equatable {
         isPresented = true
         focusRequest &+= 1
         presentationID = UUID()
+        ZC011007Trace.emit("state.open", [
+            "presentation": presentationID.uuidString,
+            "focusGeneration": String(focusRequest),
+        ])
     }
 
     mutating func cancel() {
         isPresented = false
         validationMessage = nil
+        ZC011007Trace.emit("state.cancel", ["presentation": presentationID.uuidString])
     }
 
     @discardableResult
     mutating func submit(persist: (Int) -> Void) -> Bool {
         guard isPresented else { return false }
+        let priorFocusRequest = focusRequest
         switch TaskEstimateInput.parse(input) {
         case let .success(minutes):
             isPresented = false
             validationMessage = nil
             persist(minutes)
+            ZC011007Trace.emit("state.submit.valid", [
+                "presentation": presentationID.uuidString,
+                "priorFocusGeneration": String(priorFocusRequest),
+                "focusGeneration": String(focusRequest),
+            ])
             return true
         case let .failure(error):
             validationMessage = error.message
             focusRequest &+= 1
+            ZC011007Trace.emit("state.submit.invalid", [
+                "presentation": presentationID.uuidString,
+                "priorFocusGeneration": String(priorFocusRequest),
+                "focusGeneration": String(focusRequest),
+                "validation": error.message,
+                "input": input,
+            ])
             return false
         }
     }
@@ -42,8 +91,25 @@ struct CustomEstimateEditorStateStore {
     private var states: [String: CustomEstimateEditorState] = [:]
 
     subscript(taskID: String) -> CustomEstimateEditorState {
-        get { states[taskID] ?? CustomEstimateEditorState() }
+        get {
+            let state = states[taskID] ?? CustomEstimateEditorState()
+            ZC011007Trace.emit("store.get", [
+                "store": String(describing: states.keys.sorted()),
+                "task": taskID,
+                "presentation": state.presentationID.uuidString,
+                "presented": String(state.isPresented),
+                "focusGeneration": String(state.focusRequest),
+            ])
+            return state
+        }
         set {
+            ZC011007Trace.emit("store.set", [
+                "task": taskID,
+                "presentation": newValue.presentationID.uuidString,
+                "presented": String(newValue.isPresented),
+                "focusGeneration": String(newValue.focusRequest),
+                "input": newValue.input,
+            ])
             if newValue.isPresented {
                 states[taskID] = newValue
             } else {
@@ -125,6 +191,10 @@ struct CustomEstimateInputField: NSViewRepresentable {
 
     func makeNSView(context: Context) -> CustomEstimateTextField {
         let field = CustomEstimateTextField(string: text)
+        ZC011007Trace.emit("representable.make", field.traceFields(extra: [
+            "presentation": presentationID.uuidString,
+            "focusGeneration": String(focusRequest),
+        ]))
         field.placeholderString = "Minutes"
         field.isBordered = true
         field.isBezeled = true
@@ -137,6 +207,10 @@ struct CustomEstimateInputField: NSViewRepresentable {
     }
 
     func updateNSView(_ field: CustomEstimateTextField, context: Context) {
+        ZC011007Trace.emit("representable.update", field.traceFields(extra: [
+            "presentation": presentationID.uuidString,
+            "focusGeneration": String(focusRequest),
+        ]))
         context.coordinator.parent = self
         field.onReturn = { [weak field] exactText in
             _ = context.coordinator.submit(exactText, refocusing: field)
@@ -150,6 +224,7 @@ struct CustomEstimateInputField: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ field: CustomEstimateTextField, coordinator: Coordinator) {
+        ZC011007Trace.emit("representable.dismantle", field.traceFields())
         field.cancelFocusLease()
         field.removeKeyMonitor()
     }
@@ -158,6 +233,7 @@ struct CustomEstimateInputField: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: CustomEstimateInputField
         var lastFocusRequest = -1
+        var submitCount = 0
 
         init(parent: CustomEstimateInputField) {
             self.parent = parent
@@ -173,6 +249,13 @@ struct CustomEstimateInputField: NSViewRepresentable {
             _ exactText: String,
             refocusing field: CustomEstimateTextField? = nil
         ) -> Bool {
+            submitCount += 1
+            ZC011007Trace.emit("coordinator.submit.begin", field?.traceFields(extra: [
+                "submitCount": String(submitCount),
+                "presentation": parent.presentationID.uuidString,
+                "parentFocusGeneration": String(parent.focusRequest),
+                "input": exactText,
+            ]) ?? ["submitCount": String(submitCount)])
             let invalidFocusGeneration = parent.focusRequest &+ 1
             parent.text = exactText
             let accepted = parent.submit(exactText)
@@ -184,12 +267,22 @@ struct CustomEstimateInputField: NSViewRepresentable {
             } else {
                 field?.cancelFocusLease()
             }
+            ZC011007Trace.emit("coordinator.submit.end", field?.traceFields(extra: [
+                "submitCount": String(submitCount),
+                "accepted": String(accepted),
+                "requestedInvalidFocusGeneration": String(invalidFocusGeneration),
+            ]) ?? ["submitCount": String(submitCount), "accepted": String(accepted)])
             return accepted
         }
 
         func controlTextDidEndEditing(_ notification: Notification) {
+            let movement = notification.userInfo?[NSText.movementUserInfoKey] as? Int
+            let traceField = notification.object as? CustomEstimateTextField
+            ZC011007Trace.emit("coordinator.endEditing", traceField?.traceFields(extra: [
+                "movement": movement.map(String.init) ?? "nil",
+            ]) ?? ["movement": movement.map(String.init) ?? "nil"])
             guard let field = notification.object as? CustomEstimateTextField,
-                  let movementValue = notification.userInfo?[NSText.movementUserInfoKey] as? Int,
+                  let movementValue = movement,
                   movementValue == NSTextMovement.return.rawValue else {
                 return
             }
@@ -220,6 +313,7 @@ final class CustomEstimateTextField: NSTextField {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        ZC011007Trace.emit(window == nil ? "field.detach" : "field.attach", traceFields())
         if window != nil {
             installKeyMonitorIfNeeded()
             applyRequestedFocus()
@@ -244,8 +338,22 @@ final class CustomEstimateTextField: NSTextField {
         editor: NSText?,
         firstResponder: NSResponder?
     ) -> NSEvent? {
+        if event.keyCode == 36 || event.keyCode == 76 {
+            ZC011007Trace.emit("monitor.return.received", traceFields(extra: [
+                "keyCode": String(event.keyCode),
+                "passedEditor": ZC011007Trace.identity(editor),
+                "passedFirstResponder": ZC011007Trace.identity(firstResponder),
+            ]))
+        }
         guard let editor, firstResponder === editor else { return event }
-        return handleReturn(event, exactText: editor.string) ? nil : event
+        let consumed = handleReturn(event, exactText: editor.string)
+        if event.keyCode == 36 || event.keyCode == 76 {
+            ZC011007Trace.emit("monitor.return.result", traceFields(extra: [
+                "consumed": String(consumed),
+                "input": editor.string,
+            ]))
+        }
+        return consumed ? nil : event
     }
 
     @discardableResult
@@ -262,6 +370,10 @@ final class CustomEstimateTextField: NSTextField {
     }
 
     func requestFocus(presentationID: UUID, generation: Int) {
+        ZC011007Trace.emit("lease.request", traceFields(extra: [
+            "presentation": presentationID.uuidString,
+            "focusGeneration": String(generation),
+        ]))
         cancelFocusLease()
         requestedPresentationID = presentationID
         requestedFocusGeneration = generation
@@ -277,6 +389,12 @@ final class CustomEstimateTextField: NSTextField {
                     return
                 }
                 self.applyRequestedFocus()
+                ZC011007Trace.emit("lease.attempt", self.traceFields(extra: [
+                    "presentation": presentationID.uuidString,
+                    "focusGeneration": String(generation),
+                    "attempt": String(attempt),
+                    "hasInputFocus": String(self.hasInputFocus),
+                ]))
                 if attempt < 3 {
                     try? await Task.sleep(for: .milliseconds(50))
                 }
@@ -290,10 +408,15 @@ final class CustomEstimateTextField: NSTextField {
             self.requestedPresentationID = nil
             self.requestedFocusGeneration = nil
             self.focusLeaseTask = nil
+            ZC011007Trace.emit("lease.expire", self.traceFields(extra: [
+                "presentation": presentationID.uuidString,
+                "focusGeneration": String(generation),
+            ]))
         }
     }
 
     func cancelFocusLease() {
+        ZC011007Trace.emit("lease.cancel", traceFields())
         focusLeaseTask?.cancel()
         focusLeaseTask = nil
         isFocusLeaseActive = false
@@ -326,6 +449,25 @@ final class CustomEstimateTextField: NSTextField {
         if hasInputFocus {
             appliedFocusGeneration = requestedFocusGeneration
         }
+        ZC011007Trace.emit("lease.apply.result", traceFields(extra: [
+            "hasInputFocus": String(hasInputFocus),
+            "focusGeneration": String(requestedFocusGeneration),
+        ]))
+    }
+
+    func traceFields(extra: [String: String] = [:]) -> [String: String] {
+        var fields = extra
+        fields["field"] = ZC011007Trace.identity(self)
+        fields["window"] = ZC011007Trace.identity(window)
+        fields["currentEditor"] = ZC011007Trace.identity(currentEditor())
+        fields["firstResponder"] = ZC011007Trace.identity(window?.firstResponder)
+        fields["attached"] = String(window != nil)
+        fields["hasInputFocus"] = String(hasInputFocus)
+        fields["requestedPresentation"] = requestedPresentationID?.uuidString ?? "nil"
+        fields["requestedFocusGeneration"] = requestedFocusGeneration.map(String.init) ?? "nil"
+        fields["appliedFocusGeneration"] = appliedFocusGeneration.map(String.init) ?? "nil"
+        fields["leaseActive"] = String(isFocusLeaseActive)
+        return fields
     }
 
     isolated deinit {

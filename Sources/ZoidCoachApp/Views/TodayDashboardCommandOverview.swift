@@ -22,6 +22,7 @@ struct TodayDashboardCommandOverview: View {
     @State private var gamingAdjustmentPresentation: GamingManualAdjustmentPresentation?
     @State private var snapshotConfirmedAt: Date
     @State private var customEstimateEditorStore = CustomEstimateEditorStateStore()
+    @State private var customEstimateDiagnosticOwnerID = UUID()
     private let now: () -> Date
     @FocusState private var isUsageFocused: Bool
 
@@ -511,8 +512,27 @@ struct TodayDashboardCommandOverview: View {
         for taskID: String
     ) -> Binding<CustomEstimateEditorState> {
         Binding(
-            get: { customEstimateEditorStore[taskID] },
-            set: { customEstimateEditorStore[taskID] = $0 }
+            get: {
+                let state = customEstimateEditorStore[taskID]
+                ZC011007Trace.emit("parent.binding.get", [
+                    "owner": customEstimateDiagnosticOwnerID.uuidString,
+                    "task": taskID,
+                    "presentation": state.presentationID.uuidString,
+                    "focusGeneration": String(state.focusRequest),
+                ])
+                return state
+            },
+            set: {
+                ZC011007Trace.emit("parent.binding.set", [
+                    "owner": customEstimateDiagnosticOwnerID.uuidString,
+                    "task": taskID,
+                    "presentation": $0.presentationID.uuidString,
+                    "focusGeneration": String($0.focusRequest),
+                    "presented": String($0.isPresented),
+                    "input": $0.input,
+                ])
+                customEstimateEditorStore[taskID] = $0
+            }
         )
     }
 
