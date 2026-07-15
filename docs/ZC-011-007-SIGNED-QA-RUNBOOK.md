@@ -51,7 +51,8 @@ test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 
 The full signed commit must be repository HEAD.
 The diff from canonical base must contain exactly three commits: the patch-equivalent four-file tooling replay, the exact four-file shared-editor product fix, and the two-file lineage binding.
-The full candidate scope is exactly eight files because the binding edits only two of the already reviewed QA files.
+The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, and explicit Dashboard/Today surface selection.
+The full candidate scope remains exactly eight files, and the final lineage commit edits only this runbook and the signed preflight.
 Tracker, registry, Lavish, backlog, parser, legacy parser-test, and unrelated verifier changes are rejected.
 
 ## Establish and snapshot the ready-state baseline
@@ -111,7 +112,10 @@ Every probe call rejects the raw task ID, private fixture note, database path, a
 
 ```sh
 probe() {
+  local surface="$1"
+  shift
   swift "$AX_PROBE" --pid "$PID" "$@" \
+    --surface "$surface" \
     --forbid "$TASK_ID" \
     --forbid "$PRIVATE_NOTE" \
     --forbid "$DATABASE" \
@@ -119,14 +123,15 @@ probe() {
 }
 
 run_invalid_case() {
-  local case_name="$1"
+  local surface="$1"
+  local case_name="$2"
   local probe_status=0
-  probe --phase submit --case "$case_name" || probe_status=$?
+  probe "$surface" --phase submit --case "$case_name" || probe_status=$?
   (( probe_status == 0 )) || return "$probe_status"
   "$FIXTURE" assert-unmutated "$DATABASE"
 }
 
-probe --phase open
+probe today --phase open
 ```
 
 The open phase finds the exact task-specific Custom action through normal Today accessibility, opens it, and places keyboard focus in the labelled minutes field.
@@ -139,16 +144,16 @@ The editor must stay open with the exact raw input, keyboard focus, Save, Cancel
 The database must remain missing-estimate truth after every failure.
 
 ```sh
-run_invalid_case empty
-run_invalid_case whitespace
-run_invalid_case unicode-whitespace
-run_invalid_case zero
-run_invalid_case negative
-run_invalid_case decimal
-run_invalid_case text
-run_invalid_case localized-digits
-run_invalid_case localized-decimal
-run_invalid_case too-large
+run_invalid_case today empty
+run_invalid_case today whitespace
+run_invalid_case today unicode-whitespace
+run_invalid_case today zero
+run_invalid_case today negative
+run_invalid_case today decimal
+run_invalid_case today text
+run_invalid_case today localized-digits
+run_invalid_case today localized-decimal
+run_invalid_case today too-large
 ```
 
 The exact expected errors are:
@@ -166,7 +171,25 @@ No failure may show a confirmed estimate, close the editor, move focus away from
 Submit the whitespace-padded whole number ` 25 ` through the same focused field and physical Return path.
 
 ```sh
-probe --phase submit --case valid-padded
+probe today --phase submit --case valid-padded
+"$FIXTURE" assert-valid "$DATABASE"
+```
+
+After restoring the baseline root and preparing the fixture again, repeat the same exact matrix on the Dashboard surface.
+
+```sh
+probe dashboard --phase open
+run_invalid_case dashboard empty
+run_invalid_case dashboard whitespace
+run_invalid_case dashboard unicode-whitespace
+run_invalid_case dashboard zero
+run_invalid_case dashboard negative
+run_invalid_case dashboard decimal
+run_invalid_case dashboard text
+run_invalid_case dashboard localized-digits
+run_invalid_case dashboard localized-decimal
+run_invalid_case dashboard too-large
+probe dashboard --phase submit --case valid-padded
 "$FIXTURE" assert-valid "$DATABASE"
 ```
 
@@ -183,7 +206,7 @@ RELAUNCH_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
   --require-ordinary-open)"
 PID="$(printf '%s\n' "$RELAUNCH_OUTPUT" | sed -n 's/^APP_PID=//p')"
 test -n "$PID"
-probe --phase persisted
+probe today --phase persisted
 "$FIXTURE" assert-valid "$DATABASE"
 ```
 
