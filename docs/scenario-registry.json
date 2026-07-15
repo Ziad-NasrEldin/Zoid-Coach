@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "27f320939251b9ff5de67153ee0e8b69f39922c2113ac404cf3585b432a4f8b3",
+  "tracker_sha256": "f47f4c34b74c117046536d9255093800bdca762dee1bf925bbd262d95cfa9fba",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -2671,19 +2671,21 @@
       "section_title": "Understanding the Today dashboard",
       "item_index": 1,
       "wording": "See the current date and day state at a glance.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-013-001-day-state/d562e28f7b29d68586d104a4c2de1f2e5ca9bc0b/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "A populated snapshot shows the full date, while the empty installed state omits it and neither surface names a formal day state (`TodayDashboardCommandOverview.swift:23-43`; runtime screenshot).",
+      "audit_note": "The installed signed app at `d562e28f7b29d68586d104a4c2de1f2e5ca9bc0b` displayed the locale-current full date `Wednesday, 15 July`, the literal `Day state` semantic label, exact state-specific copy for Preparing, Plan Needed, Planning Snoozed, Planning Dismissed, Planned Day, Unplanned Day, and Active Work, active-over-unplanned precedence, and the unchanged Planned Day across two ordinary relaunches. Every accessibility probe rejected the private title and URL sentinels, the fixture restored the original Today snapshot byte-for-byte, and the isolated QA runtime was removed (`Sources/ZoidCoachApp/Views/TodayDayStateHeader.swift`; `docs/ZC-013-001-SIGNED-QA-RUNBOOK.md`; `.audit/runs/zc-013-001-day-state/d562e28f7b29d68586d104a4c2de1f2e5ca9bc0b/REPORT.md`).",
       "tracker_line": 208
     },
     {
