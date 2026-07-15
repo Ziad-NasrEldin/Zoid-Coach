@@ -147,9 +147,12 @@ struct BehaviorEvidenceState: Equatable, Sendable {
             workCategoryDetail = "Only work observed in explicitly recognized tools is included in these categories."
         }
         coverageTitle = coverage.isLimited ? "LIMITED COVERAGE" : "CURRENT COVERAGE"
-        coverageDetail = coverage.explanation.isEmpty
+        let coverageExplanation = coverage.explanation.isEmpty
             ? sourceFreshnessExplanation
             : coverage.explanation
+        coverageDetail = coverage.isLimited
+            ? "\(coverageExplanation) Drift detection is suspended until Screenwatch coverage is current."
+            : coverageExplanation
 
         let sourceIssue = sources.first {
             $0.sourceID.localizedCaseInsensitiveContains("screenwatch")
