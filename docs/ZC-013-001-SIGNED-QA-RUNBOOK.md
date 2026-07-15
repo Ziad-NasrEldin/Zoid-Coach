@@ -1,8 +1,8 @@
 # ZC-013-001 signed QA runbook
 
 This runbook verifies that Today always exposes the current date and one explicit day state.
-The product candidate is `db0a5305604bfb372da20fb95c8f05d22c4660b8`.
-The signed build may be that commit or a reviewed descendant that contains the candidate and this verifier tooling.
+The signed build must be the exact expected commit on the reviewed canonical-base lineage.
+The lineage preflight verifies the replayed product patches by stable patch ID and final blob content instead of relying on pre-reassembly commit ancestry.
 
 The journey uses an isolated QA root and install root.
 The fixture backs up only the current-day Today snapshot to an external runtime file, drives the UI through the real persisted snapshot boundary, and restores the original payload byte-for-byte during cleanup.
@@ -24,12 +24,12 @@ BACKUP="$QA_ROOT/zc013001-original-snapshot.tsv"
 EVIDENCE="/private/tmp/zoid-666-zc013001-evidence/$EXPECTED_SIGNED_COMMIT"
 FIXTURE="$PWD/Scripts/qa-zc013001-day-state-fixture.sh"
 PROBE="$PWD/Scripts/qa-zc013001-day-state-ax-probe.swift"
+LINEAGE_PREFLIGHT="$PWD/Scripts/qa-zc013001-lineage-preflight.sh"
 READY_STATE="$PWD/Scripts/prepare-qa-ready-state.py"
 READY_MANIFEST="$PWD/Scripts/fixtures/qa-ready-state.example.json"
 FIXTURE_PREPARED=false
 
-test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
-git merge-base --is-ancestor db0a5305604bfb372da20fb95c8f05d22c4660b8 "$EXPECTED_SIGNED_COMMIT"
+"$LINEAGE_PREFLIGHT" --expected-commit "$EXPECTED_SIGNED_COMMIT"
 "$FIXTURE" self-test
 swift "$PROBE" --self-test
 Scripts/qa-zc013001-runbook-self-test.sh
