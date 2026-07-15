@@ -44,7 +44,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ZoidCoachAppTests",
-            dependencies: ["ZoidCoachApp", "ZoidCoachCore", "ZoidCoachInfrastructure"],
+            dependencies: ["ZoidCoachApp", "ZoidCoachAgent", "ZoidCoachCore", "ZoidCoachInfrastructure"],
             path: "Tests/ZoidCoachAppTests"
         )
     ]
