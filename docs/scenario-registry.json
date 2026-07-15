@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "8f2ef7a13df1d5b77d95910620dade030ac442374ff454c6c961212ce6dd3372",
+  "tracker_sha256": "9126e43c73beb5515c0dc100b3c86488ae2cb5bf95bcb94f1ab168f79f80c9bd",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -2698,19 +2698,21 @@
       "section_title": "Understanding the Today dashboard",
       "item_index": 2,
       "wording": "See whether coaching is active or paused.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Settings header clearly shows automation Running or Paused, but Today does not show coaching state and `AppModel.coachingState` is not rendered there (`SettingsView.swift:223-236`).",
+      "evidence_paths": [
+        ".audit/runs/zc-013-002-coaching-status/160dd17495d9efb71bed8aedc322c40e3ffb7be1/evidence.json"
+      ],
+      "last_verified_commit": "160dd17495d9efb71bed8aedc322c40e3ffb7be1",
+      "last_verified_build": "zoid-coach-160dd17495d9efb71bed8aedc322c40e3ffb7be1-clean",
+      "audit_note": "The installed signed app at `160dd17495d9efb71bed8aedc322c40e3ffb7be1` displayed exact privacy-safe Today coaching status and explanation for observation-only, gentle active, accountability active, indefinitely paused, timed paused, and fail-closed unavailable states. Only paused states exposed the Settings recovery hint, every state stated that task tracking and activity observation continue according to their own settings, the exact timed pause survived an ordinary relaunch, the ready-state bootstrap excluded Setup before acceptance, and cleanup restored the isolated root byte-for-byte before removing the QA app, helper, LaunchAgent, and runtime (`Sources/ZoidCoachApp/CoachingStatePresentation.swift`; `Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift`; `docs/ZC-013-002-SIGNED-QA-RUNBOOK.md`; `.audit/runs/zc-013-002-coaching-status/160dd17495d9efb71bed8aedc322c40e3ffb7be1/REPORT.md`).",
       "tracker_line": 209
     },
     {

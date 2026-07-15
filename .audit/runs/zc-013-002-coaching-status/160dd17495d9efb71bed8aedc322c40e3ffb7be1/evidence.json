@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "run_id": "zc-013-002-coaching-status/160dd17495d9efb71bed8aedc322c40e3ffb7be1",
+  "verified_commit": "160dd17495d9efb71bed8aedc322c40e3ffb7be1",
+  "build_identity": "zoid-coach-160dd17495d9efb71bed8aedc322c40e3ffb7be1-clean",
+  "fixture": "Six-state installed signed Today coaching-status journey with ordinary relaunch persistence and fail-closed source unavailability",
+  "qa_root": "/private/tmp/zoid-zc013002-runtime",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "0e323a1f4ea430e261151a03372b387e7fb54c878430e53a3ccf4c72d359cff5",
+  "scenario_ids": [
+    "ZC-013-002"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-15T06:05:45Z",
+  "completed_at": "2026-07-15T06:08:10Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "3d454e127167cf025f99248d0cebe6b62de40d4bbd56ad035d37d0e070eaf43d"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "Exact signed package, application identity, XPC boundary, foreground PID, and isolated database binding passed",
+      "result": "passed"
+    },
+    {
+      "name": "Observation-only, gentle, accountability, indefinitely paused, timed paused, and unavailable states passed exact accessibility and privacy checks",
+      "result": "passed"
+    },
+    {
+      "name": "The exact timed pause survived an ordinary LaunchServices relaunch",
+      "result": "passed"
+    },
+    {
+      "name": "The isolated ready root restored byte-for-byte before complete QA cleanup",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "Scripts/qa-zc013002-signed-preflight.sh --self-test",
+    "Scripts/qa-zc013002-signed-bootstrap.sh 160dd17495d9efb71bed8aedc322c40e3ffb7be1 /private/tmp/zoid-zc013002-runtime /private/tmp/zoid-zc013002-install",
+    "Scripts/qa-zc013002-signed-preflight.sh <app> <database> 160dd17495d9efb71bed8aedc322c40e3ffb7be1 <pid> <phase>",
+    "Scripts/verify-package.sh <app> --expected-commit 160dd17495d9efb71bed8aedc322c40e3ffb7be1 --require-clean"
+  ]
+}
