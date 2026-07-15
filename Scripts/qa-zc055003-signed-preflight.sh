@@ -3,11 +3,13 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly CANONICAL_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
-readonly ORIGINAL_PRODUCT_CANDIDATE="9ddd5f3c2ac86c512bdd6b5375ff8670711f7f1f"
-readonly PRODUCT_CORRECTION="c70d9ca84de087e3ad88fd6da3f36e6b74729c17"
+readonly CANONICAL_BASE="7ac4ea0b6cb12062fc77ff6e7588cd7a3a78ab0b"
+readonly ORIGINAL_PRODUCT_CANDIDATE="6d8ec43867e0bf6aee53bb089f0fa7cf508ce870"
+readonly PRODUCT_CORRECTION="f260fa8f14d69e49b33e411366a6fc06ddd7dcf2"
+readonly TOOLING_CANDIDATE="7efed0f712ffcc35f9f7afb9b3aa136c32e9fc51"
 readonly ORIGINAL_PRODUCT_PATCH_ID="764437992c743d0fba4109360a66b3d89c9fff06"
 readonly PRODUCT_CORRECTION_PATCH_ID="0a5662a3b0c5c69a5b98a516e6faf2ee1fa83a4a"
+readonly TOOLING_PATCH_ID="5226588dbc0b50b5b034e4dabc2e1eecd12a2898"
 readonly AX_PROBE="$SCRIPT_DIR/qa-zc055003-keyboard-lifecycle-ax-probe.swift"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc055003-keyboard-lifecycle-fixture.sh"
 readonly RUNBOOK="$REPOSITORY/docs/ZC-055-003-SIGNED-QA-RUNBOOK.md"
@@ -19,6 +21,10 @@ readonly TOOLING_FILES=(
     docs/ZC-055-003-SIGNED-QA-RUNBOOK.md
     Scripts/qa-zc055003-keyboard-lifecycle-ax-probe.swift
     Scripts/qa-zc055003-keyboard-lifecycle-fixture.sh
+    Scripts/qa-zc055003-signed-preflight.sh
+)
+readonly LINEAGE_FILES=(
+    docs/ZC-055-003-SIGNED-QA-RUNBOOK.md
     Scripts/qa-zc055003-signed-preflight.sh
 )
 
@@ -61,14 +67,17 @@ commit_patch_id() {
 
 assert_lineage() {
     local expected="$1"
-    local head scope reviewed_scope head_scope commit_count
+    local head scope reviewed_scope tooling_scope lineage_scope commit_count
     head="$(git -C "$REPOSITORY" rev-parse HEAD)" || fail "repository HEAD is unavailable"
     [[ "$head" == "$expected" ]] || fail "repository HEAD $head does not match signed commit $expected"
     git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" "$expected" || fail "candidate does not descend from canonical base"
-    git -C "$REPOSITORY" merge-base --is-ancestor "$ORIGINAL_PRODUCT_CANDIDATE" "$expected" || fail "candidate omits original keyboard product commit"
-    git -C "$REPOSITORY" merge-base --is-ancestor "$PRODUCT_CORRECTION" "$expected" || fail "candidate omits reviewed production-shape switch correction"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$ORIGINAL_PRODUCT_CANDIDATE^")" == "$CANONICAL_BASE" ]] || fail "original product commit is not a direct child of canonical"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$PRODUCT_CORRECTION^")" == "$ORIGINAL_PRODUCT_CANDIDATE" ]] || fail "product correction is not a direct child of the original product commit"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$TOOLING_CANDIDATE^")" == "$PRODUCT_CORRECTION" ]] || fail "tooling commit is not a direct child of the product correction"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$TOOLING_CANDIDATE" ]] || fail "lineage commit is not a direct child of the tooling commit"
     [[ "$(commit_patch_id "$ORIGINAL_PRODUCT_CANDIDATE")" == "$ORIGINAL_PRODUCT_PATCH_ID" ]] || fail "original product patch identity changed"
     [[ "$(commit_patch_id "$PRODUCT_CORRECTION")" == "$PRODUCT_CORRECTION_PATCH_ID" ]] || fail "product correction patch identity changed"
+    [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] || fail "tooling patch identity changed"
 
     reviewed_scope="$(printf '%s\n' "${PRODUCT_FILES[@]}" "${TOOLING_FILES[@]}")"
     scope="$(git -C "$REPOSITORY" diff --name-only "$CANONICAL_BASE" "$expected")" || fail "candidate scope is unavailable"
@@ -77,9 +86,11 @@ assert_lineage() {
     ! grep -Fqx 'docs/zoid-coach-product-scenario-tracker.md' <<<"$scope" || fail "candidate unexpectedly includes scenario tracker"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    [[ "$commit_count" == "3" ]] || fail "candidate must contain exactly original product, correction, and tooling commits"
-    head_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected")"
-    has_exact_lines "$head_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "tooling tip contains unrelated files"
+    [[ "$commit_count" == "4" ]] || fail "candidate must contain product, correction, tooling, and lineage commits"
+    tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
+    has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "tooling commit contains unrelated files"
+    lineage_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected")"
+    has_exact_lines "$lineage_scope" "$(printf '%s\n' "${LINEAGE_FILES[@]}")" || fail "lineage commit contains files outside immutable bindings"
 }
 
 assert_runbook_contract() {
@@ -105,6 +116,7 @@ if [[ "$APP" == "--self-test" ]]; then
     "$FIXTURE" self-test >/dev/null
     swiftc -typecheck "$AX_PROBE"
     swift "$AX_PROBE" --self-test >/dev/null
+    assert_lineage "$(git -C "$REPOSITORY" rev-parse HEAD)"
     print -- "PASS: ZC-055-003 signed preflight self-test"
     exit 0
 fi

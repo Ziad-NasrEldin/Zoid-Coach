@@ -2,7 +2,9 @@
 
 This runbook verifies that one exact installed signed Zoid 666 candidate can start, pause, resume, switch, and complete tasks using only documented keyboard shortcuts.
 It also verifies shortcut discoverability, exact accessible labels, correct disabled states, durable time preservation, the durable switch reason, ordinary relaunch persistence, privacy, and byte-exact restoration.
-The product lineage includes the reconstructed keyboard lifecycle candidate `9ddd5f3c2ac86c512bdd6b5375ff8670711f7f1f` and the reconstructed production-snapshot switch correction `c70d9ca84de087e3ad88fd6da3f36e6b74729c17`.
+The product lineage includes keyboard lifecycle candidate `6d8ec43867e0bf6aee53bb089f0fa7cf508ce870` and production-snapshot switch correction `f260fa8f14d69e49b33e411366a6fc06ddd7dcf2`.
+It preserves product patch IDs `764437992c743d0fba4109360a66b3d89c9fff06` and `0a5662a3b0c5c69a5b98a516e6faf2ee1fa83a4a`, followed by tooling commit `7efed0f712ffcc35f9f7afb9b3aa136c32e9fc51` with patch ID `5226588dbc0b50b5b034e4dabc2e1eecd12a2898`.
+The final commit changes only immutable lineage bindings in this runbook and the signed preflight.
 
 The verifier reads the native Task menu through Accessibility only to confirm its labels, shortcut metadata, and enabled states.
 Every lifecycle mutation is delivered as a real Command-Option chord through `CGEvent at the HID event tap` while the installed app is frontmost.
@@ -35,8 +37,9 @@ TARGET_TASK_TITLE="QA keyboard lifecycle switch target"
 PRIVATE_NOTE="qa-zc055003-private-note"
 
 test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
-git merge-base --is-ancestor 9ddd5f3c2ac86c512bdd6b5375ff8670711f7f1f "$EXPECTED_SIGNED_COMMIT"
-git merge-base --is-ancestor c70d9ca84de087e3ad88fd6da3f36e6b74729c17 "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor 6d8ec43867e0bf6aee53bb089f0fa7cf508ce870 "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor f260fa8f14d69e49b33e411366a6fc06ddd7dcf2 "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor 7efed0f712ffcc35f9f7afb9b3aa136c32e9fc51 "$EXPECTED_SIGNED_COMMIT"
 "$PREFLIGHT" --self-test
 ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh \
   "$APP" --expected-commit "$EXPECTED_SIGNED_COMMIT" --require-clean
@@ -48,7 +51,7 @@ test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 ```
 
 The full commit must be the repository HEAD passed to the preflight.
-The preflight requires exactly the reviewed two product files and four verifier files relative to canonical base `361093b4a088c19eee927eaab2b58a40fb3b4c27`.
+The preflight requires exactly the reviewed two product files and four verifier files relative to canonical base `7ac4ea0b6cb12062fc77ff6e7588cd7a3a78ab0b`.
 It rejects tracker, registry, unrelated product, or additional commit drift.
 
 ## Establish and snapshot the ready-state baseline
