@@ -369,6 +369,59 @@ struct CustomEstimateEditorStateTests {
 
     @MainActor
     @Test
+    func twoConsecutiveNativeControlActionsSubmitExactlyOncePerReturn() {
+        let box = InteractionBox()
+        box.state.open(initialMinutes: nil)
+        let initialFocusRequest = box.state.focusRequest
+        func input() -> CustomEstimateInputField {
+            CustomEstimateInputField(
+                text: Binding(
+                    get: { box.state.input },
+                    set: { box.state.input = $0 }
+                ),
+                focusRequest: box.state.focusRequest,
+                presentationID: box.state.presentationID,
+                submit: { exactText in
+                    box.returnCallbackCount += 1
+                    box.state.input = exactText
+                    return box.state.submit { box.persisted.append($0) }
+                }
+            )
+        }
+        let coordinator = input().makeCoordinator()
+        let field = CustomEstimateTextField(string: "")
+
+        coordinator.submitFromControlAction(field)
+        coordinator.controlTextDidEndEditing(Notification(
+            name: NSControl.textDidEndEditingNotification,
+            object: field,
+            userInfo: [NSText.movementUserInfoKey: NSTextMovement.return.rawValue]
+        ))
+        #expect(box.returnCallbackCount == 1)
+        #expect(field.lastReturnHandling == .controlAction)
+        #expect(field.returnHandlingCount == 1)
+        #expect(field.requestedFocusGeneration == initialFocusRequest + 1)
+
+        coordinator.parent = input()
+        field.stringValue = "   "
+        coordinator.submitFromControlAction(field)
+        coordinator.controlTextDidEndEditing(Notification(
+            name: NSControl.textDidEndEditingNotification,
+            object: field,
+            userInfo: [NSText.movementUserInfoKey: NSTextMovement.return.rawValue]
+        ))
+
+        #expect(box.returnCallbackCount == 2)
+        #expect(field.lastReturnHandling == .controlAction)
+        #expect(field.returnHandlingCount == 2)
+        #expect(field.requestedFocusGeneration == initialFocusRequest + 2)
+        #expect(box.state.input == "   ")
+        #expect(box.state.validationMessage == "Enter an estimate in minutes.")
+        #expect(box.persisted.isEmpty)
+    }
+
+    @MainActor
+    @Test
     func twoConsecutiveInvalidReturnsCarryFocusGenerationAcrossRemount() {
         let box = InteractionBox()
         box.state.open(initialMinutes: nil)

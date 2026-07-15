@@ -130,6 +130,8 @@ struct CustomEstimateInputField: NSViewRepresentable {
         field.isBezeled = true
         field.bezelStyle = .roundedBezel
         field.delegate = context.coordinator
+        field.target = context.coordinator
+        field.action = #selector(Coordinator.submitFromControlAction(_:))
         field.onReturn = { [weak field] exactText in
             _ = context.coordinator.submit(exactText, refocusing: field)
         }
@@ -138,6 +140,8 @@ struct CustomEstimateInputField: NSViewRepresentable {
 
     func updateNSView(_ field: CustomEstimateTextField, context: Context) {
         context.coordinator.parent = self
+        field.target = context.coordinator
+        field.action = #selector(Coordinator.submitFromControlAction(_:))
         field.onReturn = { [weak field] exactText in
             _ = context.coordinator.submit(exactText, refocusing: field)
         }
@@ -193,7 +197,13 @@ struct CustomEstimateInputField: NSViewRepresentable {
                   movementValue == NSTextMovement.return.rawValue else {
                 return
             }
+            guard !field.consumeControlActionSubmission() else { return }
             field.recordReturnHandling(.endEditingFallback)
+            _ = submit(field.stringValue, refocusing: field)
+        }
+
+        @objc func submitFromControlAction(_ field: CustomEstimateTextField) {
+            field.recordControlActionSubmission()
             _ = submit(field.stringValue, refocusing: field)
         }
     }
@@ -202,6 +212,7 @@ struct CustomEstimateInputField: NSViewRepresentable {
 final class CustomEstimateTextField: NSTextField {
     enum ReturnHandling: Equatable {
         case monitor
+        case controlAction
         case endEditingFallback
     }
 
@@ -216,6 +227,7 @@ final class CustomEstimateTextField: NSTextField {
     private(set) var appliedFocusGeneration: Int?
     private(set) var isFocusLeaseActive = false
     private var focusLeaseTask: Task<Void, Never>?
+    private var hasPendingControlActionSubmission = false
     var hasInstalledKeyMonitor: Bool { keyMonitor != nil }
 
     override func viewDidMoveToWindow() {
@@ -259,6 +271,21 @@ final class CustomEstimateTextField: NSTextField {
     func recordReturnHandling(_ handling: ReturnHandling) {
         lastReturnHandling = handling
         returnHandlingCount += 1
+    }
+
+    func recordControlActionSubmission() {
+        hasPendingControlActionSubmission = true
+        recordReturnHandling(.controlAction)
+        Task { @MainActor [weak self] in
+            await Task.yield()
+            self?.hasPendingControlActionSubmission = false
+        }
+    }
+
+    func consumeControlActionSubmission() -> Bool {
+        guard hasPendingControlActionSubmission else { return false }
+        hasPendingControlActionSubmission = false
+        return true
     }
 
     func requestFocus(presentationID: UUID, generation: Int) {
