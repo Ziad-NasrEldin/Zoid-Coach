@@ -43,7 +43,7 @@ func zc062002SQLDuplicatePrivacyAndRealPathFailuresAreRejected() {
     #expect(throws: ZC062002OutageError.self) { _ = try realPath.validate() }
 }
 
-private enum ZC062002OutagePhase: String, Codable, CaseIterable, Sendable {
+enum ZC062002OutagePhase: String, Codable, CaseIterable, Sendable {
     case fresh
     case stale
     case missing
@@ -124,7 +124,7 @@ private struct ZC062002OutageEvidence: Codable {
     }
 }
 
-private enum ZC062002FailureBoundary: CaseIterable, Sendable {
+enum ZC062002FailureBoundary: CaseIterable, Sendable {
     case activeTaskLost
     case intervalClosed
     case wrongDatabase
