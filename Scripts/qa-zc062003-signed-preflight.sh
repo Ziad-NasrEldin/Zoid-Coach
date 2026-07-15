@@ -47,6 +47,8 @@ assert_scope() {
     is_sha "$candidate" || fail "candidate must be a full lowercase SHA"
     [[ -z "$(git -C "$REPOSITORY" status --porcelain=v1 --untracked-files=all)" ]] \
         || fail "candidate repository must be clean"
+    ! git -C "$REPOSITORY" symbolic-ref -q HEAD >/dev/null 2>&1 \
+        || fail "candidate repository HEAD must be detached"
     resolved="$(git -C "$REPOSITORY" rev-parse --verify "$candidate^{commit}")" \
         || fail "candidate is unavailable"
     [[ "$resolved" == "$candidate" ]] || fail "candidate did not resolve to the exact requested commit"
@@ -64,17 +66,26 @@ assert_scope() {
 }
 
 assert_corrected_tip_with_runtime_contract() {
-    local temporary_root checkout downstream_candidate
+    local temporary_root checkout downstream_candidate branch_name
     temporary_root="$(mktemp -d /private/tmp/zoid-zc062003-lineage.XXXXXX)"
     checkout="$temporary_root/repository"
+    branch_name="codex/zc062003-preflight-${temporary_root:t}"
     cleanup_corrected_tip_worktree() {
         git -C "$VALIDATOR_REPOSITORY" worktree remove --force "$checkout" >/dev/null 2>&1 || true
+        git -C "$VALIDATOR_REPOSITORY" branch -D "$branch_name" >/dev/null 2>&1 || true
         rm -rf "$temporary_root"
     }
     trap cleanup_corrected_tip_worktree EXIT HUP INT TERM
     git -C "$VALIDATOR_REPOSITORY" worktree add --detach "$checkout" "$CORRECTED_TIP" >/dev/null
     "$SCRIPT_PATH" --candidate-repository "$checkout" \
         --validate-candidate "$CORRECTED_TIP" >/dev/null
+    git -C "$checkout" switch -c "$branch_name" >/dev/null 2>&1
+    if "$SCRIPT_PATH" --candidate-repository "$checkout" \
+        --validate-candidate "$CORRECTED_TIP" >/dev/null 2>&1; then
+        fail "clean branch checkout was accepted as a detached candidate"
+    fi
+    git -C "$checkout" switch --detach "$CORRECTED_TIP" >/dev/null 2>&1
+    git -C "$VALIDATOR_REPOSITORY" branch -D "$branch_name" >/dev/null
     if "$SCRIPT_PATH" --candidate-repository "$checkout" \
         --validate-candidate "$PARENT" >/dev/null 2>&1; then
         fail "required parent was accepted as the checked-out candidate"
