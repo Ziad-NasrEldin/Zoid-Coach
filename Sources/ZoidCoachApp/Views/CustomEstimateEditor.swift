@@ -87,6 +87,7 @@ struct CustomEstimateEditor: View {
     }
 
     private func submit() {
+        inputIsFocused = false
         state.submit(persist: persist)
     }
 
