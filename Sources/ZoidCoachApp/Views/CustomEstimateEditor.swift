@@ -137,7 +137,13 @@ struct CustomEstimateInputField: NSViewRepresentable {
             textView: NSTextView,
             doCommandBy commandSelector: Selector
         ) -> Bool {
-            guard commandSelector == #selector(NSResponder.insertNewline(_:)) else {
+            let returnCommands = [
+                "insertNewline:",
+                "insertLineBreak:",
+                "insertParagraphSeparator:",
+                "insertNewlineIgnoringFieldEditor:",
+            ]
+            guard returnCommands.contains(NSStringFromSelector(commandSelector)) else {
                 return false
             }
             parent.text = textView.string

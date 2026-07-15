@@ -73,8 +73,15 @@ struct CustomEstimateEditorStateTests {
     }
 
     @MainActor
-    @Test
-    func physicalReturnSynchronizesExactTextAndRetainsInvalidEditorFocusRequestAndError() {
+    @Test(arguments: [
+        "insertNewline:",
+        "insertLineBreak:",
+        "insertParagraphSeparator:",
+        "insertNewlineIgnoringFieldEditor:",
+    ])
+    func physicalReturnSynchronizesExactTextAndRetainsInvalidEditorFocusRequestAndError(
+        commandName: String
+    ) {
         let box = InteractionBox()
         box.state.open(initialMinutes: nil)
         let initialFocusRequest = box.state.focusRequest
@@ -95,7 +102,7 @@ struct CustomEstimateEditorStateTests {
         let handled = coordinator.control(
             NSTextField(),
             textView: fieldEditor,
-            doCommandBy: #selector(NSResponder.insertNewline(_:))
+            doCommandBy: NSSelectorFromString(commandName)
         )
 
         #expect(handled)
@@ -142,6 +149,40 @@ struct CustomEstimateEditorStateTests {
         #expect(box.persisted == [25])
         #expect(!box.state.isPresented)
         #expect(box.state.validationMessage == nil)
+    }
+
+    @MainActor
+    @Test
+    func nonNewlineEditorCommandPassesThroughWithoutSubmitting() {
+        let box = InteractionBox()
+        box.state.open(initialMinutes: nil)
+        let initialFocusRequest = box.state.focusRequest
+        let input = CustomEstimateInputField(
+            text: Binding(
+                get: { box.state.input },
+                set: { box.state.input = $0 }
+            ),
+            focusRequest: box.state.focusRequest,
+            submit: {
+                _ = box.state.submit { box.persisted.append($0) }
+            }
+        )
+        let coordinator = input.makeCoordinator()
+        let fieldEditor = NSTextView()
+        fieldEditor.string = "25"
+
+        let handled = coordinator.control(
+            NSTextField(),
+            textView: fieldEditor,
+            doCommandBy: #selector(NSResponder.moveLeft(_:))
+        )
+
+        #expect(!handled)
+        #expect(box.state.input.isEmpty)
+        #expect(box.state.isPresented)
+        #expect(box.state.validationMessage == nil)
+        #expect(box.state.focusRequest == initialFocusRequest)
+        #expect(box.persisted.isEmpty)
     }
 
     @Test
