@@ -62,6 +62,7 @@ struct TodayDashboardCommandOverview: View {
         .padding(.horizontal, 28)
         .padding(.bottom, 20)
         .onChange(of: snapshot) { _, _ in
+            CustomEstimateEditorTrace.record("today.parent.refresh snapshotChanged=true")
             snapshotConfirmedAt = now()
             customEstimateEditorStore.retain(taskIDs: Set(snapshot.taskRows.map(\.taskID)))
         }
@@ -515,7 +516,12 @@ struct TodayDashboardCommandOverview: View {
     ) -> Binding<CustomEstimateEditorState> {
         Binding(
             get: { customEstimateEditorStore[taskID] },
-            set: { customEstimateEditorStore[taskID] = $0 }
+            set: {
+                CustomEstimateEditorTrace.record(
+                    "today.binding.set presented=\($0.isPresented) hasError=\($0.validationMessage != nil)"
+                )
+                customEstimateEditorStore[taskID] = $0
+            }
         )
     }
 
@@ -578,6 +584,9 @@ struct TodayDashboardCommandOverview: View {
                                 "today.persist.callback.entryFound=true minutes=\(minutes)"
                             )
                             model.setEstimate(minutes, for: entry)
+                            CustomEstimateEditorTrace.record(
+                                "today.persist.callback.modelReturned minutes=\(minutes)"
+                            )
                         } else {
                             CustomEstimateEditorTrace.record(
                                 "today.persist.callback.entryFound=false minutes=\(minutes)"
