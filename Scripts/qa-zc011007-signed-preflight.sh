@@ -22,6 +22,8 @@ readonly FIXTURE_OWNERSHIP_CANDIDATE="53c5e0455efd30fbe886f817fcd5dc906cb9bbac"
 readonly FIXTURE_HARDENING_CANDIDATE="3338b5b4a14627c27c767e09285f52d09e441a5f"
 readonly PRIOR_LINEAGE_CANDIDATE="f5941ce9c70fe4576c1561afe5a03ff3a24a0511"
 readonly RESTORE_TRUST_CANDIDATE="b10af13f7c1fce32113f8c9e60872ac7695a6c25"
+readonly RESTORE_LINEAGE_CANDIDATE="c6ab1eca0be18bfed96d036b56e733a4efa5bda6"
+readonly SAFE_PATH_CANDIDATE="1177f6a2f2215ae21c525bac3478d5df14f80e00"
 readonly TOOLING_PATCH_ID="54853a6c3d47fdbb9dec56ebc695e7143f7c5b92"
 readonly PRODUCT_PATCH_ID="ca93eecc45fe7b252b3678a029aee68e79cc0477"
 readonly INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
@@ -114,7 +116,9 @@ assert_lineage() {
     [[ "$(git -C "$REPOSITORY" rev-parse "$FIXTURE_HARDENING_CANDIDATE^")" == "$FIXTURE_OWNERSHIP_CANDIDATE" ]] || fail "fixture hardening fix does not directly follow fixture ownership fix"
     [[ "$(git -C "$REPOSITORY" rev-parse "$PRIOR_LINEAGE_CANDIDATE^")" == "$FIXTURE_HARDENING_CANDIDATE" ]] || fail "prior lineage candidate does not directly follow fixture hardening fix"
     [[ "$(git -C "$REPOSITORY" rev-parse "$RESTORE_TRUST_CANDIDATE^")" == "$PRIOR_LINEAGE_CANDIDATE" ]] || fail "restore trust fix does not directly follow prior lineage candidate"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$RESTORE_TRUST_CANDIDATE" ]] || fail "final candidate does not directly follow restore trust fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$RESTORE_LINEAGE_CANDIDATE^")" == "$RESTORE_TRUST_CANDIDATE" ]] || fail "restore lineage candidate does not directly follow restore trust fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$SAFE_PATH_CANDIDATE^")" == "$RESTORE_LINEAGE_CANDIDATE" ]] || fail "safe-PATH fix does not directly follow restore lineage candidate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$SAFE_PATH_CANDIDATE" ]] || fail "final candidate does not directly follow safe-PATH fix"
     [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] || fail "replayed QA tooling patch identity drifted"
     [[ "$(commit_patch_id "$PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] || fail "reviewed product patch identity drifted"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/TaskEstimateInput.swift")" == "$INPUT_BLOB" ]] || fail "TaskEstimateInput product blob changed"
@@ -124,8 +128,8 @@ assert_lineage() {
             || fail "final product file differs from QA safety candidate: $file"
     done
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" == "$(git -C "$REPOSITORY" rev-parse "$SAFETY_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" ]] || fail "final AX probe differs from QA safety candidate"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" == "$(git -C "$REPOSITORY" rev-parse "$RESTORE_TRUST_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" ]] \
-        || fail "final fixture differs from restore trust candidate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" == "$(git -C "$REPOSITORY" rev-parse "$SAFE_PATH_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" ]] \
+        || fail "final fixture differs from safe-PATH candidate"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift")" == "$(git -C "$REPOSITORY" rev-parse "$FIXTURE_HARDENING_CANDIDATE:Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift")" ]] \
         || fail "final focused tests differ from fixture hardening candidate"
 
@@ -137,7 +141,7 @@ assert_lineage() {
     ! grep -Fqx 'docs/impl/666-BACKLOG.md' <<<"$scope" || fail "candidate unexpectedly includes shared backlog"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    [[ "$commit_count" == "19" ]] || fail "candidate must contain the exact eighteen reviewed commits plus externally approved final candidate"
+    [[ "$commit_count" == "21" ]] || fail "candidate must contain the exact twenty reviewed commits plus externally approved final candidate"
     tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
     has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "QA tooling replay contains unrelated files"
     product_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$PRODUCT_CANDIDATE")"
