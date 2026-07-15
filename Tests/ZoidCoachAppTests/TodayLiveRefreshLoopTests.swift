@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Testing
 @testable import ZoidCoachApp
 
@@ -56,6 +57,72 @@ func todayLiveRefreshStartIsIdempotent() async {
     #expect(await duplicateRecorder.count == 0)
     loop.stop()
     continuation.finish()
+}
+
+@MainActor
+@Test
+func todayLiveRefreshEligibilityRequiresSceneAndApplicationActivity() {
+    #expect(TodayLiveRefreshEligibility(
+        onboardingIsReady: true,
+        todayIsSelected: true,
+        sceneIsActive: true,
+        applicationIsActive: true
+    ).isEnabled)
+    #expect(!TodayLiveRefreshEligibility(
+        onboardingIsReady: true,
+        todayIsSelected: true,
+        sceneIsActive: true,
+        applicationIsActive: false
+    ).isEnabled)
+    #expect(!TodayLiveRefreshEligibility(
+        onboardingIsReady: true,
+        todayIsSelected: true,
+        sceneIsActive: false,
+        applicationIsActive: true
+    ).isEnabled)
+}
+
+@MainActor
+@Test
+func applicationActivationMonitorHandlesResignReactivateAndRepeatedNotifications() {
+    let center = NotificationCenter()
+    var transitions: [Bool] = []
+    let monitor = ApplicationActivationMonitor(
+        notificationCenter: center,
+        initiallyActive: true,
+        onTransition: { transitions.append($0) }
+    )
+
+    center.post(name: NSApplication.didResignActiveNotification, object: nil)
+    center.post(name: NSApplication.didResignActiveNotification, object: nil)
+    #expect(!monitor.isActive)
+    #expect(transitions == [false])
+
+    center.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+    center.post(name: NSApplication.didBecomeActiveNotification, object: nil)
+    #expect(monitor.isActive)
+    #expect(transitions == [false, true])
+}
+
+@MainActor
+@Test
+func applicationActivationMonitorRemovesObserversOnTeardown() {
+    let center = NotificationCenter()
+    var transitions: [Bool] = []
+    weak var releasedMonitor: ApplicationActivationMonitor?
+    do {
+        var monitor: ApplicationActivationMonitor? = ApplicationActivationMonitor(
+            notificationCenter: center,
+            initiallyActive: true,
+            onTransition: { transitions.append($0) }
+        )
+        releasedMonitor = monitor
+        monitor = nil
+    }
+
+    #expect(releasedMonitor == nil)
+    center.post(name: NSApplication.didResignActiveNotification, object: nil)
+    #expect(transitions.isEmpty)
 }
 
 private func waitForRefreshCount(
