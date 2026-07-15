@@ -4,8 +4,8 @@ set -euo pipefail
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
 readonly REVIEWED_BASE="76149705b3a301fafa832102a2e599358a16ff25"
-readonly REVIEWED_PATCH_COUNT=6
-readonly TOTAL_LINEAGE_COMMIT_COUNT=7
+readonly REVIEWED_PATCH_COUNT=8
+readonly TOTAL_LINEAGE_COMMIT_COUNT=9
 readonly -a REVIEWED_PATCH_IDS=(
     a2ec3cb7f8fa679e2c3201bc607eb86a4875967f
     8976e92e46d62fb0c250ca91c8bd6d93f4733272
@@ -13,6 +13,8 @@ readonly -a REVIEWED_PATCH_IDS=(
     6b7b6913d7c6aeb11107b7a0f1e300a1e8af0dd4
     fab1e10178fb6169394c7b05ba6a80923d02b642
     00e4d7a364ae5322a3436e92bfc7c05473ec5395
+    c00c8067423e9af4436389ffc0aa7f64c7006be2
+    4148c429d3cbbc42f151e4231eb6a588d5f24964
 )
 readonly -a REVIEWED_PATHS=(
     Scripts/qa-zc048010-diagnostic-package-ax-probe.swift
@@ -33,7 +35,7 @@ e5ffa132f1e96ebdb58d96c4e7d5c837bd9a648a Sources/ZoidCoachApp/DiagnosticExportPa
 297edbdd2e04ae40a56d06b16a5700d0647a5783 Sources/ZoidCoachApp/Views/SettingsView.swift
 10a14bb765d58d5861bbc172d8fd04ac00ca790c Sources/ZoidCoachInfrastructure/PrivacyDataService.swift
 d6d68beb73d1333c36a2d6c38678c893acbfc7ff Tests/ZoidCoachAppTests/DiagnosticExportPackagePresentationTests.swift
-48a7bdcce6d20db5b11910d0898c60abf4d7b22f Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift
+0a9ae8b1e6db4fb765419c9374fc906fc0f0d838 Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift
 44d5c7818961f23e882984a9cda1f4d5dd97ee17 docs/ZC-048-010-SIGNED-QA-RUNBOOK.md"
 readonly PROBE="$SCRIPT_DIR/qa-zc048010-diagnostic-package-ax-probe.swift"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc048010-diagnostic-package-fixture.sh"
