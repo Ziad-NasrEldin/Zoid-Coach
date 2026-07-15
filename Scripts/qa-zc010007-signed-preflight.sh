@@ -3,7 +3,8 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly PRODUCT_CANDIDATE="6fa4bcb029a13eb951806a2d5a4f073d2f11c58e"
+readonly CANONICAL_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
+readonly PRODUCT_CANDIDATE="85bcae87df2f32baf4d79821fb8a656bb4df2a14"
 readonly APP="${1:-}"
 readonly DATABASE="${2:-}"
 readonly EXPECTED_COMMIT="${3:-}"
@@ -59,6 +60,7 @@ assert_runbook_contract() {
 }
 
 if [[ "$APP" == "--self-test" ]]; then
+    is_full_sha "$CANONICAL_BASE" || fail "valid canonical base rejected"
     is_full_sha "$PRODUCT_CANDIDATE" || fail "valid product candidate rejected"
     ! is_full_sha "${PRODUCT_CANDIDATE[1,39]}" || fail "abbreviated SHA accepted"
     command_has_exact_argument "/tmp/Zoid666 --qa-open-main" "--qa-open-main" || fail "exact argument rejected"
@@ -88,6 +90,8 @@ done
 [[ -f "$DATABASE" ]] || fail "isolated database is unavailable: $DATABASE"
 is_full_sha "$EXPECTED_COMMIT" || fail "expected commit must be a full lowercase SHA"
 [[ -z "$EXPECTED_APP_PID" || "$EXPECTED_APP_PID" == <-> ]] || fail "expected app PID must be numeric"
+git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" "$EXPECTED_COMMIT" \
+    || fail "signed commit does not contain the current canonical base"
 git -C "$REPOSITORY" merge-base --is-ancestor "$PRODUCT_CANDIDATE" "$EXPECTED_COMMIT" \
     || fail "signed commit does not contain ZC-010-007 product candidate"
 assert_static_contract
