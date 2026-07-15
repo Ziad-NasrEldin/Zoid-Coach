@@ -514,8 +514,25 @@ struct TodayDashboardCommandOverview: View {
         for taskID: String
     ) -> Binding<CustomEstimateEditorState> {
         Binding(
-            get: { customEstimateEditorStore[taskID] },
-            set: { customEstimateEditorStore[taskID] = $0 }
+            get: {
+                let state = customEstimateEditorStore[taskID]
+                ZC011007Trace.emit("parent.binding.get", [
+                    "task": taskID,
+                    "presented": String(state.isPresented),
+                    "input": state.input,
+                    "focusGeneration": String(state.focusRequest),
+                ])
+                return state
+            },
+            set: {
+                ZC011007Trace.emit("parent.binding.set", [
+                    "task": taskID,
+                    "presented": String($0.isPresented),
+                    "input": $0.input,
+                    "focusGeneration": String($0.focusRequest),
+                ])
+                customEstimateEditorStore[taskID] = $0
+            }
         )
     }
 
@@ -1815,7 +1832,19 @@ private struct TodayEstimateStrip: View {
                     cancelIdentifier: "today-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
                     errorIdentifier: "today-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
                     errorFontSize: 10,
-                    persist: setEstimate,
+                    persist: { minutes in
+                        ZC011007Trace.emit("today.persist.invoked", [
+                            "task": taskID,
+                            "hostPath": hostPath,
+                            "minutes": String(minutes),
+                        ])
+                        setEstimate(minutes)
+                        ZC011007Trace.emit("today.persist.returned", [
+                            "task": taskID,
+                            "hostPath": hostPath,
+                            "minutes": String(minutes),
+                        ])
+                    },
                     cancel: {}
                 )
             }
