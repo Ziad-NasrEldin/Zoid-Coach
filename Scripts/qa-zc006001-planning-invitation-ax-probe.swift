@@ -53,8 +53,36 @@ private func containsPrivateSentinel(_ values: [String]) -> Bool {
     return privateSentinels.contains { combined.localizedCaseInsensitiveContains($0) }
 }
 
+private enum SimulatedRefreshResult: Equatable {
+    case success(attempt: Int)
+    case timeout
+}
+
+private func containsActionPostcondition(_ values: [String], expected: String) -> Bool {
+    values.contains { $0.localizedCaseInsensitiveContains(expected) }
+}
+
+private func simulateFreshTreePolling(
+    snapshots: [[String]],
+    expected: String,
+    attemptLimit: Int
+) -> SimulatedRefreshResult {
+    for (index, values) in snapshots.prefix(attemptLimit).enumerated() {
+        if containsActionPostcondition(values, expected: expected) {
+            return .success(attempt: index + 1)
+        }
+    }
+    return .timeout
+}
+
+private func uniqueMainWindowIndex(_ mainFlags: [Bool]) -> Int? {
+    let indices = mainFlags.indices.filter { mainFlags[$0] }
+    return indices.count == 1 ? indices[0] : nil
+}
+
 if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     let promptIdentifiers = stableActionKinds.map { "today.prompt.fixture.action.\($0)" }
+    let staleInvitation = [expectedTitle, expectedSummary(1)!]
     guard expectedSummary(0)?.contains("start without one") == true,
           expectedSummary(1)?.contains("1 suggested commitment") == true,
           expectedSummary(3)?.contains("3 suggested commitments") == true,
@@ -62,13 +90,37 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           hasOrderedActions(promptIdentifiers),
           !hasOrderedActions([promptIdentifiers[1], promptIdentifiers[0]] + Array(promptIdentifiers.dropFirst(2))),
           !hasOrderedActions(["planning.invitation.snooze", "planning.invitation.dismiss", "planning.invitation.work-unplanned"]),
+          simulateFreshTreePolling(
+              snapshots: [["WAITING"], ["LIMITED UNPLANNED MODE"]],
+              expected: "LIMITED UNPLANNED MODE",
+              attemptLimit: 100
+          ) == .success(attempt: 2),
+          simulateFreshTreePolling(snapshots: [], expected: "PLANNING SNOOZED", attemptLimit: 100) == .timeout,
+          simulateFreshTreePolling(
+              snapshots: [staleInvitation, staleInvitation],
+              expected: "PLANNING DISMISSED",
+              attemptLimit: 100
+          ) == .timeout,
+          simulateFreshTreePolling(
+              snapshots: [["PLANNING SNOOZED"]],
+              expected: "PLANNING DISMISSED",
+              attemptLimit: 100
+          ) == .timeout,
+          simulateFreshTreePolling(
+              snapshots: [["PLANNING SNOOZED"]],
+              expected: "PLANNING SNOOZED",
+              attemptLimit: 100
+          ) == .success(attempt: 1),
+          uniqueMainWindowIndex([true]) == 0,
+          uniqueMainWindowIndex([]) == nil,
+          uniqueMainWindowIndex([true, true]) == nil,
           !containsPrivateSentinel([expectedTitle, expectedSummary(3)!]),
           containsPrivateSentinel([expectedTitle, "qa-zc006001-private-window-title"])
     else {
         fputs("FAIL: ZC-006-001 AX probe self-test\n", stderr)
         exit(1)
     }
-    print("PASS: ZC-006-001 AX probe self-test")
+    print("PASS: ZC-006-001 AX probe self-test covers exact window binding, fresh-tree success, timeout, stale-tree, and wrong-state rejection")
     exit(0)
 }
 
@@ -137,10 +189,11 @@ private func nodes(from root: AXUIElement, limit: Int = 5_000) -> [Node] {
 
 private func mainWindow(_ application: AXUIElement) -> AXUIElement? {
     let windows = attribute(application, kAXWindowsAttribute as CFString) as? [AXUIElement] ?? []
-    let mains = windows.filter {
+    let mainFlags = windows.map {
         (attribute($0, kAXMainAttribute as CFString) as? NSNumber)?.boolValue == true
     }
-    return mains.count == 1 ? mains[0] : nil
+    guard let index = uniqueMainWindowIndex(mainFlags) else { return nil }
+    return windows[index]
 }
 
 private func snapshot(_ application: AXUIElement) -> [Node]? {
@@ -225,7 +278,7 @@ else {
 }
 guard waitFor(application: application, predicate: { nodes in
     let values = flattenedValues(nodes)
-    return values.contains(where: { $0.localizedCaseInsensitiveContains(expectedAfter) })
+    return containsActionPostcondition(values, expected: expectedAfter)
         && !containsPrivateSentinel(values)
 }) != nil else {
     fputs("FAIL: invitation action did not reach its expected user-visible state\n", stderr)
