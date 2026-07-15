@@ -45,13 +45,13 @@ private func invitationIsVisible(_ nodes: [Node]) -> Bool {
         && !containsPrivateSentinel(values)
 }
 
-private func unplannedStateIsVisible(_ nodes: [Node]) -> Bool {
+private func unplannedStateIsVisible(_ nodes: [Node], promptID: String) -> Bool {
     let values = nodes.flatMap(\.values)
     return values.contains(unplannedEyebrow)
         && values.contains(unplannedTitle)
         && values.contains(noDriftCopy)
-        && !values.contains(expectedTitle)
-        && !values.contains(expectedSummary)
+        && values.contains { $0.hasPrefix("CHOICE · WORK UNPLANNED ·") }
+        && nodes.contains { $0.identifier == "today.prompt.\(promptID).history" }
         && !nodes.contains { workUnplannedPromptID($0.identifier) != nil }
         && !containsPrivateSentinel(values)
 }
@@ -69,7 +69,10 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
         Node(element: inert, identifier: nil, values: [expectedTitle, expectedSummary]),
         Node(element: inert, identifier: actionIdentifier, values: [workUnplannedTitle]),
     ]
-    let relaunched = [Node(element: inert, identifier: nil, values: [unplannedEyebrow, unplannedTitle, noDriftCopy])]
+    let relaunched = [
+        Node(element: inert, identifier: nil, values: [unplannedEyebrow, unplannedTitle, noDriftCopy]),
+        Node(element: inert, identifier: "today.prompt.\(promptID).history", values: [expectedTitle, expectedSummary, "CHOICE · WORK UNPLANNED · 15 JUL 2026 AT 10:48 AM"]),
+    ]
     guard invitationIsVisible(invitation),
           workUnplannedPromptID(actionIdentifier) == promptID,
           workUnplannedPromptID("today.prompt.not-a-uuid.action.work_unplanned") == nil,
@@ -77,8 +80,8 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           !invitationIsVisible(Array(invitation.dropLast())),
           !invitationIsVisible(invitation + [invitation.last!]),
           !invitationIsVisible(invitation + [Node(element: inert, identifier: nil, values: [privateSentinels[0]])]),
-          unplannedStateIsVisible(relaunched),
-          !unplannedStateIsVisible(invitation),
+          unplannedStateIsVisible(relaunched, promptID: promptID),
+          !unplannedStateIsVisible(invitation, promptID: promptID),
           uniqueMainWindowIndex([true]) == 0,
           uniqueMainWindowIndex([]) == nil,
           uniqueMainWindowIndex([true, true]) == nil
@@ -90,7 +93,7 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     exit(0)
 }
 
-guard CommandLine.arguments.count == 5,
+guard [5, 7].contains(CommandLine.arguments.count),
       CommandLine.arguments[1] == "--pid",
       let pid = pid_t(CommandLine.arguments[2]),
       CommandLine.arguments[3] == "--phase",
@@ -98,10 +101,19 @@ guard CommandLine.arguments.count == 5,
       AXIsProcessTrusted(),
       kill(pid, 0) == 0
 else {
-    fputs("usage: qa-zc006002-missed-invitation-ax-probe.swift --self-test | --pid PID --phase invitation|work-unplanned|unplanned\n", stderr)
+    fputs("usage: qa-zc006002-missed-invitation-ax-probe.swift --self-test | --pid PID --phase invitation|work-unplanned | --pid PID --phase unplanned --prompt-id UUID\n", stderr)
     exit(2)
 }
 let phase = CommandLine.arguments[4]
+let expectedPromptID: String? = CommandLine.arguments.count == 7
+    && CommandLine.arguments[5] == "--prompt-id"
+    && UUID(uuidString: CommandLine.arguments[6]) != nil
+    ? CommandLine.arguments[6]
+    : nil
+guard (phase == "unplanned") == (expectedPromptID != nil) else {
+    fputs("FAIL: unplanned phase requires one valid --prompt-id and other phases reject it\n", stderr)
+    exit(2)
+}
 
 private func attribute(_ element: AXUIElement, _ name: CFString) -> CFTypeRef? {
     var value: CFTypeRef?
@@ -155,7 +167,8 @@ private func waitFor(_ application: AXUIElement, predicate: ([Node]) -> Bool) ->
 
 let application = AXUIElementCreateApplication(pid)
 if phase == "unplanned" {
-    guard waitFor(application, predicate: unplannedStateIsVisible) != nil else {
+    guard let expectedPromptID,
+          waitFor(application, predicate: { unplannedStateIsVisible($0, promptID: expectedPromptID) }) != nil else {
         fputs("FAIL: durable unplanned state was not visible after ordinary relaunch\n", stderr)
         exit(1)
     }
@@ -186,7 +199,7 @@ else {
     fputs("FAIL: exact Work Unplanned action was not pressable\n", stderr)
     exit(1)
 }
-guard waitFor(application, predicate: unplannedStateIsVisible) != nil else {
+guard waitFor(application, predicate: { unplannedStateIsVisible($0, promptID: promptID) }) != nil else {
     fputs("FAIL: Work Unplanned did not produce its immediate sentinel-safe unplanned and no-drift UI\n", stderr)
     exit(1)
 }

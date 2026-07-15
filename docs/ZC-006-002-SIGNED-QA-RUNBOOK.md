@@ -158,7 +158,7 @@ done
 test -n "$preflight_output"
 printf '%s\n' "$preflight_output"
 APP_PID="$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')"
-swift "$PROBE" --pid "$APP_PID" --phase unplanned
+swift "$PROBE" --pid "$APP_PID" --phase unplanned --prompt-id "$PROMPT_ID"
 "$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY" "$PROMPT_ID"
 ```
 
@@ -167,7 +167,7 @@ The restart assertion rejects a second prompt.
 The native Accessibility probe binds the exact foreground PID and main window, requires the low-pressure invitation language without fixture sentinels, and presses exactly one Work Unplanned control.
 The action assertion requires one answered invitation, one dashboard Work Unplanned response, one applied effect, no unresolved invitation, and the original recovered checkpoint.
 The immediate UI must show the canonical Limited Unplanned Mode and no-drift copy.
-An ordinary app quit and relaunch must restore the same sentinel-safe unplanned and no-drift state without the invitation or Work Unplanned action.
+An ordinary app quit and relaunch must restore the same sentinel-safe unplanned and no-drift state, remove every actionable Work Unplanned control, and retain the exact prompt ID as answered history with Work Unplanned choice copy.
 
 ## Restore exactly
 
