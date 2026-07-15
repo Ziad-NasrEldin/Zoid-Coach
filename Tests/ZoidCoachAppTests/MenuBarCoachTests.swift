@@ -605,7 +605,7 @@ import ZoidCoachInfrastructure
         rows: [menuTask(id: "second", title: "Second", state: .active)],
         activeTask: .init(taskID: "second", startedAt: Date(), elapsedMinutes: 1)
     )
-    let client = SwitchingMenuBarTodayClient(snapshots: [first, second])
+    let client = SwitchingMenuBarTodayClient(snapshots: [second])
     let controller = MenuBarCoachController(
         client: client,
         loadTodaySnapshot: { first }
