@@ -838,12 +838,15 @@ private func replaceFocusedFieldAndSubmit(_ value: String, field: AXUIElement) t
 private func waitForEditor(in window: AXUIElement) throws -> AXUIElement {
     for _ in 0..<maximumPolls {
         let current = try snapshot(in: window)
-        if let field = visibleElement(
-            in: current.elements,
-            window: window,
-            role: kAXTextFieldRole as String,
-            exactLabel: inputLabel
-        ) {
+        let fields = current.elements.filter { candidate in
+            role(candidate) == kAXTextFieldRole as String
+                && labels(candidate).contains(where: { exactAXText($0, inputLabel) })
+                && isVisible(candidate, in: window)
+        }
+        guard fields.count <= 1 else {
+            throw ProbeError.failure("multiple visible custom estimate editor fields found: \(fields.count)")
+        }
+        if let field = fields.first {
             return field
         }
         usleep(100_000)
