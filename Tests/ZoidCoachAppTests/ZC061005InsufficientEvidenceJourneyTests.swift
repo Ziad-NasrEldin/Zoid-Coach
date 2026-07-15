@@ -18,7 +18,7 @@ func zc061005UncertainOverlapWithdrawsStrongDriftAndQueuesOneSafeConfirmation() 
         baselineStatus: fixture.baseline
     ) == .suppressed(.limitedCoverage))
 
-    let withdrawn = try #require(fixture.promptStore.episode(promptID: strong.id))
+    let withdrawn = try #require(try fixture.promptStore.episode(promptID: strong.id))
     #expect(withdrawn.state == .dismissed)
     #expect(withdrawn.resolutionOrigin == .system)
     #expect(withdrawn.resolutionReason == .screenwatchEvidenceInvalid)
@@ -94,7 +94,7 @@ func zc061005SQLFailureFailsClosedInsteadOfProducingAPrompt() throws {
     #expect(try fixture.promptStore.unresolved().isEmpty)
 }
 
-private enum ZC061005Boundary: CaseIterable, Sendable {
+enum ZC061005Boundary: CaseIterable, Sendable {
     case belowThreshold
     case stale
     case noActiveTask
@@ -103,7 +103,7 @@ private enum ZC061005Boundary: CaseIterable, Sendable {
 private final class ZC061005JourneyFixture: @unchecked Sendable {
     let root: URL
     let databaseURL: URL
-    let now = Date(timeIntervalSince1970: 1_784_000_000)
+    let now = Date(timeIntervalSince1970: 1_783_936_800)
     let sourceDay = "2026-07-13"
     let taskID = "qa-zc061005-technical-task"
     let privateTitle = "qa-zc061005-private-tutorial-secret"
