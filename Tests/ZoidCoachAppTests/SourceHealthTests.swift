@@ -43,20 +43,25 @@ func repeatedSourceRepairActivationStartsOnlyOneInFlightRequest() async throws {
 
     model.checkSource(.reminders)
     model.checkSource(.reminders)
-    await Task.yield()
+
+    let clock = ContinuousClock()
+    let requestDeadline = clock.now.advanced(by: .seconds(2))
+    while reminders.requestCount == 0, clock.now < requestDeadline {
+        try await Task.sleep(for: .milliseconds(20))
+    }
 
     #expect(reminders.requestCount == 1)
     #expect(model.sources.first(where: { $0.id == .reminders })?.state == .checking)
 
     reminders.finish()
-    let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: .seconds(2))
-    while model.sources.first(where: { $0.id == .reminders })?.state == .checking,
+    while model.sources.first(where: { $0.id == .reminders })?.state != .healthy,
           clock.now < deadline {
         try await Task.sleep(for: .milliseconds(20))
     }
 
     #expect(model.sources.first(where: { $0.id == .reminders })?.state == .healthy)
+    #expect(reminders.requestCount == 1)
 }
 
 @MainActor
@@ -153,8 +158,9 @@ private final class GatedRemindersRepairService: RemindersServicing {
     let isProductionAdapter = false
     private(set) var requestCount = 0
     private var continuation: CheckedContinuation<SourceHealth, Never>?
+    private var health = SourceHealth.initial[0]
 
-    func inspect() async -> SourceHealth { .initial[0] }
+    func inspect() async -> SourceHealth { health }
 
     func requestAccessAndInspect() async -> SourceHealth {
         requestCount += 1
@@ -164,7 +170,7 @@ private final class GatedRemindersRepairService: RemindersServicing {
     func fetchIncompleteTasks() async -> ReminderTaskLoad { .available([]) }
 
     func finish() {
-        continuation?.resume(returning: SourceHealth(
+        health = SourceHealth(
             id: .reminders,
             title: "Apple Reminders",
             eyebrow: "Intent",
@@ -172,7 +178,8 @@ private final class GatedRemindersRepairService: RemindersServicing {
             detail: "Connected",
             evidence: "Fixture",
             actionTitle: "Refresh"
-        ))
+        )
+        continuation?.resume(returning: health)
         continuation = nil
     }
 }

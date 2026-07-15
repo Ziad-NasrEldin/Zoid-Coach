@@ -291,7 +291,7 @@ final class AppModel: ObservableObject {
             await reloadDailyPlan()
             await reloadReminderListOrder()
             reloadMeetingCandidates()
-            updateSource(await self.notificationService.inspect())
+            updateSourceFromInspection(await self.notificationService.inspect())
             await refreshTodaySnapshot()
             await refreshPromptInbox()
             await refreshActionAudit()
@@ -315,14 +315,14 @@ final class AppModel: ObservableObject {
         Task {
             try? await Task.sleep(for: .milliseconds(320))
             let reminders = await remindersService.inspect()
-            updateSource(reminders)
+            updateSourceFromInspection(reminders)
             let calendar = await calendarService.inspect()
-            updateSource(calendar)
+            updateSourceFromInspection(calendar)
             refreshPlanningCapacity()
-            updateSource(agentLaunchService.inspect())
-            updateSource(await notificationService.inspect())
+            updateSourceFromInspection(agentLaunchService.inspect())
+            updateSourceFromInspection(await notificationService.inspect())
             let screenwatch = await screenwatchReader.inspect()
-            updateSource(screenwatch)
+            updateSourceFromInspection(screenwatch)
             lastCheckAt = Date()
             isCheckingSources = false
         }
@@ -561,7 +561,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshMenuBarPromptFallback() async {
-        updateSource(await notificationService.inspect())
+        updateSourceFromInspection(await notificationService.inspect())
         await refreshPromptInbox()
     }
 
@@ -1571,14 +1571,14 @@ final class AppModel: ObservableObject {
 
     private func refreshAllSources() async {
         let reminders = await remindersService.inspect()
-        updateSource(reminders)
+        updateSourceFromInspection(reminders)
         let calendar = await calendarService.inspect()
-        updateSource(calendar)
+        updateSourceFromInspection(calendar)
         refreshPlanningCapacity()
-        updateSource(agentLaunchService.inspect())
-        updateSource(await notificationService.inspect())
+        updateSourceFromInspection(agentLaunchService.inspect())
+        updateSourceFromInspection(await notificationService.inspect())
         let screenwatch = await screenwatchReader.inspect()
-        updateSource(screenwatch)
+        updateSourceFromInspection(screenwatch)
         lastCheckAt = Date()
     }
 
@@ -1763,6 +1763,11 @@ final class AppModel: ObservableObject {
                 persistenceMessage = "Source health was checked, but its audit record was not saved."
             }
         }
+    }
+
+    private func updateSourceFromInspection(_ result: SourceHealth) {
+        guard !sourceChecksInFlight.contains(result.id) else { return }
+        updateSource(result)
     }
 
     private func recordTaskHistory(_ taskID: String, state: AgentTaskHistoryState) {
