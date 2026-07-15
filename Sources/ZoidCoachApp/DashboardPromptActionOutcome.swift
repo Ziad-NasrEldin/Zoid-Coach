@@ -8,6 +8,10 @@ enum DashboardPromptActionOutcome {
         action: PromptActionKind,
         activeTaskID: String?
     ) -> String? {
+        if episode.type == PromptNotificationCategory.gamingDrift.rawValue,
+           action == .continueIntentionally {
+            return "Intentional gaming recorded. Equivalent gaming prompts are paused for your configured override window. Returning to aligned work ends the pause early."
+        }
         if episode.type == AmbiguousActivityPromptService.promptType {
             switch action {
             case .classifyAsSupportingWork:
