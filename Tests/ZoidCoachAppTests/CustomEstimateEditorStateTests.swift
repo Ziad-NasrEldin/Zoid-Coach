@@ -165,52 +165,67 @@ struct CustomEstimateEditorStateTests {
     }
 
     @Test
-    func onlyLatestInstanceOfActivatedTodayHostCanRenderEditor() {
+    func activatingTodayHostIsIdempotentAndKeepsOneOwnershipRecord() {
         let taskID = "task-a"
-        let focusInstance = UUID()
-        let planInstance = UUID()
-        let stalePlanInstance = UUID()
         var store = CustomEstimateEditorStateStore()
         var state = store[taskID]
         state.open(initialMinutes: nil)
         store[taskID] = state
-        store.registerHost(path: "focus", instanceID: focusInstance, taskID: taskID)
-        store.registerHost(path: "plan", instanceID: stalePlanInstance, taskID: taskID)
-        store.activateHost(path: "plan", instanceID: stalePlanInstance, taskID: taskID)
+        for _ in 0..<10_000 {
+            store.activateHost(path: "plan", taskID: taskID)
+        }
 
-        #expect(!store.isActiveHost(path: "focus", instanceID: focusInstance, taskID: taskID))
-        #expect(store.isActiveHost(path: "plan", instanceID: stalePlanInstance, taskID: taskID))
-
-        store.registerHost(path: "plan", instanceID: planInstance, taskID: taskID)
-
-        #expect(!store.isActiveHost(path: "plan", instanceID: stalePlanInstance, taskID: taskID))
-        #expect(store.isActiveHost(path: "plan", instanceID: planInstance, taskID: taskID))
+        #expect(store.hostOwnershipCount == 1)
+        #expect(store.isActiveHost(path: "plan", taskID: taskID))
+        #expect(!store.isActiveHost(path: "focus", taskID: taskID))
         #expect(store[taskID] == state)
     }
 
     @Test
-    func staleTodayHostCannotUnregisterOrReactivateCurrentRemount() {
+    func competingTodayPathsRemainExclusiveAcrossTransientSamePathRemount() {
         let taskID = "task-a"
-        let staleInstance = UUID()
-        let remountedInstance = UUID()
         var store = CustomEstimateEditorStateStore()
         var state = store[taskID]
         state.open(initialMinutes: nil)
         state.input = "   "
         _ = state.submit { _ in Issue.record("invalid value persisted") }
         store[taskID] = state
-        store.registerHost(path: "plan", instanceID: staleInstance, taskID: taskID)
-        store.activateHost(path: "plan", instanceID: staleInstance, taskID: taskID)
-        store.registerHost(path: "plan", instanceID: remountedInstance, taskID: taskID)
-        store.unregisterHost(path: "plan", instanceID: staleInstance, taskID: taskID)
+        store.activateHost(path: "plan", taskID: taskID)
 
-        #expect(store.isActiveHost(path: "plan", instanceID: remountedInstance, taskID: taskID))
-        #expect(!store.isActiveHost(path: "plan", instanceID: staleInstance, taskID: taskID))
+        for _ in 0..<1_000 {
+            #expect(store.isActiveHost(path: "plan", taskID: taskID))
+            #expect(!store.isActiveHost(path: "focus", taskID: taskID))
+        }
         #expect(store[taskID].isPresented)
         #expect(store[taskID].input == "   ")
         #expect(store[taskID].validationMessage == "Enter an estimate in minutes.")
         #expect(store[taskID].focusRequest == state.focusRequest)
         #expect(store[taskID].presentationID == state.presentationID)
+
+        store.activateHost(path: "focus", taskID: taskID)
+
+        #expect(store.isActiveHost(path: "focus", taskID: taskID))
+        #expect(!store.isActiveHost(path: "plan", taskID: taskID))
+        #expect(store.hostOwnershipCount == 1)
+    }
+
+    @MainActor
+    @Test
+    func activePathReadsStayAtOneMountAcrossBoundedViewInvalidations() async {
+        let box = HostMountBox()
+        box.store.activateHost(path: "plan", taskID: "task-a")
+        let host = NSHostingView(rootView: HostMountRegressionProbe(
+            isActive: { box.store.isActiveHost(path: "plan", taskID: "task-a") },
+            appeared: { box.mountCount += 1 },
+            completed: { box.completed = true }
+        ))
+        host.frame = CGRect(x: 0, y: 0, width: 200, height: 80)
+        host.layoutSubtreeIfNeeded()
+
+        #expect(await waitUntil { box.completed })
+        #expect(box.mountCount == 1)
+        #expect(box.store.hostOwnershipCount == 1)
+        withExtendedLifetime(host) {}
     }
 
     @MainActor
@@ -686,6 +701,32 @@ struct CustomEstimateEditorStateTests {
         var persisted: [Int] = []
         var returnCallbackCount = 0
         var monitorRemovalCount = 0
+    }
+
+    @MainActor
+    private final class HostMountBox {
+        var store = CustomEstimateEditorStateStore()
+        var mountCount = 0
+        var completed = false
+    }
+
+    private struct HostMountRegressionProbe: View {
+        @State private var invalidationCount = 0
+        let isActive: () -> Bool
+        let appeared: () -> Void
+        let completed: () -> Void
+
+        var body: some View {
+            Text(isActive() ? "active \(invalidationCount)" : "inactive")
+                .onAppear(perform: appeared)
+                .task {
+                    for _ in 0..<250 {
+                        invalidationCount += 1
+                        await Task.yield()
+                    }
+                    completed()
+                }
+        }
     }
 
     @MainActor
