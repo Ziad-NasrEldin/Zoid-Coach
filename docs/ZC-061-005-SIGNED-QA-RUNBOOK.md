@@ -16,6 +16,7 @@ Close every unrelated copy of Zoid 666.
 ```sh
 set -euo pipefail
 APP="/absolute/path/to/Zoid 666 QA E2E.app"
+CANDIDATE_REPOSITORY="/absolute/path/to/clean/detached/ZC-061-005-candidate"
 EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_CANDIDATE_COMMIT"
 QA_ROOT="/private/tmp/zoid-666-zc061005-installed-proof"
 DATABASE="$QA_ROOT/Application Support/Zoid 666/zoid-coach.sqlite"
@@ -29,7 +30,8 @@ STATIC="$PWD/Scripts/verify-zc-061-005-insufficient-evidence-static.sh"
 swift "$PROBE" --self-test
 "$PREFLIGHT" --self-test
 "$STATIC"
-OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$OS_STATE" "$EXPECTED_SIGNED_COMMIT")"
+"$PREFLIGHT" --candidate-repository "$CANDIDATE_REPOSITORY" --validate-candidate "$EXPECTED_SIGNED_COMMIT"
+OUTPUT="$("$PREFLIGHT" --candidate-repository "$CANDIDATE_REPOSITORY" "$APP" "$DATABASE" "$OS_STATE" "$EXPECTED_SIGNED_COMMIT")"
 printf '%s\n' "$OUTPUT"
 AGENT_EXECUTABLE="$(printf '%s\n' "$OUTPUT" | sed -n 's/^AGENT_EXECUTABLE=//p')"
 AGENT_LABEL="$(printf '%s\n' "$OUTPUT" | sed -n 's/^AGENT_LABEL=//p')"
@@ -37,7 +39,8 @@ test -x "$AGENT_EXECUTABLE"
 test -n "$AGENT_LABEL"
 ```
 
-The preflight binds the exact signed commit, direct parent, six-file scope, helper binary, database, OS fixture state, and embedded QA root.
+The validator may live in a later review checkout, but `CANDIDATE_REPOSITORY` must be the clean detached worktree at the reviewed corrected tip.
+The preflight binds the exact signed commit, required parent, six-file scope, helper binary, database, OS fixture state, and embedded QA root.
 It rejects abbreviated identities, a different lineage, a database outside the package root, or a helper that no longer exposes the existing bounded `--once` path.
 
 ## Stop processes and capture the byte baseline
