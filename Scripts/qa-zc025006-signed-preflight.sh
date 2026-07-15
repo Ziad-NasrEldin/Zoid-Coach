@@ -4,8 +4,12 @@ set -euo pipefail
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
 readonly ORIGINAL_PRODUCT_CANDIDATE="730677a66c265823ef9417af8abe55a8f0b0e998"
+readonly CURRENT_PRODUCT_CANDIDATE="c552ea29472ccb1de30a7f896e30f159003aa374"
+readonly ORIGINAL_TOOLING_CANDIDATE="39baf022157b53f36a96e1370b3342ed3793c65f"
+readonly CURRENT_TOOLING_CANDIDATE="e659575a3ecfcc9379e0c97332b32da4c5fd9ba7"
 readonly PRODUCT_PATCH_ID="b19bb45f10aa9dabcb1bde528139a75c3ef2f05f"
-readonly CANONICAL_BASE="8b1782c6ee2c213a408360554f19bf231b0f3e19"
+readonly TOOLING_PATCH_ID="1570803ab40dc2f57785fb23babd984c93d3fc32"
+readonly CANONICAL_BASE="15d8e6ec42bf178e9de2ee055dd6915c8c74b786"
 readonly AX_PROBE="$SCRIPT_DIR/qa-zc025006-ambiguity-ax-probe.swift"
 readonly RUNBOOK="$REPOSITORY/docs/ZC-025-006-SIGNED-QA-RUNBOOK.md"
 readonly PRODUCT_FILES=(
@@ -50,14 +54,78 @@ command_has_exact_argument() {
 }
 
 commit_patch_id() {
-    git -C "$REPOSITORY" show --pretty=format: "$1" | git patch-id --stable | awk 'NR == 1 { print $1 }'
+    git -C "$REPOSITORY" show --pretty=email --no-ext-diff "$1" \
+        | git patch-id --stable | awk 'NR == 1 { print $1 }'
+}
+
+normalized_lines() {
+    print -r -- "$1" | sed '/^$/d' | LC_ALL=C sort -u
+}
+
+has_exact_lines() {
+    [[ "$(normalized_lines "$1")" == "$(normalized_lines "$2")" ]]
+}
+
+contains_required_lines() {
+    local actual="$1"
+    local required="$2"
+    local line
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        grep -Fqx -- "$line" <<<"$actual" || return 1
+    done <<<"$required"
+}
+
+line_count() {
+    normalized_lines "$1" | wc -l | tr -d ' '
+}
+
+verify_current_base_lineage() {
+    local expected="$1"
+    local head scope reviewed_scope commit_count head_scope patch_ids commit
+    head="$(git -C "$REPOSITORY" rev-parse HEAD)" \
+        || fail "repository HEAD is unavailable"
+    [[ "$head" == "$expected" ]] \
+        || fail "repository HEAD $head does not match signed commit $expected"
+    git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" "$expected" \
+        || fail "signed candidate does not descend from current canonical base $CANONICAL_BASE"
+    git -C "$REPOSITORY" merge-base --is-ancestor "$CURRENT_PRODUCT_CANDIDATE" "$expected" \
+        || fail "signed candidate omits the current-base product commit"
+    git -C "$REPOSITORY" merge-base --is-ancestor "$CURRENT_TOOLING_CANDIDATE" "$expected" \
+        || fail "signed candidate omits the current-base tooling commit"
+
+    reviewed_scope="$(printf '%s\n' "${PRODUCT_FILES[@]}" "${TOOLING_FILES[@]}")"
+    scope="$(git -C "$REPOSITORY" diff --name-only "$CANONICAL_BASE" "$expected")" \
+        || fail "current-base candidate scope is unavailable"
+    has_exact_lines "$scope" "$reviewed_scope" \
+        || fail "signed candidate differs from the exact reviewed 12-file scope"
+    ! grep -Fqx 'docs/scenario-registry.json' <<<"$scope" \
+        || fail "signed candidate unexpectedly includes the scenario registry"
+    ! grep -Fqx 'docs/zoid-coach-product-scenario-tracker.md' <<<"$scope" \
+        || fail "signed candidate unexpectedly includes the scenario tracker"
+
+    commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
+    (( commit_count == 3 )) \
+        || fail "signed candidate contains an unexpected number of current-base commits"
+    head_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected")"
+    has_exact_lines "$head_scope" 'Scripts/qa-zc025006-signed-preflight.sh'$'\n''docs/ZC-025-006-SIGNED-QA-RUNBOOK.md' \
+        || fail "lineage-contract maintenance commit contains unrelated files"
+
+    patch_ids=""
+    for commit in ${(f)"$(git -C "$REPOSITORY" rev-list --reverse "$CANONICAL_BASE..$expected")"}; do
+        patch_ids+="$(commit_patch_id "$commit")"$'\n'
+    done
+    contains_required_lines "$patch_ids" "$PRODUCT_PATCH_ID"$'\n'"$TOOLING_PATCH_ID" \
+        || fail "signed candidate is missing or alters a reviewed raw patch"
+    (( $(line_count "$patch_ids") == 3 )) \
+        || fail "signed candidate adds an unexpected raw patch identity"
 }
 
 find_reviewed_product_commit() {
     local expected="$1"
     local commit
-    if git -C "$REPOSITORY" merge-base --is-ancestor "$ORIGINAL_PRODUCT_CANDIDATE" "$expected"; then
-        print -- "$ORIGINAL_PRODUCT_CANDIDATE"
+    if git -C "$REPOSITORY" merge-base --is-ancestor "$CURRENT_PRODUCT_CANDIDATE" "$expected"; then
+        print -- "$CURRENT_PRODUCT_CANDIDATE"
         return 0
     fi
     for commit in ${(f)"$(git -C "$REPOSITORY" log --format='%H' "$expected" -- Sources/ZoidCoachInfrastructure/AmbiguousActivityPromptService.swift)"}; do
@@ -84,6 +152,16 @@ assert_runbook_contract() {
     [[ -f "$RUNBOOK" ]] || fail "signed runbook is missing"
     grep -Fq "$ORIGINAL_PRODUCT_CANDIDATE" "$RUNBOOK" \
         || fail "runbook omits the original reviewed product identity"
+    grep -Fq "$CURRENT_PRODUCT_CANDIDATE" "$RUNBOOK" \
+        || fail "runbook omits the current-base product identity"
+    grep -Fq "$CURRENT_TOOLING_CANDIDATE" "$RUNBOOK" \
+        || fail "runbook omits the current-base tooling identity"
+    grep -Fq "$CANONICAL_BASE" "$RUNBOOK" \
+        || fail "runbook omits the current canonical base"
+    grep -Fq "$PRODUCT_PATCH_ID" "$RUNBOOK" \
+        || fail "runbook omits the raw product patch identity"
+    grep -Fq "$TOOLING_PATCH_ID" "$RUNBOOK" \
+        || fail "runbook omits the raw tooling patch identity"
     local phase
     for phase in qualifying short no-task late-task stale certain; do
         grep -Fq "prepare $phase \"\$DATABASE\"" "$RUNBOOK" \
@@ -117,7 +195,15 @@ if [[ "$APP" == "--self-test" ]]; then
         || fail "prefixed QA foreground argument was accepted"
     [[ "$(commit_patch_id "$ORIGINAL_PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] \
         || fail "embedded product patch identity drifted"
+    [[ "$(commit_patch_id "$CURRENT_PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] \
+        || fail "current-base product patch identity drifted"
+    [[ "$(commit_patch_id "$ORIGINAL_TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] \
+        || fail "embedded tooling patch identity drifted"
+    [[ "$(commit_patch_id "$CURRENT_TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] \
+        || fail "current-base tooling patch identity drifted"
     assert_reviewed_product_scope "$ORIGINAL_PRODUCT_CANDIDATE"
+    assert_reviewed_product_scope "$CURRENT_PRODUCT_CANDIDATE"
+    verify_current_base_lineage "$(git -C "$REPOSITORY" rev-parse HEAD)"
     assert_runbook_contract
     print -- "PASS: ZC-025-006 signed preflight self-test"
     exit 0
@@ -158,8 +244,7 @@ is_full_lowercase_sha "$EXPECTED_COMMIT" \
     || fail "expected commit must be a full 40-character lowercase SHA"
 git -C "$REPOSITORY" cat-file -e "$EXPECTED_COMMIT^{commit}" \
     || fail "expected commit is unavailable"
-git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" "$EXPECTED_COMMIT" \
-    || fail "signed candidate does not contain canonical base $CANONICAL_BASE"
+verify_current_base_lineage "$EXPECTED_COMMIT"
 
 reviewed_product_commit="$(find_reviewed_product_commit "$EXPECTED_COMMIT")" \
     || fail "signed candidate lacks the reviewed ambiguity product patch"
