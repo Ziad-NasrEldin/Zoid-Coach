@@ -50,8 +50,8 @@ test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 ```
 
 The full signed commit must be repository HEAD.
-The diff from canonical base must contain exactly three commits: the patch-equivalent four-file tooling replay, the exact four-file shared-editor product fix, and the two-file lineage binding.
-The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, and explicit Dashboard/Today surface selection.
+The diff from canonical base must contain exactly twelve reviewed commits, ending with the two-file lineage binding.
+The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, and exact surface-specific accessibility labels.
 The full candidate scope remains exactly eight files, and the final lineage commit edits only this runbook and the signed preflight.
 Tracker, registry, Lavish, backlog, parser, legacy parser-test, and unrelated verifier changes are rejected.
 
