@@ -42,14 +42,48 @@ private struct VisibleTodaySnapshot: Codable, Equatable {
     let screenwatchState: String
     let screenwatchDetail: String
 }
-private struct VisibleTodayRows {
-    let working: [String]
-    let screenwatch: [String]
+private struct NormalizedScreenwatch: Hashable {
+    let state: String
+    let detail: String
+}
+private struct VisibleTodayValues {
+    let workMinutes: Int
+    let screenwatch: NormalizedScreenwatch
 }
 private enum TodayTargetInspection {
-    case visible(VisibleTodayRows)
-    case offscreen
+    case partial(workingMinutes: Int?, screenwatch: NormalizedScreenwatch?)
     case ambiguous
+}
+private struct TodayCaptureAccumulator {
+    private(set) var workingValues = Set<Int>()
+    private(set) var screenwatchValues = Set<NormalizedScreenwatch>()
+
+    mutating func consume(
+        workingMinutes: Int?,
+        screenwatch: NormalizedScreenwatch?
+    ) -> TodayTargetsState {
+        if let workingMinutes { workingValues.insert(workingMinutes) }
+        if let screenwatch { screenwatchValues.insert(screenwatch) }
+        if workingValues.count > 1 || screenwatchValues.count > 1 { return .ambiguous }
+        return workingValues.count == 1 && screenwatchValues.count == 1 ? .visible : .offscreen
+    }
+}
+private struct TodayCaptureBinding: Equatable {
+    let pid: Int32
+    let windowToken: CFHashCode
+}
+private enum TodayCaptureBindingVerdict: Equatable {
+    case valid
+    case pidChanged
+    case windowChanged
+}
+private func captureBindingVerdict(
+    expected: TodayCaptureBinding,
+    actual: TodayCaptureBinding
+) -> TodayCaptureBindingVerdict {
+    if actual.pid != expected.pid { return .pidChanged }
+    if actual.windowToken != expected.windowToken { return .windowChanged }
+    return .valid
 }
 private enum SnapshotVerdict: Equatable { case changed, stable, restored, invalid }
 
@@ -129,6 +163,10 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     let baseline = VisibleTodaySnapshot(workMinutes: 2, screenwatchState: "LIMITED", screenwatchDetail: "Limited coverage")
     let live = VisibleTodaySnapshot(workMinutes: 7, screenwatchState: "CURRENT", screenwatchDetail: "Current coverage")
     let totalsOnly = VisibleTodaySnapshot(workMinutes: 12, screenwatchState: "CURRENT", screenwatchDetail: "Current coverage")
+    let normalizedScreenwatch = NormalizedScreenwatch(state: "CURRENT", detail: "Current coverage")
+    var separatedRows = TodayCaptureAccumulator()
+    var crossGenerationAmbiguity = TodayCaptureAccumulator()
+    let expectedBinding = TodayCaptureBinding(pid: 42, windowToken: 700)
     var offscreenSuccess = TodayScrollMachine(maximumSteps: 3)
     var timeout = TodayScrollMachine(maximumSteps: 1)
     var ambiguous = TodayScrollMachine(maximumSteps: 3)
@@ -166,6 +204,19 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           ambiguous.consume(.ambiguous, generation: 0) == .ambiguous,
           staleTree.consume(.offscreen, generation: 0) == .scroll,
           staleTree.consume(.visible, generation: 0) == .staleTree,
+          separatedRows.consume(workingMinutes: 2, screenwatch: nil) == .offscreen,
+          separatedRows.consume(workingMinutes: nil, screenwatch: normalizedScreenwatch) == .visible,
+          crossGenerationAmbiguity.consume(workingMinutes: 2, screenwatch: nil) == .offscreen,
+          crossGenerationAmbiguity.consume(workingMinutes: 3, screenwatch: nil) == .ambiguous,
+          captureBindingVerdict(expected: expectedBinding, actual: expectedBinding) == .valid,
+          captureBindingVerdict(
+              expected: expectedBinding,
+              actual: TodayCaptureBinding(pid: 43, windowToken: 700)
+          ) == .pidChanged,
+          captureBindingVerdict(
+              expected: expectedBinding,
+              actual: TodayCaptureBinding(pid: 42, windowToken: 701)
+          ) == .windowChanged,
           scrollbarStep,
           scrollbarWrites == [0.5],
           isExternalEvidenceRoot(URL(fileURLWithPath: "/private/tmp/evidence"), repository: URL(fileURLWithPath: "/repo")),
@@ -366,8 +417,30 @@ private func inspectTodayTargets(in window: AXUIElement) throws -> TodayTargetIn
         }
     )
     guard workingRows.count <= 1, screenwatchRows.count <= 1 else { return .ambiguous }
-    guard let working = workingRows.first, let screenwatch = screenwatchRows.first else { return .offscreen }
-    return .visible(VisibleTodayRows(working: working, screenwatch: screenwatch))
+    let workingMinutes: Int?
+    if let workingRow = workingRows.first {
+        guard let minuteText = workingRow.first(where: isMinuteText),
+              let value = Int(minuteText.dropLast())
+        else { throw ProbeError.failure("visible Today Working minutes are unavailable") }
+        workingMinutes = value
+    } else {
+        workingMinutes = nil
+    }
+    let normalizedScreenwatch: NormalizedScreenwatch?
+    if let screenwatchRow = screenwatchRows.first {
+        guard let state = screenwatchRow.first(where: {
+            ["LIMITED", "CURRENT"].contains($0.uppercased())
+        }) else { throw ProbeError.failure("visible Screenwatch freshness state is unavailable") }
+        let detail = screenwatchRow.first(where: {
+            $0.localizedCaseInsensitiveContains("Screenwatch") && $0 != "Screenwatch"
+        }) ?? screenwatchRow.first(where: {
+            $0 != "Screenwatch" && $0.uppercased() != state.uppercased()
+        }) ?? ""
+        normalizedScreenwatch = NormalizedScreenwatch(state: state.uppercased(), detail: detail)
+    } else {
+        normalizedScreenwatch = nil
+    }
+    return .partial(workingMinutes: workingMinutes, screenwatch: normalizedScreenwatch)
 }
 
 private func todayScrollArea(in window: AXUIElement) throws -> AXUIElement {
@@ -389,6 +462,28 @@ private func todayScrollArea(in window: AXUIElement) throws -> AXUIElement {
 }
 
 private let maximumTodayScrollSteps = 12
+private func resetTodayScroll(_ scrollArea: AXUIElement) -> Bool {
+    if let verticalScrollBar = element(scrollArea, kAXVerticalScrollBarAttribute as CFString) {
+        var isWritable = DarwinBoolean(false)
+        _ = AXUIElementIsAttributeSettable(
+            verticalScrollBar,
+            kAXValueAttribute as CFString,
+            &isWritable
+        )
+        if isWritable.boolValue {
+            let minimumValue = number(verticalScrollBar, kAXMinValueAttribute as CFString) ?? 0
+            if AXUIElementSetAttributeValue(
+                verticalScrollBar,
+                kAXValueAttribute as CFString,
+                NSNumber(value: minimumValue)
+            ) == .success {
+                return true
+            }
+        }
+    }
+    return AXUIElementPerformAction(scrollArea, "AXScrollToTop" as CFString) == .success
+}
+
 private func scrollToday(_ scrollArea: AXUIElement) -> Bool {
     let verticalScrollBar = element(scrollArea, kAXVerticalScrollBarAttribute as CFString)
     var scrollBarIsWritable = DarwinBoolean(false)
@@ -425,23 +520,45 @@ private func scrollToday(_ scrollArea: AXUIElement) -> Bool {
     )
 }
 
-private func visibleTodayRows() throws -> VisibleTodayRows {
+private func visibleTodayValues() throws -> VisibleTodayValues {
+    let bindingWindow = try mainWindow()
+    let expectedBinding = TodayCaptureBinding(pid: args.pid, windowToken: CFHash(bindingWindow))
+    guard resetTodayScroll(try todayScrollArea(in: bindingWindow)) else {
+        throw ProbeError.failure("could not reset the visible Today window before bounded scrolling")
+    }
+    Thread.sleep(forTimeInterval: 0.15)
+
+    var accumulator = TodayCaptureAccumulator()
     var machine = TodayScrollMachine(maximumSteps: maximumTodayScrollSteps)
     for generation in 0...maximumTodayScrollSteps {
         let freshWindow = try mainWindow()
-        let inspection = try inspectTodayTargets(in: freshWindow)
+        let actualBinding = TodayCaptureBinding(pid: args.pid, windowToken: CFHash(freshWindow))
+        switch captureBindingVerdict(expected: expectedBinding, actual: actualBinding) {
+        case .valid:
+            break
+        case .pidChanged:
+            throw ProbeError.failure("installed Today process changed during one capture sequence")
+        case .windowChanged:
+            throw ProbeError.failure("visible Today main window changed during one capture sequence")
+        }
+
         let state: TodayTargetsState
-        switch inspection {
-        case .visible: state = .visible
-        case .offscreen: state = .offscreen
-        case .ambiguous: state = .ambiguous
+        switch try inspectTodayTargets(in: freshWindow) {
+        case let .partial(workingMinutes, screenwatch):
+            let hadWorking = !accumulator.workingValues.isEmpty
+            state = accumulator.consume(
+                workingMinutes: workingMinutes,
+                screenwatch: hadWorking ? screenwatch : nil
+            )
+        case .ambiguous:
+            state = .ambiguous
         }
         switch machine.consume(state, generation: generation) {
         case .success:
-            guard case let .visible(rows) = inspection else {
-                throw ProbeError.failure("Today target state changed before capture")
-            }
-            return rows
+            guard let workMinutes = accumulator.workingValues.first,
+                  let screenwatch = accumulator.screenwatchValues.first
+            else { throw ProbeError.failure("Today target state changed before capture") }
+            return VisibleTodayValues(workMinutes: workMinutes, screenwatch: screenwatch)
         case .scroll:
             guard scrollToday(try todayScrollArea(in: freshWindow)) else {
                 throw ProbeError.failure("could not scroll the visible Today window toward Working and Screenwatch")
@@ -450,7 +567,7 @@ private func visibleTodayRows() throws -> VisibleTodayRows {
         case .timeout:
             throw ProbeError.failure("Working and Screenwatch are unavailable after bounded Today scrolling")
         case .ambiguous:
-            throw ProbeError.failure("visible Today Working or Screenwatch rows are ambiguous")
+            throw ProbeError.failure("visible Today Working or Screenwatch values changed or are ambiguous across the capture sequence")
         case .staleTree:
             throw ProbeError.failure("stale Today Accessibility tree was reused during bounded scrolling")
         }
@@ -459,18 +576,12 @@ private func visibleTodayRows() throws -> VisibleTodayRows {
 }
 
 private func visibleTodaySnapshot() throws -> VisibleTodaySnapshot {
-    let rows = try visibleTodayRows()
-    guard let minuteText = rows.working.first(where: isMinuteText),
-          let workMinutes = Int(minuteText.dropLast()) else {
-        throw ProbeError.failure("visible Today Working minutes are unavailable")
-    }
-    guard let state = rows.screenwatch.first(where: { ["LIMITED", "CURRENT"].contains($0.uppercased()) }) else {
-        throw ProbeError.failure("visible Screenwatch freshness state is unavailable")
-    }
-    let detail = rows.screenwatch.first(where: {
-        $0.localizedCaseInsensitiveContains("Screenwatch") && $0 != "Screenwatch"
-    }) ?? rows.screenwatch.first(where: { $0 != "Screenwatch" && $0.uppercased() != state.uppercased() }) ?? ""
-    return VisibleTodaySnapshot(workMinutes: workMinutes, screenwatchState: state.uppercased(), screenwatchDetail: detail)
+    let values = try visibleTodayValues()
+    return VisibleTodaySnapshot(
+        workMinutes: values.workMinutes,
+        screenwatchState: values.screenwatch.state,
+        screenwatchDetail: values.screenwatch.detail
+    )
 }
 
 private func evidenceURL(_ name: String) -> URL { args.evidenceRoot.appendingPathComponent(name) }
