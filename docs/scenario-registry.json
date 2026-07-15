@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "1f8a15ff6fb39394db28806409e1c103dfc9544cf15c22d8bf852fc6b2407864",
+  "tracker_sha256": "2c0db43b497942006f0296a8ea44648b3fa77f2d39e444edd904570f81e86d64",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3799,9 +3799,9 @@
       "section_title": "Choosing a work commitment",
       "item_index": 7,
       "wording": "See elapsed time for an open-ended session.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3809,10 +3809,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The snapshot carries `elapsedMinutes`, but current Today task rows and focus card do not render it (`TodayDashboard.swift:37-58`; `TodayDashboardCommandOverview.swift:57-105,662-748`).",
+      "evidence_paths": [
+        ".audit/runs/zc-017-007-open-ended-elapsed/81937fd46828ce27786f668a004cd9248307b88a/evidence.json"
+      ],
+      "last_verified_commit": "81937fd46828ce27786f668a004cd9248307b88a",
+      "last_verified_build": "zoid-coach-81937fd46828ce27786f668a004cd9248307b88a-clean",
+      "audit_note": "The exact clean signed Today journey rendered one semantic live elapsed value for an active open-ended task, survived an ordinary relaunch, advanced from 2 to 3 minutes without timed-phase navigation or refresh, held nine confirmed minutes through simulated clock rollback, showed an honest nine-minute `LAST REFRESH` fallback when current interval metadata was missing, excluded bounded and paused sessions, rejected private fixture text, and restored the isolated root and external preferences exactly (`TodayDashboardCommandOverview.swift`; `TodayDashboardCommandOverviewTests.swift`; `.audit/runs/zc-017-007-open-ended-elapsed/81937fd46828ce27786f668a004cd9248307b88a/REPORT.md`).",
       "tracker_line": 271
     },
     {
