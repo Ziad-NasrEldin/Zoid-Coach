@@ -54,7 +54,7 @@ validate_schema() {
 
 assert_owned_task() {
     assert_scalar "SELECT COUNT(*) FROM source_tasks WHERE source_id = '$TASK_ID' AND title = '$TASK_TITLE' AND source_kind = 'local' AND is_completed = 0;" "1" "owned local task"
-    assert_scalar "SELECT COUNT(*) FROM daily_plan_entries WHERE day_key = '$DAY_KEY' AND reminder_id = '$TASK_ID' AND rank = 0 AND is_main_objective = 1;" "1" "owned planned main objective"
+    assert_scalar "SELECT COUNT(*) FROM daily_plan_entries WHERE day_key = '$DAY_KEY' AND reminder_id = '$TASK_ID' AND rank = 1 AND is_main_objective = 1;" "1" "owned agent-writable planned main objective"
     assert_scalar "SELECT COUNT(*) FROM task_execution_states WHERE task_id = '$TASK_ID' AND state = 'ready';" "1" "owned ready execution state"
     assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID';" "0" "owned interval absence"
 }
@@ -84,7 +84,7 @@ DELETE FROM daily_plan_entries WHERE day_key = '$DAY_KEY';
 INSERT INTO source_tasks(source_id, title, due_at, priority, is_completed, updated_at, notes, list_id, list_name, modified_at, source_hash, source_kind)
 VALUES('$TASK_ID', '$TASK_TITLE', '$DAY_KEY' || 'T12:00:00Z', 1, 0, '$timestamp', '$PRIVATE_NOTE', NULL, 'Zoid 666 QA', '$timestamp', '$TASK_ID', 'local');
 INSERT INTO daily_plan_entries(day_key, reminder_id, rank, is_main_objective, estimate_minutes, updated_at, selection_reason, selection_score, is_optional, blocked_reason, deferred_until_utc, estimate_is_uncertain)
-VALUES('$DAY_KEY', '$TASK_ID', 0, 1, NULL, '$timestamp', 'ZC-011-007 invalid estimate fixture', 100, 0, NULL, NULL, 0);
+VALUES('$DAY_KEY', '$TASK_ID', 1, 1, NULL, '$timestamp', 'ZC-011-007 invalid estimate fixture', 100, 0, NULL, NULL, 0);
 INSERT INTO task_execution_states(task_id, state, updated_at)
 VALUES('$TASK_ID', 'ready', '$timestamp');
 COMMIT;
