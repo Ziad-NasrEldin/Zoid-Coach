@@ -65,8 +65,8 @@ test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 ```
 
 The full signed commit must be repository HEAD.
-The diff from canonical base must contain exactly seventeen reviewed commits, ending with the externally approved two-file final lineage candidate.
-The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, exclusive isolated database ownership, atomic fixture seeding, whole-root restoration, and fail-closed action ambiguity.
+The diff from canonical base must contain exactly nineteen reviewed commits, ending with the externally approved two-file final lineage candidate.
+The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, exclusive isolated database ownership, atomic fixture seeding, fail-closed whole-root restoration, and scrubbed validator execution.
 The full candidate scope remains exactly eight files, and the final lineage commit edits only this runbook and the signed preflight.
 Tracker, registry, Lavish, backlog, parser, legacy parser-test, and unrelated verifier changes are rejected.
 The pinned validator re-executes under an explicit minimal environment and invokes the candidate preflight with the same fixed `/usr/bin:/bin` path, actual account home, `/private/tmp`, and Git configuration suppression.
