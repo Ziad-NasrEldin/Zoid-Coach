@@ -51,6 +51,89 @@ func foregroundRefreshReadsPersistedInvitation() async throws {
     #expect(model.todaySnapshot?.planningStatus?.mode == .invitation)
 }
 
+@Test
+func signedDayStateFixturesRemainProductionDecodable() throws {
+    let fixture = try TodaySnapshotOwnershipFixture()
+    defer { fixture.remove() }
+    _ = try TodayDashboardAgent(
+        databaseURL: fixture.runtime.databaseURL
+    ).snapshot()
+    let backupURL = fixture.root.appendingPathComponent("original-snapshot.tsv")
+    let fixtureScript = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("Scripts/qa-zc013001-day-state-fixture.sh")
+    defer {
+        if FileManager.default.fileExists(atPath: backupURL.path) {
+            try? runDayStateFixture(
+                fixtureScript,
+                arguments: [
+                    "cleanup",
+                    "--database", fixture.runtime.databaseURL.path,
+                    "--backup", backupURL.path,
+                ]
+            )
+        }
+    }
+
+    try runDayStateFixture(
+        fixtureScript,
+        arguments: [
+            "prepare",
+            "--database", fixture.runtime.databaseURL.path,
+            "--backup", backupURL.path,
+        ]
+    )
+
+    let expectedModes: [(String, PlanningDayMode)] = [
+        ("invitation", .invitation),
+        ("snoozed", .snoozed),
+        ("dismissed", .dismissed),
+        ("planned", .planning),
+        ("unplanned", .unplanned),
+        ("active", .unplanned),
+    ]
+    for (state, expectedMode) in expectedModes {
+        try runDayStateFixture(
+            fixtureScript,
+            arguments: [
+                "set", state,
+                "--database", fixture.runtime.databaseURL.path,
+                "--backup", backupURL.path,
+            ]
+        )
+        let snapshot = try #require(try TodaySnapshotStore(
+            databaseURL: fixture.runtime.databaseURL,
+            readOnly: true
+        ).load())
+        #expect(snapshot.planningStatus?.mode == expectedMode)
+        #expect((snapshot.activeTask != nil) == (state == "active"))
+    }
+
+    try runDayStateFixture(
+        fixtureScript,
+        arguments: [
+            "set", "preparing",
+            "--database", fixture.runtime.databaseURL.path,
+            "--backup", backupURL.path,
+        ]
+    )
+    #expect(try TodaySnapshotStore(
+        databaseURL: fixture.runtime.databaseURL,
+        readOnly: true
+    ).load() == nil)
+
+    try runDayStateFixture(
+        fixtureScript,
+        arguments: [
+            "cleanup",
+            "--database", fixture.runtime.databaseURL.path,
+            "--backup", backupURL.path,
+        ]
+    )
+}
+
 @MainActor
 @Test
 func menuForegroundRefreshDoesNotGenerateAMissingTodaySnapshot() async throws {
@@ -220,4 +303,25 @@ private actor TodaySnapshotOwnershipUnexpectedMenuClient: MenuBarTodayClient {
 
 private enum TodaySnapshotOwnershipUnexpectedMenuClientError: Error {
     case unexpectedCall
+}
+
+private func runDayStateFixture(_ script: URL, arguments: [String]) throws {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/bash")
+    process.arguments = [script.path] + arguments
+    let errorPipe = Pipe()
+    process.standardError = errorPipe
+    try process.run()
+    process.waitUntilExit()
+    guard process.terminationStatus == 0 else {
+        let detail = String(
+            decoding: errorPipe.fileHandleForReading.readDataToEndOfFile(),
+            as: UTF8.self
+        )
+        throw TodaySnapshotOwnershipFixtureError.failed(detail)
+    }
+}
+
+private enum TodaySnapshotOwnershipFixtureError: Error {
+    case failed(String)
 }

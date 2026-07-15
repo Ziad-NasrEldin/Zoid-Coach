@@ -139,7 +139,7 @@ SET payload = CAST(json_set(
         '$.planningStatus', json_object(
             'mode', '$mode',
             'resumesAt', NULL,
-            'driftInterventionsAllowed', 0
+            'driftInterventionsAllowed', json('false')
         ),
         '$.activeTask', $active_task,
         '$.mainObjective', $main_objective,
