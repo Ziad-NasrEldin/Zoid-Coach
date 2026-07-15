@@ -11,6 +11,23 @@ private struct WindowTraits {
     let labels: [String]
 }
 private enum WindowSelection: Equatable { case selected(Int), missing, ambiguous }
+private enum SavePanelAcquisitionDecision: Equatable {
+    case reuseExisting
+    case acceptObservedAfterPress
+    case waitForPanel
+    case fail
+}
+
+private func savePanelAcquisitionDecision(
+    existingPanelObserved: Bool,
+    pressSucceeded: Bool,
+    panelObservedAfterPress: Bool
+) -> SavePanelAcquisitionDecision {
+    if existingPanelObserved { return .reuseExisting }
+    if panelObservedAfterPress { return .acceptObservedAfterPress }
+    if pressSucceeded { return .waitForPanel }
+    return .fail
+}
 
 private let mainWindowID = "zoid-666.main-window"
 private let previewID = "settings.data.export.preview"
@@ -60,6 +77,21 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           selectMainWindow([minimized]) == .missing,
           previewSatisfiesContract(completePreview),
           !previewSatisfiesContract(Array(completePreview.dropLast())),
+          savePanelAcquisitionDecision(
+              existingPanelObserved: false,
+              pressSucceeded: false,
+              panelObservedAfterPress: true
+          ) == .acceptObservedAfterPress,
+          savePanelAcquisitionDecision(
+              existingPanelObserved: true,
+              pressSucceeded: false,
+              panelObservedAfterPress: false
+          ) == .reuseExisting,
+          savePanelAcquisitionDecision(
+              existingPanelObserved: false,
+              pressSucceeded: false,
+              panelObservedAfterPress: false
+          ) == .fail,
           URL(fileURLWithPath: "/tmp/Fresh.zoiddiagnostics").pathExtension == "zoiddiagnostics"
     else {
         fputs("FAIL: ZC-048-010 AX probe self-test\n", stderr)
@@ -212,13 +244,53 @@ private func setValue(_ value: String, on element: AXUIElement) throws {
         throw ProbeError.failure("could not set save-panel value")
     }
 }
-private func savePanel() throws -> AXUIElement {
-    try waitFor {
-        try walk(application, matching: {
-            let elementRole = role($0)
-            return (elementRole == (kAXSheetRole as String) || elementRole == (kAXWindowRole as String))
-                && labels($0).contains(where: { $0.localizedCaseInsensitiveContains("diagnostic package") })
-        })
+private func currentSavePanel() throws -> AXUIElement? {
+    try walk(application, matching: {
+        let elementRole = role($0)
+        return (elementRole == (kAXSheetRole as String) || elementRole == (kAXWindowRole as String))
+            && labels($0).contains(where: { $0.localizedCaseInsensitiveContains("diagnostic package") })
+    })
+}
+private func savePanel(attempts: Int = 50) throws -> AXUIElement {
+    try waitFor(attempts: attempts) {
+        try currentSavePanel()
+    }
+}
+private func openOrReuseSavePanel(byPressing button: AXUIElement) throws -> AXUIElement {
+    if let existing = try currentSavePanel() {
+        guard savePanelAcquisitionDecision(
+            existingPanelObserved: true,
+            pressSucceeded: false,
+            panelObservedAfterPress: false
+        ) == .reuseExisting else {
+            throw ProbeError.failure("could not reuse the open save panel")
+        }
+        return existing
+    }
+
+    _ = AXUIElementPerformAction(button, "AXScrollToVisible" as CFString)
+    let actionResult = AXUIElementPerformAction(button, kAXPressAction as CFString)
+    do {
+        let observed = try savePanel()
+        let decision = savePanelAcquisitionDecision(
+            existingPanelObserved: false,
+            pressSucceeded: actionResult == .success,
+            panelObservedAfterPress: true
+        )
+        guard decision == .acceptObservedAfterPress || decision == .waitForPanel else {
+            throw ProbeError.failure("could not open the save panel")
+        }
+        return observed
+    } catch {
+        let decision = savePanelAcquisitionDecision(
+            existingPanelObserved: false,
+            pressSucceeded: actionResult == .success,
+            panelObservedAfterPress: false
+        )
+        if decision == .fail {
+            throw ProbeError.failure("could not press Save reviewed diagnostic package and no save panel appeared")
+        }
+        throw error
     }
 }
 private func configureSavePanel(_ panel: AXUIElement, destination: URL) throws {
@@ -268,8 +340,7 @@ do {
         print("PASS: ZC-048-010 Settings preview, exclusions, action label, and VoiceOver contract")
         exit(0)
     }
-    try press(button, name: "Save reviewed diagnostic package")
-    let panel = try savePanel()
+    let panel = try openOrReuseSavePanel(byPressing: button)
     if phase == "cancel" {
         let cancel = try waitFor {
             try walk(panel, matching: {

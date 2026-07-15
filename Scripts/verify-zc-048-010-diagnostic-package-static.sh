@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-canonical="6dfb5886f4ca2d157745f10b5d737988a08d596a"
+canonical="76149705b3a301fafa832102a2e599358a16ff25"
 unexpected=""
 while IFS= read -r path; do
   case "$path" in
@@ -78,6 +78,14 @@ rg -F 'wrong database root was accepted' \
 rg -F 'qaMainWindowLaunchReusesExistingMainWithoutRequestingDuplicate' \
   Tests/ZoidCoachAppTests/ApplicationLaunchPresentationTests.swift >/dev/null
 rg -F 'selectMainWindow([main, fallback]) == .ambiguous' \
+  Scripts/qa-zc048010-diagnostic-package-ax-probe.swift >/dev/null
+rg -F ') == .acceptObservedAfterPress' \
+  Scripts/qa-zc048010-diagnostic-package-ax-probe.swift >/dev/null
+rg -F ') == .reuseExisting' \
+  Scripts/qa-zc048010-diagnostic-package-ax-probe.swift >/dev/null
+rg -F ') == .fail' \
+  Scripts/qa-zc048010-diagnostic-package-ax-probe.swift >/dev/null
+rg -F 'let panel = try openOrReuseSavePanel(byPressing: button)' \
   Scripts/qa-zc048010-diagnostic-package-ax-probe.swift >/dev/null
 rg -F -- '--require-qa-open-main --expected-app-pid "$PID"' \
   docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
