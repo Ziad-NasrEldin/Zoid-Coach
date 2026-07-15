@@ -40,6 +40,7 @@ assert_candidate() {
     resolved="$(git -C "$REPOSITORY" rev-parse --verify "$candidate^{commit}")" \
         || fail "candidate is unavailable"
     [[ "$resolved" == "$candidate" ]] || fail "candidate did not resolve to the exact requested commit"
+    [[ "$resolved" == "$CORRECTED_TIP" ]] || fail "candidate is not the reviewed corrected tip"
     head="$(git -C "$REPOSITORY" rev-parse --verify HEAD)" || fail "repository HEAD is unavailable"
     [[ "$head" == "$resolved" ]] || fail "candidate must equal repository HEAD"
     git -C "$REPOSITORY" merge-base --is-ancestor "$STACKED_PARENT" "$resolved" \
@@ -53,7 +54,7 @@ assert_candidate() {
 }
 
 assert_corrected_tip_with_runtime_contract() {
-    local temporary_root checkout
+    local temporary_root checkout downstream_candidate
     temporary_root="$(mktemp -d /private/tmp/zoid-zc061008-lineage.XXXXXX)"
     checkout="$temporary_root/repository"
     cleanup_corrected_tip_worktree() {
@@ -71,6 +72,19 @@ assert_corrected_tip_with_runtime_contract() {
         ZOID_PREFLIGHT_ASSERT_CANDIDATE="$STACKED_PARENT" \
         "$SCRIPT_PATH" --self-test >/dev/null 2>&1; then
         fail "required parent was accepted as the checked-out candidate"
+    fi
+    print '\n' >> "$checkout/${EXPECTED_PATHS[1]}"
+    git -C "$checkout" add -- "${EXPECTED_PATHS[1]}"
+    git -C "$checkout" -c user.name='Zoid Preflight Self-Test' \
+        -c user.email='zoid-preflight-self-test@invalid' \
+        -c core.hooksPath=/dev/null \
+        commit -m 'test: create unreviewed allowlisted descendant' >/dev/null
+    downstream_candidate="$(git -C "$checkout" rev-parse --verify HEAD)"
+    if env ZOID_PREFLIGHT_REPOSITORY_OVERRIDE="$checkout" \
+        ZOID_PREFLIGHT_ASSERT_ONLY=1 \
+        ZOID_PREFLIGHT_ASSERT_CANDIDATE="$downstream_candidate" \
+        "$SCRIPT_PATH" --self-test >/dev/null 2>&1; then
+        fail "unreviewed allowlisted-path descendant was accepted"
     fi
     cleanup_corrected_tip_worktree
     trap - EXIT HUP INT TERM
