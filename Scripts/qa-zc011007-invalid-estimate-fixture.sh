@@ -49,13 +49,11 @@ require_qa_database() {
 
 assert_qa_processes_stopped() {
     local qa_root="$1"
-    local executable pid process_environment
+    local executable pid
     for executable in ZoidCoachQA ZoidCoachAgentQA; do
         for pid in ${(f)"$(pgrep -x "$executable" 2>/dev/null || true)"}; do
             [[ -n "$pid" ]] || continue
-            process_environment="$(ps eww -p "$pid" -o command= 2>/dev/null || true)"
-            [[ " $process_environment " != *" ZOID_COACH_QA_RUN_ROOT=$qa_root "* ]] \
-                || fail "QA process must be stopped before mutating the fixture root: pid=$pid"
+            fail "all exact signed QA processes must be stopped before mutating the fixture root: executable=$executable pid=$pid"
         done
     done
     ! lsof "$qa_root$DATABASE_SUFFIX" >/dev/null 2>&1 || fail "fixture database has open file handles"
@@ -180,6 +178,56 @@ assert_safe_root() {
     [[ "$root" != "/private/tmp" && "$root" != "/" ]] || fail "refusing unsafe root: $root"
 }
 
+assert_owned_root_structure() {
+    local actual_root="${1:a}"
+    local claimed_root="${2:a}"
+    local label="$3"
+    assert_safe_root "$actual_root"
+    assert_safe_root "$claimed_root"
+    [[ "$actual_root" == "${1:A}" && -d "$actual_root" && ! -L "$actual_root" ]] \
+        || fail "$label root is missing or traverses a symlink"
+    [[ "$(stat -f '%Lp' "$actual_root")" == "700" && "$(stat -f '%u' "$actual_root")" == "$(id -u)" ]] \
+        || fail "$label root must be mode 700 and owned by the current user"
+
+    local control="$actual_root$ROOT_CONTROL_SUFFIX"
+    [[ -d "$control" && ! -L "$control" && "${control:a}" == "${control:A}" ]] \
+        || fail "$label control directory is missing or traverses a symlink"
+    [[ "$(stat -f '%Lp' "$control")" == "700" && "$(stat -f '%u' "$control")" == "$(id -u)" ]] \
+        || fail "$label control directory must be mode 700 and owned by the current user"
+
+    local marker="$actual_root$ROOT_MARKER_SUFFIX"
+    [[ -f "$marker" && ! -L "$marker" && "${marker:a}" == "${marker:A}" ]] \
+        || fail "$label owner marker is missing or traverses a symlink"
+    [[ "$(<"$marker")" == "$claimed_root" ]] || fail "$label owner marker does not claim the exact live QA root"
+    [[ "$(stat -f '%Lp' "$marker")" == "600" && "$(stat -f '%u' "$marker")" == "$(id -u)" && "$(stat -f '%l' "$marker")" == "1" ]] \
+        || fail "$label owner marker must be a private single-link file"
+
+    local database="$actual_root$DATABASE_SUFFIX"
+    [[ -f "$database" && ! -L "$database" && "${database:a}" == "${database:A}" ]] \
+        || fail "$label canonical database is missing or traverses a symlink"
+    [[ "$(stat -f '%u' "$database")" == "$(id -u)" && "$(stat -f '%l' "$database")" == "1" ]] \
+        || fail "$label canonical database must be owned by the current user and have one link"
+}
+
+assert_private_snapshot_metadata() {
+    local metadata="${1:a}"
+    local label="$2"
+    [[ "$metadata" == "${1:A}" && -f "$metadata" && ! -L "$metadata" ]] \
+        || fail "$label is missing or traverses a symlink"
+    [[ "$(stat -f '%Lp' "$metadata")" == "600" && "$(stat -f '%u' "$metadata")" == "$(id -u)" && "$(stat -f '%l' "$metadata")" == "1" ]] \
+        || fail "$label must be a private single-link file"
+}
+
+assert_snapshot_contract() {
+    local snapshot="${1:a}"
+    local qa_root="${2:a}"
+    assert_owned_root_structure "$snapshot" "$qa_root" "snapshot"
+    assert_private_snapshot_metadata "$snapshot.zc011007-target" "snapshot target marker"
+    assert_private_snapshot_metadata "$snapshot.zc011007-manifest" "snapshot manifest"
+    [[ "$(<"$snapshot.zc011007-target")" == "$qa_root" ]] || fail "snapshot target does not match QA root"
+    [[ -s "$snapshot.zc011007-manifest" ]] || fail "snapshot manifest is empty"
+}
+
 root_manifest() {
     local root="${1:A}"
     (
@@ -195,14 +243,16 @@ root_manifest() {
 
 snapshot_root() {
     local qa_root="${ARGUMENT_ONE:a}"
-    local snapshot="${ARGUMENT_TWO:A}"
+    local snapshot="${ARGUMENT_TWO:a}"
     assert_safe_root "$qa_root"
     [[ "$qa_root" == "${ARGUMENT_ONE:A}" ]] || fail "QA root must not contain symlinked ancestors"
+    [[ "$snapshot" == "${ARGUMENT_TWO:A}" ]] || fail "snapshot path must not contain symlinked ancestors"
     [[ -d "$qa_root" ]] || fail "QA root does not exist: $qa_root"
     [[ "$(stat -f '%Lp' "$qa_root")" == "700" && "$(stat -f '%u' "$qa_root")" == "$(id -u)" ]] \
         || fail "fresh QA root must be mode 700 and owned by the current user"
     [[ "$snapshot" == /private/tmp/zoid-666-zc011007-* ]] || fail "snapshot must use isolated ZC-011-007 namespace"
-    [[ ! -e "$snapshot" && ! -e "$snapshot.zc011007-target" ]] || fail "snapshot already exists"
+    [[ ! -e "$snapshot" && ! -L "$snapshot" && ! -e "$snapshot.zc011007-target" && ! -L "$snapshot.zc011007-target" \
+        && ! -e "$snapshot.zc011007-manifest" && ! -L "$snapshot.zc011007-manifest" ]] || fail "snapshot or metadata already exists"
     local control="$qa_root$ROOT_CONTROL_SUFFIX"
     mkdir -m 700 "$control" || fail "fixture control directory already exists"
     local marker="$qa_root$ROOT_MARKER_SUFFIX"
@@ -218,24 +268,36 @@ snapshot_root() {
     assert_qa_processes_stopped "$qa_root"
     "$SCRIPT_PATH" checkpoint "$database"
     /usr/bin/ditto "$qa_root" "$snapshot"
+    chmod 700 "$snapshot"
+    set -o noclobber
     print -r -- "$qa_root" > "$snapshot.zc011007-target"
     root_manifest "$snapshot" > "$snapshot.zc011007-manifest"
-    [[ -s "$snapshot.zc011007-manifest" ]] || fail "snapshot manifest is empty"
+    set +o noclobber
+    chmod 600 "$snapshot.zc011007-target" "$snapshot.zc011007-manifest"
+    assert_snapshot_contract "$snapshot" "$qa_root"
     print -- "PASS: snapshotted isolated ZC-011-007 QA root"
 }
 
 restore_root() {
     local qa_root="${ARGUMENT_ONE:a}"
-    local snapshot="${ARGUMENT_TWO:A}"
+    local snapshot="${ARGUMENT_TWO:a}"
     assert_safe_root "$qa_root"
     [[ "$qa_root" == "${ARGUMENT_ONE:A}" ]] || fail "restore target must not contain symlinked ancestors"
-    [[ -d "$snapshot" ]] || fail "snapshot does not exist: $snapshot"
-    [[ -f "$snapshot.zc011007-target" ]] || fail "snapshot target marker is missing"
-    [[ "$(<"$snapshot.zc011007-target")" == "$qa_root" ]] || fail "snapshot target does not match QA root"
+    [[ "$snapshot" == "${ARGUMENT_TWO:A}" ]] || fail "snapshot path must not contain symlinked ancestors"
+    assert_snapshot_contract "$snapshot" "$qa_root"
+    assert_owned_root_structure "$qa_root" "$qa_root" "live QA"
+    assert_qa_processes_stopped "$qa_root"
+    assert_owned_root_structure "$qa_root" "$qa_root" "live QA"
     rm -rf -- "$qa_root"
     /usr/bin/ditto "$snapshot" "$qa_root"
-    root_manifest "$qa_root" > "$snapshot.zc011007-restored-manifest"
-    cmp -s "$snapshot.zc011007-manifest" "$snapshot.zc011007-restored-manifest" || fail "restored QA root differs from baseline"
+    local restored_manifest
+    restored_manifest="$(mktemp /private/tmp/zoid-666-zc011007-restored-manifest.XXXXXX)"
+    trap 'rm -f -- "${restored_manifest:-}"' EXIT
+    root_manifest "$qa_root" > "$restored_manifest"
+    cmp -s "$snapshot.zc011007-manifest" "$restored_manifest" || fail "restored QA root differs from baseline"
+    rm -f -- "$restored_manifest"
+    restored_manifest=""
+    trap - EXIT
     print -- "PASS: restored isolated ZC-011-007 QA root byte-for-byte"
 }
 
@@ -244,7 +306,9 @@ assert_root_restored() {
     local snapshot="${ARGUMENT_TWO:A}"
     assert_safe_root "$qa_root"
     [[ "$qa_root" == "${ARGUMENT_ONE:A}" ]] || fail "restored target must not contain symlinked ancestors"
-    [[ -f "$snapshot.zc011007-manifest" ]] || fail "snapshot manifest is missing"
+    [[ "$snapshot" == "${ARGUMENT_TWO:A}" ]] || fail "snapshot path must not contain symlinked ancestors"
+    assert_snapshot_contract "$snapshot" "$qa_root"
+    assert_owned_root_structure "$qa_root" "$qa_root" "restored QA"
     local current
     current="$(mktemp /private/tmp/zoid-666-zc011007-manifest.XXXXXX)"
     trap 'rm -f -- "$current"' EXIT
@@ -260,14 +324,16 @@ self_test() {
     SELF_TEST_ROOT="$(mktemp -d "/private/tmp/zoid-666-zc011007-fixture-self-test.XXXXXX")"
     local database="$SELF_TEST_ROOT$DATABASE_SUFFIX"
     local unrelated_database="$SELF_TEST_ROOT/unrelated.sqlite"
-    local non_qa_database="/private/tmp/zc011007-non-qa-${SELF_TEST_ROOT:t}.sqlite"
+    typeset -g non_qa_database="/private/tmp/zc011007-non-qa-${SELF_TEST_ROOT:t}.sqlite"
     local timestamp="2026-07-15T06:00:00Z"
     local self_test_suffix="${SELF_TEST_ROOT:t}"
-    local qa_root="/private/tmp/zoid-666-zc011007-fixture-self-test-root-$self_test_suffix"
-    local alias_root="/private/tmp/zoid-666-zc011007-fixture-alias-$self_test_suffix"
-    local database_snapshot="/private/tmp/zoid-666-zc011007-fixture-db-snapshot-$self_test_suffix"
-    local root_snapshot="/private/tmp/zoid-666-zc011007-fixture-root-snapshot-$self_test_suffix"
-    trap 'rm -rf -- "${SELF_TEST_ROOT:-}" "$qa_root" "$alias_root" "$database_snapshot" "$database_snapshot".zc011007-*(N) "$root_snapshot" "$root_snapshot".zc011007-*(N) "$non_qa_database"' EXIT
+    typeset -g qa_root="/private/tmp/zoid-666-zc011007-fixture-self-test-root-$self_test_suffix"
+    typeset -g alias_root="/private/tmp/zoid-666-zc011007-fixture-alias-$self_test_suffix"
+    typeset -g database_snapshot="/private/tmp/zoid-666-zc011007-fixture-db-snapshot-$self_test_suffix"
+    typeset -g root_snapshot="/private/tmp/zoid-666-zc011007-fixture-root-snapshot-$self_test_suffix"
+    typeset -g qa_process_pid=""
+    typeset -g database_holder_pid=""
+    trap '[[ -z "${qa_process_pid:-}" ]] || kill "$qa_process_pid" 2>/dev/null || true; [[ -z "${database_holder_pid:-}" ]] || kill "$database_holder_pid" 2>/dev/null || true; [[ -z "${SELF_TEST_ROOT:-}" ]] || rm -rf -- "$SELF_TEST_ROOT"; [[ -z "${qa_root:-}" ]] || rm -rf -- "$qa_root"; [[ -z "${alias_root:-}" ]] || rm -rf -- "$alias_root"; [[ -z "${database_snapshot:-}" ]] || rm -rf -- "$database_snapshot" "$database_snapshot.zc011007-target" "$database_snapshot.zc011007-manifest" "$database_snapshot.zc011007-restored-manifest"; [[ -z "${root_snapshot:-}" ]] || rm -rf -- "$root_snapshot" "$root_snapshot.zc011007-target" "$root_snapshot.zc011007-manifest" "$root_snapshot.zc011007-restored-manifest"; [[ -z "${non_qa_database:-}" ]] || rm -rf -- "$non_qa_database"' EXIT
     mkdir -p "${database:h}"
     sqlite3 -batch "$database" <<SQL
 CREATE TABLE source_tasks(source_id TEXT PRIMARY KEY, title TEXT NOT NULL, due_at TEXT, priority INTEGER NOT NULL DEFAULT 0, is_completed INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL, notes TEXT, list_id TEXT, list_name TEXT, modified_at TEXT, source_hash TEXT, source_kind TEXT NOT NULL DEFAULT 'reminders');
@@ -276,7 +342,107 @@ CREATE TABLE task_execution_states(task_id TEXT PRIMARY KEY, state TEXT NOT NULL
 CREATE TABLE task_activity_intervals(id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT);
 SQL
     "$SCRIPT_PATH" snapshot-root "$SELF_TEST_ROOT" "$database_snapshot"
+    local live_database_hash="$(shasum -a 256 "$database" | awk '{print $1}')"
+    local snapshot_target="$database_snapshot.zc011007-target"
+    local snapshot_manifest="$database_snapshot.zc011007-manifest"
+    local snapshot_owner="$database_snapshot$ROOT_MARKER_SUFFIX"
+    local rejection_link="$SELF_TEST_ROOT/.restore-rejection-hardlink"
+
+    ln "$snapshot_target" "$rejection_link"
+    if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
+        fail "restore accepted a hard-linked snapshot target marker"
+    fi
+    [[ -d "$SELF_TEST_ROOT" && "$(shasum -a 256 "$database" | awk '{print $1}')" == "$live_database_hash" ]] \
+        || fail "linked snapshot target rejection deleted or mutated the live root"
+    rm "$rejection_link"
+
+    ln "$snapshot_manifest" "$rejection_link"
+    if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
+        fail "restore accepted a hard-linked snapshot manifest"
+    fi
+    [[ -d "$SELF_TEST_ROOT" && "$(shasum -a 256 "$database" | awk '{print $1}')" == "$live_database_hash" ]] \
+        || fail "linked snapshot manifest rejection deleted or mutated the live root"
+    rm "$rejection_link"
+
+    ln "$snapshot_owner" "$rejection_link"
+    if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
+        fail "restore accepted a hard-linked snapshot owner marker"
+    fi
+    [[ -d "$SELF_TEST_ROOT" && "$(shasum -a 256 "$database" | awk '{print $1}')" == "$live_database_hash" ]] \
+        || fail "linked snapshot owner rejection deleted or mutated the live root"
+    rm "$rejection_link"
+
+    print -r -- "/private/tmp/zoid-666-zc011007-forged-target" > "$snapshot_target"
+    if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
+        fail "restore accepted a forged snapshot target marker"
+    fi
+    [[ -d "$SELF_TEST_ROOT" && "$(shasum -a 256 "$database" | awk '{print $1}')" == "$live_database_hash" ]] \
+        || fail "forged snapshot target rejection deleted or mutated the live root"
+    print -r -- "$SELF_TEST_ROOT" > "$snapshot_target"
+
+    print -r -- "/private/tmp/zoid-666-zc011007-forged-owner" > "$snapshot_owner"
+    if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
+        fail "restore accepted a forged snapshot owner marker"
+    fi
+    [[ -d "$SELF_TEST_ROOT" && "$(shasum -a 256 "$database" | awk '{print $1}')" == "$live_database_hash" ]] \
+        || fail "forged snapshot owner rejection deleted or mutated the live root"
+    print -r -- "$SELF_TEST_ROOT" > "$snapshot_owner"
+
     local marker="$SELF_TEST_ROOT$ROOT_MARKER_SUFFIX"
+    print -r -- "/private/tmp/zoid-666-zc011007-stolen-root" > "$marker"
+    if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
+        fail "restore accepted changed live-root ownership"
+    fi
+    [[ -d "$SELF_TEST_ROOT" && "$(shasum -a 256 "$database" | awk '{print $1}')" == "$live_database_hash" ]] \
+        || fail "changed live-root ownership rejection deleted or mutated the live root"
+    print -r -- "$SELF_TEST_ROOT" > "$marker"
+
+    chmod 755 "$SELF_TEST_ROOT"
+    if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
+        fail "restore accepted changed live-root permissions"
+    fi
+    [[ -d "$SELF_TEST_ROOT" && "$(shasum -a 256 "$database" | awk '{print $1}')" == "$live_database_hash" ]] \
+        || fail "changed live-root permission rejection deleted or mutated the live root"
+    chmod 700 "$SELF_TEST_ROOT"
+
+    local qa_process="$SELF_TEST_ROOT/ZoidCoachQA"
+    cp /bin/sleep "$qa_process"
+    codesign --force --sign - "$qa_process" >/dev/null 2>&1
+    chmod 700 "$qa_process"
+    env ZOID_COACH_QA_RUN_ROOT="$SELF_TEST_ROOT" "$qa_process" 30 &
+    qa_process_pid=$!
+    local attempt
+    for attempt in {1..50}; do
+        pgrep -x ZoidCoachQA 2>/dev/null | grep -qx "$qa_process_pid" && break
+        sleep 0.02
+    done
+    pgrep -x ZoidCoachQA 2>/dev/null | grep -qx "$qa_process_pid" || fail "restarted QA process self-test did not acquire its expected process name"
+    if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
+        fail "restore accepted a restarted QA process"
+    fi
+    [[ -d "$SELF_TEST_ROOT" && "$(shasum -a 256 "$database" | awk '{print $1}')" == "$live_database_hash" ]] \
+        || fail "restarted QA process rejection deleted or mutated the live root"
+    kill "$qa_process_pid"
+    wait "$qa_process_pid" 2>/dev/null || true
+    qa_process_pid=""
+    rm "$qa_process"
+
+    tail -f "$database" >/dev/null &
+    database_holder_pid=$!
+    for attempt in {1..50}; do
+        lsof -a -p "$database_holder_pid" "$database" >/dev/null 2>&1 && break
+        sleep 0.02
+    done
+    lsof -a -p "$database_holder_pid" "$database" >/dev/null 2>&1 || fail "open-database self-test did not acquire a file handle"
+    if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
+        fail "restore accepted an open canonical database handle"
+    fi
+    [[ -d "$SELF_TEST_ROOT" && "$(shasum -a 256 "$database" | awk '{print $1}')" == "$live_database_hash" ]] \
+        || fail "open database rejection deleted or mutated the live root"
+    kill "$database_holder_pid"
+    wait "$database_holder_pid" 2>/dev/null || true
+    database_holder_pid=""
+
     local marker_hardlink="$SELF_TEST_ROOT/.marker-hardlink"
     ln "$marker" "$marker_hardlink"
     if "$SCRIPT_PATH" prepare "$database" >/dev/null 2>&1; then

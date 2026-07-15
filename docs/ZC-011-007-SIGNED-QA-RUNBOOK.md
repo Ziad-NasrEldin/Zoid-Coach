@@ -30,6 +30,7 @@ FIXTURE="$PWD/Scripts/qa-zc011007-invalid-estimate-fixture.sh"
 AX_PROBE="$PWD/Scripts/qa-zc011007-invalid-estimate-ax-probe.swift"
 PREFLIGHT="$PWD/Scripts/qa-zc011007-signed-preflight.sh"
 APPROVED_FINAL_VALIDATOR="/absolute/path/from/pinned-validator-worktree/validate-zc011007-approved-final.sh"
+SAFE_HOME="$(/usr/bin/dscl . -read "/Users/$(/usr/bin/id -un)" NFSHomeDirectory | /usr/bin/awk '{print $2}')"
 READY_STATE="$PWD/Scripts/prepare-qa-ready-state.py"
 READY_MANIFEST="$PWD/Scripts/fixtures/qa-ready-state.example.json"
 WINDOW_PROBE="$PWD/Scripts/qa-window-content-probe.swift"
@@ -37,13 +38,21 @@ TASK_ID="qa-zc011007-invalid-estimate"
 PRIVATE_NOTE="qa-zc011007-private-estimate-note"
 
 preflight() {
-  "$APPROVED_FINAL_VALIDATOR" "$PREFLIGHT" "$@"
+  /usr/bin/env -i \
+    HOME="$SAFE_HOME" \
+    TMPDIR=/private/tmp \
+    PATH=/usr/bin:/bin \
+    GIT_CONFIG_NOSYSTEM=1 \
+    GIT_CONFIG_GLOBAL=/dev/null \
+    GIT_CONFIG_SYSTEM=/dev/null \
+    GIT_ATTR_NOSYSTEM=1 \
+    /bin/zsh "$APPROVED_FINAL_VALIDATOR" "$PREFLIGHT" "$@"
 }
 
 test -x "$APPROVED_FINAL_VALIDATOR"
 test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor b97c2ce3177ccf89f60225c475062608db1920ad "$EXPECTED_SIGNED_COMMIT"
-"$PREFLIGHT" --self-test
+preflight --self-test
 swift test --filter CustomEstimateEditorStateTests
 swift test --filter customEstimate
 ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh \
@@ -60,6 +69,8 @@ The diff from canonical base must contain exactly seventeen reviewed commits, en
 The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, exclusive isolated database ownership, atomic fixture seeding, whole-root restoration, and fail-closed action ambiguity.
 The full candidate scope remains exactly eight files, and the final lineage commit edits only this runbook and the signed preflight.
 Tracker, registry, Lavish, backlog, parser, legacy parser-test, and unrelated verifier changes are rejected.
+The pinned validator re-executes under an explicit minimal environment and invokes the candidate preflight with the same fixed `/usr/bin:/bin` path, actual account home, `/private/tmp`, and Git configuration suppression.
+Ambient Git worktree overrides, fixture dates, approval variables, and executable-path injections are not inherited.
 
 ## Establish and snapshot the ready-state baseline
 
@@ -93,6 +104,7 @@ while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 ```
 
 The snapshot occurs only after both signed processes stop and SQLite checkpoints its WAL.
+The snapshot directory, target marker, manifest, copied control directory, copied owner marker, and copied database must remain current-user-owned, canonical, non-symlinked, and single-linked where they are files.
 The final restoration compares every file and symlink against this baseline.
 
 ## Prepare the exact missing-estimate task
@@ -233,6 +245,8 @@ while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 
 No SQL cleanup is allowed.
 Whole-root restoration recovers the exact fixture-owned ready-state bytes and symlinks, including the original database, after both signed processes stop.
+Immediately before deleting the live root, the fixture revalidates its canonical namespace, non-symlinked mode-700 current-user root, mode-700 control directory, exact private single-link owner marker, canonical single-link database, stopped QA processes, and absence of open database handles.
+Any forged or linked snapshot metadata, changed live-root ownership, restarted signed QA process, or open database handle aborts restoration without deleting the live root.
 After proof is archived, delete the entire isolated QA root and installed QA bundle rather than deleting rows from a database.
 
 ## Acceptance boundary
