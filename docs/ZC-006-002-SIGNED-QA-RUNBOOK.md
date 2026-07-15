@@ -56,7 +56,7 @@ else
   : > "$ORIGINAL_HASHES"
 fi
 jq '.osFixture.reminders = .osFixture.reminders[:1]
-  | .osFixture.reminders[0].title = "zc006002-private-task-title"' "$TEMPLATE" > "$MANIFEST"
+  | .osFixture.reminders[0].title = "Prepare quarterly launch outline"' "$TEMPLATE" > "$MANIFEST"
 "$READY_STATE" "$MANIFEST" "$QA_ROOT" --replace
 "$APP_EXECUTABLE" --qa-register-agent
 BOOTSTRAP_READY=0
