@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "run_id": "zc-002-008-manual-local-planning/b9d3f458809c75f5f1b79467cce0f161f462c391",
+  "verified_commit": "b9d3f458809c75f5f1b79467cce0f161f462c391",
+  "build_identity": "zoid-coach-b9d3f458809c75f5f1b79467cce0f161f462c391-clean",
+  "fixture": "signed-reminders-unavailable-manual-local-task",
+  "qa_root": "/private/tmp/zoid-666-qa-manual-local-task-$PPID",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "a01686098a07e33f5280177149348bc92ac6065e68831b0d8dbb99dd5ef307b4",
+  "scenario_ids": [
+    "ZC-002-008"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "integration",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-13T00:04:12+03:00",
+  "completed_at": "2026-07-15T03:17:04Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "088056de77b121e9290749df50b18a38bbfce2717c5cbbffa0cc55056f2135f2",
+      "kind": "evidence_requalification_report"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "signed_ui_remains_usable_without_reminders",
+      "result": "passed",
+      "detail": "The exact signed QA app exposed New Local Task while Reminders was Not Connected, enforced the required title, saved the task, and immediately showed it as the main objective and in capacity calculations."
+    },
+    {
+      "name": "authenticated_xpc_lifecycle_is_idempotent_and_durable",
+      "result": "passed",
+      "detail": "The signed probe created through XPC, replayed the exact command, survived two helper restarts, started and completed the task, and retained completion history."
+    },
+    {
+      "name": "local_completion_never_mutates_apple_reminders",
+      "result": "passed",
+      "detail": "The signed lifecycle and current focused tests both prove zero Apple Reminders outbox mutation for the local task."
+    },
+    {
+      "name": "current_canonical_is_stable_patch_equivalent",
+      "result": "passed",
+      "detail": "Primary UI, controller, verifier, and two focused test files are byte-identical, the exact completion test body is byte-identical, and four current-canonical focused tests pass across later additive patches."
+    },
+    {
+      "name": "privacy_and_cleanup_are_bounded",
+      "result": "passed",
+      "detail": "The byte-identical verifier uses an isolated per-process QA root, removes the installed probe and root on EXIT, and the requalification found both artifacts absent without touching production data."
+    }
+  ],
+  "commands": [
+    "Historical signed proof: Scripts/verify-qa-manual-local-task-xpc.sh",
+    "swift test --filter agentOwnedLocalTaskCreationIsIdempotentDurableAndPartOfTodaysPlan",
+    "swift test --filter localTaskControllerTrimsDraftAndPreservesItsIdentityAcrossRetry",
+    "swift test --filter localTaskCompletionIsDurableAndNeverMutatesAnExternalReminder",
+    "swift test --filter completingLocalTaskStaysLocalRecordsHistoryAndSurvivesRestart",
+    "python3 Scripts/scenario_registry.py validate"
+  ],
+  "requalification": {
+    "canonical_commit": "ed5d07a363e0f64049c07b0e1d309d754caa035b",
+    "tracker_sha256": "cc6987a31ed83048ad1cb2bce042739ff119824e9310c9367c6a70bc6af2499b",
+    "original_report_path": ".audit/runs/manual-local-task/eb0866b/REPORT.md",
+    "original_report_sha256": "44b38cc04e8289258bed8fc9456ca68aee3f40d198d29f2748610c65f4796130",
+    "verifier_sha256": "edf62a11083934f0ad54726d3c9cea36b466abdc89bf7dcbd7fc7e64e0cb4b3c",
+    "completion_test_body_sha256": "5752ca9180ca04c19d8609c79bac49421aea19edf6bb7b5cfce18124a6109f1d",
+    "source_sha256": {
+      "Sources/ZoidCoachApp/LocalTaskCreationController.swift": "95b2c1ea2ec5ed2bb3e8d07f60e134d49d2653e4bd668ac58eba7865d905b918",
+      "Sources/ZoidCoachApp/Views/LocalTaskCreationView.swift": "c86e198707a9d8cbf1a1367cb0ade8d59e945079cd6101d0d940216c1958d0f6",
+      "Sources/ZoidCoachApp/Views/DashboardView.swift": "74982a1bbd9fc8d6b44b5a2eb3cc18f61f1a4793fb61fc3904c1f3253190a2ce",
+      "Sources/ZoidCoachCore/AgentMutationCommand.swift": "6030e1c54e054b0496a915b73355a3aef00861f396d160496166244da3ae9157",
+      "Sources/ZoidCoachInfrastructure/AgentMutationRouter.swift": "62af4c4b1aed08369c215f3856ada4d74132574ff5d0693ec5c315d36d5edb35",
+      "Sources/ZoidCoachInfrastructure/AgentOwnedStateStore.swift": "f470f4715ad43afca85d91626477a2753daa863888613a58b88974ebd348a0a7",
+      "Sources/ZoidCoachInfrastructure/ReminderSnapshotStore.swift": "bfc626ed8b123e7bfce2236628164e3593b82355766950333bfe6fae988bab6a",
+      "Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift": "a1bf0d4a36287eb7b600ce486bc5557a40ccf8256f6189315b68c0b8535aff08",
+      "Tests/ZoidCoachAppTests/LocalTaskCreationControllerTests.swift": "c122e6fade959a197bb10c63a1f41b6ce232b4f879b4e06b781350e9a0ca07fb",
+      "Tests/ZoidCoachAppTests/SourceSnapshotStoreTests.swift": "10d52067b980d3e32265d088db1c5244ff3853303fd9af49d6b141bb37dfc56e",
+      "Tests/ZoidCoachAppTests/TodayDashboardAgentTests.swift": "c10af35e8733e7edc766490acce7caaf4bc15fdd5ba43c6ccfc7f4f463444c2d"
+    }
+  }
+}
