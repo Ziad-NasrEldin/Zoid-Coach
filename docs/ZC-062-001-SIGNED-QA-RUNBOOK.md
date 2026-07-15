@@ -14,6 +14,7 @@ Do not run this journey while another lane owns the installed runtime.
 ```sh
 set -euo pipefail
 REPO="/absolute/path/to/Zoid Coach"
+CANDIDATE_REPOSITORY="/absolute/path/to/clean/detached/ZC-062-001-candidate"
 APP="/absolute/path/to/Zoid 666 QA E2E.app"
 EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_CANDIDATE_COMMIT"
 QA_ROOT="/private/tmp/zoid-666-zc062001-installed-proof"
@@ -55,13 +56,15 @@ for _ in {1..50}; do
   sleep 0.1
 done
 "$APP_EXECUTABLE" --qa-unregister-agent || true
-OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$SCREENWATCH_ROOT" "$EXPECTED_SIGNED_COMMIT")"
+"$PREFLIGHT" --candidate-repository "$CANDIDATE_REPOSITORY" --validate-candidate "$EXPECTED_SIGNED_COMMIT"
+OUTPUT="$("$PREFLIGHT" --candidate-repository "$CANDIDATE_REPOSITORY" "$APP" "$DATABASE" "$SCREENWATCH_ROOT" "$EXPECTED_SIGNED_COMMIT")"
 printf '%s\n' "$OUTPUT"
 AGENT_EXECUTABLE="$(printf '%s\n' "$OUTPUT" | sed -n 's/^AGENT_EXECUTABLE=//p')"
 test -x "$AGENT_EXECUTABLE"
 ```
 
-The preflight rejects a wrong database, Screenwatch root, helper executable, QA root, lineage, package identity, or commit scope.
+The validator may live in a later review checkout, but `CANDIDATE_REPOSITORY` must be the clean detached worktree at the reviewed corrected tip.
+The preflight rejects a wrong database, Screenwatch root, helper executable, QA root, lineage, package identity, worktree state, or commit scope.
 
 ## Capture the byte baseline
 
