@@ -43,7 +43,7 @@ func zc062003HandledSQLPrivacyDuplicateAndRealPathsAreRejected() {
     #expect(throws: ZC062003Error.self) { _ = try realPath.validate() }
 }
 
-private enum ZC062003Phase: String, Codable, CaseIterable, Sendable {
+enum ZC062003Phase: String, Codable, CaseIterable, Sendable {
     case healthy
     case stale
     case missing
@@ -160,7 +160,7 @@ private struct ZC062003Evidence: Codable {
     }
 }
 
-private enum ZC062003Boundary: CaseIterable, Sendable {
+enum ZC062003Boundary: CaseIterable, Sendable {
     case wrongDatabase
     case wrongSource
     case wrongOSState
