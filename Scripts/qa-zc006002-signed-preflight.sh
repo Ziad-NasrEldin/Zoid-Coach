@@ -50,7 +50,7 @@ assert_runbook() {
         || fail "runbook visible Work Unplanned action gate is missing"
     /usr/bin/grep -Fq '"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY" "$PROMPT_ID"' "$runbook" \
         || fail "runbook durable Work Unplanned assertion is missing"
-    /usr/bin/grep -Fq 'swift "$PROBE" --pid "$APP_PID" --phase unplanned' "$runbook" \
+    /usr/bin/grep -Fq 'swift "$PROBE" --pid "$APP_PID" --phase unplanned --prompt-id "$PROMPT_ID"' "$runbook" \
         || fail "runbook ordinary-relaunch UI assertion is missing"
 }
 
