@@ -40,7 +40,7 @@ func zc062001DuplicateSnapshotSQLAndPrivacyFailuresAreRejected() {
     #expect(throws: ZC062001HealthyDayError.self) { _ = try privacyLeak.validate() }
 }
 
-private struct ZC062001HealthyDayEvidence: Codable, Equatable {
+struct ZC062001HealthyDayEvidence: Codable, Equatable {
     static let requiredRows = [
         "Planned day - Today's commitments are ready",
         "Apple Reminders - Healthy",
@@ -111,7 +111,7 @@ private struct ZC062001HealthyDayEvidence: Codable, Equatable {
     }
 }
 
-private enum ZC062001FailureBoundary: CaseIterable, Sendable {
+enum ZC062001FailureBoundary: CaseIterable, Sendable {
     case planMissing
     case remindersUnhealthy
     case screenwatchStale
