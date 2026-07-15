@@ -134,7 +134,7 @@ enum ZC062002FailureBoundary: CaseIterable, Sendable {
     case baselineMissing
     case relaunchSnapshotLoss
 
-    func apply(to evidence: inout ZC062002OutageEvidence) {
+    fileprivate func apply(to evidence: inout ZC062002OutageEvidence) {
         switch self {
         case .activeTaskLost:
             evidence.taskState = "paused"
