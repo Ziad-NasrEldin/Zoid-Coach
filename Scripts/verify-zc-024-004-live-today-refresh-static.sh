@@ -10,6 +10,9 @@ SCROLL_TOOLING_PATCH_ID="e984850a3645bdb51518fe98745104bb8a20aa7d"
 SCROLL_REBIND_COMMIT="cc2dc2a0c2cf2b7dea7d0db75a9d05ec03a43e57"
 TOOLING_COMMIT="69b16a3335867a43ef8ae7904705a3d40f3e738f"
 TOOLING_PATCH_ID="36d0b2269d95c969a3069baf3c90795ac38869e6"
+TOOLING_REBIND_COMMIT="1e06a4807f12a9e78886cdca24eb23afe46d1772"
+NORMALIZATION_COMMIT="d36cedc7da6146b4c8982c15733a3899e0d57013"
+NORMALIZATION_PATCH_ID="bcafc0a24403de8e777a5bb3d1473a44731c6934"
 
 readonly REVIEWED_PATCH_IDS=(
     "5b1d785b5676c1d5d33b02ea4d9cfa01940be0c8"
@@ -100,7 +103,9 @@ verify_candidate_lineage() {
     [[ "$(git rev-parse "$SCROLL_TOOLING_COMMIT^")" == "$REASSEMBLY_COMMIT" ]]
     [[ "$(git rev-parse "$SCROLL_REBIND_COMMIT^")" == "$SCROLL_TOOLING_COMMIT" ]]
     [[ "$(git rev-parse "$TOOLING_COMMIT^")" == "$SCROLL_REBIND_COMMIT" ]]
-    [[ "$(git rev-parse "$head^")" == "$TOOLING_COMMIT" ]]
+    [[ "$(git rev-parse "$TOOLING_REBIND_COMMIT^")" == "$TOOLING_COMMIT" ]]
+    [[ "$(git rev-parse "$NORMALIZATION_COMMIT^")" == "$TOOLING_REBIND_COMMIT" ]]
+    [[ "$(git rev-parse "$head^")" == "$NORMALIZATION_COMMIT" ]]
 
     expected_scope="$(printf '%s\n' "${OWNED_PATHS[@]}" | normalized_lines)"
     actual_scope="$(git diff --name-only "$BASE" "$head" | normalized_lines)"
@@ -108,13 +113,15 @@ verify_candidate_lineage() {
     [[ "$(git diff --name-only "$BASE" "$REASSEMBLY_COMMIT" | normalized_lines)" == "$expected_scope" ]]
     [[ "$(git diff-tree --no-commit-id --name-only -r "$SCROLL_TOOLING_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
     [[ "$(git diff-tree --no-commit-id --name-only -r "$TOOLING_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
+    [[ "$(git diff-tree --no-commit-id --name-only -r "$NORMALIZATION_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
 
     expected_rebind_scope="$(printf '%s\n' \
         Scripts/verify-zc-024-004-live-today-refresh-static.sh \
         docs/ZC-024-004-SIGNED-QA-RUNBOOK.md | normalized_lines)"
-    actual_rebind_scope="$(git diff --name-only "$TOOLING_COMMIT" "$head" | normalized_lines)"
+    actual_rebind_scope="$(git diff --name-only "$NORMALIZATION_COMMIT" "$head" | normalized_lines)"
     [[ "$actual_rebind_scope" == "$expected_rebind_scope" ]]
     [[ "$(git diff --name-only "$SCROLL_TOOLING_COMMIT" "$SCROLL_REBIND_COMMIT" | normalized_lines)" == "$expected_rebind_scope" ]]
+    [[ "$(git diff --name-only "$TOOLING_COMMIT" "$TOOLING_REBIND_COMMIT" | normalized_lines)" == "$expected_rebind_scope" ]]
 
     actual_patch_ids="$(reviewed_patch_ids)"
     expected_patch_ids="$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
@@ -127,6 +134,10 @@ verify_candidate_lineage() {
         | git patch-id --stable \
         | awk '{print $1}')"
     [[ "$tooling_patch_id" == "$TOOLING_PATCH_ID" ]]
+    tooling_patch_id="$(git show --pretty=email --no-ext-diff "$NORMALIZATION_COMMIT" \
+        | git patch-id --stable \
+        | awk '{print $1}')"
+    [[ "$tooling_patch_id" == "$NORMALIZATION_PATCH_ID" ]]
 }
 
 run_self_test() {
@@ -207,6 +218,10 @@ assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
     "let actualBinding = TodayCaptureBinding(pid: args.pid, windowToken: CFHash(freshWindow))"
 assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
     "visible Today Working or Screenwatch values changed or are ambiguous across the capture sequence"
+assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
+    "pattern: \"^Working time, ([0-9]+) minute(?:s)?$\""
+assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
+    "Screenwatch coverage is current."
 assert_contains "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift" \
     "func todayLiveRefreshRunsOnceForEachTickAndStopsWithoutAnotherRefresh()"
 assert_contains "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift" \
