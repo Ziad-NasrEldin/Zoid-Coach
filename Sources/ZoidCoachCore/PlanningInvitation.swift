@@ -50,10 +50,10 @@ public enum PlanningInvitationPolicy {
         return PromptDraft(
             decisionKey: decisionKey ?? "plan-ready:\(localDay)",
             type: "PLAN_READY",
-            title: "Your day is still open",
+            title: "Planning is available when you are ready",
             summary: itemCount > 0
-                ? "When you are ready, review \(itemCount) suggested commitment\(itemCount == 1 ? "" : "s") or begin without a plan."
-                : "When you are ready, make a small plan or begin one available task without pressure.",
+                ? "You can review \(itemCount) suggested commitment\(itemCount == 1 ? "" : "s"), or start without a plan. You can snooze or dismiss this invitation for now. Nothing is blocked."
+                : "You can make a small plan, or start without one. You can snooze or dismiss this invitation for now. Nothing is blocked.",
             actions: actions,
             payload: payload,
             expiresAt: expiresAt
