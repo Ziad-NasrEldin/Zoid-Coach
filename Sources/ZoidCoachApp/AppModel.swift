@@ -59,7 +59,8 @@ struct AppMeetingEvidenceCipherFactory {
 @MainActor
 final class AppModel: ObservableObject {
     @Published var selectedSection: AppSection = .today
-    @Published var coachingState: CoachingState = .observation
+    @Published private(set) var coachingRuntimeState: CoachingRuntimeState = .unavailable
+    var coachingState: CoachingState { coachingRuntimeState.state }
     @Published var sources: [SourceHealth] = SourceHealth.initial
     @Published var reminderTasks: [ReminderTask] = []
     @Published var dailyPlan: [DailyPlanEntry] = []
@@ -123,12 +124,14 @@ final class AppModel: ObservableObject {
     private let saveGamingManualAdjustment: @Sendable (GamingManualAdjustmentRequest) async throws -> AgentMutationReceipt
     private let loadGamingManualAdjustments: @Sendable (Date, String) throws -> [GamingManualAdjustment]
     private let fetchAuthoritativeGamingSnapshot: @Sendable () async throws -> TodaySnapshot
+    private let loadCoachingRuntimeState: @Sendable (Date) async throws -> CoachingRuntimeState
     private let now: @Sendable () -> Date
     private let todayLiveRefreshLoop = TodayLiveRefreshLoop()
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
     private var sourceChecksInFlight: Set<SourceID> = []
     private var planningCalendarRevision: CalendarPlanAvailabilityRevision?
+    private var coachingStateRefreshGate = CoachingStateRefreshGate()
 
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
@@ -149,6 +152,7 @@ final class AppModel: ObservableObject {
         saveGamingManualAdjustment: (@Sendable (GamingManualAdjustmentRequest) async throws -> AgentMutationReceipt)? = nil,
         loadGamingManualAdjustments: (@Sendable (Date, String) throws -> [GamingManualAdjustment])? = nil,
         fetchAuthoritativeGamingSnapshot: (@Sendable () async throws -> TodaySnapshot)? = nil,
+        loadCoachingRuntimeState: (@Sendable (Date) async throws -> CoachingRuntimeState)? = nil,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         let resolvedAgentLaunchService = agentLaunchService
@@ -239,6 +243,21 @@ final class AppModel: ObservableObject {
             readOnly: true
         )
         policyStore = resolvedPolicyStore
+        let resolvedBaselineStore = try? BaselineObservationStore(
+            databaseURL: runtimeEnvironment.databaseURL
+        )
+        self.loadCoachingRuntimeState = loadCoachingRuntimeState ?? { date in
+            guard let resolvedPolicyStore, let resolvedBaselineStore else {
+                throw AppModelCoachingStateError.authoritativeSourceUnavailable
+            }
+            let policy = try resolvedPolicyStore.current()?.policy ?? UserPolicy.defaults()
+            return CoachingRuntimeState.resolve(
+                automationPause: policy.automationPause,
+                baselineStatus: try resolvedBaselineStore.status(),
+                coachingLevel: policy.gaming.coachingLevel,
+                now: date
+            )
+        }
         self.reminderListPolicyLoader = reminderListPolicyLoader ?? {
             guard let resolvedPolicyStore else {
                 throw AppModelPolicyError.policyStoreUnavailable
@@ -400,6 +419,22 @@ final class AppModel: ObservableObject {
 
     func refreshTodaySnapshot() async {
         installTodaySnapshot(todaySnapshotLoader.load())
+        await refreshCoachingState()
+    }
+
+    func refreshCoachingState() async {
+        let generation = coachingStateRefreshGate.begin()
+        let loader = loadCoachingRuntimeState
+        let refreshDate = now()
+        let result = await Task.detached(priority: .utility) {
+            do {
+                return Result<CoachingRuntimeState, Error>.success(try await loader(refreshDate))
+            } catch {
+                return Result<CoachingRuntimeState, Error>.failure(error)
+            }
+        }.value
+        guard coachingStateRefreshGate.shouldInstall(generation) else { return }
+        coachingRuntimeState = (try? result.get()) ?? .unavailable
     }
 
     func setTodayLiveRefreshEnabled(_ isEnabled: Bool) {
@@ -1819,6 +1854,10 @@ private enum AppModelPolicyError: Error {
     case policyStoreUnavailable
 }
 
+private enum AppModelCoachingStateError: Error {
+    case authoritativeSourceUnavailable
+}
+
 private enum AppModelPersistenceError: Error {
     case rejected
 }
@@ -1863,12 +1902,6 @@ struct SidebarNavigationAction: Equatable {
     func perform(select: (AppSection) -> Void) {
         select(destination)
     }
-}
-
-enum CoachingState: String {
-    case observation = "Observation week"
-    case accountability = "Level 2 coaching"
-    case paused = "Coaching paused"
 }
 
 struct SourceHealth: Identifiable, Equatable, Sendable {

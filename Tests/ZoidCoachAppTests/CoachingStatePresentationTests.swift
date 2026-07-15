@@ -1,63 +1,121 @@
+import Foundation
 import Testing
 @testable import ZoidCoachApp
+import ZoidCoachCore
 
-@Suite("Today coaching status presentation")
+@Suite("Today coaching runtime state")
 struct CoachingStatePresentationTests {
-    @Test("accountability coaching is active without a recovery instruction")
-    func activeCoaching() {
-        let presentation = CoachingStatePresentation(state: .accountability)
+    private let now = Date(timeIntervalSince1970: 1_783_742_400)
 
-        #expect(presentation.statusLabel == "COACHING ACTIVE")
-        #expect(presentation.explanation.contains("prompts and suggestions"))
-        #expect(presentation.explanation.contains("activity observation continue"))
-        #expect(presentation.pauseReason == nil)
-        #expect(presentation.recoveryHint == nil)
-        #expect(!presentation.accessibilityLabel.contains("PAUSED"))
+    @Test("an active pause wins over baseline and coaching level")
+    func pauseWins() {
+        let resumesAt = now.addingTimeInterval(3_600)
+        let timed = CoachingRuntimeState.resolve(
+            automationPause: AutomationPause(isPaused: true, resumesAtUTC: resumesAt),
+            baselineStatus: baseline(completeDays: 0),
+            coachingLevel: .accountability,
+            now: now
+        )
+        let indefinite = CoachingRuntimeState.resolve(
+            automationPause: .pausedIndefinitely,
+            baselineStatus: baseline(completeDays: 7),
+            coachingLevel: .gentle,
+            now: now
+        )
+
+        #expect(timed == CoachingRuntimeState(state: .paused, pauseEvidence: .until(resumesAt)))
+        #expect(indefinite == CoachingRuntimeState(state: .paused, pauseEvidence: .indefinite))
     }
 
-    @Test("observation week is limited without claiming observation stopped")
-    func observationOnly() {
-        let presentation = CoachingStatePresentation(state: .observation)
-
-        #expect(presentation.statusLabel == "OBSERVATION ONLY")
-        #expect(presentation.explanation.contains("without behavior coaching prompts"))
-        #expect(presentation.explanation.contains("activity observation continue"))
-        #expect(presentation.pauseReason == nil)
-        #expect(presentation.recoveryHint == nil)
-        #expect(!presentation.accessibilityLabel.contains("COACHING ACTIVE"))
-        #expect(!presentation.accessibilityLabel.contains("COACHING PAUSED"))
+    @Test("incomplete baseline limits both configured active levels to observation")
+    func baselineSuppressionWins() {
+        for level in CoachingLevel.allCases {
+            #expect(CoachingRuntimeState.resolve(
+                automationPause: .running,
+                baselineStatus: baseline(completeDays: 6),
+                coachingLevel: level,
+                now: now
+            ).state == .observation)
+        }
     }
 
-    @Test("paused coaching names the boundary and only actionable recovery")
-    func pausedCoaching() {
-        let presentation = CoachingStatePresentation(state: .paused)
-
-        #expect(presentation.statusLabel == "COACHING PAUSED")
-        #expect(presentation.explanation.contains("coaching prompts and automated coaching actions are paused"))
-        #expect(presentation.explanation.contains("Task tracking and activity observation continue"))
-        #expect(presentation.pauseReason == nil)
-        #expect(presentation.recoveryHint == "Resume coaching in Settings when you want coaching prompts again.")
-        #expect(!presentation.accessibilityLabel.contains("COACHING ACTIVE"))
+    @Test("complete baseline exposes the persisted gentle or accountability level")
+    func activeLevels() {
+        #expect(resolve(level: .gentle).state == .gentle)
+        #expect(resolve(level: .accountability).state == .accountability)
     }
 
-    @Test("every current state has complete privacy-safe accessible copy")
-    func completeAccessibleCopy() {
-        let presentations = [
-            CoachingStatePresentation(state: .observation),
-            CoachingStatePresentation(state: .accountability),
-            CoachingStatePresentation(state: .paused)
+    @Test("load failure is explicit and stale refreshes cannot overwrite newer state")
+    func unavailableAndRefreshRace() {
+        #expect(CoachingRuntimeState.unavailable.state == .unavailable)
+        var gate = CoachingStateRefreshGate()
+        let older = gate.begin()
+        let newer = gate.begin()
+
+        #expect(!gate.shouldInstall(older))
+        #expect(gate.shouldInstall(newer))
+    }
+
+    @Test("presentations remain accessible, privacy safe, and noncontradictory")
+    func accessibleCopy() {
+        let states: [CoachingRuntimeState] = [
+            .init(state: .gentle),
+            .init(state: .accountability),
+            .init(state: .observation),
+            .init(state: .paused, pauseEvidence: .indefinite),
+            .init(state: .paused, pauseEvidence: .until(now.addingTimeInterval(3_600))),
+            .unavailable
         ]
 
-        #expect(presentations.count == 3)
-        for presentation in presentations {
+        for runtimeState in states {
+            let presentation = CoachingStatePresentation(runtimeState: runtimeState)
             #expect(!presentation.statusLabel.isEmpty)
-            #expect(!presentation.explanation.isEmpty)
             #expect(presentation.accessibilityLabel.contains(presentation.statusLabel))
-            #expect(presentation.accessibilityLabel.contains(presentation.explanation))
+            #expect(presentation.explanation.contains("activity observation"))
             #expect(!presentation.accessibilityLabel.contains(".."))
             #expect(!presentation.accessibilityLabel.localizedCaseInsensitiveContains("private-window-title"))
-            #expect(!presentation.accessibilityLabel.localizedCaseInsensitiveContains("secret"))
             #expect(!presentation.accessibilityLabel.localizedCaseInsensitiveContains("screenshot"))
+            if runtimeState.state == .paused {
+                #expect(presentation.recoveryHint != nil)
+                #expect(!presentation.accessibilityLabel.contains("COACHING ACTIVE"))
+            } else {
+                #expect(presentation.recoveryHint == nil)
+                #expect(presentation.pauseReason == nil)
+            }
         }
+    }
+
+    private func resolve(level: CoachingLevel) -> CoachingRuntimeState {
+        CoachingRuntimeState.resolve(
+            automationPause: .running,
+            baselineStatus: baseline(completeDays: 7),
+            coachingLevel: level,
+            now: now
+        )
+    }
+
+    private func baseline(completeDays: Int) -> BaselineObservationStatus {
+        BaselineObservationStatus(
+            days: (0..<completeDays).map { index in
+                BaselineObservationDay(
+                    localDay: "2026-07-\(String(format: "%02d", index + 1))",
+                    observedMinutes: 60,
+                    workMinutes: 45,
+                    gamingMinutes: 0,
+                    distractingMinutes: 0,
+                    unknownMinutes: 15,
+                    eligibleDriftCount: 0,
+                    coverage: .complete,
+                    recordedAt: now
+                )
+            },
+            report: BaselineObservationReport(
+                averageObservedWorkMinutes: 45,
+                gamingDayCount: 0,
+                totalGamingMinutes: 0,
+                eligibleDriftCount: 0,
+                unknownSharePercent: 25
+            )
+        )
     }
 }

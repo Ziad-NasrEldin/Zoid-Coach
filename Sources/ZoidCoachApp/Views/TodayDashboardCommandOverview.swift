@@ -439,7 +439,7 @@ struct TodayDashboardCommandOverview: View {
     }
 
     private var coachingPresentation: CoachingStatePresentation {
-        CoachingStatePresentation(state: model.coachingState)
+        CoachingStatePresentation(runtimeState: model.coachingRuntimeState)
     }
 
     private func scheduleUsageDismissal() {
