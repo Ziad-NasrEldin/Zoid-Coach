@@ -7,7 +7,9 @@ It also verifies that the warning disappears when Screenwatch coverage becomes c
 
 The canonical base is `7ac4ea0b6cb12062fc77ff6e7588cd7a3a78ab0b`.
 The product commit is `a492acbae5641bbe41bfcdad93b8e7fb37612bdf`.
-The tooling and signed candidate commits are bound by `Scripts/qa-zc049002-signed-preflight.sh` after the lineage commit is created.
+The tooling commit is `49b480214184988886de207460299f18212d3e61`.
+The signed candidate commit is the direct child that adds only the preflight and this immutable lineage update.
+`Scripts/qa-zc049002-signed-preflight.sh` rejects any other lineage or file scope.
 
 ## Local gates
 
