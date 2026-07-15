@@ -95,20 +95,22 @@ struct CustomEstimateInputField: NSViewRepresentable {
         Coordinator(parent: self)
     }
 
-    func makeNSView(context: Context) -> CustomEstimateTextView {
-        let field = CustomEstimateTextView()
-        field.string = text
+    func makeNSView(context: Context) -> CustomEstimateTextField {
+        let field = CustomEstimateTextField(string: text)
+        field.placeholderString = "Minutes"
+        field.isBordered = true
+        field.isBezeled = true
+        field.bezelStyle = .roundedBezel
         field.delegate = context.coordinator
         field.onReturn = context.coordinator.submit
         return field
     }
 
-    func updateNSView(_ field: CustomEstimateTextView, context: Context) {
+    func updateNSView(_ field: CustomEstimateTextField, context: Context) {
         context.coordinator.parent = self
         field.onReturn = context.coordinator.submit
-        if field.string != text {
-            field.string = text
-            field.needsDisplay = true
+        if field.stringValue != text {
+            field.stringValue = text
         }
         guard context.coordinator.lastFocusRequest != focusRequest else { return }
         context.coordinator.lastFocusRequest = focusRequest
@@ -119,8 +121,12 @@ struct CustomEstimateInputField: NSViewRepresentable {
         }
     }
 
+    static func dismantleNSView(_ field: CustomEstimateTextField, coordinator: Coordinator) {
+        field.removeKeyMonitor()
+    }
+
     @MainActor
-    final class Coordinator: NSObject, NSTextViewDelegate {
+    final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: CustomEstimateInputField
         var lastFocusRequest = -1
 
@@ -128,9 +134,9 @@ struct CustomEstimateInputField: NSViewRepresentable {
             self.parent = parent
         }
 
-        func textDidChange(_ notification: Notification) {
-            guard let field = notification.object as? NSTextView else { return }
-            parent.text = field.string
+        func controlTextDidChange(_ notification: Notification) {
+            guard let field = notification.object as? NSTextField else { return }
+            parent.text = field.stringValue
         }
 
         func submit(_ exactText: String) {
@@ -140,80 +146,64 @@ struct CustomEstimateInputField: NSViewRepresentable {
     }
 }
 
-final class CustomEstimateTextView: NSTextView {
+final class CustomEstimateTextField: NSTextField {
     var onReturn: ((String) -> Void)?
+    var onMonitorRemoved: (() -> Void)?
+    private var keyMonitor: Any?
+    private(set) var keyMonitorInstallCount = 0
+    var hasInstalledKeyMonitor: Bool { keyMonitor != nil }
 
-    override init(frame frameRect: NSRect, textContainer container: NSTextContainer?) {
-        super.init(frame: frameRect, textContainer: container)
-        configure()
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            removeKeyMonitor()
+        } else {
+            installKeyMonitorIfNeeded()
+        }
     }
 
-    convenience init() {
-        let storage = NSTextStorage()
-        let layoutManager = NSLayoutManager()
-        let container = NSTextContainer(size: NSSize(width: 78, height: 22))
-        storage.addLayoutManager(layoutManager)
-        layoutManager.addTextContainer(container)
-        self.init(frame: .zero, textContainer: container)
+    func installKeyMonitorIfNeeded() {
+        guard keyMonitor == nil else { return }
+        keyMonitorInstallCount += 1
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            return self.filteredEvent(
+                event,
+                editor: self.currentEditor(),
+                firstResponder: self.window?.firstResponder
+            )
+        }
     }
 
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: 22)
-    }
-
-    override func keyDown(with event: NSEvent) {
-        if handleReturn(event) { return }
-        super.keyDown(with: event)
+    func filteredEvent(
+        _ event: NSEvent,
+        editor: NSText?,
+        firstResponder: NSResponder?
+    ) -> NSEvent? {
+        guard let editor, firstResponder === editor else { return event }
+        return handleReturn(event, exactText: editor.string) ? nil : event
     }
 
     @discardableResult
-    func handleReturn(_ event: NSEvent) -> Bool {
+    func handleReturn(_ event: NSEvent, exactText: String) -> Bool {
         guard event.keyCode == 36 || event.keyCode == 76 else { return false }
-        onReturn?(string)
+        onReturn?(exactText)
         return true
     }
 
-    override func didChangeText() {
-        super.didChangeText()
-        needsDisplay = true
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        guard string.isEmpty else { return }
-        ("Minutes" as NSString).draw(
-            at: NSPoint(x: 5, y: 3),
-            withAttributes: [
-                .font: font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
-                .foregroundColor: NSColor.placeholderTextColor,
-            ]
-        )
+    isolated deinit {
+        removeKeyMonitor()
     }
 
     override func accessibilityRole() -> NSAccessibility.Role? {
         .textField
     }
 
-    private func configure() {
-        isRichText = false
-        importsGraphics = false
-        isHorizontallyResizable = false
-        isVerticallyResizable = false
-        drawsBackground = true
-        backgroundColor = .textBackgroundColor
-        font = .systemFont(ofSize: NSFont.systemFontSize)
-        textContainerInset = NSSize(width: 4, height: 2)
-        textContainer?.maximumNumberOfLines = 1
-        textContainer?.lineBreakMode = .byTruncatingTail
-        focusRingType = .exterior
-        wantsLayer = true
-        layer?.cornerRadius = 5
-        layer?.borderWidth = 1
-        layer?.borderColor = NSColor.separatorColor.cgColor
+    func removeKeyMonitor() {
+        if let keyMonitor {
+            NSEvent.removeMonitor(keyMonitor)
+            self.keyMonitor = nil
+            onMonitorRemoved?()
+        }
     }
 }

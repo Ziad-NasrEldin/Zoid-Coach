@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Testing
 @testable import ZoidCoachApp
 
@@ -82,15 +83,17 @@ struct CustomEstimateEditorStateTests {
         let box = InteractionBox()
         box.state.open(initialMinutes: nil)
         let initialFocusRequest = box.state.focusRequest
-        let field = CustomEstimateTextView()
-        field.string = "\u{00A0}\u{2003}"
+        let field = CustomEstimateTextField(string: "\u{00A0}\u{2003}")
         field.onReturn = { exactText in
             box.returnCallbackCount += 1
             box.state.input = exactText
             _ = box.state.submit { box.persisted.append($0) }
         }
 
-        let handled = field.handleReturn(keyEvent(keyCode: keyCode))
+        let handled = field.handleReturn(
+            keyEvent(keyCode: keyCode),
+            exactText: field.stringValue
+        )
 
         #expect(handled)
         #expect(field.accessibilityRole() == .textField)
@@ -107,8 +110,7 @@ struct CustomEstimateEditorStateTests {
     func rapidPhysicalReturnPersistsPaddedValidInputExactlyOnce() {
         let box = InteractionBox()
         box.state.open(initialMinutes: nil)
-        let field = CustomEstimateTextView()
-        field.string = " 25 "
+        let field = CustomEstimateTextField(string: " 25 ")
         field.onReturn = { exactText in
             box.returnCallbackCount += 1
             box.state.input = exactText
@@ -116,8 +118,8 @@ struct CustomEstimateEditorStateTests {
         }
 
         let returnEvent = keyEvent(keyCode: 36)
-        let firstHandled = field.handleReturn(returnEvent)
-        let secondHandled = field.handleReturn(returnEvent)
+        let firstHandled = field.handleReturn(returnEvent, exactText: field.stringValue)
+        let secondHandled = field.handleReturn(returnEvent, exactText: field.stringValue)
 
         #expect(firstHandled)
         #expect(secondHandled)
@@ -134,11 +136,13 @@ struct CustomEstimateEditorStateTests {
         let box = InteractionBox()
         box.state.open(initialMinutes: nil)
         let initialFocusRequest = box.state.focusRequest
-        let field = CustomEstimateTextView()
-        field.string = "25"
+        let field = CustomEstimateTextField(string: "25")
         field.onReturn = { _ in box.returnCallbackCount += 1 }
 
-        let handled = field.handleReturn(keyEvent(keyCode: keyCode))
+        let handled = field.handleReturn(
+            keyEvent(keyCode: keyCode),
+            exactText: field.stringValue
+        )
 
         #expect(!handled)
         #expect(box.returnCallbackCount == 0)
@@ -147,6 +151,81 @@ struct CustomEstimateEditorStateTests {
         #expect(box.state.validationMessage == nil)
         #expect(box.state.focusRequest == initialFocusRequest)
         #expect(box.persisted.isEmpty)
+    }
+
+    @MainActor
+    @Test
+    func monitorInstallsOnceAndInterceptsOnlyItsExactCurrentEditor() {
+        let box = InteractionBox()
+        let field = CustomEstimateTextField(string: "")
+        let editor = NSTextView()
+        editor.string = " 25 "
+        let otherResponder = NSTextView()
+        field.onReturn = { exactText in
+            box.returnCallbackCount += 1
+            box.state.input = exactText
+        }
+        field.installKeyMonitorIfNeeded()
+        field.installKeyMonitorIfNeeded()
+        defer { field.removeKeyMonitor() }
+
+        let returnEvent = keyEvent(keyCode: 36)
+        let passedThrough = field.filteredEvent(
+            returnEvent,
+            editor: editor,
+            firstResponder: otherResponder
+        )
+        let consumed = field.filteredEvent(
+            returnEvent,
+            editor: editor,
+            firstResponder: editor
+        )
+
+        #expect(field.hasInstalledKeyMonitor)
+        #expect(field.keyMonitorInstallCount == 1)
+        #expect(passedThrough === returnEvent)
+        #expect(consumed == nil)
+        #expect(box.returnCallbackCount == 1)
+        #expect(box.state.input == " 25 ")
+    }
+
+    @MainActor
+    @Test
+    func dismantleAndDeinitRemoveOwnedKeyMonitors() {
+        let box = InteractionBox()
+        box.state.open(initialMinutes: nil)
+        let input = CustomEstimateInputField(
+            text: Binding(
+                get: { box.state.input },
+                set: { box.state.input = $0 }
+            ),
+            focusRequest: box.state.focusRequest,
+            submit: {}
+        )
+        let coordinator = input.makeCoordinator()
+        let dismantledField = CustomEstimateTextField(string: "")
+        dismantledField.onMonitorRemoved = { box.monitorRemovalCount += 1 }
+        dismantledField.installKeyMonitorIfNeeded()
+
+        CustomEstimateInputField.dismantleNSView(
+            dismantledField,
+            coordinator: coordinator
+        )
+
+        #expect(!dismantledField.hasInstalledKeyMonitor)
+        #expect(box.monitorRemovalCount == 1)
+
+        weak var releasedField: CustomEstimateTextField?
+        autoreleasepool {
+            var field: CustomEstimateTextField? = CustomEstimateTextField(string: "")
+            field?.onMonitorRemoved = { box.monitorRemovalCount += 1 }
+            field?.installKeyMonitorIfNeeded()
+            releasedField = field
+            field = nil
+        }
+
+        #expect(releasedField == nil)
+        #expect(box.monitorRemovalCount == 2)
     }
 
     @Test
@@ -164,6 +243,7 @@ struct CustomEstimateEditorStateTests {
         var state = CustomEstimateEditorState()
         var persisted: [Int] = []
         var returnCallbackCount = 0
+        var monitorRemovalCount = 0
     }
 
     @MainActor
