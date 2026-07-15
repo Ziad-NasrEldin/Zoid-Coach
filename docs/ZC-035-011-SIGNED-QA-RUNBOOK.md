@@ -4,6 +4,8 @@ This runbook proves that unresolved gaming-drift coaching is fully usable, fresh
 Every phase runs against one exact installed signed Zoid 666 candidate and one isolated app/helper database.
 The fixture uses production policy, plan, behavior, baseline, and prompt schemas.
 It never injects a Today snapshot or fabricates a rendered SwiftUI state.
+The candidate replays the reviewed product and tooling patches onto canonical base `b97c2ce3177ccf89f60225c475062608db1920ad` through replayed lineage tip `a75f52b31ca0a7b65651d770b1dc6b3826fbb77c`, followed by one lineage-only commit.
+The preflight binds both exact parents, the reviewed seven-file scope, and the two original stable patch IDs.
 
 ## Bind the exact candidate
 
@@ -28,6 +30,8 @@ INSTALLER="$REPOSITORY/Scripts/install-signed-qa-runtime.sh"
 UNINSTALLER="$REPOSITORY/Scripts/uninstall-signed-qa-runtime.sh"
 test "$(git rev-parse HEAD)" = "$EXPECTED_SIGNED_COMMIT"
 test -z "$(git status --porcelain=v1 --untracked-files=all)"
+git merge-base --is-ancestor b97c2ce3177ccf89f60225c475062608db1920ad "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor a75f52b31ca0a7b65651d770b1dc6b3826fbb77c "$EXPECTED_SIGNED_COMMIT"
 mkdir -p "$EVIDENCE_ROOT"
 exec > >(tee -a "$EVIDENCE_ROOT/runbook.log") 2>&1
 "$FIXTURE" self-test
