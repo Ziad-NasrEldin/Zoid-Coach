@@ -1,7 +1,7 @@
 # ZC-024-004 signed QA runbook
 
 This runbook verifies that the installed signed app refreshes visible Today behavior and source freshness without closing the main window.
-The product candidate is `7602dc644d0cc1df39df6939519d258fb6523ab7`.
+The current-base product candidate is `7d732102fda7322301aec2446e79b659307be02d`, reassembled from reviewed product commit `7602dc644d0cc1df39df6939519d258fb6523ab7` on canonical base `8b1782c6ee2c213a408360554f19bf231b0f3e19`.
 The signed commit may be this candidate or a reviewed descendant containing the namespaced verifier tooling.
 
 The fixture owns only current-day `behavior_records` whose window title starts with `qa-zc024004-private-` inside one bounded epoch range.
@@ -20,7 +20,7 @@ PROBE="$PWD/Scripts/qa-zc024004-live-refresh-ax-probe.swift"
 "$FIXTURE" self-test
 swift "$PROBE" --self-test
 swiftc -typecheck "$PROBE"
-git diff --check 7602dc644d0cc1df39df6939519d258fb6523ab7
+git diff --check 8b1782c6ee2c213a408360554f19bf231b0f3e19
 ```
 
 Do not put build transcripts, screenshots, AX snapshots, temporary databases, or package staging under the repository.
@@ -48,7 +48,7 @@ INFO_PLIST="$APP/Contents/Info.plist"
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$INFO_PLIST")"
 APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
 test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
-git merge-base --is-ancestor 7602dc644d0cc1df39df6939519d258fb6523ab7 "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor 7d732102fda7322301aec2446e79b659307be02d "$EXPECTED_SIGNED_COMMIT"
 ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh \
   "$APP" --expected-commit "$EXPECTED_SIGNED_COMMIT" --require-clean
 test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$INFO_PLIST")" = "$QA_ROOT"
