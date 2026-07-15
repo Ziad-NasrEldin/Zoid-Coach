@@ -1,7 +1,9 @@
 # ZC-052-002 signed QA runbook
 
 This runbook proves that Local System Diagnostics tells the user exactly which actions are available, read-only, or temporarily unavailable when local storage changes state.
-The reviewed candidate is bound directly to canonical base `361093b4a088c19eee927eaab2b58a40fb3b4c27`.
+The reviewed candidate is bound directly to canonical base `b97c2ce3177ccf89f60225c475062608db1920ad`.
+It preserves replayed product commit `4d33d5a3888e18ba0fd8231c5879ffe63fe8c12f` with original patch ID `eea4bee3990884b7c018b1f53a230d904e7a0f75` and replayed tooling commit `6d284a045f67728748a6f94450e0202c01b314b4` with original patch ID `6c74d693ad887ef854847fb87aa5df89a96756cf`.
+The final commit changes only immutable lineage bindings in the preflight, static verifier, and this runbook.
 Every phase uses one exact installed signed Zoid 666 candidate and one isolated QA root.
 The helper remains unregistered while the fixture replaces the isolated database path.
 The fixture captures and later restores the exact original database, WAL, and SHM presence and bytes.

@@ -2,8 +2,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
-PRODUCT_CANDIDATE="0dce73882fbbca08aab8f39038205a47cb856cf2"
+BASE="b97c2ce3177ccf89f60225c475062608db1920ad"
+PRODUCT_CANDIDATE="4d33d5a3888e18ba0fd8231c5879ffe63fe8c12f"
+TOOLING_CANDIDATE="6d284a045f67728748a6f94450e0202c01b314b4"
+PRODUCT_PATCH_ID="eea4bee3990884b7c018b1f53a230d904e7a0f75"
+TOOLING_PATCH_ID="6c74d693ad887ef854847fb87aa5df89a96756cf"
 
 OWNED_PATHS=(
   "Scripts/fixtures/zc-052-002-local-database-actions.json"
@@ -33,9 +36,11 @@ assert_contains() {
 }
 
 verify_scope() {
-  local expected actual tooling
-  [[ "$(git -C "$ROOT" rev-parse "HEAD^")" == "$PRODUCT_CANDIDATE" ]] \
-    || fail "tooling tip must descend directly from the reviewed product candidate"
+  local expected actual tooling lineage
+  [[ "$(git -C "$ROOT" rev-parse "HEAD^")" == "$TOOLING_CANDIDATE" ]] \
+    || fail "lineage tip must descend directly from the reviewed tooling candidate"
+  [[ "$(git -C "$ROOT" rev-parse "$TOOLING_CANDIDATE^")" == "$PRODUCT_CANDIDATE" ]] \
+    || fail "tooling candidate must descend directly from the reviewed product candidate"
   [[ "$(git -C "$ROOT" rev-parse "$PRODUCT_CANDIDATE^")" == "$BASE" ]] \
     || fail "reviewed product candidate must descend directly from canonical base"
   [[ -z "$(git -C "$ROOT" rev-list --min-parents=2 "$BASE..HEAD")" ]] \
@@ -43,7 +48,7 @@ verify_scope() {
   expected="$(printf '%s\n' "${OWNED_PATHS[@]}" | normalized_lines)"
   actual="$(git -C "$ROOT" diff --name-only "$BASE..HEAD" | normalized_lines)"
   [[ "$actual" == "$expected" ]] || fail "candidate differs from the exact nine-file owned scope"
-  tooling="$(git -C "$ROOT" diff-tree --no-commit-id --name-only -r HEAD | normalized_lines)"
+  tooling="$(git -C "$ROOT" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE" | normalized_lines)"
   [[ "$tooling" == "$(printf '%s\n' \
     Scripts/fixtures/zc-052-002-local-database-actions.json \
     Scripts/qa-zc052002-local-database-actions-ax-probe.swift \
@@ -52,6 +57,18 @@ verify_scope() {
     Scripts/verify-zc-052-002-local-database-actions-static.sh \
     docs/ZC-052-002-SIGNED-QA-RUNBOOK.md | normalized_lines)" ]] \
     || fail "tooling commit contains product or unrelated files"
+  lineage="$(git -C "$ROOT" diff-tree --no-commit-id --name-only -r HEAD | normalized_lines)"
+  [[ "$lineage" == "$(printf '%s\n' \
+    Scripts/qa-zc052002-signed-preflight.sh \
+    Scripts/verify-zc-052-002-local-database-actions-static.sh \
+    docs/ZC-052-002-SIGNED-QA-RUNBOOK.md | normalized_lines)" ]] \
+    || fail "lineage commit contains files outside immutable bindings"
+  [[ "$(git -C "$ROOT" rev-list --count "$BASE..HEAD")" == 3 ]] \
+    || fail "candidate contains an unexpected commit count"
+  [[ "$(git -C "$ROOT" show "$PRODUCT_CANDIDATE" | git patch-id --stable | awk '{print $1}')" == "$PRODUCT_PATCH_ID" ]] \
+    || fail "product patch identity drifted"
+  [[ "$(git -C "$ROOT" show "$TOOLING_CANDIDATE" | git patch-id --stable | awk '{print $1}')" == "$TOOLING_PATCH_ID" ]] \
+    || fail "tooling patch identity drifted"
   [[ -z "$(git -C "$ROOT" status --porcelain=v1 --untracked-files=all)" ]] \
     || fail "candidate worktree is not clean"
 }
