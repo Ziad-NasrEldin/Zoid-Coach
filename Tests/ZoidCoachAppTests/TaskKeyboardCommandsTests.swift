@@ -4,6 +4,15 @@ import Testing
 import ZoidCoachCore
 
 @Test
+func keyboardLifecycleShortcutsAreStableAndConflictFree() {
+    #expect(TaskKeyboardShortcut.start.rawValue == "s")
+    #expect(TaskKeyboardShortcut.pauseOrResume.rawValue == "p")
+    #expect(TaskKeyboardShortcut.switchTask.rawValue == "k")
+    #expect(TaskKeyboardShortcut.complete.rawValue == "return")
+    #expect(Set(TaskKeyboardShortcut.allCases.map(\.rawValue)).count == TaskKeyboardShortcut.allCases.count)
+}
+
+@Test
 func keyboardStartUsesOnlyTheExplicitReadyRecommendation() {
     let snapshot = keyboardSnapshot(
         rows: [
@@ -31,7 +40,7 @@ func keyboardStartUsesOnlyTheExplicitReadyRecommendation() {
 }
 
 @Test
-func keyboardStartNeverBypassesAnActiveTaskSwitchConfirmation() {
+func keyboardSwitchIsAnExplicitActionThatPreservesTheGenericStartGuard() {
     let snapshot = keyboardSnapshot(
         rows: [
             keyboardTask(id: "active", title: "Current work", state: .active),
@@ -47,6 +56,16 @@ func keyboardStartNeverBypassesAnActiveTaskSwitchConfirmation() {
     #expect(state.lifecycleAction == .pause(taskID: "active", title: "Current work"))
     #expect(state.lifecycleAction?.command == .pauseDoneForNow)
     #expect(state.lifecycleLabel == "Pause Current Task: Current work")
+    #expect(state.switchAction == .switchTask(
+        taskID: "recommended",
+        title: "Next work",
+        fromTitle: "Current work"
+    ))
+    #expect(state.switchAction?.command == .start)
+    #expect(state.switchLabel == "Switch from Current work to Next work and Preserve Time")
+    #expect(state.completeAction == .complete(taskID: "active", title: "Current work"))
+    #expect(state.completeAction?.command == .complete)
+    #expect(state.completeLabel == "Complete Task: Current work")
 }
 
 @Test
@@ -65,6 +84,8 @@ func keyboardResumeRequiresOneUnambiguousOrdinaryPausedTask() {
     #expect(state.lifecycleAction == .resume(taskID: "paused", title: "Review budget"))
     #expect(state.lifecycleAction?.command == .resume)
     #expect(state.lifecycleLabel == "Resume Paused Task: Review budget")
+    #expect(state.completeAction == .complete(taskID: "paused", title: "Review budget"))
+    #expect(state.completeAction?.command == .complete)
 
     let ended = keyboardTask(
         id: "ended",
@@ -88,6 +109,10 @@ func keyboardResumeRequiresOneUnambiguousOrdinaryPausedTask() {
         snapshot: keyboardSnapshot(rows: [paused, keyboardTask(id: "second", title: "Second", state: .paused)]),
         commandIsPending: false
     ).lifecycleAction == nil)
+    #expect(TaskKeyboardCommandState(
+        snapshot: keyboardSnapshot(rows: [paused, keyboardTask(id: "second", title: "Second", state: .paused)]),
+        commandIsPending: false
+    ).completeAction == nil)
 }
 
 @Test
@@ -101,12 +126,61 @@ func keyboardCommandsDisableTogetherDuringAnyTaskMutation() {
 
     #expect(pending.startAction == nil)
     #expect(pending.lifecycleAction == nil)
+    #expect(pending.switchAction == nil)
+    #expect(pending.completeAction == nil)
     #expect(TaskKeyboardCommandState(snapshot: nil, commandIsPending: false) == pending)
     #expect(TaskKeyboardCommandState(
         snapshot: snapshot,
         commandIsPending: false,
         commandsAreAvailable: false
     ) == pending)
+}
+
+@Test
+func keyboardSwitchRequiresAnActiveTaskAndExactReadyRecommendation() {
+    let active = keyboardTask(id: "active", title: "Current", state: .active)
+    let ready = keyboardTask(id: "ready", title: "Next", state: .ready)
+
+    let noActive = TaskKeyboardCommandState(
+        snapshot: keyboardSnapshot(
+            rows: [ready],
+            recommendation: .init(taskID: "ready", sentence: "Start Next", reasons: [])
+        ),
+        commandIsPending: false
+    )
+    #expect(noActive.switchAction == nil)
+
+    let missingRecommendation = TaskKeyboardCommandState(
+        snapshot: keyboardSnapshot(
+            rows: [active, ready],
+            activeTask: .init(taskID: "active", startedAt: nil, elapsedMinutes: 4),
+            recommendation: .init(taskID: "missing", sentence: "Unavailable", reasons: [])
+        ),
+        commandIsPending: false
+    )
+    #expect(missingRecommendation.switchAction == nil)
+    #expect(missingRecommendation.switchLabel == "Switch to Recommended Task")
+}
+
+@Test
+func keyboardCompleteRequiresOneCurrentActiveOrOrdinaryPausedTask() {
+    let empty = TaskKeyboardCommandState(
+        snapshot: keyboardSnapshot(rows: []),
+        commandIsPending: false
+    )
+    #expect(empty.completeAction == nil)
+    #expect(empty.completeLabel == "Complete Current Task")
+
+    let ended = keyboardTask(
+        id: "ended",
+        title: "Ended task",
+        state: .paused,
+        pauseReason: .endingWorkday
+    )
+    #expect(TaskKeyboardCommandState(
+        snapshot: keyboardSnapshot(rows: [ended]),
+        commandIsPending: false
+    ).completeAction == nil)
 }
 
 private func keyboardTask(
