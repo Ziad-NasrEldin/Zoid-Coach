@@ -26,6 +26,20 @@ assert_runbook() {
         checking { if ($0 != "set -euo pipefail") exit 1; checking = 0 }
         END { if (checking) exit 1 }
     ' "$runbook" || fail "every runbook shell block must fail fast"
+    /usr/bin/grep -Fq 'BOOTSTRAP_READY=0' "$runbook" \
+        || fail "runbook bounded bootstrap readiness gate is missing"
+    /usr/bin/grep -Fq "name IN ('settings','processing_checkpoints','prompt_episodes','policy_versions')" "$runbook" \
+        || fail "runbook required-schema gate is missing"
+    /usr/bin/grep -Fq 'BEGIN IMMEDIATE; UPDATE settings SET updated_at_utc=updated_at_utc WHERE 0; ROLLBACK;' "$runbook" \
+        || fail "runbook write-transaction gate is missing"
+    /usr/bin/grep -Fq 'PRAGMA wal_checkpoint(PASSIVE);' "$runbook" \
+        || fail "runbook quiescent-checkpoint gate is missing"
+    /usr/bin/awk '
+        /"\$APP_EXECUTABLE" --qa-register-agent/ && !registered { registered = NR }
+        /"\$APP_EXECUTABLE" --qa-unregister-agent/ && registered && !unregistered { unregistered = NR }
+        /fixture_output=.*"\$FIXTURE" configure/ { configured = NR }
+        END { exit !(registered && unregistered && configured && registered < unregistered && unregistered < configured) }
+    ' "$runbook" || fail "helper bootstrap must finish before fixture mutation"
 }
 
 if [[ "$APP" == "--self-test" ]]; then
