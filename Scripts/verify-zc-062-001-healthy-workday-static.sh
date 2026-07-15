@@ -2,7 +2,7 @@
 set -euo pipefail
 
 readonly ROOT="${0:A:h:h}"
-readonly PARENT="0c6e749bdbafc732779ff1bd85a2829b8ea248e1"
+readonly PARENT="762c2c9dfcd59a27fd9e272993e2c3c556c9d6df"
 readonly EXPECTED_PATHS=(
     Tests/ZoidCoachAppTests/ZC062001HealthyWorkdayJourneyTests.swift
     Scripts/qa-zc062001-healthy-workday-fixture.sh

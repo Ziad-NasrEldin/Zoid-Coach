@@ -1,7 +1,7 @@
 # ZC-062-001 signed QA runbook
 
 This runbook proves one durable approved planned day with Reminders, fresh Screenwatch ingestion, a fresh agent heartbeat, and a healthy canonical database in the same signed user-visible state.
-The signed candidate must be a direct child of `0c6e749bdbafc732779ff1bd85a2829b8ea248e1` and contain exactly the six proof-tooling paths enforced by the static verifier.
+The signed candidate must be a binding child of the ZC-062-001 replay on `762c2c9dfcd59a27fd9e272993e2c3c556c9d6df` and contain exactly the six proof-tooling paths enforced by the static verifier.
 The same state must survive one bounded installed-helper refresh and an ordinary foreground app relaunch.
 Stop on the first failed assertion.
 

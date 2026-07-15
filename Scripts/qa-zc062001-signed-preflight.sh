@@ -3,7 +3,7 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly STACKED_PARENT="0c6e749bdbafc732779ff1bd85a2829b8ea248e1"
+readonly STACKED_PARENT="762c2c9dfcd59a27fd9e272993e2c3c556c9d6df"
 readonly RUNBOOK="$REPOSITORY/docs/ZC-062-001-SIGNED-QA-RUNBOOK.md"
 readonly EXPECTED_PATHS=(
     Tests/ZoidCoachAppTests/ZC062001HealthyWorkdayJourneyTests.swift
@@ -31,8 +31,8 @@ assert_runbook_shell_blocks_fail_fast() {
 assert_candidate() {
     local candidate="$1" expected actual
     git -C "$REPOSITORY" cat-file -e "$candidate^{commit}" || fail "candidate is unavailable"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$candidate^")" == "$STACKED_PARENT" ]] \
-        || fail "candidate is not a direct child of $STACKED_PARENT"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$candidate^^")" == "$STACKED_PARENT" ]] \
+        || fail "candidate must be a binding child of the ZC-062-001 replay on $STACKED_PARENT"
     expected="$(printf '%s\n' "${EXPECTED_PATHS[@]}" | normalized_lines)"
     actual="$(git -C "$REPOSITORY" diff --name-only "$STACKED_PARENT" "$candidate" -- | normalized_lines)"
     [[ "$actual" == "$expected" ]] || fail "candidate differs from the exact six-file scope"
