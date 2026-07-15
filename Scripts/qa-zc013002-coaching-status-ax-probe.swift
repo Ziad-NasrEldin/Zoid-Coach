@@ -35,7 +35,8 @@ struct PhaseContract {
         for value in required where !text.localizedCaseInsensitiveContains(value) {
             throw ProbeError.failure("missing required accessible copy: \(value)")
         }
-        for value in forbidden where text.localizedCaseInsensitiveContains(value) {
+        let privacyForbidden = ["/private/tmp/", "zoid-coach.sqlite", "https://", "private fixture", "Safari", "Steam"]
+        for value in forbidden + privacyForbidden where text.localizedCaseInsensitiveContains(value) {
             throw ProbeError.failure("forbidden or private copy is accessible: \(value)")
         }
     }
@@ -62,6 +63,26 @@ func findCard(_ element: AXUIElement, depth: Int = 0) -> AXUIElement? {
     return nil
 }
 
+func waitForCard(_ application: AXUIElement, timeout: TimeInterval = 10) -> AXUIElement? {
+    let deadline = Date().addingTimeInterval(timeout)
+    repeat {
+        if let card = findCard(application) { return card }
+        Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    return nil
+}
+
+func containsIdentifier(_ expected: String, in element: AXUIElement, depth: Int = 0) -> Bool {
+    guard depth < 40 else { return false }
+    if stringAttribute(element, "AXIdentifier" as CFString) == expected { return true }
+    return children(element).contains { containsIdentifier(expected, in: $0, depth: depth + 1) }
+}
+
+func readyBoundary(cardExists: Bool, onboardingRootExists: Bool) throws {
+    guard cardExists else { throw ProbeError.failure("Today coaching status card is unavailable") }
+    guard !onboardingRootExists else { throw ProbeError.failure("setup UI remained accessible before the first state") }
+}
+
 func accessibleText(_ element: AXUIElement) -> String {
     [kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute, kAXHelpAttribute]
         .compactMap { stringAttribute(element, $0 as CFString) }
@@ -78,6 +99,12 @@ func selfTest() throws {
         } catch let error as ProbeError where error.description.contains("forbidden") {
         }
     }
+    try readyBoundary(cardExists: true, onboardingRootExists: false)
+    do {
+        try readyBoundary(cardExists: true, onboardingRootExists: true)
+        throw ProbeError.failure("setup UI was accepted as ready")
+    } catch let error as ProbeError where error.description.contains("setup UI") {
+    }
     print("PASS: ZC-013-002 AX state, copy, recovery, contradiction, and privacy self-test")
 }
 
@@ -88,13 +115,24 @@ do {
         exit(0)
     }
     guard let pidIndex = arguments.firstIndex(of: "--pid"), pidIndex + 1 < arguments.count,
-          let pid = pid_t(arguments[pidIndex + 1]),
-          let phaseIndex = arguments.firstIndex(of: "--phase"), phaseIndex + 1 < arguments.count else {
-        throw ProbeError.failure("usage: --pid PID --phase PHASE")
+          let pid = pid_t(arguments[pidIndex + 1]) else {
+        throw ProbeError.failure("usage: --pid PID <--phase PHASE|--ready>")
+    }
+    let application = AXUIElementCreateApplication(pid)
+    guard let card = waitForCard(application) else { throw ProbeError.failure("Today coaching status card is unavailable") }
+    if arguments.contains("--ready") {
+        try readyBoundary(
+            cardExists: true,
+            onboardingRootExists: containsIdentifier("onboarding.root", in: application)
+        )
+        try PhaseContract.named("observation").validate(accessibleText(card))
+        print("PASS: ZC-013-002 ready state exposes Today, excludes setup UI, and starts observation-only")
+        exit(0)
+    }
+    guard let phaseIndex = arguments.firstIndex(of: "--phase"), phaseIndex + 1 < arguments.count else {
+        throw ProbeError.failure("usage: --pid PID <--phase PHASE|--ready>")
     }
     let contract = try PhaseContract.named(arguments[phaseIndex + 1])
-    let application = AXUIElementCreateApplication(pid)
-    guard let card = findCard(application) else { throw ProbeError.failure("Today coaching status card is unavailable") }
     let text = accessibleText(card)
     try contract.validate(text)
     print("PASS: ZC-013-002 accessible Today coaching card matches \(arguments[phaseIndex + 1])")
