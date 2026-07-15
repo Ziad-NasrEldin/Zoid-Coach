@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "9126e43c73beb5515c0dc100b3c86488ae2cb5bf95bcb94f1ab168f79f80c9bd",
+  "tracker_sha256": "efe215505246fffe686c1ce98f9fcb41a9168dc2caee8d8339d3e179c1985a20",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -3550,9 +3550,9 @@
       "section_title": "Starting a task",
       "item_index": 6,
       "wording": "See the task become the single active task everywhere.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -3560,10 +3560,12 @@
         "unit_rule"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Backend execution enforces one open interval and Today updates to the active row, but the menu bar does not show task state and no cross-surface live test exists (`TaskExecutionStore.swift:35-46`; `TodayDashboardAgent.swift:60-61`).",
+      "evidence_paths": [
+        ".audit/runs/zc-016-006-single-active-everywhere/6659884174b31ab366c9bda83de7fd8bcd0d768f/evidence.json"
+      ],
+      "last_verified_commit": "6659884174b31ab366c9bda83de7fd8bcd0d768f",
+      "last_verified_build": "zoid-coach-6659884174b31ab366c9bda83de7fd8bcd0d768f-clean",
+      "audit_note": "At clean signed tip `6659884174b31ab366c9bda83de7fd8bcd0d768f`, the installed isolated QA app started the first task from Today, exposed the same single privacy-safe active title in Today and the compact menu, switched through the exact title-bound second-task Start control and native confirmation, persisted exactly one active task with the previous task paused, and preserved that state through an ordinary app relaunch. The closed menu-bar item now announces the dynamic active state, the private Screenwatch sentinel stayed absent from both surfaces, and cleanup restored the isolated baseline byte-for-byte and metadata-for-metadata (`MenuBarCoachView.swift`; `ZoidCoachApp.swift`; `MenuBarCoachTests.swift`; `.audit/runs/zc-016-006-single-active-everywhere/6659884174b31ab366c9bda83de7fd8bcd0d768f/REPORT.md`).",
       "tracker_line": 257
     },
     {

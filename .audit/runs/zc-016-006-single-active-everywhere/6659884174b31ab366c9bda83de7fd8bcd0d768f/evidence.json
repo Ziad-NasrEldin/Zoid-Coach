@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "run_id": "zc-016-006-single-active-everywhere/6659884174b31ab366c9bda83de7fd8bcd0d768f",
+  "verified_commit": "6659884174b31ab366c9bda83de7fd8bcd0d768f",
+  "build_identity": "zoid-coach-6659884174b31ab366c9bda83de7fd8bcd0d768f-clean",
+  "fixture": "Two distinct Reminder tasks plus private Screenwatch sentinel, Today first-start, exact title-bound second-task switch, compact menu agreement, and ordinary relaunch persistence",
+  "qa_root": "/private/tmp/zoid-zc016006-evidence/6659884174b31ab366c9bda83de7fd8bcd0d768f/qa-root",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "6d6adae6587cd85d418f4348a389db0ecc200fd9292e24f62b1e3ac9b3e0eef2",
+  "scenario_ids": [
+    "ZC-016-006"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-15T06:49:34.714602+00:00",
+  "completed_at": "2026-07-15T06:50:00Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "c6f0a3eaacf791354d52c8c76768b7aadf978811e22b94b7acda596d15ccc52d"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "Exact signed package, application, helper, LaunchAgent, isolated QA root, and database identity passed",
+      "result": "passed"
+    },
+    {
+      "name": "Today and the compact menu exposed the first task as the same single privacy-safe active task with exactly one open interval",
+      "result": "passed"
+    },
+    {
+      "name": "The exact title-bound second-task Start control and native confirmation switched the single active task and paused the first",
+      "result": "passed"
+    },
+    {
+      "name": "An ordinary app relaunch retained the second task as the only active task across Today, the compact menu, and SQLite",
+      "result": "passed"
+    },
+    {
+      "name": "Dynamic closed-status accessibility, private-sentinel exclusion, byte-exact restoration, metadata restoration, and production-process preservation passed",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "Scripts/qa-zc016006-signed-preflight.sh <app> 6659884174b31ab366c9bda83de7fd8bcd0d768f",
+    "swift Scripts/qa-zc016006-single-active-everywhere-ax-probe.swift --pid <pid> --task-id qa-zc016006-first --task-title 'Write the first focus brief' --activate",
+    "Scripts/qa-zc016006-single-active-everywhere-fixture.sh assert-database <database> qa-zc016006-first",
+    "swift Scripts/qa-zc016006-single-active-everywhere-ax-probe.swift --pid <pid> --task-id qa-zc016006-second --task-title 'Prepare the second focus review' --previous-title 'Write the first focus brief' --activate",
+    "Scripts/qa-zc016006-single-active-everywhere-fixture.sh assert-database <database> qa-zc016006-second qa-zc016006-first",
+    "swift Scripts/qa-zc016006-single-active-everywhere-ax-probe.swift --pid <relaunched-pid> --task-id qa-zc016006-second --task-title 'Prepare the second focus review' --previous-title 'Write the first focus brief'"
+  ]
+}
