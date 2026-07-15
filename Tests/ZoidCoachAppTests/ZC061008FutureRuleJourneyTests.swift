@@ -93,7 +93,7 @@ func zc061008InvalidRuleSchemaFailsClosedWithoutIngestingObservation() throws {
     #expect(try fixture.correctionClassification() == .work)
 }
 
-private enum ZC061008Boundary: CaseIterable, Sendable {
+enum ZC061008Boundary: CaseIterable, Sendable {
     case preEffective
     case nonmatching
     case removedRule
