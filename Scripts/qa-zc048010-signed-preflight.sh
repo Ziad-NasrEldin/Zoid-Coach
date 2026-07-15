@@ -3,7 +3,38 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly CANDIDATE="ce8f8d9c00f100dae55595a1ac995592ec381ed0"
+readonly REVIEWED_BASE="76149705b3a301fafa832102a2e599358a16ff25"
+readonly REVIEWED_PATCH_COUNT=6
+readonly TOTAL_LINEAGE_COMMIT_COUNT=7
+readonly -a REVIEWED_PATCH_IDS=(
+    a2ec3cb7f8fa679e2c3201bc607eb86a4875967f
+    8976e92e46d62fb0c250ca91c8bd6d93f4733272
+    f8368949a82379164c2ac8018df4b70bf5c6eef7
+    6b7b6913d7c6aeb11107b7a0f1e300a1e8af0dd4
+    fab1e10178fb6169394c7b05ba6a80923d02b642
+    00e4d7a364ae5322a3436e92bfc7c05473ec5395
+)
+readonly -a REVIEWED_PATHS=(
+    Scripts/qa-zc048010-diagnostic-package-ax-probe.swift
+    Scripts/qa-zc048010-diagnostic-package-fixture.sh
+    Scripts/qa-zc048010-signed-preflight.sh
+    Scripts/verify-zc-048-010-diagnostic-package-static.sh
+    Sources/ZoidCoachApp/DiagnosticExportPackagePresentation.swift
+    Sources/ZoidCoachApp/Views/SettingsView.swift
+    Sources/ZoidCoachInfrastructure/PrivacyDataService.swift
+    Tests/ZoidCoachAppTests/DiagnosticExportPackagePresentationTests.swift
+    Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift
+    docs/ZC-048-010-SIGNED-QA-RUNBOOK.md
+)
+readonly REVIEWED_BLOBS="d6d4d18a0a585897ca0b3753e629b808eea90ee8 Scripts/qa-zc048010-diagnostic-package-ax-probe.swift
+f01f794237dbdd5c221cf1d2cb18d6d0fd6b9d23 Scripts/qa-zc048010-diagnostic-package-fixture.sh
+13acdecf46e2a377e5f5749c4438469909539de4 Scripts/verify-zc-048-010-diagnostic-package-static.sh
+e5ffa132f1e96ebdb58d96c4e7d5c837bd9a648a Sources/ZoidCoachApp/DiagnosticExportPackagePresentation.swift
+297edbdd2e04ae40a56d06b16a5700d0647a5783 Sources/ZoidCoachApp/Views/SettingsView.swift
+10a14bb765d58d5861bbc172d8fd04ac00ca790c Sources/ZoidCoachInfrastructure/PrivacyDataService.swift
+d6d68beb73d1333c36a2d6c38678c893acbfc7ff Tests/ZoidCoachAppTests/DiagnosticExportPackagePresentationTests.swift
+48a7bdcce6d20db5b11910d0898c60abf4d7b22f Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift
+44d5c7818961f23e882984a9cda1f4d5dd97ee17 docs/ZC-048-010-SIGNED-QA-RUNBOOK.md"
 readonly PROBE="$SCRIPT_DIR/qa-zc048010-diagnostic-package-ax-probe.swift"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc048010-diagnostic-package-fixture.sh"
 readonly APP="${1:-}"
@@ -19,8 +50,64 @@ EXPECTED_APP_PID=""
 fail() { print -u2 -- "FAIL: $*"; exit 1; }
 is_sha() { [[ "$1" =~ '^[0-9a-f]{40}$' ]]; }
 has_argument() { [[ " $1 " == *" $2 "* ]]; }
+normalized_lines() { print -r -- "$1" | sed '/^$/d' | LC_ALL=C sort; }
+has_exact_lines() { [[ "$(normalized_lines "$1")" == "$(normalized_lines "$2")" ]]; }
+has_exact_sequence() { [[ "$(print -r -- "$1" | sed '/^$/d')" == "$(print -r -- "$2" | sed '/^$/d')" ]]; }
 is_visible_foreground_command() {
     has_argument "$1" "--qa-open-main" && ! has_argument "$1" "--background-schedule"
+}
+verify_reviewed_lineage() {
+    local expected_commit="${1:-$EXPECTED_COMMIT}"
+    local scope reviewed_scope head_scope commit commit_index entry expected_blob file_path actual_blob
+    local -a lineage_commits observed_patch_ids
+    [[ "$(git -C "$REPOSITORY" rev-parse HEAD)" == "$expected_commit" ]] \
+        || fail "repository HEAD does not match signed commit $expected_commit"
+    [[ -z "$(git -C "$REPOSITORY" status --porcelain)" ]] \
+        || fail "candidate worktree is not clean"
+    git -C "$REPOSITORY" merge-base --is-ancestor "$REVIEWED_BASE" "$expected_commit" \
+        || fail "signed commit does not descend from reviewed base $REVIEWED_BASE"
+    [[ -z "$(git -C "$REPOSITORY" rev-list --min-parents=2 "$REVIEWED_BASE..$expected_commit")" ]] \
+        || fail "candidate lineage contains a merge commit"
+
+    reviewed_scope="$(printf '%s\n' "${REVIEWED_PATHS[@]}")"
+    scope="$(git -C "$REPOSITORY" diff --name-only "$REVIEWED_BASE" "$expected_commit")" \
+        || fail "reviewed file scope is unavailable"
+    has_exact_lines "$scope" "$reviewed_scope" \
+        || fail "signed commit file scope differs from the reviewed 10-file scope"
+    ! grep -Eq '(^|/)(scenario-registry|zoid-coach-product-scenario-tracker|666-BACKLOG)' <<<"$scope" \
+        || fail "tracker, registry, or backlog escaped into the candidate"
+
+    lineage_commits=()
+    while IFS= read -r commit; do
+        lineage_commits+=("$commit")
+    done < <(git -C "$REPOSITORY" rev-list --reverse --first-parent "$REVIEWED_BASE..$expected_commit")
+    (( ${#lineage_commits[@]} == TOTAL_LINEAGE_COMMIT_COUNT )) \
+        || fail "candidate lineage must contain exactly $TOTAL_LINEAGE_COMMIT_COUNT commits"
+    [[ "${lineage_commits[-1]}" == "$expected_commit" ]] \
+        || fail "signed commit is not the lineage HEAD"
+    head_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected_commit")"
+    [[ "$head_scope" == 'Scripts/qa-zc048010-signed-preflight.sh' ]] \
+        || fail "lineage maintenance commit contains unrelated files"
+
+    observed_patch_ids=()
+    for (( commit_index = 1; commit_index <= REVIEWED_PATCH_COUNT; commit_index += 1 )); do
+        commit="${lineage_commits[$commit_index]}"
+        observed_patch_ids+=("$(git -C "$REPOSITORY" show --pretty=email --no-ext-diff "$commit" \
+            | git patch-id --stable | awk '{print $1}')")
+    done
+    has_exact_sequence \
+        "$(printf '%s\n' "${observed_patch_ids[@]}")" \
+        "$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")" \
+        || fail "signed commit is missing, alters, reorders, or adds a reviewed patch"
+
+    while IFS= read -r entry; do
+        expected_blob="${entry%% *}"
+        file_path="${entry#* }"
+        actual_blob="$(git -C "$REPOSITORY" rev-parse "$expected_commit:$file_path" 2>/dev/null)" \
+            || fail "signed commit is missing reviewed file $file_path"
+        [[ "$actual_blob" == "$expected_blob" ]] \
+            || fail "signed commit alters reviewed file $file_path"
+    done <<<"$REVIEWED_BLOBS"
 }
 is_external_path() {
     local candidate="${1:A}"
@@ -156,8 +243,23 @@ assert_runbook_order() {
 }
 
 if [[ "$APP" == "--self-test" ]]; then
-    is_sha "$CANDIDATE" || fail "candidate SHA rejected"
-    ! is_sha "${CANDIDATE:u}" || fail "uppercase SHA accepted"
+    local_reviewed_scope="$(printf '%s\n' "${REVIEWED_PATHS[@]}")"
+    local_reviewed_patches="$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
+    is_sha "$REVIEWED_BASE" || fail "reviewed base SHA rejected"
+    ! is_sha "${REVIEWED_BASE:u}" || fail "uppercase SHA accepted"
+    has_exact_lines "$local_reviewed_scope" "$local_reviewed_scope" || fail "reviewed scope rejected"
+    ! has_exact_lines "$(sed '$d' <<<"$local_reviewed_scope")" "$local_reviewed_scope" \
+        || fail "missing reviewed file accepted"
+    ! has_exact_lines "$local_reviewed_scope"$'\n''docs/scenario-registry.json' "$local_reviewed_scope" \
+        || fail "registry path accepted"
+    has_exact_sequence "$local_reviewed_patches" "$local_reviewed_patches" \
+        || fail "reviewed patch sequence rejected"
+    ! has_exact_sequence "$(sed '$d' <<<"$local_reviewed_patches")" "$local_reviewed_patches" \
+        || fail "missing reviewed patch accepted"
+    ! has_exact_sequence "${local_reviewed_patches/a2ec3cb7f8fa679e2c3201bc607eb86a4875967f/0000000000000000000000000000000000000000}" "$local_reviewed_patches" \
+        || fail "altered reviewed patch accepted"
+    ! has_exact_sequence "$local_reviewed_patches"$'\n''ffffffffffffffffffffffffffffffffffffffff' "$local_reviewed_patches" \
+        || fail "extra reviewed patch accepted"
     is_visible_foreground_command "/tmp/ZoidCoachQA --qa-open-main" || fail "foreground command rejected"
     ! is_visible_foreground_command "/tmp/ZoidCoachQA --background-schedule" || fail "background command accepted"
     ! is_visible_foreground_command "/tmp/ZoidCoachQA --qa-open-main --background-schedule" || fail "mixed background command accepted"
@@ -168,6 +270,7 @@ if [[ "$APP" == "--self-test" ]]; then
     assert_runbook_order
     "$FIXTURE" self-test >/dev/null
     "$PROBE" --self-test >/dev/null
+    verify_reviewed_lineage "$(git -C "$REPOSITORY" rev-parse HEAD)"
     print -- "PASS: ZC-048-010 signed preflight self-test"
     exit 0
 fi
@@ -199,8 +302,7 @@ readonly AGENT_PLISTS=("$CANONICAL_APP"/Contents/Library/LaunchAgents/*.plist(N)
 (( ${#AGENT_PLISTS} == 1 )) || fail "signed bundle must contain one LaunchAgent"
 readonly AGENT_PLIST="${AGENT_PLISTS[1]}"
 
-git -C "$REPOSITORY" merge-base --is-ancestor "$CANDIDATE" "$EXPECTED_COMMIT" \
-    || fail "signed commit does not contain ZC-048-010 candidate $CANDIDATE"
+verify_reviewed_lineage
 ZOID_COACH_PACKAGE_MODE=qa "$SCRIPT_DIR/verify-package.sh" "$CANONICAL_APP" \
     --expected-commit "$EXPECTED_COMMIT" --require-clean >/dev/null
 
