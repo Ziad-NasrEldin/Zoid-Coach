@@ -47,6 +47,7 @@ final class DailyReviewController: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var successMessage: String?
+    @Published private(set) var correctionImpact: DailyReviewCorrectionImpact?
     @Published private(set) var unfinishedReview: UnfinishedDailyReview?
     @Published private(set) var classificationRules: [AppClassificationCorrectionRule] = []
     @Published private(set) var isRulesOnlyMode: Bool
@@ -106,6 +107,7 @@ final class DailyReviewController: ObservableObject {
 
     func load() {
         guard !isLoading else { return }
+        correctionImpact = nil
         isLoading = true
         defer { isLoading = false }
         do {
@@ -148,7 +150,9 @@ final class DailyReviewController: ObservableObject {
         splitAtMidpoint: Bool,
         applyToFuture: Bool
     ) -> Bool {
+        correctionImpact = nil
         do {
+            let before = snapshot
             let splitDate = splitAtMidpoint
                 ? session.start.addingTimeInterval(session.end.timeIntervalSince(session.start) / 2)
                 : nil
@@ -161,6 +165,14 @@ final class DailyReviewController: ObservableObject {
             )
             try refreshSnapshotAndResumeState()
             classificationRules = try service.classificationRules()
+            if let before, let after = snapshot {
+                correctionImpact = DailyReviewCorrectionImpact(
+                    before: before,
+                    after: after,
+                    affectedSession: session,
+                    requestedClassification: classification
+                )
+            }
             errorMessage = nil
             let action = session.classification == .unknown ? "classified" : "corrected"
             successMessage = applyToFuture
@@ -374,6 +386,9 @@ struct DailyReviewView: View {
                     .foregroundStyle(Sumi.okay)
                     .accessibilityIdentifier("reviews.success")
             }
+            if let correctionImpact = controller.correctionImpact {
+                correctionImpactCard(correctionImpact)
+            }
             if let snapshot = controller.snapshot {
                 let state = RulesOnlyReviewState(
                     isRulesOnly: controller.isRulesOnlyMode,
@@ -427,6 +442,30 @@ struct DailyReviewView: View {
         } message: {
             Text("No review conclusions will be confirmed. Local activity, corrections, and notes stay available, and a later edit will reopen the review.")
         }
+    }
+
+    private func correctionImpactCard(_ impact: DailyReviewCorrectionImpact) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("REVIEW UPDATED")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            if let classificationDetail = impact.classificationDetail {
+                Text(classificationDetail)
+                    .font(Sumi.body(12))
+            }
+            Text(impact.taskAlignmentDetail)
+                .font(Sumi.body(12))
+            Text(impact.reviewStatementDetail)
+                .font(Sumi.body(12))
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.okay, lineWidth: 1))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Review updated. \(impact.accessibilitySummary)")
+        .accessibilityIdentifier("reviews.correction-impact")
     }
 
     @ViewBuilder
