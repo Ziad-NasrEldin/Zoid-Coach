@@ -3,11 +3,48 @@ set -euo pipefail
 set -o pipefail
 
 readonly SCRIPT_PATH="${0:A}"
+readonly SAFE_PATH="/usr/bin:/bin"
+readonly SAFE_TMPDIR="/private/tmp"
+readonly SAFE_HOME="$(/usr/bin/dscl . -read "/Users/$(/usr/bin/id -un)" NFSHomeDirectory | /usr/bin/awk '{print $2}')"
+readonly SCRUBBED_MARKER="zc011007-validator-v1"
+
+environment_is_scrubbed() {
+    [[ "${ZC011007_VALIDATOR_ENV_SCRUBBED:-}" == "$SCRUBBED_MARKER" \
+        && "${PATH:-}" == "$SAFE_PATH" \
+        && "${HOME:-}" == "$SAFE_HOME" \
+        && "${TMPDIR:-}" == "$SAFE_TMPDIR" \
+        && "${GIT_CONFIG_NOSYSTEM:-}" == "1" \
+        && "${GIT_CONFIG_GLOBAL:-}" == "/dev/null" \
+        && "${GIT_CONFIG_SYSTEM:-}" == "/dev/null" \
+        && "${GIT_ATTR_NOSYSTEM:-}" == "1" ]] || return 1
+    local entry name
+    for entry in ${(f)"$(/usr/bin/env)"}; do
+        name="${entry%%=*}"
+        case "$name" in
+            HOME|TMPDIR|PATH|ZC011007_VALIDATOR_ENV_SCRUBBED|GIT_CONFIG_NOSYSTEM|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM|GIT_ATTR_NOSYSTEM|LOGNAME|SHLVL|PWD|OLDPWD|_) ;;
+            *) return 1 ;;
+        esac
+    done
+}
+
+if ! environment_is_scrubbed; then
+    exec /usr/bin/env -i \
+        HOME="$SAFE_HOME" \
+        TMPDIR="$SAFE_TMPDIR" \
+        PATH="$SAFE_PATH" \
+        ZC011007_VALIDATOR_ENV_SCRUBBED="$SCRUBBED_MARKER" \
+        GIT_CONFIG_NOSYSTEM=1 \
+        GIT_CONFIG_GLOBAL=/dev/null \
+        GIT_CONFIG_SYSTEM=/dev/null \
+        GIT_ATTR_NOSYSTEM=1 \
+        /bin/zsh "$SCRIPT_PATH" "$@"
+fi
+
 readonly EXPECTED_CANONICAL="2cba674f8370fc16f9555cdb6f115f18df1f8ced"
-readonly EXPECTED_CANDIDATE="f5941ce9c70fe4576c1561afe5a03ff3a24a0511"
-readonly EXPECTED_PARENT="3338b5b4a14627c27c767e09285f52d09e441a5f"
-readonly EXPECTED_TREE="997620b60807a25c6f5946ff786f9a4f24a9bb1f"
-readonly EXPECTED_RANGE_PATCH="eef50e68da4e294df68fea1984c4617477878aa8"
+readonly EXPECTED_CANDIDATE="c6ab1eca0be18bfed96d036b56e733a4efa5bda6"
+readonly EXPECTED_PARENT="b10af13f7c1fce32113f8c9e60872ac7695a6c25"
+readonly EXPECTED_TREE="89d45de492f9dfab82133c8f1f81613ee7cf3e59"
+readonly EXPECTED_RANGE_PATCH="c5ad16214bfccaac4efbba90a73fd753ec2eb05c"
 readonly EXPECTED_INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
 readonly EXPECTED_INPUT_TEST_BLOB="7858f5b20d1ddbb9f357a5f2d71beaeeb4c56180"
 
@@ -24,13 +61,13 @@ readonly EXPECTED_FILES=(
 
 readonly EXPECTED_BLOBS=(
     0a5682d4afcc4ce6d962e425acae8dd033365dc5
-    fa0a458673d05a6cb481493503eef2c4fde26d59
-    487121cf10c89d42f2dd0d59a85fc1eb1ad351f0
+    6b92890969128919e2e6d3173ac051ba03ed97f5
+    58e8a3a4945ab50ea4fcaa519bdc3fa98dfc3ba1
     9c53a127893a2b3944c6d1bc23117e9ac4a04df7
     350d9d6226098fd33fb403e619d5894560865217
     890b4f8d00ed6841e678e2dbdf1808c75001eb42
     a7b434757b6a60cb33e8271dd20cd6d712cfb032
-    d296e515ffe0ce39bd7407d32f6f704d2216f9a9
+    262e8494a55528733da8f4783a2f5c0e83e60b4d
 )
 
 readonly EXPECTED_COMMITS=(
@@ -51,6 +88,8 @@ readonly EXPECTED_COMMITS=(
     53c5e0455efd30fbe886f817fcd5dc906cb9bbac
     3338b5b4a14627c27c767e09285f52d09e441a5f
     f5941ce9c70fe4576c1561afe5a03ff3a24a0511
+    b10af13f7c1fce32113f8c9e60872ac7695a6c25
+    c6ab1eca0be18bfed96d036b56e733a4efa5bda6
 )
 
 readonly EXPECTED_COMMIT_PATCHES=(
@@ -71,6 +110,8 @@ readonly EXPECTED_COMMIT_PATCHES=(
     d42177e9e41faa6ced4d8d41d56249e024d2ea3b
     148ee38cca8473b689ce60530e49463ab58ec1ee
     9e272159d3e7d0eaa7c89a7ab7b6962d109980f1
+    0e7fb372c1e5ebc8095bc392f5803ee0409de27d
+    ecde42e98885c667eef2ab22a7d063b919102ac3
 )
 
 fail() {
@@ -124,7 +165,7 @@ validate_repository() {
     assert_exact_candidate "$head"
     [[ "$(git -C "$repository" rev-parse 'HEAD^{tree}')" == "$EXPECTED_TREE" ]] || fail "candidate tree drifted"
     [[ "$(git -C "$repository" rev-parse 'HEAD^')" == "$EXPECTED_PARENT" ]] || fail "candidate parent drifted"
-    [[ "$(git -C "$repository" rev-list --count "$EXPECTED_CANONICAL..HEAD")" == "17" ]] || fail "candidate commit count drifted"
+    [[ "$(git -C "$repository" rev-list --count "$EXPECTED_CANONICAL..HEAD")" == "19" ]] || fail "candidate commit count drifted"
 
     local sequence="$(git -C "$repository" rev-list --reverse --first-parent "$EXPECTED_CANONICAL..HEAD")"
     [[ "$sequence" == "$(printf '%s\n' "${EXPECTED_COMMITS[@]}")" ]] || fail "candidate first-parent lineage drifted"
@@ -188,6 +229,30 @@ self_test() {
         fail "validator accepted an alternate child of the approved candidate"
     fi
 
+    /usr/bin/env -i \
+        HOME=/private/tmp/zc011007-malicious-home \
+        TMPDIR=/private/tmp/zc011007-malicious-tmp \
+        PATH=/private/tmp/zc011007-malicious-bin \
+        GIT_DIR=/private/tmp/zc011007-malicious.git \
+        GIT_WORK_TREE=/private/tmp/zc011007-malicious-worktree \
+        GIT_CONFIG_COUNT=1 \
+        GIT_CONFIG_KEY_0=core.fsmonitor \
+        GIT_CONFIG_VALUE_0=/private/tmp/zc011007-malicious-hook \
+        ZOID_666_QA_ZC011007_DAY="2099-12-31'; SELECT malicious" \
+        /bin/zsh "$SCRIPT_PATH" --assert-scrubbed-environment >/dev/null
+
+    /usr/bin/env -i \
+        HOME=/private/tmp/zc011007-malicious-home \
+        TMPDIR=/private/tmp/zc011007-malicious-tmp \
+        PATH=/private/tmp/zc011007-malicious-bin \
+        GIT_DIR=/private/tmp/zc011007-malicious.git \
+        GIT_WORK_TREE=/private/tmp/zc011007-malicious-worktree \
+        GIT_CONFIG_COUNT=1 \
+        GIT_CONFIG_KEY_0=core.fsmonitor \
+        GIT_CONFIG_VALUE_0=/private/tmp/zc011007-malicious-hook \
+        ZOID_666_QA_ZC011007_DAY="2099-12-31'; SELECT malicious" \
+        /bin/zsh "$SCRIPT_PATH" "$repository/Scripts/qa-zc011007-signed-preflight.sh" --self-test >/dev/null
+
     rm -rf -- "$temporary"
     temporary=""
     trap - EXIT
@@ -195,6 +260,16 @@ self_test() {
 }
 
 assert_validator_checkout
+
+if [[ "${1:-}" == "--assert-scrubbed-environment" ]]; then
+    [[ $# == 1 ]] || fail "scrubbed-environment self-test accepts no arguments"
+    environment_is_scrubbed || fail "validator environment was not scrubbed"
+    [[ -z "${GIT_DIR:-}" && -z "${GIT_WORK_TREE:-}" && -z "${GIT_CONFIG_COUNT:-}" \
+        && -z "${ZOID_666_QA_ZC011007_DAY:-}" && -z "${ZC011007_APPROVED_FINAL_COMMIT:-}" ]] \
+        || fail "validator retained an injected Git, fixture, or approval variable"
+    print -- "PASS: immutable validator environment scrubbed"
+    exit 0
+fi
 
 if [[ "${1:-}" == "--self-test" ]]; then
     [[ $# == 2 ]] || fail "usage: $0 --self-test /absolute/detached/candidate-worktree"
@@ -209,4 +284,13 @@ readonly CANDIDATE_REPOSITORY="${PREFLIGHT:h:h}"
 [[ "$PREFLIGHT" == "$CANDIDATE_REPOSITORY/Scripts/qa-zc011007-signed-preflight.sh" ]] || fail "preflight is not the candidate-owned ZC-011-007 preflight"
 validate_repository "$CANDIDATE_REPOSITORY"
 shift
-ZC011007_APPROVED_FINAL_COMMIT="$EXPECTED_CANDIDATE" "$PREFLIGHT" "$@"
+/usr/bin/env -i \
+    HOME="$SAFE_HOME" \
+    TMPDIR="$SAFE_TMPDIR" \
+    PATH="$SAFE_PATH" \
+    GIT_CONFIG_NOSYSTEM=1 \
+    GIT_CONFIG_GLOBAL=/dev/null \
+    GIT_CONFIG_SYSTEM=/dev/null \
+    GIT_ATTR_NOSYSTEM=1 \
+    ZC011007_APPROVED_FINAL_COMMIT="$EXPECTED_CANDIDATE" \
+    /bin/zsh "$PREFLIGHT" "$@"
