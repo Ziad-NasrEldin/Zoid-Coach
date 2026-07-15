@@ -1,3 +1,5 @@
+import AppKit
+import SwiftUI
 import Testing
 @testable import ZoidCoachApp
 
@@ -52,7 +54,7 @@ struct CustomEstimateEditorStateTests {
     }
 
     @Test
-    func independentSurfaceStatesDoNotResetEachOther() {
+    func dashboardAndTodayParentSurfaceStatesDoNotResetEachOther() {
         var dashboard = CustomEstimateEditorState()
         var today = CustomEstimateEditorState()
         dashboard.open(initialMinutes: 30)
@@ -70,6 +72,78 @@ struct CustomEstimateEditorStateTests {
         #expect(today.validationMessage == nil)
     }
 
+    @MainActor
+    @Test
+    func physicalReturnSynchronizesExactTextAndRetainsInvalidEditorFocusRequestAndError() {
+        let box = InteractionBox()
+        box.state.open(initialMinutes: nil)
+        let initialFocusRequest = box.state.focusRequest
+        let input = CustomEstimateInputField(
+            text: Binding(
+                get: { box.state.input },
+                set: { box.state.input = $0 }
+            ),
+            focusRequest: box.state.focusRequest,
+            submit: {
+                _ = box.state.submit { box.persisted.append($0) }
+            }
+        )
+        let coordinator = input.makeCoordinator()
+        let fieldEditor = NSTextView()
+        fieldEditor.string = "\u{00A0}\u{2003}"
+
+        let handled = coordinator.control(
+            NSTextField(),
+            textView: fieldEditor,
+            doCommandBy: #selector(NSResponder.insertNewline(_:))
+        )
+
+        #expect(handled)
+        #expect(box.state.input == "\u{00A0}\u{2003}")
+        #expect(box.state.isPresented)
+        #expect(box.state.validationMessage == "Enter an estimate in minutes.")
+        #expect(box.state.focusRequest == initialFocusRequest + 1)
+        #expect(box.persisted.isEmpty)
+    }
+
+    @MainActor
+    @Test
+    func rapidPhysicalReturnPersistsPaddedValidInputExactlyOnce() {
+        let box = InteractionBox()
+        box.state.open(initialMinutes: nil)
+        let input = CustomEstimateInputField(
+            text: Binding(
+                get: { box.state.input },
+                set: { box.state.input = $0 }
+            ),
+            focusRequest: box.state.focusRequest,
+            submit: {
+                _ = box.state.submit { box.persisted.append($0) }
+            }
+        )
+        let coordinator = input.makeCoordinator()
+        let fieldEditor = NSTextView()
+        fieldEditor.string = " 25 "
+
+        let firstHandled = coordinator.control(
+            NSTextField(),
+            textView: fieldEditor,
+            doCommandBy: #selector(NSResponder.insertNewline(_:))
+        )
+        let secondHandled = coordinator.control(
+            NSTextField(),
+            textView: fieldEditor,
+            doCommandBy: #selector(NSResponder.insertNewline(_:))
+        )
+
+        #expect(firstHandled)
+        #expect(secondHandled)
+        #expect(box.state.input == " 25 ")
+        #expect(box.persisted == [25])
+        #expect(!box.state.isPresented)
+        #expect(box.state.validationMessage == nil)
+    }
+
     @Test
     func legacyParserBoundariesRemainExact() {
         #expect(TaskEstimateInput.parse(" 1 ") == .success(1))
@@ -78,5 +152,11 @@ struct CustomEstimateEditorStateTests {
         #expect(TaskEstimateInput.parse("481") == .failure(.tooLarge(maximum: 480)))
         #expect(TaskEstimateInput.parse("٢٥") == .failure(.malformed))
         #expect(TaskEstimateInput.parse("25,0") == .failure(.malformed))
+    }
+
+    @MainActor
+    private final class InteractionBox {
+        var state = CustomEstimateEditorState()
+        var persisted: [Int] = []
     }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct CustomEstimateEditorState: Equatable {
@@ -48,21 +49,17 @@ struct CustomEstimateEditor: View {
     let persist: (Int) -> Void
     let cancel: () -> Void
 
-    @FocusState private var inputIsFocused: Bool
-
     var body: some View {
         Group {
-            TextField("Minutes", text: $state.input)
+            CustomEstimateInputField(
+                text: $state.input,
+                focusRequest: state.focusRequest,
+                submit: submit
+            )
                 .id(state.presentationID)
-                .textFieldStyle(.roundedBorder)
                 .frame(width: 78)
-                .focused($inputIsFocused)
                 .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
                 .accessibilityIdentifier(inputIdentifier)
-                .onKeyPress(.return) {
-                    submit()
-                    return .handled
-                }
             Button("SAVE", action: submit)
                 .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
                 .accessibilityIdentifier(saveIdentifier)
@@ -81,16 +78,71 @@ struct CustomEstimateEditor: View {
                     .accessibilityIdentifier(errorIdentifier)
             }
         }
-        .task(id: state.focusRequest) {
-            guard state.isPresented else { return }
-            try? await Task.sleep(for: .milliseconds(50))
-            guard state.isPresented else { return }
-            inputIsFocused = true
-        }
     }
 
     private func submit() {
         state.submit(persist: persist)
     }
 
+}
+
+struct CustomEstimateInputField: NSViewRepresentable {
+    @Binding var text: String
+    let focusRequest: Int
+    let submit: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField(string: text)
+        field.placeholderString = "Minutes"
+        field.isBordered = true
+        field.isBezeled = true
+        field.bezelStyle = .roundedBezel
+        field.delegate = context.coordinator
+        return field
+    }
+
+    func updateNSView(_ field: NSTextField, context: Context) {
+        context.coordinator.parent = self
+        if field.stringValue != text {
+            field.stringValue = text
+        }
+        guard context.coordinator.lastFocusRequest != focusRequest else { return }
+        context.coordinator.lastFocusRequest = focusRequest
+        Task { @MainActor [weak field] in
+            await Task.yield()
+            guard let field else { return }
+            field.window?.makeFirstResponder(field)
+        }
+    }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: CustomEstimateInputField
+        var lastFocusRequest = -1
+
+        init(parent: CustomEstimateInputField) {
+            self.parent = parent
+        }
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let field = notification.object as? NSTextField else { return }
+            parent.text = field.stringValue
+        }
+
+        func control(
+            _ control: NSControl,
+            textView: NSTextView,
+            doCommandBy commandSelector: Selector
+        ) -> Bool {
+            guard commandSelector == #selector(NSResponder.insertNewline(_:)) else {
+                return false
+            }
+            parent.text = textView.string
+            parent.submit()
+            return true
+        }
+    }
 }
