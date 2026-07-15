@@ -97,6 +97,21 @@ private func navigationPollDecision(
     return attempt < maximumAttempts ? .retry : .timeout
 }
 
+private func destinationMarkerMatches(
+    _ destination: String,
+    identifier: String?,
+    labels: [String]
+) -> Bool {
+    switch destination {
+    case "Settings":
+        return labels.contains("SETTINGS / POLICY")
+    case "Today":
+        return identifier == "today.day-state" || labels.contains("TODAY / INBOX")
+    default:
+        return false
+    }
+}
+
 private func selectTodayScrollArea(_ candidates: [TodayScrollAreaTraits]) -> TodayScrollAreaSelection {
     let matches = candidates.indices.filter { candidates[$0].containsToday }
     if matches.count == 1 { return .selected(matches[0]) }
@@ -241,6 +256,10 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           navigationPollDecision(isVisible: true, attempt: 0, maximumAttempts: 40) == .success,
           navigationPollDecision(isVisible: false, attempt: 0, maximumAttempts: 40) == .retry,
           navigationPollDecision(isVisible: false, attempt: 40, maximumAttempts: 40) == .timeout,
+          destinationMarkerMatches("Settings", identifier: nil, labels: ["SETTINGS / POLICY"]),
+          !destinationMarkerMatches("Settings", identifier: "settings.policyStatus", labels: []),
+          destinationMarkerMatches("Today", identifier: "today.day-state", labels: []),
+          destinationMarkerMatches("Today", identifier: nil, labels: ["TODAY / INBOX"]),
           scrollbarStep,
           scrollbarWrites == [0.5],
           isExternalEvidenceRoot(URL(fileURLWithPath: "/private/tmp/evidence"), repository: URL(fileURLWithPath: "/repo")),
@@ -607,13 +626,9 @@ private func readSnapshot(_ name: String) throws -> VisibleTodaySnapshot {
 }
 
 private func destinationVisible(_ destination: String, in window: AXUIElement) throws -> Bool {
-    switch destination {
-    case "Settings": return try walk(window, matching: { identifier($0) == "settings.policyStatus" }) != nil
-    case "Today": return try walk(window, matching: {
-        identifier($0) == "today.day-state" || labels($0).contains("TODAY / INBOX")
+    try walk(window, matching: {
+        destinationMarkerMatches(destination, identifier: identifier($0), labels: labels($0))
     }) != nil
-    default: return false
-    }
 }
 
 private func navigate(_ destination: String, in window: AXUIElement) throws {
