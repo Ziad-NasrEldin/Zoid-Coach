@@ -100,6 +100,7 @@ The one Reminder title is intentionally separate from the private sentinel check
 
 Start the packaged helper through its supported registration path.
 Wait for the persisted checkpoint and invitation before opening the foreground app.
+Foreground open must not reuse a background-schedule process.
 
 ```sh
 set -euo pipefail
@@ -110,8 +111,22 @@ for _ in {1..100}; do
 done
 "$FIXTURE" assert-database "$DATABASE" "$EXPECTED_LOCAL_DAY"
 "$FIXTURE" assert-notification "$QA_ROOT/OS Fixtures/state.json"
+for candidate in $(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true); do
+  candidate_executable="$(lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
+  if test "$candidate_executable" = "$APP_EXECUTABLE"; then
+    kill "$candidate"
+    while kill -0 "$candidate" 2>/dev/null; do sleep 0.1; done
+  fi
+done
 open "$APP" --args --qa-open-main
-preflight_output="$("$PREFLIGHT" "$APP" "$EXPECTED_SIGNED_COMMIT")"
+preflight_output=""
+for _ in {1..60}; do
+  if preflight_output="$("$PREFLIGHT" "$APP" "$EXPECTED_SIGNED_COMMIT" 2>/dev/null)"; then
+    break
+  fi
+  sleep 0.2
+done
+test -n "$preflight_output"
 printf '%s\n' "$preflight_output"
 APP_PID="$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')"
 swift "$PROBE" --pid "$APP_PID"
