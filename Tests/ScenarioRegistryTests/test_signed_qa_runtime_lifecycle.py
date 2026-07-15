@@ -26,6 +26,18 @@ class SignedQARuntimeLifecycleTests(unittest.TestCase):
             capture_output=True,
         )
 
+    def test_installer_recovers_only_delayed_exact_helper_readiness(self) -> None:
+        result = subprocess.run(
+            [str(INSTALLER), "--self-test"],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertIn("PASS: signed QA installer readiness self-tests", result.stdout)
+        self.assertIn("command_status=5", result.stderr)
+
     def test_app_replacement_changes_the_bundled_helper_path_atomically(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

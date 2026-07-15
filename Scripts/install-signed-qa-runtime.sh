@@ -73,6 +73,44 @@ qa_wait_for_launchservices_readiness() {
     return 1
 }
 
+qa_register_agent_with_readiness_retry() {
+    local registration_command="$1"
+    local exact_identity_probe="$2"
+    local attempts="${ZOID_COACH_QA_REGISTRATION_ATTEMPTS:-2}"
+    local retry_delay="${ZOID_COACH_QA_REGISTRATION_RETRY_DELAY_SECONDS:-1}"
+    local pass_message="PASS: QA XPC runtime is writable and prompt timeline is available"
+
+    [[ "$attempts" == <-> && "$attempts" -ge 1 && "$attempts" -le 3 ]] \
+        || { print -u2 -- "FAIL: invalid QA registration attempt bound: $attempts"; return 2; }
+    [[ "$retry_delay" =~ '^[0-9]+([.][0-9]+)?$' ]] \
+        || { print -u2 -- "FAIL: invalid QA registration retry delay: $retry_delay"; return 2; }
+
+    local attempt output command_status identity_output
+    for attempt in {1..$attempts}; do
+        print -- "QA registration_attempt=$attempt/$attempts"
+        command_status=0
+        output="$($registration_command 2>&1)" || command_status=$?
+        print -r -- "$output"
+        if (( command_status == 0 )) && grep -Fq "$pass_message" <<<"$output"; then
+            return 0
+        fi
+
+        print -u2 -- "QA registration attempt $attempt did not become ready; command_status=$command_status"
+        if (( attempt < attempts )); then
+            if ! identity_output="$($exact_identity_probe 2>&1)"; then
+                print -u2 -- "FAIL: refusing QA registration retry because exact helper identity/root could not be proven"
+                [[ -n "$identity_output" ]] && print -u2 -r -- "$identity_output"
+                return 1
+            fi
+            print -- "PASS: exact QA helper identity/root confirmed before retry $identity_output"
+            sleep "$retry_delay"
+        fi
+    done
+
+    print -u2 -- "FAIL: QA registration readiness exhausted after $attempts attempts"
+    return 1
+}
+
 qa_installer_self_test() {
     local root
     root="$(mktemp -d /private/tmp/zoid-666-qa-installer-self-test.XXXXXX)"
@@ -129,6 +167,71 @@ exit 1' > "$failure_probe"
     [[ "$failure_output" == *"error -609"* && "$failure_output" == *"last_open_status=73"* ]] \
         || { print -u2 "SELF-TEST FAIL: -609 evidence or status missing"; return 1; }
 
+    local delayed_calls="$root/delayed-registration-calls"
+    print -r -- 0 > "$delayed_calls"
+    qa_delayed_registration() {
+        local calls="$(<"$delayed_calls")"
+        (( calls += 1 ))
+        print -r -- "$calls" > "$delayed_calls"
+        if (( calls == 1 )); then
+            print -u2 -- "FAIL: QA agent registered but did not expose a writable XPC prompt timeline and heartbeat"
+            return 5
+        fi
+        print -- "PASS: QA XPC runtime is writable and prompt timeline is available"
+    }
+    qa_exact_delayed_identity() {
+        print -- "pid=4242 executable=$root/ZoidCoachAgentQA qa_root=$root/qa"
+    }
+    local delayed_output
+    if ! delayed_output="$(
+        ZOID_COACH_QA_REGISTRATION_ATTEMPTS=2 \
+        ZOID_COACH_QA_REGISTRATION_RETRY_DELAY_SECONDS=0 \
+            qa_register_agent_with_readiness_retry \
+                qa_delayed_registration qa_exact_delayed_identity
+    )"; then
+        print -u2 "SELF-TEST FAIL: delayed exact helper readiness was not recovered"
+        return 1
+    fi
+    [[ "$(<"$delayed_calls")" == 2 ]] \
+        || { print -u2 "SELF-TEST FAIL: delayed readiness did not use exactly two attempts"; return 1; }
+    [[ "$delayed_output" == *"registration_attempt=1"* \
+        && "$delayed_output" == *"registration_attempt=2"* \
+        && "$delayed_output" == *"PASS: QA XPC runtime is writable and prompt timeline is available"* ]] \
+        || { print -u2 "SELF-TEST FAIL: delayed readiness diagnostics are incomplete"; return 1; }
+
+    print -r -- 0 > "$delayed_calls"
+    qa_never_ready_registration() {
+        local calls="$(<"$delayed_calls")"
+        (( calls += 1 ))
+        print -r -- "$calls" > "$delayed_calls"
+        print -u2 -- "FAIL: simulated canceled XPC client"
+        return 5
+    }
+    qa_wrong_identity() {
+        print -u2 -- "pid=31337 executable=/tmp/wrong-agent qa_root=/tmp/wrong-root"
+        return 1
+    }
+    if ZOID_COACH_QA_REGISTRATION_ATTEMPTS=2 \
+        ZOID_COACH_QA_REGISTRATION_RETRY_DELAY_SECONDS=0 \
+        qa_register_agent_with_readiness_retry \
+            qa_never_ready_registration qa_wrong_identity >/dev/null 2>&1; then
+        print -u2 "SELF-TEST FAIL: mismatched helper identity was accepted"
+        return 1
+    fi
+    [[ "$(<"$delayed_calls")" == 1 ]] \
+        || { print -u2 "SELF-TEST FAIL: registration retried after identity mismatch"; return 1; }
+
+    qa_false_pass_registration() {
+        print -- "PASS: QA XPC runtime is writable and prompt timeline is available"
+        return 7
+    }
+    if ZOID_COACH_QA_REGISTRATION_ATTEMPTS=1 \
+        qa_register_agent_with_readiness_retry \
+            qa_false_pass_registration qa_exact_delayed_identity >/dev/null 2>&1; then
+        print -u2 "SELF-TEST FAIL: nonzero registration command false-passed"
+        return 1
+    fi
+
     rm -rf "$root"
     trap - EXIT
     print -- "PASS: signed QA installer readiness self-tests"
@@ -180,8 +283,40 @@ launchctl bootout "$USER_DOMAIN/$AGENT_LABEL" >/dev/null 2>&1 || true
 pkill -x "$APP_EXECUTABLE" >/dev/null 2>&1 || true
 qa_commit_app_replacement "$INSTALLED_APP" "$STAGED_APP" "$BACKUP_APP"
 
+qa_invoke_installed_registration() {
+    "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-register-agent
+}
+
+qa_probe_exact_registered_agent() {
+    local agent_path="$INSTALLED_APP/Contents/MacOS/$AGENT_EXECUTABLE"
+    local service pid executable process_environment
+    for _ in {1..30}; do
+        service="$(launchctl print "$USER_DOMAIN/$AGENT_LABEL" 2>/dev/null || true)"
+        pid="$(awk '/pid =/{print $3; exit}' <<<"$service")"
+        if [[ -n "$pid" ]]; then
+            executable="$(lsof -Fn -a -p "$pid" -d txt 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
+            process_environment="$(ps eww -p "$pid" -o command= 2>/dev/null || true)"
+            [[ "$executable" == "$agent_path" ]] \
+                || { print -u2 -- "helper executable mismatch: pid=$pid executable=$executable expected=$agent_path"; return 1; }
+            grep -Fq "name = $AGENT_LABEL" <<<"$service" \
+                || { print -u2 -- "helper service label mismatch: expected=$AGENT_LABEL"; return 1; }
+            [[ " $process_environment " == *" ZOID_COACH_QA_RUN_ROOT=$QA_ROOT "* ]] \
+                || { print -u2 -- "helper QA root mismatch: pid=$pid expected=$QA_ROOT"; return 1; }
+            print -- "pid=$pid executable=$executable qa_root=$QA_ROOT"
+            return 0
+        fi
+        sleep 0.2
+    done
+    print -u2 -- "exact QA helper process did not become available for readiness retry"
+    return 1
+}
+
 registration_output=""
-if ! registration_output="$("$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-register-agent)"; then
+if ! registration_output="$(
+    qa_register_agent_with_readiness_retry \
+        qa_invoke_installed_registration qa_probe_exact_registered_agent
+)"; then
+    "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-unregister-agent || true
     qa_rollback_app_replacement "$INSTALLED_APP" "$BACKUP_APP"
     if [[ -x "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" ]]; then
         "$INSTALLED_APP/Contents/MacOS/$APP_EXECUTABLE" --qa-register-agent || true
