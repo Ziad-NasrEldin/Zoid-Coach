@@ -46,6 +46,12 @@ assert_runbook() {
     ' "$runbook" || fail "helper bootstrap must finish before fixture mutation"
     /usr/bin/grep -Fq 'Foreground open must not reuse a background-schedule process.' "$runbook" \
         || fail "runbook exact foreground replacement gate is missing"
+    /usr/bin/grep -Fq 'swift "$PROBE" --pid "$APP_PID" --phase work-unplanned' "$runbook" \
+        || fail "runbook visible Work Unplanned action gate is missing"
+    /usr/bin/grep -Fq '"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY"' "$runbook" \
+        || fail "runbook durable Work Unplanned assertion is missing"
+    /usr/bin/grep -Fq 'swift "$PROBE" --pid "$APP_PID" --phase unplanned' "$runbook" \
+        || fail "runbook ordinary-relaunch UI assertion is missing"
 }
 
 if [[ "$APP" == "--self-test" ]]; then
@@ -83,13 +89,17 @@ readonly AGENT_PLISTS=("$APP"/Contents/Library/LaunchAgents/*.plist(N))
 readonly AGENT_PLIST="${AGENT_PLISTS[1]}"
 readonly AGENT_LABEL="$(plutil -extract Label raw -o - "$AGENT_PLIST")"
 [[ -x "$APP_EXECUTABLE" && -f "$DATABASE" ]] || fail "isolated signed runtime is incomplete"
-readonly APP_PID="$(pgrep -x "$APP_EXECUTABLE_NAME" | /usr/bin/head -1)"
-[[ "$APP_PID" == <-> ]] || fail "exact app process is unavailable"
-lsof -Fn -a -p "$APP_PID" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$APP_EXECUTABLE" \
-    || fail "app executable mismatch"
-readonly APP_COMMAND="$(ps -ww -p "$APP_PID" -o command=)"
-command_has_exact_argument "$APP_COMMAND" '--qa-open-main' \
-    || fail "foreground app was not launched with --qa-open-main"
+typeset -a MATCHING_APP_PIDS
+for candidate in $(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true); do
+    candidate_executable="$(lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
+    candidate_command="$(ps -ww -p "$candidate" -o command=)"
+    if [[ "$candidate_executable" == "$APP_EXECUTABLE" ]] \
+        && command_has_exact_argument "$candidate_command" '--qa-open-main'; then
+        MATCHING_APP_PIDS+=("$candidate")
+    fi
+done
+(( ${#MATCHING_APP_PIDS} == 1 )) || fail "exact foreground app process is unavailable or ambiguous"
+readonly APP_PID="${MATCHING_APP_PIDS[1]}"
 readonly SERVICE="$(launchctl print "gui/$(id -u)/$AGENT_LABEL")"
 readonly HELPER_PID="$(awk '/pid =/{print $3; exit}' <<<"$SERVICE")"
 [[ "$HELPER_PID" == <-> ]] || fail "helper PID is unavailable"
