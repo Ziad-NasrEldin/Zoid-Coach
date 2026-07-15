@@ -3,9 +3,12 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly CANONICAL_BASE="91197544123ccd53a647933545728af7ff81acd5"
+readonly CANONICAL_BASE="b97c2ce3177ccf89f60225c475062608db1920ad"
+readonly TOOLING_CANDIDATE="37de851fb06299fd3878bb84c5c3728898304fc5"
+readonly PRODUCT_CANDIDATE="9952f8a39c4a0a1d7afcd9ef182238ab05e02f34"
+readonly TOOLING_PATCH_ID="9a9cad283c5216b12cb4ecaf698526de4e50e8b3"
+readonly PRODUCT_PATCH_ID="8596847cce02f68e59d7e8d46b23dd28fa671f89"
 readonly INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
-readonly DASHBOARD_BLOB="76327623a5185b75ca81d807bdd554cb836d28d6"
 readonly INPUT_TEST_BLOB="7858f5b20d1ddbb9f357a5f2d71beaeeb4c56180"
 readonly AX_PROBE="$SCRIPT_DIR/qa-zc011007-invalid-estimate-ax-probe.swift"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc011007-invalid-estimate-fixture.sh"
@@ -13,6 +16,17 @@ readonly RUNBOOK="$REPOSITORY/docs/ZC-011-007-SIGNED-QA-RUNBOOK.md"
 readonly TOOLING_FILES=(
     Scripts/qa-zc011007-invalid-estimate-ax-probe.swift
     Scripts/qa-zc011007-invalid-estimate-fixture.sh
+    Scripts/qa-zc011007-signed-preflight.sh
+    docs/ZC-011-007-SIGNED-QA-RUNBOOK.md
+)
+readonly PRODUCT_FILES=(
+    Sources/ZoidCoachApp/Views/CustomEstimateEditor.swift
+    Sources/ZoidCoachApp/Views/DashboardView.swift
+    Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift
+    Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift
+)
+readonly BINDING_FILES=(
+    Scripts/qa-zc011007-invalid-estimate-ax-probe.swift
     Scripts/qa-zc011007-signed-preflight.sh
     docs/ZC-011-007-SIGNED-QA-RUNBOOK.md
 )
@@ -49,27 +63,42 @@ has_exact_lines() {
     [[ "$(normalized_lines "$1")" == "$(normalized_lines "$2")" ]]
 }
 
+commit_patch_id() {
+    git -C "$REPOSITORY" show --pretty=format: --binary "$1" | git patch-id --stable | awk 'NR == 1 { print $1 }'
+}
+
 assert_lineage() {
     local expected="$1"
-    local head scope reviewed_scope head_scope commit_count
+    local head scope reviewed_scope head_scope product_scope tooling_scope commit_count file
     head="$(git -C "$REPOSITORY" rev-parse HEAD)" || fail "repository HEAD is unavailable"
     [[ "$head" == "$expected" ]] || fail "repository HEAD $head does not match signed commit $expected"
     git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" "$expected" || fail "candidate does not descend from canonical base"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$TOOLING_CANDIDATE^")" == "$CANONICAL_BASE" ]] || fail "tooling candidate does not directly follow canonical base"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$PRODUCT_CANDIDATE^")" == "$TOOLING_CANDIDATE" ]] || fail "product candidate does not directly follow tooling replay"
+    [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] || fail "replayed QA tooling patch identity drifted"
+    [[ "$(commit_patch_id "$PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] || fail "reviewed product patch identity drifted"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/TaskEstimateInput.swift")" == "$INPUT_BLOB" ]] || fail "TaskEstimateInput product blob changed"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/Views/DashboardView.swift")" == "$DASHBOARD_BLOB" ]] || fail "Dashboard product blob changed"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Tests/ZoidCoachAppTests/TaskEstimateInputTests.swift")" == "$INPUT_TEST_BLOB" ]] || fail "focused product tests changed"
+    for file in "${PRODUCT_FILES[@]}"; do
+        [[ "$(git -C "$REPOSITORY" rev-parse "$expected:$file")" == "$(git -C "$REPOSITORY" rev-parse "$PRODUCT_CANDIDATE:$file")" ]] \
+            || fail "reviewed product file changed after acceptance: $file"
+    done
 
-    reviewed_scope="$(printf '%s\n' "${TOOLING_FILES[@]}")"
+    reviewed_scope="$(printf '%s\n' "${TOOLING_FILES[@]}" "${PRODUCT_FILES[@]}")"
     scope="$(git -C "$REPOSITORY" diff --name-only "$CANONICAL_BASE" "$expected")" || fail "candidate scope is unavailable"
-    has_exact_lines "$scope" "$reviewed_scope" || fail "signed candidate differs from exact reviewed four-file QA scope"
+    has_exact_lines "$scope" "$reviewed_scope" || fail "signed candidate differs from exact reviewed product and QA scope"
     ! grep -Fqx 'docs/scenario-registry.json' <<<"$scope" || fail "candidate unexpectedly includes scenario registry"
     ! grep -Fqx 'docs/zoid-coach-product-scenario-tracker.md' <<<"$scope" || fail "candidate unexpectedly includes scenario tracker"
     ! grep -Fqx 'docs/impl/666-BACKLOG.md' <<<"$scope" || fail "candidate unexpectedly includes shared backlog"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    [[ "$commit_count" == "1" ]] || fail "candidate must contain exactly one QA tooling commit"
+    [[ "$commit_count" == "3" ]] || fail "candidate must contain tooling replay, product fix, and lineage binding commits"
+    tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
+    has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "QA tooling replay contains unrelated files"
+    product_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$PRODUCT_CANDIDATE")"
+    has_exact_lines "$product_scope" "$(printf '%s\n' "${PRODUCT_FILES[@]}")" || fail "product commit contains unrelated files"
     head_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected")"
-    has_exact_lines "$head_scope" "$reviewed_scope" || fail "QA tooling commit contains unrelated files"
+    has_exact_lines "$head_scope" "$(printf '%s\n' "${BINDING_FILES[@]}")" || fail "lineage binding commit contains unrelated files"
 }
 
 assert_runbook_contract() {
@@ -89,6 +118,12 @@ assert_runbook_contract() {
     grep -Fq -- '--require-ordinary-open' "$RUNBOOK" || fail "runbook omits ordinary relaunch binding"
     grep -Fq 'restore-root "$QA_ROOT" "$BASELINE_SNAPSHOT"' "$RUNBOOK" || fail "runbook omits byte restoration"
     grep -Fq 'assert-root-restored "$QA_ROOT" "$BASELINE_SNAPSHOT"' "$RUNBOOK" || fail "runbook omits restored-root comparison"
+    grep -Fq "$CANONICAL_BASE" "$RUNBOOK" || fail "runbook omits canonical base"
+    grep -Fq "$TOOLING_CANDIDATE" "$RUNBOOK" || fail "runbook omits tooling candidate"
+    grep -Fq "$PRODUCT_CANDIDATE" "$RUNBOOK" || fail "runbook omits product candidate"
+    grep -Fq "$TOOLING_PATCH_ID" "$RUNBOOK" || fail "runbook omits tooling patch identity"
+    grep -Fq "$PRODUCT_PATCH_ID" "$RUNBOOK" || fail "runbook omits product patch identity"
+    grep -Fq 'CustomEstimateEditorStateTests' "$RUNBOOK" || fail "runbook omits shared interaction-state tests"
 }
 
 assert_concurrent_fixture_self_tests() {
