@@ -3,7 +3,7 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly PARENT="fb49217deed0846c3745aac1af396cc4a769f970"
+readonly PARENT="e38794acb3068ed16051c6eb820405319dbda912"
 
 fail() { print -u2 -- "FAIL: $*"; exit 1; }
 is_sha() { [[ "$1" =~ '^[0-9a-f]{40}$' ]]; }

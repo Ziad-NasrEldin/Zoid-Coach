@@ -2,7 +2,7 @@
 set -euo pipefail
 
 readonly ROOT="${0:A:h:h}"
-readonly PARENT="fb49217deed0846c3745aac1af396cc4a769f970"
+readonly PARENT="e38794acb3068ed16051c6eb820405319dbda912"
 readonly EXPECTED_PATHS=(
     Tests/ZoidCoachAppTests/ZC062002ScreenwatchOutageJourneyTests.swift
     Scripts/qa-zc062002-screenwatch-outage-fixture.sh
