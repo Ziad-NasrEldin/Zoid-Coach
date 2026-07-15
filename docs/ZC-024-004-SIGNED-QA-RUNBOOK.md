@@ -2,8 +2,10 @@
 
 This runbook verifies that the installed signed app refreshes visible Today behavior and source freshness without closing the main window.
 The current-base candidate reassembles reviewed lineage `1bb3c27866bc3acbfd449d680371b0b340710738` on canonical base `ed5d07a363e0f64049c07b0e1d309d754caa035b` at merge `44c1bca116525709d7c4708b4f4a7089fa11c70f`.
-The deterministic Today-scroll verifier fix is commit `fa95aeab65fb23a1971e6a7c3464ae87d51febf7` and the static verifier requires the signed commit to be its one reviewed rebind child.
-The verifier reacquires a fresh unique main Accessibility tree after every bounded scroll step and rejects target ambiguity, stale generations, PID exit, privacy leakage, and timeout.
+The initial deterministic Today-scroll verifier fix is commit `fa95aeab65fb23a1971e6a7c3464ae87d51febf7`, its reviewed rebind is `cc2dc2a0c2cf2b7dea7d0db75a9d05ec03a43e57`, and the separated-row capture correction is `69b16a3335867a43ef8ae7904705a3d40f3e738f`.
+The static verifier requires the signed commit to be the one reviewed rebind child of the separated-row correction.
+Each capture resets Today to the top, binds one app PID and main-window token, retains only normalized Working and Screenwatch values from the same bounded sequence, and reacquires a fresh unique Accessibility tree after every scroll step.
+The verifier rejects within-tree or cross-generation ambiguity, changed values, stale generations, PID or window replacement, privacy leakage, and timeout.
 
 The fixture owns only current-day `behavior_records` whose window title starts with `qa-zc024004-private-` inside one bounded epoch range.
 The fixture never deletes or updates a non-owned row.
@@ -54,6 +56,7 @@ test "$(git rev-parse HEAD)" = "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor ed5d07a363e0f64049c07b0e1d309d754caa035b "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor 1bb3c27866bc3acbfd449d680371b0b340710738 "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor fa95aeab65fb23a1971e6a7c3464ae87d51febf7 "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor 69b16a3335867a43ef8ae7904705a3d40f3e738f "$EXPECTED_SIGNED_COMMIT"
 Scripts/verify-zc-024-004-live-today-refresh-static.sh
 ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh \
   "$APP" --expected-commit "$EXPECTED_SIGNED_COMMIT" --require-clean
