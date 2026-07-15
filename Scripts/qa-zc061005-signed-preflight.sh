@@ -3,10 +3,33 @@ set -euo pipefail
 
 readonly SCRIPT_PATH="${0:A}"
 readonly SCRIPT_DIR="${SCRIPT_PATH:h}"
-if [[ "${1:-}" == "--self-test" && "${ZOID_PREFLIGHT_ASSERT_ONLY:-0}" == 1 ]]; then
-    readonly REPOSITORY="${ZOID_PREFLIGHT_REPOSITORY_OVERRIDE:?missing internal repository override}"
+readonly VALIDATOR_REPOSITORY="${SCRIPT_DIR:h}"
+
+fail() {
+    print -u2 -- "FAIL: $*"
+    exit 1
+}
+
+canonical_candidate_repository() {
+    local requested="$1" canonical top_level
+    [[ "$requested" == /* ]] || fail "candidate repository must be an absolute path"
+    [[ -d "$requested" && ! -L "$requested" ]] || fail "candidate repository is unavailable or unsafe"
+    canonical="$(cd "$requested" && pwd -P)" || fail "candidate repository cannot be canonicalized"
+    top_level="$(git -C "$canonical" rev-parse --show-toplevel 2>/dev/null)" \
+        || fail "candidate repository is not a Git worktree"
+    top_level="$(cd "$top_level" && pwd -P)" || fail "candidate repository root cannot be canonicalized"
+    [[ "$canonical" == "$top_level" ]] || fail "candidate repository must name the worktree root"
+    print -- "$canonical"
+}
+
+typeset -i CANDIDATE_REPOSITORY_PROVIDED=0
+if [[ "${1:-}" == "--candidate-repository" ]]; then
+    (( $# >= 2 )) || fail "missing value for --candidate-repository"
+    readonly REPOSITORY="$(canonical_candidate_repository "$2")"
+    CANDIDATE_REPOSITORY_PROVIDED=1
+    shift 2
 else
-    readonly REPOSITORY="${SCRIPT_DIR:h}"
+    readonly REPOSITORY="$VALIDATOR_REPOSITORY"
 fi
 readonly STACKED_PARENT="0f82cbc3dd12252a3ed8f08a65210cfc72dcf6b2"
 readonly CORRECTED_TIP="8c9e007d467fe2b5388e151914a559a8245d18ed"
@@ -19,11 +42,6 @@ readonly EXPECTED_PATHS=(
     Scripts/verify-zc-061-005-insufficient-evidence-static.sh
     docs/ZC-061-005-SIGNED-QA-RUNBOOK.md
 )
-
-fail() {
-    print -u2 -- "FAIL: $*"
-    exit 1
-}
 
 is_full_lowercase_sha() {
     [[ "$1" =~ '^[0-9a-f]{40}$' ]]
@@ -46,6 +64,8 @@ assert_runbook_shell_blocks_fail_fast() {
 assert_candidate_lineage_and_scope() {
     local candidate="$1"
     is_full_lowercase_sha "$candidate" || fail "candidate must be a full lowercase SHA"
+    [[ -z "$(git -C "$REPOSITORY" status --porcelain=v1 --untracked-files=all)" ]] \
+        || fail "candidate repository must be clean"
     local resolved head merge_base expected actual
     resolved="$(git -C "$REPOSITORY" rev-parse --verify "$candidate^{commit}")" \
         || fail "candidate commit is unavailable"
@@ -68,19 +88,15 @@ assert_corrected_tip_with_runtime_contract() {
     temporary_root="$(mktemp -d /private/tmp/zoid-zc061005-lineage.XXXXXX)"
     checkout="$temporary_root/repository"
     cleanup_corrected_tip_worktree() {
-        git -C "$REPOSITORY" worktree remove --force "$checkout" >/dev/null 2>&1 || true
+        git -C "$VALIDATOR_REPOSITORY" worktree remove --force "$checkout" >/dev/null 2>&1 || true
         rm -rf "$temporary_root"
     }
     trap cleanup_corrected_tip_worktree EXIT HUP INT TERM
-    git -C "$REPOSITORY" worktree add --detach "$checkout" "$CORRECTED_TIP" >/dev/null
-    env ZOID_PREFLIGHT_REPOSITORY_OVERRIDE="$checkout" \
-        ZOID_PREFLIGHT_ASSERT_ONLY=1 \
-        ZOID_PREFLIGHT_ASSERT_CANDIDATE="$CORRECTED_TIP" \
-        "$SCRIPT_PATH" --self-test >/dev/null
-    if env ZOID_PREFLIGHT_REPOSITORY_OVERRIDE="$checkout" \
-        ZOID_PREFLIGHT_ASSERT_ONLY=1 \
-        ZOID_PREFLIGHT_ASSERT_CANDIDATE="$STACKED_PARENT" \
-        "$SCRIPT_PATH" --self-test >/dev/null 2>&1; then
+    git -C "$VALIDATOR_REPOSITORY" worktree add --detach "$checkout" "$CORRECTED_TIP" >/dev/null
+    "$SCRIPT_PATH" --candidate-repository "$checkout" \
+        --validate-candidate "$CORRECTED_TIP" >/dev/null
+    if "$SCRIPT_PATH" --candidate-repository "$checkout" \
+        --validate-candidate "$STACKED_PARENT" >/dev/null 2>&1; then
         fail "required parent was accepted as the checked-out candidate"
     fi
     print '\n' >> "$checkout/${EXPECTED_PATHS[1]}"
@@ -90,10 +106,8 @@ assert_corrected_tip_with_runtime_contract() {
         -c core.hooksPath=/dev/null \
         commit -m 'test: create unreviewed allowlisted descendant' >/dev/null
     downstream_candidate="$(git -C "$checkout" rev-parse --verify HEAD)"
-    if env ZOID_PREFLIGHT_REPOSITORY_OVERRIDE="$checkout" \
-        ZOID_PREFLIGHT_ASSERT_ONLY=1 \
-        ZOID_PREFLIGHT_ASSERT_CANDIDATE="$downstream_candidate" \
-        "$SCRIPT_PATH" --self-test >/dev/null 2>&1; then
+    if "$SCRIPT_PATH" --candidate-repository "$checkout" \
+        --validate-candidate "$downstream_candidate" >/dev/null 2>&1; then
         fail "unreviewed allowlisted-path descendant was accepted"
     fi
     cleanup_corrected_tip_worktree
@@ -101,10 +115,6 @@ assert_corrected_tip_with_runtime_contract() {
 }
 
 if [[ "${1:-}" == "--self-test" ]]; then
-    if [[ "${ZOID_PREFLIGHT_ASSERT_ONLY:-0}" == 1 ]]; then
-        assert_candidate_lineage_and_scope "${ZOID_PREFLIGHT_ASSERT_CANDIDATE:-}"
-        exit 0
-    fi
     is_full_lowercase_sha "$STACKED_PARENT" || fail "stacked parent SHA is invalid"
     is_full_lowercase_sha "$CORRECTED_TIP" || fail "corrected tip SHA is invalid"
     ! is_full_lowercase_sha "${STACKED_PARENT:u}" || fail "uppercase SHA was accepted"
@@ -121,7 +131,16 @@ if [[ "${1:-}" == "--self-test" ]]; then
     exit 0
 fi
 
-(( $# == 4 )) || fail "usage: $0 --self-test | <app> <database> <os-state> <expected-signed-commit>"
+if [[ "${1:-}" == "--validate-candidate" ]]; then
+    (( CANDIDATE_REPOSITORY_PROVIDED )) || fail "--validate-candidate requires --candidate-repository"
+    (( $# == 2 )) || fail "usage: $SCRIPT_PATH --candidate-repository <worktree> --validate-candidate <commit>"
+    assert_candidate_lineage_and_scope "$2"
+    print -- "PASS: reviewed ZC-061-005 candidate worktree is clean and exactly bound"
+    exit 0
+fi
+
+(( CANDIDATE_REPOSITORY_PROVIDED )) || fail "runtime validation requires --candidate-repository"
+(( $# == 4 )) || fail "usage: $SCRIPT_PATH --self-test | --candidate-repository <worktree> --validate-candidate <commit> | --candidate-repository <worktree> <app> <database> <os-state> <expected-signed-commit>"
 readonly APP="${1:A}"
 readonly DATABASE="${2:A}"
 readonly OS_STATE="${3:A}"
@@ -132,7 +151,7 @@ readonly EXPECTED_COMMIT="$4"
 is_full_lowercase_sha "$EXPECTED_COMMIT" || fail "expected commit must be a full lowercase SHA"
 assert_candidate_lineage_and_scope "$EXPECTED_COMMIT"
 
-ZOID_COACH_PACKAGE_MODE=qa "$SCRIPT_DIR/verify-package.sh" \
+ZOID_COACH_PACKAGE_MODE=qa "$REPOSITORY/Scripts/verify-package.sh" \
     "$APP" --expected-commit "$EXPECTED_COMMIT" --require-clean >/dev/null
 
 readonly INFO_PLIST="$APP/Contents/Info.plist"
