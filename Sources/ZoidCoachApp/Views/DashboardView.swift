@@ -2160,7 +2160,11 @@ private struct TimeBlockSelector: View {
                 .padding(.horizontal, 7)
                 .frame(height: 22)
                 .background(Sumi.seal)
-                .accessibilityLabel("Time estimate confirmed: \(durationLabel(selectedMinutes))")
+                    .accessibilityLabel(
+                        CustomEstimateEditorState.confirmationAccessibilityLabel(
+                            minutes: selectedMinutes
+                        )
+                    )
                 .transition(SumiMotion.transition(
                     reduceMotion: reduceMotion,
                     normal: .scale(scale: 0.9).combined(with: .opacity)

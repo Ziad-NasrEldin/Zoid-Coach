@@ -5,6 +5,14 @@ import Testing
 
 @Suite("Custom estimate editor interaction state", .serialized)
 struct CustomEstimateEditorStateTests {
+    @Test
+    func confirmedEstimateUsesExactSharedAccessibilityCopy() {
+        #expect(
+            CustomEstimateEditorState.confirmationAccessibilityLabel(minutes: 25)
+                == "Time estimate confirmed: 25 MIN"
+        )
+    }
+
     @Test(arguments: [
         ("", "Enter an estimate in minutes."),
         ("   ", "Enter an estimate in minutes."),

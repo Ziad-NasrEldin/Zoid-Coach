@@ -1844,6 +1844,11 @@ private struct TodayEstimateStrip: View {
                     .font(Sumi.label(7))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
+                    .accessibilityLabel(
+                        CustomEstimateEditorState.confirmationAccessibilityLabel(
+                            minutes: selectedMinutes
+                        )
+                    )
                     .contentTransition(.numericText())
                     .transition(SumiMotion.transition(
                         reduceMotion: reduceMotion,
