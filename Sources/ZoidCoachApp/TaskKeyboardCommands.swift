@@ -1,22 +1,47 @@
 import SwiftUI
 import ZoidCoachCore
 
+enum TaskKeyboardShortcut: String, CaseIterable {
+    case start = "s"
+    case pauseOrResume = "p"
+    case switchTask = "k"
+    case complete = "return"
+
+    var key: KeyEquivalent {
+        switch self {
+        case .complete: .return
+        default: KeyEquivalent(Character(rawValue))
+        }
+    }
+
+    static let modifiers: EventModifiers = [.command, .option]
+}
+
 enum TaskKeyboardAction: Equatable {
     case start(taskID: String, title: String)
     case pause(taskID: String, title: String)
     case resume(taskID: String, title: String)
+    case switchTask(taskID: String, title: String, fromTitle: String)
+    case complete(taskID: String, title: String)
 
     var command: TaskActivityCommand {
         switch self {
         case .start: .start
         case .pause: .pauseDoneForNow
         case .resume: .resume
+        case .switchTask: .start
+        case .complete: .complete
         }
     }
 
     var taskID: String {
         switch self {
-        case let .start(taskID, _), let .pause(taskID, _), let .resume(taskID, _): taskID
+        case let .start(taskID, _),
+             let .pause(taskID, _),
+             let .resume(taskID, _),
+             let .switchTask(taskID, _, _),
+             let .complete(taskID, _):
+            taskID
         }
     }
 }
@@ -24,6 +49,8 @@ enum TaskKeyboardAction: Equatable {
 struct TaskKeyboardCommandState: Equatable {
     let startAction: TaskKeyboardAction?
     let lifecycleAction: TaskKeyboardAction?
+    let switchAction: TaskKeyboardAction?
+    let completeAction: TaskKeyboardAction?
 
     init(
         snapshot: TodaySnapshot?,
@@ -33,6 +60,8 @@ struct TaskKeyboardCommandState: Equatable {
         guard commandsAreAvailable, !commandIsPending, let snapshot else {
             startAction = nil
             lifecycleAction = nil
+            switchAction = nil
+            completeAction = nil
             return
         }
 
@@ -40,11 +69,13 @@ struct TaskKeyboardCommandState: Equatable {
             snapshot.taskRows.first { $0.taskID == active.taskID && $0.state == .active }
         } ?? snapshot.taskRows.first { $0.state == .active }
 
-        if activeTask == nil,
-           let recommendedID = snapshot.recommendation.taskID,
-           let recommended = snapshot.taskRows.first(where: {
-               $0.taskID == recommendedID && $0.state == .ready
-           }) {
+        let recommended = snapshot.recommendation.taskID.flatMap { recommendedID in
+            snapshot.taskRows.first {
+                $0.taskID == recommendedID && $0.state == .ready
+            }
+        }
+
+        if activeTask == nil, let recommended {
             startAction = .start(taskID: recommended.taskID, title: recommended.title)
         } else {
             startAction = nil
@@ -52,6 +83,16 @@ struct TaskKeyboardCommandState: Equatable {
 
         if let activeTask {
             lifecycleAction = .pause(taskID: activeTask.taskID, title: activeTask.title)
+            completeAction = .complete(taskID: activeTask.taskID, title: activeTask.title)
+            if let recommended {
+                switchAction = .switchTask(
+                    taskID: recommended.taskID,
+                    title: recommended.title,
+                    fromTitle: activeTask.title
+                )
+            } else {
+                switchAction = nil
+            }
             return
         }
 
@@ -62,9 +103,12 @@ struct TaskKeyboardCommandState: Equatable {
         }
         if resumable.count == 1, let pausedTask = resumable.first {
             lifecycleAction = .resume(taskID: pausedTask.taskID, title: pausedTask.title)
+            completeAction = .complete(taskID: pausedTask.taskID, title: pausedTask.title)
         } else {
             lifecycleAction = nil
+            completeAction = nil
         }
+        switchAction = nil
     }
 
     var startLabel: String {
@@ -80,6 +124,20 @@ struct TaskKeyboardCommandState: Equatable {
         case let .resume(_, title): "Resume Paused Task: \(title)"
         default: "Pause or Resume Current Task"
         }
+    }
+
+    var switchLabel: String {
+        guard case let .switchTask(_, title, fromTitle) = switchAction else {
+            return "Switch to Recommended Task"
+        }
+        return "Switch from \(fromTitle) to \(title) and Preserve Time"
+    }
+
+    var completeLabel: String {
+        guard case let .complete(_, title) = completeAction else {
+            return "Complete Current Task"
+        }
+        return "Complete Task: \(title)"
     }
 }
 
@@ -101,14 +159,28 @@ struct TaskKeyboardCommands: Commands {
             Button(state.startLabel) {
                 perform(state.startAction)
             }
-            .keyboardShortcut("s", modifiers: [.command, .option])
+            .keyboardShortcut(TaskKeyboardShortcut.start.key, modifiers: TaskKeyboardShortcut.modifiers)
             .disabled(state.startAction == nil)
 
             Button(state.lifecycleLabel) {
                 perform(state.lifecycleAction)
             }
-            .keyboardShortcut("p", modifiers: [.command, .option])
+            .keyboardShortcut(TaskKeyboardShortcut.pauseOrResume.key, modifiers: TaskKeyboardShortcut.modifiers)
             .disabled(state.lifecycleAction == nil)
+
+            Divider()
+
+            Button(state.switchLabel) {
+                perform(state.switchAction)
+            }
+            .keyboardShortcut(TaskKeyboardShortcut.switchTask.key, modifiers: TaskKeyboardShortcut.modifiers)
+            .disabled(state.switchAction == nil)
+
+            Button(state.completeLabel) {
+                perform(state.completeAction)
+            }
+            .keyboardShortcut(TaskKeyboardShortcut.complete.key, modifiers: TaskKeyboardShortcut.modifiers)
+            .disabled(state.completeAction == nil)
         }
     }
 
