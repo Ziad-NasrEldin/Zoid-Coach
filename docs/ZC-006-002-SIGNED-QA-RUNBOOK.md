@@ -140,8 +140,11 @@ test "$before_restart_count" = 1
 test "$after_restart_count" = 1
 "$FIXTURE" assert-database "$DATABASE" "$EXPECTED_LOCAL_DAY"
 swift "$PROBE" --pid "$APP_PID" --phase invitation
-swift "$PROBE" --pid "$APP_PID" --phase work-unplanned
-"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY"
+action_output="$(swift "$PROBE" --pid "$APP_PID" --phase work-unplanned)"
+printf '%s\n' "$action_output"
+PROMPT_ID="$(printf '%s\n' "$action_output" | sed -n 's/^PROMPT_ID=//p')"
+test -n "$PROMPT_ID"
+"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY" "$PROMPT_ID"
 kill "$APP_PID"
 while kill -0 "$APP_PID" 2>/dev/null; do sleep 0.1; done
 open "$APP" --args --qa-open-main
@@ -156,14 +159,14 @@ test -n "$preflight_output"
 printf '%s\n' "$preflight_output"
 APP_PID="$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')"
 swift "$PROBE" --pid "$APP_PID" --phase unplanned
-"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY"
+"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY" "$PROMPT_ID"
 ```
 
 The initial database assertion requires one unresolved canonical invitation, the exact configured local day, one successful nightly checkpoint with the missed heartbeat, the stable dismissal contract, and no private sentinel.
 The restart assertion rejects a second prompt.
 The native Accessibility probe binds the exact foreground PID and main window, requires the low-pressure invitation language without fixture sentinels, and presses exactly one Work Unplanned control.
 The action assertion requires one answered invitation, one dashboard Work Unplanned response, one applied effect, no unresolved invitation, and the original recovered checkpoint.
-The immediate UI must show Limited Unplanned Mode, the saved-action confirmation, and the no-drift contract.
+The immediate UI must show the canonical Limited Unplanned Mode and no-drift copy.
 An ordinary app quit and relaunch must restore the same sentinel-safe unplanned and no-drift state without the invitation or Work Unplanned action.
 
 ## Restore exactly
