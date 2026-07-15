@@ -137,7 +137,67 @@ func keyboardCommandsDisableTogetherDuringAnyTaskMutation() {
 }
 
 @Test
-func keyboardSwitchRequiresAnActiveTaskAndExactReadyRecommendation() {
+func keyboardSwitchFallsBackToOneReadyAlternativeForTheProductionActiveSnapshot() {
+    let active = keyboardTask(id: "active", title: "Current", state: .active)
+    let ready = keyboardTask(id: "ready", title: "Next", state: .ready)
+
+    let productionSnapshot = TaskKeyboardCommandState(
+        snapshot: keyboardSnapshot(
+            rows: [active, ready],
+            activeTask: .init(taskID: "active", startedAt: nil, elapsedMinutes: 4),
+            recommendation: .init(
+                taskID: "active",
+                sentence: "Continue the active task before starting another one.",
+                reasons: []
+            )
+        ),
+        commandIsPending: false
+    )
+    #expect(productionSnapshot.switchAction == .switchTask(
+        taskID: "ready",
+        title: "Next",
+        fromTitle: "Current"
+    ))
+    #expect(productionSnapshot.switchLabel == "Switch from Current to Next and Preserve Time")
+}
+
+@Test
+func keyboardSwitchFallbackRejectsZeroOrMultipleReadyAlternatives() {
+    let active = keyboardTask(id: "active", title: "Current", state: .active)
+    let activeRecommendation = NextTaskRecommendation(
+        taskID: "active",
+        sentence: "Continue the active task before starting another one.",
+        reasons: []
+    )
+
+    let noAlternative = TaskKeyboardCommandState(
+        snapshot: keyboardSnapshot(
+            rows: [active],
+            activeTask: .init(taskID: "active", startedAt: nil, elapsedMinutes: 4),
+            recommendation: activeRecommendation
+        ),
+        commandIsPending: false
+    )
+    #expect(noAlternative.switchAction == nil)
+
+    let ambiguousAlternatives = TaskKeyboardCommandState(
+        snapshot: keyboardSnapshot(
+            rows: [
+                active,
+                keyboardTask(id: "first", title: "First", state: .ready),
+                keyboardTask(id: "second", title: "Second", state: .ready),
+            ],
+            activeTask: .init(taskID: "active", startedAt: nil, elapsedMinutes: 4),
+            recommendation: activeRecommendation
+        ),
+        commandIsPending: false
+    )
+    #expect(ambiguousAlternatives.switchAction == nil)
+    #expect(ambiguousAlternatives.switchLabel == "Switch to Recommended Task")
+}
+
+@Test
+func keyboardSwitchRequiresAnActiveTaskAndAResolvableReadyTarget() {
     let active = keyboardTask(id: "active", title: "Current", state: .active)
     let ready = keyboardTask(id: "ready", title: "Next", state: .ready)
 
