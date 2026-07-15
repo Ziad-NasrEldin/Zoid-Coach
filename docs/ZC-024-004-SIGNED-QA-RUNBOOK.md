@@ -1,8 +1,8 @@
 # ZC-024-004 signed QA runbook
 
 This runbook verifies that the installed signed app refreshes visible Today behavior and source freshness without closing the main window.
-The current-base product candidate is `7d732102fda7322301aec2446e79b659307be02d`, reassembled from reviewed product commit `7602dc644d0cc1df39df6939519d258fb6523ab7` on canonical base `8b1782c6ee2c213a408360554f19bf231b0f3e19`.
-The signed commit may be this candidate or a reviewed descendant containing the namespaced verifier tooling.
+The current-base product candidate is `72e9c26e6771fafc29bf325569d682781e81cba1`, reassembled from reviewed product commit `7602dc644d0cc1df39df6939519d258fb6523ab7` on canonical base `15d8e6ec42bf178e9de2ee055dd6915c8c74b786`.
+The static verifier binds the signed candidate to the exact eight-file scope, four reviewed stable patch IDs, and one current-base lineage-maintenance commit.
 
 The fixture owns only current-day `behavior_records` whose window title starts with `qa-zc024004-private-` inside one bounded epoch range.
 The fixture never deletes or updates a non-owned row.
@@ -20,7 +20,8 @@ PROBE="$PWD/Scripts/qa-zc024004-live-refresh-ax-probe.swift"
 "$FIXTURE" self-test
 swift "$PROBE" --self-test
 swiftc -typecheck "$PROBE"
-git diff --check 8b1782c6ee2c213a408360554f19bf231b0f3e19
+Scripts/verify-zc-024-004-live-today-refresh-static.sh
+git diff --check 15d8e6ec42bf178e9de2ee055dd6915c8c74b786
 ```
 
 Do not put build transcripts, screenshots, AX snapshots, temporary databases, or package staging under the repository.
@@ -48,7 +49,8 @@ INFO_PLIST="$APP/Contents/Info.plist"
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$INFO_PLIST")"
 APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
 test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
-git merge-base --is-ancestor 7d732102fda7322301aec2446e79b659307be02d "$EXPECTED_SIGNED_COMMIT"
+test "$(git rev-parse HEAD)" = "$EXPECTED_SIGNED_COMMIT"
+Scripts/verify-zc-024-004-live-today-refresh-static.sh
 ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh \
   "$APP" --expected-commit "$EXPECTED_SIGNED_COMMIT" --require-clean
 test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$INFO_PLIST")" = "$QA_ROOT"
