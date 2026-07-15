@@ -16,6 +16,12 @@ public enum PromptResponseEffect: Equatable, Sendable {
     case coachingTaskPaused(taskID: String)
     case coachingWorkdayEnded(taskID: String)
     case coachingBreakStarted(taskID: String)
+    case ambiguousActivityClassified(
+        promptID: String,
+        classification: BehaviorClassification,
+        taskID: String?
+    )
+    case ambiguousActivityKeptUnknown(promptID: String)
 }
 
 public final class PromptResponseEffectRouter: @unchecked Sendable {
@@ -26,6 +32,7 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
     private let promptStore: PromptInboxStore?
     private let planningInvitations: PlanningInvitationService?
     private let taskExecution: TaskExecutionStore?
+    private let ambiguousActivityPrompts: AmbiguousActivityPromptService?
     private let schedulingCalendarIdentifier: @Sendable () throws -> String?
 
     public init(
@@ -36,6 +43,7 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
         promptStore: PromptInboxStore? = nil,
         planningInvitations: PlanningInvitationService? = nil,
         taskExecution: TaskExecutionStore? = nil,
+        ambiguousActivityPrompts: AmbiguousActivityPromptService? = nil,
         schedulingCalendarIdentifier: @escaping @Sendable () throws -> String? = { nil }
     ) {
         self.outbox = outbox
@@ -45,6 +53,7 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
         self.promptStore = promptStore
         self.planningInvitations = planningInvitations
         self.taskExecution = taskExecution
+        self.ambiguousActivityPrompts = ambiguousActivityPrompts
         self.schedulingCalendarIdentifier = schedulingCalendarIdentifier
     }
 
@@ -55,6 +64,20 @@ public final class PromptResponseEffectRouter: @unchecked Sendable {
     }
 
     private func applyEffect(_ result: PromptResponseResult) throws -> PromptResponseEffect {
+        if let ambiguousActivityPrompts {
+            switch try ambiguousActivityPrompts.apply(result) {
+            case .none:
+                break
+            case let .classified(promptID, classification, taskID):
+                return .ambiguousActivityClassified(
+                    promptID: promptID,
+                    classification: classification,
+                    taskID: taskID
+                )
+            case let .keptUnknown(promptID):
+                return .ambiguousActivityKeptUnknown(promptID: promptID)
+            }
+        }
         if result.wasApplied, let taskExecution {
             let payloadTaskID = result.episode.payload["taskID"]
             switch result.response.action {
