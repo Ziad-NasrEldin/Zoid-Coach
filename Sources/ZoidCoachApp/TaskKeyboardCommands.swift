@@ -75,6 +75,17 @@ struct TaskKeyboardCommandState: Equatable {
             }
         }
 
+        let switchTarget: TodayTaskRow?
+        if let activeTask,
+           snapshot.recommendation.taskID == activeTask.taskID {
+            let readyAlternatives = snapshot.taskRows.filter {
+                $0.taskID != activeTask.taskID && $0.state == .ready
+            }
+            switchTarget = readyAlternatives.count == 1 ? readyAlternatives[0] : nil
+        } else {
+            switchTarget = recommended
+        }
+
         if activeTask == nil, let recommended {
             startAction = .start(taskID: recommended.taskID, title: recommended.title)
         } else {
@@ -84,10 +95,10 @@ struct TaskKeyboardCommandState: Equatable {
         if let activeTask {
             lifecycleAction = .pause(taskID: activeTask.taskID, title: activeTask.title)
             completeAction = .complete(taskID: activeTask.taskID, title: activeTask.title)
-            if let recommended {
+            if let switchTarget {
                 switchAction = .switchTask(
-                    taskID: recommended.taskID,
-                    title: recommended.title,
+                    taskID: switchTarget.taskID,
+                    title: switchTarget.title,
                     fromTitle: activeTask.title
                 )
             } else {
