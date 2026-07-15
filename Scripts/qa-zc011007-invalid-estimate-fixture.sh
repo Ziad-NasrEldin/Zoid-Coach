@@ -56,7 +56,7 @@ assert_qa_processes_stopped() {
             fail "all exact signed QA processes must be stopped before mutating the fixture root: executable=$executable pid=$pid"
         done
     done
-    ! lsof "$qa_root$DATABASE_SUFFIX" >/dev/null 2>&1 || fail "fixture database has open file handles"
+    ! /usr/sbin/lsof "$qa_root$DATABASE_SUFFIX" >/dev/null 2>&1 || fail "fixture database has open file handles"
 }
 
 assert_database_identity() {
@@ -430,10 +430,10 @@ SQL
     tail -f "$database" >/dev/null &
     database_holder_pid=$!
     for attempt in {1..50}; do
-        lsof -a -p "$database_holder_pid" "$database" >/dev/null 2>&1 && break
+        /usr/sbin/lsof -a -p "$database_holder_pid" "$database" >/dev/null 2>&1 && break
         sleep 0.02
     done
-    lsof -a -p "$database_holder_pid" "$database" >/dev/null 2>&1 || fail "open-database self-test did not acquire a file handle"
+    /usr/sbin/lsof -a -p "$database_holder_pid" "$database" >/dev/null 2>&1 || fail "open-database self-test did not acquire a file handle"
     if "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot" >/dev/null 2>&1; then
         fail "restore accepted an open canonical database handle"
     fi

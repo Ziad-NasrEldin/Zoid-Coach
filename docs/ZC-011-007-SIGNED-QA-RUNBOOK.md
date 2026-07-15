@@ -80,7 +80,7 @@ Launch and bind the foreground app before helper registration.
 ```sh
 "$APP_EXECUTABLE" --qa-unregister-agent
 for candidate in $(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true); do
-  if lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$APP_EXECUTABLE"; then
+  if /usr/sbin/lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$APP_EXECUTABLE"; then
     kill "$candidate"
     while kill -0 "$candidate" 2>/dev/null; do sleep 0.1; done
   fi

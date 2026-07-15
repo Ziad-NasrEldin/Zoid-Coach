@@ -304,7 +304,7 @@ matching_app_pids() {
     for _ in {1..50}; do
         local matches=()
         for pid in ${(f)"$(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true)"}; do
-            if lsof -Fn -a -p "$pid" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$APP_EXECUTABLE"; then
+        if /usr/sbin/lsof -Fn -a -p "$pid" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$APP_EXECUTABLE"; then
                 matches+=("$pid")
             fi
         done
@@ -333,7 +333,7 @@ fi
 if (( REQUIRE_HELPER_UNREGISTERED )); then
     ! launchctl print "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1 || fail "helper is registered before foreground binding"
     for helper_pid in ${(f)"$(pgrep -x "${AGENT_EXECUTABLE:t}" 2>/dev/null || true)"}; do
-        if lsof -Fn -a -p "$helper_pid" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$AGENT_EXECUTABLE"; then
+        if /usr/sbin/lsof -Fn -a -p "$helper_pid" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$AGENT_EXECUTABLE"; then
             fail "installed helper is still running before registration"
         fi
     done
@@ -343,8 +343,8 @@ else
     readonly SERVICE="$service"
     readonly HELPER_PID="$(awk '/pid =/{print $3; exit}' <<<"$SERVICE")"
     [[ "$HELPER_PID" == <-> ]] || fail "installed helper has no running PID"
-    lsof -Fn -a -p "$HELPER_PID" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$AGENT_EXECUTABLE" || fail "helper is not running from installed bundle"
-    lsof -a -p "$HELPER_PID" "$CANONICAL_DATABASE" >/dev/null 2>&1 || fail "helper does not hold exact QA database"
+    /usr/sbin/lsof -Fn -a -p "$HELPER_PID" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$AGENT_EXECUTABLE" || fail "helper is not running from installed bundle"
+    /usr/sbin/lsof -a -p "$HELPER_PID" "$CANONICAL_DATABASE" >/dev/null 2>&1 || fail "helper does not hold exact QA database"
 fi
 
 print -- "APP_PID=$APP_PID"
