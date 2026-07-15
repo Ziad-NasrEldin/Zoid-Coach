@@ -125,6 +125,11 @@ run_case() {
   "$APP_EXECUTABLE" --qa-register-agent
   preflight_output="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --expected-app-pid "$pid")"
   test "$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')" = "$pid"
+  kill "$pid"
+  while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
+  open "$APP" --args --qa-open-main
+  preflight_output="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT")"
+  pid="$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')"
   swift "$PROBE" --pid "$pid" --phase inspect --count "$expected_count"
   kill "$pid"
   while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
@@ -161,7 +166,8 @@ run_case many past snooze
 The zero case proves that the product never invents a suggestion.
 The one case proves singular grammar.
 The many case proves plural grammar without leaking task names into the invitation copy.
-Every past case is inspected, quit normally, relaunched from the same installed bundle, inspected again, and only then acted on.
+Every past case first binds the foreground app with the helper absent, registers the helper, and relaunches so the ordinary XPC connection path can populate the inbox.
+It is then inspected, quit normally, relaunched from the same installed bundle, inspected again, and only then acted on.
 The three action cases cover starting without a plan, temporary dismissal, and the fifteen-minute snooze through visible production controls.
 
 ## Restore the isolated root and registration state
