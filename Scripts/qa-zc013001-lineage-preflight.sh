@@ -4,8 +4,8 @@ set -euo pipefail
 
 readonly ROOT="${0:A:h:h}"
 readonly CANONICAL_BASE="8b1782c6ee2c213a408360554f19bf231b0f3e19"
-readonly REVIEWED_PATCH_COUNT=16
-readonly TOTAL_LINEAGE_COMMIT_COUNT=17
+readonly REVIEWED_PATCH_COUNT=19
+readonly TOTAL_LINEAGE_COMMIT_COUNT=20
 
 readonly -a REQUIRED_PATCH_IDS=(
     56b15769cc032446b10cd2a37e03b72769df67c6
@@ -24,12 +24,15 @@ readonly -a REQUIRED_PATCH_IDS=(
     a89faa359e07623f58d8ce95b620465bdab91e1e
     3630ac213aa0ba2ee2787249ddf23414f44a9fcb
     ce867ca81fb0756910a293673bc3a2042456df5b
+    0990ba3aa2e6cbd107217210318e4c5d945b782a
+    8217c280f9bb5dad3cc0265bd0358946d053e97a
+    8a9c2b58f7a3304232f563603432c1f49aea35ef
 )
 
 readonly -a REQUIRED_BLOBS=(
-    "695a37111ff8c120b6bb891ad916129bd8718201:Scripts/qa-zc013001-day-state-fixture.sh"
+    "d7a425c450bede817d25ff6161bbeaaf1f84396f:Scripts/qa-zc013001-day-state-fixture.sh"
     "3bff01d0f0ed11d1439a65cddfbae8ef5d717d68:Scripts/qa-zc013001-runbook-self-test.sh"
-    "008421a3040e08cf5ec330db018008d16c55b034:Sources/ZoidCoachApp/AppModel.swift"
+    "9612a7787e3c25ada2a0be85ba66080348b03272:Sources/ZoidCoachApp/AppModel.swift"
     "7cd6443547efe6f2db659e84dd6f9a4a3c8c2719:Sources/ZoidCoachApp/MenuBarCoachView.swift"
     "cdda965919644e308180f55eeb804fa515cf49d0:Sources/ZoidCoachApp/ReadOnlyTodaySnapshotLoader.swift"
     "99e92ff5f892d46bcd44551952046602eb5f5aab:Sources/ZoidCoachApp/Views/DashboardView.swift"
@@ -37,7 +40,7 @@ readonly -a REQUIRED_BLOBS=(
     "7e38728c1a53c309136d403c2b57f3160ca863bc:Sources/ZoidCoachApp/Views/TodayDayStateHeader.swift"
     "61b0c4c6fa51f8863cd7d5e3a86d9edd4abcb424:Tests/ZoidCoachAppTests/MenuBarCoachTests.swift"
     "6613f0cc0f21047f38c1a3a76fb8fb7ebdfb018b:Tests/ZoidCoachAppTests/TodayDayStatePresentationTests.swift"
-    "47524d16fdec4a88da1d93419a12ba35942a1d2a:Tests/ZoidCoachAppTests/TodaySnapshotOwnershipTests.swift"
+    "e73ec19bec16eb4c2f259d15469d3788ec3e8e6f:Tests/ZoidCoachAppTests/TodaySnapshotOwnershipTests.swift"
     "7ecb431ef3e3856374b067a5c44eb3abcc4a6f60:Scripts/qa-zc013001-day-state-ax-probe.swift"
     "f650b7f2948cbf3addbd9f421e397f98c443c3b9:docs/ZC-013-001-SIGNED-QA-RUNBOOK.md"
 )
