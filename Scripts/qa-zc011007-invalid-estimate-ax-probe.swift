@@ -702,6 +702,13 @@ private func findElementWithBoundedScroll(
     for page in 0...maximumScrollPages {
         for _ in 0..<5 {
             let current = try snapshot(in: window)
+            if let match = element(
+                in: current.elements,
+                role: expectedRole,
+                exactLabel: exactLabel
+            ) {
+                return match
+            }
             if let match = visibleElement(
                 in: current.elements,
                 window: window,
