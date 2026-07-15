@@ -2,7 +2,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="8b1782c6ee2c213a408360554f19bf231b0f3e19"
+BASE="15d8e6ec42bf178e9de2ee055dd6915c8c74b786"
+
+readonly REVIEWED_PATCH_IDS=(
+    "5b1d785b5676c1d5d33b02ea4d9cfa01940be0c8"
+    "efe25d1a4433de623c8f273ec7e92dd60fb44469"
+    "16647b99b75776af46b29a0d4d4d03df195323a8"
+    "d6d19cea420d9fc549d8e48768f282469dc76f9c"
+)
 
 readonly OWNED_PATHS=(
     "Sources/ZoidCoachApp/AppModel.swift"
@@ -65,6 +72,53 @@ assert_contains() {
     fi
 }
 
+normalized_lines() {
+    sed '/^$/d' | LC_ALL=C sort -u
+}
+
+contains_required_lines() {
+    local actual="$1"
+    local required="$2"
+    local line
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        grep -Fqx -- "$line" <<<"$actual" || return 1
+    done <<<"$required"
+}
+
+line_count() {
+    printf '%s\n' "$1" | normalized_lines | wc -l | tr -d ' '
+}
+
+has_reviewed_patch_shape() {
+    contains_required_lines "$1" "$2" \
+        && (( $(line_count "$1") == $(line_count "$2") + 1 ))
+}
+
+verify_reviewed_lineage() {
+    local head scope reviewed_scope commit_count head_scope expected_head_scope
+    local patch_ids commit
+    head="$(git rev-parse HEAD)"
+    git merge-base --is-ancestor "$BASE" "$head"
+    reviewed_scope="$(printf '%s\n' "${OWNED_PATHS[@]}" | normalized_lines)"
+    scope="$(git diff --name-only "$BASE" "$head" | normalized_lines)"
+    [[ "$scope" == "$reviewed_scope" ]]
+    commit_count="$(git rev-list --count "$BASE..$head")"
+    (( commit_count == ${#REVIEWED_PATCH_IDS[@]} + 1 ))
+    expected_head_scope="$(printf '%s\n' \
+        "Scripts/verify-zc-024-004-live-today-refresh-static.sh" \
+        "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift" \
+        "docs/ZC-024-004-SIGNED-QA-RUNBOOK.md" | normalized_lines)"
+    head_scope="$(git diff-tree --no-commit-id --name-only -r "$head" | normalized_lines)"
+    [[ "$head_scope" == "$expected_head_scope" ]]
+    patch_ids=""
+    while IFS= read -r commit; do
+        patch_ids+="$(git show --pretty=email --no-ext-diff "$commit" \
+            | git patch-id --stable | awk '{print $1}')"$'\n'
+    done < <(git rev-list --reverse "$BASE..$head")
+    has_reviewed_patch_shape "$patch_ids" "$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
+}
+
 run_self_test() {
     local expected_path
     local expected_paths=(
@@ -86,6 +140,12 @@ run_self_test() {
     ! is_owned "Sources/ZoidCoachApp/Views/DashboardView.swift"
     is_forbidden "Sources/ZoidCoachApp/Views/DashboardView.swift"
     ! is_forbidden "Sources/ZoidCoachApp/AppModel.swift"
+    candidate_patches="$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"$'\n''aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    has_reviewed_patch_shape "$candidate_patches" "$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
+    ! has_reviewed_patch_shape "$(sed '$d' <<<"$candidate_patches")" "$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
+    ! has_reviewed_patch_shape "${candidate_patches/5b1d785b5676c1d5d33b02ea4d9cfa01940be0c8/0000000000000000000000000000000000000000}" "$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
+    ! has_reviewed_patch_shape "$candidate_patches"$'\n''bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' "$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
+    verify_reviewed_lineage
     echo "ZC-024-004 verifier self-test: pass"
 }
 
@@ -117,6 +177,8 @@ done < <(
         git ls-files --others --exclude-standard
     } | sort -u
 )
+
+verify_reviewed_lineage
 
 assert_contains "Sources/ZoidCoachApp/AppModel.swift" \
     "func setTodayLiveRefreshEnabled(_ isEnabled: Bool)"
