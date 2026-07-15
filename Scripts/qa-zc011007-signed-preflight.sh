@@ -6,6 +6,13 @@ readonly REPOSITORY="${SCRIPT_DIR:h}"
 readonly CANONICAL_BASE="b97c2ce3177ccf89f60225c475062608db1920ad"
 readonly TOOLING_CANDIDATE="fa179fa3207c60739d0f1c91ef4636f084018106"
 readonly PRODUCT_CANDIDATE="6883a863295cdfe51b364f417e0bcbeccbe1b0b9"
+readonly LINEAGE_CANDIDATE="f867751776cd7a01f6a49f5c190cac5f531d3d22"
+readonly TRACE_CANDIDATE="0968183ed86bc6459d89545a44d815ed9535fdff"
+readonly ORDERED_TRACE_CANDIDATE="595e9a637e84ab911de5db1c79fc596c43d2a18b"
+readonly FIXTURE_CANDIDATE="92e8f7f05fd1adb960c6e2d746742e4c12f6f6e2"
+readonly ACCESSIBILITY_CANDIDATE="71e13511dae17f551b357cee1750abb7751d5648"
+readonly PERSISTED_PROBE_CANDIDATE="43bca460e22ee9c8b823bdf113713489572da97a"
+readonly SURFACE_PROBE_CANDIDATE="f538b23cfbc49aa9ad53f950f68da90a6712cfbd"
 readonly TOOLING_PATCH_ID="54853a6c3d47fdbb9dec56ebc695e7143f7c5b92"
 readonly PRODUCT_PATCH_ID="ca93eecc45fe7b252b3678a029aee68e79cc0477"
 readonly INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
@@ -26,7 +33,6 @@ readonly PRODUCT_FILES=(
     Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift
 )
 readonly BINDING_FILES=(
-    Scripts/qa-zc011007-invalid-estimate-ax-probe.swift
     Scripts/qa-zc011007-signed-preflight.sh
     docs/ZC-011-007-SIGNED-QA-RUNBOOK.md
 )
@@ -75,14 +81,24 @@ assert_lineage() {
     git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" "$expected" || fail "candidate does not descend from canonical base"
     [[ "$(git -C "$REPOSITORY" rev-parse "$TOOLING_CANDIDATE^")" == "$CANONICAL_BASE" ]] || fail "tooling candidate does not directly follow canonical base"
     [[ "$(git -C "$REPOSITORY" rev-parse "$PRODUCT_CANDIDATE^")" == "$TOOLING_CANDIDATE" ]] || fail "product candidate does not directly follow tooling replay"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$LINEAGE_CANDIDATE^")" == "$PRODUCT_CANDIDATE" ]] || fail "lineage candidate does not directly follow product candidate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$TRACE_CANDIDATE^")" == "$LINEAGE_CANDIDATE" ]] || fail "trace candidate does not directly follow lineage candidate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$ORDERED_TRACE_CANDIDATE^")" == "$TRACE_CANDIDATE" ]] || fail "ordered trace candidate does not directly follow trace candidate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$FIXTURE_CANDIDATE^")" == "$ORDERED_TRACE_CANDIDATE" ]] || fail "fixture fix does not directly follow ordered trace candidate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$ACCESSIBILITY_CANDIDATE^")" == "$FIXTURE_CANDIDATE" ]] || fail "accessibility fix does not directly follow fixture fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$PERSISTED_PROBE_CANDIDATE^")" == "$ACCESSIBILITY_CANDIDATE" ]] || fail "persisted probe fix does not directly follow accessibility fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$SURFACE_PROBE_CANDIDATE^")" == "$PERSISTED_PROBE_CANDIDATE" ]] || fail "surface probe fix does not directly follow persisted probe fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$SURFACE_PROBE_CANDIDATE" ]] || fail "final lineage binding does not directly follow surface probe fix"
     [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] || fail "replayed QA tooling patch identity drifted"
     [[ "$(commit_patch_id "$PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] || fail "reviewed product patch identity drifted"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/TaskEstimateInput.swift")" == "$INPUT_BLOB" ]] || fail "TaskEstimateInput product blob changed"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Tests/ZoidCoachAppTests/TaskEstimateInputTests.swift")" == "$INPUT_TEST_BLOB" ]] || fail "focused product tests changed"
     for file in "${PRODUCT_FILES[@]}"; do
-        [[ "$(git -C "$REPOSITORY" rev-parse "$expected:$file")" == "$(git -C "$REPOSITORY" rev-parse "$PRODUCT_CANDIDATE:$file")" ]] \
-            || fail "reviewed product file changed after acceptance: $file"
+        [[ "$(git -C "$REPOSITORY" rev-parse "$expected:$file")" == "$(git -C "$REPOSITORY" rev-parse "$ACCESSIBILITY_CANDIDATE:$file")" ]] \
+            || fail "final product file differs from accessibility candidate: $file"
     done
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" == "$(git -C "$REPOSITORY" rev-parse "$FIXTURE_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" ]] || fail "final fixture differs from agent-writable fixture fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" == "$(git -C "$REPOSITORY" rev-parse "$SURFACE_PROBE_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" ]] || fail "final AX probe differs from surface-bound probe"
 
     reviewed_scope="$(printf '%s\n' "${TOOLING_FILES[@]}" "${PRODUCT_FILES[@]}")"
     scope="$(git -C "$REPOSITORY" diff --name-only "$CANONICAL_BASE" "$expected")" || fail "candidate scope is unavailable"
@@ -92,7 +108,7 @@ assert_lineage() {
     ! grep -Fqx 'docs/impl/666-BACKLOG.md' <<<"$scope" || fail "candidate unexpectedly includes shared backlog"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    [[ "$commit_count" == "3" ]] || fail "candidate must contain tooling replay, product fix, and lineage binding commits"
+    [[ "$commit_count" == "10" ]] || fail "candidate must contain the exact nine reviewed commits plus final lineage binding"
     tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
     has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "QA tooling replay contains unrelated files"
     product_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$PRODUCT_CANDIDATE")"
@@ -105,9 +121,11 @@ assert_runbook_contract() {
     [[ -f "$RUNBOOK" ]] || fail "signed runbook is missing"
     local case_name
     for case_name in empty whitespace unicode-whitespace zero negative decimal text localized-digits localized-decimal too-large; do
-        grep -Fq -- "run_invalid_case $case_name" "$RUNBOOK" || fail "runbook omits estimate case $case_name"
+        grep -Fq -- "run_invalid_case today $case_name" "$RUNBOOK" || fail "runbook omits Today estimate case $case_name"
+        grep -Fq -- "run_invalid_case dashboard $case_name" "$RUNBOOK" || fail "runbook omits Dashboard estimate case $case_name"
     done
-    grep -Fq -- '--phase submit --case valid-padded' "$RUNBOOK" || fail "runbook omits valid padded recovery"
+    grep -Fq -- 'probe today --phase submit --case valid-padded' "$RUNBOOK" || fail "runbook omits Today valid padded recovery"
+    grep -Fq -- 'probe dashboard --phase submit --case valid-padded' "$RUNBOOK" || fail "runbook omits Dashboard valid padded recovery"
     grep -Fq 'physical Return key event at the HID event tap' "$RUNBOOK" || fail "runbook does not bind keyboard Return submission"
     grep -Fq 'set -o pipefail' "$RUNBOOK" || fail "runbook does not prevent evidence tee from masking probe failure"
     grep -Fq 'probe_status=0' "$RUNBOOK" || fail "runbook does not capture each probe exit status"
