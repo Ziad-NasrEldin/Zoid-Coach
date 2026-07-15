@@ -239,6 +239,33 @@ struct TodayDashboardCommandOverview: View {
 
     private var behaviorState: some View {
         VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(coachingPresentation.statusLabel)
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Text(coachingPresentation.explanation)
+                        .font(Sumi.body(10))
+                        .foregroundStyle(Sumi.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let pauseReason = coachingPresentation.pauseReason {
+                        Text(pauseReason)
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let recoveryHint = coachingPresentation.recoveryHint {
+                        Text(recoveryHint)
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.sealDeep)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(coachingPresentation.accessibilityLabel)
+                .accessibilityIdentifier("today.coaching.status")
+                .padding(.bottom, 16)
+
                 Text("BEHAVIOR, SINCE MIDNIGHT")
                     .font(Sumi.label(8))
                     .sumiLabelTracking()
@@ -409,6 +436,10 @@ struct TodayDashboardCommandOverview: View {
             return "Allowance unavailable"
         }
         return "\(snapshot.gaming.unlockedRemainingMinutes)m left"
+    }
+
+    private var coachingPresentation: CoachingStatePresentation {
+        CoachingStatePresentation(state: model.coachingState)
     }
 
     private func scheduleUsageDismissal() {
