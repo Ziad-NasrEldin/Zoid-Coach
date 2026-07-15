@@ -48,29 +48,17 @@ PROBE="$REPO/Scripts/qa-zc010007-unplanned-review-ax-probe.swift"
 PREFLIGHT="$REPO/Scripts/qa-zc010007-signed-preflight.sh"
 READY_STATE="$REPO/Scripts/prepare-qa-ready-state.py"
 READY_MANIFEST="$REPO/Scripts/fixtures/qa-ready-state.example.json"
+RUNTIME_ISOLATION="$REPO/Scripts/qa-zc010007-runtime-isolation.sh"
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/Info.plist")"
 APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
 APP_BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw -o - "$APP/Contents/Info.plist")"
-stop_exact_qa_app() {
-  for candidate in $(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true); do
-    candidate_executable="$(lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
-    if test "$candidate_executable" = "$APP_EXECUTABLE"; then
-      kill "$candidate"
-      for _ in $(seq 1 50); do
-        ! kill -0 "$candidate" 2>/dev/null && break
-        sleep 0.2
-      done
-      ! kill -0 "$candidate" 2>/dev/null
-    fi
-  done
-}
 ```
 
 Launch the foreground main window and bind its process to the signed app and isolated database.
 
 ```sh
 set -euo pipefail
-stop_exact_qa_app
+"$RUNTIME_ISOLATION" stop-app "$APP" "$QA_ROOT"
 open "$APP" --args --qa-open-main
 for _ in $(seq 1 50); do
   PID="$(pgrep -x "$APP_EXECUTABLE_NAME" | tail -1 || true)"
@@ -94,16 +82,13 @@ for _ in $(seq 1 50); do
 done
 ! kill -0 "$PID" 2>/dev/null
 "$APP_EXECUTABLE" --qa-unregister-agent
+"$RUNTIME_ISOLATION" stop-helper "$APP" "$QA_ROOT"
+"$RUNTIME_ISOLATION" stop-app "$APP" "$QA_ROOT"
 "$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace
 "$APP_EXECUTABLE" --qa-register-agent
 "$APP_EXECUTABLE" --qa-unregister-agent
-for _ in $(seq 1 50); do
-  ! pgrep -x ZoidCoachAgentQA >/dev/null && break
-  sleep 0.2
-done
-! pgrep -x ZoidCoachAgentQA >/dev/null
-! launchctl print "gui/$(id -u)/qa.ziadnasreldin.ZoidCoach.agent" >/dev/null 2>&1
-stop_exact_qa_app
+"$RUNTIME_ISOLATION" stop-helper "$APP" "$QA_ROOT"
+"$RUNTIME_ISOLATION" stop-app "$APP" "$QA_ROOT"
 "$FIXTURE" prepare unused "$DATABASE" "$BACKUP"
 ```
 
@@ -118,7 +103,7 @@ Write the explicit unplanned state only while the app is stopped, then relaunch 
 ```sh
 set -euo pipefail
 "$FIXTURE" set unplanned "$DATABASE" "$BACKUP"
-stop_exact_qa_app
+"$RUNTIME_ISOLATION" stop-app "$APP" "$QA_ROOT"
 open "$APP" --args --qa-open-main
 for _ in $(seq 1 50); do
   PID="$(pgrep -x "$APP_EXECUTABLE_NAME" | tail -1 || true)"
@@ -145,7 +130,7 @@ for _ in $(seq 1 50); do
   ! kill -0 "$PID" 2>/dev/null && break
   sleep 0.2
 done
-stop_exact_qa_app
+"$RUNTIME_ISOLATION" stop-app "$APP" "$QA_ROOT"
 open "$APP" --args --qa-open-main
 for _ in $(seq 1 50); do
   PID="$(pgrep -x "$APP_EXECUTABLE_NAME" | tail -1 || true)"
@@ -171,7 +156,7 @@ for STATE in planned invitation snoozed dismissed nil; do
     sleep 0.2
   done
   "$FIXTURE" set "$STATE" "$DATABASE" "$BACKUP"
-  stop_exact_qa_app
+  "$RUNTIME_ISOLATION" stop-app "$APP" "$QA_ROOT"
   open "$APP" --args --qa-open-main
   for _ in $(seq 1 50); do
     PID="$(pgrep -x "$APP_EXECUTABLE_NAME" | tail -1 || true)"
@@ -193,7 +178,7 @@ for _ in $(seq 1 50); do
   sleep 0.2
 done
 "$FIXTURE" set active-unplanned "$DATABASE" "$BACKUP"
-stop_exact_qa_app
+"$RUNTIME_ISOLATION" stop-app "$APP" "$QA_ROOT"
 open "$APP" --args --qa-open-main
 for _ in $(seq 1 50); do
   PID="$(pgrep -x "$APP_EXECUTABLE_NAME" | tail -1 || true)"

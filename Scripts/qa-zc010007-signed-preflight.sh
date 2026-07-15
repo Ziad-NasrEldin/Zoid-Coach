@@ -31,7 +31,7 @@ committed_blob() {
 
 assert_static_contract() {
     local commit="$1"
-    local presentation dashboard tests ax_probe fixture
+    local presentation dashboard tests ax_probe fixture runtime_isolation
     presentation="$(committed_blob "$REPOSITORY" "$commit" "Sources/ZoidCoachApp/UnplannedDayReviewPresentation.swift")" \
         || fail "cannot read committed presentation contract"
     dashboard="$(committed_blob "$REPOSITORY" "$commit" "Sources/ZoidCoachApp/Views/DashboardView.swift")" \
@@ -42,6 +42,8 @@ assert_static_contract() {
         || fail "cannot read committed accessibility probe"
     fixture="$(committed_blob "$REPOSITORY" "$commit" "Scripts/qa-zc010007-unplanned-review-fixture.sh")" \
         || fail "cannot read committed snapshot fixture"
+    runtime_isolation="$(committed_blob "$REPOSITORY" "$commit" "Scripts/qa-zc010007-runtime-isolation.sh")" \
+        || fail "cannot read committed runtime isolation helper"
     grep -Fq 'snapshot?.planningStatus?.mode == .unplanned' <<< "$presentation" || fail "explicit unplanned eligibility is missing"
     grep -Fq 'snapshot?.activeTask == nil' <<< "$presentation" || fail "inactive-day eligibility is missing"
     grep -Fq 'let isActionEnabled = true' <<< "$presentation" || fail "command is not explicitly enabled"
@@ -74,6 +76,14 @@ assert_static_contract() {
         || fail "active task row mismatch negative self-test is missing"
     grep -Fq 'exact DB-owning foreground app may read but cannot mutate the fixture' <<< "$fixture" \
         || fail "foreground read versus mutation isolation self-test is missing"
+    grep -Fq 'REQUIRED_QUIET_PASSES=10' <<< "$runtime_isolation" \
+        || fail "runtime isolation helper lacks a meaningful sustained quiet window"
+    grep -Fq 'delayed reappearance did not restart and complete the quiet window' <<< "$runtime_isolation" \
+        || fail "runtime isolation delayed-reappearance self-test is missing"
+    grep -Fq 'never-quiet probe did not time out' <<< "$runtime_isolation" \
+        || fail "runtime isolation timeout negative self-test is missing"
+    grep -Fq 'ZOID_COACH_QA_RUN_ROOT=$QA_ROOT' <<< "$runtime_isolation" \
+        || fail "runtime isolation helper does not bind the exact QA root"
     ! grep -Fq '$.qaPrivateWindowTitle' <<< "$fixture" || fail "unknown private title field remains"
     ! grep -Fq '$.qaPrivateURL' <<< "$fixture" || fail "unknown private URL field remains"
 }
@@ -93,19 +103,19 @@ assert_runbook_contract() {
         || fail "runbook does not quit the bound QA application"
     ! grep -Fq 'com.zoidcoach.app' <<< "$runbook" \
         || fail "runbook still targets the unrelated hard-coded bundle identifier"
-    grep -Fq 'stop_exact_qa_app() {' <<< "$runbook" \
-        || fail "runbook exact QA foreground replacement helper is missing"
+    grep -Fq 'RUNTIME_ISOLATION="$REPO/Scripts/qa-zc010007-runtime-isolation.sh"' <<< "$runbook" \
+        || fail "runbook runtime isolation helper binding is missing"
     grep -Fq 'READY_STATE="$REPO/Scripts/prepare-qa-ready-state.py"' <<< "$runbook" \
         || fail "runbook supported post-onboarding fixture is missing"
     grep -Fq '"$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace' <<< "$runbook" \
         || fail "runbook does not establish the post-onboarding Today surface"
-    grep -Fq '! launchctl print "gui/$(id -u)/qa.ziadnasreldin.ZoidCoach.agent"' <<< "$runbook" \
-        || fail "runbook does not prove the exact QA helper is unregistered before fixture mutation"
+    grep -Fq '"$RUNTIME_ISOLATION" stop-helper "$APP" "$QA_ROOT"' <<< "$runbook" \
+        || fail "runbook does not sustain exact QA helper absence before fixture mutation"
     awk '
         /"\$APP_EXECUTABLE" --qa-register-agent/ { registered=1 }
         registered && /"\$APP_EXECUTABLE" --qa-unregister-agent/ { unregistered=1 }
-        unregistered && /! pgrep -x ZoidCoachAgentQA/ { helper_exited=1 }
-        helper_exited && /stop_exact_qa_app/ { app_exited=1 }
+        unregistered && /"\$RUNTIME_ISOLATION" stop-helper/ { helper_exited=1 }
+        helper_exited && /"\$RUNTIME_ISOLATION" stop-app/ { app_exited=1 }
         /"\$FIXTURE" prepare/ { if (!(registered && unregistered && helper_exited && app_exited)) exit 1; prepared=1 }
         END { if (!prepared) exit 1 }
     ' <<< "$runbook" || fail "runbook does not prove helper exit before baseline backup"
@@ -113,7 +123,7 @@ assert_runbook_contract() {
         /^[[:space:]]*$/ { next }
         /open "\$APP" --args --qa-open-main/ {
             opens += 1
-            if (previous !~ /stop_exact_qa_app/) exit 1
+            if (previous !~ /"\$RUNTIME_ISOLATION" stop-app/) exit 1
         }
         { previous = $0 }
         END { if (opens != 5) exit 1 }
