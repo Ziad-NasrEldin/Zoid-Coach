@@ -2196,8 +2196,12 @@ private struct TimeBlockSelector: View {
                     errorIdentifier: "task-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
                     errorFontSize: 11,
                     persist: { minutes in
+                        CustomEstimateEditorTrace.record(
+                            "dashboard.persist.callback minutes=\(minutes) taskPresent=true"
+                        )
                         select(minutes)
                         isChanging = false
+                        CustomEstimateEditorTrace.flush()
                     },
                     cancel: {
                         isChanging = false

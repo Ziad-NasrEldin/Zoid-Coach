@@ -570,9 +570,20 @@ struct TodayDashboardCommandOverview: View {
                     applyCommand: { applyPrimaryCommand(to: row) },
                     makeMain: { planEntry(for: row).map(model.setMainObjective) },
                     setEstimate: { minutes in
+                        CustomEstimateEditorTrace.record(
+                            "today.persist.callback.begin minutes=\(minutes)"
+                        )
                         if let entry = planEntry(for: row) {
+                            CustomEstimateEditorTrace.record(
+                                "today.persist.callback.entryFound=true minutes=\(minutes)"
+                            )
                             model.setEstimate(minutes, for: entry)
+                        } else {
+                            CustomEstimateEditorTrace.record(
+                                "today.persist.callback.entryFound=false minutes=\(minutes)"
+                            )
                         }
+                        CustomEstimateEditorTrace.flush()
                     },
                     setUnknown: {
                         if let entry = planEntry(for: row) {
