@@ -3,21 +3,23 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly CANONICAL_BASE="b97c2ce3177ccf89f60225c475062608db1920ad"
-readonly TOOLING_CANDIDATE="fa179fa3207c60739d0f1c91ef4636f084018106"
-readonly PRODUCT_CANDIDATE="6883a863295cdfe51b364f417e0bcbeccbe1b0b9"
-readonly LINEAGE_CANDIDATE="f867751776cd7a01f6a49f5c190cac5f531d3d22"
-readonly TRACE_CANDIDATE="0968183ed86bc6459d89545a44d815ed9535fdff"
-readonly ORDERED_TRACE_CANDIDATE="595e9a637e84ab911de5db1c79fc596c43d2a18b"
-readonly FIXTURE_CANDIDATE="92e8f7f05fd1adb960c6e2d746742e4c12f6f6e2"
-readonly ACCESSIBILITY_CANDIDATE="71e13511dae17f551b357cee1750abb7751d5648"
-readonly PERSISTED_PROBE_CANDIDATE="43bca460e22ee9c8b823bdf113713489572da97a"
-readonly SURFACE_PROBE_CANDIDATE="f538b23cfbc49aa9ad53f950f68da90a6712cfbd"
-readonly PRIOR_LINEAGE_BINDING="ee42cd3c04658e8488bc57e0186ecfbec9f8d12e"
-readonly SURFACE_IDENTITY_CANDIDATE="ea825ba44d27ff488c4896d2be9bd62644a2975d"
-readonly SURFACE_LINEAGE_BINDING="10d0a299aaa7ef6eaeed30b1cdee50cb3c15580a"
-readonly SAFETY_CANDIDATE="7726dccdf8f382f180dd299bef318e1223ac990d"
-readonly HARDENED_LINEAGE_BINDING="d66d83b487ea3d1a5a350bcaa5f40c8eb0ea78c9"
+readonly CANONICAL_BASE="2cba674f8370fc16f9555cdb6f115f18df1f8ced"
+readonly TOOLING_CANDIDATE="c221005ea00f4be9efc895c8eccfd618a10501d1"
+readonly PRODUCT_CANDIDATE="180367af761c0bd1abcdb952bd12e3077b7f300b"
+readonly LINEAGE_CANDIDATE="917c653083727610005058d00e59bdab6efdb996"
+readonly TRACE_CANDIDATE="04cde2d83343b10a55e3551df2945a9627d28733"
+readonly ORDERED_TRACE_CANDIDATE="cae33ec99dca3ee4bbe500bab16bbcb4187edad2"
+readonly FIXTURE_CANDIDATE="3fc3c83b645083edc5bea8fbc925a073c0ad5234"
+readonly ACCESSIBILITY_CANDIDATE="e218cad2a1a252dfca0812c79b1b0b1f1f0a193d"
+readonly PERSISTED_PROBE_CANDIDATE="3b4a920f0acf80052b71e0448ce16f72eaab5947"
+readonly SURFACE_PROBE_CANDIDATE="bbccded6d72e3529245f21c583551042c5f94855"
+readonly PRIOR_LINEAGE_BINDING="1fa545dada749d3509cea1e10f8ea961ec8310d5"
+readonly SURFACE_IDENTITY_CANDIDATE="a552225d4c2866e1f37dacb11d36ed0acbfd205e"
+readonly SURFACE_LINEAGE_BINDING="ab9dd8df55f456502a9bdbabe3062b65a381aba7"
+readonly SAFETY_CANDIDATE="0aabac608845a23a2af92c65227d80a47dcf91a8"
+readonly HARDENED_LINEAGE_BINDING="ec05a17970d21ea0ec5cd5d814a03d7c58bd5c74"
+readonly FIXTURE_OWNERSHIP_CANDIDATE="53c5e0455efd30fbe886f817fcd5dc906cb9bbac"
+readonly FIXTURE_HARDENING_CANDIDATE="3338b5b4a14627c27c767e09285f52d09e441a5f"
 readonly TOOLING_PATCH_ID="54853a6c3d47fdbb9dec56ebc695e7143f7c5b92"
 readonly PRODUCT_PATCH_ID="ca93eecc45fe7b252b3678a029aee68e79cc0477"
 readonly INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
@@ -38,9 +40,7 @@ readonly PRODUCT_FILES=(
     Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift
 )
 readonly FINAL_CANDIDATE_FILES=(
-    Scripts/qa-zc011007-invalid-estimate-fixture.sh
     Scripts/qa-zc011007-signed-preflight.sh
-    Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift
     docs/ZC-011-007-SIGNED-QA-RUNBOOK.md
 )
 
@@ -108,7 +108,9 @@ assert_lineage() {
     [[ "$(git -C "$REPOSITORY" rev-parse "$SURFACE_LINEAGE_BINDING^")" == "$SURFACE_IDENTITY_CANDIDATE" ]] || fail "surface lineage binding does not directly follow surface identity fix"
     [[ "$(git -C "$REPOSITORY" rev-parse "$SAFETY_CANDIDATE^")" == "$SURFACE_LINEAGE_BINDING" ]] || fail "QA safety fix does not directly follow surface lineage binding"
     [[ "$(git -C "$REPOSITORY" rev-parse "$HARDENED_LINEAGE_BINDING^")" == "$SAFETY_CANDIDATE" ]] || fail "hardened lineage binding does not directly follow QA safety fix"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$HARDENED_LINEAGE_BINDING" ]] || fail "final candidate does not directly follow hardened lineage binding"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$FIXTURE_OWNERSHIP_CANDIDATE^")" == "$HARDENED_LINEAGE_BINDING" ]] || fail "fixture ownership fix does not directly follow hardened lineage binding"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$FIXTURE_HARDENING_CANDIDATE^")" == "$FIXTURE_OWNERSHIP_CANDIDATE" ]] || fail "fixture hardening fix does not directly follow fixture ownership fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$FIXTURE_HARDENING_CANDIDATE" ]] || fail "final candidate does not directly follow fixture hardening fix"
     [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] || fail "replayed QA tooling patch identity drifted"
     [[ "$(commit_patch_id "$PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] || fail "reviewed product patch identity drifted"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/TaskEstimateInput.swift")" == "$INPUT_BLOB" ]] || fail "TaskEstimateInput product blob changed"
@@ -118,6 +120,10 @@ assert_lineage() {
             || fail "final product file differs from QA safety candidate: $file"
     done
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" == "$(git -C "$REPOSITORY" rev-parse "$SAFETY_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" ]] || fail "final AX probe differs from QA safety candidate"
+    for file in Scripts/qa-zc011007-invalid-estimate-fixture.sh Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift; do
+        [[ "$(git -C "$REPOSITORY" rev-parse "$expected:$file")" == "$(git -C "$REPOSITORY" rev-parse "$FIXTURE_HARDENING_CANDIDATE:$file")" ]] \
+            || fail "final fixture-owned file differs from fixture hardening candidate: $file"
+    done
 
     reviewed_scope="$(printf '%s\n' "${TOOLING_FILES[@]}" "${PRODUCT_FILES[@]}")"
     scope="$(git -C "$REPOSITORY" diff --name-only "$CANONICAL_BASE" "$expected")" || fail "candidate scope is unavailable"
@@ -127,7 +133,7 @@ assert_lineage() {
     ! grep -Fqx 'docs/impl/666-BACKLOG.md' <<<"$scope" || fail "candidate unexpectedly includes shared backlog"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    [[ "$commit_count" == "15" ]] || fail "candidate must contain the exact fourteen reviewed commits plus externally approved final candidate"
+    [[ "$commit_count" == "17" ]] || fail "candidate must contain the exact sixteen reviewed commits plus externally approved final candidate"
     tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
     has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "QA tooling replay contains unrelated files"
     product_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$PRODUCT_CANDIDATE")"

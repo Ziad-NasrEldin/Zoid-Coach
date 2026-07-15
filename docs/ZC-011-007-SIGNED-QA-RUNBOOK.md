@@ -4,9 +4,9 @@ This runbook verifies one exact installed signed Zoid 666 candidate against the 
 It covers empty input, ASCII and Unicode whitespace, zero, negative values, decimal and text input, localized digits, localized decimal punctuation, values above 480 minutes, and a valid whitespace-padded recovery.
 It also proves exact corrective copy, keyboard Return submission, retained input and focus after failure, no durable mutation on failure, valid persistence, accessibility, privacy, ordinary relaunch, and byte-exact restoration.
 
-The current canonical base is `b97c2ce3177ccf89f60225c475062608db1920ad`.
-The exact patch-equivalent QA tooling replay is `fa179fa3207c60739d0f1c91ef4636f084018106` with stable patch ID `54853a6c3d47fdbb9dec56ebc695e7143f7c5b92`.
-The reviewed shared-editor product fix is `6883a863295cdfe51b364f417e0bcbeccbe1b0b9` with stable patch ID `ca93eecc45fe7b252b3678a029aee68e79cc0477`.
+The current canonical base is `2cba674f8370fc16f9555cdb6f115f18df1f8ced`.
+The exact patch-equivalent QA tooling replay is `c221005ea00f4be9efc895c8eccfd618a10501d1` with stable patch ID `54853a6c3d47fdbb9dec56ebc695e7143f7c5b92`.
+The reviewed shared-editor product fix is `180367af761c0bd1abcdb952bd12e3077b7f300b` with stable patch ID `ca93eecc45fe7b252b3678a029aee68e79cc0477`.
 The product fix introduces one shared custom-estimate editor interaction state and component used by both `DashboardView.swift` and `TodayDashboardCommandOverview.swift`.
 `CustomEstimateEditorStateTests` bind ten invalid inputs, exact input and focus retention, active-path host exclusion, bounded single-mount re-render stability, independent surface state, exactly-once valid persistence, rapid resubmission, and legacy parser boundaries.
 The preflight rejects any product drift after that reviewed commit and keeps `TaskEstimateInput.swift` plus its legacy tests byte-identical to canonical.
@@ -56,8 +56,8 @@ test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 ```
 
 The full signed commit must be repository HEAD.
-The diff from canonical base must contain exactly fifteen reviewed commits, ending with the externally approved four-file final candidate.
-The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, isolated database ownership, row-scoped cleanup, and fail-closed action ambiguity.
+The diff from canonical base must contain exactly seventeen reviewed commits, ending with the externally approved two-file final lineage candidate.
+The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, exclusive isolated database ownership, atomic fixture seeding, whole-root restoration, and fail-closed action ambiguity.
 The full candidate scope remains exactly eight files, and the final lineage commit edits only this runbook and the signed preflight.
 Tracker, registry, Lavish, backlog, parser, legacy parser-test, and unrelated verifier changes are rejected.
 
