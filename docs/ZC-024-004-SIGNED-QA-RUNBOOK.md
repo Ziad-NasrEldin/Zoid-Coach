@@ -5,7 +5,8 @@ The current-base candidate reassembles reviewed lineage `1bb3c27866bc3acbfd449d6
 The initial deterministic Today-scroll verifier fix is commit `fa95aeab65fb23a1971e6a7c3464ae87d51febf7`, its reviewed rebind is `cc2dc2a0c2cf2b7dea7d0db75a9d05ec03a43e57`, the separated-row capture correction is `69b16a3335867a43ef8ae7904705a3d40f3e738f`, and its reviewed rebind is `1e06a4807f12a9e78886cdca24eb23afe46d1772`.
 The exact accessibility-label normalization correction is commit `d36cedc7da6146b4c8982c15733a3899e0d57013`.
 Its reviewed rebind is `fc15ea5f3014e2540984f4ede6dfcac090217ce9`, and the bounded fresh-tree navigation transition correction is `59bff184844871c8ad41d1e767f49a7455659e3c`.
-The static verifier requires the signed commit to be the one preflight and runbook bind child of the navigation correction.
+The navigation correction rebind is `2289e1e8d950ce0679eb50f5baa5c7811bf90a4b`, and the stable visible Settings-header correction is `963a94b243834c8e7a778cc9683ceebb0777db17`.
+The static verifier requires the signed commit to be the one preflight and runbook bind child of the Settings-header correction.
 Each capture resets Today to the top, binds one app PID and main-window token, retains only normalized Working and Screenwatch values from the same bounded sequence, and reacquires a fresh unique Accessibility tree after every scroll step.
 The verifier rejects within-tree or cross-generation ambiguity, changed values, stale generations, PID or window replacement, privacy leakage, and timeout.
 
@@ -61,6 +62,7 @@ git merge-base --is-ancestor fa95aeab65fb23a1971e6a7c3464ae87d51febf7 "$EXPECTED
 git merge-base --is-ancestor 69b16a3335867a43ef8ae7904705a3d40f3e738f "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor d36cedc7da6146b4c8982c15733a3899e0d57013 "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor 59bff184844871c8ad41d1e767f49a7455659e3c "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor 963a94b243834c8e7a778cc9683ceebb0777db17 "$EXPECTED_SIGNED_COMMIT"
 Scripts/verify-zc-024-004-live-today-refresh-static.sh
 ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh \
   "$APP" --expected-commit "$EXPECTED_SIGNED_COMMIT" --require-clean

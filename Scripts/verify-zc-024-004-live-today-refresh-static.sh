@@ -16,6 +16,9 @@ NORMALIZATION_PATCH_ID="bcafc0a24403de8e777a5bb3d1473a44731c6934"
 NORMALIZATION_REBIND_COMMIT="fc15ea5f3014e2540984f4ede6dfcac090217ce9"
 NAVIGATION_COMMIT="59bff184844871c8ad41d1e767f49a7455659e3c"
 NAVIGATION_PATCH_ID="bb1f738f8d482ff2511d9741eab5e86b2250396f"
+NAVIGATION_REBIND_COMMIT="2289e1e8d950ce0679eb50f5baa5c7811bf90a4b"
+SETTINGS_MARKER_COMMIT="963a94b243834c8e7a778cc9683ceebb0777db17"
+SETTINGS_MARKER_PATCH_ID="7cd55c77c1c72db326d2ffd54840fdac2e43315b"
 
 readonly REVIEWED_PATCH_IDS=(
     "5b1d785b5676c1d5d33b02ea4d9cfa01940be0c8"
@@ -110,7 +113,9 @@ verify_candidate_lineage() {
     [[ "$(git rev-parse "$NORMALIZATION_COMMIT^")" == "$TOOLING_REBIND_COMMIT" ]]
     [[ "$(git rev-parse "$NORMALIZATION_REBIND_COMMIT^")" == "$NORMALIZATION_COMMIT" ]]
     [[ "$(git rev-parse "$NAVIGATION_COMMIT^")" == "$NORMALIZATION_REBIND_COMMIT" ]]
-    [[ "$(git rev-parse "$head^")" == "$NAVIGATION_COMMIT" ]]
+    [[ "$(git rev-parse "$NAVIGATION_REBIND_COMMIT^")" == "$NAVIGATION_COMMIT" ]]
+    [[ "$(git rev-parse "$SETTINGS_MARKER_COMMIT^")" == "$NAVIGATION_REBIND_COMMIT" ]]
+    [[ "$(git rev-parse "$head^")" == "$SETTINGS_MARKER_COMMIT" ]]
 
     expected_scope="$(printf '%s\n' "${OWNED_PATHS[@]}" | normalized_lines)"
     actual_scope="$(git diff --name-only "$BASE" "$head" | normalized_lines)"
@@ -120,15 +125,17 @@ verify_candidate_lineage() {
     [[ "$(git diff-tree --no-commit-id --name-only -r "$TOOLING_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
     [[ "$(git diff-tree --no-commit-id --name-only -r "$NORMALIZATION_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
     [[ "$(git diff-tree --no-commit-id --name-only -r "$NAVIGATION_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
+    [[ "$(git diff-tree --no-commit-id --name-only -r "$SETTINGS_MARKER_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
 
     expected_rebind_scope="$(printf '%s\n' \
         Scripts/verify-zc-024-004-live-today-refresh-static.sh \
         docs/ZC-024-004-SIGNED-QA-RUNBOOK.md | normalized_lines)"
-    actual_rebind_scope="$(git diff --name-only "$NAVIGATION_COMMIT" "$head" | normalized_lines)"
+    actual_rebind_scope="$(git diff --name-only "$SETTINGS_MARKER_COMMIT" "$head" | normalized_lines)"
     [[ "$actual_rebind_scope" == "$expected_rebind_scope" ]]
     [[ "$(git diff --name-only "$SCROLL_TOOLING_COMMIT" "$SCROLL_REBIND_COMMIT" | normalized_lines)" == "$expected_rebind_scope" ]]
     [[ "$(git diff --name-only "$TOOLING_COMMIT" "$TOOLING_REBIND_COMMIT" | normalized_lines)" == "$expected_rebind_scope" ]]
     [[ "$(git diff --name-only "$NORMALIZATION_COMMIT" "$NORMALIZATION_REBIND_COMMIT" | normalized_lines)" == "$expected_rebind_scope" ]]
+    [[ "$(git diff --name-only "$NAVIGATION_COMMIT" "$NAVIGATION_REBIND_COMMIT" | normalized_lines)" == "$expected_rebind_scope" ]]
 
     actual_patch_ids="$(reviewed_patch_ids)"
     expected_patch_ids="$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
@@ -149,6 +156,10 @@ verify_candidate_lineage() {
         | git patch-id --stable \
         | awk '{print $1}')"
     [[ "$tooling_patch_id" == "$NAVIGATION_PATCH_ID" ]]
+    tooling_patch_id="$(git show --pretty=email --no-ext-diff "$SETTINGS_MARKER_COMMIT" \
+        | git patch-id --stable \
+        | awk '{print $1}')"
+    [[ "$tooling_patch_id" == "$SETTINGS_MARKER_PATCH_ID" ]]
 }
 
 run_self_test() {
@@ -235,6 +246,8 @@ assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
     "Screenwatch coverage is current."
 assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
     "could not navigate to \\(destination) before the bounded timeout"
+assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
+    "return labels.contains(\"SETTINGS / POLICY\")"
 assert_contains "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift" \
     "func todayLiveRefreshRunsOnceForEachTickAndStopsWithoutAnotherRefresh()"
 assert_contains "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift" \
