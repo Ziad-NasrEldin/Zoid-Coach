@@ -105,8 +105,9 @@ assert_validator_checkout() {
         || fail "validator must run from its repository root"
     [[ -z "$(git -C "$validator_repository" status --porcelain=v1 --untracked-files=all)" ]] \
         || fail "validator worktree is dirty"
-    ! git -C "$validator_repository" symbolic-ref -q HEAD >/dev/null 2>&1 \
-        || fail "validator must run from a detached immutable worktree"
+    if git -C "$validator_repository" symbolic-ref -q HEAD >/dev/null 2>&1; then
+        fail "validator must run from a detached immutable worktree"
+    fi
 }
 
 validate_repository() {
@@ -115,7 +116,9 @@ validate_repository() {
     [[ "$repository" == "${argument:A}" && -d "$repository" ]] || fail "candidate repository path traverses a symlink or is missing"
     [[ "$(git -C "$repository" rev-parse --show-toplevel)" == "$repository" ]] || fail "candidate path is not its worktree root"
     [[ -z "$(git -C "$repository" status --porcelain=v1 --untracked-files=all)" ]] || fail "candidate worktree is dirty"
-    ! git -C "$repository" symbolic-ref -q HEAD >/dev/null 2>&1 || fail "candidate worktree must be detached"
+    if git -C "$repository" symbolic-ref -q HEAD >/dev/null 2>&1; then
+        fail "candidate worktree must be detached"
+    fi
 
     local head="$(git -C "$repository" rev-parse HEAD)"
     assert_exact_candidate "$head"
