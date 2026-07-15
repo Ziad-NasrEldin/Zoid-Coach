@@ -4,6 +4,66 @@ import OSLog
 import SwiftUI
 import ZoidCoachCore
 
+struct TodayLiveRefreshEligibility: Equatable {
+    let onboardingIsReady: Bool
+    let todayIsSelected: Bool
+    let sceneIsActive: Bool
+    let applicationIsActive: Bool
+
+    var isEnabled: Bool {
+        onboardingIsReady && todayIsSelected && sceneIsActive && applicationIsActive
+    }
+}
+
+@MainActor
+final class ApplicationActivationMonitor: NSObject, ObservableObject {
+    @Published private(set) var isActive: Bool
+
+    private let notificationCenter: NotificationCenter
+    private let onTransition: ((Bool) -> Void)?
+
+    init(
+        notificationCenter: NotificationCenter = .default,
+        initiallyActive: Bool = NSApplication.shared.isActive,
+        onTransition: ((Bool) -> Void)? = nil
+    ) {
+        self.notificationCenter = notificationCenter
+        self.isActive = initiallyActive
+        self.onTransition = onTransition
+        super.init()
+        notificationCenter.addObserver(
+            self,
+            selector: #selector(applicationDidBecomeActive(_:)),
+            name: NSApplication.didBecomeActiveNotification,
+            object: nil
+        )
+        notificationCenter.addObserver(
+            self,
+            selector: #selector(applicationDidResignActive(_:)),
+            name: NSApplication.didResignActiveNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        notificationCenter.removeObserver(self)
+    }
+
+    @objc private func applicationDidBecomeActive(_ notification: Notification) {
+        setActive(true)
+    }
+
+    @objc private func applicationDidResignActive(_ notification: Notification) {
+        setActive(false)
+    }
+
+    private func setActive(_ newValue: Bool) {
+        guard isActive != newValue else { return }
+        isActive = newValue
+        onTransition?(newValue)
+    }
+}
+
 @MainActor
 final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
     private static let automaticTerminationReason = "Zoid 666 background scheduling menu"
@@ -106,6 +166,7 @@ struct ZoidCoachApplication: App {
     private var applicationDelegate
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model: AppModel
+    @StateObject private var applicationActivation: ApplicationActivationMonitor
     @StateObject private var voiceModel: VoiceConversationModel
     @StateObject private var onboarding: OnboardingCoordinator
     @StateObject private var agentLifecycle: AgentLifecycleController
@@ -160,6 +221,7 @@ struct ZoidCoachApplication: App {
         initialMainWindowPresentationPolicy = launchPresentation.initialMainWindowPresentationPolicy
         shouldOpenMainWindow = launchPresentation.shouldOpenMainWindow
         _model = StateObject(wrappedValue: AppModel(runtimeEnvironment: runtimeEnvironment))
+        _applicationActivation = StateObject(wrappedValue: ApplicationActivationMonitor())
         _voiceModel = StateObject(wrappedValue: VoiceConversationModel())
         _onboarding = StateObject(wrappedValue: OnboardingCoordinator())
         _agentLifecycle = StateObject(wrappedValue: AgentLifecycleController())
@@ -256,6 +318,9 @@ struct ZoidCoachApplication: App {
                 .onChange(of: model.selectedSection) { _, _ in
                     updateTodayLiveRefresh()
                 }
+                .onChange(of: applicationActivation.isActive) { _, _ in
+                    updateTodayLiveRefresh()
+                }
                 .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.willSleepNotification)) { _ in
                     wakeTaskReconfirmation.noteInactive()
                 }
@@ -335,11 +400,13 @@ struct ZoidCoachApplication: App {
     }
 
     private func updateTodayLiveRefresh() {
-        model.setTodayLiveRefreshEnabled(
-            onboarding.route == .today
-                && model.selectedSection == .today
-                && scenePhase == .active
+        let eligibility = TodayLiveRefreshEligibility(
+            onboardingIsReady: onboarding.route == .today,
+            todayIsSelected: model.selectedSection == .today,
+            sceneIsActive: scenePhase == .active,
+            applicationIsActive: applicationActivation.isActive
         )
+        model.setTodayLiveRefreshEnabled(eligibility.isEnabled)
     }
 
     private func presentInitialMainWindow() {
