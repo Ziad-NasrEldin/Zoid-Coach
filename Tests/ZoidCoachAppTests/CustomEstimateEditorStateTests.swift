@@ -518,6 +518,7 @@ struct CustomEstimateEditorStateTests {
         container.addSubview(field)
         container.addSubview(otherField)
         let presentationID = UUID()
+        field.stringValue = "draft"
         field.installKeyMonitorIfNeeded()
         let monitorInstallCount = field.keyMonitorInstallCount
         field.requestFocus(presentationID: presentationID, generation: 1)
@@ -538,6 +539,7 @@ struct CustomEstimateEditorStateTests {
         container.addSubview(field)
         #expect(field.window === window)
         #expect(field.hasInputFocus)
+        #expect(field.currentEditor()?.selectedRange == NSRange(location: 5, length: 0))
         #expect(field.hasInstalledKeyMonitor)
         #expect(field.keyMonitorInstallCount == monitorInstallCount)
 
@@ -568,12 +570,15 @@ struct CustomEstimateEditorStateTests {
 
         field.requestFocus(presentationID: presentationID, generation: 1)
         #expect(field.hasInputFocus)
+        #expect(field.currentEditor()?.selectedRange == NSRange(location: 0, length: 0))
+        #expect(window.firstResponder === field.currentEditor())
         #expect(window.makeFirstResponder(otherField))
         #expect(!field.hasInputFocus)
 
         try? await Task.sleep(for: .milliseconds(80))
         #expect(field.hasInputFocus)
         #expect(field.appliedFocusGeneration == 1)
+        #expect(field.currentEditor()?.selectedRange == NSRange(location: 0, length: 0))
 
         field.cancelFocusLease()
         #expect(window.makeFirstResponder(otherField))

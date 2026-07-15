@@ -329,8 +329,8 @@ final class CustomEstimateTextField: NSTextField {
     }
 
     var hasInputFocus: Bool {
-        guard let window else { return false }
-        return window.firstResponder === self || window.firstResponder === currentEditor()
+        guard let window, let editor = currentEditor() else { return false }
+        return window.firstResponder === editor
     }
 
     private func applyRequestedFocus() {
@@ -340,6 +340,14 @@ final class CustomEstimateTextField: NSTextField {
         }
         if !hasInputFocus {
             _ = window.makeFirstResponder(self)
+            selectText(nil)
+            if let editor = currentEditor() {
+                editor.selectedRange = NSRange(
+                    location: (editor.string as NSString).length,
+                    length: 0
+                )
+                _ = window.makeFirstResponder(editor)
+            }
         }
         if hasInputFocus {
             appliedFocusGeneration = requestedFocusGeneration
