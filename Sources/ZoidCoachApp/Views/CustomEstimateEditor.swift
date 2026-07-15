@@ -80,6 +80,10 @@ struct CustomEstimateEditorState: Equatable {
     private(set) var focusRequest = 0
     private(set) var presentationID = UUID()
 
+    static func confirmationAccessibilityLabel(minutes: Int) -> String {
+        "Time estimate confirmed: \(minutes) MIN"
+    }
+
     mutating func open(initialMinutes: Int?) {
         input = initialMinutes.map(String.init) ?? ""
         validationMessage = nil
