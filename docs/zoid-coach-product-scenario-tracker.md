@@ -8,16 +8,16 @@ Technical implementation details are included only when they create an observabl
 
 ## Audit result
 
-Updated on 2026-07-15 against branch `codex/full-system` through the independently verified ZC-025-006 ambiguity-confirmation signed-QA journey, the exact 666-scenario registry, and native macOS accessibility, persistence, privacy, raw-database, restart, and byte-restoration testing.
+Updated on 2026-07-15 against branch `codex/full-system` through the independently verified ZC-017-007 signed open-ended elapsed journey, the scenario-bound ZC-037-002 evidence reconciliation, the exact 666-scenario registry, and native macOS accessibility, persistence, privacy, raw-database, restart, and byte-restoration testing.
 
 This update includes the implemented twelve-step onboarding flow, crash-safe onboarding persistence, permission deferral and repair paths, canonical Screenwatch folder selection, application discovery and classification, schedule and gaming-policy choices, rules-only coaching, Reminder-list inclusion policy, and durable first-daily-plan preparation.
 
 Only scenarios proven completely usable end to end are checked.
 
-- **Fully implemented:** 193
-- **Touches remaining:** 306
-- **Frontend only left:** 3
-- **Partially implemented:** 101
+- **Fully implemented:** 202
+- **Touches remaining:** 305
+- **Frontend only left:** 0
+- **Partially implemented:** 96
 - **Barely started:** 5
 - **Not implemented:** 31
 - **Blocked from verification:** 27
@@ -526,7 +526,7 @@ The first daily-plan handoff exposed and fixed two direct blockers: Today now re
 ## 37. Dashboard active-task status
 
 - [ ] See the active task in the Today dashboard. **Status: Touches remaining.** Today now gives the canonical active row a named timing mode, tracked duration, factual manual-session explanation, Pause menu, and Complete control with stable accessibility evidence. Focused tests prove the canonical state and restart reconstruction, but the signed Reminder seed failed closed before a controlled active task could be rendered and relaunched (`ActiveCommitmentPresentation.swift`; `TodayDashboardCommandOverview.swift`; `.audit/runs/active-commitment-visibility/verifier/REPORT.md`).
-- [ ] See elapsed time for an open-ended task. **Status: Frontend only left.** `TodayTaskRow.elapsedMinutes` and `TaskExecutionStore.elapsedMinutes` are implemented and tested, but the current Today UI never renders elapsed minutes.
+- [x] See elapsed time for an open-ended task. **Status: Fully implemented.** The pre-execution runbook bound ZC-017-007 and this semantically identical dashboard scenario to the same installed signed Today journey and the same installed-app, accessibility, and unit-rule proof classes. Exact candidate `81937fd46828ce27786f668a004cd9248307b88a` visibly rendered one semantic live elapsed value, survived an ordinary relaunch, advanced from 2 to 3 minutes without timed-phase interaction, held nine confirmed minutes through clock rollback, showed an honest `LAST REFRESH` fallback, excluded bounded and paused tasks, rejected private fixture text, and restored isolated state exactly. The accepted implementation, test, and dual-scoped runbook blobs remain unchanged on canonical (`TodayDashboardCommandOverview.swift`; `TodayDashboardCommandOverviewTests.swift`; `.audit/runs/zc-037-002-open-ended-elapsed/81937fd46828ce27786f668a004cd9248307b88a/REPORT.md`).
 - [ ] See remaining time for a sprint. **Status: Touches remaining.** The signed installed Today dashboard visibly rendered the active bounded-sprint countdown and the active task stayed available with pause and complete controls; the full persisted lifecycle remains (`.audit/runs/bounded-sprints/verifier/REPORT.md`).
 - [x] See estimate or meaningful progress where appropriate. **Status: Fully implemented.** The signed installed Today dashboard visibly presented the same canonical 5-minute estimate and factual tracked progress in active, paused, relaunched, and over-estimate states, with stable accessibility identifiers on the primary focus and detailed-row surfaces (`TodayDashboardCommandOverview.swift`; `DashboardView.swift`; `.audit/runs/task-estimate-progress/verifier/REPORT.md`).
 - [ ] See the dashboard update when pausing, resuming, switching, or completing a task. **Status: Touches remaining.** All commands are wired through `AppModel.applyTaskCommand`, snapshot refreshes, and passing tests cover transitions and switching, but a complete installed-app lifecycle journey was not performed.

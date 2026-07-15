@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "2c0db43b497942006f0296a8ea44648b3fa77f2d39e444edd904570f81e86d64",
+  "tracker_sha256": "f5eb64c3506bfbff0cdf4a50d687878faca33639dc6619764e68caa1a0bb57ec",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -2345,7 +2345,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Empty, zero, negative, decimal, text, and values above 480 minutes remain in the editor with specific corrective copy and per-task accessibility identifiers. Focused validation passes; installed invalid-input matrix proof remains (`TaskEstimateInput.swift`; `TaskEstimateInputTests.swift`; `.audit/runs/custom-task-estimate/verifier/REPORT.md`).",
+      "audit_note": "The root cause was a QA fixture rank of 0 violating `AgentOwnedStateStore`'s 1...N rank validation, and the fixture rank was corrected. The exact signed Today candidate then retained all 10 invalid inputs with corrective errors and durably persisted a padded valid 25-minute estimate. Later review found open safety issues in QA trace containment, fixture database ownership and row-scoped cleanup, AX ambiguity, and exact final-candidate identity; those fixes are underway, while Dashboard and current final-candidate proof across both surfaces plus canonical integration remain pending.",
       "tracker_line": 187
     },
     {
@@ -8339,9 +8339,9 @@
       "section_title": "Dashboard active-task status",
       "item_index": 2,
       "wording": "See elapsed time for an open-ended task.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -8349,10 +8349,12 @@
         "unit_rule"
       ],
       "affected_capability": "gaming_and_coaching",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "`TodayTaskRow.elapsedMinutes` and `TaskExecutionStore.elapsedMinutes` are implemented and tested, but the current Today UI never renders elapsed minutes.",
+      "evidence_paths": [
+        ".audit/runs/zc-037-002-open-ended-elapsed/81937fd46828ce27786f668a004cd9248307b88a/evidence.json"
+      ],
+      "last_verified_commit": "81937fd46828ce27786f668a004cd9248307b88a",
+      "last_verified_build": "zoid-coach-81937fd46828ce27786f668a004cd9248307b88a-clean",
+      "audit_note": "The pre-execution runbook bound ZC-017-007 and this semantically identical dashboard scenario to the same installed signed Today journey and the same installed-app, accessibility, and unit-rule proof classes. Exact candidate `81937fd46828ce27786f668a004cd9248307b88a` visibly rendered one semantic live elapsed value, survived an ordinary relaunch, advanced from 2 to 3 minutes without timed-phase interaction, held nine confirmed minutes through clock rollback, showed an honest `LAST REFRESH` fallback, excluded bounded and paused tasks, rejected private fixture text, and restored isolated state exactly. The accepted implementation, test, and dual-scoped runbook blobs remain unchanged on canonical (`TodayDashboardCommandOverview.swift`; `TodayDashboardCommandOverviewTests.swift`; `.audit/runs/zc-037-002-open-ended-elapsed/81937fd46828ce27786f668a004cd9248307b88a/REPORT.md`).",
       "tracker_line": 529
     },
     {
