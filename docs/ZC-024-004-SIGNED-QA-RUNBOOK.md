@@ -1,8 +1,9 @@
 # ZC-024-004 signed QA runbook
 
 This runbook verifies that the installed signed app refreshes visible Today behavior and source freshness without closing the main window.
-The current-base product candidate is `7d732102fda7322301aec2446e79b659307be02d`, reassembled from reviewed product commit `7602dc644d0cc1df39df6939519d258fb6523ab7` on canonical base `8b1782c6ee2c213a408360554f19bf231b0f3e19`.
-The signed commit may be this candidate or a reviewed descendant containing the namespaced verifier tooling.
+The current-base candidate reassembles reviewed lineage `1bb3c27866bc3acbfd449d680371b0b340710738` on canonical base `ed5d07a363e0f64049c07b0e1d309d754caa035b` at merge `44c1bca116525709d7c4708b4f4a7089fa11c70f`.
+The deterministic Today-scroll verifier fix is commit `fa95aeab65fb23a1971e6a7c3464ae87d51febf7` and the static verifier requires the signed commit to be its one reviewed rebind child.
+The verifier reacquires a fresh unique main Accessibility tree after every bounded scroll step and rejects target ambiguity, stale generations, PID exit, privacy leakage, and timeout.
 
 The fixture owns only current-day `behavior_records` whose window title starts with `qa-zc024004-private-` inside one bounded epoch range.
 The fixture never deletes or updates a non-owned row.
@@ -20,7 +21,8 @@ PROBE="$PWD/Scripts/qa-zc024004-live-refresh-ax-probe.swift"
 "$FIXTURE" self-test
 swift "$PROBE" --self-test
 swiftc -typecheck "$PROBE"
-git diff --check 8b1782c6ee2c213a408360554f19bf231b0f3e19
+Scripts/verify-zc-024-004-live-today-refresh-static.sh
+git diff --check ed5d07a363e0f64049c07b0e1d309d754caa035b
 ```
 
 Do not put build transcripts, screenshots, AX snapshots, temporary databases, or package staging under the repository.
@@ -48,7 +50,11 @@ INFO_PLIST="$APP/Contents/Info.plist"
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$INFO_PLIST")"
 APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
 test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
-git merge-base --is-ancestor 7d732102fda7322301aec2446e79b659307be02d "$EXPECTED_SIGNED_COMMIT"
+test "$(git rev-parse HEAD)" = "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor ed5d07a363e0f64049c07b0e1d309d754caa035b "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor 1bb3c27866bc3acbfd449d680371b0b340710738 "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor fa95aeab65fb23a1971e6a7c3464ae87d51febf7 "$EXPECTED_SIGNED_COMMIT"
+Scripts/verify-zc-024-004-live-today-refresh-static.sh
 ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh \
   "$APP" --expected-commit "$EXPECTED_SIGNED_COMMIT" --require-clean
 test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$INFO_PLIST")" = "$QA_ROOT"

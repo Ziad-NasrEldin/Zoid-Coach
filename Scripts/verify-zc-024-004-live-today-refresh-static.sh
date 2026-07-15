@@ -2,7 +2,18 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="8b1782c6ee2c213a408360554f19bf231b0f3e19"
+BASE="ed5d07a363e0f64049c07b0e1d309d754caa035b"
+REVIEWED_LINEAGE_TIP="1bb3c27866bc3acbfd449d680371b0b340710738"
+REASSEMBLY_COMMIT="44c1bca116525709d7c4708b4f4a7089fa11c70f"
+TOOLING_COMMIT="fa95aeab65fb23a1971e6a7c3464ae87d51febf7"
+TOOLING_PATCH_ID="e984850a3645bdb51518fe98745104bb8a20aa7d"
+
+readonly REVIEWED_PATCH_IDS=(
+    "5b1d785b5676c1d5d33b02ea4d9cfa01940be0c8"
+    "efe25d1a4433de623c8f273ec7e92dd60fb44469"
+    "16647b99b75776af46b29a0d4d4d03df195323a8"
+    "d6d19cea420d9fc549d8e48768f282469dc76f9c"
+)
 
 readonly OWNED_PATHS=(
     "Sources/ZoidCoachApp/AppModel.swift"
@@ -65,6 +76,48 @@ assert_contains() {
     fi
 }
 
+normalized_lines() {
+    sed '/^$/d' | LC_ALL=C sort -u
+}
+
+reviewed_patch_ids() {
+    local commit
+    while IFS= read -r commit; do
+        git show --pretty=email --no-ext-diff "$commit" \
+            | git patch-id --stable \
+            | awk '{print $1}'
+    done < <(git rev-list --reverse --topo-order "$BASE..$REVIEWED_LINEAGE_TIP")
+}
+
+verify_candidate_lineage() {
+    local head expected_scope actual_scope expected_rebind_scope actual_rebind_scope
+    local expected_patch_ids actual_patch_ids tooling_patch_id
+    head="$(git rev-parse HEAD)"
+    [[ "$(git show -s --format='%P' "$REASSEMBLY_COMMIT")" == "$BASE $REVIEWED_LINEAGE_TIP" ]]
+    [[ "$(git rev-parse "$TOOLING_COMMIT^")" == "$REASSEMBLY_COMMIT" ]]
+    [[ "$(git rev-parse "$head^")" == "$TOOLING_COMMIT" ]]
+
+    expected_scope="$(printf '%s\n' "${OWNED_PATHS[@]}" | normalized_lines)"
+    actual_scope="$(git diff --name-only "$BASE" "$head" | normalized_lines)"
+    [[ "$actual_scope" == "$expected_scope" ]]
+    [[ "$(git diff --name-only "$BASE" "$REASSEMBLY_COMMIT" | normalized_lines)" == "$expected_scope" ]]
+    [[ "$(git diff-tree --no-commit-id --name-only -r "$TOOLING_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
+
+    expected_rebind_scope="$(printf '%s\n' \
+        Scripts/verify-zc-024-004-live-today-refresh-static.sh \
+        docs/ZC-024-004-SIGNED-QA-RUNBOOK.md | normalized_lines)"
+    actual_rebind_scope="$(git diff --name-only "$TOOLING_COMMIT" "$head" | normalized_lines)"
+    [[ "$actual_rebind_scope" == "$expected_rebind_scope" ]]
+
+    actual_patch_ids="$(reviewed_patch_ids)"
+    expected_patch_ids="$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
+    [[ "$actual_patch_ids" == "$expected_patch_ids" ]]
+    tooling_patch_id="$(git show --pretty=email --no-ext-diff "$TOOLING_COMMIT" \
+        | git patch-id --stable \
+        | awk '{print $1}')"
+    [[ "$tooling_patch_id" == "$TOOLING_PATCH_ID" ]]
+}
+
 run_self_test() {
     local expected_path
     local expected_paths=(
@@ -86,6 +139,7 @@ run_self_test() {
     ! is_owned "Sources/ZoidCoachApp/Views/DashboardView.swift"
     is_forbidden "Sources/ZoidCoachApp/Views/DashboardView.swift"
     ! is_forbidden "Sources/ZoidCoachApp/AppModel.swift"
+    verify_candidate_lineage
     echo "ZC-024-004 verifier self-test: pass"
 }
 
@@ -100,6 +154,8 @@ if [[ "$(git rev-parse "$BASE")" != "$BASE" ]]; then
     echo "required base is unavailable: $BASE" >&2
     exit 1
 fi
+
+verify_candidate_lineage
 
 while IFS= read -r path; do
     [[ -z "$path" ]] && continue
@@ -128,6 +184,12 @@ assert_contains "Sources/ZoidCoachApp/ZoidCoachApp.swift" \
     "&& scenePhase == .active"
 assert_contains "Sources/ZoidCoachApp/TodayLiveRefreshLoop.swift" \
     "interval: Duration = .seconds(15)"
+assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
+    "let freshWindow = try mainWindow()"
+assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
+    "Working and Screenwatch are unavailable after bounded Today scrolling"
+assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
+    "stale Today Accessibility tree was reused during bounded scrolling"
 assert_contains "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift" \
     "func todayLiveRefreshRunsOnceForEachTickAndStopsWithoutAnotherRefresh()"
 assert_contains "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift" \
