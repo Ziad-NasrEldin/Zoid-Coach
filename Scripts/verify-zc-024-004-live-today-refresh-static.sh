@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BASE="6dfb5886f4ca2d157745f10b5d737988a08d596a"
+BASE="8b1782c6ee2c213a408360554f19bf231b0f3e19"
 
 readonly OWNED_PATHS=(
     "Sources/ZoidCoachApp/AppModel.swift"
