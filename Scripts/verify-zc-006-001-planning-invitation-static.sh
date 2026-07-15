@@ -8,6 +8,8 @@ readonly CANONICAL_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
 readonly PRODUCT_CANDIDATE="c8ea11afe0d479269fa21d697dd63a5f80688019"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc006001-planning-invitation-fixture.sh"
 readonly PROBE="$SCRIPT_DIR/qa-zc006001-planning-invitation-ax-probe.swift"
+readonly POLICY_READINESS="$SCRIPT_DIR/qa-zc006001-policy-readiness.sh"
+readonly POLICY_DECODER="$SCRIPT_DIR/qa-zc006001-policy-decode.swift"
 readonly PREFLIGHT="$SCRIPT_DIR/qa-zc006001-signed-preflight.sh"
 readonly TEMPLATE="$SCRIPT_DIR/fixtures/zc-006-001-planning-invitation-ready-state.json"
 readonly RUNBOOK="$REPOSITORY/docs/ZC-006-001-SIGNED-QA-RUNBOOK.md"
@@ -17,11 +19,12 @@ fail() {
     exit 1
 }
 
-for path in "$FIXTURE" "$PROBE" "$PREFLIGHT" "$TEMPLATE" "$RUNBOOK"; do
+for path in "$FIXTURE" "$PROBE" "$POLICY_READINESS" "$POLICY_DECODER" "$PREFLIGHT" "$TEMPLATE" "$RUNBOOK"; do
     [[ -f "$path" && ! -L "$path" ]] || fail "required verifier file is unavailable or unsafe: $path"
 done
 
 /bin/zsh -n "$FIXTURE"
+/bin/zsh -n "$POLICY_READINESS"
 /bin/zsh -n "$PREFLIGHT"
 /bin/zsh -n "$0"
 /usr/bin/jq -e . "$TEMPLATE" >/dev/null
@@ -37,6 +40,8 @@ for phrase in \
     'run_case one past dismiss' \
     'run_case many future' \
     'run_case many past snooze' \
+    '"$FIXTURE" seed-policy' \
+    '"$POLICY_READINESS" wait' \
     'cmp "$ORIGINAL_HASHES" "$RESTORED_HASHES"'; do
     /usr/bin/grep -Fq "$phrase" "$RUNBOOK" || fail "runbook is missing required step: $phrase"
 done

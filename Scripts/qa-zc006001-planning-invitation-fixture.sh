@@ -13,8 +13,61 @@ fail() {
 }
 
 usage() {
-    print -u2 -- "usage: $0 <materialize|assert-manifest|configure-boundary|assert-database|assert-notification|self-test> ..."
+    print -u2 -- "usage: $0 <materialize|assert-manifest|seed-policy|configure-boundary|assert-database|assert-notification|self-test> ..."
     exit 2
+}
+
+seed_policy() {
+    local source_database="$1" target_database="$2"
+    [[ -f "$source_database" && ! -L "$source_database" ]] || fail "baseline policy database is unavailable or unsafe"
+    [[ -f "$target_database" && ! -L "$target_database" ]] || fail "isolated target database is unavailable or unsafe"
+    [[ "$source_database" != *[\?\#\']* && "$target_database" != *"'"* ]] \
+        || fail "database paths contain unsupported URI characters"
+    local source_uri="file:$source_database?immutable=1" source_valid target_empty
+    source_valid="$("$SQLITE3" -batch -noheader "$source_uri" <<'SQL'
+SELECT CASE WHEN
+    (SELECT COUNT(*) FROM settings WHERE key = 'user_policy') = 1
+    AND (SELECT COUNT(*) FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1) = 1
+    AND (SELECT policy_version FROM settings WHERE key = 'user_policy') =
+        (SELECT version FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1)
+    AND (SELECT value_json FROM settings WHERE key = 'user_policy') =
+        (SELECT payload_json FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1)
+    AND json_valid((SELECT value_json FROM settings WHERE key = 'user_policy'))
+THEN 1 ELSE 0 END;
+SQL
+)"
+    [[ "$source_valid" == 1 ]] || fail "baseline does not contain one linked active policy"
+    target_empty="$("$SQLITE3" -batch -noheader "$target_database" \
+        "SELECT (SELECT COUNT(*) FROM settings WHERE key='user_policy') + (SELECT COUNT(*) FROM policy_versions WHERE policy_type='user_policy');")"
+    [[ "$target_empty" == 0 ]] || fail "isolated target already contains policy state"
+    "$SQLITE3" -batch "$target_database" <<SQL
+ATTACH DATABASE '$source_uri' AS baseline;
+BEGIN IMMEDIATE;
+INSERT INTO policy_versions(policy_type, version, payload_json, created_at_utc, is_active)
+SELECT policy_type, version, payload_json, created_at_utc, is_active
+FROM baseline.policy_versions
+WHERE policy_type = 'user_policy' AND is_active = 1;
+INSERT INTO settings(key, value_json, policy_version, updated_at_utc)
+SELECT key, value_json, policy_version, updated_at_utc
+FROM baseline.settings
+WHERE key = 'user_policy';
+COMMIT;
+DETACH DATABASE baseline;
+SQL
+    local copied
+    copied="$("$SQLITE3" -batch -noheader "$target_database" <<'SQL'
+SELECT CASE WHEN
+    (SELECT COUNT(*) FROM settings WHERE key = 'user_policy') = 1
+    AND (SELECT COUNT(*) FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1) = 1
+    AND (SELECT policy_version FROM settings WHERE key = 'user_policy') =
+        (SELECT version FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1)
+    AND (SELECT value_json FROM settings WHERE key = 'user_policy') =
+        (SELECT payload_json FROM policy_versions WHERE policy_type = 'user_policy' AND is_active = 1)
+THEN 1 ELSE 0 END;
+SQL
+)"
+    [[ "$copied" == 1 ]] || fail "seeded policy lost active-version linkage"
+    print -- "PASS: package-created active policy seeded byte-for-byte while runtime stopped"
 }
 
 configure_boundary() {
@@ -170,12 +223,27 @@ self_test() (
     if "$JQ" -e '([.osFixture.reminders[].title] | all(test("private|https?://"; "i") | not))' "$root/private.json" >/dev/null; then
         fail "private-looking Reminder title was accepted"
     fi
+    local source_database="$root/source.sqlite" target_database="$root/target.sqlite"
+    for database in "$source_database" "$target_database"; do
+        "$SQLITE3" "$database" <<'SQL'
+CREATE TABLE settings(key TEXT PRIMARY KEY, value_json TEXT NOT NULL, policy_version INTEGER NOT NULL, updated_at_utc TEXT NOT NULL);
+CREATE TABLE policy_versions(policy_type TEXT NOT NULL, version INTEGER NOT NULL, payload_json TEXT NOT NULL, created_at_utc TEXT NOT NULL, is_active INTEGER NOT NULL);
+SQL
+    done
+    "$SQLITE3" "$source_database" <<'SQL'
+INSERT INTO settings VALUES('user_policy','{"schemaVersion":5}',7,'baseline-time');
+INSERT INTO policy_versions VALUES('user_policy',7,'{"schemaVersion":5}','baseline-time',1);
+SQL
+    seed_policy "$source_database" "$target_database" >/dev/null
+    [[ "$("$SQLITE3" "$target_database" "SELECT policy_version || '|' || value_json || '|' || updated_at_utc FROM settings WHERE key='user_policy';")" == '7|{"schemaVersion":5}|baseline-time' ]] \
+        || fail "policy seed did not preserve baseline bytes and IDs"
     print -- "PASS: ZC-006-001 fixture self-test covered 0/1/many, uniqueness, and privacy sentinels"
 )
 
 case "$COMMAND" in
     materialize) (( $# == 3 )) || usage; materialize "$2" "$3" ;;
     assert-manifest) (( $# == 3 )) || usage; assert_manifest "$2" "$3" ;;
+    seed-policy) (( $# == 3 )) || usage; seed_policy "$2" "$3" ;;
     configure-boundary) (( $# == 3 )) || usage; configure_boundary "$2" "$3" ;;
     assert-database) (( $# == 3 )) || usage; assert_database "$2" "$3" ;;
     assert-notification) (( $# == 4 )) || usage; assert_notification "$2" "$3" "$4" ;;
