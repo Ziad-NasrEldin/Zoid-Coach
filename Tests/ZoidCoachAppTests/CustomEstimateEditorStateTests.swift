@@ -465,14 +465,28 @@ struct CustomEstimateEditorStateTests {
         container.addSubview(field)
         container.addSubview(otherField)
         let presentationID = UUID()
+        field.installKeyMonitorIfNeeded()
+        let monitorInstallCount = field.keyMonitorInstallCount
         field.requestFocus(presentationID: presentationID, generation: 1)
 
         field.removeFromSuperview()
         #expect(field.window == nil)
         #expect(field.isFocusLeaseActive)
+        #expect(field.hasInstalledKeyMonitor)
+        let detachedEditor = NSTextView()
+        let detachedReturn = keyEvent(keyCode: 36)
+        let detachedResult = field.filteredEvent(
+            detachedReturn,
+            editor: field.currentEditor(),
+            firstResponder: detachedEditor
+        )
+        #expect(detachedResult === detachedReturn)
+        #expect(field.returnHandlingCount == 0)
         container.addSubview(field)
         #expect(field.window === window)
         #expect(field.hasInputFocus)
+        #expect(field.hasInstalledKeyMonitor)
+        #expect(field.keyMonitorInstallCount == monitorInstallCount)
 
         #expect(window.makeFirstResponder(otherField))
         try? await Task.sleep(for: .milliseconds(80))

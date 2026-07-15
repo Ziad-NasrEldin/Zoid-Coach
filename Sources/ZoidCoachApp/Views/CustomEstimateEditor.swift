@@ -220,9 +220,7 @@ final class CustomEstimateTextField: NSTextField {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if window == nil {
-            removeKeyMonitor()
-        } else {
+        if window != nil {
             installKeyMonitorIfNeeded()
             applyRequestedFocus()
         }
