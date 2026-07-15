@@ -248,6 +248,7 @@ final class AppModel: ObservableObject {
         if let receipt = self.calendarPlanApprovalReceiptStore.load() {
             calendarPlanApproval.restore(receipt)
         }
+        todaySnapshot = todaySnapshotLoader.load()
         Task {
             updateSource(resolvedAgentLaunchService.reconcileAtLaunchAndInspect())
             let reconciledTaskSnapshots = await resolvedTodayDashboardXPCClient.reconcilePendingTaskMutations()

@@ -53,6 +53,20 @@ func foregroundRefreshReadsPersistedInvitation() async throws {
 
 @MainActor
 @Test
+func startupReadsPersistedSnapshotBeforeAsynchronousAgentReconciliation() throws {
+    let fixture = try TodaySnapshotOwnershipFixture()
+    defer { fixture.remove() }
+    _ = try TodayDashboardAgent(
+        databaseURL: fixture.runtime.databaseURL
+    ).snapshot()
+
+    let model = fixture.makeAppModel()
+
+    #expect(model.todaySnapshot?.planningStatus?.mode == .invitation)
+}
+
+@MainActor
+@Test
 func menuForegroundRefreshDoesNotGenerateAMissingTodaySnapshot() async throws {
     let fixture = try TodaySnapshotOwnershipFixture()
     defer { fixture.remove() }
