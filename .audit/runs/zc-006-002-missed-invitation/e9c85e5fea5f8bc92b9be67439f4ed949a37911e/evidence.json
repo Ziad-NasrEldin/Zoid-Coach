@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "run_id": "zc-006-002-missed-invitation/e9c85e5fea5f8bc92b9be67439f4ed949a37911e",
+  "verified_commit": "e9c85e5fea5f8bc92b9be67439f4ed949a37911e",
+  "build_identity": "zoid-coach-e9c85e5fea5f8bc92b9be67439f4ed949a37911e-clean",
+  "fixture": "First-use-after-inactivity recovered planning invitation with exact Work Unplanned action, durable response and effect, helper restart, ordinary relaunch, privacy, and exact cleanup",
+  "qa_root": "/private/tmp/zoid-666-zc006002-runtime",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "a99910b3336146e9b63d3c1ec2c1d216e84a2acdb26772204c1d7104463df14f",
+  "scenario_ids": [
+    "ZC-006-002"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-15T08:16:00Z",
+  "completed_at": "2026-07-15T08:16:51Z",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "13f49e9fe846be37ddd498b0463904fde76dbeb3b2a3445c7c28ecf9b043d14b"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "One recovered invitation appeared after the configured Cairo planning boundary passed during inactivity",
+      "result": "passed"
+    },
+    {
+      "name": "The exact Work Unplanned action immediately rendered limited unplanned mode and persisted one response with one applied effect",
+      "result": "passed"
+    },
+    {
+      "name": "Helper restart and ordinary app relaunch retained resolved history without another actionable control",
+      "result": "passed"
+    },
+    {
+      "name": "Privacy sentinels stayed absent and the isolated root restored exactly before scoped cleanup",
+      "result": "passed"
+    },
+    {
+      "name": "Production application and agent paths, process identities, and binary hashes remained exact",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "swift test --filter PlanningInvitation",
+    "swift test --filter MissedPlanningInvitationRecoveryServiceTests",
+    "Scripts/qa-zc006002-missed-invitation-fixture.sh --self-test",
+    "Scripts/qa-zc006002-signed-preflight.sh --self-test",
+    "Scripts/qa-zc006002-signed-preflight.sh <app> <database> e9c85e5fea5f8bc92b9be67439f4ed949a37911e <pid> <phase>",
+    "swift build -c release --product ZoidCoach",
+    "swift build -c release --product ZoidCoachAgent"
+  ]
+}

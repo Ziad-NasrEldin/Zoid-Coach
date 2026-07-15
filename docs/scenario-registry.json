@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "efe215505246fffe686c1ce98f9fcb41a9168dc2caee8d8339d3e179c1985a20",
+  "tracker_sha256": "72bc08e873905982c85fd4b735e0842ba760e2348b9978d8a6815da730dfaa53",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1027,19 +1027,22 @@
       "section_title": "Starting the day",
       "item_index": 2,
       "wording": "Receive the invitation when first using the Mac if the configured time passed while inactive.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Missed nightly planning after wake is unit-tested and immediate notification delivery is possible when the target time is past, but the complete wake-to-invitation flow was not exercised live.",
+      "evidence_paths": [
+        ".audit/runs/zc-006-002-missed-invitation/e9c85e5fea5f8bc92b9be67439f4ed949a37911e/REPORT.md",
+        ".audit/runs/zc-006-002-missed-invitation/e9c85e5fea5f8bc92b9be67439f4ed949a37911e/evidence.json"
+      ],
+      "last_verified_commit": "e9c85e5fea5f8bc92b9be67439f4ed949a37911e",
+      "last_verified_build": "zoid-coach-e9c85e5fea5f8bc92b9be67439f4ed949a37911e-clean",
+      "audit_note": "The exact clean signed Zoid 666 QA candidate recovered one calm invitation after the configured Cairo boundary passed during inactivity, exposed and completed the exact Work Unplanned action, persisted the same prompt as one dashboard response with one applied effect, restored the canonical unplanned and no-drift state after helper restart and ordinary app relaunch, retained resolved history without another actionable control, preserved privacy sentinels, and restored the isolated root exactly before cleanup (`MissedPlanningInvitationRecoveryService.swift`; `PlanningInvitationService.swift`; `MissedPlanningInvitationRecoveryServiceTests.swift`; `.audit/runs/zc-006-002-missed-invitation/e9c85e5fea5f8bc92b9be67439f4ed949a37911e/REPORT.md`; `.audit/runs/zc-006-002-missed-invitation/e9c85e5fea5f8bc92b9be67439f4ed949a37911e/evidence.json`).",
       "tracker_line": 113
     },
     {
