@@ -213,12 +213,13 @@ verify() {
             assert_scalar "SELECT COUNT(*) FROM task_sprint_sessions WHERE task_id = '$TASK_ID';" "0" "live sprint exclusion"
             ;;
         rollback)
-            assert_scalar "SELECT CAST(SUM((julianday(ended_at) - julianday(started_at)) * 86400) / 60 AS INTEGER) FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NOT NULL;" "9" "rollback confirmed elapsed"
-            assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NULL AND started_at > datetime('now');" "1" "future rollback interval"
+            assert_scalar "SELECT SUM(strftime('%s', ended_at) - strftime('%s', started_at)) / 60 FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NOT NULL;" "9" "rollback confirmed elapsed"
+            assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NULL AND strftime('%s', started_at) > strftime('%s', 'now');" "1" "future rollback interval"
             ;;
         fallback)
             assert_scalar "SELECT COUNT(*) FROM task_execution_states WHERE task_id = '$TASK_ID' AND state = 'active';" "1" "fallback active state"
             assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NULL;" "0" "fallback missing open metadata"
+            assert_scalar "SELECT SUM(strftime('%s', ended_at) - strftime('%s', started_at)) / 60 FROM task_activity_intervals WHERE task_id = '$TASK_ID' AND ended_at IS NOT NULL;" "9" "fallback confirmed elapsed"
             ;;
         bounded)
             assert_scalar "SELECT COUNT(*) FROM task_sprint_sessions WHERE task_id = '$TASK_ID' AND state = 'active' AND duration_minutes = 20;" "1" "bounded sprint"
