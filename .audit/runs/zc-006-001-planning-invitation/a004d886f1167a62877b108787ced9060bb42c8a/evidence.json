@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "run_id": "zc-006-001-planning-invitation/a004d886f1167a62877b108787ced9060bb42c8a",
+  "verified_commit": "a004d886f1167a62877b108787ced9060bb42c8a",
+  "build_identity": "zoid-coach-a004d886f1167a62877b108787ced9060bb42c8a-clean",
+  "fixture": "zc-006-001-planning-invitation-ready-state",
+  "qa_root": "/private/tmp/zoid-zc006001-qa-a004d886-r8",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "6e3a0c943b75675a88b07622651903c6ffd0f53b1388a9ebd5c1c1219f347e16",
+  "status": "passed",
+  "completed_at": "2026-07-15T05:22:00Z",
+  "scenario_ids": [
+    "ZC-006-001"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation"
+  ],
+  "assertions": [
+    {
+      "name": "zero_one_three_future_and_past_signed_journeys",
+      "result": "passed"
+    },
+    {
+      "name": "exact_optional_copy_ordered_actions_and_privacy",
+      "result": "passed"
+    },
+    {
+      "name": "work_unplanned_dismiss_and_snooze_visible_outcomes",
+      "result": "passed"
+    },
+    {
+      "name": "byte_exact_restore_uninstall_and_production_isolation",
+      "result": "passed"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "f0a435db5f25abe8ec2694cac73b718f28d0e40b8e628d5dc9019e0960cbefdc"
+    }
+  ],
+  "commands": [
+    "Scripts/verify-zc-006-001-planning-invitation-static.sh",
+    "CONFIGURATION=release Scripts/install-signed-qa-runtime.sh",
+    "signed six-case zero-one-three future-past journey"
+  ]
+}

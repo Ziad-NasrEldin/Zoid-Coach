@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "5fb5e5a3e4f504d3b97528b145d23d0fdbe37637172ac470831a532de48a0d78",
+  "tracker_sha256": "8f2ef7a13df1d5b77d95910620dade030ac442374ff454c6c961212ce6dd3372",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -1004,19 +1004,21 @@
       "section_title": "Starting the day",
       "item_index": 1,
       "wording": "Receive a low-pressure planning invitation at the configured planning time.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
         "ui_automation"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "The agent schedules a PLAN_READY notification at morning confirmation time, but the wording was not assessed as low-pressure and no live delivery was verified (`AgentMain.swift:776-813`; `PromptNotificationCoordinator.swift:93-102`).",
+      "evidence_paths": [
+        ".audit/runs/zc-006-001-planning-invitation/a004d886f1167a62877b108787ced9060bb42c8a/evidence.json"
+      ],
+      "last_verified_commit": "a004d886f1167a62877b108787ced9060bb42c8a",
+      "last_verified_build": "zoid-coach-a004d886f1167a62877b108787ced9060bb42c8a-clean",
+      "audit_note": "The exact signed Zoid 666 QA candidate proved calm optional copy with zero, one, and three suggestions, future scheduling without early delivery, passed-boundary delivery, two ordinary relaunches, privacy-safe ordered actions, and successful Work Unplanned, Dismiss, and Snooze responses (`PlanningInvitation.swift`; `AgentReminderPlanner.swift`; `.audit/runs/zc-006-001-planning-invitation/a004d886f1167a62877b108787ced9060bb42c8a/REPORT.md`).",
       "tracker_line": 112
     },
     {
