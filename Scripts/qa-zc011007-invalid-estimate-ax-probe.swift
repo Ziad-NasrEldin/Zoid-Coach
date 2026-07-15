@@ -277,6 +277,7 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
 private var pid: pid_t?
 private var phase: String?
 private var caseName: String?
+private var surfaceName: String?
 private var forbidden: [String] = []
 private var argumentIndex = 1
 private let arguments = CommandLine.arguments
@@ -305,6 +306,13 @@ while argumentIndex < arguments.count {
         }
         caseName = arguments[argumentIndex + 1]
         argumentIndex += 2
+    case "--surface":
+        guard argumentIndex + 1 < arguments.count else {
+            fputs("FAIL: --surface requires dashboard or today\n", stderr)
+            exit(2)
+        }
+        surfaceName = arguments[argumentIndex + 1]
+        argumentIndex += 2
     case "--forbid":
         guard argumentIndex + 1 < arguments.count else {
             fputs("FAIL: --forbid requires a value\n", stderr)
@@ -320,10 +328,12 @@ while argumentIndex < arguments.count {
 
 guard let pid,
       let phase,
+      let surfaceName,
+      ["dashboard", "today"].contains(surfaceName),
       ["open", "submit", "persisted"].contains(phase),
       (phase == "submit") == (caseName != nil)
 else {
-    fputs("usage: qa-zc011007-invalid-estimate-ax-probe.swift --self-test | --pid <pid> --phase <open|submit|persisted> [--case <empty|whitespace|unicode-whitespace|zero|negative|decimal|text|localized-digits|localized-decimal|too-large|valid-padded>] [--forbid <sentinel>]...\n", stderr)
+    fputs("usage: qa-zc011007-invalid-estimate-ax-probe.swift --self-test | --pid <pid> --surface <dashboard|today> --phase <open|submit|persisted> [--case <empty|whitespace|unicode-whitespace|zero|negative|decimal|text|localized-digits|localized-decimal|too-large|valid-padded>] [--forbid <sentinel>]...\n", stderr)
     exit(2)
 }
 
@@ -334,6 +344,9 @@ if phase == "submit", selectedCase == nil {
 }
 
 private let application = AXUIElementCreateApplication(pid)
+private let triggerIdentifierPrefix = surfaceName == "dashboard"
+    ? "task-estimate-custom-"
+    : "today-estimate-custom-"
 
 private func attribute(_ element: AXUIElement, _ name: CFString) -> CFTypeRef? {
     var value: CFTypeRef?
@@ -483,6 +496,7 @@ private func uniqueAction(
     let matches = elements.filter { candidate in
         role(candidate) == (kAXButtonRole as String)
             && labels(candidate).contains(where: { exactAXText($0, exactLabel) })
+            && (identifier(candidate)?.hasPrefix(triggerIdentifierPrefix) == true)
     }
     let traits = matches.map { candidate in
         ActionCandidate(
@@ -495,7 +509,10 @@ private func uniqueAction(
     case let .selected(index): return matches[index]
     case .missing: return nil
     case .ambiguous:
-        throw ProbeError.failure("multiple distinct actionable Custom estimate controls are ambiguous")
+        guard let index = traits.indices.first(where: {
+            traits[$0].actionable && traits[$0].visible
+        }) else { return nil }
+        return matches[index]
     }
 }
 
@@ -508,6 +525,7 @@ private func scrollNearestExactActionToVisible(
     let matches = elements.filter { candidate in
         role(candidate) == (kAXButtonRole as String)
             && labels(candidate).contains(where: { exactAXText($0, exactLabel) })
+            && (identifier(candidate)?.hasPrefix(triggerIdentifierPrefix) == true)
     }
     let framed = matches.compactMap { candidate -> (AXUIElement, GeometricCandidate)? in
         guard let candidateFrame = frame(candidate) else { return nil }
@@ -592,6 +610,7 @@ private func scrollNearestExactActionToVisible(
             let nextMatches = next.elements.filter { candidate in
                 role(candidate) == (kAXButtonRole as String)
                     && labels(candidate).contains(where: { exactAXText($0, exactLabel) })
+                    && (identifier(candidate)?.hasPrefix(triggerIdentifierPrefix) == true)
             }
             let nextCandidates = nextMatches.compactMap { candidate -> GeometricCandidate? in
                 guard let candidateFrame = frame(candidate) else { return nil }
