@@ -1,9 +1,15 @@
 #!/bin/zsh
 set -euo pipefail
 
-readonly SCRIPT_DIR="${0:A:h}"
-readonly REPOSITORY="${SCRIPT_DIR:h}"
+readonly SCRIPT_PATH="${0:A}"
+readonly SCRIPT_DIR="${SCRIPT_PATH:h}"
+if [[ "${1:-}" == "--self-test" && "${ZOID_PREFLIGHT_ASSERT_ONLY:-0}" == 1 ]]; then
+    readonly REPOSITORY="${ZOID_PREFLIGHT_REPOSITORY_OVERRIDE:?missing internal repository override}"
+else
+    readonly REPOSITORY="${SCRIPT_DIR:h}"
+fi
 readonly STACKED_PARENT="0f82cbc3dd12252a3ed8f08a65210cfc72dcf6b2"
+readonly CORRECTED_TIP="8c9e007d467fe2b5388e151914a559a8245d18ed"
 readonly RUNBOOK="$REPOSITORY/docs/ZC-061-005-SIGNED-QA-RUNBOOK.md"
 readonly EXPECTED_PATHS=(
     Tests/ZoidCoachAppTests/ZC061005InsufficientEvidenceJourneyTests.swift
@@ -39,24 +45,59 @@ assert_runbook_shell_blocks_fail_fast() {
 
 assert_candidate_lineage_and_scope() {
     local candidate="$1"
-    git -C "$REPOSITORY" cat-file -e "$candidate^{commit}" \
+    is_full_lowercase_sha "$candidate" || fail "candidate must be a full lowercase SHA"
+    local resolved head merge_base expected actual
+    resolved="$(git -C "$REPOSITORY" rev-parse --verify "$candidate^{commit}")" \
         || fail "candidate commit is unavailable"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$candidate^^")" == "$STACKED_PARENT" ]] \
-        || fail "candidate must be a binding child of the ZC-061-005 replay on $STACKED_PARENT"
-    local expected actual
+    [[ "$resolved" == "$candidate" ]] || fail "candidate did not resolve to the exact requested commit"
+    head="$(git -C "$REPOSITORY" rev-parse --verify HEAD)" || fail "repository HEAD is unavailable"
+    [[ "$head" == "$resolved" ]] || fail "candidate must equal repository HEAD"
+    git -C "$REPOSITORY" merge-base --is-ancestor "$STACKED_PARENT" "$resolved" \
+        || fail "required parent is not an ancestor of the candidate"
+    merge_base="$(git -C "$REPOSITORY" merge-base "$STACKED_PARENT" "$resolved")" \
+        || fail "candidate has no merge base with the required parent"
+    [[ "$merge_base" == "$STACKED_PARENT" ]] || fail "candidate merge base is not the required parent"
     expected="$(printf '%s\n' "${EXPECTED_PATHS[@]}" | normalized_lines)"
-    actual="$(git -C "$REPOSITORY" diff --name-only "$STACKED_PARENT" "$candidate" -- | normalized_lines)"
+    actual="$(git -C "$REPOSITORY" diff --name-only "$STACKED_PARENT" "$resolved" -- | normalized_lines)"
     [[ "$actual" == "$expected" ]] || fail "signed candidate differs from the exact six-file scope"
 }
 
+assert_corrected_tip_with_runtime_contract() {
+    local temporary_root checkout
+    temporary_root="$(mktemp -d /private/tmp/zoid-zc061005-lineage.XXXXXX)"
+    checkout="$temporary_root/repository"
+    cleanup_corrected_tip_worktree() {
+        git -C "$REPOSITORY" worktree remove --force "$checkout" >/dev/null 2>&1 || true
+        rm -rf "$temporary_root"
+    }
+    trap cleanup_corrected_tip_worktree EXIT HUP INT TERM
+    git -C "$REPOSITORY" worktree add --detach "$checkout" "$CORRECTED_TIP" >/dev/null
+    env ZOID_PREFLIGHT_REPOSITORY_OVERRIDE="$checkout" \
+        ZOID_PREFLIGHT_ASSERT_ONLY=1 \
+        ZOID_PREFLIGHT_ASSERT_CANDIDATE="$CORRECTED_TIP" \
+        "$SCRIPT_PATH" --self-test >/dev/null
+    if env ZOID_PREFLIGHT_REPOSITORY_OVERRIDE="$checkout" \
+        ZOID_PREFLIGHT_ASSERT_ONLY=1 \
+        ZOID_PREFLIGHT_ASSERT_CANDIDATE="$STACKED_PARENT" \
+        "$SCRIPT_PATH" --self-test >/dev/null 2>&1; then
+        fail "required parent was accepted as the checked-out candidate"
+    fi
+    cleanup_corrected_tip_worktree
+    trap - EXIT HUP INT TERM
+}
+
 if [[ "${1:-}" == "--self-test" ]]; then
+    if [[ "${ZOID_PREFLIGHT_ASSERT_ONLY:-0}" == 1 ]]; then
+        assert_candidate_lineage_and_scope "${ZOID_PREFLIGHT_ASSERT_CANDIDATE:-}"
+        exit 0
+    fi
     is_full_lowercase_sha "$STACKED_PARENT" || fail "stacked parent SHA is invalid"
+    is_full_lowercase_sha "$CORRECTED_TIP" || fail "corrected tip SHA is invalid"
     ! is_full_lowercase_sha "${STACKED_PARENT:u}" || fail "uppercase SHA was accepted"
     ! is_full_lowercase_sha "3df007c" || fail "abbreviated SHA was accepted"
     git -C "$REPOSITORY" cat-file -e "$STACKED_PARENT^{commit}" \
         || fail "stacked parent is unavailable"
-    git -C "$REPOSITORY" merge-base --is-ancestor "$STACKED_PARENT" HEAD \
-        || fail "worktree is not stacked on ZC-061-002"
+    assert_corrected_tip_with_runtime_contract
     rg -Fq 'case "--once"' "$REPOSITORY/Sources/ZoidCoachAgent/AgentMain.swift" \
         || fail "installed helper no longer supports the bounded --once path"
     assert_runbook_shell_blocks_fail_fast
