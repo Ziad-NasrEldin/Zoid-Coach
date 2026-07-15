@@ -339,6 +339,7 @@ final class CustomEstimateTextField: NSTextField {
             return
         }
         if !hasInputFocus {
+            _ = window.makeFirstResponder(nil)
             _ = window.makeFirstResponder(self)
             selectText(nil)
             if let editor = currentEditor() {
