@@ -107,8 +107,9 @@ public final class PrivacyDataService: @unchecked Sendable {
     }
 
     public func exportRedactedDiagnostics(now: Date = Date(), destinationURL: URL? = nil) throws -> URL {
+        let generatedAtUTC = ISO8601DateFormatter().string(from: now)
         let payload: [String: Any] = [
-            "generatedAtUTC": ISO8601DateFormatter().string(from: now),
+            "generatedAtUTC": generatedAtUTC,
             "schemaVersion": try scalar("SELECT COALESCE(MAX(version), 0) FROM schema_migrations;"),
             "actionCounts": try groupedCounts("SELECT state, COUNT(*) FROM action_commands GROUP BY state;"),
             "sourceCounts": try groupedCounts("SELECT state, COUNT(*) FROM source_checkpoints GROUP BY state;"),
@@ -124,15 +125,68 @@ public final class PrivacyDataService: @unchecked Sendable {
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         let url = destinationURL
             ?? exportRoot.appendingPathComponent("zoid-666-redacted-\(formatter.string(from: now)).json")
-        guard url.pathExtension.lowercased() == "json" else {
+        switch url.pathExtension.lowercased() {
+        case "json":
+            return try writeRedactedJSON(data, to: url)
+        case "zoiddiagnostics":
+            return try writeRedactedPackage(
+                countsData: data,
+                generatedAtUTC: generatedAtUTC,
+                to: url
+            )
+        default:
             throw PrivacyDataServiceError.invalidExportDestination
         }
+    }
+
+    private func writeRedactedJSON(_ data: Data, to url: URL) throws -> URL {
         if let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey]), values.isSymbolicLink == true {
             throw PrivacyDataServiceError.invalidExportDestination
         }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: url, options: .atomic)
         return url
+    }
+
+    private func writeRedactedPackage(countsData: Data, generatedAtUTC: String, to url: URL) throws -> URL {
+        let fileManager = FileManager.default
+        guard !fileManager.fileExists(atPath: url.path) else {
+            throw PrivacyDataServiceError.invalidExportDestination
+        }
+        if let values = try? url.deletingLastPathComponent().resourceValues(forKeys: [.isSymbolicLinkKey]),
+           values.isSymbolicLink == true {
+            throw PrivacyDataServiceError.invalidExportDestination
+        }
+        try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: url, withIntermediateDirectories: false)
+        do {
+            let files = ["README.txt", "manifest.json", "counts.json"]
+            let manifest: [String: Any] = [
+                "formatVersion": 1,
+                "generatedAtUTC": generatedAtUTC,
+                "files": files,
+                "privacy": "Only grouped counts and package metadata are included.",
+            ]
+            let manifestData = try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys])
+            let readme = """
+            Zoid 666 redacted diagnostic package
+
+            This package contains a manifest and grouped status counts for troubleshooting.
+            Task and event titles are excluded.
+            Conversation text is excluded.
+            URLs and file paths are excluded.
+            Screenshots are excluded.
+            Request payloads are excluded.
+            Credentials are excluded.
+            """
+            try Data(readme.utf8).write(to: url.appendingPathComponent("README.txt"), options: .atomic)
+            try manifestData.write(to: url.appendingPathComponent("manifest.json"), options: .atomic)
+            try countsData.write(to: url.appendingPathComponent("counts.json"), options: .atomic)
+            return url
+        } catch {
+            try? fileManager.removeItem(at: url)
+            throw error
+        }
     }
 
     public func recentBehaviorSessions(limit: Int = 12, maximumGap: TimeInterval = 300) throws -> [PrivacyBehaviorSession] {
