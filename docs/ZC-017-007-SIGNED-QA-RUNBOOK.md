@@ -2,11 +2,11 @@
 
 This runbook proves that the installed Today interface presents open-ended active time as a live, trustworthy elapsed value.
 The same journey accepts ZC-017-007 and the identical ZC-037-002 scenario contract.
-The current canonical base is `ed5d07a363e0f64049c07b0e1d309d754caa035b`.
-The reviewed product candidate is `d213c7bb0ace968c9a9847bf8b462bbc60d4c0c6`.
-The reviewed tooling candidate is `TOOLING_CANDIDATE_PLACEHOLDER`.
+The current canonical base is `7ac4ea0b6cb12062fc77ff6e7588cd7a3a78ab0b`.
+The reviewed product candidate is `303ef7cf67a8cb807ee47501362cc29e306bdc42`.
+The reviewed tooling candidate is `bad0baa965c416dff146d966a2482c97e0ea75b3`.
 The product stable patch ID is `07b53420dd8460831f99b94ef1e565e1f4a6dda7`.
-The tooling stable patch ID is `TOOLING_PATCH_ID_PLACEHOLDER`.
+The tooling stable patch ID is `fd2aefa977ce4c8b504b49b1735be9afd225d3ea`.
 The preflight binds the exact current-base lineage, exact seven-file scope, package identity, installed executables, isolated database, and reviewed product blobs.
 
 The journey uses a dedicated QA root and never reads or writes the user's production database.
