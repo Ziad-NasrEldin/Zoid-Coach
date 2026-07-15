@@ -74,7 +74,7 @@ prepare() {
 
 set_state() {
     assert_helper_stopped_before_mutation
-    local mode active_task main_objective remove_planning=0
+    local mode active_task main_objective task_rows="json('[]')" remove_planning=0
     case "$STATE" in
         unplanned)
             mode="unplanned"
@@ -95,6 +95,7 @@ set_state() {
             mode="unplanned"
             active_task="json_object('taskID','qa-zc010007-active','startedAt',NULL,'elapsedMinutes',7)"
             main_objective="'QA active focus'"
+            task_rows="json_array(json_object('taskID','qa-zc010007-active','title','QA active focus','estimateMinutes',25,'dueDate',NULL,'urgency','low','state','active','elapsedMinutes',7,'isMainObjective',json('true'),'isLocked',json('false')))"
             ;;
         nil)
             mode="invitation"
@@ -114,7 +115,7 @@ SET payload=CAST(json_set(
     '$.planningStatus', json_object('mode','$mode','resumesAt',NULL,'driftInterventionsAllowed',json('false')),
     '$.activeTask', $active_task,
     '$.mainObjective', $main_objective,
-    '$.taskRows', json('[]'),
+    '$.taskRows', $task_rows,
     '$.coverage', json_object(
         'isLimited', json('false'),
         'explanation', '$PRIVATE_TITLE $PRIVATE_URL',
@@ -154,6 +155,7 @@ assert_state() {
         active-unplanned)
             assert_scalar "SELECT json_extract(CAST(payload AS TEXT),'$.planningStatus.mode') FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "unplanned" "active unplanned mode"
             assert_scalar "SELECT json_extract(CAST(payload AS TEXT),'$.activeTask.taskID') FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "qa-zc010007-active" "active task"
+            assert_scalar "SELECT COUNT(*) FROM today_snapshots, json_each(CAST(payload AS TEXT),'$.taskRows') WHERE day_key='$LOCAL_DAY' AND json_extract(json_each.value,'$.taskID')='qa-zc010007-active' AND json_extract(json_each.value,'$.state')='active';" "1" "active task row"
             ;;
         *)
             assert_scalar "SELECT json_extract(CAST(payload AS TEXT),'$.planningStatus.mode') FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "$STATE" "planning mode"
@@ -200,6 +202,16 @@ SQL
         "$SCRIPT_PATH" set "$state" "$database" "$backup" "$day"
         "$SCRIPT_PATH" assert "$state" "$database" "$backup" "$day"
     done
+    sqlite3 "$database" <<'SQL'
+UPDATE today_snapshots
+SET payload=CAST(json_set(CAST(payload AS TEXT),'$.taskRows[0].taskID','qa-zc010007-mismatch') AS BLOB)
+WHERE day_key='2026-07-15';
+SQL
+    if "$SCRIPT_PATH" assert active-unplanned "$database" "$backup" "$day" >/dev/null 2>&1; then
+        fail "mismatched active task row ID was accepted"
+    fi
+    print -- "PASS: mismatched active task row ID is rejected"
+    "$SCRIPT_PATH" set active-unplanned "$database" "$backup" "$day"
     sqlite3 "$database" <<'SQL'
 UPDATE today_snapshots
 SET payload=CAST(json_set(

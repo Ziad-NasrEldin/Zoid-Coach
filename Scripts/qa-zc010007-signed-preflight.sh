@@ -66,6 +66,9 @@ assert_static_contract() {
     grep -Fq 'assert_helper_stopped_before_mutation' <<< "$fixture" || fail "fixture does not require helper-off mutation isolation"
     grep -Fq 'simulated active helper refresh overwrites and invalidates private sentinels' <<< "$fixture" \
         || fail "active-helper overwrite negative self-test is missing"
+    grep -Fq "'$.taskRows', \$task_rows" <<< "$fixture" || fail "active task row fixture binding is missing"
+    grep -Fq 'mismatched active task row ID is rejected' <<< "$fixture" \
+        || fail "active task row mismatch negative self-test is missing"
     ! grep -Fq '$.qaPrivateWindowTitle' <<< "$fixture" || fail "unknown private title field remains"
     ! grep -Fq '$.qaPrivateURL' <<< "$fixture" || fail "unknown private URL field remains"
 }
