@@ -6,6 +6,24 @@ import Testing
 @Suite("Custom estimate editor interaction state", .serialized)
 struct CustomEstimateEditorStateTests {
     @Test
+    func tracePathRejectsTraversalOutsideQAContainment() {
+        #expect(
+            CustomEstimateEditorTrace.resolveTraceURL(environment: [
+                "ZOID_COACH_QA_EDITOR_TRACE_PATH": "/private/tmp/zoid-666-zc011007-proof/../escaped.log",
+            ]) == nil
+        )
+    }
+
+    @Test
+    func tracePathAcceptsCanonicalFileWithinQAContainment() {
+        #expect(
+            CustomEstimateEditorTrace.resolveTraceURL(environment: [
+                "ZOID_COACH_QA_RUN_ROOT": "/private/tmp/zoid-666-zc011007-proof",
+            ])?.path == "/private/tmp/zoid-666-zc011007-proof/editor-trace.log"
+        )
+    }
+
+    @Test
     func confirmedEstimateUsesExactSharedAccessibilityCopy() {
         #expect(
             CustomEstimateEditorState.confirmationAccessibilityLabel(minutes: 25)

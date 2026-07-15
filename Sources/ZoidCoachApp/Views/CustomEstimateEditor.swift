@@ -16,16 +16,35 @@ final class CustomEstimateEditorTrace: @unchecked Sendable {
     private let maxEvents = 256
 
     private var traceURL: URL? {
-        let environment = ProcessInfo.processInfo.environment
+        Self.resolveTraceURL(environment: ProcessInfo.processInfo.environment)
+    }
+
+    static func resolveTraceURL(environment: [String: String]) -> URL? {
         let candidate = environment["ZOID_COACH_QA_EDITOR_TRACE_PATH"]
             ?? environment["ZOID_COACH_QA_RUN_ROOT"].map {
                 URL(fileURLWithPath: $0).appendingPathComponent("editor-trace.log").path
             }
-        guard let candidate,
-              candidate.hasPrefix("/private/tmp/zoid-666-zc011007-") else {
+        guard let candidate else {
             return nil
         }
-        return URL(fileURLWithPath: candidate)
+        let resolvedCandidate = URL(fileURLWithPath: candidate)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        let components = resolvedCandidate.pathComponents
+        guard components.count >= 5,
+              components[1] == "private",
+              components[2] == "tmp",
+              components[3].hasPrefix("zoid-666-zc011007-") else {
+            return nil
+        }
+        let allowedRoot = URL(fileURLWithPath: "/private/tmp")
+            .appendingPathComponent(components[3], isDirectory: true)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        guard resolvedCandidate.path.hasPrefix(allowedRoot.path + "/") else {
+            return nil
+        }
+        return resolvedCandidate
     }
 
     static func record(_ event: String) {

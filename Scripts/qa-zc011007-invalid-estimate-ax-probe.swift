@@ -518,10 +518,7 @@ private func uniqueAction(
     case let .selected(index): return matches[index]
     case .missing: return nil
     case .ambiguous:
-        guard let index = traits.indices.first(where: {
-            traits[$0].actionable && traits[$0].visible
-        }) else { return nil }
-        return matches[index]
+        throw ProbeError.failure("multiple visible task-specific Custom estimate actions are ambiguous")
     }
 }
 
