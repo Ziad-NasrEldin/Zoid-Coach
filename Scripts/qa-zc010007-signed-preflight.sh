@@ -82,6 +82,17 @@ assert_runbook_contract() {
         || fail "runbook does not quit the bound QA application"
     ! grep -Fq 'com.zoidcoach.app' <<< "$runbook" \
         || fail "runbook still targets the unrelated hard-coded bundle identifier"
+    grep -Fq 'stop_exact_qa_app() {' <<< "$runbook" \
+        || fail "runbook exact QA foreground replacement helper is missing"
+    awk '
+        /^[[:space:]]*$/ { next }
+        /open "\$APP" --args --qa-open-main/ {
+            opens += 1
+            if (previous !~ /stop_exact_qa_app/) exit 1
+        }
+        { previous = $0 }
+        END { if (opens != 5) exit 1 }
+    ' <<< "$runbook" || fail "every foreground open must replace the exact QA app process"
     awk '
         /^```sh$/ { checking=1; next }
         checking && /^[[:space:]]*$/ { next }
