@@ -78,11 +78,11 @@ struct CustomEstimateEditor: View {
                     .accessibilityIdentifier(errorIdentifier)
             }
         }
-        .onAppear {
+        .task(id: state.focusRequest) {
+            guard state.isPresented else { return }
+            try? await Task.sleep(for: .milliseconds(50))
+            guard state.isPresented else { return }
             inputIsFocused = true
-        }
-        .onChange(of: state.focusRequest) {
-            refocusAfterCurrentEvent()
         }
     }
 
@@ -90,11 +90,4 @@ struct CustomEstimateEditor: View {
         state.submit(persist: persist)
     }
 
-    private func refocusAfterCurrentEvent() {
-        Task { @MainActor in
-            await Task.yield()
-            guard state.isPresented else { return }
-            inputIsFocused = true
-        }
-    }
 }
