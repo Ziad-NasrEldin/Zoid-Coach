@@ -24,7 +24,7 @@ func zc062003ProofBoundariesFailClosed(boundary: ZC062003Boundary) {
 func zc062003HandledSQLPrivacyDuplicateAndRealPathsAreRejected() {
     var handled = ZC062003Evidence.valid(.missing)
     handled.handledPromptCount = 1
-    #expect(try? handled.validate() == .missing)
+    #expect((try? handled.validate()) == .missing)
 
     var sql = ZC062003Evidence.valid(.stale)
     sql.databaseIntegrity = "query failed"
@@ -173,7 +173,7 @@ enum ZC062003Boundary: CaseIterable, Sendable {
     case notificationRemains
     case relaunchSnapshotLoss
 
-    func apply(to evidence: inout ZC062003Evidence) {
+    fileprivate func apply(to evidence: inout ZC062003Evidence) {
         switch self {
         case .wrongDatabase: evidence.databasePath = "/private/tmp/wrong.sqlite"
         case .wrongSource: evidence.screenwatchRoot = "/private/tmp/other/days"
