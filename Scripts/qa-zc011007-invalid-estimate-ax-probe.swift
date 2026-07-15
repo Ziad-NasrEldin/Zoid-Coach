@@ -52,13 +52,16 @@ private struct GeometricCandidate {
 
 private let mainWindowIdentifier = "zoid-666.main-window"
 private let taskTitle = "QA invalid estimate matrix"
-private let customTriggerLabel = "Enter a custom estimate for \(taskTitle)"
 private let inputLabel = "Custom estimate for \(taskTitle) in minutes"
 private let maximumNodes = 6_000
 private let maximumPolls = 80
 private let maximumScrollPages = 18
 private let scrollDownByPageAction = "AXScrollDownByPage"
 private let keyboardBindingSettleMicroseconds: useconds_t = 200_000
+
+private func customTriggerLabel(surfaceName: String) -> String {
+    "Enter a custom estimate for \(taskTitle) in \(surfaceName == "dashboard" ? "Dashboard" : "Today")"
+}
 
 private func exactAXText(_ actual: String, _ expected: String) -> Bool {
     actual.caseInsensitiveCompare(expected) == .orderedSame
@@ -205,8 +208,18 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
           estimateCase(named: "valid-padded")?.expectedMinutes == 25,
           estimateCase(named: "valid-padded")?.expectedError == nil,
           estimateCase(named: "missing") == nil,
-          exactAXText("ENTER A CUSTOM ESTIMATE FOR QA INVALID ESTIMATE MATRIX", customTriggerLabel),
-          !exactAXText("ENTER A CUSTOM ESTIMATE FOR QA INVALID ESTIMATE MATRIX!", customTriggerLabel),
+          exactAXText(
+              "ENTER A CUSTOM ESTIMATE FOR QA INVALID ESTIMATE MATRIX IN DASHBOARD",
+              customTriggerLabel(surfaceName: "dashboard")
+          ),
+          exactAXText(
+              "ENTER A CUSTOM ESTIMATE FOR QA INVALID ESTIMATE MATRIX IN TODAY",
+              customTriggerLabel(surfaceName: "today")
+          ),
+          !exactAXText(
+              "ENTER A CUSTOM ESTIMATE FOR QA INVALID ESTIMATE MATRIX",
+              customTriggerLabel(surfaceName: "dashboard")
+          ),
           selectUniqueAction(from: []) == .missing,
           selectUniqueAction(from: [ActionCandidate(actionable: false, visible: true)]) == .missing,
           selectUniqueAction(from: [ActionCandidate(actionable: true, visible: false)]) == .missing,
@@ -344,9 +357,6 @@ if phase == "submit", selectedCase == nil {
 }
 
 private let application = AXUIElementCreateApplication(pid)
-private let triggerIdentifierPrefix = surfaceName == "dashboard"
-    ? "task-estimate-custom-"
-    : "today-estimate-custom-"
 
 private func attribute(_ element: AXUIElement, _ name: CFString) -> CFTypeRef? {
     var value: CFTypeRef?
@@ -496,7 +506,6 @@ private func uniqueAction(
     let matches = elements.filter { candidate in
         role(candidate) == (kAXButtonRole as String)
             && labels(candidate).contains(where: { exactAXText($0, exactLabel) })
-            && (identifier(candidate)?.hasPrefix(triggerIdentifierPrefix) == true)
     }
     let traits = matches.map { candidate in
         ActionCandidate(
@@ -525,7 +534,6 @@ private func scrollNearestExactActionToVisible(
     let matches = elements.filter { candidate in
         role(candidate) == (kAXButtonRole as String)
             && labels(candidate).contains(where: { exactAXText($0, exactLabel) })
-            && (identifier(candidate)?.hasPrefix(triggerIdentifierPrefix) == true)
     }
     let framed = matches.compactMap { candidate -> (AXUIElement, GeometricCandidate)? in
         guard let candidateFrame = frame(candidate) else { return nil }
@@ -610,7 +618,6 @@ private func scrollNearestExactActionToVisible(
             let nextMatches = next.elements.filter { candidate in
                 role(candidate) == (kAXButtonRole as String)
                     && labels(candidate).contains(where: { exactAXText($0, exactLabel) })
-                    && (identifier(candidate)?.hasPrefix(triggerIdentifierPrefix) == true)
             }
             let nextCandidates = nextMatches.compactMap { candidate -> GeometricCandidate? in
                 guard let candidateFrame = frame(candidate) else { return nil }
@@ -973,7 +980,7 @@ do {
     case "open":
         guard let trigger = try findUniqueActionWithBoundedScroll(
             in: window,
-            exactLabel: customTriggerLabel
+            exactLabel: customTriggerLabel(surfaceName: surfaceName)
         ) else {
             throw ProbeError.failure("task-specific Custom estimate action is unavailable")
         }

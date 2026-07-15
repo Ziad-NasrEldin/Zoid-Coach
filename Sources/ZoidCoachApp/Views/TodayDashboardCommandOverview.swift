@@ -1824,7 +1824,7 @@ private struct TodayEstimateStrip: View {
             .font(Sumi.label(8))
             .sumiLabelTracking()
             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-            .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
+            .accessibilityLabel("Enter a custom estimate for \(taskTitle) in Today")
             .accessibilityIdentifier("today-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
             if customEditor.isPresented && isActiveHost() {
                 CustomEstimateEditor(

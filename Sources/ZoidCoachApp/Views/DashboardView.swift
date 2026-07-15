@@ -2230,7 +2230,7 @@ private struct TimeBlockSelector: View {
                     customEditor.open(initialMinutes: selectedMinutes)
                 }
                 .buttonStyle(TimeSlotButtonStyle())
-                .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
+                .accessibilityLabel("Enter a custom estimate for \(taskTitle) in Dashboard")
                 .accessibilityIdentifier("task-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 Button("UNKNOWN") {
                     selectUnknown()
