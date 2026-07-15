@@ -77,6 +77,7 @@ struct CustomEstimateEditor: View {
             CustomEstimateInputField(
                 text: $state.input,
                 focusRequest: state.focusRequest,
+                presentationID: state.presentationID,
                 submit: { exactText in
                     state.input = exactText
                     return state.submit(persist: persist)
@@ -115,6 +116,7 @@ struct CustomEstimateEditor: View {
 struct CustomEstimateInputField: NSViewRepresentable {
     @Binding var text: String
     let focusRequest: Int
+    var presentationID = UUID()
     let submit: (String) -> Bool
 
     func makeCoordinator() -> Coordinator {
@@ -144,10 +146,11 @@ struct CustomEstimateInputField: NSViewRepresentable {
         }
         guard context.coordinator.lastFocusRequest != focusRequest else { return }
         context.coordinator.lastFocusRequest = focusRequest
-        field.requestFocus(generation: focusRequest)
+        field.requestFocus(presentationID: presentationID, generation: focusRequest)
     }
 
     static func dismantleNSView(_ field: CustomEstimateTextField, coordinator: Coordinator) {
+        field.cancelFocusLease()
         field.removeKeyMonitor()
     }
 
@@ -174,7 +177,12 @@ struct CustomEstimateInputField: NSViewRepresentable {
             parent.text = exactText
             let accepted = parent.submit(exactText)
             if !accepted {
-                field?.requestFocus(generation: invalidFocusGeneration)
+                field?.requestFocus(
+                    presentationID: parent.presentationID,
+                    generation: invalidFocusGeneration
+                )
+            } else {
+                field?.cancelFocusLease()
             }
             return accepted
         }
@@ -203,13 +211,17 @@ final class CustomEstimateTextField: NSTextField {
     private(set) var keyMonitorInstallCount = 0
     private(set) var lastReturnHandling: ReturnHandling?
     private(set) var returnHandlingCount = 0
+    private(set) var requestedPresentationID: UUID?
     private(set) var requestedFocusGeneration: Int?
     private(set) var appliedFocusGeneration: Int?
+    private(set) var isFocusLeaseActive = false
+    private var focusLeaseTask: Task<Void, Never>?
     var hasInstalledKeyMonitor: Bool { keyMonitor != nil }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if window == nil {
+            cancelFocusLease()
             removeKeyMonitor()
         } else {
             installKeyMonitorIfNeeded()
@@ -252,23 +264,60 @@ final class CustomEstimateTextField: NSTextField {
         returnHandlingCount += 1
     }
 
-    func requestFocus(generation: Int) {
+    func requestFocus(presentationID: UUID, generation: Int) {
+        cancelFocusLease()
+        requestedPresentationID = presentationID
         requestedFocusGeneration = generation
+        isFocusLeaseActive = true
         applyRequestedFocus()
-        Task { @MainActor [weak self] in
+        focusLeaseTask = Task { @MainActor [weak self] in
             await Task.yield()
-            self?.applyRequestedFocus()
+            for attempt in 0..<4 {
+                guard let self,
+                      self.isFocusLeaseActive,
+                      self.requestedPresentationID == presentationID,
+                      self.requestedFocusGeneration == generation else {
+                    return
+                }
+                self.applyRequestedFocus()
+                if attempt < 3 {
+                    try? await Task.sleep(for: .milliseconds(50))
+                }
+            }
+            guard let self,
+                  self.requestedPresentationID == presentationID,
+                  self.requestedFocusGeneration == generation else {
+                return
+            }
+            self.isFocusLeaseActive = false
+            self.focusLeaseTask = nil
         }
+    }
+
+    func cancelFocusLease() {
+        focusLeaseTask?.cancel()
+        focusLeaseTask = nil
+        isFocusLeaseActive = false
+        requestedPresentationID = nil
+        requestedFocusGeneration = nil
+    }
+
+    var hasInputFocus: Bool {
+        guard let window else { return false }
+        return window.firstResponder === self || window.firstResponder === currentEditor()
     }
 
     private func applyRequestedFocus() {
         guard let requestedFocusGeneration,
-              appliedFocusGeneration != requestedFocusGeneration,
-              let window,
-              window.makeFirstResponder(self) else {
+              let window else {
             return
         }
-        appliedFocusGeneration = requestedFocusGeneration
+        if !hasInputFocus {
+            _ = window.makeFirstResponder(self)
+        }
+        if hasInputFocus {
+            appliedFocusGeneration = requestedFocusGeneration
+        }
     }
 
     isolated deinit {

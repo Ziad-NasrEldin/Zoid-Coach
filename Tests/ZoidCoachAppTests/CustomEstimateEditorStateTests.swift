@@ -417,8 +417,83 @@ struct CustomEstimateEditorStateTests {
         #expect(box.persisted.isEmpty)
 
         let remountedField = CustomEstimateTextField(string: box.state.input)
-        remountedField.requestFocus(generation: box.state.focusRequest)
+        remountedField.requestFocus(
+            presentationID: box.state.presentationID,
+            generation: box.state.focusRequest
+        )
         #expect(remountedField.requestedFocusGeneration == initialFocusRequest + 2)
+    }
+
+    @MainActor
+    @Test
+    func focusLeaseRecoversFromPostAttemptFocusTheftAndStopsAfterCancellation() async {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 240, height: 80),
+            styleMask: [],
+            backing: .buffered,
+            defer: false
+        )
+        let container = NSView(frame: window.contentView?.bounds ?? .zero)
+        let field = CustomEstimateTextField(frame: NSRect(x: 0, y: 0, width: 80, height: 24))
+        let otherField = NSTextField(frame: NSRect(x: 100, y: 0, width: 80, height: 24))
+        window.contentView = container
+        container.addSubview(field)
+        container.addSubview(otherField)
+        let presentationID = UUID()
+
+        field.requestFocus(presentationID: presentationID, generation: 1)
+        #expect(field.hasInputFocus)
+        #expect(window.makeFirstResponder(otherField))
+        #expect(!field.hasInputFocus)
+
+        try? await Task.sleep(for: .milliseconds(80))
+        #expect(field.hasInputFocus)
+        #expect(field.appliedFocusGeneration == 1)
+
+        field.cancelFocusLease()
+        #expect(window.makeFirstResponder(otherField))
+        try? await Task.sleep(for: .milliseconds(80))
+        #expect(!field.hasInputFocus)
+        #expect(!field.isFocusLeaseActive)
+    }
+
+    @MainActor
+    @Test
+    func focusLeaseCancelsOnSuccessAndTeardownAndSupersedesOlderIdentity() {
+        let box = InteractionBox()
+        box.state.open(initialMinutes: nil)
+        let input = CustomEstimateInputField(
+            text: Binding(
+                get: { box.state.input },
+                set: { box.state.input = $0 }
+            ),
+            focusRequest: box.state.focusRequest,
+            presentationID: box.state.presentationID,
+            submit: { exactText in
+                box.state.input = exactText
+                return box.state.submit { box.persisted.append($0) }
+            }
+        )
+        let coordinator = input.makeCoordinator()
+        let field = CustomEstimateTextField(string: " 25 ")
+        let olderPresentationID = UUID()
+        field.requestFocus(presentationID: olderPresentationID, generation: 1)
+        field.requestFocus(presentationID: box.state.presentationID, generation: 2)
+        #expect(field.requestedPresentationID == box.state.presentationID)
+        #expect(field.requestedFocusGeneration == 2)
+        #expect(field.isFocusLeaseActive)
+
+        #expect(coordinator.submit(" 25 ", refocusing: field))
+        #expect(box.persisted == [25])
+        #expect(!field.isFocusLeaseActive)
+        #expect(field.requestedPresentationID == nil)
+        #expect(field.requestedFocusGeneration == nil)
+
+        field.requestFocus(presentationID: UUID(), generation: 3)
+        CustomEstimateInputField.dismantleNSView(field, coordinator: coordinator)
+        #expect(!field.isFocusLeaseActive)
+        #expect(field.requestedPresentationID == nil)
+        #expect(field.requestedFocusGeneration == nil)
     }
 
     @MainActor
