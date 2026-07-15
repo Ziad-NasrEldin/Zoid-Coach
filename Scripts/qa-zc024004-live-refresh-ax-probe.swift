@@ -163,7 +163,7 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     let baseline = VisibleTodaySnapshot(workMinutes: 2, screenwatchState: "LIMITED", screenwatchDetail: "Limited coverage")
     let live = VisibleTodaySnapshot(workMinutes: 7, screenwatchState: "CURRENT", screenwatchDetail: "Current coverage")
     let totalsOnly = VisibleTodaySnapshot(workMinutes: 12, screenwatchState: "CURRENT", screenwatchDetail: "Current coverage")
-    let normalizedScreenwatch = NormalizedScreenwatch(state: "CURRENT", detail: "Current coverage")
+    let currentScreenwatch = NormalizedScreenwatch(state: "CURRENT", detail: "Current coverage")
     var separatedRows = TodayCaptureAccumulator()
     var crossGenerationAmbiguity = TodayCaptureAccumulator()
     let expectedBinding = TodayCaptureBinding(pid: 42, windowToken: 700)
@@ -205,7 +205,7 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           staleTree.consume(.offscreen, generation: 0) == .scroll,
           staleTree.consume(.visible, generation: 0) == .staleTree,
           separatedRows.consume(workingMinutes: 2, screenwatch: nil) == .offscreen,
-          separatedRows.consume(workingMinutes: nil, screenwatch: normalizedScreenwatch) == .visible,
+          separatedRows.consume(workingMinutes: nil, screenwatch: currentScreenwatch) == .visible,
           crossGenerationAmbiguity.consume(workingMinutes: 2, screenwatch: nil) == .offscreen,
           crossGenerationAmbiguity.consume(workingMinutes: 3, screenwatch: nil) == .ambiguous,
           captureBindingVerdict(expected: expectedBinding, actual: expectedBinding) == .valid,
@@ -217,6 +217,17 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
               expected: expectedBinding,
               actual: TodayCaptureBinding(pid: 42, windowToken: 701)
           ) == .windowChanged,
+          workingMinutes(from: "Working time, 2 minutes") == 2,
+          workingMinutes(from: "Working time, 1 minute") == 1,
+          workingMinutes(from: "Working 2m") == nil,
+          workingMinutes(from: "Working time, 2 hours") == nil,
+          normalizedScreenwatch(from: "Limited coverage: Screenwatch is stale.")
+              == NormalizedScreenwatch(state: "LIMITED", detail: "Limited coverage: Screenwatch is stale."),
+          normalizedScreenwatch(from: "Limited coverage: Screenwatch has no observations today.")
+              == NormalizedScreenwatch(state: "LIMITED", detail: "Limited coverage: Screenwatch has no observations today."),
+          normalizedScreenwatch(from: "Screenwatch coverage is current.")
+              == NormalizedScreenwatch(state: "CURRENT", detail: "Screenwatch coverage is current."),
+          normalizedScreenwatch(from: "Screenwatch is probably current") == nil,
           scrollbarStep,
           scrollbarWrites == [0.5],
           isExternalEvidenceRoot(URL(fileURLWithPath: "/private/tmp/evidence"), repository: URL(fileURLWithPath: "/repo")),
@@ -295,7 +306,6 @@ private func labels(_ element: AXUIElement) -> [String] {
         .compactMap { text(element, $0 as CFString) }
 }
 private func children(_ element: AXUIElement) -> [AXUIElement] { attribute(element, kAXChildrenAttribute as CFString) as? [AXUIElement] ?? [] }
-private func parent(_ element: AXUIElement) -> AXUIElement? { attribute(element, kAXParentAttribute as CFString) as! AXUIElement? }
 
 private func walk(_ root: AXUIElement, matching: (AXUIElement) -> Bool) throws -> AXUIElement? {
     var queue = [root]
@@ -344,21 +354,6 @@ private func mainWindow() throws -> AXUIElement {
     }
 }
 
-private func ancestorStrings(
-    of anchor: AXUIElement,
-    label: String,
-    satisfying: ([String]) -> Bool
-) throws -> [String] {
-    var current: AXUIElement? = anchor
-    for _ in 0..<5 {
-        guard let element = current else { break }
-        let snapshot = try strings(in: element)
-        if satisfying(snapshot) { return snapshot }
-        current = parent(element)
-    }
-    throw ProbeError.failure("could not resolve the visible \(label) row")
-}
-
 private func matchingElements(
     in root: AXUIElement,
     matching predicate: (AXUIElement) -> Bool
@@ -378,24 +373,27 @@ private func matchingElements(
     return matches
 }
 
-private func distinctRows(
-    anchors: [AXUIElement],
-    label: String,
-    satisfying predicate: ([String]) -> Bool
-) -> [[String]] {
-    var seen = Set<String>()
-    var rows: [[String]] = []
-    for anchor in anchors {
-        guard let row = try? ancestorStrings(of: anchor, label: label, satisfying: predicate) else { continue }
-        let key = row.sorted().joined(separator: "\u{1F}")
-        if seen.insert(key).inserted { rows.append(row) }
-    }
-    return rows
+private func workingMinutes(from value: String) -> Int? {
+    guard let workingAccessibilityPattern = try? NSRegularExpression(
+        pattern: "^Working time, ([0-9]+) minute(?:s)?$"
+    ) else { return nil }
+    let range = NSRange(value.startIndex..., in: value)
+    guard let match = workingAccessibilityPattern.firstMatch(in: value, range: range),
+          let minuteRange = Range(match.range(at: 1), in: value)
+    else { return nil }
+    return Int(value[minuteRange])
 }
 
-private let minutePattern = try! NSRegularExpression(pattern: "^([0-9]+)m$")
-private func isMinuteText(_ value: String) -> Bool {
-    minutePattern.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)) != nil
+private func normalizedScreenwatch(from value: String) -> NormalizedScreenwatch? {
+    switch value {
+    case "Limited coverage: Screenwatch is stale.",
+         "Limited coverage: Screenwatch has no observations today.":
+        return NormalizedScreenwatch(state: "LIMITED", detail: value)
+    case "Screenwatch coverage is current.":
+        return NormalizedScreenwatch(state: "CURRENT", detail: value)
+    default:
+        return nil
+    }
 }
 
 private func inspectTodayTargets(in window: AXUIElement) throws -> TodayTargetInspection {
@@ -404,43 +402,32 @@ private func inspectTodayTargets(in window: AXUIElement) throws -> TodayTargetIn
         allStrings.allSatisfy { !$0.localizedCaseInsensitiveContains(sentinel) }
     }) else { throw ProbeError.failure("private fixture evidence escaped into Accessibility output") }
 
-    let workingRows = distinctRows(
-        anchors: try matchingElements(in: window, matching: { labels($0).contains("Working") }),
-        label: "Working",
-        satisfying: { $0.contains("Working") && $0.contains(where: isMinuteText) }
-    )
-    let screenwatchRows = distinctRows(
-        anchors: try matchingElements(in: window, matching: { labels($0).contains("Screenwatch") }),
-        label: "Screenwatch",
-        satisfying: {
-            $0.contains("Screenwatch") && $0.contains(where: { ["LIMITED", "CURRENT"].contains($0.uppercased()) })
-        }
-    )
-    guard workingRows.count <= 1, screenwatchRows.count <= 1 else { return .ambiguous }
-    let workingMinutes: Int?
-    if let workingRow = workingRows.first {
-        guard let minuteText = workingRow.first(where: isMinuteText),
-              let value = Int(minuteText.dropLast())
-        else { throw ProbeError.failure("visible Today Working minutes are unavailable") }
-        workingMinutes = value
-    } else {
-        workingMinutes = nil
+    let workingLabels = allStrings.filter { $0.hasPrefix("Working time,") }
+    guard workingLabels.allSatisfy({ workingMinutes(from: $0) != nil }) else {
+        throw ProbeError.failure("visible Today Working accessibility label uses an unsupported unit or format")
     }
-    let normalizedScreenwatch: NormalizedScreenwatch?
-    if let screenwatchRow = screenwatchRows.first {
-        guard let state = screenwatchRow.first(where: {
-            ["LIMITED", "CURRENT"].contains($0.uppercased())
-        }) else { throw ProbeError.failure("visible Screenwatch freshness state is unavailable") }
-        let detail = screenwatchRow.first(where: {
-            $0.localizedCaseInsensitiveContains("Screenwatch") && $0 != "Screenwatch"
-        }) ?? screenwatchRow.first(where: {
-            $0 != "Screenwatch" && $0.uppercased() != state.uppercased()
-        }) ?? ""
-        normalizedScreenwatch = NormalizedScreenwatch(state: state.uppercased(), detail: detail)
-    } else {
-        normalizedScreenwatch = nil
+    let workingElements = try matchingElements(in: window, matching: { element in
+        labels(element).contains(where: { workingMinutes(from: $0) != nil })
+    })
+    guard workingElements.count <= 1 else { return .ambiguous }
+    let workingValues = Set(workingLabels.compactMap(workingMinutes(from:)))
+    guard workingValues.count <= 1 else { return .ambiguous }
+
+    let screenwatchTitles = try matchingElements(in: window, matching: {
+        labels($0).contains("Screenwatch")
+    })
+    guard screenwatchTitles.count <= 1 else { return .ambiguous }
+    let freshnessCandidates = allStrings.filter {
+        $0.localizedCaseInsensitiveContains("Screenwatch")
+            && ($0.hasPrefix("Limited coverage:") || $0.hasSuffix("coverage is current."))
     }
-    return .partial(workingMinutes: workingMinutes, screenwatch: normalizedScreenwatch)
+    guard freshnessCandidates.allSatisfy({ normalizedScreenwatch(from: $0) != nil }) else {
+        throw ProbeError.failure("visible Screenwatch freshness copy conflicts with the supported accessibility contract")
+    }
+    let screenwatchValues = Set(freshnessCandidates.compactMap(normalizedScreenwatch(from:)))
+    guard screenwatchValues.count <= 1 else { return .ambiguous }
+    let screenwatch = screenwatchTitles.count == 1 ? screenwatchValues.first : nil
+    return .partial(workingMinutes: workingValues.first, screenwatch: screenwatch)
 }
 
 private func todayScrollArea(in window: AXUIElement) throws -> AXUIElement {
@@ -565,14 +552,26 @@ private func visibleTodayValues() throws -> VisibleTodayValues {
             }
             Thread.sleep(forTimeInterval: 0.15)
         case .timeout:
-            throw ProbeError.failure("Working and Screenwatch are unavailable after bounded Today scrolling")
+            let states = accumulator.screenwatchValues.map(\.state).sorted().joined(separator: ",")
+            throw ProbeError.failure(
+                "Working and Screenwatch are unavailable after bounded Today scrolling; "
+                    + "normalized_work_count=\(accumulator.workingValues.count); "
+                    + "normalized_screenwatch_count=\(accumulator.screenwatchValues.count); "
+                    + "normalized_screenwatch_states=\(states)"
+            )
         case .ambiguous:
             throw ProbeError.failure("visible Today Working or Screenwatch values changed or are ambiguous across the capture sequence")
         case .staleTree:
             throw ProbeError.failure("stale Today Accessibility tree was reused during bounded scrolling")
         }
     }
-    throw ProbeError.failure("Working and Screenwatch are unavailable after bounded Today scrolling")
+    let states = accumulator.screenwatchValues.map(\.state).sorted().joined(separator: ",")
+    throw ProbeError.failure(
+        "Working and Screenwatch are unavailable after bounded Today scrolling; "
+            + "normalized_work_count=\(accumulator.workingValues.count); "
+            + "normalized_screenwatch_count=\(accumulator.screenwatchValues.count); "
+            + "normalized_screenwatch_states=\(states)"
+    )
 }
 
 private func visibleTodaySnapshot() throws -> VisibleTodaySnapshot {
