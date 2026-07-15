@@ -92,12 +92,57 @@ import ZoidCoachInfrastructure
     #expect(Set(state.availableTaskActions).count == state.availableTaskActions.count)
     #expect(state.availableTaskActions.map(\.accessibilityLabel) == [
         "Pause active task",
-        "Start a 15 minute break",
+        "Start a break lasting 15 minutes",
         "Complete active task",
         "Mark task as blocked",
         "Open Today",
         "End the workday"
     ])
+}
+
+@Test func breakActionAccessibilityDurationRespectsAnInjectedLocale() {
+    #expect(
+        MenuBarTaskAction.startBreak.accessibilityLabel(locale: Locale(identifier: "fr_FR"))
+            == "Start a break lasting 15 minutes"
+    )
+}
+
+@Test func compactActiveTaskDurationsRespectAnInjectedLocaleWithoutLosingMeaning() throws {
+    let row = menuTask(
+        id: "focus",
+        title: "Prepare launch brief",
+        state: .active,
+        elapsedMinutes: 12,
+        estimateMinutes: 45
+    )
+    let state = MenuBarCoachState(
+        snapshot: menuSnapshot(
+            rows: [row],
+            activeTask: .init(taskID: row.taskID, startedAt: nil, elapsedMinutes: 12)
+        ),
+        locale: Locale(identifier: "fr_FR")
+    )
+
+    #expect(state.compactTaskFacts.contains("45\u{00a0}min estimate"))
+    #expect(state.taskStatus == "Active · Open-ended · 12\u{00a0}min tracked")
+    let summary = try #require(state.compactTaskAccessibilitySummary(at: Date()))
+    #expect(summary.contains("45\u{00a0}min estimate"))
+    #expect(summary.contains("12\u{00a0}min tracked"))
+}
+
+@Test func activeTimeAccessibilityUsesWideDurationsFromTheInjectedLocale() {
+    let comparison = MenuBarActiveTimeComparison(
+        elapsedMinutes: 1,
+        observedAlignedMinutes: 12,
+        evidenceExplanation: "Only aligned observations count.",
+        locale: Locale(identifier: "fr_FR")
+    )
+
+    #expect(comparison.elapsedText == "1\u{00a0}MIN ELAPSED")
+    #expect(comparison.alignedText == "12\u{00a0}MIN OBSERVED ALIGNED")
+    #expect(comparison.elapsedAccessibilityText == "Task elapsed, 1 minute")
+    #expect(comparison.alignedAccessibilityText == "Observed aligned, 12 minutes")
+    #expect(comparison.accessibilitySummary == "Task elapsed 1 minute. Observed aligned 12 minutes. Only aligned observations count.")
 }
 
 @Test func compactActiveElapsedTimeAdvancesFromTheLastConfirmedSnapshot() {
