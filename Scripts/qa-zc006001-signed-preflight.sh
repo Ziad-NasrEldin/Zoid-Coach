@@ -5,6 +5,7 @@ readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
 readonly CANONICAL_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
 readonly PRODUCT_CANDIDATE="c8ea11afe0d479269fa21d697dd63a5f80688019"
+readonly ZERO_SUGGESTION_PRODUCT="5374047b066c0da23e91018d13dba4f2ca9defa7"
 readonly APP="${1:-}"
 readonly DATABASE="${2:-}"
 readonly EXPECTED_COMMIT="${3:-}"
@@ -44,6 +45,7 @@ assert_fail_fast_blocks() {
 if [[ "$APP" == "--self-test" ]]; then
     is_full_sha "$CANONICAL_BASE" || fail "canonical base is not a full SHA"
     is_full_sha "$PRODUCT_CANDIDATE" || fail "product candidate is not a full SHA"
+    is_full_sha "$ZERO_SUGGESTION_PRODUCT" || fail "zero-suggestion product correction is not a full SHA"
     ! is_full_sha "c8ea11a" || fail "abbreviated SHA was accepted"
     assert_runbook_order
     assert_fail_fast_blocks
@@ -75,6 +77,8 @@ git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" "$EXPECTED_COMMI
     || fail "signed commit does not contain the current canonical base"
 git -C "$REPOSITORY" merge-base --is-ancestor "$PRODUCT_CANDIDATE" "$EXPECTED_COMMIT" \
     || fail "signed commit does not contain product candidate"
+git -C "$REPOSITORY" merge-base --is-ancestor "$ZERO_SUGGESTION_PRODUCT" "$EXPECTED_COMMIT" \
+    || fail "signed commit does not contain zero-suggestion product correction"
 readonly TOOLING_COMMIT="$(git -C "$REPOSITORY" log -1 --format=%H -- "$0")"
 is_full_sha "$TOOLING_COMMIT" || fail "tooling commit cannot be resolved"
 git -C "$REPOSITORY" merge-base --is-ancestor "$TOOLING_COMMIT" "$EXPECTED_COMMIT" \

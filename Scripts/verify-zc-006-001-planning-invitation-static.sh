@@ -6,6 +6,7 @@ readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
 readonly CANONICAL_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
 readonly PRODUCT_CANDIDATE="c8ea11afe0d479269fa21d697dd63a5f80688019"
+readonly ZERO_SUGGESTION_PRODUCT="5374047b066c0da23e91018d13dba4f2ca9defa7"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc006001-planning-invitation-fixture.sh"
 readonly PROBE="$SCRIPT_DIR/qa-zc006001-planning-invitation-ax-probe.swift"
 readonly POLICY_READINESS="$SCRIPT_DIR/qa-zc006001-policy-readiness.sh"
@@ -63,10 +64,13 @@ done
 
 /usr/bin/git -C "$REPOSITORY" merge-base --is-ancestor "$PRODUCT_CANDIDATE" HEAD \
     || fail "current branch does not contain the product candidate"
+/usr/bin/git -C "$REPOSITORY" merge-base --is-ancestor "$ZERO_SUGGESTION_PRODUCT" HEAD \
+    || fail "current branch does not contain the zero-suggestion product correction"
 /usr/bin/git -C "$REPOSITORY" merge-base --is-ancestor "$CANONICAL_BASE" HEAD \
     || fail "current branch does not contain the current canonical base"
 
 /usr/bin/swift test --package-path "$REPOSITORY" --filter PlanningInvitation >/dev/null
+/usr/bin/swift test --package-path "$REPOSITORY" --filter AgentReminderPlannerDecisionTests >/dev/null
 /usr/bin/swift test --package-path "$REPOSITORY" --filter PromptNotificationCoordinatorTests >/dev/null
 
 print -- "PASS: ZC-006-001 static tooling, fixtures, AX probe, preflight, runbook, and focused product tests"

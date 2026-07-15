@@ -45,7 +45,7 @@ swiftc -package-name ZoidCoach "$PWD"/Sources/ZoidCoachCore/*.swift "$POLICY_DEC
 POLICY_DECODER="$WORK_ROOT/policy-decoder"
 ```
 
-The full signed commit must descend from current canonical base `361093b4a088c19eee927eaab2b58a40fb3b4c27`, contain refreshed product candidate `c8ea11afe0d479269fa21d697dd63a5f80688019`, and contain the committed verifier files used by this run.
+The full signed commit must descend from current canonical base `361093b4a088c19eee927eaab2b58a40fb3b4c27`, contain refreshed product candidate `c8ea11afe0d479269fa21d697dd63a5f80688019`, contain zero-suggestion product correction `5374047b066c0da23e91018d13dba4f2ca9defa7`, and contain the committed verifier files used by this run.
 The refreshed product candidate preserves source candidate `1270c4a874247bce410b7c9b641303166725621d` with stable patch ID `03b7fa8a5624af605d1ef2fdc5cc363b051fed36`.
 The preflight rejects an abbreviated commit, another executable, another QA root, another database, or helper registration before the foreground app is bound.
 
