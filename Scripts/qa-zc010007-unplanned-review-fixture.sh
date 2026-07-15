@@ -20,7 +20,8 @@ scalar() {
 }
 
 assert_scalar() {
-    local actual="$(scalar "$1")"
+    local actual
+    actual="$(scalar "$1")" || fail "$3: SQLite query failed"
     [[ "$actual" == "$2" ]] || fail "$3: expected '$2', got '$actual'"
 }
 
@@ -104,8 +105,11 @@ SET payload=CAST(json_set(
     '$.activeTask', $active_task,
     '$.mainObjective', $main_objective,
     '$.taskRows', json('[]'),
-    '$.qaPrivateWindowTitle', '$PRIVATE_TITLE',
-    '$.qaPrivateURL', '$PRIVATE_URL'
+    '$.coverage', json_object(
+        'isLimited', json('false'),
+        'explanation', '$PRIVATE_TITLE $PRIVATE_URL',
+        'lastObservationAt', NULL
+    )
 ) AS BLOB), updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now')
 WHERE day_key='$LOCAL_DAY';
 COMMIT;
@@ -126,8 +130,9 @@ SQL
 assert_state() {
     validate_schema
     assert_scalar "SELECT COUNT(*) FROM today_snapshots WHERE day_key='$LOCAL_DAY' AND json_valid(CAST(payload AS TEXT));" "1" "valid fixture snapshot"
-    assert_scalar "SELECT json_extract(CAST(payload AS TEXT),'$.qaPrivateWindowTitle') FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "$PRIVATE_TITLE" "private title sentinel"
-    assert_scalar "SELECT json_extract(CAST(payload AS TEXT),'$.qaPrivateURL') FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "$PRIVATE_URL" "private URL sentinel"
+    assert_scalar "SELECT instr(json_extract(CAST(payload AS TEXT),'$.coverage.explanation'),'$PRIVATE_TITLE') > 0 FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "1" "decoded private title sentinel"
+    assert_scalar "SELECT instr(json_extract(CAST(payload AS TEXT),'$.coverage.explanation'),'$PRIVATE_URL') > 0 FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "1" "decoded private URL sentinel"
+    assert_scalar "SELECT json_extract(CAST(payload AS TEXT),'$.coverage.isLimited') FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "0" "private coverage explanation remains hidden"
     case "$STATE" in
         nil)
             assert_scalar "SELECT json_type(CAST(payload AS TEXT),'$.planningStatus') FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "" "nil planning status"
@@ -159,12 +164,20 @@ cleanup() {
     print -- "PASS: ZC-010-007 snapshot restored byte-for-byte"
 }
 
+sqlite_failure_self_test() {
+    assert_scalar "SELECT value FROM qa_zc010007_missing_table;" "" "intentional SQLite failure"
+}
+
 self_test() {
-    local root="$(mktemp -d /private/tmp/zoid-666-zc010007-fixture.XXXXXX)"
+    local root
+    root="$(mktemp -d /private/tmp/zoid-666-zc010007-fixture.XXXXXX)"
     trap "rm -rf '$root'" EXIT
     local database="$root/test.sqlite"
     local backup="$root/original.tsv"
     local day="2026-07-15"
+    if "$SCRIPT_PATH" _self-test-sqlite-failure unused "$database" unused "$day" >/dev/null 2>&1; then
+        fail "SQLite query failure was masked by local assignment"
+    fi
     sqlite3 "$database" <<'SQL'
 CREATE TABLE today_snapshots(day_key TEXT PRIMARY KEY, payload BLOB NOT NULL, updated_at TEXT NOT NULL);
 INSERT INTO today_snapshots VALUES('2026-07-15',CAST('{"localDate":"2026-07-15T08:00:00Z","planningStatus":{"mode":"invitation","resumesAt":null,"driftInterventionsAllowed":false},"activeTask":null,"mainObjective":null,"taskRows":[]}' AS BLOB),'2026-07-15T08:00:00Z');
@@ -187,6 +200,7 @@ case "$COMMAND" in
     set) set_state ;;
     assert) assert_state ;;
     cleanup) cleanup ;;
+    _self-test-sqlite-failure) sqlite_failure_self_test ;;
     self-test) self_test ;;
     *) fail "usage: $0 {prepare|set|assert|cleanup|self-test} STATE DATABASE BACKUP [LOCAL_DAY]" ;;
 esac

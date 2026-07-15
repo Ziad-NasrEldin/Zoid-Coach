@@ -310,6 +310,7 @@ private struct TodayCommandView: View {
 
             if let snapshot = model.todaySnapshot {
                 TodayDashboardCommandOverview(snapshot: snapshot)
+                    .accessibilityIdentifier("today.snapshot.ready")
             } else {
                 TodayDayStateHeader(
                     date: Date(),
