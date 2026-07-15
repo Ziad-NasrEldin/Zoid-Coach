@@ -3,7 +3,7 @@ import SwiftUI
 import Testing
 @testable import ZoidCoachApp
 
-@Suite("Custom estimate editor interaction state")
+@Suite("Custom estimate editor interaction state", .serialized)
 struct CustomEstimateEditorStateTests {
     @Test(arguments: [
         ("", "Enter an estimate in minutes."),
@@ -489,6 +489,8 @@ struct CustomEstimateEditorStateTests {
         let container = NSView(frame: window.contentView?.bounds ?? .zero)
         let field = CustomEstimateTextField(frame: NSRect(x: 0, y: 0, width: 80, height: 24))
         window.contentView = container
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil) }
         container.addSubview(field)
         field.requestFocus(presentationID: UUID(), generation: 1)
         field.removeFromSuperview()
@@ -515,6 +517,8 @@ struct CustomEstimateEditorStateTests {
         let field = CustomEstimateTextField(frame: NSRect(x: 0, y: 0, width: 80, height: 24))
         let otherField = NSTextField(frame: NSRect(x: 100, y: 0, width: 80, height: 24))
         window.contentView = container
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil) }
         container.addSubview(field)
         container.addSubview(otherField)
         let presentationID = UUID()
@@ -564,6 +568,8 @@ struct CustomEstimateEditorStateTests {
         let field = CustomEstimateTextField(frame: NSRect(x: 0, y: 0, width: 80, height: 24))
         let otherField = NSTextField(frame: NSRect(x: 100, y: 0, width: 80, height: 24))
         window.contentView = container
+        window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil) }
         container.addSubview(field)
         container.addSubview(otherField)
         let presentationID = UUID()
