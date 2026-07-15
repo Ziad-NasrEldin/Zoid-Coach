@@ -66,6 +66,50 @@ func repeatedSourceRepairActivationStartsOnlyOneInFlightRequest() async throws {
 
 @MainActor
 @Test
+func staleInspectionCannotOverwriteCompletedSourceRepairOrAudit() async throws {
+    let reminders = GatedRemindersInspectionService()
+    let audit = SourceCheckAuditRecorder()
+    let model = AppModel(
+        remindersService: reminders,
+        recordSourceCheck: { health, checkedAt in
+            await audit.record(health, checkedAt: checkedAt)
+        }
+    )
+    let clock = ContinuousClock()
+    let inspectionDeadline = clock.now.advanced(by: .seconds(2))
+    while reminders.inspectionCount == 0, clock.now < inspectionDeadline {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+    #expect(reminders.inspectionCount == 1)
+
+    model.checkSource(.reminders)
+    let repairDeadline = clock.now.advanced(by: .seconds(2))
+    while await audit.records(for: .reminders).isEmpty,
+          clock.now < repairDeadline {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+
+    let repaired = model.sources.first(where: { $0.id == .reminders })
+    #expect(repaired?.state == .healthy)
+    #expect(repaired?.evidence == "Repair result")
+    #expect(reminders.requestCount == 1)
+    #expect(await audit.records(for: .reminders).map(\.evidence) == ["Repair result"])
+
+    reminders.releaseStaleInspection()
+    let staleProcessingDeadline = clock.now.advanced(by: .seconds(2))
+    while await audit.records(for: .calendar).isEmpty,
+          clock.now < staleProcessingDeadline {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+
+    let final = model.sources.first(where: { $0.id == .reminders })
+    #expect(final?.state == .healthy)
+    #expect(final?.evidence == "Repair result")
+    #expect(await audit.records(for: .reminders).map(\.evidence) == ["Repair result"])
+}
+
+@MainActor
+@Test
 func appModelPropagatesQARuntimeToBackgroundAgentControl() async throws {
     let root = FileManager.default.temporaryDirectory
         .appendingPathComponent("zoid-app-model-qa-\(UUID().uuidString)", isDirectory: true)
@@ -181,6 +225,64 @@ private final class GatedRemindersRepairService: RemindersServicing {
         )
         continuation?.resume(returning: health)
         continuation = nil
+    }
+}
+
+@MainActor
+private final class GatedRemindersInspectionService: RemindersServicing {
+    let isProductionAdapter = false
+    private(set) var inspectionCount = 0
+    private(set) var requestCount = 0
+    private var inspectionContinuation: CheckedContinuation<SourceHealth, Never>?
+
+    func inspect() async -> SourceHealth {
+        inspectionCount += 1
+        return await withCheckedContinuation { inspectionContinuation = $0 }
+    }
+
+    func requestAccessAndInspect() async -> SourceHealth {
+        requestCount += 1
+        return SourceHealth(
+            id: .reminders,
+            title: "Apple Reminders",
+            eyebrow: "Intent",
+            state: .healthy,
+            detail: "Connected by repair",
+            evidence: "Repair result",
+            actionTitle: "Refresh"
+        )
+    }
+
+    func fetchIncompleteTasks() async -> ReminderTaskLoad { .unavailable }
+
+    func releaseStaleInspection() {
+        inspectionContinuation?.resume(returning: SourceHealth(
+            id: .reminders,
+            title: "Apple Reminders",
+            eyebrow: "Intent",
+            state: .notConnected,
+            detail: "Stale inspection",
+            evidence: "Stale inspection result",
+            actionTitle: "Connect"
+        ))
+        inspectionContinuation = nil
+    }
+}
+
+private actor SourceCheckAuditRecorder {
+    struct Record: Sendable {
+        let health: SourceHealth
+        let checkedAt: Date
+    }
+
+    private var values: [Record] = []
+
+    func record(_ health: SourceHealth, checkedAt: Date) {
+        values.append(Record(health: health, checkedAt: checkedAt))
+    }
+
+    func records(for sourceID: SourceID) -> [SourceHealth] {
+        values.lazy.filter { $0.health.id == sourceID }.map(\.health)
     }
 }
 
