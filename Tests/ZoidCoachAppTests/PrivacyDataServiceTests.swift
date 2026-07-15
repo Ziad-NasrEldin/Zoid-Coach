@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import SQLite3
 import Testing
@@ -5,6 +6,20 @@ import Testing
 @testable import ZoidCoachInfrastructure
 
 private let privacySQLiteTransientForTests = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+private func privacyTestTemporaryDirectory() throws -> URL {
+    let temporaryPath = FileManager.default.temporaryDirectory.path
+    var resolvedPath = [CChar](repeating: 0, count: Int(PATH_MAX))
+    let resolved = resolvedPath.withUnsafeMutableBufferPointer { buffer in
+        temporaryPath.withCString { path in
+            realpath(path, buffer.baseAddress)
+        }
+    }
+    guard resolved != nil else { throw CocoaError(.fileReadUnknown) }
+    let terminator = resolvedPath.firstIndex(of: 0) ?? resolvedPath.endIndex
+    let bytes = resolvedPath[..<terminator].map { UInt8(bitPattern: $0) }
+    return URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true)
+}
 
 @Test
 func privacyDataServiceExportsOnlyRedactedCountsAndDeletesConversationText() throws {
@@ -145,7 +160,8 @@ func privacyInventoryExplainsEveryStoredDataClassWithoutExposingRecordContent() 
 
 @Test
 func explicitRedactedExportUsesChosenJSONDestinationAndStillExcludesSecrets() throws {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-explicit-export-\(UUID().uuidString)", isDirectory: true)
+    let root = try privacyTestTemporaryDirectory()
+        .appendingPathComponent("privacy-explicit-export-\(UUID().uuidString)", isDirectory: true)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
     let databaseURL = root.appendingPathComponent("coach.sqlite")
@@ -166,7 +182,8 @@ func explicitRedactedExportUsesChosenJSONDestinationAndStillExcludesSecrets() th
 
 @Test
 func redactedDiagnosticPackageContainsOnlyReviewedArtifactsAndCounts() throws {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-diagnostic-package-\(UUID().uuidString)", isDirectory: true)
+    let root = try privacyTestTemporaryDirectory()
+        .appendingPathComponent("privacy-diagnostic-package-\(UUID().uuidString)", isDirectory: true)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
     let databaseURL = root.appendingPathComponent("coach.sqlite")
@@ -192,7 +209,8 @@ func redactedDiagnosticPackageContainsOnlyReviewedArtifactsAndCounts() throws {
 
 @Test
 func redactedDiagnosticPackageRejectsExistingAndUnsupportedDestinations() throws {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-diagnostic-package-destination-\(UUID().uuidString)", isDirectory: true)
+    let root = try privacyTestTemporaryDirectory()
+        .appendingPathComponent("privacy-diagnostic-package-destination-\(UUID().uuidString)", isDirectory: true)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
     let databaseURL = root.appendingPathComponent("coach.sqlite")
