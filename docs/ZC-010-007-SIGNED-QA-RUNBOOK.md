@@ -48,6 +48,7 @@ PROBE="$REPO/Scripts/qa-zc010007-unplanned-review-ax-probe.swift"
 PREFLIGHT="$REPO/Scripts/qa-zc010007-signed-preflight.sh"
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/Info.plist")"
 APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
+APP_BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw -o - "$APP/Contents/Info.plist")"
 ```
 
 Launch the foreground main window and bind its process to the signed app and isolated database.
@@ -70,7 +71,7 @@ Quit the app before backing up the current-day snapshot.
 
 ```sh
 set -euo pipefail
-osascript -e 'tell application id "com.zoidcoach.app" to quit' || true
+osascript -e "tell application id \"$APP_BUNDLE_ID\" to quit" || true
 for _ in $(seq 1 50); do
   ! kill -0 "$PID" 2>/dev/null && break
   sleep 0.2
@@ -107,7 +108,7 @@ An ordinary app relaunch must not require rewriting the fixture.
 
 ```sh
 set -euo pipefail
-osascript -e 'tell application id "com.zoidcoach.app" to quit'
+osascript -e "tell application id \"$APP_BUNDLE_ID\" to quit"
 for _ in $(seq 1 50); do
   ! kill -0 "$PID" 2>/dev/null && break
   sleep 0.2
@@ -131,7 +132,7 @@ Each fixture mutation occurs only while the app is stopped.
 ```sh
 set -euo pipefail
 for STATE in planned invitation snoozed dismissed nil; do
-  osascript -e 'tell application id "com.zoidcoach.app" to quit' || true
+  osascript -e "tell application id \"$APP_BUNDLE_ID\" to quit" || true
   for _ in $(seq 1 50); do
     ! pgrep -x "$APP_EXECUTABLE_NAME" >/dev/null && break
     sleep 0.2
@@ -152,7 +153,7 @@ The active-unplanned boundary must show the old active-task command and must not
 
 ```sh
 set -euo pipefail
-osascript -e 'tell application id "com.zoidcoach.app" to quit' || true
+osascript -e "tell application id \"$APP_BUNDLE_ID\" to quit" || true
 for _ in $(seq 1 50); do
   ! pgrep -x "$APP_EXECUTABLE_NAME" >/dev/null && break
   sleep 0.2
@@ -175,7 +176,7 @@ Cleanup is incomplete unless the fixture reports exact payload and timestamp res
 
 ```sh
 set -euo pipefail
-osascript -e 'tell application id "com.zoidcoach.app" to quit' || true
+osascript -e "tell application id \"$APP_BUNDLE_ID\" to quit" || true
 for _ in $(seq 1 50); do
   ! pgrep -x "$APP_EXECUTABLE_NAME" >/dev/null && break
   sleep 0.2
