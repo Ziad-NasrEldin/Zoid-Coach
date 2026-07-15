@@ -16,6 +16,10 @@ is_full_sha() {
     [[ "$1" =~ '^[0-9a-f]{40}$' ]]
 }
 
+command_has_exact_argument() {
+    [[ " $1 " == *" $2 "* ]]
+}
+
 assert_runbook() {
     local runbook="$REPOSITORY/docs/ZC-006-002-SIGNED-QA-RUNBOOK.md"
     /usr/bin/grep -Fq 'Do not run the signed journey without an orchestration runtime lease.' "$runbook" \
@@ -40,11 +44,17 @@ assert_runbook() {
         /fixture_output=.*"\$FIXTURE" configure/ { configured = NR }
         END { exit !(registered && unregistered && configured && registered < unregistered && unregistered < configured) }
     ' "$runbook" || fail "helper bootstrap must finish before fixture mutation"
+    /usr/bin/grep -Fq 'Foreground open must not reuse a background-schedule process.' "$runbook" \
+        || fail "runbook exact foreground replacement gate is missing"
 }
 
 if [[ "$APP" == "--self-test" ]]; then
     is_full_sha "$CANONICAL_BASE" || fail "canonical base is not a full SHA"
     ! is_full_sha "b73a1c1" || fail "abbreviated SHA was accepted"
+    command_has_exact_argument '/tmp/ZoidCoachQA --qa-open-main' '--qa-open-main' \
+        || fail "exact foreground argument was rejected"
+    ! command_has_exact_argument '/tmp/ZoidCoachQA --qa-open-main-extra' '--qa-open-main' \
+        || fail "prefixed foreground argument was accepted"
     assert_runbook
     "$SCRIPT_DIR/qa-zc006002-missed-invitation-fixture.sh" self-test
     swift "$SCRIPT_DIR/qa-zc006002-missed-invitation-ax-probe.swift" --self-test
@@ -77,6 +87,9 @@ readonly APP_PID="$(pgrep -x "$APP_EXECUTABLE_NAME" | /usr/bin/head -1)"
 [[ "$APP_PID" == <-> ]] || fail "exact app process is unavailable"
 lsof -Fn -a -p "$APP_PID" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$APP_EXECUTABLE" \
     || fail "app executable mismatch"
+readonly APP_COMMAND="$(ps -ww -p "$APP_PID" -o command=)"
+command_has_exact_argument "$APP_COMMAND" '--qa-open-main' \
+    || fail "foreground app was not launched with --qa-open-main"
 readonly SERVICE="$(launchctl print "gui/$(id -u)/$AGENT_LABEL")"
 readonly HELPER_PID="$(awk '/pid =/{print $3; exit}' <<<"$SERVICE")"
 [[ "$HELPER_PID" == <-> ]] || fail "helper PID is unavailable"
