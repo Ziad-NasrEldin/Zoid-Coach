@@ -24,6 +24,22 @@ struct CustomEstimateEditorStateTests {
     }
 
     @Test
+    func tracePathRejectsSymlinkEscapeOutsideQAContainment() throws {
+        let root = URL(fileURLWithPath: "/private/tmp/zoid-666-zc011007-trace-test-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("escape"),
+            withDestinationURL: URL(fileURLWithPath: "/private/tmp")
+        )
+        #expect(
+            CustomEstimateEditorTrace.resolveTraceURL(environment: [
+                "ZOID_COACH_QA_EDITOR_TRACE_PATH": root.appendingPathComponent("escape/editor-trace.log").path,
+            ]) == nil
+        )
+    }
+
+    @Test
     func confirmedEstimateUsesExactSharedAccessibilityCopy() {
         #expect(
             CustomEstimateEditorState.confirmationAccessibilityLabel(minutes: 25)

@@ -17,6 +17,7 @@ readonly PRIOR_LINEAGE_BINDING="ee42cd3c04658e8488bc57e0186ecfbec9f8d12e"
 readonly SURFACE_IDENTITY_CANDIDATE="ea825ba44d27ff488c4896d2be9bd62644a2975d"
 readonly SURFACE_LINEAGE_BINDING="10d0a299aaa7ef6eaeed30b1cdee50cb3c15580a"
 readonly SAFETY_CANDIDATE="7726dccdf8f382f180dd299bef318e1223ac990d"
+readonly HARDENED_LINEAGE_BINDING="d66d83b487ea3d1a5a350bcaa5f40c8eb0ea78c9"
 readonly TOOLING_PATCH_ID="54853a6c3d47fdbb9dec56ebc695e7143f7c5b92"
 readonly PRODUCT_PATCH_ID="ca93eecc45fe7b252b3678a029aee68e79cc0477"
 readonly INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
@@ -36,14 +37,17 @@ readonly PRODUCT_FILES=(
     Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift
     Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift
 )
-readonly BINDING_FILES=(
+readonly FINAL_CANDIDATE_FILES=(
+    Scripts/qa-zc011007-invalid-estimate-fixture.sh
     Scripts/qa-zc011007-signed-preflight.sh
+    Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift
     docs/ZC-011-007-SIGNED-QA-RUNBOOK.md
 )
 
 APP="${1:-}"
 DATABASE="${2:-}"
 EXPECTED_COMMIT="${3:-}"
+APPROVED_FINAL_COMMIT="${ZC011007_APPROVED_FINAL_COMMIT:-}"
 shift $(( $# < 3 ? $# : 3 ))
 REQUIRE_QA_OPEN_MAIN=0
 REQUIRE_ORDINARY_OPEN=0
@@ -53,6 +57,13 @@ EXPECTED_APP_PID=""
 fail() {
     print -u2 -- "FAIL: $*"
     exit 1
+}
+
+assert_approved_final_commit() {
+    local expected="$1"
+    local approved="$2"
+    is_full_lowercase_sha "$approved" || fail "external validator did not provide an approved final commit"
+    [[ "$expected" == "$approved" ]] || fail "expected commit is not the externally approved final candidate"
 }
 
 is_full_lowercase_sha() {
@@ -96,16 +107,16 @@ assert_lineage() {
     [[ "$(git -C "$REPOSITORY" rev-parse "$SURFACE_IDENTITY_CANDIDATE^")" == "$PRIOR_LINEAGE_BINDING" ]] || fail "surface identity fix does not directly follow prior lineage binding"
     [[ "$(git -C "$REPOSITORY" rev-parse "$SURFACE_LINEAGE_BINDING^")" == "$SURFACE_IDENTITY_CANDIDATE" ]] || fail "surface lineage binding does not directly follow surface identity fix"
     [[ "$(git -C "$REPOSITORY" rev-parse "$SAFETY_CANDIDATE^")" == "$SURFACE_LINEAGE_BINDING" ]] || fail "QA safety fix does not directly follow surface lineage binding"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$SAFETY_CANDIDATE" ]] || fail "final lineage binding does not directly follow QA safety fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$HARDENED_LINEAGE_BINDING^")" == "$SAFETY_CANDIDATE" ]] || fail "hardened lineage binding does not directly follow QA safety fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$HARDENED_LINEAGE_BINDING" ]] || fail "final candidate does not directly follow hardened lineage binding"
     [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] || fail "replayed QA tooling patch identity drifted"
     [[ "$(commit_patch_id "$PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] || fail "reviewed product patch identity drifted"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/TaskEstimateInput.swift")" == "$INPUT_BLOB" ]] || fail "TaskEstimateInput product blob changed"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Tests/ZoidCoachAppTests/TaskEstimateInputTests.swift")" == "$INPUT_TEST_BLOB" ]] || fail "focused product tests changed"
-    for file in "${PRODUCT_FILES[@]}"; do
+    for file in Sources/ZoidCoachApp/Views/CustomEstimateEditor.swift Sources/ZoidCoachApp/Views/DashboardView.swift Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift; do
         [[ "$(git -C "$REPOSITORY" rev-parse "$expected:$file")" == "$(git -C "$REPOSITORY" rev-parse "$SAFETY_CANDIDATE:$file")" ]] \
             || fail "final product file differs from QA safety candidate: $file"
     done
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" == "$(git -C "$REPOSITORY" rev-parse "$SAFETY_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" ]] || fail "final fixture differs from QA safety candidate"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" == "$(git -C "$REPOSITORY" rev-parse "$SAFETY_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" ]] || fail "final AX probe differs from QA safety candidate"
 
     reviewed_scope="$(printf '%s\n' "${TOOLING_FILES[@]}" "${PRODUCT_FILES[@]}")"
@@ -116,13 +127,13 @@ assert_lineage() {
     ! grep -Fqx 'docs/impl/666-BACKLOG.md' <<<"$scope" || fail "candidate unexpectedly includes shared backlog"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    [[ "$commit_count" == "14" ]] || fail "candidate must contain the exact thirteen reviewed commits plus final lineage binding"
+    [[ "$commit_count" == "15" ]] || fail "candidate must contain the exact fourteen reviewed commits plus externally approved final candidate"
     tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
     has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "QA tooling replay contains unrelated files"
     product_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$PRODUCT_CANDIDATE")"
     has_exact_lines "$product_scope" "$(printf '%s\n' "${PRODUCT_FILES[@]}")" || fail "product commit contains unrelated files"
     head_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected")"
-    has_exact_lines "$head_scope" "$(printf '%s\n' "${BINDING_FILES[@]}")" || fail "lineage binding commit contains unrelated files"
+    has_exact_lines "$head_scope" "$(printf '%s\n' "${FINAL_CANDIDATE_FILES[@]}")" || fail "final candidate commit contains unrelated files"
 }
 
 assert_runbook_contract() {
@@ -182,6 +193,14 @@ if [[ "$APP" == "--self-test" ]]; then
     is_full_lowercase_sha "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a" || fail "valid SHA was rejected"
     ! is_full_lowercase_sha "B3FF3D3E8EFF70F60301C5BE3FAFFB9C00CCFC2A" || fail "uppercase SHA was accepted"
     ! is_full_lowercase_sha "b3ff3d3" || fail "abbreviated SHA was accepted"
+    assert_approved_final_commit \
+        "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a" \
+        "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a"
+    if (assert_approved_final_commit \
+        "a3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a" \
+        "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a") >/dev/null 2>&1; then
+        fail "alternate direct child was accepted as the approved final candidate"
+    fi
     command_has_exact_argument "/tmp/Zoid666QA --qa-open-main" "--qa-open-main" || fail "exact QA argument was rejected"
     ! command_has_exact_argument "/tmp/Zoid666QA --qa-open-main-extra" "--qa-open-main" || fail "prefixed QA argument was accepted"
     assert_runbook_contract
@@ -226,6 +245,7 @@ if (( ! REQUIRE_HELPER_UNREGISTERED )); then
     [[ -f "$DATABASE" ]] || fail "isolated database does not exist: $DATABASE"
 fi
 is_full_lowercase_sha "$EXPECTED_COMMIT" || fail "expected commit must be a full lowercase SHA"
+assert_approved_final_commit "$EXPECTED_COMMIT" "$APPROVED_FINAL_COMMIT"
 assert_lineage "$EXPECTED_COMMIT"
 
 readonly CANONICAL_APP="${APP:A}"

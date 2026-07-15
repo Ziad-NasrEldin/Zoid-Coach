@@ -29,11 +29,16 @@ EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_COMMIT"
 FIXTURE="$PWD/Scripts/qa-zc011007-invalid-estimate-fixture.sh"
 AX_PROBE="$PWD/Scripts/qa-zc011007-invalid-estimate-ax-probe.swift"
 PREFLIGHT="$PWD/Scripts/qa-zc011007-signed-preflight.sh"
+APPROVED_FINAL_VALIDATOR="/private/tmp/validate-zc011007-approved-final.sh"
 READY_STATE="$PWD/Scripts/prepare-qa-ready-state.py"
 READY_MANIFEST="$PWD/Scripts/fixtures/qa-ready-state.example.json"
 WINDOW_PROBE="$PWD/Scripts/qa-window-content-probe.swift"
 TASK_ID="qa-zc011007-invalid-estimate"
 PRIVATE_NOTE="qa-zc011007-private-estimate-note"
+
+preflight() {
+  "$APPROVED_FINAL_VALIDATOR" "$PREFLIGHT" "$@"
+}
 
 test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor b97c2ce3177ccf89f60225c475062608db1920ad "$EXPECTED_SIGNED_COMMIT"
@@ -50,8 +55,8 @@ test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 ```
 
 The full signed commit must be repository HEAD.
-The diff from canonical base must contain exactly fourteen reviewed commits, ending with the two-file lineage binding.
-The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, isolated database confinement, and fail-closed action ambiguity.
+The diff from canonical base must contain exactly fifteen reviewed commits, ending with the externally approved four-file final candidate.
+The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, isolated database ownership, row-scoped cleanup, and fail-closed action ambiguity.
 The full candidate scope remains exactly eight files, and the final lineage commit edits only this runbook and the signed preflight.
 Tracker, registry, Lavish, backlog, parser, legacy parser-test, and unrelated verifier changes are rejected.
 
@@ -71,13 +76,13 @@ done
 rm -rf -- "$BASELINE_SNAPSHOT" "$BASELINE_SNAPSHOT".zc011007-*(N)
 "$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace
 open "$APP" --args --qa-open-main
-FOREGROUND_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
+FOREGROUND_OUTPUT="$(preflight "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
   --require-qa-open-main --require-helper-unregistered)"
 printf '%s\n' "$FOREGROUND_OUTPUT"
 PID="$(printf '%s\n' "$FOREGROUND_OUTPUT" | sed -n 's/^APP_PID=//p')"
 test -n "$PID"
 "$APP_EXECUTABLE" --qa-register-agent
-"$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
+preflight "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
   --require-qa-open-main --expected-app-pid "$PID"
 swift "$WINDOW_PROBE" "$PID" --expect-today
 kill "$PID"
@@ -99,12 +104,12 @@ The entire root is restored later, including any baseline plan rows displaced by
 "$FIXTURE" prepare "$DATABASE"
 "$FIXTURE" assert-unmutated "$DATABASE"
 open "$APP"
-ORDINARY_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
+ORDINARY_OUTPUT="$(preflight "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
   --require-ordinary-open --require-helper-unregistered)"
 PID="$(printf '%s\n' "$ORDINARY_OUTPUT" | sed -n 's/^APP_PID=//p')"
 test -n "$PID"
 "$APP_EXECUTABLE" --qa-register-agent
-"$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
+preflight "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
   --require-ordinary-open --expected-app-pid "$PID"
 ```
 
@@ -202,7 +207,7 @@ Quit and relaunch through an ordinary LaunchServices open without touching the d
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 open "$APP"
-RELAUNCH_OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
+RELAUNCH_OUTPUT="$(preflight "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" \
   --require-ordinary-open)"
 PID="$(printf '%s\n' "$RELAUNCH_OUTPUT" | sed -n 's/^APP_PID=//p')"
 test -n "$PID"
