@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "72bc08e873905982c85fd4b735e0842ba760e2348b9978d8a6815da730dfaa53",
+  "tracker_sha256": "1f8a15ff6fb39394db28806409e1c103dfc9544cf15c22d8bf852fc6b2407864",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -2176,9 +2176,9 @@
       "section_title": "Skipping planning",
       "item_index": 7,
       "wording": "End and review an unplanned day without invented planned outcomes.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Frontend only left",
-      "delivery_status": "frontend_only_left",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -2186,10 +2186,12 @@
         "unit_rule"
       ],
       "affected_capability": "daily_planning",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "Behavior and history stores can represent activity without a plan, but there is no end-day control or unplanned-day review UI.",
+      "evidence_paths": [
+        ".audit/runs/zc-010-007-unplanned-day-review/472dba20f5c79ff7e964d07124a4b9e1ca4a2cd6/evidence.json"
+      ],
+      "last_verified_commit": "472dba20f5c79ff7e964d07124a4b9e1ca4a2cd6",
+      "last_verified_build": "zoid-coach-472dba20f5c79ff7e964d07124a4b9e1ca4a2cd6-clean",
+      "audit_note": "The exact clean signed package exposed End Workday for an unplanned current day, required factual confirmation, opened Reviews without inventing planned outcomes, preserved ordinary relaunch behavior, excluded planned, invitation, snoozed, dismissed, and nil states, respected active-task precedence, restored the isolated root exactly, and left production unchanged (`UnplannedDayReviewPresentation.swift`; `DashboardView.swift`; `.audit/runs/zc-010-007-unplanned-day-review/472dba20f5c79ff7e964d07124a4b9e1ca4a2cd6/REPORT.md`).",
       "tracker_line": 177
     },
     {
