@@ -48,7 +48,7 @@ assert_runbook() {
         || fail "runbook exact foreground replacement gate is missing"
     /usr/bin/grep -Fq 'swift "$PROBE" --pid "$APP_PID" --phase work-unplanned' "$runbook" \
         || fail "runbook visible Work Unplanned action gate is missing"
-    /usr/bin/grep -Fq '"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY"' "$runbook" \
+    /usr/bin/grep -Fq '"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY" "$PROMPT_ID"' "$runbook" \
         || fail "runbook durable Work Unplanned assertion is missing"
     /usr/bin/grep -Fq 'swift "$PROBE" --pid "$APP_PID" --phase unplanned' "$runbook" \
         || fail "runbook ordinary-relaunch UI assertion is missing"

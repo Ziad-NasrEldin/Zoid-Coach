@@ -91,7 +91,7 @@ SQL
 }
 
 assert_work_unplanned() {
-    local database="$1" expected_day="${2:-$(TZ="$TIME_ZONE" /bin/date '+%Y-%m-%d')}"
+    local database="$1" expected_day="$2" expected_prompt_id="$3"
     [[ -f "$database" && ! -L "$database" && "$database" != *"'"* ]] \
         || fail "isolated database is unavailable or unsafe"
     local valid
@@ -100,18 +100,18 @@ SELECT CASE WHEN
     (SELECT COUNT(*) FROM prompt_episodes
       WHERE prompt_type='PLAN_READY' AND state IN ('queued', 'presented')) = 0
     AND (SELECT COUNT(*) FROM prompt_episodes
-      WHERE prompt_type='PLAN_READY' AND state='answered'
+      WHERE id='$expected_prompt_id' AND prompt_type='PLAN_READY' AND state='answered'
         AND json_extract(payload_json, '$.payload.localDay')='$expected_day'
         AND instr(lower(title || ' ' || summary), lower('$PRIVATE_SENTINEL'))=0) = 1
     AND (SELECT COUNT(*) FROM prompt_responses response
       JOIN prompt_episodes episode ON episode.id=response.prompt_id
-      WHERE episode.prompt_type='PLAN_READY'
+      WHERE episode.id='$expected_prompt_id' AND episode.prompt_type='PLAN_READY'
         AND response.response='work_unplanned'
         AND response.surface='dashboard') = 1
     AND (SELECT COUNT(*) FROM prompt_response_effects effect
       JOIN prompt_responses response ON response.id=effect.response_id
       JOIN prompt_episodes episode ON episode.id=response.prompt_id
-      WHERE episode.prompt_type='PLAN_READY'
+      WHERE episode.id='$expected_prompt_id' AND episode.prompt_type='PLAN_READY'
         AND response.response='work_unplanned'
         AND effect.effect_type='PLAN_READY:work_unplanned'
         AND effect.state='applied') = 1
@@ -178,9 +178,9 @@ INSERT INTO prompt_responses VALUES('response-1', 'prompt-1', 'work_unplanned', 
 INSERT INTO prompt_response_effects VALUES('response-1', 'prompt-1', 'PLAN_READY:work_unplanned', 'applied');
 INSERT INTO processing_checkpoints VALUES('nightly-plan', '$expected_day', '$TIME_ZONE', '2026-07-14T06:00:00Z');
 SQL
-    assert_work_unplanned "$database" "$expected_day" >/dev/null
+    assert_work_unplanned "$database" "$expected_day" prompt-1 >/dev/null
     "$SQLITE3" -batch "$database" "UPDATE prompt_response_effects SET state='pending';"
-    if (assert_work_unplanned "$database" "$expected_day") >/dev/null 2>&1; then
+    if (assert_work_unplanned "$database" "$expected_day" prompt-1) >/dev/null 2>&1; then
         fail "pending Work Unplanned effect was accepted"
     fi
     print -- "PASS: ZC-006-002 fixture self-test rejects privacy, duplicate notification, and non-durable action drift"
@@ -189,7 +189,7 @@ SQL
 case "$COMMAND" in
     configure) (( $# == 2 )) || usage; configure "$2" ;;
     assert-database) (( $# == 2 || $# == 3 )) || usage; assert_database "$2" "${3:-}" ;;
-    assert-work-unplanned) (( $# == 2 || $# == 3 )) || usage; assert_work_unplanned "$2" "${3:-}" ;;
+    assert-work-unplanned) (( $# == 4 )) || usage; assert_work_unplanned "$2" "$3" "$4" ;;
     assert-notification) (( $# == 2 )) || usage; assert_notification "$2" ;;
     self-test) (( $# == 1 )) || usage; self_test ;;
     *) usage ;;

@@ -6,11 +6,12 @@ import Foundation
 private let expectedTitle = "Planning is available when you are ready"
 private let expectedSummary = "You can review 1 suggested commitment, or start without a plan. You can snooze or dismiss this invitation for now. Nothing is blocked."
 private let privateSentinels = ["qa-zc006001-private-window-title", "private.invalid"]
-private let workUnplannedIdentifier = "planning.invitation.work-unplanned"
+private let workUnplannedPrefix = "today.prompt."
+private let workUnplannedSuffix = ".action.work_unplanned"
+private let workUnplannedTitle = "WORK UNPLANNED"
 private let unplannedEyebrow = "LIMITED UNPLANNED MODE"
 private let unplannedTitle = "Work without an approved plan."
 private let noDriftCopy = "Tasks and behavior totals remain available, but Zoid 666 will not claim that activity violated a plan that does not exist."
-private let immediateFeedback = "Planning is skipped for now. You can still start any available task or return to planning later."
 
 private struct Node {
     let element: AXUIElement
@@ -23,23 +24,35 @@ private func containsPrivateSentinel(_ values: [String]) -> Bool {
     return privateSentinels.contains { combined.localizedCaseInsensitiveContains($0) }
 }
 
+private func workUnplannedPromptID(_ identifier: String?) -> String? {
+    guard let identifier,
+          identifier.hasPrefix(workUnplannedPrefix),
+          identifier.hasSuffix(workUnplannedSuffix)
+    else { return nil }
+    let start = identifier.index(identifier.startIndex, offsetBy: workUnplannedPrefix.count)
+    let end = identifier.index(identifier.endIndex, offsetBy: -workUnplannedSuffix.count)
+    let raw = String(identifier[start..<end])
+    return UUID(uuidString: raw) == nil ? nil : raw
+}
+
 private func invitationIsVisible(_ nodes: [Node]) -> Bool {
     let values = nodes.flatMap(\.values)
     return values.contains(expectedTitle)
         && values.contains(expectedSummary)
-        && nodes.filter { $0.identifier == workUnplannedIdentifier }.count == 1
+        && nodes.filter {
+            workUnplannedPromptID($0.identifier) != nil && $0.values.contains(workUnplannedTitle)
+        }.count == 1
         && !containsPrivateSentinel(values)
 }
 
-private func unplannedStateIsVisible(_ nodes: [Node], requireImmediateFeedback: Bool) -> Bool {
+private func unplannedStateIsVisible(_ nodes: [Node]) -> Bool {
     let values = nodes.flatMap(\.values)
     return values.contains(unplannedEyebrow)
         && values.contains(unplannedTitle)
         && values.contains(noDriftCopy)
-        && (!requireImmediateFeedback || values.contains(immediateFeedback))
         && !values.contains(expectedTitle)
         && !values.contains(expectedSummary)
-        && !nodes.contains { $0.identifier == workUnplannedIdentifier }
+        && !nodes.contains { workUnplannedPromptID($0.identifier) != nil }
         && !containsPrivateSentinel(values)
 }
 
@@ -50,20 +63,22 @@ private func uniqueMainWindowIndex(_ mainFlags: [Bool]) -> Int? {
 
 if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     let inert = AXUIElementCreateSystemWide()
+    let promptID = "7014B7D1-975E-469C-ABAC-60F9FC3C1766"
+    let actionIdentifier = "\(workUnplannedPrefix)\(promptID)\(workUnplannedSuffix)"
     let invitation = [
         Node(element: inert, identifier: nil, values: [expectedTitle, expectedSummary]),
-        Node(element: inert, identifier: workUnplannedIdentifier, values: ["WORK UNPLANNED"]),
+        Node(element: inert, identifier: actionIdentifier, values: [workUnplannedTitle]),
     ]
-    let immediate = [Node(element: inert, identifier: nil, values: [unplannedEyebrow, unplannedTitle, noDriftCopy, immediateFeedback])]
     let relaunched = [Node(element: inert, identifier: nil, values: [unplannedEyebrow, unplannedTitle, noDriftCopy])]
     guard invitationIsVisible(invitation),
+          workUnplannedPromptID(actionIdentifier) == promptID,
+          workUnplannedPromptID("today.prompt.not-a-uuid.action.work_unplanned") == nil,
+          workUnplannedPromptID("planning.invitation.work-unplanned") == nil,
           !invitationIsVisible(Array(invitation.dropLast())),
           !invitationIsVisible(invitation + [invitation.last!]),
           !invitationIsVisible(invitation + [Node(element: inert, identifier: nil, values: [privateSentinels[0]])]),
-          unplannedStateIsVisible(immediate, requireImmediateFeedback: true),
-          !unplannedStateIsVisible(relaunched, requireImmediateFeedback: true),
-          unplannedStateIsVisible(relaunched, requireImmediateFeedback: false),
-          !unplannedStateIsVisible(invitation, requireImmediateFeedback: false),
+          unplannedStateIsVisible(relaunched),
+          !unplannedStateIsVisible(invitation),
           uniqueMainWindowIndex([true]) == 0,
           uniqueMainWindowIndex([]) == nil,
           uniqueMainWindowIndex([true, true]) == nil
@@ -140,7 +155,7 @@ private func waitFor(_ application: AXUIElement, predicate: ([Node]) -> Bool) ->
 
 let application = AXUIElementCreateApplication(pid)
 if phase == "unplanned" {
-    guard waitFor(application, predicate: { unplannedStateIsVisible($0, requireImmediateFeedback: false) }) != nil else {
+    guard waitFor(application, predicate: unplannedStateIsVisible) != nil else {
         fputs("FAIL: durable unplanned state was not visible after ordinary relaunch\n", stderr)
         exit(1)
     }
@@ -153,18 +168,27 @@ guard let visible = waitFor(application, predicate: invitationIsVisible) else {
     exit(1)
 }
 if phase == "invitation" {
-    print("PASS: ZC-006-002 recovered invitation and exact Work Unplanned action are visible and sentinel-safe")
+    guard let promptID = visible.compactMap({ workUnplannedPromptID($0.identifier) }).first else {
+        fputs("FAIL: exact Work Unplanned prompt identity disappeared\n", stderr)
+        exit(1)
+    }
+    print("PROMPT_ID=\(promptID)")
+    print("PASS: ZC-006-002 recovered invitation and exact Work Unplanned prompt action are visible and sentinel-safe")
     exit(0)
 }
 
-guard let action = visible.first(where: { $0.identifier == workUnplannedIdentifier }),
+guard let action = visible.first(where: {
+          workUnplannedPromptID($0.identifier) != nil && $0.values.contains(workUnplannedTitle)
+      }),
+      let promptID = workUnplannedPromptID(action.identifier),
       AXUIElementPerformAction(action.element, kAXPressAction as CFString) == .success
 else {
     fputs("FAIL: exact Work Unplanned action was not pressable\n", stderr)
     exit(1)
 }
-guard waitFor(application, predicate: { unplannedStateIsVisible($0, requireImmediateFeedback: true) }) != nil else {
-    fputs("FAIL: Work Unplanned did not produce its immediate sentinel-safe UI feedback\n", stderr)
+guard waitFor(application, predicate: unplannedStateIsVisible) != nil else {
+    fputs("FAIL: Work Unplanned did not produce its immediate sentinel-safe unplanned and no-drift UI\n", stderr)
     exit(1)
 }
-print("PASS: ZC-006-002 Work Unplanned reached immediate LIMITED UNPLANNED MODE feedback")
+print("PROMPT_ID=\(promptID)")
+print("PASS: ZC-006-002 Work Unplanned reached immediate LIMITED UNPLANNED MODE and no-drift feedback")
