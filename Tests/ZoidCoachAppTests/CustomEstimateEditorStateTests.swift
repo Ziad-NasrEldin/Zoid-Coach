@@ -277,6 +277,8 @@ struct CustomEstimateEditorStateTests {
         #expect(field.keyMonitorInstallCount == 1)
         #expect(passedThrough === returnEvent)
         #expect(consumed == nil)
+        #expect(field.lastReturnHandling == .monitor)
+        #expect(field.returnHandlingCount == 1)
         #expect(box.returnCallbackCount == 1)
         #expect(box.state.input == " 25 ")
     }
@@ -363,6 +365,60 @@ struct CustomEstimateEditorStateTests {
         #expect(box.persisted == [25])
         #expect(!box.state.isPresented)
         #expect(box.state.validationMessage == nil)
+    }
+
+    @MainActor
+    @Test
+    func twoConsecutiveInvalidReturnsCarryFocusGenerationAcrossRemount() {
+        let box = InteractionBox()
+        box.state.open(initialMinutes: nil)
+        let initialFocusRequest = box.state.focusRequest
+        func input() -> CustomEstimateInputField {
+            CustomEstimateInputField(
+                text: Binding(
+                    get: { box.state.input },
+                    set: { box.state.input = $0 }
+                ),
+                focusRequest: box.state.focusRequest,
+                submit: { exactText in
+                    box.returnCallbackCount += 1
+                    box.state.input = exactText
+                    return box.state.submit { box.persisted.append($0) }
+                }
+            )
+        }
+        let coordinator = input().makeCoordinator()
+        let field = CustomEstimateTextField(string: "")
+
+        coordinator.controlTextDidEndEditing(Notification(
+            name: NSControl.textDidEndEditingNotification,
+            object: field,
+            userInfo: [NSText.movementUserInfoKey: NSTextMovement.return.rawValue]
+        ))
+        #expect(field.lastReturnHandling == .endEditingFallback)
+        #expect(field.returnHandlingCount == 1)
+        #expect(field.requestedFocusGeneration == initialFocusRequest + 1)
+
+        coordinator.parent = input()
+        field.stringValue = "   "
+        coordinator.controlTextDidEndEditing(Notification(
+            name: NSControl.textDidEndEditingNotification,
+            object: field,
+            userInfo: [NSText.movementUserInfoKey: NSTextMovement.return.rawValue]
+        ))
+
+        #expect(box.returnCallbackCount == 2)
+        #expect(box.state.focusRequest == initialFocusRequest + 2)
+        #expect(field.lastReturnHandling == .endEditingFallback)
+        #expect(field.returnHandlingCount == 2)
+        #expect(field.requestedFocusGeneration == initialFocusRequest + 2)
+        #expect(box.state.input == "   ")
+        #expect(box.state.validationMessage == "Enter an estimate in minutes.")
+        #expect(box.persisted.isEmpty)
+
+        let remountedField = CustomEstimateTextField(string: box.state.input)
+        remountedField.requestFocus(generation: box.state.focusRequest)
+        #expect(remountedField.requestedFocusGeneration == initialFocusRequest + 2)
     }
 
     @MainActor
