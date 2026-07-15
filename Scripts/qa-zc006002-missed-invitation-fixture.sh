@@ -100,7 +100,7 @@ SELECT CASE WHEN
     (SELECT COUNT(*) FROM prompt_episodes
       WHERE prompt_type='PLAN_READY' AND state IN ('queued', 'presented')) = 0
     AND (SELECT COUNT(*) FROM prompt_episodes
-      WHERE id='$expected_prompt_id' AND prompt_type='PLAN_READY' AND state='answered'
+      WHERE id='$expected_prompt_id' AND prompt_type='PLAN_READY' AND state='responded'
         AND json_extract(payload_json, '$.payload.localDay')='$expected_day'
         AND instr(lower(title || ' ' || summary), lower('$PRIVATE_SENTINEL'))=0) = 1
     AND (SELECT COUNT(*) FROM prompt_responses response
@@ -170,7 +170,7 @@ CREATE TABLE prompt_responses(id TEXT PRIMARY KEY, prompt_id TEXT, response TEXT
 CREATE TABLE prompt_response_effects(response_id TEXT, prompt_id TEXT, effect_type TEXT, state TEXT);
 CREATE TABLE processing_checkpoints(source_id TEXT, last_scheduled_local_day TEXT, last_scheduled_timezone TEXT, missed_trigger_at_utc TEXT);
 INSERT INTO prompt_episodes VALUES(
-  'prompt-1', 'PLAN_READY', 'answered',
+  'prompt-1', 'PLAN_READY', 'responded',
   'Planning is available when you are ready', 'Nothing is blocked.',
   '{"payload":{"localDay":"$expected_day"}}'
 );
