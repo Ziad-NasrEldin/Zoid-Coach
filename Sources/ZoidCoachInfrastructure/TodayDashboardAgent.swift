@@ -3,6 +3,13 @@ import EventKit
 import SQLite3
 import ZoidCoachCore
 
+enum DeclaredTaskContextResolver {
+    static func taskType(declaredContext: DeclaredTaskContext?, title: String) -> String? {
+        declaredContext?.rawValue
+            ?? title.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).first.map { $0.lowercased() }
+    }
+}
+
 public final class TodayDashboardAgent: @unchecked Sendable {
     private let reminders: ReminderSnapshotStore
     private let plans: AutonomousPlanStore
@@ -121,7 +128,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 learnedEstimateSuggestion: learnedEstimateSuggestion(
                     for: reminder,
                     currentEstimateMinutes: entry.estimateMinutes
-                )
+                ),
+                declaredContext: reminder.declaredContext
             )
         }
         let userPolicy = try userPolicyStore.current()?.policy ?? UserPolicy.defaults()
@@ -167,7 +175,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 learnedEstimateSuggestion: learnedEstimateSuggestion(
                     for: reminder,
                     currentEstimateMinutes: 30
-                )
+                ),
+                declaredContext: reminder.declaredContext
             ))
         }
         if let activeBeforeSourceRefresh,
@@ -227,7 +236,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                         isOptional: previousRow.isOptional ?? false,
                         blockedReason: previousRow.blockedReason,
                         deferredUntil: previousRow.deferredUntil,
-                        learnedEstimateSuggestion: previousRow.learnedEstimateSuggestion
+                        learnedEstimateSuggestion: previousRow.learnedEstimateSuggestion,
+                        declaredContext: reminder.declaredContext
                     ))
                     continue
                 }
@@ -351,7 +361,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             isOptional: previous.isOptional ?? false,
             blockedReason: previous.blockedReason,
             deferredUntil: previous.deferredUntil,
-            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
+            learnedEstimateSuggestion: previous.learnedEstimateSuggestion,
+            declaredContext: previous.declaredContext
         )
     }
 
@@ -374,7 +385,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             isOptional: previous.isOptional ?? false,
             blockedReason: previous.blockedReason,
             deferredUntil: previous.deferredUntil,
-            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
+            learnedEstimateSuggestion: previous.learnedEstimateSuggestion,
+            declaredContext: previous.declaredContext
         )
     }
 
@@ -415,7 +427,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             elapsedMinutes: current.elapsedMinutes,
             completionReason: .appleReminderCompleted,
             sprint: current.sprint,
-            isMainObjective: false
+            isMainObjective: false,
+            declaredContext: source.declaredContext
         )
     }
 
@@ -572,7 +585,13 @@ public final class TodayDashboardAgent: @unchecked Sendable {
            try !mutationOperations.hasCompletedStep(operationID: operationID, step: "learning"),
            let row = previousSnapshot?.taskRows.first(where: { $0.taskID == taskID }) {
             let coverage = previousSnapshot?.coverage.isLimited == true ? 0.5 : 1.0
-            let context = EstimateLearningContext(taskType: taskType(for: row.title), project: reminderBefore?.listName)
+            let context = EstimateLearningContext(
+                taskType: DeclaredTaskContextResolver.taskType(
+                    declaredContext: row.declaredContext,
+                    title: row.title
+                ),
+                project: reminderBefore?.listName
+            )
             let sampleID = "task-completion:\(taskID):\(Int(now.timeIntervalSince1970))"
             let sample = EstimateLearningSample(
                 id: sampleID,
@@ -721,16 +740,15 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         }
     }
 
-    private func taskType(for title: String) -> String? {
-        title.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).first.map { $0.lowercased() }
-    }
-
     private func learnedEstimateSuggestion(
         for reminder: ReminderSourceSnapshot,
         currentEstimateMinutes: Int
     ) -> LearnedEstimateSuggestion? {
         let context = EstimateLearningContext(
-            taskType: taskType(for: reminder.title),
+            taskType: DeclaredTaskContextResolver.taskType(
+                declaredContext: reminder.declaredContext,
+                title: reminder.title
+            ),
             project: reminder.listName
         )
         guard let aggregate = try? learning.estimateAggregate(for: context),
