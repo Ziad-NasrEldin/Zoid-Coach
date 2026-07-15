@@ -101,12 +101,27 @@ private func crossSurfaceContract(
     } ?? true
 }
 
+private enum ActivationControl: Equatable {
+    case boundedSprint
+    case titleBoundStart
+    case missing
+}
+
+private func activationControl(hasBoundedSprint: Bool, hasTitleBoundStart: Bool) -> ActivationControl {
+    if hasBoundedSprint { return .boundedSprint }
+    if hasTitleBoundStart { return .titleBoundStart }
+    return .missing
+}
+
 if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     let firstToken = opaqueTaskToken("qa-zc016006-first")
     let secondToken = opaqueTaskToken("qa-zc016006-second")
     guard firstToken.count == 32,
           secondToken.count == 32,
           firstToken != secondToken,
+          activationControl(hasBoundedSprint: true, hasTitleBoundStart: true) == .boundedSprint,
+          activationControl(hasBoundedSprint: false, hasTitleBoundStart: true) == .titleBoundStart,
+          activationControl(hasBoundedSprint: false, hasTitleBoundStart: false) == .missing,
           crossSurfaceContract(
               todayValues: ["ACTIVE TASK", "Prepare the second focus review"],
               menuSummary: "Prepare the second focus review. Active sprint. 9 min left.",
@@ -129,7 +144,7 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
         fputs("FAIL: ZC-016-006 AX self-test\n", stderr)
         exit(1)
     }
-    print("PASS: ZC-016-006 AX self-test covers identity, cross-surface mismatch, and privacy rejection")
+    print("PASS: ZC-016-006 AX self-test covers both activation controls, identity, cross-surface mismatch, and privacy rejection")
     exit(0)
 }
 
@@ -218,22 +233,37 @@ private func press(_ element: AXUIElement, action: String) throws {
 private func activateTask(
     application: AXUIElement,
     taskID: String,
+    taskTitle: String,
     expectsSwitchConfirmation: Bool
 ) throws {
     guard let window = mainWindow(application) else {
         throw ProbeError.missingElement("unique main window")
     }
     let startIdentifier = "today.sprint.start.\(opaqueTaskToken(taskID))"
-    guard let start = waitForElement(in: window, matching: { identifier($0) == startIdentifier }) else {
-        throw ProbeError.missingElement(startIdentifier)
+    let boundedSprint = waitForElement(in: window, timeout: 1, matching: {
+        identifier($0) == startIdentifier
+    })
+    let exactStartTitle = "START \(taskTitle.uppercased())"
+    let titleBoundStart = boundedSprint == nil ? waitForElement(in: window, matching: {
+        publicStrings($0).contains(exactStartTitle)
+    }) : nil
+    switch activationControl(
+        hasBoundedSprint: boundedSprint != nil,
+        hasTitleBoundStart: titleBoundStart != nil
+    ) {
+    case .boundedSprint:
+        try press(boundedSprint!, action: "open bounded sprint menu")
+        guard let tenMinute = waitForElement(in: application, matching: {
+            publicStrings($0).contains("10-minute recovery sprint")
+        }) else {
+            throw ProbeError.missingElement("10-minute recovery sprint")
+        }
+        try press(tenMinute, action: "start recovery sprint")
+    case .titleBoundStart:
+        try press(titleBoundStart!, action: "start exact Today task")
+    case .missing:
+        throw ProbeError.missingElement("\(startIdentifier) or \(exactStartTitle)")
     }
-    try press(start, action: "open bounded sprint menu")
-    guard let tenMinute = waitForElement(in: application, matching: {
-        publicStrings($0).contains("10-minute recovery sprint")
-    }) else {
-        throw ProbeError.missingElement("10-minute recovery sprint")
-    }
-    try press(tenMinute, action: "start recovery sprint")
     if expectsSwitchConfirmation {
         guard let confirmation = waitForElement(in: application, matching: {
             publicStrings($0).contains("Switch and preserve time")
@@ -269,6 +299,7 @@ private func run() throws {
         try activateTask(
             application: application,
             taskID: arguments.taskID,
+            taskTitle: arguments.taskTitle,
             expectsSwitchConfirmation: arguments.previousTitle != nil
         )
     }

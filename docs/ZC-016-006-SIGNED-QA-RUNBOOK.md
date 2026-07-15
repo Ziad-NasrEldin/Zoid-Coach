@@ -101,7 +101,8 @@ Any second active state or interval fails the journey.
 
 ## Switch from Today and verify both surfaces
 
-Activate the second task from Today and confirm the native switch alert.
+Activate the second task from Today's exact title-bound Start control and confirm the native switch alert.
+The verifier prefers a bounded-sprint menu when one is available and otherwise requires the visible `START <TASK TITLE>` control that Today exposes while another task is active.
 The probe rejects the former title in the compact active-task summary and the database requires the former task to be paused.
 
 ```sh
