@@ -58,10 +58,34 @@ fi
 jq '.osFixture.reminders = .osFixture.reminders[:1]
   | .osFixture.reminders[0].title = "zc006002-private-task-title"' "$TEMPLATE" > "$MANIFEST"
 "$READY_STATE" "$MANIFEST" "$QA_ROOT" --replace
-open "$APP" --args --qa-open-main
-while ! test -f "$DATABASE"; do sleep 0.2; done
-pkill -x "$APP_EXECUTABLE_NAME"
-while pgrep -x "$APP_EXECUTABLE_NAME" >/dev/null; do sleep 0.1; done
+"$APP_EXECUTABLE" --qa-register-agent
+BOOTSTRAP_READY=0
+for _ in {1..120}; do
+  if test -f "$DATABASE"; then
+    SCHEMA_TABLES="$(sqlite3 -batch -noheader "$DATABASE" \
+      "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('settings','processing_checkpoints','prompt_episodes','policy_versions');" 2>/dev/null || true)"
+    POLICY_ROWS="$(sqlite3 -batch -noheader "$DATABASE" \
+      "SELECT COUNT(*) FROM settings WHERE key='user_policy' AND json_valid(value_json);" 2>/dev/null || true)"
+    if test "$SCHEMA_TABLES" = 4 && test "$POLICY_ROWS" = 1 \
+      && sqlite3 -batch "$DATABASE" \
+        'BEGIN IMMEDIATE; UPDATE settings SET updated_at_utc=updated_at_utc WHERE 0; ROLLBACK;' \
+        >/dev/null 2>&1; then
+      CHECKPOINT="$(sqlite3 -batch -noheader "$DATABASE" 'PRAGMA wal_checkpoint(PASSIVE);')"
+      IFS='|' read -r CHECKPOINT_BUSY CHECKPOINT_LOG CHECKPOINT_DONE <<<"$CHECKPOINT"
+      if test "$CHECKPOINT_BUSY" = 0 && test "$CHECKPOINT_LOG" = "$CHECKPOINT_DONE"; then
+        BOOTSTRAP_READY=1
+        break
+      fi
+    fi
+  fi
+  sleep 0.25
+done
+test "$BOOTSTRAP_READY" = 1
+"$APP_EXECUTABLE" --qa-unregister-agent
+if launchctl print "gui/$(id -u)/qa.ziadnasreldin.ZoidCoach.agent" >/dev/null 2>&1; then
+  echo "QA helper remained registered after bootstrap" >&2
+  exit 1
+fi
 fixture_output="$("$FIXTURE" configure "$DATABASE")"
 printf '%s\n' "$fixture_output"
 EXPECTED_LOCAL_DAY="$(printf '%s\n' "$fixture_output" | sed -n 's/^EXPECTED_LOCAL_DAY=//p')"
