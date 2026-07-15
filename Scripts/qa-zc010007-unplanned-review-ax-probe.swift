@@ -97,11 +97,37 @@ func requireAbsent(_ identifier: String, in nodes: [Node]) throws {
     }
 }
 
+private let renderedReadyIdentifier = "today.snapshot.ready"
+private let privacySentinels = ["qa-zc010007-private-window-title", "qa-zc010007-private.invalid"]
+
+func renderedSnapshotIsReady(_ identifiers: [String]) -> Bool {
+    identifiers.contains(renderedReadyIdentifier)
+}
+
+func privacyLeak(in searchableText: [String]) -> String? {
+    let text = searchableText.joined(separator: " ")
+    return privacySentinels.first { text.contains($0) }
+}
+
 func assertPrivacy(_ nodes: [Node]) throws {
-    let text = nodes.map(\.searchableText).joined(separator: " ")
-    for sentinel in ["qa-zc010007-private-window-title", "qa-zc010007-private.invalid"] {
-        guard !text.contains(sentinel) else {
-            throw ProbeError.failure("private fixture sentinel leaked through accessibility: \(sentinel)")
+    if let sentinel = privacyLeak(in: nodes.map(\.searchableText)) {
+        throw ProbeError.failure("private fixture sentinel leaked through accessibility: \(sentinel)")
+    }
+}
+
+func selfTest() throws {
+    guard !renderedSnapshotIsReady([]) else {
+        throw ProbeError.failure("absence boundary accepted before rendered snapshot readiness")
+    }
+    guard renderedSnapshotIsReady([renderedReadyIdentifier]) else {
+        throw ProbeError.failure("rendered snapshot readiness was rejected")
+    }
+    guard privacyLeak(in: ["safe Today content"]) == nil else {
+        throw ProbeError.failure("safe accessibility text was rejected")
+    }
+    for sentinel in privacySentinels {
+        guard privacyLeak(in: ["prefix \(sentinel) suffix"]) == sentinel else {
+            throw ProbeError.failure("privacy leak was not detected: \(sentinel)")
         }
     }
 }
@@ -141,6 +167,11 @@ func parseArguments() throws -> (pid: pid_t, phase: String) {
 }
 
 do {
+    if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
+        try selfTest()
+        print("PASS: ZC-010-007 AX probe self-test")
+        exit(0)
+    }
     guard AXIsProcessTrusted() else { throw ProbeError.failure("Accessibility permission is required") }
     let arguments = try parseArguments()
     guard NSRunningApplication(processIdentifier: arguments.pid) != nil else {
@@ -185,7 +216,9 @@ do {
         _ = try requireIdentifier("reviews.daily", in: reviews)
         try assertPrivacy(reviews)
     case "absent":
-        let nodes = try snapshot(application)
+        let nodes = try waitForNodes(application) { nodes in
+            renderedSnapshotIsReady(nodes.map(\.identifier))
+        }
         try requireAbsent("today.unplanned-day-review", in: nodes)
         try requireAbsent("today.end-workday", in: nodes)
         try assertPrivacy(nodes)
