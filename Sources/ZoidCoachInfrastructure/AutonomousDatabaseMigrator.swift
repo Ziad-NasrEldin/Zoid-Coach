@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 49
+    public static let currentVersion = 50
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1248,7 +1248,10 @@ private extension AutonomousDatabaseMigrator {
         );
         CREATE INDEX IF NOT EXISTS daily_review_session_merges_day_time
         ON daily_review_session_merges(source_day, left_start_epoch, right_start_epoch);
-        """)])
+        """)]),
+        Migration(version: 50, isDestructive: false, operations: [
+            .addColumnIfTableExists(table: "source_tasks", column: "declared_context", declaration: "TEXT")
+        ])
     ]
 }
 

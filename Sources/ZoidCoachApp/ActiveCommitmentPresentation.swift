@@ -12,11 +12,13 @@ struct ActiveCommitmentPresentation: Equatable {
     let taskTitle: String
     let elapsedMinutes: Int
     let timingMode: TimingMode
+    let declaredContext: DeclaredTaskContext?
 
     init?(task: TodayTaskRow, at date: Date = Date()) {
         guard task.state == .active else { return nil }
         taskTitle = task.title
         elapsedMinutes = task.elapsedMinutes
+        declaredContext = task.declaredContext
         switch task.sprint?.state {
         case .active:
             guard let sprint = task.sprint else { return nil }
@@ -43,7 +45,7 @@ struct ActiveCommitmentPresentation: Equatable {
     }
 
     var dashboardHeading: String {
-        switch timingMode {
+        let heading = switch timingMode {
         case .openEnded, .continuedOpenEnded:
             "ACTIVE COMMITMENT · OPEN-ENDED · \(elapsedMinutes) MIN TRACKED"
         case let .bounded(_, remainingMinutes):
@@ -51,6 +53,7 @@ struct ActiveCommitmentPresentation: Equatable {
         case .sprintComplete:
             "ACTIVE COMMITMENT · SPRINT COMPLETE · \(elapsedMinutes) MIN TRACKED"
         }
+        return declaredContext == .technical ? "TECHNICAL TASK · \(heading)" : heading
     }
 
     var detail: String {
@@ -67,7 +70,7 @@ struct ActiveCommitmentPresentation: Equatable {
     }
 
     var menuStatus: String {
-        switch timingMode {
+        let status = switch timingMode {
         case .openEnded:
             "Active · Open-ended · \(elapsedMinutes) min tracked"
         case let .bounded(_, remainingMinutes):
@@ -77,9 +80,11 @@ struct ActiveCommitmentPresentation: Equatable {
         case .sprintComplete:
             "Sprint complete · Task remains active"
         }
+        return declaredContext == .technical ? "Technical task · \(status)" : status
     }
 
     var accessibilitySummary: String {
-        "\(taskTitle). \(modeLabel). \(elapsedMinutes) minutes tracked. \(detail)"
+        let context = declaredContext == .technical ? "Technical task. " : ""
+        return "\(context)\(taskTitle). \(modeLabel). \(elapsedMinutes) minutes tracked. \(detail)"
     }
 }
