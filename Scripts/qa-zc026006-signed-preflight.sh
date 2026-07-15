@@ -3,8 +3,11 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly REVIEWED_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
-readonly PRODUCT_COMMIT="7fdda89526e39417c95dd526366d16a9d48944a6"
+readonly REVIEWED_BASE="7ac4ea0b6cb12062fc77ff6e7588cd7a3a78ab0b"
+readonly PRODUCT_COMMIT="98da04e5818fd949295fe37348de04198fdb2579"
+readonly TOOLING_COMMIT="80d159b9b801d30924f0c717478d9888a0309f95"
+readonly PRODUCT_PATCH_ID="afd0a0249005f2bec0bf2441a4c67772dfecb91d"
+readonly TOOLING_PATCH_ID="072a04b15c857295c78d9822e5faf2cf013aedea"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc026006-correction-impact-fixture.sh"
 readonly PROBE="$SCRIPT_DIR/qa-zc026006-correction-impact-ax-probe.swift"
 readonly RUNBOOK="$REPOSITORY/docs/ZC-026-006-SIGNED-QA-RUNBOOK.md"
@@ -19,39 +22,58 @@ readonly -a TOOLING_PATHS=(
     "Scripts/qa-zc026006-signed-preflight.sh"
     "docs/ZC-026-006-SIGNED-QA-RUNBOOK.md"
 )
+readonly -a LINEAGE_PATHS=(
+    "Scripts/qa-zc026006-signed-preflight.sh"
+    "docs/ZC-026-006-SIGNED-QA-RUNBOOK.md"
+)
 
 fail() { print -u2 -- "FAIL: $*"; exit 1; }
 is_sha() { [[ "$1" =~ '^[0-9a-f]{40}$' ]]; }
 normalized_lines() { print -r -- "$1" | sed '/^$/d' | LC_ALL=C sort -u; }
 has_exact_lines() { [[ "$(normalized_lines "$1")" == "$(normalized_lines "$2")" ]]; }
 has_argument() { [[ " $1 " == *" $2 "* ]]; }
+commit_patch_id() { git -C "$REPOSITORY" show "$1" | git patch-id --stable | awk '{print $1}'; }
 
 verify_lineage() {
     local expected_commit="$1"
-    local product_scope tooling_scope head_scope
+    local product_scope tooling_scope lineage_scope candidate_scope
     [[ "$(git -C "$REPOSITORY" rev-parse HEAD)" == "$expected_commit" ]] \
         || fail "repository HEAD does not match the signed commit"
     [[ "$(git -C "$REPOSITORY" rev-parse "$PRODUCT_COMMIT^")" == "$REVIEWED_BASE" ]] \
         || fail "reviewed product commit is not a direct child of the reviewed base"
-    git -C "$REPOSITORY" merge-base --is-ancestor "$PRODUCT_COMMIT" "$expected_commit" \
-        || fail "signed commit does not contain the reviewed correction-impact product commit"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$TOOLING_COMMIT^")" == "$PRODUCT_COMMIT" ]] \
+        || fail "reviewed tooling commit is not a direct child of the product commit"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected_commit^")" == "$TOOLING_COMMIT" ]] \
+        || fail "signed lineage commit is not a direct child of the reviewed tooling commit"
     product_scope="$(git -C "$REPOSITORY" diff --name-only "$REVIEWED_BASE" "$PRODUCT_COMMIT")"
     has_exact_lines "$product_scope" "$(printf '%s\n' "${PRODUCT_PATHS[@]}")" \
         || fail "reviewed product commit scope differs from the exact three-file contract"
-    tooling_scope="$(git -C "$REPOSITORY" diff --name-only "$PRODUCT_COMMIT" "$expected_commit")"
+    tooling_scope="$(git -C "$REPOSITORY" diff --name-only "$PRODUCT_COMMIT" "$TOOLING_COMMIT")"
     has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_PATHS[@]}")" \
         || fail "signed tooling scope differs from the exact four-file contract"
-    [[ "$(git -C "$REPOSITORY" rev-list --count "$PRODUCT_COMMIT..$expected_commit")" == "1" ]] \
-        || fail "signed candidate contains an unexpected number of tooling commits"
-    head_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected_commit")"
-    has_exact_lines "$head_scope" "$(printf '%s\n' "${TOOLING_PATHS[@]}")" \
-        || fail "tooling commit contains unrelated files"
+    lineage_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected_commit")"
+    has_exact_lines "$lineage_scope" "$(printf '%s\n' "${LINEAGE_PATHS[@]}")" \
+        || fail "lineage commit contains files outside immutable bindings"
+    candidate_scope="$(git -C "$REPOSITORY" diff --name-only "$REVIEWED_BASE" "$expected_commit")"
+    has_exact_lines "$candidate_scope" "$(printf '%s\n' "${PRODUCT_PATHS[@]}" "${TOOLING_PATHS[@]}")" \
+        || fail "signed candidate differs from the exact seven-file contract"
+    [[ "$(git -C "$REPOSITORY" rev-list --count "$REVIEWED_BASE..$expected_commit")" == "3" ]] \
+        || fail "signed candidate contains an unexpected commit count"
+    [[ "$(commit_patch_id "$PRODUCT_COMMIT")" == "$PRODUCT_PATCH_ID" ]] \
+        || fail "reviewed product patch identity drifted"
+    [[ "$(commit_patch_id "$TOOLING_COMMIT")" == "$TOOLING_PATCH_ID" ]] \
+        || fail "reviewed tooling patch identity drifted"
     ! grep -Eq '^(docs/scenario-registry.json|docs/zoid-coach-product-scenario-tracker.md|docs/impl/666-BACKLOG.md|\.lavish/)' <<<"$product_scope
-$tooling_scope" || fail "candidate includes a protected orchestration artifact"
+$tooling_scope
+$lineage_scope" || fail "candidate includes a protected orchestration artifact"
 }
 
 assert_runbook_contract() {
     local snapshot prepare launch bind register combined relaunch restore unregister
+    local identity
+    for identity in "$REVIEWED_BASE" "$PRODUCT_COMMIT" "$TOOLING_COMMIT" "$PRODUCT_PATCH_ID" "$TOOLING_PATCH_ID"; do
+        grep -Fq "$identity" "$RUNBOOK" || fail "runbook omits immutable lineage identity $identity"
+    done
     snapshot="$(grep -nF '"$FIXTURE" snapshot "$DATABASE" "$BYTE_BACKUP"' "$RUNBOOK" | head -n1 | cut -d: -f1)"
     prepare="$(grep -nF '"$FIXTURE" prepare "$DATABASE"' "$RUNBOOK" | head -n1 | cut -d: -f1)"
     launch="$(grep -nF 'open "$APP" --args --qa-open-main' "$RUNBOOK" | head -n1 | cut -d: -f1)"
@@ -80,6 +102,7 @@ assert_runbook_contract() {
 if [[ "${1:-}" == "--self-test" ]]; then
     is_sha "$REVIEWED_BASE" || fail "reviewed base SHA is invalid"
     is_sha "$PRODUCT_COMMIT" || fail "product SHA is invalid"
+    is_sha "$TOOLING_COMMIT" || fail "tooling SHA is invalid"
     has_exact_lines "$(printf '%s\n' "${PRODUCT_PATHS[@]}")" "$(printf '%s\n' "${PRODUCT_PATHS[@]}")" \
         || fail "exact-scope helper rejected equal scopes"
     ! has_exact_lines "$(printf '%s\n' "${PRODUCT_PATHS[@]}")" "$(printf '%s\n' "${PRODUCT_PATHS[@]}")"$'\n''Sources/Unrelated.swift' \

@@ -7,8 +7,9 @@ It uses one isolated QA database and never mutates the production database.
 ## Static gate and isolated installation
 
 Run the complete journey from the clean candidate repository at the exact signed commit.
-The signed commit must descend from current canonical base `361093b4a088c19eee927eaab2b58a40fb3b4c27` and contain refreshed product commit `7fdda89526e39417c95dd526366d16a9d48944a6`.
+The signed commit must descend from current canonical base `7ac4ea0b6cb12062fc77ff6e7588cd7a3a78ab0b` and contain refreshed product commit `98da04e5818fd949295fe37348de04198fdb2579` followed by exact tooling commit `80d159b9b801d30924f0c717478d9888a0309f95`.
 The refreshed product commit preserves source product commit `ad5e5f867fefcbd5e80352967b7b49b737ad041a` with stable patch ID `afd0a0249005f2bec0bf2441a4c67772dfecb91d`.
+The exact tooling commit preserves stable patch ID `072a04b15c857295c78d9822e5faf2cf013aedea`; the final commit may change only these immutable lineage bindings.
 
 ```zsh
 set -euo pipefail
