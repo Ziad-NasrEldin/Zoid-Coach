@@ -8,6 +8,7 @@ struct CalendarPlanApprovalItem: Codable, Equatable, Identifiable, Sendable {
     let estimateMinutes: Int
     let estimateIsUncertain: Bool?
     let isMainObjective: Bool
+    let executionState: TaskExecutionState?
 
     init(
         reminderID: String,
@@ -15,7 +16,8 @@ struct CalendarPlanApprovalItem: Codable, Equatable, Identifiable, Sendable {
         rank: Int,
         estimateMinutes: Int,
         estimateIsUncertain: Bool = false,
-        isMainObjective: Bool
+        isMainObjective: Bool,
+        executionState: TaskExecutionState? = nil
     ) {
         self.reminderID = reminderID
         self.title = title
@@ -23,9 +25,32 @@ struct CalendarPlanApprovalItem: Codable, Equatable, Identifiable, Sendable {
         self.estimateMinutes = estimateMinutes
         self.estimateIsUncertain = estimateIsUncertain
         self.isMainObjective = isMainObjective
+        self.executionState = executionState
     }
 
     var id: String { reminderID }
+
+    var isIncompletePriorityTask: Bool {
+        isMainObjective && executionState.map { $0 != .completed } == true
+    }
+
+    var priorityStateLabel: String? {
+        guard isMainObjective else { return nil }
+        return switch executionState {
+        case .completed: "PRIORITY · COMPLETE"
+        case .some: "PRIORITY · INCOMPLETE"
+        case nil: "PRIORITY · STATUS UNKNOWN"
+        }
+    }
+
+    var priorityStateAccessibilityValue: String? {
+        guard isMainObjective else { return nil }
+        return switch executionState {
+        case .completed: "Complete"
+        case .some: "Incomplete"
+        case nil: "Status unknown"
+        }
+    }
 }
 
 struct CalendarPlanAvailabilityRevision: Equatable, Sendable {
@@ -144,6 +169,7 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
     mutating func begin(
         entries: [DailyPlanEntry],
         titlesByReminderID: [String: String],
+        executionStatesByReminderID: [String: TaskExecutionState] = [:],
         availableMinutes: Int,
         fixedCommitmentMinutes: Int,
         usesCalendarAvailability: Bool,
@@ -159,7 +185,8 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
                 rank: entry.rank,
                 estimateMinutes: estimate,
                 estimateIsUncertain: entry.estimateIsUncertain,
-                isMainObjective: entry.isMainObjective
+                isMainObjective: entry.isMainObjective,
+                executionState: executionStatesByReminderID[entry.reminderID]
             )
         }.sorted { $0.rank < $1.rank }
         self.availableMinutes = availableMinutes

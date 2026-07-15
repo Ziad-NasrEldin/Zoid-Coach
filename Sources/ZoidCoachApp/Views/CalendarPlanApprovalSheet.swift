@@ -68,7 +68,18 @@ struct CalendarPlanApprovalSheet: View {
                 .foregroundStyle(Sumi.muted)
             ForEach(receipt.items) { item in
                 HStack {
-                    Text("\(item.rank). \(item.title)\(item.isMainObjective ? " · MAIN" : "")")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(item.rank). \(item.title)")
+                        if let label = item.priorityStateLabel {
+                            Text(label)
+                                .font(Sumi.label(7))
+                                .sumiLabelTracking()
+                                .foregroundStyle(Sumi.seal)
+                                .accessibilityLabel("Priority task status")
+                                .accessibilityValue(item.priorityStateAccessibilityValue ?? "Status unknown")
+                                .accessibilityIdentifier("calendar-plan-receipt.priority-state.\(item.id)")
+                        }
+                    }
                     Spacer()
                     Text(item.estimateIsUncertain == true ? "~\(item.estimateMinutes)m placeholder" : "\(item.estimateMinutes)m")
                 }
@@ -167,11 +178,14 @@ struct CalendarPlanApprovalSheet: View {
                                     .font(Sumi.body(13))
                                     .foregroundStyle(Sumi.ink)
                                     .lineLimit(2)
-                                if item.isMainObjective {
-                                    Text("MAIN OBJECTIVE")
+                                if let label = item.priorityStateLabel {
+                                    Text(label)
                                         .font(Sumi.label(8))
                                         .sumiLabelTracking()
                                         .foregroundStyle(Sumi.seal)
+                                        .accessibilityLabel("Priority task status")
+                                        .accessibilityValue(item.priorityStateAccessibilityValue ?? "Status unknown")
+                                        .accessibilityIdentifier("calendar-plan-review.priority-state.\(item.id)")
                                 }
                             }
                             Spacer()
