@@ -513,7 +513,7 @@ struct CustomEstimateEditorStateTests {
         )
         let container = NSView(frame: window.contentView?.bounds ?? .zero)
         let field = CustomEstimateTextField(frame: NSRect(x: 0, y: 0, width: 80, height: 24))
-        let otherField = NSTextField(frame: NSRect(x: 100, y: 0, width: 80, height: 24))
+        let otherField = NSButton(frame: NSRect(x: 100, y: 0, width: 80, height: 24))
         window.contentView = container
         window.makeKeyAndOrderFront(nil)
         defer { window.orderOut(nil) }
