@@ -86,6 +86,16 @@ private func captureBindingVerdict(
     return .valid
 }
 private enum SnapshotVerdict: Equatable { case changed, stable, restored, invalid }
+private enum NavigationPollDecision: Equatable { case success, retry, timeout }
+
+private func navigationPollDecision(
+    isVisible: Bool,
+    attempt: Int,
+    maximumAttempts: Int
+) -> NavigationPollDecision {
+    if isVisible { return .success }
+    return attempt < maximumAttempts ? .retry : .timeout
+}
 
 private func selectTodayScrollArea(_ candidates: [TodayScrollAreaTraits]) -> TodayScrollAreaSelection {
     let matches = candidates.indices.filter { candidates[$0].containsToday }
@@ -228,6 +238,9 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           normalizedScreenwatch(from: "Screenwatch coverage is current.")
               == NormalizedScreenwatch(state: "CURRENT", detail: "Screenwatch coverage is current."),
           normalizedScreenwatch(from: "Screenwatch is probably current") == nil,
+          navigationPollDecision(isVisible: true, attempt: 0, maximumAttempts: 40) == .success,
+          navigationPollDecision(isVisible: false, attempt: 0, maximumAttempts: 40) == .retry,
+          navigationPollDecision(isVisible: false, attempt: 40, maximumAttempts: 40) == .timeout,
           scrollbarStep,
           scrollbarWrites == [0.5],
           isExternalEvidenceRoot(URL(fileURLWithPath: "/private/tmp/evidence"), repository: URL(fileURLWithPath: "/repo")),
@@ -609,11 +622,25 @@ private func navigate(_ destination: String, in window: AXUIElement) throws {
     }) else { throw ProbeError.failure("normal \(destination) navigation is unavailable") }
     _ = AXUIElementPerformAction(button, "AXScrollToVisible" as CFString)
     let visibleBefore = try destinationVisible(destination, in: window)
-    _ = AXUIElementPerformAction(button, kAXPressAction as CFString)
-    Thread.sleep(forTimeInterval: 0.4)
-    let visibleAfter = try destinationVisible(destination, in: window)
-    guard visibleBefore || visibleAfter else {
-        throw ProbeError.failure("could not navigate to \(destination)")
+    let pressResult = AXUIElementPerformAction(button, kAXPressAction as CFString)
+    guard visibleBefore || pressResult == .success else {
+        throw ProbeError.failure("normal \(destination) navigation press failed")
+    }
+    let maximumAttempts = 40
+    for attempt in 0...maximumAttempts {
+        let visible = visibleBefore || (try destinationVisible(destination, in: mainWindow()))
+        switch navigationPollDecision(
+            isVisible: visible,
+            attempt: attempt,
+            maximumAttempts: maximumAttempts
+        ) {
+        case .success:
+            return
+        case .retry:
+            Thread.sleep(forTimeInterval: 0.2)
+        case .timeout:
+            throw ProbeError.failure("could not navigate to \(destination) before the bounded timeout")
+        }
     }
 }
 
