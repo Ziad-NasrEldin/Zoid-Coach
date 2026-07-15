@@ -203,6 +203,7 @@ struct MenuBarCoachView: View {
     @State private var pendingEndWorkdayTask: TodayTaskRow?
     @State private var pendingBlockedTask: TodayTaskRow?
     @State private var blockReason = ""
+    @State private var voiceControlsExpanded = false
 
     @MainActor
     init(
@@ -238,13 +239,7 @@ struct MenuBarCoachView: View {
 
             Divider().overlay(Sumi.rule)
 
-            DisclosureGroup("VOICE CONTROLS") {
-                VoiceMenuView(model: voiceModel)
-                    .padding(.top, 8)
-            }
-            .font(Sumi.label(9))
-            .sumiLabelTracking()
-            .padding(14)
+            voiceControlsSection
         }
         .frame(width: 360)
         .background(Sumi.paper)
@@ -334,6 +329,47 @@ struct MenuBarCoachView: View {
         return notifications.state == .attention
             || notifications.state == .notConnected
             || notifications.state == .unavailable
+    }
+
+    private var voiceControlsSection: some View {
+        let presentation = MenuBarVoiceControlsPresentation(isExpanded: voiceControlsExpanded)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                voiceControlsExpanded.toggle()
+            } label: {
+                HStack(spacing: 8) {
+                    Text(presentation.title)
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.ink)
+                    Spacer(minLength: 8)
+                    Image(systemName: presentation.symbolName)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .frame(width: 16, height: 16)
+                        .accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Sumi.softPaper)
+            .accessibilityLabel(presentation.accessibilityLabel)
+            .accessibilityValue(presentation.accessibilityValue)
+            .accessibilityHint(presentation.accessibilityHint)
+            .accessibilityIdentifier("menu-bar.voice-controls.toggle")
+
+            if voiceControlsExpanded {
+                Divider().overlay(Sumi.rule)
+                VoiceMenuView(model: voiceModel)
+                    .padding(14)
+                    .accessibilityIdentifier("menu-bar.voice-controls.content")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("menu-bar.voice-controls")
     }
 
     private var coachHeader: some View {
