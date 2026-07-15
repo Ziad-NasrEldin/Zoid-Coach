@@ -190,6 +190,90 @@ struct CustomEstimateEditorStateTests {
     }
 
     @MainActor
+    @Test(arguments: [
+        (NSTextMovement.return.rawValue, true),
+        (NSTextMovement.tab.rawValue, false),
+        (NSTextMovement.backtab.rawValue, false),
+        (NSTextMovement.cancel.rawValue, false),
+        (NSTextMovement.other.rawValue, false),
+    ])
+    func endEditingFallbackSubmitsOnlyReturnMovement(
+        movementValue: Int,
+        expectsSubmission: Bool
+    ) {
+        let box = InteractionBox()
+        box.state.open(initialMinutes: nil)
+        let initialFocusRequest = box.state.focusRequest
+        let input = CustomEstimateInputField(
+            text: Binding(
+                get: { box.state.input },
+                set: { box.state.input = $0 }
+            ),
+            focusRequest: box.state.focusRequest,
+            submit: { exactText in
+                box.returnCallbackCount += 1
+                box.state.input = exactText
+                return box.state.submit { box.persisted.append($0) }
+            }
+        )
+        let coordinator = input.makeCoordinator()
+        let field = CustomEstimateTextField(string: "\u{00A0}\u{2003}")
+
+        coordinator.controlTextDidEndEditing(Notification(
+            name: NSControl.textDidEndEditingNotification,
+            object: field,
+            userInfo: [NSText.movementUserInfoKey: movementValue]
+        ))
+
+        if expectsSubmission {
+            #expect(box.returnCallbackCount == 1)
+            #expect(box.state.input == "\u{00A0}\u{2003}")
+            #expect(box.state.isPresented)
+            #expect(box.state.validationMessage == "Enter an estimate in minutes.")
+            #expect(box.state.focusRequest == initialFocusRequest + 1)
+        } else {
+            #expect(box.returnCallbackCount == 0)
+            #expect(box.state.input.isEmpty)
+            #expect(box.state.validationMessage == nil)
+            #expect(box.state.focusRequest == initialFocusRequest)
+        }
+        #expect(box.persisted.isEmpty)
+    }
+
+    @MainActor
+    @Test
+    func endEditingReturnPersistsPaddedValidInputExactlyOnceAndCloses() {
+        let box = InteractionBox()
+        box.state.open(initialMinutes: nil)
+        let input = CustomEstimateInputField(
+            text: Binding(
+                get: { box.state.input },
+                set: { box.state.input = $0 }
+            ),
+            focusRequest: box.state.focusRequest,
+            submit: { exactText in
+                box.returnCallbackCount += 1
+                box.state.input = exactText
+                return box.state.submit { box.persisted.append($0) }
+            }
+        )
+        let coordinator = input.makeCoordinator()
+        let field = CustomEstimateTextField(string: " 25 ")
+
+        coordinator.controlTextDidEndEditing(Notification(
+            name: NSControl.textDidEndEditingNotification,
+            object: field,
+            userInfo: [NSText.movementUserInfoKey: NSTextMovement.return.rawValue]
+        ))
+
+        #expect(box.returnCallbackCount == 1)
+        #expect(box.state.input == " 25 ")
+        #expect(box.persisted == [25])
+        #expect(!box.state.isPresented)
+        #expect(box.state.validationMessage == nil)
+    }
+
+    @MainActor
     @Test
     func dismantleAndDeinitRemoveOwnedKeyMonitors() {
         let box = InteractionBox()
@@ -200,7 +284,7 @@ struct CustomEstimateEditorStateTests {
                 set: { box.state.input = $0 }
             ),
             focusRequest: box.state.focusRequest,
-            submit: {}
+            submit: { _ in false }
         )
         let coordinator = input.makeCoordinator()
         let dismantledField = CustomEstimateTextField(string: "")

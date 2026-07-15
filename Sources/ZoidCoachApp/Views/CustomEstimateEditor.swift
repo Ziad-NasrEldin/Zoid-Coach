@@ -54,7 +54,10 @@ struct CustomEstimateEditor: View {
             CustomEstimateInputField(
                 text: $state.input,
                 focusRequest: state.focusRequest,
-                submit: submit
+                submit: { exactText in
+                    state.input = exactText
+                    return state.submit(persist: persist)
+                }
             )
                 .id(state.presentationID)
                 .frame(width: 78, height: 22)
@@ -89,7 +92,7 @@ struct CustomEstimateEditor: View {
 struct CustomEstimateInputField: NSViewRepresentable {
     @Binding var text: String
     let focusRequest: Int
-    let submit: () -> Void
+    let submit: (String) -> Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -102,13 +105,13 @@ struct CustomEstimateInputField: NSViewRepresentable {
         field.isBezeled = true
         field.bezelStyle = .roundedBezel
         field.delegate = context.coordinator
-        field.onReturn = context.coordinator.submit
+        field.onReturn = { _ = context.coordinator.submit($0) }
         return field
     }
 
     func updateNSView(_ field: CustomEstimateTextField, context: Context) {
         context.coordinator.parent = self
-        field.onReturn = context.coordinator.submit
+        field.onReturn = { _ = context.coordinator.submit($0) }
         if field.stringValue != text {
             field.stringValue = text
         }
@@ -139,9 +142,25 @@ struct CustomEstimateInputField: NSViewRepresentable {
             parent.text = field.stringValue
         }
 
-        func submit(_ exactText: String) {
+        @discardableResult
+        func submit(_ exactText: String) -> Bool {
             parent.text = exactText
-            parent.submit()
+            return parent.submit(exactText)
+        }
+
+        func controlTextDidEndEditing(_ notification: Notification) {
+            guard let field = notification.object as? NSTextField,
+                  let movementValue = notification.userInfo?[NSText.movementUserInfoKey] as? Int,
+                  movementValue == NSTextMovement.return.rawValue else {
+                return
+            }
+            let accepted = submit(field.stringValue)
+            guard !accepted else { return }
+            Task { @MainActor [weak field] in
+                await Task.yield()
+                guard let field else { return }
+                field.window?.makeFirstResponder(field)
+            }
         }
     }
 }
