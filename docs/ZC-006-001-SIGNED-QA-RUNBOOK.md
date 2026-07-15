@@ -29,6 +29,7 @@ FIXTURE="$PWD/Scripts/qa-zc006001-planning-invitation-fixture.sh"
 PROBE="$PWD/Scripts/qa-zc006001-planning-invitation-ax-probe.swift"
 POLICY_READINESS="$PWD/Scripts/qa-zc006001-policy-readiness.sh"
 POLICY_DECODER_SOURCE="$PWD/Scripts/qa-zc006001-policy-decode.swift"
+POLICY_SOURCE="$PWD/Scripts/qa-zc006001-policy-source.sh"
 PREFLIGHT="$PWD/Scripts/qa-zc006001-signed-preflight.sh"
 WORK_ROOT="$(mktemp -d /private/tmp/zoid-666-zc006001-run.XXXXXX)"
 BACKUP_ROOT="$WORK_ROOT/original-root"
@@ -39,6 +40,7 @@ launchctl print "gui/$(id -u)/$(plutil -extract Label raw -o - "$AGENT_PLIST")" 
 "$FIXTURE" self-test
 swift "$PROBE" --self-test
 "$POLICY_READINESS" --self-test
+"$POLICY_SOURCE" --self-test
 swiftc -package-name ZoidCoach "$PWD"/Sources/ZoidCoachCore/*.swift "$POLICY_DECODER_SOURCE" -o "$WORK_ROOT/policy-decoder"
 POLICY_DECODER="$WORK_ROOT/policy-decoder"
 ```
@@ -63,6 +65,11 @@ if test -d "$QA_ROOT"; then
 else
   : > "$ORIGINAL_HASHES"
 fi
+POLICY_CLONE_ROOT="$WORK_ROOT/policy-source"
+policy_source_output="$("$POLICY_SOURCE" materialize "$BACKUP_ROOT/root/Application Support/Zoid 666/zoid-coach.sqlite" "$POLICY_CLONE_ROOT" "$POLICY_DECODER")"
+printf '%s\n' "$policy_source_output"
+POLICY_SOURCE_DATABASE="$(printf '%s\n' "$policy_source_output" | sed -n 's/^POLICY_SOURCE_DATABASE=//p')"
+test -n "$POLICY_SOURCE_DATABASE"
 ```
 
 The final cleanup compares the same relative file hashes after restoration.
@@ -96,7 +103,7 @@ run_case() {
   test -n "$pid"
   kill "$pid"
   while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
-  "$FIXTURE" seed-policy "$BACKUP_ROOT/root/Application Support/Zoid 666/zoid-coach.sqlite" "$DATABASE"
+  "$FIXTURE" seed-policy "$POLICY_SOURCE_DATABASE" "$DATABASE"
   open "$APP" --args --qa-open-main
   preflight_output="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --require-helper-unregistered)"
   pid="$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')"
@@ -148,6 +155,7 @@ run_case one future
 run_case one past dismiss
 run_case many future
 run_case many past snooze
+"$POLICY_SOURCE" delete "$POLICY_CLONE_ROOT"
 ```
 
 The zero case proves that the product never invents a suggestion.
@@ -165,6 +173,7 @@ It removes only the temporary ZC-006 workspace and restores the prior isolated r
 set -euo pipefail
 "$APP_EXECUTABLE" --qa-unregister-agent || true
 pkill -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true
+(cd "$BACKUP_ROOT/root" && shasum -a 256 -c "$ORIGINAL_HASHES" >/dev/null)
 rm -rf -- "$QA_ROOT"
 if test -d "$BACKUP_ROOT/root"; then
   ditto "$BACKUP_ROOT/root" "$QA_ROOT"
