@@ -4,6 +4,7 @@ import ApplicationServices
 import Foundation
 
 private let elapsedIdentifier = "today.focus.open-ended-elapsed"
+private let expectedTaskTitle = "Verify live elapsed time"
 private let maximumNodes = 5_000
 
 private enum Phase: String {
@@ -53,6 +54,11 @@ private func exposesPrivateText(_ values: [String], rejected: [String]) -> Bool 
     return rejected.contains { combined.localizedCaseInsensitiveContains($0) }
 }
 
+private func scenarioIsReady(allStrings: [String], elapsedCount: Int, requireElapsed: Bool) -> Bool {
+    allStrings.contains(where: { $0.contains(expectedTaskTitle) })
+        && (!requireElapsed || elapsedCount == 1)
+}
+
 if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     let live = ElapsedReading(minutes: 2, isLive: true)
     let fallback = ElapsedReading(minutes: 9, isLive: false)
@@ -66,6 +72,10 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           ElapsedReading(minutes: 1, isLive: true).accessibilityLabel == "Open-ended session, 1 minute elapsed, updating while active.",
           fallback.display == "9 MIN ELAPSED · LAST REFRESH",
           fallback.accessibilityLabel == "Open-ended session, 9 minutes elapsed at the last refresh.",
+          scenarioIsReady(allStrings: [expectedTaskTitle], elapsedCount: 0, requireElapsed: false),
+          scenarioIsReady(allStrings: [expectedTaskTitle], elapsedCount: 1, requireElapsed: true),
+          !scenarioIsReady(allStrings: ["PREPARING TODAY"], elapsedCount: 0, requireElapsed: false),
+          !scenarioIsReady(allStrings: [expectedTaskTitle], elapsedCount: 0, requireElapsed: true),
           exposesPrivateText(["safe", "PRIVATE-ZC017007-DO-NOT-RENDER"], rejected: ["PRIVATE-ZC017007"]),
           !exposesPrivateText(["Verify live elapsed time"], rejected: ["PRIVATE-ZC017007"])
     else {
@@ -194,6 +204,25 @@ private func waitForSnapshot(timeout: TimeInterval = 10) throws -> Snapshot {
     throw NSError(domain: "ZC017007AXProbe", code: 4)
 }
 
+private func waitForScenarioSnapshot(requireElapsed: Bool, timeout: TimeInterval = 12) throws -> Snapshot {
+    let deadline = Date().addingTimeInterval(timeout)
+    repeat {
+        guard kill(pid, 0) == 0 else {
+            throw NSError(domain: "ZC017007AXProbe", code: 3)
+        }
+        if let current = try currentSnapshot(),
+           scenarioIsReady(
+               allStrings: current.allStrings,
+               elapsedCount: current.elapsedElements.count,
+               requireElapsed: requireElapsed
+           ) {
+            return current
+        }
+        Thread.sleep(forTimeInterval: 0.2)
+    } while Date() < deadline
+    throw NSError(domain: "ZC017007AXProbe", code: 14)
+}
+
 private func uniqueReading(_ snapshot: Snapshot) throws -> ElapsedReading? {
     guard snapshot.elapsedElements.count <= 1 else {
         throw NSError(domain: "ZC017007AXProbe", code: 5)
@@ -207,7 +236,15 @@ private func uniqueReading(_ snapshot: Snapshot) throws -> ElapsedReading? {
 }
 
 do {
-    let firstSnapshot = try waitForSnapshot()
+    let firstSnapshot: Snapshot
+    switch phase {
+    case .window:
+        firstSnapshot = try waitForSnapshot()
+    case .absent:
+        firstSnapshot = try waitForScenarioSnapshot(requireElapsed: false)
+    case .liveAdvance, .exactLive, .fallback:
+        firstSnapshot = try waitForScenarioSnapshot(requireElapsed: true)
+    }
     guard !exposesPrivateText(firstSnapshot.allStrings, rejected: rejected) else {
         throw NSError(domain: "ZC017007AXProbe", code: 7)
     }
