@@ -38,10 +38,12 @@ wait_for_policy_store() {
 }
 
 wait_for_app_database() {
-    local executable_name="$1" executable="$2" database="$3" candidate open_databases
-    for _ in {1..80}; do
+    local executable_name="$1" executable="$2" database="$3" candidate arguments open_databases
+    for _ in {1..200}; do
         for candidate in ${(f)$(pgrep -x "$executable_name" 2>/dev/null || true)}; do
             [[ "$(lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | head -n 1)" == "$executable" ]] || continue
+            arguments="$(ps -p "$candidate" -o args= 2>/dev/null || true)"
+            [[ "$arguments" == *--qa-open-main* && "$arguments" != *--background-schedule* ]] || continue
             open_databases="$(lsof -Fn -a -p "$candidate" 2>/dev/null | sed -n 's/^n//p' | grep -E '/zoid-coach\.sqlite$' | LC_ALL=C sort -u || true)"
             [[ "$open_databases" == "$database" ]] && { print -- "$candidate"; return 0; }
             [[ -z "$open_databases" ]] || fail "ready app opened a database outside the isolated root"
@@ -109,7 +111,9 @@ REGISTRATION_OUTPUT="$("$APP_EXECUTABLE" --qa-register-agent)"
     || fail "ready-state helper registration did not prove a writable policy boundary"
 wait_for_policy_store "$DATABASE"
 open -na "$APP" --args --qa-open-main
-readonly PID="$(wait_for_app_database "$APP_EXECUTABLE_NAME" "$APP_EXECUTABLE" "$DATABASE")"
+PID=""
+PID="$(wait_for_app_database "$APP_EXECUTABLE_NAME" "$APP_EXECUTABLE" "$DATABASE")" \
+    || fail "ready foreground app did not bind to the isolated database"
 "$PREFLIGHT" --ready-app "$APP" "$DATABASE" "$EXPECTED_COMMIT" "$PID"
 "$APP_EXECUTABLE" --qa-unregister-agent
 stop_exact_app "$APP_EXECUTABLE_NAME" "$APP_EXECUTABLE"
