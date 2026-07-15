@@ -4,9 +4,12 @@ This runbook verifies one exact installed signed Zoid 666 candidate against the 
 It covers empty input, ASCII and Unicode whitespace, zero, negative values, decimal and text input, localized digits, localized decimal punctuation, values above 480 minutes, and a valid whitespace-padded recovery.
 It also proves exact corrective copy, keyboard Return submission, retained input and focus after failure, no durable mutation on failure, valid persistence, accessibility, privacy, ordinary relaunch, and byte-exact restoration.
 
-The product implementation is already present at canonical base `91197544123ccd53a647933545728af7ff81acd5`.
-This candidate may add only the four namespaced QA files listed by the preflight.
-The preflight binds the exact canonical blobs for `TaskEstimateInput.swift`, `DashboardView.swift`, and `TaskEstimateInputTests.swift` so verifier work cannot silently change product behavior.
+The current canonical base is `b97c2ce3177ccf89f60225c475062608db1920ad`.
+The exact patch-equivalent QA tooling replay is `37de851fb06299fd3878bb84c5c3728898304fc5` with stable patch ID `9a9cad283c5216b12cb4ecaf698526de4e50e8b3`.
+The reviewed shared-editor product fix is `2aa760df1652ff73b62a9cc86aafcd1ac4e9a5c8` with stable patch ID `af9ed72fb4906e4ee6f17605d5125d78b1eebb99`.
+The product fix introduces one shared custom-estimate editor interaction state and component used by both `DashboardView.swift` and `TodayDashboardCommandOverview.swift`.
+`CustomEstimateEditorStateTests` bind ten invalid inputs, exact input and focus retention, stable re-render identity, independent surface state, exactly-once valid persistence, rapid resubmission, and legacy parser boundaries.
+The preflight rejects any product drift after that reviewed commit and keeps `TaskEstimateInput.swift` plus its legacy tests byte-identical to canonical.
 
 ## Bind the exact signed package
 
@@ -33,8 +36,10 @@ TASK_ID="qa-zc011007-invalid-estimate"
 PRIVATE_NOTE="qa-zc011007-private-estimate-note"
 
 test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
-git merge-base --is-ancestor 91197544123ccd53a647933545728af7ff81acd5 "$EXPECTED_SIGNED_COMMIT"
+git merge-base --is-ancestor b97c2ce3177ccf89f60225c475062608db1920ad "$EXPECTED_SIGNED_COMMIT"
 "$PREFLIGHT" --self-test
+swift test --filter CustomEstimateEditorStateTests
+swift test --filter customEstimate
 ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh \
   "$APP" --expected-commit "$EXPECTED_SIGNED_COMMIT" --require-clean
 
@@ -45,8 +50,9 @@ test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 ```
 
 The full signed commit must be repository HEAD.
-The diff from canonical base must contain exactly one commit and exactly the four approved QA files.
-Tracker, registry, Lavish, backlog, product, and unrelated verifier changes are rejected.
+The diff from canonical base must contain exactly three commits: the patch-equivalent four-file tooling replay, the exact four-file shared-editor product fix, and the two-file lineage binding.
+The full candidate scope is exactly eight files because the binding edits only two of the already reviewed QA files.
+Tracker, registry, Lavish, backlog, parser, legacy parser-test, and unrelated verifier changes are rejected.
 
 ## Establish and snapshot the ready-state baseline
 
