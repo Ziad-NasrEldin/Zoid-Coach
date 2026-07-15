@@ -22,7 +22,7 @@ Full acceptance requires all of these observations against one signed build iden
 
 ## Preconditions
 
-Use a signed QA package whose commit descends from current canonical base `361093b4a088c19eee927eaab2b58a40fb3b4c27`, contains refreshed product candidate `85bcae87df2f32baf4d79821fb8a656bb4df2a14`, and contains this verifier tooling.
+Use a signed QA package whose commit descends from current canonical base `e38383374cdc8618b39a5eaaaae47ee5eaf638b7`, contains refreshed product candidate `9ea7323103a8095db5a7ba907a59dc5233598b53`, and contains this verifier tooling.
 The refreshed product candidate preserves source candidate `6fa4bcb029a13eb951806a2d5a4f073d2f11c58e` with stable patch ID `0342dd335be54243490b07e9eb978e33e7b3d4c9`.
 The QA package must embed a dedicated QA root that is not used by another scenario.
 Grant Accessibility permission to the terminal that runs the Swift probe.

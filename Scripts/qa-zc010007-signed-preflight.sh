@@ -3,8 +3,8 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly CANONICAL_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
-readonly PRODUCT_CANDIDATE="85bcae87df2f32baf4d79821fb8a656bb4df2a14"
+readonly CANONICAL_BASE="e38383374cdc8618b39a5eaaaae47ee5eaf638b7"
+readonly PRODUCT_CANDIDATE="9ea7323103a8095db5a7ba907a59dc5233598b53"
 readonly APP="${1:-}"
 readonly DATABASE="${2:-}"
 readonly EXPECTED_COMMIT="${3:-}"
