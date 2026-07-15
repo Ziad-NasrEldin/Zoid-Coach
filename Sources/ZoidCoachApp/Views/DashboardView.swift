@@ -2119,9 +2119,7 @@ private struct TimeBlockSelector: View {
 
     private let durations = [15, 30, 45, 60, 90]
     @State private var isChanging = false
-    @State private var isEnteringCustom = false
-    @State private var customMinutes = ""
-    @State private var customError: String?
+    @State private var customEditor = CustomEstimateEditorState()
 
     var body: some View {
         HStack(spacing: 7) {
@@ -2188,31 +2186,23 @@ private struct TimeBlockSelector: View {
                 .contentShape(Rectangle())
                 .accessibilityLabel("Change \(taskTitle) estimate from \(durationLabel(selectedMinutes))")
                 .help("Change time estimate")
-            } else if isEnteringCustom {
-                TextField("Minutes", text: $customMinutes)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 78)
-                    .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
-                    .accessibilityIdentifier("task-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-                    .onSubmit(saveCustomEstimate)
-                Button("SAVE", action: saveCustomEstimate)
-                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("task-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-                Button("CANCEL") {
-                    isEnteringCustom = false
-                    isChanging = false
-                    customError = nil
-                }
-                .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("task-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-                if let customError {
-                    Text(customError)
-                        .font(Sumi.body(11))
-                        .foregroundStyle(Sumi.sealDeep)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("task-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-                }
+            } else if customEditor.isPresented {
+                CustomEstimateEditor(
+                    state: $customEditor,
+                    taskTitle: taskTitle,
+                    inputIdentifier: "task-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    saveIdentifier: "task-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    cancelIdentifier: "task-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    errorIdentifier: "task-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    errorFontSize: 11,
+                    persist: { minutes in
+                        select(minutes)
+                        isChanging = false
+                    },
+                    cancel: {
+                        isChanging = false
+                    }
+                )
             } else {
                 ForEach(durations, id: \.self) { minutes in
                     Button {
@@ -2229,9 +2219,7 @@ private struct TimeBlockSelector: View {
                     .accessibilityLabel("Set \(taskTitle) estimate to \(durationLabel(minutes))")
                 }
                 Button("CUSTOM") {
-                    customMinutes = selectedMinutes.map(String.init) ?? ""
-                    customError = nil
-                    isEnteringCustom = true
+                    customEditor.open(initialMinutes: selectedMinutes)
                 }
                 .buttonStyle(TimeSlotButtonStyle())
                 .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
@@ -2239,7 +2227,7 @@ private struct TimeBlockSelector: View {
                 Button("UNKNOWN") {
                     selectUnknown()
                     isChanging = false
-                    isEnteringCustom = false
+                    customEditor.cancel()
                 }
                 .buttonStyle(TimeSlotButtonStyle())
                 .accessibilityLabel("Set \(taskTitle) estimate to unknown and use a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder")
@@ -2249,19 +2237,7 @@ private struct TimeBlockSelector: View {
         }
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedMinutes)
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isChanging)
-        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isEnteringCustom)
-    }
-
-    private func saveCustomEstimate() {
-        switch TaskEstimateInput.parse(customMinutes) {
-        case let .success(minutes):
-            select(minutes)
-            isChanging = false
-            isEnteringCustom = false
-            customError = nil
-        case let .failure(error):
-            customError = error.message
-        }
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: customEditor.isPresented)
     }
 
     private func durationLabel(_ minutes: Int) -> String {
