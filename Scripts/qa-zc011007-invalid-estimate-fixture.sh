@@ -15,6 +15,12 @@ fail() {
     exit 1
 }
 
+require_qa_database() {
+    local resolved_database="${ARGUMENT_ONE:A}"
+    [[ "$resolved_database" == /private/tmp/zoid-666-zc011007-*/* ]] \
+        || fail "database must resolve inside a ZC-011-007 isolated QA root"
+}
+
 usage() {
     print -u2 -- "usage: $0 <prepare|assert-unmutated|assert-valid|cleanup|snapshot-root|restore-root|assert-root-restored|self-test> [database-or-root] [snapshot]"
     exit 2
@@ -174,19 +180,27 @@ assert_root_restored() {
 
 self_test() {
     typeset -g SELF_TEST_ROOT
-    SELF_TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/zc011007-fixture.XXXXXX")"
+    SELF_TEST_ROOT="$(mktemp -d "/private/tmp/zoid-666-zc011007-fixture-self-test.XXXXXX")"
     local database="$SELF_TEST_ROOT/fixture.sqlite"
+    local non_qa_database="/private/tmp/zc011007-non-qa-${SELF_TEST_ROOT:t}.sqlite"
     local timestamp="2026-07-15T06:00:00Z"
     local self_test_suffix="${SELF_TEST_ROOT:t}"
     local qa_root="/private/tmp/zoid-666-zc011007-fixture-self-test-root-$self_test_suffix"
     local snapshot="/private/tmp/zoid-666-zc011007-fixture-self-test-snapshot-$self_test_suffix"
-    trap 'rm -rf -- "${SELF_TEST_ROOT:-}" "$qa_root" "$snapshot" "$snapshot".zc011007-*(N)' EXIT
+    trap 'rm -rf -- "${SELF_TEST_ROOT:-}" "$qa_root" "$snapshot" "$snapshot".zc011007-*(N) "$non_qa_database"' EXIT
     sqlite3 -batch "$database" <<SQL
 CREATE TABLE source_tasks(source_id TEXT PRIMARY KEY, title TEXT NOT NULL, due_at TEXT, priority INTEGER NOT NULL DEFAULT 0, is_completed INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL, notes TEXT, list_id TEXT, list_name TEXT, modified_at TEXT, source_hash TEXT, source_kind TEXT NOT NULL DEFAULT 'reminders');
 CREATE TABLE daily_plan_entries(day_key TEXT NOT NULL, reminder_id TEXT NOT NULL, rank INTEGER NOT NULL, is_main_objective INTEGER NOT NULL, estimate_minutes INTEGER, updated_at TEXT NOT NULL, selection_reason TEXT, selection_score INTEGER, is_optional INTEGER NOT NULL DEFAULT 0, blocked_reason TEXT, deferred_until_utc TEXT, estimate_is_uncertain INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(day_key, reminder_id));
 CREATE TABLE task_execution_states(task_id TEXT PRIMARY KEY, state TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE task_activity_intervals(id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT);
 SQL
+    cp "$database" "$non_qa_database"
+    local non_qa_hash_before="$(shasum -a 256 "$non_qa_database" | awk '{print $1}')"
+    if "$SCRIPT_PATH" prepare "$non_qa_database" >/dev/null 2>&1; then
+        fail "fixture accepted a database outside the isolated QA namespace"
+    fi
+    [[ "$(shasum -a 256 "$non_qa_database" | awk '{print $1}')" == "$non_qa_hash_before" ]] \
+        || fail "rejected non-QA database was mutated"
     "$SCRIPT_PATH" prepare "$database"
     "$SCRIPT_PATH" assert-unmutated "$database"
     sqlite3 -batch "$database" "UPDATE daily_plan_entries SET estimate_minutes = 25, updated_at = '$timestamp' WHERE reminder_id = '$TASK_ID';"
@@ -200,7 +214,7 @@ SQL
     "$SCRIPT_PATH" restore-root "$qa_root" "$snapshot"
     "$SCRIPT_PATH" assert-root-restored "$qa_root" "$snapshot"
     [[ "$(<"$qa_root/state")" == "baseline" ]] || fail "root restore did not recover original bytes"
-    rm -rf -- "$SELF_TEST_ROOT" "$qa_root" "$snapshot" "$snapshot".zc011007-*(N)
+    rm -rf -- "$SELF_TEST_ROOT" "$qa_root" "$snapshot" "$snapshot".zc011007-*(N) "$non_qa_database"
     SELF_TEST_ROOT=""
     trap - EXIT
     print -- "PASS: ZC-011-007 invalid-estimate fixture self-test"
@@ -218,6 +232,7 @@ case "$COMMAND" in
         ;;
     *)
         [[ -n "$ARGUMENT_ONE" && -f "$ARGUMENT_ONE" ]] || usage
+        require_qa_database
         command -v sqlite3 >/dev/null 2>&1 || fail "sqlite3 is required"
         ;;
 esac
