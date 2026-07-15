@@ -21,6 +21,7 @@ struct TodayDashboardCommandOverview: View {
     @State private var blockReason = ""
     @State private var gamingAdjustmentPresentation: GamingManualAdjustmentPresentation?
     @State private var snapshotConfirmedAt: Date
+    @State private var customEstimateEditorStore = CustomEstimateEditorStateStore()
     private let now: () -> Date
     @FocusState private var isUsageFocused: Bool
 
@@ -62,6 +63,7 @@ struct TodayDashboardCommandOverview: View {
         .padding(.bottom, 20)
         .onChange(of: snapshot) { _, _ in
             snapshotConfirmedAt = now()
+            customEstimateEditorStore.retain(taskIDs: Set(snapshot.taskRows.map(\.taskID)))
         }
         .alert("Switch active task?", isPresented: Binding(
             get: { pendingSwitchTask != nil },
@@ -229,6 +231,7 @@ struct TodayDashboardCommandOverview: View {
                 }
                 if let entry = planEntry(for: row) {
                     TodayEstimateStrip(
+                        customEditor: customEstimateEditorBinding(for: row.taskID),
                         selectedMinutes: entry.estimateMinutes,
                         isUnknown: entry.estimateIsUncertain,
                         taskTitle: row.title,
@@ -504,6 +507,15 @@ struct TodayDashboardCommandOverview: View {
         usageDismissTask = nil
     }
 
+    private func customEstimateEditorBinding(
+        for taskID: String
+    ) -> Binding<CustomEstimateEditorState> {
+        Binding(
+            get: { customEstimateEditorStore[taskID] },
+            set: { customEstimateEditorStore[taskID] = $0 }
+        )
+    }
+
     private var dayMap: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -519,6 +531,7 @@ struct TodayDashboardCommandOverview: View {
             .padding(.bottom, 13)
             ForEach(plannedRows) { row in
                 TodayPlanTaskRow(
+                    customEstimateEditor: customEstimateEditorBinding(for: row.taskID),
                     row: row,
                     entry: planEntry(for: row),
                     gaming: snapshot.gaming,
@@ -1524,6 +1537,7 @@ struct TodayPlanGamingUnlockControlState: Equatable, Sendable {
 
 private struct TodayPlanTaskRow: View {
     @SumiReduceMotion private var reduceMotion
+    @Binding var customEstimateEditor: CustomEstimateEditorState
     let row: TodayTaskRow
     let entry: DailyPlanEntry?
     let gaming: GamingStatus
@@ -1597,6 +1611,7 @@ private struct TodayPlanTaskRow: View {
                             .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).gaming-unlock-condition")
                     }
                     TodayEstimateStrip(
+                        customEditor: $customEstimateEditor,
                         selectedMinutes: entry.estimateMinutes,
                         isUnknown: entry.estimateIsUncertain,
                         taskTitle: row.title,
@@ -1706,6 +1721,7 @@ private struct TodayPlanTaskRow: View {
 
 private struct TodayEstimateStrip: View {
     @SumiReduceMotion private var reduceMotion
+    @Binding var customEditor: CustomEstimateEditorState
     let selectedMinutes: Int?
     let isUnknown: Bool
     let taskTitle: String
@@ -1713,9 +1729,6 @@ private struct TodayEstimateStrip: View {
     let setEstimate: (Int) -> Void
     let setUnknown: () -> Void
     private let options = [15, 30, 45, 60, 90]
-    @State private var isEnteringCustom = false
-    @State private var customMinutes = ""
-    @State private var customError: String?
 
     var body: some View {
         HStack(spacing: 6) {
@@ -1748,39 +1761,25 @@ private struct TodayEstimateStrip: View {
                 .accessibilityLabel("Set \(taskTitle) estimate to unknown and use a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder")
                 .accessibilityValue(isUnknown ? "Selected" : "Not selected")
             Button("CUSTOM") {
-                customMinutes = selectedMinutes.map(String.init) ?? ""
-                customError = nil
-                isEnteringCustom = true
+                customEditor.open(initialMinutes: selectedMinutes)
             }
             .font(Sumi.label(8))
             .sumiLabelTracking()
             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
             .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
             .accessibilityIdentifier("today-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-            if isEnteringCustom {
-                TextField("Minutes", text: $customMinutes)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 78)
-                    .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
-                    .accessibilityIdentifier("today-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-                    .onSubmit(saveCustomEstimate)
-                Button("SAVE", action: saveCustomEstimate)
-                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("today-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-                Button("CANCEL") {
-                    isEnteringCustom = false
-                    customError = nil
-                }
-                .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("today-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-                if let customError {
-                    Text(customError)
-                        .font(Sumi.body(10))
-                        .foregroundStyle(Sumi.sealDeep)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("today-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-                }
+            if customEditor.isPresented {
+                CustomEstimateEditor(
+                    state: $customEditor,
+                    taskTitle: taskTitle,
+                    inputIdentifier: "today-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    saveIdentifier: "today-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    cancelIdentifier: "today-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    errorIdentifier: "today-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    errorFontSize: 10,
+                    persist: setEstimate,
+                    cancel: {}
+                )
             }
             if let selectedMinutes {
                 Text("\(selectedMinutes) MIN SELECTED")
@@ -1801,18 +1800,7 @@ private struct TodayEstimateStrip: View {
             }
         }
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedMinutes)
-        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isEnteringCustom)
-    }
-
-    private func saveCustomEstimate() {
-        switch TaskEstimateInput.parse(customMinutes) {
-        case let .success(minutes):
-            setEstimate(minutes)
-            isEnteringCustom = false
-            customError = nil
-        case let .failure(error):
-            customError = error.message
-        }
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: customEditor.isPresented)
     }
 }
 
