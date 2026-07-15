@@ -84,6 +84,10 @@ assert_runbook_contract() {
         || fail "runbook still targets the unrelated hard-coded bundle identifier"
     grep -Fq 'stop_exact_qa_app() {' <<< "$runbook" \
         || fail "runbook exact QA foreground replacement helper is missing"
+    grep -Fq 'READY_STATE="$REPO/Scripts/prepare-qa-ready-state.py"' <<< "$runbook" \
+        || fail "runbook supported post-onboarding fixture is missing"
+    grep -Fq '"$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace' <<< "$runbook" \
+        || fail "runbook does not establish the post-onboarding Today surface"
     awk '
         /^[[:space:]]*$/ { next }
         /open "\$APP" --args --qa-open-main/ {

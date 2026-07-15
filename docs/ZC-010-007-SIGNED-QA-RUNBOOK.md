@@ -46,6 +46,8 @@ BACKUP="$BACKUP_ROOT/today-snapshot.tsv"
 FIXTURE="$REPO/Scripts/qa-zc010007-unplanned-review-fixture.sh"
 PROBE="$REPO/Scripts/qa-zc010007-unplanned-review-ax-probe.swift"
 PREFLIGHT="$REPO/Scripts/qa-zc010007-signed-preflight.sh"
+READY_STATE="$REPO/Scripts/prepare-qa-ready-state.py"
+READY_MANIFEST="$REPO/Scripts/fixtures/qa-ready-state.example.json"
 APP_EXECUTABLE_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/Info.plist")"
 APP_EXECUTABLE="$APP/Contents/MacOS/$APP_EXECUTABLE_NAME"
 APP_BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw -o - "$APP/Contents/Info.plist")"
@@ -91,8 +93,14 @@ for _ in $(seq 1 50); do
   sleep 0.2
 done
 ! kill -0 "$PID" 2>/dev/null
+"$APP_EXECUTABLE" --qa-unregister-agent
+"$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace
+"$APP_EXECUTABLE" --qa-register-agent
 "$FIXTURE" prepare unused "$DATABASE" "$BACKUP"
 ```
+
+The supported ready-state fixture is required because a fresh isolated package intentionally opens at onboarding.
+It establishes the normal post-onboarding Today surface before the scenario-specific current-day snapshot is written.
 
 ## Prove the complete usable journey
 
