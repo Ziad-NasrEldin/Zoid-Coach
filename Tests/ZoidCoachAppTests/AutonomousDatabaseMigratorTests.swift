@@ -4,6 +4,45 @@ import Testing
 @testable import ZoidCoachInfrastructure
 
 @Test
+func migration50AllowsDeletedReminderPauseReasonWithoutLosingPauseHistory() throws {
+    let databaseURL = temporaryDatabaseURL("v50-deleted-reminder-pause")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (49, '2026-07-14T00:00:00Z');
+    CREATE TABLE task_pause_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK(reason IN ('unspecified', 'break', 'switchingTasks', 'externalInterruption', 'doneForNow', 'endingWorkday', 'blocked')),
+        paused_at TEXT NOT NULL,
+        resumed_at TEXT
+    );
+    CREATE INDEX task_pause_events_task_time ON task_pause_events(task_id, paused_at DESC);
+    CREATE UNIQUE INDEX task_pause_events_one_open ON task_pause_events(task_id) WHERE resumed_at IS NULL;
+    INSERT INTO task_pause_events(task_id, reason, paused_at, resumed_at)
+    VALUES ('existing', 'break', '2026-07-14T08:00:00Z', '2026-07-14T08:05:00Z');
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.previousVersion == 49)
+    #expect(result.appliedVersions == [50])
+    #expect(result.currentVersion == 50)
+    #expect(try scalarText(databaseURL, "SELECT reason FROM task_pause_events WHERE task_id = 'existing';") == "break")
+    try execute(databaseURL, """
+    INSERT INTO task_pause_events(task_id, reason, paused_at, resumed_at)
+    VALUES ('deleted', 'reminderDeleted', '2026-07-14T09:00:00Z', NULL);
+    """)
+    #expect(try scalarText(databaseURL, "SELECT reason FROM task_pause_events WHERE task_id = 'deleted';") == "reminderDeleted")
+    #expect(throws: (any Error).self) {
+        try execute(databaseURL, """
+        INSERT INTO task_pause_events(task_id, reason, paused_at, resumed_at)
+        VALUES ('deleted', 'break', '2026-07-14T09:05:00Z', NULL);
+        """)
+    }
+}
+
+@Test
 func migration49AddsDurableDailyReviewSessionMerges() throws {
     let databaseURL = temporaryDatabaseURL("v49-daily-review-session-merges")
     defer { removeDatabaseFiles(at: databaseURL) }
@@ -17,8 +56,8 @@ func migration49AddsDurableDailyReviewSessionMerges() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 48)
-    #expect(result.appliedVersions == [49])
-    #expect(result.currentVersion == 49)
+    #expect(result.appliedVersions == [49, 50])
+    #expect(result.currentVersion == 50)
     #expect(try tableExists(databaseURL, "daily_review_session_merges"))
     #expect(try columnExists(databaseURL, table: "daily_review_session_merges", column: "left_start_epoch"))
     #expect(try columnExists(databaseURL, table: "daily_review_session_merges", column: "right_start_epoch"))
@@ -40,7 +79,7 @@ func migration46AddsDeletedReminderDecisionHistory() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 45)
-    #expect(result.appliedVersions == [46, 47, 48, 49])
+    #expect(result.appliedVersions == [46, 47, 48, 49, 50])
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try tableExists(databaseURL, "deleted_reminder_decisions"))
     #expect(try columnExists(databaseURL, table: "deleted_reminder_decisions", column: "state"))
@@ -62,7 +101,7 @@ func migration47AddsDurableReviewHypothesisPromotions() throws {
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 46)
-    #expect(result.appliedVersions == [47, 48, 49])
+    #expect(result.appliedVersions == [47, 48, 49, 50])
     #expect(try tableExists(databaseURL, "review_hypothesis_promotions"))
     #expect(try columnExists(databaseURL, table: "review_hypothesis_promotions", column: "candidate_id"))
     #expect(try columnExists(databaseURL, table: "review_hypothesis_promotions", column: "evidence_json"))
@@ -80,7 +119,7 @@ func migration48AddsDurableGamingManualAdjustmentsAfterReviewMigration() throws 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
     #expect(result.previousVersion == 47)
-    #expect(result.appliedVersions == [48, 49])
+    #expect(result.appliedVersions == [48, 49, 50])
     #expect(result.currentVersion == AutonomousDatabaseMigrator.currentVersion)
     #expect(try tableExists(databaseURL, "gaming_manual_adjustments"))
     #expect(try columnExists(databaseURL, table: "gaming_manual_adjustments", column: "request_id"))
@@ -183,7 +222,7 @@ func migration45AddsPromptResolutionMetadataWithoutReclassifyingLegacyDismissals
 
     let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
 
-    #expect(result.appliedVersions == [45, 46, 47, 48, 49])
+    #expect(result.appliedVersions == [45, 46, 47, 48, 49, 50])
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_origin"))
     #expect(try columnExists(databaseURL, table: "prompt_episodes", column: "resolution_reason"))
     #expect(try scalarText(databaseURL, "SELECT state FROM prompt_episodes WHERE id = 'legacy-dismissal';") == "dismissed")
