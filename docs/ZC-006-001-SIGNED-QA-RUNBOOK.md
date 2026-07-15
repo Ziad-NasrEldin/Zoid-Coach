@@ -27,6 +27,8 @@ READY_STATE="$PWD/Scripts/prepare-qa-ready-state.py"
 TEMPLATE="$PWD/Scripts/fixtures/zc-006-001-planning-invitation-ready-state.json"
 FIXTURE="$PWD/Scripts/qa-zc006001-planning-invitation-fixture.sh"
 PROBE="$PWD/Scripts/qa-zc006001-planning-invitation-ax-probe.swift"
+POLICY_READINESS="$PWD/Scripts/qa-zc006001-policy-readiness.sh"
+POLICY_DECODER_SOURCE="$PWD/Scripts/qa-zc006001-policy-decode.swift"
 PREFLIGHT="$PWD/Scripts/qa-zc006001-signed-preflight.sh"
 WORK_ROOT="$(mktemp -d /private/tmp/zoid-666-zc006001-run.XXXXXX)"
 BACKUP_ROOT="$WORK_ROOT/original-root"
@@ -36,6 +38,9 @@ launchctl print "gui/$(id -u)/$(plutil -extract Label raw -o - "$AGENT_PLIST")" 
 "$PREFLIGHT" --self-test
 "$FIXTURE" self-test
 swift "$PROBE" --self-test
+"$POLICY_READINESS" --self-test
+swiftc -package-name ZoidCoach "$PWD"/Sources/ZoidCoachCore/*.swift "$POLICY_DECODER_SOURCE" -o "$WORK_ROOT/policy-decoder"
+POLICY_DECODER="$WORK_ROOT/policy-decoder"
 ```
 
 The full signed commit must descend from current canonical base `361093b4a088c19eee927eaab2b58a40fb3b4c27`, contain refreshed product candidate `c8ea11afe0d479269fa21d697dd63a5f80688019`, and contain the committed verifier files used by this run.
@@ -89,6 +94,14 @@ run_case() {
   preflight_output="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --require-helper-unregistered)"
   pid="$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')"
   test -n "$pid"
+  kill "$pid"
+  while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
+  "$FIXTURE" seed-policy "$BACKUP_ROOT/root/Application Support/Zoid 666/zoid-coach.sqlite" "$DATABASE"
+  open "$APP" --args --qa-open-main
+  preflight_output="$("$PREFLIGHT" "$APP" "$DATABASE" "$EXPECTED_SIGNED_COMMIT" --require-helper-unregistered)"
+  pid="$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')"
+  test -n "$pid"
+  "$POLICY_READINESS" wait "$DATABASE" "$pid" "$(plutil -extract Label raw -o - "$AGENT_PLIST")" "$POLICY_DECODER"
   kill "$pid"
   while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
   "$FIXTURE" configure-boundary "$mode" "$DATABASE"
