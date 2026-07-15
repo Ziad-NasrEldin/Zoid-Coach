@@ -76,6 +76,12 @@ assert_runbook_contract() {
     grep -Fq 'byte-for-byte' <<< "$runbook" || fail "byte restoration acceptance is missing"
     grep -Fq 'planned invitation snoozed dismissed nil active-unplanned' <<< "$runbook" || fail "boundary matrix is incomplete"
     grep -Fq 'Accessibility permission' <<< "$runbook" || fail "accessibility prerequisite is missing"
+    grep -Fq 'APP_BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw -o - "$APP/Contents/Info.plist")"' <<< "$runbook" \
+        || fail "runbook does not bind the installed QA bundle identifier"
+    grep -Fq 'tell application id \"$APP_BUNDLE_ID\" to quit' <<< "$runbook" \
+        || fail "runbook does not quit the bound QA application"
+    ! grep -Fq 'com.zoidcoach.app' <<< "$runbook" \
+        || fail "runbook still targets the unrelated hard-coded bundle identifier"
     awk '
         /^```sh$/ { checking=1; next }
         checking && /^[[:space:]]*$/ { next }
