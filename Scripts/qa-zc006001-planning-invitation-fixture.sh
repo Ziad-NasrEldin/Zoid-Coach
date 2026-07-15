@@ -197,10 +197,10 @@ assert_notification() {
         and ($matching[0].desired.category | endswith("PLAN_READY"))
         and (if $mode == "future"
              then $matching[0].status == "scheduled"
-                  and ($matching[0].desired.deliveryDate > now)
+                  and ($matching[0].desired.deliveryDate > (now - 978307200))
                   and ($matching[0].deliveredAt == null)
              else $matching[0].status == "delivered"
-                  and ($matching[0].desired.deliveryDate == null or $matching[0].desired.deliveryDate <= now)
+                  and ($matching[0].desired.deliveryDate == null or $matching[0].desired.deliveryDate <= (now - 978307200))
              end)
         and ([.audit[] | select(.subsystem == "notifications" and .operation == "schedule")] | length) >= 1
     ' "$state_file" >/dev/null || fail "$mode notification boundary assertion failed"
@@ -223,6 +223,33 @@ self_test() (
     if "$JQ" -e '([.osFixture.reminders[].title] | all(test("private|https?://"; "i") | not))' "$root/private.json" >/dev/null; then
         fail "private-looking Reminder title was accepted"
     fi
+    "$JQ" -n --arg body "$(expected_summary 0)" '{
+        notifications: [{
+            desired: {
+                title: "Planning is available when you are ready",
+                body: $body,
+                category: "PLAN_READY",
+                deliveryDate: 1000000000
+            },
+            status: "scheduled"
+        }],
+        audit: [{subsystem: "notifications", operation: "schedule"}]
+    }' > "$root/future-state.json"
+    assert_notification future zero "$root/future-state.json" >/dev/null
+    "$JQ" -n --arg body "$(expected_summary 1)" '{
+        notifications: [{
+            desired: {
+                title: "Planning is available when you are ready",
+                body: $body,
+                category: "PLAN_READY",
+                deliveryDate: null
+            },
+            status: "delivered",
+            deliveredAt: 1
+        }],
+        audit: [{subsystem: "notifications", operation: "schedule"}]
+    }' > "$root/past-state.json"
+    assert_notification past one "$root/past-state.json" >/dev/null
     local source_database="$root/source.sqlite" target_database="$root/target.sqlite"
     for database in "$source_database" "$target_database"; do
         "$SQLITE3" "$database" <<'SQL'
@@ -237,7 +264,7 @@ SQL
     seed_policy "$source_database" "$target_database" >/dev/null
     [[ "$("$SQLITE3" "$target_database" "SELECT policy_version || '|' || value_json || '|' || updated_at_utc FROM settings WHERE key='user_policy';")" == '7|{"schemaVersion":5}|baseline-time' ]] \
         || fail "policy seed did not preserve baseline bytes and IDs"
-    print -- "PASS: ZC-006-001 fixture self-test covered 0/1/many, uniqueness, and privacy sentinels"
+    print -- "PASS: ZC-006-001 fixture self-test covered 0/1/many, Foundation-date boundaries, uniqueness, and privacy sentinels"
 )
 
 case "$COMMAND" in
