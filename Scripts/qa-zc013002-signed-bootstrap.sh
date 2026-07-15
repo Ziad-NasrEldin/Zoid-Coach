@@ -15,7 +15,7 @@ is_safe_root() { [[ "$1" == /private/tmp/zoid-zc013002-* ]]; }
 
 stop_exact_app() {
     local executable_name="$1" executable="$2" candidate
-    for candidate in ${(f)$(pgrep -x "$executable_name" 2>/dev/null || true)}; do
+    for candidate in $(pgrep -x "$executable_name" 2>/dev/null || true); do
         if [[ "$(lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | head -n 1)" == "$executable" ]]; then
             kill "$candidate"
             for _ in {1..40}; do kill -0 "$candidate" 2>/dev/null || break; sleep 0.1; done
@@ -40,7 +40,7 @@ wait_for_policy_store() {
 wait_for_app_database() {
     local executable_name="$1" executable="$2" database="$3" candidate arguments open_databases
     for _ in {1..200}; do
-        for candidate in ${(f)$(pgrep -x "$executable_name" 2>/dev/null || true)}; do
+        for candidate in $(pgrep -x "$executable_name" 2>/dev/null || true); do
             [[ "$(lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | head -n 1)" == "$executable" ]] || continue
             arguments="$(ps -p "$candidate" -o args= 2>/dev/null || true)"
             [[ "$arguments" == *--qa-open-main* && "$arguments" != *--background-schedule* ]] || continue

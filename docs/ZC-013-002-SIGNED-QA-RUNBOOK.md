@@ -54,7 +54,7 @@ Never point the fixture at the production database or any path outside the ZC-01
 ```zsh
 stop_exact_app() {
   local candidate
-  for candidate in ${(f)$(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true)}; do
+  for candidate in $(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true); do
     if test "$(lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | head -n 1)" = "$APP_EXECUTABLE"; then
       kill "$candidate"
       for _ in {1..40}; do kill -0 "$candidate" 2>/dev/null || break; sleep 0.1; done
@@ -74,7 +74,7 @@ wait_for_quiescence() {
 exact_app_pid() {
   local candidate executable
   for _ in {1..40}; do
-    for candidate in ${(f)$(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true)}; do
+    for candidate in $(pgrep -x "$APP_EXECUTABLE_NAME" 2>/dev/null || true); do
       executable="$(lsof -Fn -a -p "$candidate" -d txt 2>/dev/null | sed -n 's/^n//p' | head -n 1)"
       test "$executable" = "$APP_EXECUTABLE" && { print -- "$candidate"; return 0; }
     done
