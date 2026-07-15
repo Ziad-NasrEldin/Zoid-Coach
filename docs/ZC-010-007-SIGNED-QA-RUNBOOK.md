@@ -103,6 +103,7 @@ for _ in $(seq 1 50); do
 done
 ! pgrep -x ZoidCoachAgentQA >/dev/null
 ! launchctl print "gui/$(id -u)/qa.ziadnasreldin.ZoidCoach.agent" >/dev/null 2>&1
+stop_exact_qa_app
 "$FIXTURE" prepare unused "$DATABASE" "$BACKUP"
 ```
 

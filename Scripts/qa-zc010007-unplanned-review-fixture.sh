@@ -57,6 +57,8 @@ assert_helper_stopped_before_mutation() {
         || fail "exact QA helper must be unregistered before snapshot mutation"
     [[ -z "$(pgrep -x ZoidCoachAgentQA 2>/dev/null || true)" ]] \
         || fail "exact QA helper process must exit before snapshot mutation"
+    [[ -z "$(pgrep -x ZoidCoachQA 2>/dev/null || true)" ]] \
+        || fail "exact QA app process must exit before snapshot mutation"
 }
 
 prepare() {
