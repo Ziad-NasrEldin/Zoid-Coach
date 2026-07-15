@@ -1,7 +1,8 @@
 # ZC-006-002 signed QA runbook
 
 This runbook verifies the first-use-after-inactivity planning invitation in one exact installed signed QA package.
-It proves that the configured time zone and planning time own the missed boundary, an existing valid plan is retained, one privacy-safe invitation is persisted, one notification is due, the checkpoint prevents a duplicate after restart, and the visible app exposes the invitation without task or behavior details.
+It proves that the configured time zone and planning time own the missed boundary, an existing valid plan is retained, one sentinel-safe invitation is persisted, one notification is due, the checkpoint prevents a duplicate after restart, and the visible app exposes the invitation without task or behavior details.
+It then activates the exact visible Work Unplanned action and proves its durable response, applied effect, immediate feedback, no-drift copy, and ordinary-relaunch state.
 It does not justify a Full claim by itself.
 
 Do not run the signed journey without an orchestration runtime lease.
@@ -129,7 +130,7 @@ done
 test -n "$preflight_output"
 printf '%s\n' "$preflight_output"
 APP_PID="$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')"
-swift "$PROBE" --pid "$APP_PID"
+swift "$PROBE" --pid "$APP_PID" --phase invitation
 before_restart_count="$(sqlite3 "$DATABASE" "SELECT COUNT(*) FROM prompt_episodes WHERE prompt_type='PLAN_READY';")"
 "$APP_EXECUTABLE" --qa-unregister-agent
 "$APP_EXECUTABLE" --qa-register-agent
@@ -138,11 +139,32 @@ after_restart_count="$(sqlite3 "$DATABASE" "SELECT COUNT(*) FROM prompt_episodes
 test "$before_restart_count" = 1
 test "$after_restart_count" = 1
 "$FIXTURE" assert-database "$DATABASE" "$EXPECTED_LOCAL_DAY"
+swift "$PROBE" --pid "$APP_PID" --phase invitation
+swift "$PROBE" --pid "$APP_PID" --phase work-unplanned
+"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY"
+kill "$APP_PID"
+while kill -0 "$APP_PID" 2>/dev/null; do sleep 0.1; done
+open "$APP" --args --qa-open-main
+preflight_output=""
+for _ in {1..60}; do
+  if preflight_output="$("$PREFLIGHT" "$APP" "$EXPECTED_SIGNED_COMMIT" 2>/dev/null)"; then
+    break
+  fi
+  sleep 0.2
+done
+test -n "$preflight_output"
+printf '%s\n' "$preflight_output"
+APP_PID="$(printf '%s\n' "$preflight_output" | sed -n 's/^APP_PID=//p')"
+swift "$PROBE" --pid "$APP_PID" --phase unplanned
+"$FIXTURE" assert-work-unplanned "$DATABASE" "$EXPECTED_LOCAL_DAY"
 ```
 
-The database assertion requires one unresolved canonical invitation, the exact configured local day, one successful nightly checkpoint with the missed heartbeat, the stable dismissal contract, and no private sentinel.
+The initial database assertion requires one unresolved canonical invitation, the exact configured local day, one successful nightly checkpoint with the missed heartbeat, the stable dismissal contract, and no private sentinel.
 The restart assertion rejects a second prompt.
-The native Accessibility probe binds the exact foreground PID and requires the low-pressure invitation language without task or behavior evidence.
+The native Accessibility probe binds the exact foreground PID and main window, requires the low-pressure invitation language without fixture sentinels, and presses exactly one Work Unplanned control.
+The action assertion requires one answered invitation, one dashboard Work Unplanned response, one applied effect, no unresolved invitation, and the original recovered checkpoint.
+The immediate UI must show Limited Unplanned Mode, the saved-action confirmation, and the no-drift contract.
+An ordinary app quit and relaunch must restore the same sentinel-safe unplanned and no-drift state without the invitation or Work Unplanned action.
 
 ## Restore exactly
 
@@ -165,5 +187,5 @@ fi
 rm -rf -- "$WORK_ROOT"
 ```
 
-Record the exact signed commit, package verification output, app PID, helper PID, configured boundary output, checkpoint row, prompt count before and after restart, notification assertion, AX assertion, and byte-restoration comparison in immutable evidence.
+Record the exact signed commit, package verification output, app PID, helper PID, configured boundary output, checkpoint row, prompt count before and after restart, notification assertion, action response and effect, immediate and relaunched AX assertions, and byte-restoration comparison in immutable evidence.
 Do not update the tracker or registry from builder or static evidence.
