@@ -861,6 +861,11 @@ private func assertInvalidResult(
     guard let expectedError = estimateCase.expectedError else {
         throw ProbeError.failure("invalid assertion received a valid case")
     }
+    var lastValue = "<field missing>"
+    var lastFocused = false
+    var lastHasError = false
+    var lastHasSave = false
+    var lastHasCancel = false
     for _ in 0..<maximumPolls {
         let current = try snapshot(in: window)
         guard let field = visibleElement(
@@ -874,9 +879,16 @@ private func assertInvalidResult(
         }
         let hasError = current.strings.contains(where: { exactAXText($0, expectedError) })
         let value = string(field, kAXValueAttribute as CFString) ?? ""
-        if hasError, value == estimateCase.input, bool(field, kAXFocusedAttribute as CFString) == true {
-            guard current.strings.contains(where: { exactAXText($0, "SAVE") }),
-                  current.strings.contains(where: { exactAXText($0, "CANCEL") }) else {
+        let focused = bool(field, kAXFocusedAttribute as CFString) == true
+        let hasSave = current.strings.contains(where: { exactAXText($0, "SAVE") })
+        let hasCancel = current.strings.contains(where: { exactAXText($0, "CANCEL") })
+        lastValue = value
+        lastFocused = focused
+        lastHasError = hasError
+        lastHasSave = hasSave
+        lastHasCancel = hasCancel
+        if hasError, value == estimateCase.input, focused {
+            guard hasSave, hasCancel else {
                 throw ProbeError.failure("invalid estimate did not keep correction controls available")
             }
             guard !current.strings.contains(where: { exactAXText($0, "Time estimate confirmed: 25 MIN") }) else {
@@ -886,7 +898,11 @@ private func assertInvalidResult(
         }
         usleep(100_000)
     }
-    throw ProbeError.failure("invalid estimate did not retain exact input, focus, and corrective error copy")
+    throw ProbeError.failure(
+        "invalid estimate result mismatch: expectedValue=\(String(reflecting: estimateCase.input)) "
+            + "observedValue=\(String(reflecting: lastValue)) focused=\(lastFocused) "
+            + "error=\(lastHasError) save=\(lastHasSave) cancel=\(lastHasCancel)"
+    )
 }
 
 private func assertValidResult(
