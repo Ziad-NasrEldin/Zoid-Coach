@@ -4,8 +4,8 @@ set -euo pipefail
 
 readonly ROOT="${0:A:h:h}"
 readonly CANONICAL_BASE="8b1782c6ee2c213a408360554f19bf231b0f3e19"
-readonly REVIEWED_PATCH_COUNT=13
-readonly TOTAL_LINEAGE_COMMIT_COUNT=14
+readonly REVIEWED_PATCH_COUNT=15
+readonly TOTAL_LINEAGE_COMMIT_COUNT=16
 
 readonly -a REQUIRED_PATCH_IDS=(
     56b15769cc032446b10cd2a37e03b72769df67c6
@@ -21,12 +21,14 @@ readonly -a REQUIRED_PATCH_IDS=(
     b9cd8ba1869ba198c3f1d97ec8d8b823fc350821
     8e3149e9d5881ec0ca6fec152da57a9942b96960
     9f8c25b27bc7be031b52412f58ae4f7327d36967
+    0571aa825dfcd4a8112bb5e2c608e1dc95f24996
+    c45f129f26b01af20b230ccbcaf6099fee926876
 )
 
 readonly -a REQUIRED_BLOBS=(
     "695a37111ff8c120b6bb891ad916129bd8718201:Scripts/qa-zc013001-day-state-fixture.sh"
     "3bff01d0f0ed11d1439a65cddfbae8ef5d717d68:Scripts/qa-zc013001-runbook-self-test.sh"
-    "9612a7787e3c25ada2a0be85ba66080348b03272:Sources/ZoidCoachApp/AppModel.swift"
+    "008421a3040e08cf5ec330db018008d16c55b034:Sources/ZoidCoachApp/AppModel.swift"
     "7cd6443547efe6f2db659e84dd6f9a4a3c8c2719:Sources/ZoidCoachApp/MenuBarCoachView.swift"
     "cdda965919644e308180f55eeb804fa515cf49d0:Sources/ZoidCoachApp/ReadOnlyTodaySnapshotLoader.swift"
     "99e92ff5f892d46bcd44551952046602eb5f5aab:Sources/ZoidCoachApp/Views/DashboardView.swift"
@@ -34,7 +36,7 @@ readonly -a REQUIRED_BLOBS=(
     "7e38728c1a53c309136d403c2b57f3160ca863bc:Sources/ZoidCoachApp/Views/TodayDayStateHeader.swift"
     "61b0c4c6fa51f8863cd7d5e3a86d9edd4abcb424:Tests/ZoidCoachAppTests/MenuBarCoachTests.swift"
     "6613f0cc0f21047f38c1a3a76fb8fb7ebdfb018b:Tests/ZoidCoachAppTests/TodayDayStatePresentationTests.swift"
-    "0a914c124215dbf1020f8b1d9f10f337e5f9ab57:Tests/ZoidCoachAppTests/TodaySnapshotOwnershipTests.swift"
+    "47524d16fdec4a88da1d93419a12ba35942a1d2a:Tests/ZoidCoachAppTests/TodaySnapshotOwnershipTests.swift"
     "7ecb431ef3e3856374b067a5c44eb3abcc4a6f60:Scripts/qa-zc013001-day-state-ax-probe.swift"
     "f650b7f2948cbf3addbd9f421e397f98c443c3b9:docs/ZC-013-001-SIGNED-QA-RUNBOOK.md"
 )
@@ -58,7 +60,6 @@ readonly -a INTENDED_PATHS=(
 
 readonly -a HEAD_MAINTENANCE_PATHS=(
     Scripts/qa-zc013001-lineage-preflight.sh
-    Tests/ZoidCoachAppTests/MenuBarCoachTests.swift
 )
 
 fail() {
