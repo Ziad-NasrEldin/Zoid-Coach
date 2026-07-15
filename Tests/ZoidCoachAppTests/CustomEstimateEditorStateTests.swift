@@ -72,6 +72,98 @@ struct CustomEstimateEditorStateTests {
         #expect(today.validationMessage == nil)
     }
 
+    @Test
+    func invalidReturnSurvivesTodayStripRemountByTaskIdentity() {
+        let taskID = "task-a"
+        let exactDraft = " \u{00A0}\u{2003}"
+        var store = CustomEstimateEditorStateStore()
+        var persisted: [Int] = []
+        var mounted = store[taskID]
+        mounted.open(initialMinutes: nil)
+        mounted.input = exactDraft
+        let presentationID = mounted.presentationID
+        let focusRequest = mounted.focusRequest
+
+        #expect(!mounted.submit { persisted.append($0) })
+        store[taskID] = mounted
+
+        let remounted = store[taskID]
+        #expect(remounted.isPresented)
+        #expect(remounted.input == exactDraft)
+        #expect(remounted.validationMessage == "Enter an estimate in minutes.")
+        #expect(remounted.focusRequest == focusRequest + 1)
+        #expect(remounted.presentationID == presentationID)
+        #expect(persisted.isEmpty)
+    }
+
+    @Test
+    func todayEditorStateIsIndependentByTaskAndFromDashboardSurface() {
+        var todayStore = CustomEstimateEditorStateStore()
+        var todayTaskA = todayStore["task-a"]
+        todayTaskA.open(initialMinutes: nil)
+        todayTaskA.input = "0"
+        _ = todayTaskA.submit { _ in Issue.record("invalid Today value persisted") }
+        todayStore["task-a"] = todayTaskA
+
+        var dashboard = CustomEstimateEditorState()
+        dashboard.open(initialMinutes: 60)
+        dashboard.input = " 90 "
+
+        #expect(todayStore["task-a"].validationMessage != nil)
+        #expect(!todayStore["task-b"].isPresented)
+        #expect(todayStore["task-b"].input.isEmpty)
+        #expect(dashboard.isPresented)
+        #expect(dashboard.input == " 90 ")
+        #expect(dashboard.validationMessage == nil)
+    }
+
+    @Test
+    func cancelAndSuccessRemoveTodayStateWithoutLeakingOnReopen() {
+        let taskID = "task-a"
+        var store = CustomEstimateEditorStateStore()
+        var cancelled = store[taskID]
+        cancelled.open(initialMinutes: nil)
+        cancelled.input = "0"
+        _ = cancelled.submit { _ in Issue.record("invalid value persisted") }
+        store[taskID] = cancelled
+        cancelled.cancel()
+        store[taskID] = cancelled
+
+        #expect(!store.contains(taskID))
+        #expect(store[taskID].input.isEmpty)
+        #expect(store[taskID].validationMessage == nil)
+
+        var reopened = store[taskID]
+        reopened.open(initialMinutes: nil)
+        reopened.input = " 25 "
+        store[taskID] = reopened
+        var remounted = store[taskID]
+        var persisted: [Int] = []
+        #expect(remounted.submit { persisted.append($0) })
+        store[taskID] = remounted
+
+        #expect(persisted == [25])
+        #expect(!store.contains(taskID))
+        #expect(!store[taskID].isPresented)
+        #expect(store[taskID].input.isEmpty)
+        #expect(store[taskID].validationMessage == nil)
+    }
+
+    @Test
+    func disappearingTaskRemovesOnlyItsTodayEditorState() {
+        var store = CustomEstimateEditorStateStore()
+        for taskID in ["task-a", "task-b"] {
+            var state = store[taskID]
+            state.open(initialMinutes: nil)
+            store[taskID] = state
+        }
+
+        store.retain(taskIDs: ["task-b"])
+
+        #expect(!store.contains("task-a"))
+        #expect(store.contains("task-b"))
+    }
+
     @MainActor
     @Test(arguments: [
         UInt16(36),

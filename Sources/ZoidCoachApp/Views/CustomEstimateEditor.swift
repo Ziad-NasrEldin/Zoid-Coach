@@ -38,6 +38,29 @@ struct CustomEstimateEditorState: Equatable {
     }
 }
 
+struct CustomEstimateEditorStateStore {
+    private var states: [String: CustomEstimateEditorState] = [:]
+
+    subscript(taskID: String) -> CustomEstimateEditorState {
+        get { states[taskID] ?? CustomEstimateEditorState() }
+        set {
+            if newValue.isPresented {
+                states[taskID] = newValue
+            } else {
+                states.removeValue(forKey: taskID)
+            }
+        }
+    }
+
+    func contains(_ taskID: String) -> Bool {
+        states[taskID] != nil
+    }
+
+    mutating func retain(taskIDs: Set<String>) {
+        states = states.filter { taskIDs.contains($0.key) }
+    }
+}
+
 struct CustomEstimateEditor: View {
     @Binding var state: CustomEstimateEditorState
     let taskTitle: String
