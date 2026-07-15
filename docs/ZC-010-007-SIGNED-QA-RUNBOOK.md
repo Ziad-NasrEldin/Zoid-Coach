@@ -96,11 +96,19 @@ done
 "$APP_EXECUTABLE" --qa-unregister-agent
 "$READY_STATE" "$READY_MANIFEST" "$QA_ROOT" --replace
 "$APP_EXECUTABLE" --qa-register-agent
+"$APP_EXECUTABLE" --qa-unregister-agent
+for _ in $(seq 1 50); do
+  ! pgrep -x ZoidCoachAgentQA >/dev/null && break
+  sleep 0.2
+done
+! pgrep -x ZoidCoachAgentQA >/dev/null
+! launchctl print "gui/$(id -u)/qa.ziadnasreldin.ZoidCoach.agent" >/dev/null 2>&1
 "$FIXTURE" prepare unused "$DATABASE" "$BACKUP"
 ```
 
 The supported ready-state fixture is required because a fresh isolated package intentionally opens at onboarding.
 It establishes the normal post-onboarding Today surface before the scenario-specific current-day snapshot is written.
+The signed helper registration, XPC timeline, and heartbeat are proven first, then the exact QA helper remains unregistered throughout every synthetic snapshot phase.
 
 ## Prove the complete usable journey
 

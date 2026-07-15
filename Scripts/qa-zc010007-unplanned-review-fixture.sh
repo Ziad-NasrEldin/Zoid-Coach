@@ -9,6 +9,7 @@ readonly BACKUP="${4:-}"
 readonly LOCAL_DAY="${5:-$(date +%F)}"
 readonly PRIVATE_TITLE="qa-zc010007-private-window-title"
 readonly PRIVATE_URL="https://qa-zc010007-private.invalid/client"
+readonly AGENT_LABEL="qa.ziadnasreldin.ZoidCoach.agent"
 
 fail() {
     print -u2 -- "FAIL: $*"
@@ -51,7 +52,15 @@ COMMIT;
 SQL
 }
 
+assert_helper_stopped_before_mutation() {
+    ! launchctl print "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1 \
+        || fail "exact QA helper must be unregistered before snapshot mutation"
+    [[ -z "$(pgrep -x ZoidCoachAgentQA 2>/dev/null || true)" ]] \
+        || fail "exact QA helper process must exit before snapshot mutation"
+}
+
 prepare() {
+    assert_helper_stopped_before_mutation
     validate_schema
     [[ ! -e "$BACKUP" ]] || fail "refusing to replace existing backup: $BACKUP"
     assert_scalar "SELECT COUNT(*) FROM today_snapshots WHERE day_key='$LOCAL_DAY' AND json_valid(CAST(payload AS TEXT));" "1" "valid current-day snapshot"
@@ -64,6 +73,7 @@ prepare() {
 }
 
 set_state() {
+    assert_helper_stopped_before_mutation
     local mode active_task main_objective remove_planning=0
     case "$STATE" in
         unplanned)
@@ -128,6 +138,7 @@ SQL
 }
 
 assert_state() {
+    assert_helper_stopped_before_mutation
     validate_schema
     assert_scalar "SELECT COUNT(*) FROM today_snapshots WHERE day_key='$LOCAL_DAY' AND json_valid(CAST(payload AS TEXT));" "1" "valid fixture snapshot"
     assert_scalar "SELECT instr(json_extract(CAST(payload AS TEXT),'$.coverage.explanation'),'$PRIVATE_TITLE') > 0 FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "1" "decoded private title sentinel"
@@ -155,6 +166,7 @@ assert_state() {
 }
 
 cleanup() {
+    assert_helper_stopped_before_mutation
     validate_schema
     restore_snapshot
     assert_scalar "SELECT hex(payload) FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "$BACKUP_HEX" "exact payload restoration"
@@ -188,6 +200,21 @@ SQL
         "$SCRIPT_PATH" set "$state" "$database" "$backup" "$day"
         "$SCRIPT_PATH" assert "$state" "$database" "$backup" "$day"
     done
+    sqlite3 "$database" <<'SQL'
+UPDATE today_snapshots
+SET payload=CAST(json_set(
+    CAST(payload AS TEXT),
+    '$.planningStatus.mode', 'invitation',
+    '$.coverage.isLimited', json('true'),
+    '$.coverage.explanation', 'Limited coverage: simulated active helper refresh.'
+) AS BLOB)
+WHERE day_key='2026-07-15';
+SQL
+    if "$SCRIPT_PATH" assert active-unplanned "$database" "$backup" "$day" >/dev/null 2>&1; then
+        fail "active helper overwrite did not invalidate the private sentinel assertion"
+    fi
+    print -- "PASS: simulated active helper refresh overwrites and invalidates private sentinels"
+    "$SCRIPT_PATH" set active-unplanned "$database" "$backup" "$day"
     "$SCRIPT_PATH" cleanup unused "$database" "$backup" "$day"
     [[ ! -e "$backup" ]] || fail "self-test backup remains after cleanup"
     rm -rf "$root"
