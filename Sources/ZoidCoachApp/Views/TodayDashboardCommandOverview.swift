@@ -232,6 +232,11 @@ struct TodayDashboardCommandOverview: View {
                 if let entry = planEntry(for: row) {
                     TodayEstimateStrip(
                         customEditor: customEstimateEditorBinding(for: row.taskID),
+                        hostPath: "focus",
+                        registerHost: { registerCustomEstimateHost(path: "focus", instanceID: $0, taskID: row.taskID) },
+                        unregisterHost: { unregisterCustomEstimateHost(path: "focus", instanceID: $0, taskID: row.taskID) },
+                        activateHost: { activateCustomEstimateHost(path: "focus", instanceID: $0, taskID: row.taskID) },
+                        isActiveHost: { isActiveCustomEstimateHost(path: "focus", instanceID: $0, taskID: row.taskID) },
                         selectedMinutes: entry.estimateMinutes,
                         isUnknown: entry.estimateIsUncertain,
                         taskTitle: row.title,
@@ -516,6 +521,54 @@ struct TodayDashboardCommandOverview: View {
         )
     }
 
+    private func registerCustomEstimateHost(
+        path: String,
+        instanceID: UUID,
+        taskID: String
+    ) {
+        customEstimateEditorStore.registerHost(
+            path: path,
+            instanceID: instanceID,
+            taskID: taskID
+        )
+    }
+
+    private func unregisterCustomEstimateHost(
+        path: String,
+        instanceID: UUID,
+        taskID: String
+    ) {
+        customEstimateEditorStore.unregisterHost(
+            path: path,
+            instanceID: instanceID,
+            taskID: taskID
+        )
+    }
+
+    private func activateCustomEstimateHost(
+        path: String,
+        instanceID: UUID,
+        taskID: String
+    ) {
+        customEstimateEditorStore.activateHost(
+            path: path,
+            instanceID: instanceID,
+            taskID: taskID
+        )
+    }
+
+    private func isActiveCustomEstimateHost(
+        path: String,
+        instanceID: UUID,
+        taskID: String
+    ) -> Bool {
+        customEstimateEditorStore.isActiveHost(
+            path: path,
+            instanceID: instanceID,
+            taskID: taskID
+        )
+    }
+
     private var dayMap: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -532,6 +585,18 @@ struct TodayDashboardCommandOverview: View {
             ForEach(plannedRows) { row in
                 TodayPlanTaskRow(
                     customEstimateEditor: customEstimateEditorBinding(for: row.taskID),
+                    registerCustomEstimateHost: { path, instanceID in
+                        registerCustomEstimateHost(path: path, instanceID: instanceID, taskID: row.taskID)
+                    },
+                    unregisterCustomEstimateHost: { path, instanceID in
+                        unregisterCustomEstimateHost(path: path, instanceID: instanceID, taskID: row.taskID)
+                    },
+                    activateCustomEstimateHost: { path, instanceID in
+                        activateCustomEstimateHost(path: path, instanceID: instanceID, taskID: row.taskID)
+                    },
+                    isActiveCustomEstimateHost: { path, instanceID in
+                        isActiveCustomEstimateHost(path: path, instanceID: instanceID, taskID: row.taskID)
+                    },
                     row: row,
                     entry: planEntry(for: row),
                     gaming: snapshot.gaming,
@@ -1538,6 +1603,10 @@ struct TodayPlanGamingUnlockControlState: Equatable, Sendable {
 private struct TodayPlanTaskRow: View {
     @SumiReduceMotion private var reduceMotion
     @Binding var customEstimateEditor: CustomEstimateEditorState
+    let registerCustomEstimateHost: (String, UUID) -> Void
+    let unregisterCustomEstimateHost: (String, UUID) -> Void
+    let activateCustomEstimateHost: (String, UUID) -> Void
+    let isActiveCustomEstimateHost: (String, UUID) -> Bool
     let row: TodayTaskRow
     let entry: DailyPlanEntry?
     let gaming: GamingStatus
@@ -1612,6 +1681,11 @@ private struct TodayPlanTaskRow: View {
                     }
                     TodayEstimateStrip(
                         customEditor: $customEstimateEditor,
+                        hostPath: "plan",
+                        registerHost: { registerCustomEstimateHost("plan", $0) },
+                        unregisterHost: { unregisterCustomEstimateHost("plan", $0) },
+                        activateHost: { activateCustomEstimateHost("plan", $0) },
+                        isActiveHost: { isActiveCustomEstimateHost("plan", $0) },
                         selectedMinutes: entry.estimateMinutes,
                         isUnknown: entry.estimateIsUncertain,
                         taskTitle: row.title,
@@ -1722,6 +1796,11 @@ private struct TodayPlanTaskRow: View {
 private struct TodayEstimateStrip: View {
     @SumiReduceMotion private var reduceMotion
     @Binding var customEditor: CustomEstimateEditorState
+    let hostPath: String
+    let registerHost: (UUID) -> Void
+    let unregisterHost: (UUID) -> Void
+    let activateHost: (UUID) -> Void
+    let isActiveHost: (UUID) -> Bool
     let selectedMinutes: Int?
     let isUnknown: Bool
     let taskTitle: String
@@ -1729,6 +1808,7 @@ private struct TodayEstimateStrip: View {
     let setEstimate: (Int) -> Void
     let setUnknown: () -> Void
     private let options = [15, 30, 45, 60, 90]
+    @State private var hostInstanceID = UUID()
 
     var body: some View {
         HStack(spacing: 6) {
@@ -1761,6 +1841,7 @@ private struct TodayEstimateStrip: View {
                 .accessibilityLabel("Set \(taskTitle) estimate to unknown and use a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder")
                 .accessibilityValue(isUnknown ? "Selected" : "Not selected")
             Button("CUSTOM") {
+                activateHost(hostInstanceID)
                 customEditor.open(initialMinutes: selectedMinutes)
             }
             .font(Sumi.label(8))
@@ -1768,7 +1849,7 @@ private struct TodayEstimateStrip: View {
             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
             .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
             .accessibilityIdentifier("today-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
-            if customEditor.isPresented {
+            if customEditor.isPresented && isActiveHost(hostInstanceID) {
                 CustomEstimateEditor(
                     state: $customEditor,
                     taskTitle: taskTitle,
@@ -1801,6 +1882,8 @@ private struct TodayEstimateStrip: View {
         }
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedMinutes)
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: customEditor.isPresented)
+        .onAppear { registerHost(hostInstanceID) }
+        .onDisappear { unregisterHost(hostInstanceID) }
     }
 }
 

@@ -164,6 +164,55 @@ struct CustomEstimateEditorStateTests {
         #expect(store.contains("task-b"))
     }
 
+    @Test
+    func onlyLatestInstanceOfActivatedTodayHostCanRenderEditor() {
+        let taskID = "task-a"
+        let focusInstance = UUID()
+        let planInstance = UUID()
+        let stalePlanInstance = UUID()
+        var store = CustomEstimateEditorStateStore()
+        var state = store[taskID]
+        state.open(initialMinutes: nil)
+        store[taskID] = state
+        store.registerHost(path: "focus", instanceID: focusInstance, taskID: taskID)
+        store.registerHost(path: "plan", instanceID: stalePlanInstance, taskID: taskID)
+        store.activateHost(path: "plan", instanceID: stalePlanInstance, taskID: taskID)
+
+        #expect(!store.isActiveHost(path: "focus", instanceID: focusInstance, taskID: taskID))
+        #expect(store.isActiveHost(path: "plan", instanceID: stalePlanInstance, taskID: taskID))
+
+        store.registerHost(path: "plan", instanceID: planInstance, taskID: taskID)
+
+        #expect(!store.isActiveHost(path: "plan", instanceID: stalePlanInstance, taskID: taskID))
+        #expect(store.isActiveHost(path: "plan", instanceID: planInstance, taskID: taskID))
+        #expect(store[taskID] == state)
+    }
+
+    @Test
+    func staleTodayHostCannotUnregisterOrReactivateCurrentRemount() {
+        let taskID = "task-a"
+        let staleInstance = UUID()
+        let remountedInstance = UUID()
+        var store = CustomEstimateEditorStateStore()
+        var state = store[taskID]
+        state.open(initialMinutes: nil)
+        state.input = "   "
+        _ = state.submit { _ in Issue.record("invalid value persisted") }
+        store[taskID] = state
+        store.registerHost(path: "plan", instanceID: staleInstance, taskID: taskID)
+        store.activateHost(path: "plan", instanceID: staleInstance, taskID: taskID)
+        store.registerHost(path: "plan", instanceID: remountedInstance, taskID: taskID)
+        store.unregisterHost(path: "plan", instanceID: staleInstance, taskID: taskID)
+
+        #expect(store.isActiveHost(path: "plan", instanceID: remountedInstance, taskID: taskID))
+        #expect(!store.isActiveHost(path: "plan", instanceID: staleInstance, taskID: taskID))
+        #expect(store[taskID].isPresented)
+        #expect(store[taskID].input == "   ")
+        #expect(store[taskID].validationMessage == "Enter an estimate in minutes.")
+        #expect(store[taskID].focusRequest == state.focusRequest)
+        #expect(store[taskID].presentationID == state.presentationID)
+    }
+
     @MainActor
     @Test(arguments: [
         UInt16(36),

@@ -39,7 +39,13 @@ struct CustomEstimateEditorState: Equatable {
 }
 
 struct CustomEstimateEditorStateStore {
+    private struct HostOwnership {
+        var activePath: String?
+        var currentInstances: [String: UUID] = [:]
+    }
+
     private var states: [String: CustomEstimateEditorState] = [:]
+    private var hosts: [String: HostOwnership] = [:]
 
     subscript(taskID: String) -> CustomEstimateEditorState {
         get { states[taskID] ?? CustomEstimateEditorState() }
@@ -48,6 +54,7 @@ struct CustomEstimateEditorStateStore {
                 states[taskID] = newValue
             } else {
                 states.removeValue(forKey: taskID)
+                hosts.removeValue(forKey: taskID)
             }
         }
     }
@@ -58,6 +65,26 @@ struct CustomEstimateEditorStateStore {
 
     mutating func retain(taskIDs: Set<String>) {
         states = states.filter { taskIDs.contains($0.key) }
+        hosts = hosts.filter { taskIDs.contains($0.key) }
+    }
+
+    mutating func registerHost(path: String, instanceID: UUID, taskID: String) {
+        hosts[taskID, default: HostOwnership()].currentInstances[path] = instanceID
+    }
+
+    mutating func unregisterHost(path: String, instanceID: UUID, taskID: String) {
+        guard hosts[taskID]?.currentInstances[path] == instanceID else { return }
+        hosts[taskID]?.currentInstances.removeValue(forKey: path)
+    }
+
+    mutating func activateHost(path: String, instanceID: UUID, taskID: String) {
+        hosts[taskID, default: HostOwnership()].activePath = path
+        hosts[taskID]?.currentInstances[path] = instanceID
+    }
+
+    func isActiveHost(path: String, instanceID: UUID, taskID: String) -> Bool {
+        hosts[taskID]?.activePath == path
+            && hosts[taskID]?.currentInstances[path] == instanceID
     }
 }
 
