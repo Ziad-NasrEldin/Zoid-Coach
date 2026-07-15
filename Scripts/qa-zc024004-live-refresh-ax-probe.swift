@@ -1,6 +1,7 @@
 #!/usr/bin/env swift
 
 import ApplicationServices
+import AppKit
 import Foundation
 
 private enum ProbeError: Error { case failure(String) }
@@ -95,6 +96,38 @@ private func navigationPollDecision(
 ) -> NavigationPollDecision {
     if isVisible { return .success }
     return attempt < maximumAttempts ? .retry : .timeout
+}
+
+private enum ActivationTarget { case foreground, finderBackground }
+private enum ActivationPollResult: Equatable { case success, retry, timeout, pidExited }
+private struct ActivationObservation {
+    let pidAlive: Bool
+    let appIsActive: Bool
+    let frontmostPID: Int32?
+    let frontmostBundleIdentifier: String?
+}
+private struct ActivationPollMachine {
+    let appPID: Int32
+    let target: ActivationTarget
+    let maximumAttempts: Int
+    let requiredStableSamples: Int
+    private(set) var stableSamples = 0
+
+    mutating func consume(_ observation: ActivationObservation, attempt: Int) -> ActivationPollResult {
+        guard observation.pidAlive else { return .pidExited }
+        let matches: Bool
+        switch target {
+        case .foreground:
+            matches = observation.appIsActive && observation.frontmostPID == appPID
+        case .finderBackground:
+            matches = !observation.appIsActive
+                && observation.frontmostPID != appPID
+                && observation.frontmostBundleIdentifier == "com.apple.finder"
+        }
+        stableSamples = matches ? stableSamples + 1 : 0
+        if stableSamples >= requiredStableSamples { return .success }
+        return attempt < maximumAttempts ? .retry : .timeout
+    }
 }
 
 private func destinationMarkerMatches(
@@ -196,6 +229,36 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
     var timeout = TodayScrollMachine(maximumSteps: 1)
     var ambiguous = TodayScrollMachine(maximumSteps: 3)
     var staleTree = TodayScrollMachine(maximumSteps: 3)
+    var finderSettled = ActivationPollMachine(
+        appPID: 42,
+        target: .finderBackground,
+        maximumAttempts: 4,
+        requiredStableSamples: 3
+    )
+    var immediateRace = ActivationPollMachine(
+        appPID: 42,
+        target: .finderBackground,
+        maximumAttempts: 4,
+        requiredStableSamples: 3
+    )
+    var zoidStillFrontmost = ActivationPollMachine(
+        appPID: 42,
+        target: .finderBackground,
+        maximumAttempts: 0,
+        requiredStableSamples: 3
+    )
+    var exitedApplication = ActivationPollMachine(
+        appPID: 42,
+        target: .finderBackground,
+        maximumAttempts: 4,
+        requiredStableSamples: 3
+    )
+    let finderBackground = ActivationObservation(
+        pidAlive: true,
+        appIsActive: false,
+        frontmostPID: 7,
+        frontmostBundleIdentifier: "com.apple.finder"
+    )
     var scrollbarWrites: [Double] = []
     let scrollbarStep = performTodayScrollStep(
         todayScrollStep(
@@ -260,6 +323,27 @@ if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
           !destinationMarkerMatches("Settings", identifier: "settings.policyStatus", labels: []),
           destinationMarkerMatches("Today", identifier: "today.day-state", labels: []),
           destinationMarkerMatches("Today", identifier: nil, labels: ["TODAY / INBOX"]),
+          immediateRace.consume(.init(
+              pidAlive: true,
+              appIsActive: true,
+              frontmostPID: 7,
+              frontmostBundleIdentifier: "com.apple.finder"
+          ), attempt: 0) == .retry,
+          finderSettled.consume(finderBackground, attempt: 0) == .retry,
+          finderSettled.consume(finderBackground, attempt: 1) == .retry,
+          finderSettled.consume(finderBackground, attempt: 2) == .success,
+          zoidStillFrontmost.consume(.init(
+              pidAlive: true,
+              appIsActive: true,
+              frontmostPID: 42,
+              frontmostBundleIdentifier: "qa.ziadnasreldin.ZoidCoach"
+          ), attempt: 0) == .timeout,
+          exitedApplication.consume(.init(
+              pidAlive: false,
+              appIsActive: false,
+              frontmostPID: 7,
+              frontmostBundleIdentifier: "com.apple.finder"
+          ), attempt: 0) == .pidExited,
           scrollbarStep,
           scrollbarWrites == [0.5],
           isExternalEvidenceRoot(URL(fileURLWithPath: "/private/tmp/evidence"), repository: URL(fileURLWithPath: "/repo")),
@@ -304,7 +388,7 @@ private func parseArguments() throws -> Arguments {
     guard rawRoot.hasPrefix("/"), isExternalEvidenceRoot(root, repository: repositoryRoot) else {
         throw ProbeError.failure("evidence root must be an absolute path outside the repository")
     }
-    guard ["capture", "expect-change", "expect-stable", "expect-restore", "navigate-settings", "navigate-today", "window"].contains(command) else {
+    guard ["capture", "expect-change", "expect-stable", "expect-restore", "navigate-settings", "navigate-today", "wait-active", "wait-inactive", "window"].contains(command) else {
         throw ProbeError.failure("unsupported AX probe command")
     }
     for name in [output, from].compactMap({ $0 }) {
@@ -664,12 +748,44 @@ private func navigate(_ destination: String, in window: AXUIElement) throws {
     }
 }
 
+private func waitForApplicationActivation(expectedActive: Bool) throws {
+    let maximumAttempts = 40
+    var machine = ActivationPollMachine(
+        appPID: args.pid,
+        target: expectedActive ? .foreground : .finderBackground,
+        maximumAttempts: maximumAttempts,
+        requiredStableSamples: 3
+    )
+    for attempt in 0...maximumAttempts {
+        let runningApplication = NSRunningApplication(processIdentifier: args.pid)
+        let frontmostApplication = NSWorkspace.shared.frontmostApplication
+        let observation = ActivationObservation(
+            pidAlive: runningApplication != nil,
+            appIsActive: runningApplication?.isActive == true,
+            frontmostPID: frontmostApplication?.processIdentifier,
+            frontmostBundleIdentifier: frontmostApplication?.bundleIdentifier
+        )
+        switch machine.consume(observation, attempt: attempt) {
+        case .success:
+            return
+        case .retry:
+            Thread.sleep(forTimeInterval: 0.2)
+        case .timeout:
+            throw ProbeError.failure("application did not reach the expected active state before the bounded timeout")
+        case .pidExited:
+            throw ProbeError.failure("installed application exited while waiting for its active state")
+        }
+    }
+}
+
 do {
     let window = try mainWindow()
     switch args.command {
     case "window": print("PASS: ZC-024-004 exactly one visible main window")
     case "navigate-settings": try navigate("Settings", in: window); print("PASS: ZC-024-004 Settings visible")
     case "navigate-today": try navigate("Today", in: window); print("PASS: ZC-024-004 Today visible")
+    case "wait-active": try waitForApplicationActivation(expectedActive: true); print("PASS: ZC-024-004 application active")
+    case "wait-inactive": try waitForApplicationActivation(expectedActive: false); print("PASS: ZC-024-004 application inactive")
     case "capture":
         guard let output = args.outputName else { throw ProbeError.failure("capture requires --output") }
         try writeSnapshot(try visibleTodaySnapshot(), name: output)
