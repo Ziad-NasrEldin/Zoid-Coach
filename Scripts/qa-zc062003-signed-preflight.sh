@@ -1,9 +1,15 @@
 #!/bin/zsh
 set -euo pipefail
 
-readonly SCRIPT_DIR="${0:A:h}"
-readonly REPOSITORY="${SCRIPT_DIR:h}"
+readonly SCRIPT_PATH="${0:A}"
+readonly SCRIPT_DIR="${SCRIPT_PATH:h}"
+if [[ "${1:-}" == "--self-test" && "${ZOID_PREFLIGHT_ASSERT_ONLY:-0}" == 1 ]]; then
+    readonly REPOSITORY="${ZOID_PREFLIGHT_REPOSITORY_OVERRIDE:?missing internal repository override}"
+else
+    readonly REPOSITORY="${SCRIPT_DIR:h}"
+fi
 readonly PARENT="e5ca6227964edd752b8d1b9709da48b9b6f791b6"
+readonly CORRECTED_TIP="0fb1fe536e0f19d560e8b089936d31934ad1c41e"
 readonly EXPECTED_PATHS=(
     Tests/ZoidCoachAppTests/ZC062003SourceWarningSuppressionJourneyTests.swift
     Scripts/qa-zc062003-source-warning-suppression-fixture.sh
@@ -18,11 +24,45 @@ is_sha() { [[ "$1" =~ '^[0-9a-f]{40}$' ]]; }
 normalized() { sed '/^$/d' | LC_ALL=C sort -u; }
 
 assert_scope() {
-    local candidate="$1" expected actual
-    [[ "$(git -C "$REPOSITORY" rev-parse "$candidate^")" == "$PARENT" ]] || fail "candidate is not a direct child of ZC-062-002"
+    local candidate="$1" resolved head merge_base expected actual
+    is_sha "$candidate" || fail "candidate must be a full lowercase SHA"
+    resolved="$(git -C "$REPOSITORY" rev-parse --verify "$candidate^{commit}")" \
+        || fail "candidate is unavailable"
+    [[ "$resolved" == "$candidate" ]] || fail "candidate did not resolve to the exact requested commit"
+    head="$(git -C "$REPOSITORY" rev-parse --verify HEAD)" || fail "repository HEAD is unavailable"
+    [[ "$head" == "$resolved" ]] || fail "candidate must equal repository HEAD"
+    git -C "$REPOSITORY" merge-base --is-ancestor "$PARENT" "$resolved" \
+        || fail "required parent is not an ancestor of the candidate"
+    merge_base="$(git -C "$REPOSITORY" merge-base "$PARENT" "$resolved")" \
+        || fail "candidate has no merge base with the required parent"
+    [[ "$merge_base" == "$PARENT" ]] || fail "candidate merge base is not the required parent"
     expected="$(printf '%s\n' "${EXPECTED_PATHS[@]}" | normalized)"
-    actual="$(git -C "$REPOSITORY" diff --name-only "$PARENT" "$candidate" -- | normalized)"
+    actual="$(git -C "$REPOSITORY" diff --name-only "$PARENT" "$resolved" -- | normalized)"
     [[ "$actual" == "$expected" ]] || fail "candidate differs from exact six-file scope"
+}
+
+assert_corrected_tip_with_runtime_contract() {
+    local temporary_root checkout
+    temporary_root="$(mktemp -d /private/tmp/zoid-zc062003-lineage.XXXXXX)"
+    checkout="$temporary_root/repository"
+    cleanup_corrected_tip_worktree() {
+        git -C "$REPOSITORY" worktree remove --force "$checkout" >/dev/null 2>&1 || true
+        rm -rf "$temporary_root"
+    }
+    trap cleanup_corrected_tip_worktree EXIT HUP INT TERM
+    git -C "$REPOSITORY" worktree add --detach "$checkout" "$CORRECTED_TIP" >/dev/null
+    env ZOID_PREFLIGHT_REPOSITORY_OVERRIDE="$checkout" \
+        ZOID_PREFLIGHT_ASSERT_ONLY=1 \
+        ZOID_PREFLIGHT_ASSERT_CANDIDATE="$CORRECTED_TIP" \
+        "$SCRIPT_PATH" --self-test >/dev/null
+    if env ZOID_PREFLIGHT_REPOSITORY_OVERRIDE="$checkout" \
+        ZOID_PREFLIGHT_ASSERT_ONLY=1 \
+        ZOID_PREFLIGHT_ASSERT_CANDIDATE="$PARENT" \
+        "$SCRIPT_PATH" --self-test >/dev/null 2>&1; then
+        fail "required parent was accepted as the checked-out candidate"
+    fi
+    cleanup_corrected_tip_worktree
+    trap - EXIT HUP INT TERM
 }
 
 assert_runbook() {
@@ -35,9 +75,16 @@ assert_runbook() {
 }
 
 if [[ "${1:-}" == "--self-test" ]]; then
+    if [[ "${ZOID_PREFLIGHT_ASSERT_ONLY:-0}" == 1 ]]; then
+        assert_scope "${ZOID_PREFLIGHT_ASSERT_CANDIDATE:-}"
+        exit 0
+    fi
     is_sha "$PARENT" || fail "invalid parent SHA"
+    is_sha "$CORRECTED_TIP" || fail "invalid corrected tip SHA"
+    ! is_sha "${PARENT:u}" || fail "uppercase SHA was accepted"
+    ! is_sha "e5ca622" || fail "abbreviated SHA was accepted"
     git -C "$REPOSITORY" cat-file -e "$PARENT^{commit}" || fail "stacked parent unavailable"
-    git -C "$REPOSITORY" merge-base --is-ancestor "$PARENT" HEAD || fail "worktree is not stacked on ZC-062-002"
+    assert_corrected_tip_with_runtime_contract
     rg -Fq 'case "--once"' "$REPOSITORY/Sources/ZoidCoachAgent/AgentMain.swift" || fail "helper lacks bounded --once"
     assert_runbook
     "$SCRIPT_DIR/qa-zc062003-source-warning-suppression-fixture.sh" self-test >/dev/null
