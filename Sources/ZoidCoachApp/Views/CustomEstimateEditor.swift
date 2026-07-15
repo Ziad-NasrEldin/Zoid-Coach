@@ -11,6 +11,7 @@ final class CustomEstimateEditorTrace: @unchecked Sendable {
     static let shared = CustomEstimateEditorTrace()
 
     private let lock = NSLock()
+    private let writer = DispatchQueue(label: "qa.zoidcoach.zc011007.editor-trace")
     private var events: [String] = []
     private let maxEvents = 256
 
@@ -43,16 +44,22 @@ final class CustomEstimateEditorTrace: @unchecked Sendable {
         if events.count > maxEvents {
             events.removeFirst(events.count - maxEvents)
         }
+        let payload = events.joined()
         lock.unlock()
-        flushEvents()
+        enqueue(payload)
     }
 
     private func flushEvents() {
-        guard let traceURL else { return }
+        guard traceURL != nil else { return }
         lock.lock()
         let payload = events.joined()
         lock.unlock()
-        DispatchQueue.global(qos: .utility).async {
+        enqueue(payload)
+    }
+
+    private func enqueue(_ payload: String) {
+        guard let traceURL else { return }
+        writer.async {
             do {
                 try FileManager.default.createDirectory(
                     at: traceURL.deletingLastPathComponent(),
@@ -96,7 +103,9 @@ struct CustomEstimateEditorState: Equatable {
             CustomEstimateEditorTrace.record(
                 "state.submit parse=success normalizedMinutes=\(minutes) stateClosed=true"
             )
+            CustomEstimateEditorTrace.record("state.submit persist.begin minutes=\(minutes)")
             persist(minutes)
+            CustomEstimateEditorTrace.record("state.submit persist.end minutes=\(minutes)")
             CustomEstimateEditorTrace.flush()
             return true
         case let .failure(error):
