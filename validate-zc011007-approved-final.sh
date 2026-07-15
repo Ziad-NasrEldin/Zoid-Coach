@@ -2,6 +2,7 @@
 set -euo pipefail
 set -o pipefail
 
+readonly SCRIPT_PATH="${0:A}"
 readonly EXPECTED_CANONICAL="2cba674f8370fc16f9555cdb6f115f18df1f8ced"
 readonly EXPECTED_CANDIDATE="f5941ce9c70fe4576c1561afe5a03ff3a24a0511"
 readonly EXPECTED_PARENT="3338b5b4a14627c27c767e09285f52d09e441a5f"
@@ -98,9 +99,8 @@ assert_exact_candidate() {
 }
 
 assert_validator_checkout() {
-    local script_path="${0:a}"
-    [[ "$script_path" == "${0:A}" && ! -L "$script_path" ]] || fail "validator path traverses a symlink"
-    local validator_repository="${script_path:h}"
+    [[ "${SCRIPT_PATH:a}" == "$SCRIPT_PATH" && ! -L "$SCRIPT_PATH" ]] || fail "validator path traverses a symlink"
+    local validator_repository="${SCRIPT_PATH:h}"
     [[ "$(git -C "$validator_repository" rev-parse --show-toplevel)" == "$validator_repository" ]] \
         || fail "validator must run from its repository root"
     [[ -z "$(git -C "$validator_repository" status --porcelain=v1 --untracked-files=all)" ]] \
