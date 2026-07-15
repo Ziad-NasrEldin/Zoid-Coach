@@ -5,10 +5,12 @@ import Foundation
 
 private let expectedTitle = "Planning is available when you are ready"
 private let privateSentinels = ["qa-zc006001-private-window-title", "private.invalid"]
-private let actionIdentifiers = [
-    "planning.invitation.snooze",
-    "planning.invitation.dismiss",
-    "planning.invitation.work-unplanned"
+private let stableActionKinds = [
+    "review_plan",
+    "accept_plan",
+    "snooze_planning",
+    "work_unplanned",
+    "dismiss_planning"
 ]
 
 private struct Node {
@@ -30,11 +32,18 @@ private func expectedSummary(_ count: Int) -> String? {
     }
 }
 
+private func actionKind(for identifier: String) -> String? {
+    guard let marker = identifier.range(of: ".action.", options: .backwards) else { return nil }
+    let kind = String(identifier[marker.upperBound...])
+    return stableActionKinds.contains(kind) ? kind : nil
+}
+
 private func hasOrderedActions(_ identifiers: [String]) -> Bool {
-    var cursor = identifiers.startIndex
-    for expected in actionIdentifiers {
-        guard let found = identifiers[cursor...].firstIndex(of: expected) else { return false }
-        cursor = identifiers.index(after: found)
+    let kinds = identifiers.compactMap(actionKind)
+    var cursor = kinds.startIndex
+    for expected in stableActionKinds {
+        guard let found = kinds[cursor...].firstIndex(of: expected) else { return false }
+        cursor = kinds.index(after: found)
     }
     return true
 }
@@ -45,12 +54,14 @@ private func containsPrivateSentinel(_ values: [String]) -> Bool {
 }
 
 if CommandLine.arguments == [CommandLine.arguments[0], "--self-test"] {
+    let promptIdentifiers = stableActionKinds.map { "today.prompt.fixture.action.\($0)" }
     guard expectedSummary(0)?.contains("start without one") == true,
           expectedSummary(1)?.contains("1 suggested commitment") == true,
           expectedSummary(3)?.contains("3 suggested commitments") == true,
           expectedSummary(2) == nil,
-          hasOrderedActions(actionIdentifiers),
-          !hasOrderedActions([actionIdentifiers[1], actionIdentifiers[0], actionIdentifiers[2]]),
+          hasOrderedActions(promptIdentifiers),
+          !hasOrderedActions([promptIdentifiers[1], promptIdentifiers[0]] + Array(promptIdentifiers.dropFirst(2))),
+          !hasOrderedActions(["planning.invitation.snooze", "planning.invitation.dismiss", "planning.invitation.work-unplanned"]),
           !containsPrivateSentinel([expectedTitle, expectedSummary(3)!]),
           containsPrivateSentinel([expectedTitle, "qa-zc006001-private-window-title"])
     else {
@@ -159,10 +170,10 @@ let summary = expectedSummary(count)!
 
 if phase == "before" {
     guard let current = waitFor(application: application, predicate: { nodes in
-        let values = flattenedValues(nodes)
-        return !values.contains(expectedTitle)
+            let values = flattenedValues(nodes)
+            return !values.contains(expectedTitle)
             && !values.contains(summary)
-            && nodes.allSatisfy { !actionIdentifiers.contains($0.identifier ?? "") }
+            && nodes.compactMap(\.identifier).compactMap(actionKind).isEmpty
             && !containsPrivateSentinel(values)
     }) else {
         fputs("FAIL: planning invitation appeared before the configured boundary or private evidence leaked\n", stderr)
@@ -188,23 +199,25 @@ if phase == "inspect" || phase == "persisted" {
     exit(0)
 }
 
-let targetIdentifier: String
+let targetKind: String
 let expectedAfter: String
 switch phase {
 case "snooze":
-    targetIdentifier = "planning.invitation.snooze"
+    targetKind = "snooze_planning"
     expectedAfter = "PLANNING SNOOZED"
 case "dismiss":
-    targetIdentifier = "planning.invitation.dismiss"
+    targetKind = "dismiss_planning"
     expectedAfter = "PLANNING DISMISSED"
 case "work-unplanned":
-    targetIdentifier = "planning.invitation.work-unplanned"
+    targetKind = "work_unplanned"
     expectedAfter = "LIMITED UNPLANNED MODE"
 default:
     fatalError("validated phase")
 }
 
-guard let target = visible.first(where: { $0.identifier == targetIdentifier }),
+guard let target = visible.first(where: { node in
+    node.identifier.flatMap(actionKind) == targetKind
+}),
       AXUIElementPerformAction(target.element, kAXPressAction as CFString) == .success
 else {
     fputs("FAIL: exact invitation action was not pressable\n", stderr)
