@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "8e74c8c629b765eaa7a177a32751680f98e0c1c08dc73cdbb9f9f487bc2e65af",
+  "tracker_sha256": "27f320939251b9ff5de67153ee0e8b69f39922c2113ac404cf3585b432a4f8b3",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -9371,9 +9371,9 @@
       "section_title": "Facts, hypotheses, and review corrections",
       "item_index": 1,
       "wording": "See observed facts labeled separately from context and hypotheses.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Not implemented",
-      "delivery_status": "not_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -9381,10 +9381,12 @@
         "unit_rule"
       ],
       "affected_capability": "review_and_learning",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-042-001-evidence-layers/eef031c42bd051ca068481411e488a9e275cec06/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "No review model or facts/hypotheses UI exists.",
+      "audit_note": "Exact signed candidate `eef031c42bd051ca068481411e488a9e275cec06` visibly kept persisted observed facts, private user context, and possible hypotheses in exactly three separately labeled accessible layers; preserved the positive state through an ordinary relaunch; kept Unknown-only and empty evidence explicitly insufficient; excluded private application and note contents from accessibility output; and completed exact fixture, database, helper, runtime, and install cleanup (`DailyReviewEvidenceLayersState.swift`; `DailyReviewView.swift`; `DailyReviewStore.swift`; `DailyReviewEvidenceLayersStateTests.swift`; `docs/ZC-042-001-SIGNED-QA-RUNBOOK.md`; `.audit/runs/zc-042-001-evidence-layers/eef031c42bd051ca068481411e488a9e275cec06/REPORT.md`; `/private/tmp/zoid-zc042001-evidence/eef031c42bd051ca068481411e488a9e275cec06`).",
       "tracker_line": 590
     },
     {
