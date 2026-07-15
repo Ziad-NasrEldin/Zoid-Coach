@@ -442,8 +442,9 @@ struct CustomEstimateEditorStateTests {
         field.requestFocus(presentationID: UUID(), generation: 1)
         field.removeFromSuperview()
 
-        try? await Task.sleep(for: .milliseconds(220))
+        let expired = await waitUntil { !field.isFocusLeaseActive }
 
+        #expect(expired)
         #expect(field.window == nil)
         #expect(!field.hasInputFocus)
         #expect(!field.isFocusLeaseActive)
@@ -495,7 +496,8 @@ struct CustomEstimateEditorStateTests {
         #expect(field.keyMonitorInstallCount == monitorInstallCount)
 
         #expect(window.makeFirstResponder(otherField))
-        try? await Task.sleep(for: .milliseconds(80))
+        let recoveredAfterReattach = await waitUntil { field.hasInputFocus }
+        #expect(recoveredAfterReattach)
         #expect(field.hasInputFocus)
         #expect(field.requestedPresentationID == presentationID)
         #expect(field.requestedFocusGeneration == 1)
@@ -528,7 +530,8 @@ struct CustomEstimateEditorStateTests {
         #expect(window.makeFirstResponder(otherField))
         #expect(!field.hasInputFocus)
 
-        try? await Task.sleep(for: .milliseconds(80))
+        let recoveredAfterTheft = await waitUntil { field.hasInputFocus }
+        #expect(recoveredAfterTheft)
         #expect(field.hasInputFocus)
         #expect(field.appliedFocusGeneration == 1)
         #expect(field.currentEditor()?.selectedRange == NSRange(location: 0, length: 0))
@@ -650,5 +653,19 @@ struct CustomEstimateEditorStateTests {
             isARepeat: false,
             keyCode: keyCode
         )!
+    }
+
+    @MainActor
+    private func waitUntil(
+        timeout: Duration = .seconds(2),
+        _ condition: () -> Bool
+    ) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while clock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return condition()
     }
 }
