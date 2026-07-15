@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 import Testing
 @testable import ZoidCoachApp
 
@@ -74,38 +73,28 @@ struct CustomEstimateEditorStateTests {
 
     @MainActor
     @Test(arguments: [
-        "insertNewline:",
-        "insertLineBreak:",
-        "insertParagraphSeparator:",
-        "insertNewlineIgnoringFieldEditor:",
+        UInt16(36),
+        UInt16(76),
     ])
     func physicalReturnSynchronizesExactTextAndRetainsInvalidEditorFocusRequestAndError(
-        commandName: String
+        keyCode: UInt16
     ) {
         let box = InteractionBox()
         box.state.open(initialMinutes: nil)
         let initialFocusRequest = box.state.focusRequest
-        let input = CustomEstimateInputField(
-            text: Binding(
-                get: { box.state.input },
-                set: { box.state.input = $0 }
-            ),
-            focusRequest: box.state.focusRequest,
-            submit: {
-                _ = box.state.submit { box.persisted.append($0) }
-            }
-        )
-        let coordinator = input.makeCoordinator()
-        let fieldEditor = NSTextView()
-        fieldEditor.string = "\u{00A0}\u{2003}"
+        let field = CustomEstimateTextView()
+        field.string = "\u{00A0}\u{2003}"
+        field.onReturn = { exactText in
+            box.returnCallbackCount += 1
+            box.state.input = exactText
+            _ = box.state.submit { box.persisted.append($0) }
+        }
 
-        let handled = coordinator.control(
-            NSTextField(),
-            textView: fieldEditor,
-            doCommandBy: NSSelectorFromString(commandName)
-        )
+        let handled = field.handleReturn(keyEvent(keyCode: keyCode))
 
         #expect(handled)
+        #expect(field.accessibilityRole() == .textField)
+        #expect(box.returnCallbackCount == 1)
         #expect(box.state.input == "\u{00A0}\u{2003}")
         #expect(box.state.isPresented)
         #expect(box.state.validationMessage == "Enter an estimate in minutes.")
@@ -118,33 +107,21 @@ struct CustomEstimateEditorStateTests {
     func rapidPhysicalReturnPersistsPaddedValidInputExactlyOnce() {
         let box = InteractionBox()
         box.state.open(initialMinutes: nil)
-        let input = CustomEstimateInputField(
-            text: Binding(
-                get: { box.state.input },
-                set: { box.state.input = $0 }
-            ),
-            focusRequest: box.state.focusRequest,
-            submit: {
-                _ = box.state.submit { box.persisted.append($0) }
-            }
-        )
-        let coordinator = input.makeCoordinator()
-        let fieldEditor = NSTextView()
-        fieldEditor.string = " 25 "
+        let field = CustomEstimateTextView()
+        field.string = " 25 "
+        field.onReturn = { exactText in
+            box.returnCallbackCount += 1
+            box.state.input = exactText
+            _ = box.state.submit { box.persisted.append($0) }
+        }
 
-        let firstHandled = coordinator.control(
-            NSTextField(),
-            textView: fieldEditor,
-            doCommandBy: #selector(NSResponder.insertNewline(_:))
-        )
-        let secondHandled = coordinator.control(
-            NSTextField(),
-            textView: fieldEditor,
-            doCommandBy: #selector(NSResponder.insertNewline(_:))
-        )
+        let returnEvent = keyEvent(keyCode: 36)
+        let firstHandled = field.handleReturn(returnEvent)
+        let secondHandled = field.handleReturn(returnEvent)
 
         #expect(firstHandled)
         #expect(secondHandled)
+        #expect(box.returnCallbackCount == 2)
         #expect(box.state.input == " 25 ")
         #expect(box.persisted == [25])
         #expect(!box.state.isPresented)
@@ -152,32 +129,19 @@ struct CustomEstimateEditorStateTests {
     }
 
     @MainActor
-    @Test
-    func nonNewlineEditorCommandPassesThroughWithoutSubmitting() {
+    @Test(arguments: [UInt16(48), UInt16(53), UInt16(123)])
+    func tabEscapeAndNonReturnKeysPassThroughWithoutSubmitting(keyCode: UInt16) {
         let box = InteractionBox()
         box.state.open(initialMinutes: nil)
         let initialFocusRequest = box.state.focusRequest
-        let input = CustomEstimateInputField(
-            text: Binding(
-                get: { box.state.input },
-                set: { box.state.input = $0 }
-            ),
-            focusRequest: box.state.focusRequest,
-            submit: {
-                _ = box.state.submit { box.persisted.append($0) }
-            }
-        )
-        let coordinator = input.makeCoordinator()
-        let fieldEditor = NSTextView()
-        fieldEditor.string = "25"
+        let field = CustomEstimateTextView()
+        field.string = "25"
+        field.onReturn = { _ in box.returnCallbackCount += 1 }
 
-        let handled = coordinator.control(
-            NSTextField(),
-            textView: fieldEditor,
-            doCommandBy: #selector(NSResponder.moveLeft(_:))
-        )
+        let handled = field.handleReturn(keyEvent(keyCode: keyCode))
 
         #expect(!handled)
+        #expect(box.returnCallbackCount == 0)
         #expect(box.state.input.isEmpty)
         #expect(box.state.isPresented)
         #expect(box.state.validationMessage == nil)
@@ -199,5 +163,22 @@ struct CustomEstimateEditorStateTests {
     private final class InteractionBox {
         var state = CustomEstimateEditorState()
         var persisted: [Int] = []
+        var returnCallbackCount = 0
+    }
+
+    @MainActor
+    private func keyEvent(keyCode: UInt16) -> NSEvent {
+        NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: keyCode
+        )!
     }
 }
