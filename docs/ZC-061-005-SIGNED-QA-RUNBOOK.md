@@ -1,7 +1,7 @@
 # ZC-061-005 signed QA runbook
 
 This runbook proves that uncertain browser activity cannot leave a strong gaming-drift intervention active.
-The exact stacked parent is `3df007cbb121b743606471141400622d0a82040f`.
+The exact stacked parent is `0f82cbc3dd12252a3ed8f08a65210cfc72dcf6b2`.
 The signed candidate must be a direct child of that parent and must contain only the six proof-tooling paths named by the static verifier.
 The installed helper already provides the bounded production `--once` path used by this journey.
 Stop immediately after any failed assertion.

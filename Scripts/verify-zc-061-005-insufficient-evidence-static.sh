@@ -2,7 +2,7 @@
 set -euo pipefail
 
 readonly ROOT="${0:A:h:h}"
-readonly PARENT="3df007cbb121b743606471141400622d0a82040f"
+readonly PARENT="0f82cbc3dd12252a3ed8f08a65210cfc72dcf6b2"
 readonly EXPECTED_PATHS=(
     Tests/ZoidCoachAppTests/ZC061005InsufficientEvidenceJourneyTests.swift
     Scripts/qa-zc061005-insufficient-evidence-fixture.sh

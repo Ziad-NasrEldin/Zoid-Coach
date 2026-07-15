@@ -3,7 +3,7 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly STACKED_PARENT="3df007cbb121b743606471141400622d0a82040f"
+readonly STACKED_PARENT="0f82cbc3dd12252a3ed8f08a65210cfc72dcf6b2"
 readonly RUNBOOK="$REPOSITORY/docs/ZC-061-005-SIGNED-QA-RUNBOOK.md"
 readonly EXPECTED_PATHS=(
     Tests/ZoidCoachAppTests/ZC061005InsufficientEvidenceJourneyTests.swift
@@ -41,8 +41,8 @@ assert_candidate_lineage_and_scope() {
     local candidate="$1"
     git -C "$REPOSITORY" cat-file -e "$candidate^{commit}" \
         || fail "candidate commit is unavailable"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$candidate^")" == "$STACKED_PARENT" ]] \
-        || fail "candidate must be a direct child of ZC-061-002 $STACKED_PARENT"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$candidate^^")" == "$STACKED_PARENT" ]] \
+        || fail "candidate must be a binding child of the ZC-061-005 replay on $STACKED_PARENT"
     local expected actual
     expected="$(printf '%s\n' "${EXPECTED_PATHS[@]}" | normalized_lines)"
     actual="$(git -C "$REPOSITORY" diff --name-only "$STACKED_PARENT" "$candidate" -- | normalized_lines)"
