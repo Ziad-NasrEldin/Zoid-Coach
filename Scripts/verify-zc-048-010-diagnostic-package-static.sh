@@ -13,9 +13,11 @@ while IFS= read -r path; do
     Scripts/qa-zc048010-diagnostic-package-fixture.sh | \
     Scripts/qa-zc048010-signed-preflight.sh | \
     Sources/ZoidCoachApp/DiagnosticExportPackagePresentation.swift | \
+    Sources/ZoidCoachApp/ApplicationLaunchPresentation.swift | \
     Sources/ZoidCoachApp/Views/SettingsView.swift | \
     Sources/ZoidCoachInfrastructure/PrivacyDataService.swift | \
     Tests/ZoidCoachAppTests/DiagnosticExportPackagePresentationTests.swift | \
+    Tests/ZoidCoachAppTests/ApplicationLaunchPresentationTests.swift | \
     Tests/ZoidCoachAppTests/PrivacyDataServiceTests.swift | \
     docs/ZC-048-010-SIGNED-QA-RUNBOOK.md)
       ;;
@@ -73,6 +75,10 @@ rg -F 'READINESS_TEST_CASE="pid-exit"' \
   Scripts/qa-zc048010-signed-preflight.sh >/dev/null
 rg -F 'wrong database root was accepted' \
   Scripts/qa-zc048010-signed-preflight.sh >/dev/null
+rg -F 'qaMainWindowLaunchReusesExistingMainWithoutRequestingDuplicate' \
+  Tests/ZoidCoachAppTests/ApplicationLaunchPresentationTests.swift >/dev/null
+rg -F 'selectMainWindow([main, fallback]) == .ambiguous' \
+  Scripts/qa-zc048010-diagnostic-package-ax-probe.swift >/dev/null
 rg -F -- '--require-qa-open-main --expected-app-pid "$PID"' \
   docs/ZC-048-010-SIGNED-QA-RUNBOOK.md >/dev/null
 rg -F '! has_argument "$APP_COMMAND" "--background-schedule"' \
