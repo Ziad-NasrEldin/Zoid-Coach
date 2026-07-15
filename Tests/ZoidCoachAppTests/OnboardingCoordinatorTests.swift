@@ -801,7 +801,9 @@ func lateInspectionCannotOverwriteANewerExplicitDecision() async throws {
     await inspection.value
 
     #expect(coordinator.progress.remindersAccess == .deferred)
-    #expect(coordinator.sourceHealth[.reminders] == nil)
+    #expect(coordinator.sourceHealth[.reminders]?.state == .notConnected)
+    #expect(coordinator.sourceHealth[.reminders]?.detail.contains("Reminders was skipped") == true)
+    #expect(coordinator.sourceHealth[.reminders]?.actionTitle == "Use local tasks")
 }
 
 @MainActor
@@ -831,7 +833,8 @@ func inFlightDeliveryBlocksNavigationAndOtherStepMutations() async throws {
     let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
 
     let delivery = Task { await coordinator.runDeliveryTest() }
-    while !coordinator.isWorking { await Task.yield() }
+    while !gate.isWaiting { await Task.yield() }
+    #expect(coordinator.isWorking)
     coordinator.exitToToday()
     coordinator.completeTestTask()
     #expect(coordinator.progress.currentStep == .deliveryTest)
@@ -1256,6 +1259,8 @@ private final class PermissionRequestGate {
 @MainActor
 private final class DeliveryRequestGate {
     private var continuation: CheckedContinuation<OnboardingDeliveryResult, Never>?
+
+    var isWaiting: Bool { continuation != nil }
 
     func wait() async -> OnboardingDeliveryResult {
         await withCheckedContinuation { continuation = $0 }
