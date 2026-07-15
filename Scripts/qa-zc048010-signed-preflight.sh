@@ -101,6 +101,27 @@ assert_readiness_self_tests() {
     fi
     unset READINESS_TEST_CASE
 }
+assert_shared_main_window_contract() {
+    local source="$REPOSITORY/Sources/ZoidCoachApp/ApplicationLaunchPresentation.swift"
+    local tests="$REPOSITORY/Tests/ZoidCoachAppTests/ApplicationLaunchPresentationTests.swift"
+    local open_line activate_line reuse_line foreground_line request_line
+    open_line="$(grep -nF '    func open() {' "$source" | head -n1 | cut -d: -f1)"
+    activate_line="$(awk -v start="$open_line" 'NR > start && /activateApplication\(\)/ { print NR; exit }' "$source")"
+    reuse_line="$(awk -v start="$open_line" 'NR > start && /MainApplicationWindowSelector.select\(from: availableWindows\(\)\)/ { print NR; exit }' "$source")"
+    foreground_line="$(awk -v start="$open_line" 'NR > start && /foregroundWindow\(mainWindow.windowNumber\)/ { print NR; exit }' "$source")"
+    request_line="$(awk -v start="$open_line" 'NR > start && /requestMainWindow\(\)/ { print NR; exit }' "$source")"
+    [[ "$open_line" == <-> && "$activate_line" == <-> && "$reuse_line" == <-> \
+        && "$foreground_line" == <-> && "$request_line" == <-> \
+        && open_line -lt activate_line && activate_line -lt reuse_line \
+        && reuse_line -lt foreground_line && foreground_line -lt request_line ]] \
+        || fail "QA main opening must reuse an existing main scene before requesting another"
+    rg -F '@Test func qaMainWindowLaunchReusesExistingMainWithoutRequestingDuplicate()' "$tests" >/dev/null \
+        || fail "shared QA main-window reuse test is absent"
+    rg -F '#expect(events == ["activate", "foreground-42"])' "$tests" >/dev/null \
+        || fail "shared QA main-window reuse assertion is absent"
+    rg -F 'selectMainWindow([main, fallback]) == .ambiguous' "$PROBE" >/dev/null \
+        || fail "real duplicate main-window rejection is absent"
+}
 assert_runbook_order() {
     local runbook="$REPOSITORY/docs/ZC-048-010-SIGNED-QA-RUNBOOK.md"
     local install unregister terminate ready launch initial_bind database_ready register same_pid preview cancel prepare save inspect existing retry finder cleanup
@@ -143,6 +164,7 @@ if [[ "$APP" == "--self-test" ]]; then
     is_external_path "/private/tmp/zoid-zc048010-evidence" || fail "external evidence root rejected"
     ! is_external_path "$REPOSITORY/.audit/zc048010" || fail "repository evidence root accepted"
     assert_readiness_self_tests
+    assert_shared_main_window_contract
     assert_runbook_order
     "$FIXTURE" self-test >/dev/null
     "$PROBE" --self-test >/dev/null
