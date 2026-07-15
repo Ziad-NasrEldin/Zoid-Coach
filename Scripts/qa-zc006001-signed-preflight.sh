@@ -48,6 +48,7 @@ if [[ "$APP" == "--self-test" ]]; then
     assert_runbook_order
     assert_fail_fast_blocks
     "$SCRIPT_DIR/qa-zc006001-policy-readiness.sh" --self-test
+    "$SCRIPT_DIR/qa-zc006001-policy-source.sh" --self-test
     print -- "PASS: ZC-006-001 signed preflight self-test"
     exit 0
 fi
