@@ -5,8 +5,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BASE="ed5d07a363e0f64049c07b0e1d309d754caa035b"
 REVIEWED_LINEAGE_TIP="1bb3c27866bc3acbfd449d680371b0b340710738"
 REASSEMBLY_COMMIT="44c1bca116525709d7c4708b4f4a7089fa11c70f"
-TOOLING_COMMIT="fa95aeab65fb23a1971e6a7c3464ae87d51febf7"
-TOOLING_PATCH_ID="e984850a3645bdb51518fe98745104bb8a20aa7d"
+SCROLL_TOOLING_COMMIT="fa95aeab65fb23a1971e6a7c3464ae87d51febf7"
+SCROLL_TOOLING_PATCH_ID="e984850a3645bdb51518fe98745104bb8a20aa7d"
+SCROLL_REBIND_COMMIT="cc2dc2a0c2cf2b7dea7d0db75a9d05ec03a43e57"
+TOOLING_COMMIT="69b16a3335867a43ef8ae7904705a3d40f3e738f"
+TOOLING_PATCH_ID="36d0b2269d95c969a3069baf3c90795ac38869e6"
 
 readonly REVIEWED_PATCH_IDS=(
     "5b1d785b5676c1d5d33b02ea4d9cfa01940be0c8"
@@ -94,13 +97,16 @@ verify_candidate_lineage() {
     local expected_patch_ids actual_patch_ids tooling_patch_id
     head="$(git rev-parse HEAD)"
     [[ "$(git show -s --format='%P' "$REASSEMBLY_COMMIT")" == "$BASE $REVIEWED_LINEAGE_TIP" ]]
-    [[ "$(git rev-parse "$TOOLING_COMMIT^")" == "$REASSEMBLY_COMMIT" ]]
+    [[ "$(git rev-parse "$SCROLL_TOOLING_COMMIT^")" == "$REASSEMBLY_COMMIT" ]]
+    [[ "$(git rev-parse "$SCROLL_REBIND_COMMIT^")" == "$SCROLL_TOOLING_COMMIT" ]]
+    [[ "$(git rev-parse "$TOOLING_COMMIT^")" == "$SCROLL_REBIND_COMMIT" ]]
     [[ "$(git rev-parse "$head^")" == "$TOOLING_COMMIT" ]]
 
     expected_scope="$(printf '%s\n' "${OWNED_PATHS[@]}" | normalized_lines)"
     actual_scope="$(git diff --name-only "$BASE" "$head" | normalized_lines)"
     [[ "$actual_scope" == "$expected_scope" ]]
     [[ "$(git diff --name-only "$BASE" "$REASSEMBLY_COMMIT" | normalized_lines)" == "$expected_scope" ]]
+    [[ "$(git diff-tree --no-commit-id --name-only -r "$SCROLL_TOOLING_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
     [[ "$(git diff-tree --no-commit-id --name-only -r "$TOOLING_COMMIT" | normalized_lines)" == "Scripts/qa-zc024004-live-refresh-ax-probe.swift" ]]
 
     expected_rebind_scope="$(printf '%s\n' \
@@ -108,10 +114,15 @@ verify_candidate_lineage() {
         docs/ZC-024-004-SIGNED-QA-RUNBOOK.md | normalized_lines)"
     actual_rebind_scope="$(git diff --name-only "$TOOLING_COMMIT" "$head" | normalized_lines)"
     [[ "$actual_rebind_scope" == "$expected_rebind_scope" ]]
+    [[ "$(git diff --name-only "$SCROLL_TOOLING_COMMIT" "$SCROLL_REBIND_COMMIT" | normalized_lines)" == "$expected_rebind_scope" ]]
 
     actual_patch_ids="$(reviewed_patch_ids)"
     expected_patch_ids="$(printf '%s\n' "${REVIEWED_PATCH_IDS[@]}")"
     [[ "$actual_patch_ids" == "$expected_patch_ids" ]]
+    tooling_patch_id="$(git show --pretty=email --no-ext-diff "$SCROLL_TOOLING_COMMIT" \
+        | git patch-id --stable \
+        | awk '{print $1}')"
+    [[ "$tooling_patch_id" == "$SCROLL_TOOLING_PATCH_ID" ]]
     tooling_patch_id="$(git show --pretty=email --no-ext-diff "$TOOLING_COMMIT" \
         | git patch-id --stable \
         | awk '{print $1}')"
@@ -190,6 +201,12 @@ assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
     "Working and Screenwatch are unavailable after bounded Today scrolling"
 assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
     "stale Today Accessibility tree was reused during bounded scrolling"
+assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
+    "guard resetTodayScroll(try todayScrollArea(in: bindingWindow))"
+assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
+    "let actualBinding = TodayCaptureBinding(pid: args.pid, windowToken: CFHash(freshWindow))"
+assert_contains "Scripts/qa-zc024004-live-refresh-ax-probe.swift" \
+    "visible Today Working or Screenwatch values changed or are ambiguous across the capture sequence"
 assert_contains "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift" \
     "func todayLiveRefreshRunsOnceForEachTickAndStopsWithoutAnotherRefresh()"
 assert_contains "Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift" \
