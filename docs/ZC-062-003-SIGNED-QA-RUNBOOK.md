@@ -11,17 +11,20 @@ Run this only after the shared signed-runtime lane is available.
 
 ```sh
 set -euo pipefail
-export REPOSITORY="/Users/ziadnasreldin/Documents/GitHub/Zoid Coach"
+export VALIDATOR_REPOSITORY="/absolute/path/to/reviewed/preflight-validator"
+export CANDIDATE_REPOSITORY="/absolute/path/to/clean/detached/ZC-062-003-candidate"
 export APP="/absolute/path/to/Zoid 666 QA E2E.app"
-export EXPECTED_COMMIT="$(git -C "$REPOSITORY" rev-parse HEAD)"
+export EXPECTED_COMMIT="$(git -C "$CANDIDATE_REPOSITORY" rev-parse HEAD)"
 export QA_ROOT="$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 export DATABASE="$QA_ROOT/Application Support/Zoid 666/zoid-coach.sqlite"
 export SCREENWATCH_ROOT="$QA_ROOT/Screenwatch/days"
 export OS_STATE="$QA_ROOT/OS Fixtures/state.json"
 export BASELINE_ROOT="${QA_ROOT}-zc062003-baseline"
-export FIXTURE="$REPOSITORY/Scripts/qa-zc062003-source-warning-suppression-fixture.sh"
-export PROBE="$REPOSITORY/Scripts/qa-zc062003-source-warning-suppression-ax-probe.swift"
-OUTPUT="$("$REPOSITORY/Scripts/qa-zc062003-signed-preflight.sh" "$APP" "$DATABASE" "$SCREENWATCH_ROOT" "$OS_STATE" "$EXPECTED_COMMIT")"
+export FIXTURE="$VALIDATOR_REPOSITORY/Scripts/qa-zc062003-source-warning-suppression-fixture.sh"
+export PROBE="$VALIDATOR_REPOSITORY/Scripts/qa-zc062003-source-warning-suppression-ax-probe.swift"
+export PREFLIGHT="$VALIDATOR_REPOSITORY/Scripts/qa-zc062003-signed-preflight.sh"
+"$PREFLIGHT" --candidate-repository "$CANDIDATE_REPOSITORY" --validate-candidate "$EXPECTED_COMMIT"
+OUTPUT="$("$PREFLIGHT" --candidate-repository "$CANDIDATE_REPOSITORY" "$APP" "$DATABASE" "$SCREENWATCH_ROOT" "$OS_STATE" "$EXPECTED_COMMIT")"
 printf '%s\n' "$OUTPUT"
 export AGENT_EXECUTABLE="$(printf '%s\n' "$OUTPUT" | sed -n 's/^AGENT_EXECUTABLE=//p')"
 export AGENT_LABEL="$(printf '%s\n' "$OUTPUT" | sed -n 's/^AGENT_LABEL=//p')"
@@ -29,7 +32,8 @@ export APP_NAME="$(plutil -extract CFBundleExecutable raw -o - "$APP/Contents/In
 export APP_EXECUTABLE="$APP/Contents/MacOS/$APP_NAME"
 ```
 
-The preflight requires a direct child of the ZC-062-002 stack tip and the exact six proof-tooling paths.
+The validator may live in a later review checkout, but `CANDIDATE_REPOSITORY` must be the clean detached worktree at the reviewed corrected tip.
+The preflight requires the reviewed corrected tip, its required ZC-062-002 ancestor, and the exact six proof-tooling paths.
 It binds the app, helper, database, Screenwatch source, and OS fixture to one `/private/tmp/zoid-666-zc062003-*` root.
 
 ## Capture the byte baseline
@@ -121,8 +125,8 @@ The fixture self-test covers no eligible baseline, an existing handled prompt, w
 set -euo pipefail
 "$FIXTURE" self-test
 swift "$PROBE" --self-test
-"$REPOSITORY/Scripts/qa-zc062003-signed-preflight.sh" --self-test
-"$REPOSITORY/Scripts/verify-zc-062-003-source-warning-suppression-static.sh"
+"$PREFLIGHT" --self-test
+"$VALIDATOR_REPOSITORY/Scripts/verify-zc-062-003-source-warning-suppression-static.sh"
 ```
 
 ## Restore exactly
