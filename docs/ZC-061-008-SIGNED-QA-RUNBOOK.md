@@ -14,6 +14,7 @@ Close unrelated copies of Zoid 666 and grant Accessibility permission to the ter
 ```sh
 set -euo pipefail
 APP="/absolute/path/to/Zoid 666 QA E2E.app"
+CANDIDATE_REPOSITORY="/absolute/path/to/clean/detached/ZC-061-008-candidate"
 EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_CANDIDATE_COMMIT"
 QA_ROOT="/private/tmp/zoid-666-zc061008-installed-proof"
 DATABASE="$QA_ROOT/Application Support/Zoid 666/zoid-coach.sqlite"
@@ -24,13 +25,15 @@ PROBE="$PWD/Scripts/qa-zc061008-future-rule-ax-probe.swift"
 PREFLIGHT="$PWD/Scripts/qa-zc061008-signed-preflight.sh"
 STATIC="$PWD/Scripts/verify-zc-061-008-future-rule-static.sh"
 "$STATIC"
-OUTPUT="$("$PREFLIGHT" "$APP" "$DATABASE" "$SCREENWATCH_ROOT" "$EXPECTED_SIGNED_COMMIT")"
+"$PREFLIGHT" --candidate-repository "$CANDIDATE_REPOSITORY" --validate-candidate "$EXPECTED_SIGNED_COMMIT"
+OUTPUT="$("$PREFLIGHT" --candidate-repository "$CANDIDATE_REPOSITORY" "$APP" "$DATABASE" "$SCREENWATCH_ROOT" "$EXPECTED_SIGNED_COMMIT")"
 printf '%s\n' "$OUTPUT"
 AGENT_EXECUTABLE="$(printf '%s\n' "$OUTPUT" | sed -n 's/^AGENT_EXECUTABLE=//p')"
 test -x "$AGENT_EXECUTABLE"
 ```
 
-The preflight binds the direct parent, exact six-file commit scope, embedded database, Screenwatch source, QA root, and installed helper identity.
+The validator may live in a later review checkout, but `CANDIDATE_REPOSITORY` must be the clean detached worktree at the reviewed corrected tip.
+The preflight binds the required parent, exact six-file commit scope, embedded database, Screenwatch source, QA root, and installed helper identity.
 It also confirms that the existing installed helper exposes the bounded `--once` path.
 
 ## Stop the app and capture the byte baseline
