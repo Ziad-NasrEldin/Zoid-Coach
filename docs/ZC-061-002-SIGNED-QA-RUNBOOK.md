@@ -1,7 +1,7 @@
 # ZC-061-002 signed QA runbook
 
 This runbook verifies one active declared-technical task with temporally overlapping Safari and YouTube tutorial evidence in an isolated signed QA package.
-The required technical-context parent is `a17f1c2c697b769dc80af959b2385d418d8074c8`.
+The required technical-context parent is `bd2431d223c031f2b523b4f11f3aedab5cb56999`.
 This is a deterministic verification fixture, not a production ingestion bypass and not proof that the activity was Research.
 The general task remains undeclared, unplanned, and inactive.
 Stop immediately after any failed assertion.

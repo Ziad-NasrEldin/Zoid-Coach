@@ -2,7 +2,7 @@
 set -euo pipefail
 
 readonly ROOT="${0:A:h:h}"
-readonly PARENT="a17f1c2c697b769dc80af959b2385d418d8074c8"
+readonly PARENT="bd2431d223c031f2b523b4f11f3aedab5cb56999"
 readonly EXPECTED_PATHS=(
     Scripts/qa-zc061002-related-tutorial-fixture.sh
     Scripts/qa-zc061002-related-tutorial-ax-probe.swift
