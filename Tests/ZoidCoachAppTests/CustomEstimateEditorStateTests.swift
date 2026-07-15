@@ -426,6 +426,64 @@ struct CustomEstimateEditorStateTests {
 
     @MainActor
     @Test
+    func detachedFocusLeaseExpiresWithoutRetainingIdentityOrStealingFocus() async {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 160, height: 60),
+            styleMask: [],
+            backing: .buffered,
+            defer: false
+        )
+        let container = NSView(frame: window.contentView?.bounds ?? .zero)
+        let field = CustomEstimateTextField(frame: NSRect(x: 0, y: 0, width: 80, height: 24))
+        window.contentView = container
+        container.addSubview(field)
+        field.requestFocus(presentationID: UUID(), generation: 1)
+        field.removeFromSuperview()
+
+        try? await Task.sleep(for: .milliseconds(220))
+
+        #expect(field.window == nil)
+        #expect(!field.hasInputFocus)
+        #expect(!field.isFocusLeaseActive)
+        #expect(field.requestedPresentationID == nil)
+        #expect(field.requestedFocusGeneration == nil)
+    }
+
+    @MainActor
+    @Test
+    func focusLeaseSurvivesTransientWindowDetachmentUntilSameEditorReattaches() async {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 240, height: 80),
+            styleMask: [],
+            backing: .buffered,
+            defer: false
+        )
+        let container = NSView(frame: window.contentView?.bounds ?? .zero)
+        let field = CustomEstimateTextField(frame: NSRect(x: 0, y: 0, width: 80, height: 24))
+        let otherField = NSTextField(frame: NSRect(x: 100, y: 0, width: 80, height: 24))
+        window.contentView = container
+        container.addSubview(field)
+        container.addSubview(otherField)
+        let presentationID = UUID()
+        field.requestFocus(presentationID: presentationID, generation: 1)
+
+        field.removeFromSuperview()
+        #expect(field.window == nil)
+        #expect(field.isFocusLeaseActive)
+        container.addSubview(field)
+        #expect(field.window === window)
+        #expect(field.hasInputFocus)
+
+        #expect(window.makeFirstResponder(otherField))
+        try? await Task.sleep(for: .milliseconds(80))
+        #expect(field.hasInputFocus)
+        #expect(field.requestedPresentationID == presentationID)
+        #expect(field.requestedFocusGeneration == 1)
+        field.cancelFocusLease()
+    }
+
+    @MainActor
+    @Test
     func focusLeaseRecoversFromPostAttemptFocusTheftAndStopsAfterCancellation() async {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 240, height: 80),

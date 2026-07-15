@@ -221,7 +221,6 @@ final class CustomEstimateTextField: NSTextField {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if window == nil {
-            cancelFocusLease()
             removeKeyMonitor()
         } else {
             installKeyMonitorIfNeeded()
@@ -290,6 +289,8 @@ final class CustomEstimateTextField: NSTextField {
                 return
             }
             self.isFocusLeaseActive = false
+            self.requestedPresentationID = nil
+            self.requestedFocusGeneration = nil
             self.focusLeaseTask = nil
         }
     }
