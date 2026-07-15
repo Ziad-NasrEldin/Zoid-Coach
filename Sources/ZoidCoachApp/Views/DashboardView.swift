@@ -259,6 +259,37 @@ private struct TodayCommandView: View {
                 .padding(.vertical, 12)
                 .background(Sumi.sealWash.opacity(0.45))
                 .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+            } else if let unplannedReview = UnplannedDayReviewPresentation(snapshot: model.todaySnapshot) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(unplannedReview.eyebrow)
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.seal)
+                        Text(unplannedReview.title)
+                            .font(Sumi.body(12))
+                            .foregroundStyle(Sumi.ink)
+                        Text(unplannedReview.detail)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 12)
+                    Button(unplannedReview.buttonTitle) {
+                        requestUnplannedDayReview(unplannedReview)
+                    }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .disabled(!unplannedReview.isActionEnabled)
+                    .accessibilityLabel(unplannedReview.accessibilityLabel)
+                    .accessibilityHint(unplannedReview.accessibilityHint)
+                    .accessibilityIdentifier("today.end-workday")
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 12)
+                .background(Sumi.sealWash.opacity(0.45))
+                .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("today.unplanned-day-review")
             }
 
             if let statusMessage = endWorkdayFlow.statusMessage {
@@ -430,6 +461,20 @@ private struct TodayCommandView: View {
                         model.selectedSection = .reviews
                     }
                 }
+            }
+        )
+    }
+
+    private func requestUnplannedDayReview(_ presentation: UnplannedDayReviewPresentation) {
+        modalCoordinator.present(
+            eyebrow: presentation.eyebrow,
+            title: "Open today's factual review?",
+            message: presentation.detail,
+            confirmTitle: "OPEN REVIEW",
+            confirmRole: .accent,
+            confirm: {
+                guard presentation.action == .openDailyReview else { return }
+                model.selectedSection = .reviews
             }
         )
     }
