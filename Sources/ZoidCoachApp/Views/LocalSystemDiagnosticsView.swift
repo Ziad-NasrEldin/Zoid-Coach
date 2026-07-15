@@ -57,7 +57,8 @@ struct LocalSystemDiagnosticsView: View {
     }
 
     private func databaseRow(_ diagnostic: LocalDatabaseDiagnostic) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let availability = LocalDatabaseAvailabilityPresentation(diagnostic: diagnostic)
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 18) {
                 diagnosticTitle(eyebrow: "FOUNDATION", title: "Local database")
                 VStack(alignment: .leading, spacing: 5) {
@@ -72,12 +73,65 @@ struct LocalSystemDiagnosticsView: View {
                 Spacer()
                 diagnosticBadge(databaseStateLabel(diagnostic.state), attention: diagnostic.state != .healthy)
             }
+            databaseAvailabilityCard(availability)
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 15)
         .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("source-health.local-database")
+    }
+
+    private func databaseAvailabilityCard(_ availability: LocalDatabaseAvailabilityPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(availability.statusLabel)
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(availability.availability == .available ? Sumi.okay : Sumi.seal)
+                Text(availability.title)
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(availability.detail)
+                .font(Sumi.body(11))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !availability.unavailableActions.isEmpty {
+                Text("TEMPORARILY UNAVAILABLE")
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                ForEach(availability.unavailableActions, id: \.self) { action in
+                    Text("• \(action)")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            if let recoveryGuidance = availability.recoveryGuidance {
+                Text(recoveryGuidance)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if availability.showsRecoveryAction, let label = availability.recoveryActionLabel {
+                Button(label) { refresh() }
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                    .disabled(isRefreshing)
+                    .accessibilityIdentifier("source-health.local-database.retry")
+                    .accessibilityHint("Runs the same read-only storage check again. It does not repair, migrate, or delete the database.")
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(availability.availability == .available ? Sumi.softPaper : Sumi.paper)
+        .overlay(Rectangle().stroke(availability.availability == .available ? Sumi.paleRule : Sumi.seal, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("source-health.local-database.availability")
     }
 
     private func aiRow(_ diagnostic: LocalAIDiagnostic) -> some View {
