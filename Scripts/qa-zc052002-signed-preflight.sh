@@ -3,8 +3,11 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
-readonly CANONICAL_BASE="361093b4a088c19eee927eaab2b58a40fb3b4c27"
-readonly PRODUCT_CANDIDATE="0dce73882fbbca08aab8f39038205a47cb856cf2"
+readonly CANONICAL_BASE="7ac4ea0b6cb12062fc77ff6e7588cd7a3a78ab0b"
+readonly PRODUCT_CANDIDATE="141906e6f4315f09f160e891985fb772909454e0"
+readonly TOOLING_CANDIDATE="4675cc1d017bcdc8d5d5b6443767568762eb1cee"
+readonly PRODUCT_PATCH_ID="eea4bee3990884b7c018b1f53a230d904e7a0f75"
+readonly TOOLING_PATCH_ID="6c74d693ad887ef854847fb87aa5df89a96756cf"
 readonly PROBE="$SCRIPT_DIR/qa-zc052002-local-database-actions-ax-probe.swift"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc052002-local-database-actions-fixture.sh"
 readonly -a PRODUCT_PATHS=(
@@ -16,6 +19,11 @@ readonly -a TOOLING_PATHS=(
     "Scripts/fixtures/zc-052-002-local-database-actions.json"
     "Scripts/qa-zc052002-local-database-actions-ax-probe.swift"
     "Scripts/qa-zc052002-local-database-actions-fixture.sh"
+    "Scripts/qa-zc052002-signed-preflight.sh"
+    "Scripts/verify-zc-052-002-local-database-actions-static.sh"
+    "docs/ZC-052-002-SIGNED-QA-RUNBOOK.md"
+)
+readonly -a LINEAGE_PATHS=(
     "Scripts/qa-zc052002-signed-preflight.sh"
     "Scripts/verify-zc-052-002-local-database-actions-static.sh"
     "docs/ZC-052-002-SIGNED-QA-RUNBOOK.md"
@@ -45,17 +53,23 @@ has_exact_lines() {
     [[ "$(normalized_lines "$1")" == "$(normalized_lines "$2")" ]]
 }
 
+commit_patch_id() {
+    git -C "$REPOSITORY" show "$1" | git patch-id --stable | awk '{print $1}'
+}
+
 verify_candidate_lineage() {
     local expected_commit="$1"
-    local expected_scope actual_scope expected_tooling_scope actual_tooling_scope entry expected_blob path actual_blob
+    local expected_scope actual_scope expected_tooling_scope actual_tooling_scope expected_lineage_scope actual_lineage_scope entry expected_blob path actual_blob
     [[ "$(git -C "$REPOSITORY" rev-parse HEAD)" == "$expected_commit" ]] \
         || fail "repository HEAD does not match the signed commit"
     [[ -z "$(git -C "$REPOSITORY" status --porcelain=v1 --untracked-files=all)" ]] \
         || fail "candidate worktree is not clean"
     [[ "$(git -C "$REPOSITORY" rev-parse "$PRODUCT_CANDIDATE^")" == "$CANONICAL_BASE" ]] \
         || fail "reviewed product candidate no longer descends directly from canonical base"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected_commit^")" == "$PRODUCT_CANDIDATE" ]] \
-        || fail "signed tooling commit must descend directly from the reviewed product candidate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$TOOLING_CANDIDATE^")" == "$PRODUCT_CANDIDATE" ]] \
+        || fail "reviewed tooling commit no longer descends directly from the product candidate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected_commit^")" == "$TOOLING_CANDIDATE" ]] \
+        || fail "signed lineage commit must descend directly from the reviewed tooling candidate"
     [[ -z "$(git -C "$REPOSITORY" rev-list --min-parents=2 "$CANONICAL_BASE..$expected_commit")" ]] \
         || fail "candidate lineage contains a merge commit"
 
@@ -64,9 +78,19 @@ verify_candidate_lineage() {
     has_exact_lines "$actual_scope" "$expected_scope" \
         || fail "signed commit differs from the exact reviewed nine-file scope"
     expected_tooling_scope="$(printf '%s\n' "${TOOLING_PATHS[@]}")"
-    actual_tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected_commit")"
+    actual_tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
     has_exact_lines "$actual_tooling_scope" "$expected_tooling_scope" \
         || fail "tooling commit contains product or unrelated changes"
+    expected_lineage_scope="$(printf '%s\n' "${LINEAGE_PATHS[@]}")"
+    actual_lineage_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$expected_commit")"
+    has_exact_lines "$actual_lineage_scope" "$expected_lineage_scope" \
+        || fail "lineage commit contains files outside immutable bindings"
+    [[ "$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected_commit")" == "3" ]] \
+        || fail "signed candidate contains an unexpected commit count"
+    [[ "$(commit_patch_id "$PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] \
+        || fail "reviewed product patch identity drifted"
+    [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] \
+        || fail "reviewed tooling patch identity drifted"
     ! grep -Eqi '(tracker|registry|backlog|\.lavish)' <<<"$actual_scope" \
         || fail "protected tracker, registry, backlog, or Lavish path entered the candidate"
 
@@ -87,6 +111,7 @@ run_self_test() {
     tooling_scope="$(printf '%s\n' "${TOOLING_PATHS[@]}")"
     full_scope="$product_scope"$'\n'"$tooling_scope"
     is_sha "$PRODUCT_CANDIDATE" || fail "valid product SHA was rejected"
+    is_sha "$TOOLING_CANDIDATE" || fail "valid tooling SHA was rejected"
     ! is_sha "${PRODUCT_CANDIDATE:u}" || fail "uppercase SHA was accepted"
     has_argument "/tmp/Zoid666 --qa-open-main" "--qa-open-main" \
         || fail "QA foreground argument was rejected"
