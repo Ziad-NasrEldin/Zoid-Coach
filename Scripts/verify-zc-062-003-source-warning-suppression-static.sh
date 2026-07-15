@@ -2,7 +2,7 @@
 set -euo pipefail
 
 readonly ROOT="${0:A:h:h}"
-readonly PARENT="e5ca6227964edd752b8d1b9709da48b9b6"
+readonly PARENT="e5ca6227964edd752b8d1b9709da48b9b6f791b6"
 readonly EXPECTED_PATHS=(
     Tests/ZoidCoachAppTests/ZC062003SourceWarningSuppressionJourneyTests.swift
     Scripts/qa-zc062003-source-warning-suppression-fixture.sh
