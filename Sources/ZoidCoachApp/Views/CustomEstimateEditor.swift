@@ -82,11 +82,19 @@ struct CustomEstimateEditor: View {
             inputIsFocused = true
         }
         .onChange(of: state.focusRequest) {
-            inputIsFocused = true
+            refocusAfterCurrentEvent()
         }
     }
 
     private func submit() {
         state.submit(persist: persist)
+    }
+
+    private func refocusAfterCurrentEvent() {
+        Task { @MainActor in
+            await Task.yield()
+            guard state.isPresented else { return }
+            inputIsFocused = true
+        }
     }
 }
