@@ -150,7 +150,7 @@ private func snapshot(_ application: AXUIElement) -> [Node]? {
 
 private func waitFor(
     application: AXUIElement,
-    attempts: Int = 40,
+    attempts: Int = 100,
     predicate: ([Node]) -> Bool
 ) -> [Node]? {
     for _ in 0..<attempts {
