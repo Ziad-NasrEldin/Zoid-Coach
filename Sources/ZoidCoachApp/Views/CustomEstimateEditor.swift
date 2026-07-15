@@ -1,6 +1,71 @@
 import AppKit
 import SwiftUI
 
+/// A bounded, opt-in trace for signed ZC-011-007 runtime diagnosis.
+///
+/// The trace is enabled only when the QA bundle exposes a ZC-011-007 runtime
+/// root (or an explicitly supplied path in that namespace). Events are kept
+/// in memory and flushed from event handlers, never from SwiftUI render or
+/// Binding accessors.
+final class CustomEstimateEditorTrace: @unchecked Sendable {
+    static let shared = CustomEstimateEditorTrace()
+
+    private let lock = NSLock()
+    private var events: [String] = []
+    private let maxEvents = 256
+
+    private var traceURL: URL? {
+        let environment = ProcessInfo.processInfo.environment
+        let candidate = environment["ZOID_COACH_QA_EDITOR_TRACE_PATH"]
+            ?? environment["ZOID_COACH_QA_RUN_ROOT"].map {
+                URL(fileURLWithPath: $0).appendingPathComponent("editor-trace.log").path
+            }
+        guard let candidate,
+              candidate.hasPrefix("/private/tmp/zoid-666-zc011007-") else {
+            return nil
+        }
+        return URL(fileURLWithPath: candidate)
+    }
+
+    static func record(_ event: String) {
+        shared.recordEvent(event)
+    }
+
+    static func flush() {
+        shared.flushEvents()
+    }
+
+    private func recordEvent(_ event: String) {
+        guard traceURL != nil else { return }
+        let line = "\(Date.timeIntervalSinceReferenceDate) \(event)\n"
+        lock.lock()
+        events.append(line)
+        if events.count > maxEvents {
+            events.removeFirst(events.count - maxEvents)
+        }
+        lock.unlock()
+        flushEvents()
+    }
+
+    private func flushEvents() {
+        guard let traceURL else { return }
+        lock.lock()
+        let payload = events.joined()
+        lock.unlock()
+        DispatchQueue.global(qos: .utility).async {
+            do {
+                try FileManager.default.createDirectory(
+                    at: traceURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try Data(payload.utf8).write(to: traceURL, options: .atomic)
+            } catch {
+                // Diagnostics must never affect the editor interaction.
+            }
+        }
+    }
+}
+
 struct CustomEstimateEditorState: Equatable {
     private(set) var isPresented = false
     var input = ""
@@ -28,13 +93,26 @@ struct CustomEstimateEditorState: Equatable {
         case let .success(minutes):
             isPresented = false
             validationMessage = nil
+            CustomEstimateEditorTrace.record(
+                "state.submit parse=success normalizedMinutes=\(minutes) stateClosed=true"
+            )
             persist(minutes)
+            CustomEstimateEditorTrace.flush()
             return true
         case let .failure(error):
             validationMessage = error.message
             focusRequest &+= 1
+            CustomEstimateEditorTrace.record(
+                "state.submit parse=failure message=\(traceValue(error.message)) stateClosed=false"
+            )
             return false
         }
+    }
+
+    private func traceValue(_ value: String) -> String {
+        value.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 }
 
@@ -192,6 +270,10 @@ struct CustomEstimateInputField: NSViewRepresentable {
             _ exactText: String,
             refocusing field: CustomEstimateTextField? = nil
         ) -> Bool {
+            submitCount += 1
+            CustomEstimateEditorTrace.record(
+                "coordinator.submit count=\(submitCount) value=\(traceValue(exactText))"
+            )
             let invalidFocusGeneration = parent.focusRequest &+ 1
             parent.text = exactText
             let accepted = parent.submit(exactText)
@@ -206,6 +288,14 @@ struct CustomEstimateInputField: NSViewRepresentable {
             return accepted
         }
 
+        private(set) var submitCount = 0
+
+        private func traceValue(_ value: String) -> String {
+            value.replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+        }
+
         func controlTextDidEndEditing(_ notification: Notification) {
             guard let field = notification.object as? CustomEstimateTextField,
                   let movementValue = notification.userInfo?[NSText.movementUserInfoKey] as? Int,
@@ -213,6 +303,9 @@ struct CustomEstimateInputField: NSViewRepresentable {
                 return
             }
             field.recordReturnHandling(.endEditingFallback)
+            CustomEstimateEditorTrace.record(
+                "endEditing movement=return currentEditor=true firstResponder=true value=\(field.stringValue)"
+            )
             _ = submit(field.stringValue, refocusing: field)
         }
     }
@@ -263,7 +356,18 @@ final class CustomEstimateTextField: NSTextField {
         editor: NSText?,
         firstResponder: NSResponder?
     ) -> NSEvent? {
-        guard let editor, firstResponder === editor else { return event }
+        guard let editor else {
+            CustomEstimateEditorTrace.record(
+                "monitor keyCode=\(event.keyCode) currentEditor=false firstResponder=\(firstResponder != nil) value=<none>"
+            )
+            return event
+        }
+        guard firstResponder === editor else {
+            CustomEstimateEditorTrace.record(
+                "monitor keyCode=\(event.keyCode) currentEditor=true firstResponder=false value=\(editor.string)"
+            )
+            return event
+        }
         return handleReturn(event, exactText: editor.string) ? nil : event
     }
 
@@ -271,6 +375,9 @@ final class CustomEstimateTextField: NSTextField {
     func handleReturn(_ event: NSEvent, exactText: String) -> Bool {
         guard event.keyCode == 36 || event.keyCode == 76 else { return false }
         recordReturnHandling(.monitor)
+        CustomEstimateEditorTrace.record(
+            "monitor keyCode=\(event.keyCode) currentEditor=true firstResponder=true value=\(exactText)"
+        )
         onReturn?(exactText)
         return true
     }
