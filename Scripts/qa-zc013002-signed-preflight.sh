@@ -9,6 +9,7 @@ readonly PRODUCT_CANDIDATE="fc776ce000bd23b8c83d64b398399827d95c293c"
 readonly ORIGINAL_TOOLING_CANDIDATE="d15bcfe6bd2c637176861a357e59636afaaad8ba"
 readonly READY_BOOTSTRAP_CANDIDATE="d46324a257a7475799228f69b1e1aa3932c1e832"
 readonly FOREGROUND_BINDING_CANDIDATE="e0e79e7ef20981cbc3280ab2b3190a200f94ecbc"
+readonly PID_ITERATION_CANDIDATE="4490be14ee51427c2f88e5cacbd43a5981d456a5"
 readonly AX_PROBE="$SCRIPT_DIR/qa-zc013002-coaching-status-ax-probe.swift"
 readonly FIXTURE="$SCRIPT_DIR/qa-zc013002-coaching-status-fixture.sh"
 readonly BOOTSTRAP="$SCRIPT_DIR/qa-zc013002-signed-bootstrap.sh"
@@ -30,9 +31,8 @@ readonly -a TOOLING_FILES=(
     docs/ZC-013-002-SIGNED-QA-RUNBOOK.md
 )
 readonly -a REBOUND_FILES=(
-    Scripts/qa-zc013002-signed-bootstrap.sh
+    Scripts/qa-zc013002-coaching-status-fixture.sh
     Scripts/qa-zc013002-signed-preflight.sh
-    docs/ZC-013-002-SIGNED-QA-RUNBOOK.md
 )
 
 fail() { print -u2 -- "FAIL: $*"; exit 1 }
@@ -48,7 +48,8 @@ verify_lineage() {
     [[ "$(git -C "$REPOSITORY" rev-parse "$ORIGINAL_TOOLING_CANDIDATE^")" == "$PRODUCT_CANDIDATE" ]] || fail "original tooling does not descend directly from product"
     [[ "$(git -C "$REPOSITORY" rev-parse "$READY_BOOTSTRAP_CANDIDATE^")" == "$ORIGINAL_TOOLING_CANDIDATE" ]] || fail "ready-state tooling does not descend directly from original tooling"
     [[ "$(git -C "$REPOSITORY" rev-parse "$FOREGROUND_BINDING_CANDIDATE^")" == "$READY_BOOTSTRAP_CANDIDATE" ]] || fail "foreground binding fix does not descend directly from ready-state tooling"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$FOREGROUND_BINDING_CANDIDATE" ]] || fail "zsh iteration fix does not descend directly from foreground binding"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$PID_ITERATION_CANDIDATE^")" == "$FOREGROUND_BINDING_CANDIDATE" ]] || fail "zsh iteration fix does not descend directly from foreground binding"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$PID_ITERATION_CANDIDATE" ]] || fail "JSON fixture typing fix does not descend directly from PID iteration"
     [[ -z "$(git -C "$REPOSITORY" rev-list --merges "$CANONICAL_BASE..$expected")" ]] || fail "candidate contains a merge"
     scope="$(git -C "$REPOSITORY" diff --name-only "$CANONICAL_BASE..$expected")"
     [[ "$(normalized "$scope")" == "$(printf '%s\n' "${PRODUCT_FILES[@]}" "${TOOLING_FILES[@]}" | LC_ALL=C sort -u)" ]] || fail "candidate differs from exact eight-file scope"
@@ -62,7 +63,7 @@ verify_lineage() {
 }
 
 self_test() {
-    [[ ${#PRODUCT_FILES[@]} == 4 && ${#TOOLING_FILES[@]} == 5 && ${#REBOUND_FILES[@]} == 3 ]] || fail "owned scope count changed"
+    [[ ${#PRODUCT_FILES[@]} == 4 && ${#TOOLING_FILES[@]} == 5 && ${#REBOUND_FILES[@]} == 2 ]] || fail "owned scope count changed"
     ! printf '%s\n' "${PRODUCT_FILES[@]}" "${TOOLING_FILES[@]}" | rg -qi '(tracker|registry|backlog|\.lavish)' || fail "protected path entered scope"
     "$FIXTURE" self-test >/dev/null
     "$BOOTSTRAP" --self-test >/dev/null

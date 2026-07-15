@@ -58,16 +58,16 @@ prepare_state() {
     database_ok "$database" || fail "database must be the isolated ZC-013-002 QA database"
     [[ -f "$database" ]] || fail "database is missing"
     case "$state" in
-        observation) complete_days=0; paused=0; resumes=null; level=gentle ;;
-        gentle) complete_days=7; paused=0; resumes=null; level=gentle ;;
-        accountability) complete_days=7; paused=0; resumes=null; level=accountability ;;
-        paused-indefinite) complete_days=7; paused=1; resumes=null; level=accountability ;;
-        paused-timed) complete_days=7; paused=1; resumes='"2099-07-15T12:00:00Z"'; level=gentle ;;
+        observation) complete_days=0; paused=false; resumes=null; level=gentle ;;
+        gentle) complete_days=7; paused=false; resumes=null; level=gentle ;;
+        accountability) complete_days=7; paused=false; resumes=null; level=accountability ;;
+        paused-indefinite) complete_days=7; paused=true; resumes=null; level=accountability ;;
+        paused-timed) complete_days=7; paused=true; resumes='"2099-07-15T12:00:00Z"'; level=gentle ;;
         *) fail "unknown state: $state" ;;
     esac
     sqlite3 "$database" "BEGIN IMMEDIATE;
-      UPDATE policy_versions SET payload_json=json_set(payload_json,'$.automationPause.isPaused',$paused,'$.automationPause.resumesAtUTC',$resumes,'$.gaming.coachingLevel','$level') WHERE policy_type='user_policy' AND is_active=1;
-      UPDATE settings SET value_json=json_set(value_json,'$.automationPause.isPaused',$paused,'$.automationPause.resumesAtUTC',$resumes,'$.gaming.coachingLevel','$level') WHERE key='user_policy';
+      UPDATE policy_versions SET payload_json=json_set(payload_json,'$.automationPause.isPaused',json('$paused'),'$.automationPause.resumesAtUTC',json('$resumes'),'$.gaming.coachingLevel','$level') WHERE policy_type='user_policy' AND is_active=1;
+      UPDATE settings SET value_json=json_set(value_json,'$.automationPause.isPaused',json('$paused'),'$.automationPause.resumesAtUTC',json('$resumes'),'$.gaming.coachingLevel','$level') WHERE key='user_policy';
       DELETE FROM baseline_observation_days;
       COMMIT;"
     if (( complete_days == 7 )); then
@@ -101,7 +101,8 @@ self_test() {
         prepare_state "$database" "$state"
     done
     [[ "$(sqlite3 "$database" "SELECT count(*) FROM baseline_observation_days;")" == 7 ]] || fail "complete baseline fixture was not installed"
-    [[ "$(sqlite3 "$database" "SELECT json_extract(payload_json,'$.automationPause.isPaused') FROM policy_versions WHERE is_active=1;")" == 1 ]] || fail "paused fixture policy was not installed"
+    [[ "$(sqlite3 "$database" "SELECT json_type(payload_json,'$.automationPause.isPaused') FROM policy_versions WHERE is_active=1;")" == true ]] || fail "paused fixture policy was not encoded as a JSON boolean"
+    [[ "$(sqlite3 "$database" "SELECT json_type(value_json,'$.automationPause.isPaused') FROM settings WHERE key='user_policy';")" == true ]] || fail "settings pause mirror was not encoded as a JSON boolean"
     [[ "$(sqlite3 "$database" "SELECT json_extract(payload_json,'$.automationPause.resumesAtUTC') FROM policy_versions WHERE is_active=1;")" == "2099-07-15T12:00:00Z" ]] || fail "timed pause evidence was not installed"
     ! is_safe /tmp/unrelated || fail "unsafe path accepted"
     print -- "PASS: ZC-013-002 fixture state, path safety, and byte restoration self-test"
