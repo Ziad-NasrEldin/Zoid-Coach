@@ -64,6 +64,8 @@ assert_static_contract() {
     grep -Fq 'actual="$(scalar "$1")" || fail' <<< "$fixture" || fail "SQLite query failure propagation is missing"
     grep -Fq '_self-test-sqlite-failure' <<< "$fixture" || fail "SQLite failure negative self-test is missing"
     grep -Fq 'assert_helper_stopped_before_mutation' <<< "$fixture" || fail "fixture does not require helper-off mutation isolation"
+    grep -Fq 'exact QA app process must exit before snapshot mutation' <<< "$fixture" \
+        || fail "fixture does not require app-off mutation isolation"
     grep -Fq 'simulated active helper refresh overwrites and invalidates private sentinels' <<< "$fixture" \
         || fail "active-helper overwrite negative self-test is missing"
     grep -Fq "'$.taskRows', \$task_rows" <<< "$fixture" || fail "active task row fixture binding is missing"
@@ -100,7 +102,8 @@ assert_runbook_contract() {
         /"\$APP_EXECUTABLE" --qa-register-agent/ { registered=1 }
         registered && /"\$APP_EXECUTABLE" --qa-unregister-agent/ { unregistered=1 }
         unregistered && /! pgrep -x ZoidCoachAgentQA/ { helper_exited=1 }
-        /"\$FIXTURE" prepare/ { if (!(registered && unregistered && helper_exited)) exit 1; prepared=1 }
+        helper_exited && /stop_exact_qa_app/ { app_exited=1 }
+        /"\$FIXTURE" prepare/ { if (!(registered && unregistered && helper_exited && app_exited)) exit 1; prepared=1 }
         END { if (!prepared) exit 1 }
     ' <<< "$runbook" || fail "runbook does not prove helper exit before baseline backup"
     awk '
