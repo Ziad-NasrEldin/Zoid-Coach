@@ -59,7 +59,10 @@ struct CustomEstimateEditor: View {
                 .focused($inputIsFocused)
                 .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
                 .accessibilityIdentifier(inputIdentifier)
-                .onSubmit(submit)
+                .onKeyPress(.return) {
+                    submit()
+                    return .handled
+                }
             Button("SAVE", action: submit)
                 .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
                 .accessibilityIdentifier(saveIdentifier)
@@ -87,7 +90,6 @@ struct CustomEstimateEditor: View {
     }
 
     private func submit() {
-        inputIsFocused = false
         state.submit(persist: persist)
     }
 
