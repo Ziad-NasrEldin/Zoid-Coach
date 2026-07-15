@@ -2,7 +2,7 @@
   "$schema": "scenario-registry.schema.json",
   "schema_version": 1,
   "tracker_path": "docs/zoid-coach-product-scenario-tracker.md",
-  "tracker_sha256": "cc6987a31ed83048ad1cb2bce042739ff119824e9310c9367c6a70bc6af2499b",
+  "tracker_sha256": "5fb5e5a3e4f504d3b97528b145d23d0fdbe37637172ac470831a532de48a0d78",
   "scenario_count": 666,
   "scenarios": [
     {
@@ -23,8 +23,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "A clean signed-QA launch opens the Welcome step with explicit planned-versus-actual copy, and the visible accessibility run confirmed the complete first screen (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 54
     },
@@ -46,8 +46,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The Welcome and Local Truth steps explicitly describe Reminders as intended work before the dedicated permission step, and both screens were verified in the signed-QA app (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`).",
       "tracker_line": 55
     },
@@ -69,8 +69,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The first-launch copy explains what actually happens on the Mac and the dedicated Screenwatch step explains behavior coaching before access or folder selection; the visible run reached and inspected this step (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:102`).",
       "tracker_line": 56
     },
@@ -92,8 +92,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Welcome states that Today keeps the plan, source status, and unanswered coaching choices in one place, and Exit For Now visibly opened Today (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:104`; `Sources/ZoidCoachApp/Views/DashboardView.swift`).",
       "tracker_line": 57
     },
@@ -115,8 +115,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-system-of-record-copy/5d56b32fb44a3bbb8e64e40282a92328d1de93b7/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "5d56b32fb44a3bbb8e64e40282a92328d1de93b7",
+      "last_verified_build": "zoid-coach-5d56b32fb44a3bbb8e64e40282a92328d1de93b7-clean",
       "audit_note": "A truly fresh signed-QA Welcome screen visibly and accessibly states that Zoid 666 is a coach, not a replacement task manager, names Apple Reminders as the system of record for connected tasks, tells users what remains in Reminders versus Today, and retains the non-punitive boundary. Native Continue advanced to Local Privacy, persisted the exact order, and signed relaunch restored step 2 without replaying Welcome (`Sources/ZoidCoachApp/OnboardingWelcomeCopy.swift`; `Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingWelcomeCopyTests.swift`; `.audit/runs/onboarding-system-of-record-copy/verifier/REPORT.md`).",
       "tracker_line": 58
     },
@@ -138,8 +138,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The Welcome step says recovery is without shame and nothing is blocked or punished by default; the gaming-policy step reinforces that no option locks apps or removes the user's final decision (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:104`).",
       "tracker_line": 59
     },
@@ -161,8 +161,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The Local Truth step explicitly explains local Reminders, Screenwatch summaries, plans, and coaching history, and the signed-QA run visibly confirmed the screen (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:108`).",
       "tracker_line": 60
     },
@@ -184,8 +184,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The installed signed-QA run selected Rules-only, saved it through the XPC policy boundary, continued without configuring a model provider, and completed setup (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 61
     },
@@ -207,8 +207,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Exit For Now opened Today from step 3, and relaunching the signed-QA app returned to the exact same Reminders step (`Sources/ZoidCoachInfrastructure/OnboardingProgressStore.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 62
     },
@@ -230,8 +230,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Killing and relaunching the signed-QA app at step 3 restored step 3 exactly, while crash-safe revision and migration tests cover durable progress recovery (`Tests/ZoidCoachAppTests/OnboardingProgressStoreHardeningTests.swift`; `Tests/ZoidCoachAppTests/OnboardingProgressTests.swift`).",
       "tracker_line": 63
     },
@@ -254,8 +254,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The dedicated Reminders onboarding step explains intended work and unavailable capabilities before the Request Access control, and the signed-QA run visibly inspected this state without invoking macOS permission (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 67
     },
@@ -401,9 +401,9 @@
       "section_title": "Reminders permission during onboarding",
       "item_index": 8,
       "wording": "Use manual local planning while Reminders access is unavailable.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -411,10 +411,12 @@
         "ui_automation"
       ],
       "affected_capability": "onboarding_and_source_setup",
-      "evidence_paths": [],
-      "last_verified_commit": null,
-      "last_verified_build": null,
-      "audit_note": "In an installed signed-QA app with Reminders unavailable, the Today inventory exposed New Local Task, kept Create disabled until a title was entered, created the task through the authenticated agent boundary, and immediately displayed it as today's main objective and in focus-capacity calculations. The signed lifecycle probe also covered exact-payload replay, two agent restarts, start, completion, durable history, and zero Apple Reminders outbox mutation, but this run did not produce the immutable scenario-bound evidence manifest required for a strict completion claim (`Sources/ZoidCoachApp/Views/LocalTaskCreationView.swift`; `Sources/ZoidCoachInfrastructure/AgentMutationRouter.swift`; `Scripts/verify-qa-manual-local-task-xpc.sh`; `.audit/runs/manual-local-task/eb0866b/REPORT.md`).",
+      "evidence_paths": [
+        ".audit/runs/zc-002-008-manual-local-planning/b9d3f458809c75f5f1b79467cce0f161f462c391/evidence.json"
+      ],
+      "last_verified_commit": "b9d3f458809c75f5f1b79467cce0f161f462c391",
+      "last_verified_build": "zoid-coach-b9d3f458809c75f5f1b79467cce0f161f462c391-clean",
+      "audit_note": "The installed signed-QA app kept New Local Task available while Reminders was unavailable, enforced a required title, created the task through the authenticated agent boundary, immediately included it in Today's main objective and capacity, replayed the exact payload idempotently, survived two helper restarts, completed durably into history, and produced zero Apple Reminders outbox mutation. The previously missing immutable scenario-bound manifest validates against the exact pre-promotion protected live registry, binds the exact clean signed package at `b9d3f458809c75f5f1b79467cce0f161f462c391`, and proves current-canonical stable-patch equivalence with byte-identical primary UI, controller, verifier, focused tests, hashes, privacy cleanup, and four passing clean-worktree lifecycle tests (`Sources/ZoidCoachApp/Views/LocalTaskCreationView.swift`; `Sources/ZoidCoachInfrastructure/AgentMutationRouter.swift`; `Scripts/verify-qa-manual-local-task-xpc.sh`; `.audit/runs/zc-002-008-manual-local-planning/b9d3f458809c75f5f1b79467cce0f161f462c391/REPORT.md`).",
       "tracker_line": 74
     },
     {
@@ -436,8 +438,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The onboarding step automatically inspects the canonical default source before asking for a choice, and the visible signed-QA run displayed its current health plus Check Expected Folder and Choose Folder controls (`Sources/ZoidCoachInfrastructure/ScreenwatchSourceRepository.swift`; `Tests/ZoidCoachAppTests/ScreenwatchSetupServiceTests.swift`).",
       "tracker_line": 78
     },
@@ -528,8 +530,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The signed-QA run clicked Not Now on the Screenwatch step, saw the consequence copy, and continued to Notifications (`Sources/ZoidCoachApp/Onboarding/OnboardingCoordinator.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 82
     },
@@ -646,8 +648,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The Notifications onboarding step explicitly explains the Today fallback, and the visible signed-QA run clicked Not Now and continued successfully (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift:132`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 90
     },
@@ -692,8 +694,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
       "audit_note": "The installed signed-QA app created one canonical `ONBOARDING_TEST` prompt, the running agent accepted only its whitelisted `continue_intentionally` action from the delivered fixture notification, the response persisted with surface `notification`, onboarding changed to Prompt Resolved, and relaunch retained the result (`OnboardingTestPromptService.swift`; `PromptNotificationCoordinator.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 92
     },
@@ -738,8 +740,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
       "audit_note": "With notification permission denied, step 11 visibly reported Today Fallback, Exit For Now exposed the same unresolved canonical prompt and actions under Today Decisions, Continue Setup resolved it with persisted surface `dashboard`, and Resume Setup returned to step 11 with Prompt Resolved and Continue enabled (`DashboardView.swift`; `TodayDashboardXPC.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 94
     },
@@ -761,8 +763,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The installed signed-QA run discovered Work and Personal with their exact stable identifiers, selected Include Work and Exclude Personal in the native UI, persisted both choices through XPC, and advanced successfully (`RemindersService.swift`; `OnboardingRootView.swift`; `SettingsView.swift`; `UserPolicy.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 98
     },
@@ -784,8 +786,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Exclude Personal was selected in the visible run and saved through the same conflict-safe policy boundary. AppModel, agent synchronization, planning, rename, restart, unknown-list fail-closed, and all-excluded local fallback tests cover downstream enforcement (`AppModel.swift`; `AgentReminderPlanner.swift`; `OnboardingFirstDailyPlanService.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 99
     },
@@ -807,8 +809,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The installed signed-QA app scanned the actual Mac, displayed 116 detected applications, exposed Scan Again, and advanced only after the user reviewed the inventory (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `Tests/ZoidCoachAppTests/OnboardingCoordinatorTests.swift`).",
       "tracker_line": 100
     },
@@ -830,8 +832,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The visible installed run selected Work for Activity Monitor, saved the classification through the live QA XPC helper, advanced to schedule setup, and retained the winning policy version (`OnboardingCoordinator.swift`; `PolicyStoreTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 101
     },
@@ -853,8 +855,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The visible installed run selected Gaming for Atoll, saved it through the live QA XPC helper, and advanced successfully; policy persistence and behavior-consumer tests cover the downstream classification (`OnboardingCoordinator.swift`; `PolicyStoreTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 102
     },
@@ -876,8 +878,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Every detected app defaulted to Automatic, most remained unchanged, and the complete classification policy was durably saved when the run advanced to schedule setup (`Sources/ZoidCoachApp/Views/Onboarding/OnboardingRootView.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 103
     },
@@ -899,8 +901,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-schedule-weekdays/1c30a680a844ba2f7974e4f210d4446ca35f9fb1/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "1c30a680a844ba2f7974e4f210d4446ca35f9fb1",
+      "last_verified_build": "zoid-coach-1c30a680a844ba2f7974e4f210d4446ca35f9fb1-clean",
       "audit_note": "The installed signed onboarding step selected only Monday and Saturday, saved exact 08:30-18:15 work boundaries through the agent, advanced, and reloaded the identical weekday subset and times after relaunch. Removing the final selected weekday visibly changed the message to `Choose at least one work day.` and disabled Continue (`OnboardingCoordinator.swift`; `OnboardingRootView.swift`; `.audit/runs/onboarding-schedule-weekdays/1c30a680a844ba2f7974e4f210d4446ca35f9fb1/evidence.json`).",
       "tracker_line": 104
     },
@@ -922,8 +924,8 @@
       "evidence_paths": [
         ".audit/runs/quiet-hours-delivery/7a216a88032234e5d7a442e46a8052a16b283b92/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "7a216a88032234e5d7a442e46a8052a16b283b92",
+      "last_verified_build": "zoid-coach-7a216a88032234e5d7a442e46a8052a16b283b92-clean",
       "audit_note": "The installed signed onboarding step saved and reloaded overnight quiet hours, and the signed delivery traversal then kept a prompt immediately usable in Today while scheduling its notification for the exact 08:15 quiet end. Same-day, overnight, exact-end, invalid-timezone, future-delivery, and latest-policy boundary tests also pass (`OnboardingCoordinator.swift`; `QuietHoursDeliveryBoundary.swift`; `.audit/runs/quiet-hours-delivery/7a216a88032234e5d7a442e46a8052a16b283b92/REPORT.md`).",
       "tracker_line": 105
     },
@@ -945,8 +947,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The installed run selected Balanced, saved it through the app-agent XPC policy boundary, and advanced to coaching mode; restart and mutation tests cover durability (`OnboardingRootView.swift`; `PolicyStoreTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 106
     },
@@ -968,8 +970,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The installed run selected Rules-only, saved it without configuring AI, advanced through delivery proof, and completed onboarding (`OnboardingRootView.swift`; `OnboardingCoordinatorTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 107
     },
@@ -991,8 +993,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The installed Zoid 666 QA run prepared a real 15-minute local starter objective, opened Today with one active commitment and one planned block immediately, then retained the same task, estimate, and action controls across package replacement and repeated quit/relaunch (`OnboardingFirstDailyPlanService.swift`; `AppModel.swift`; `OnboardingFirstDailyPlanServiceTests.swift`; `.audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json`).",
       "tracker_line": 108
     },
@@ -1551,8 +1553,8 @@
       "evidence_paths": [
         ".audit/runs/plan-preview-metrics/dde796c98241e04e424b5b7e92faa610a4c18eec/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "dde796c98241e04e424b5b7e92faa610a4c18eec",
+      "last_verified_build": "zoid-coach-dde796c98241e04e424b5b7e92faa610a4c18eec-clean",
       "audit_note": "The installed signed proposal showed 75 focused minutes for 45-minute and 30-minute committed tasks, then updated in place to 60 minutes after the verifier shortened one task to 15 minutes. The complete spoken value and stable accessibility identifier remained present (`PlanningCapacityState.swift`; `DashboardView.swift`; `.audit/runs/plan-preview-metrics/verifier/REPORT.md`).",
       "tracker_line": 143
     },
@@ -1574,8 +1576,8 @@
       "evidence_paths": [
         ".audit/runs/plan-preview-metrics/dde796c98241e04e424b5b7e92faa610a4c18eec/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "dde796c98241e04e424b5b7e92faa610a4c18eec",
+      "last_verified_build": "zoid-coach-dde796c98241e04e424b5b7e92faa610a4c18eec-clean",
       "audit_note": "The installed signed capacity panel showed 303 buffer minutes from 378 available minus 75 focused minutes, then recalculated in place to 318 after the task update. Overloaded calculations separately expose exact overage rather than a misleading zero buffer (`PlanningCapacityState.swift`; `DashboardView.swift`; `.audit/runs/plan-preview-metrics/verifier/REPORT.md`).",
       "tracker_line": 144
     },
@@ -1681,8 +1683,8 @@
       "evidence_paths": [
         ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
       "audit_note": "The installed signed Today surface moved the second task to rank 1 through the agent, immediately updated both move-control boundaries, stored the exact new rank order, and restored it after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 149
     },
@@ -1725,8 +1727,8 @@
       "evidence_paths": [
         ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
       "audit_note": "The installed signed Today surface marked a task optional, displayed that it was excluded from capacity and Calendar, reduced committed capacity immediately, persisted through the agent, and restored the exact state after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 151
     },
@@ -1748,8 +1750,8 @@
       "evidence_paths": [
         ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
       "audit_note": "The installed signed Today flow required a 3-to-240-character reason, atomically stored the reason with the blocked execution state, displayed the complete reason, and restored both after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 152
     },
@@ -1771,8 +1773,8 @@
       "evidence_paths": [
         ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
       "audit_note": "The installed signed Today journey made one task optional and deferred another to tomorrow, visibly reduced committed capacity from 90 to 30 minutes, excluded both from Calendar scheduling, and restored the reduced scope after relaunch (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 153
     },
@@ -1800,8 +1802,8 @@
         ".audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/REPORT.md",
         ".audit/runs/plan-gaming-unlock-condition/2b9f106e63bebc6a8a3479ce68296d80e2fc952d/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "2b9f106e63bebc6a8a3479ce68296d80e2fc952d",
+      "last_verified_build": "zoid-coach-2b9f106e63bebc6a8a3479ce68296d80e2fc952d-clean",
       "audit_note": "The installed signed Today journey identified the exact task owning the locked 15-minute reward, exposed `MAKE MAIN + GAMING UNLOCK` with consequence-first help on the other task, kept Cancel mutation-free, moved the single main objective and unlock condition immediately after confirmation, and restored the same ownership after relaunch. Completing the former main produced no reward, completing the newly selected main produced exactly one 15-minute ledger row, and a final relaunch retained one reward with truthful Earned and Locked totals (`TodayDashboardCommandOverview.swift`; `GamingUnlockConditionPresentationTests.swift`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/REPORT.md`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/evidence/09-immediate-fixed.png`; `.audit/runs/plan-gaming-unlock-condition/acceptance-27f034a/evidence/10-relaunch-fixed.png`).",
       "tracker_line": 154
     },
@@ -1823,8 +1825,8 @@
       "evidence_paths": [
         ".audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "2f8b7156f6c5c22c80363c5eb611f433dc72bbbf",
+      "last_verified_build": "zoid-coach-2f8b7156f6c5c22c80363c5eb611f433dc72bbbf-clean",
       "audit_note": "The installed signed-QA journey reviewed the exact task and capacity, refused both a cancelled commitment and denied Calendar access with `NOTHING WAS WRITTEN`, preserved the plan with zero commands, refreshed to current availability, applied four exact Calendar and Reminder commands after repair, and restored the confirmed receipt after relaunch (`.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json`; `.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/REPORT.md`).",
       "tracker_line": 155
     },
@@ -2000,8 +2002,8 @@
       "evidence_paths": [
         ".audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "2f8b7156f6c5c22c80363c5eb611f433dc72bbbf",
+      "last_verified_build": "zoid-coach-2f8b7156f6c5c22c80363c5eb611f433dc72bbbf-clean",
       "audit_note": "The installed signed-QA journey created and reviewed a 30-minute plan against current Calendar capacity, refreshed the approval after availability changed, applied all four exact commands after Calendar repair, and restored the confirmed plan and receipt after relaunch (`.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json`; `.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/REPORT.md`).",
       "tracker_line": 166
     },
@@ -2024,8 +2026,8 @@
       "evidence_paths": [
         ".audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "2f8b7156f6c5c22c80363c5eb611f433dc72bbbf",
+      "last_verified_build": "zoid-coach-2f8b7156f6c5c22c80363c5eb611f433dc72bbbf-clean",
       "audit_note": "The installed approval named the cancelled-commitment and unavailable-Calendar failures, guaranteed that nothing was written, offered direct availability refresh and Source Health actions, and reached visible Calendar impact and repair guidance while preserving the plan (`.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/evidence.json`; `.audit/runs/calendar-approval-freshness/2f8b7156f6c5c22c80363c5eb611f433dc72bbbf/REPORT.md`).",
       "tracker_line": 167
     },
@@ -2876,8 +2878,8 @@
       "evidence_paths": [
         ".audit/runs/dashboard-end-workday/848dd365f1f2c751f64f8cecdb5fef748f2b8702/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "848dd365f1f2c751f64f8cecdb5fef748f2b8702",
+      "last_verified_build": "zoid-coach-848dd365f1f2c751f64f8cecdb5fef748f2b8702-clean",
       "audit_note": "The signed Today surface hid the action without an active task, then exposed a fixed accessible end-workday control for the exact active task with explicit preserved-time and non-completion copy. Cancel kept the task active, a deliberately stale confirmation performed no second mutation, and a stopped helper produced an honest failure while remaining on Today. After signed helper recovery, confirmation paused the task with the end-of-workday reason and opened Reviews only after the durable agent response; Reviews kept the task unfinished with no completion record, and app plus helper restart restored three tracked minutes, the end-of-workday pause reason, and Resume (`DashboardEndWorkdayFlow.swift`; `DashboardView.swift`; `DashboardEndWorkdayFlowTests.swift`; `.audit/runs/dashboard-end-workday/848dd365f1f2c751f64f8cecdb5fef748f2b8702/evidence.json`).",
       "tracker_line": 217
     },
@@ -3067,8 +3069,8 @@
       "evidence_paths": [
         ".audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "c19e379c7beff03feda1d4655438ebc2988faf61",
+      "last_verified_build": "zoid-coach-c19e379c7beff03feda1d4655438ebc2988faf61-clean",
       "audit_note": "Default Today now visibly and accessibly labels exact blocker reasons, future deferrals, optional exclusions, paused reasons, active work, and completed states; the signed revision journey directly proved blocked and deferred labels across relaunch, while one installed all-state sequence remains (`.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/evidence.json`; `.audit/runs/daily-plan-revision/c19e379c7beff03feda1d4655438ebc2988faf61/REPORT.md`).",
       "tracker_line": 229
     },
@@ -3267,8 +3269,8 @@
         ".audit/runs/next-task-recommendation-feedback/9978b5a0288a96bf484910e068ee22bd90a73a28/evidence.json",
         ".audit/runs/next-task-recommendation-feedback/verifier/REPORT.md"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "9978b5a0288a96bf484910e068ee22bd90a73a28",
+      "last_verified_build": "zoid-coach-9978b5a0288a96bf484910e068ee22bd90a73a28-clean",
       "audit_note": "The signed Today card visibly offered the accessible Not Now action beside the recommended task, saved it through the live agent, showed exact 30-minute confirmation copy, selected a different ready task, and retained that alternate through both app and helper restart. Focused tests prove the original task becomes eligible again after thirty minutes (`RecommendationFeedbackStore.swift`; `.audit/runs/next-task-recommendation-feedback/verifier/REPORT.md`).",
       "tracker_line": 241
     },
@@ -3979,8 +3981,8 @@
       "evidence_paths": [
         ".audit/runs/active-task-context/47527ac4840a67bbb3b618bc6e09f27942404f85/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "47527ac4840a67bbb3b618bc6e09f27942404f85",
+      "last_verified_build": "zoid-coach-47527ac4840a67bbb3b618bc6e09f27942404f85-clean",
       "audit_note": "The signed active focus card visibly moved from missing-evidence uncertain, to fresh-work aligned, to fresh-gaming mismatched, and back to stale-evidence uncertain. Relaunch preserved the same active task and reconstructed its assessment from durable observations, while focused rules cover inactive suppression, idle, and unclassified evidence (`ActiveTaskContextAssessor`; `TodayDashboardCommandOverview.swift`; `.audit/runs/active-task-context/47527ac4840a67bbb3b618bc6e09f27942404f85/evidence.json`).",
       "tracker_line": 282
     },
@@ -4003,8 +4005,8 @@
       "evidence_paths": [
         ".audit/runs/active-task-context/47527ac4840a67bbb3b618bc6e09f27942404f85/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "47527ac4840a67bbb3b618bc6e09f27942404f85",
+      "last_verified_build": "zoid-coach-47527ac4840a67bbb3b618bc6e09f27942404f85-clean",
       "audit_note": "The signed aligned state explicitly said the evidence was `a signal, not proof`, the mismatched state asked the user to check context before changing the plan, and missing or stale evidence stated that Zoid 666 would not guess. Focused tests reject judgmental productivity wording and preserve neutral uncertain states (`ActiveTaskContextAssessor`; `.audit/runs/active-task-context/47527ac4840a67bbb3b618bc6e09f27942404f85/evidence.json`).",
       "tracker_line": 283
     },
@@ -5279,9 +5281,9 @@
       "section_title": "Understanding behavior totals",
       "item_index": 4,
       "wording": "See totals update as new activity is observed.",
-      "checkbox_state": "unchecked",
-      "audit_status": "Partially implemented",
-      "delivery_status": "partially_implemented",
+      "checkbox_state": "checked",
+      "audit_status": "Fully implemented",
+      "delivery_status": "fully_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -5290,10 +5292,12 @@
         "unit_rule"
       ],
       "affected_capability": "behavior_truth_and_correction",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/zc-024-004-live-today-refresh/cf14f69c51bffa6abfd2dbbba4dcd411871c6018/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "The background agent regenerates snapshots while ingesting, but `AppModel` does not poll Today snapshots while the window stays open; refresh is tied mainly to launch, foreground activation, or commands.",
+      "audit_note": "Exact signed candidate `cf14f69c51bffa6abfd2dbbba4dcd411871c6018` visibly refreshed the open Today totals from 2 to 7 minutes as new Screenwatch activity arrived without a command or relaunch, then showed 12 minutes after Settings return, 17 after background-to-foreground activation, and 22 after ordinary relaunch. The app-active fix pauses polling while inactive, resumes with one immediate foreground refresh, prevents duplicate timers, and keeps unchanged snapshots stable; focused/static gates, the signed baseline/live/Settings/background/foreground/relaunch/restore phases, a 60-file checksummed manifest, privacy scan, zero fixture rows after cleanup, exact isolated-root restoration, QA uninstall, LaunchAgent unregister, and byte-identical production before/after manifests all passed (`Sources/ZoidCoachApp/TodayLiveRefreshLoop.swift`; `Sources/ZoidCoachApp/AppModel.swift`; `Sources/ZoidCoachApp/ZoidCoachApp.swift`; `Tests/ZoidCoachAppTests/TodayLiveRefreshLoopTests.swift`; `docs/ZC-024-004-SIGNED-QA-RUNBOOK.md`; `.audit/runs/zc-024-004-live-today-refresh/cf14f69c51bffa6abfd2dbbba4dcd411871c6018/REPORT.md`; `/private/tmp/zoid-zc024004-evidence/cf14f69c51bffa6abfd2dbbba4dcd411871c6018-r6`).",
       "tracker_line": 358
     },
     {
@@ -5656,8 +5660,8 @@
       "evidence_paths": [
         ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "The installed signed QA review changed a specific Steam session from Unknown to Work, recalculated the visible category immediately, persisted the correction across relaunch, and retained source observations unchanged (`DailyReviewStore.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 379
     },
@@ -5750,8 +5754,8 @@
       "evidence_paths": [
         ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "The installed signed QA review changed its visible activity summary from Unknown to Work immediately after correction while keeping the two-minute factual duration intact, and focused tests cover recalculation after whole and midpoint corrections (`DailyReviewStore.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 383
     },
@@ -5821,8 +5825,8 @@
       "evidence_paths": [
         ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "The installed signed QA review offered an explicit future-rule toggle, previewed the Steam-to-Work scope, committed the correction and rule atomically, and restored the active rule after app relaunch (`DailyReviewStore.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 386
     },
@@ -5869,8 +5873,8 @@
       "evidence_paths": [
         ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "Before committing, the installed signed QA app visibly stated that new Steam observations would become Work while historical observations stayed unchanged, and replacement previews name the prior and proposed classifications (`DailyReviewView.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 388
     },
@@ -5917,8 +5921,8 @@
       "evidence_paths": [
         ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "After the signed review created a Steam-to-Work rule, the isolated signed agent ingested a later Steam Screenwatch observation as Work even though the normal policy would leave it Unknown; the original historical session remained a separate durable correction (`ScreenwatchArchive.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 390
     },
@@ -5942,8 +5946,8 @@
       "evidence_paths": [
         ".audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "17ac1e521d3469582715dfb030524ac8322bab05",
+      "last_verified_build": "zoid-coach-17ac1e521d3469582715dfb030524ac8322bab05-clean",
       "audit_note": "The installed signed helper evaluated a durable active priority task started 150 seconds earlier plus a new two-minute gaming session, created no prompt, and left the task and its open activity interval unchanged. Deterministic integration asserts the explicit `taskStartGrace` reason before the normal threshold (`GamingDriftPromptService.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json`).",
       "tracker_line": 394
     },
@@ -6013,8 +6017,8 @@
       "evidence_paths": [
         ".audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "17ac1e521d3469582715dfb030524ac8322bab05",
+      "last_verified_build": "zoid-coach-17ac1e521d3469582715dfb030524ac8322bab05-clean",
       "audit_note": "The installed signed helper evaluated current System Settings activity after sustained gaming, created no prompt, and preserved one active task plus one open activity interval. Focused coverage asserts the explicit neutral-supporting result (`GamingDriftPromptService.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json`).",
       "tracker_line": 397
     },
@@ -6084,8 +6088,8 @@
       "evidence_paths": [
         ".audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "17ac1e521d3469582715dfb030524ac8322bab05",
+      "last_verified_build": "zoid-coach-17ac1e521d3469582715dfb030524ac8322bab05-clean",
       "audit_note": "Neutral evaluation is read-only. The installed System Settings journey left the task active with its activity interval open, while deterministic representatives assert zero prompts and unchanged active-task count (`GamingDriftPromptService.swift`; `.audit/runs/drift-grace-neutral/17ac1e521d3469582715dfb030524ac8322bab05/evidence.json`).",
       "tracker_line": 400
     },
@@ -6155,8 +6159,8 @@
       "evidence_paths": [
         ".audit/runs/prompt-accepted-break/0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846",
+      "last_verified_build": "zoid-coach-0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846-clean",
       "audit_note": "The installed signed gaming prompt exposed Take a break only while a task was actively tracking. Choosing it closed the active interval, visibly changed Today to `PAUSED FOR A BREAK` with neutral copy, recorded one durable break pause and one response, survived app/helper restart, and resumed cleanly (`PromptResponseEffectRouter.swift`; `GamingDriftPromptService.swift`; `.audit/runs/prompt-accepted-break/0f1eb596ab7df9d8cdbc4bb4b7147ca93c2c1846/evidence.json`).",
       "tracker_line": 406
     },
@@ -6317,8 +6321,8 @@
       "evidence_paths": [
         ".audit/runs/gaming-observation-mode/fd24a048eaec782532a2401f6fd422a3861307fc/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "fd24a048eaec782532a2401f6fd422a3861307fc",
+      "last_verified_build": "zoid-coach-fd24a048eaec782532a2401f6fd422a3861307fc-clean",
       "audit_note": "In the installed signed app, the user disabled the gaming budget and prompts, saved through the agent, relaunched with all configured values retained in disabled controls, seeded exactly 42 gaming minutes, and saw `GAMING OBSERVED 42m` with no allowance, unlock, debt, waiting decision, or durable prompt before and after a helper restart (`GamingPolicy`; `SettingsView.swift`; `GamingDriftPromptService.swift`; `.audit/runs/gaming-observation-mode/fd24a048eaec782532a2401f6fd422a3861307fc/evidence.json`).",
       "tracker_line": 416
     },
@@ -6507,8 +6511,8 @@
       "item_index": 10,
       "wording": "Set the daily maximum during work hours.",
       "checkbox_state": "unchecked",
-      "audit_status": "Touches remaining",
-      "delivery_status": "touches_remaining",
+      "audit_status": "Not implemented",
+      "delivery_status": "not_implemented",
       "disposition": "required_now",
       "required_proof_classes": [
         "installed_app_e2e",
@@ -6519,7 +6523,7 @@
       "evidence_paths": [],
       "last_verified_commit": null,
       "last_verified_build": null,
-      "audit_note": "Settings now exposes a separate 0-to-1,440-minute work-hours maximum, persists it through the production policy model, evaluates configured Cairo work windows including overnight start-day semantics, and renders provenance-safe Today and menu-bar states. The 21 focused tests, fixture contract, clean signed package, identity, LaunchAgent, Mach/XPC, exact isolated database binding, current Screenwatch evidence, 20 meaningful gaming minutes, and real installed Settings accessibility target passed. The exact 30-minute save and relaunch, boundary controls, inside and outside work-window arithmetic, menu states, disabled state, partial lock, overnight, conflict, privacy, and screenshot gates remain (`Sources/ZoidCoachApp/Views/SettingsView.swift`; `Sources/ZoidCoachDomain/Policy.swift`; `Sources/ZoidCoachApp/MenuBarCoachState.swift`; `Tests/ZoidCoachAppTests/WorkHoursGamingMaximumTests.swift`; `.audit/runs/zc-029-010-work-hours-gaming-maximum/233126927a3db409749e9949433e91ecd31a3005/REPORT.md`).",
+      "audit_note": "No separate work-hours maximum exists.",
       "tracker_line": 425
     },
     {
@@ -7375,8 +7379,8 @@
         ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
         ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
       "audit_note": "The prompt store rejects every draft with more than three secondary actions before persistence, focused tests cover the rejection, and the installed signed Today prompt visibly presented one primary action and exactly three secondary actions (`BehaviorPromptPresentationPolicy`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 475
     },
@@ -7400,8 +7404,8 @@
         ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
         ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
       "audit_note": "Gaming prompts derive their displayed minutes from the first and latest canonical observations, reject mismatched evidence before persistence, and the installed signed Today prompt visibly reported the same exact ten observed Steam minutes after restart (`GamingDriftPromptService.swift`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 476
     },
@@ -7425,8 +7429,8 @@
         ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
         ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
       "audit_note": "Contracted prompts must state that observed activity does not establish why it happened or what the user intended, limited coverage suppresses generation, and the installed signed Source Health and Today surfaces visibly explained the missing Screenwatch evidence and safe manual fallback (`BehaviorPromptPresentationPolicy`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 477
     },
@@ -7450,8 +7454,8 @@
         ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
         ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
       "audit_note": "Contracted prompts containing the defined coercive phrase classes are rejected before persistence, while the signed prompt used factual activity, application, elapsed-time, and unfinished-task copy and remained neutral through response history (`BehaviorPromptPresentationPolicy`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 478
     },
@@ -7475,8 +7479,8 @@
         ".audit/runs/behavior-prompt-clarity/0657a9d8daf3e5b2835220358481c47f50f8d586/evidence.json",
         ".audit/runs/behavior-prompt-clarity/verifier/REPORT.md"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "0657a9d8daf3e5b2835220358481c47f50f8d586",
+      "last_verified_build": "zoid-coach-0657a9d8daf3e5b2835220358481c47f50f8d586-clean",
       "audit_note": "Contracted prompts reject asserted-intent phrases and require an explicit uncertainty boundary, while the signed prompt asked whether gaming was intentional and explicitly said the observations did not establish intent (`BehaviorPromptPresentationPolicy`; `.audit/runs/behavior-prompt-clarity/verifier/REPORT.md`).",
       "tracker_line": 479
     },
@@ -7523,8 +7527,8 @@
       "evidence_paths": [
         ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
       "audit_note": "The signed Today decision started its named task, exposed it as the active commitment, and retained one closed interval after the later end-workday response and helper restart (`PromptResponseEffectRouter.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 484
     },
@@ -7569,8 +7573,8 @@
       "evidence_paths": [
         ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
       "audit_note": "The signed Today decision started the named task with an exact visible 20-minute countdown, persisted one bounded sprint row, and retained its paused state across app and helper restart (`PromptResponseEffectRouter.swift`; `TaskExecutionStore.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 486
     },
@@ -7709,8 +7713,8 @@
       "evidence_paths": [
         ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
       "audit_note": "The signed Today response carried deliberately stale prompt context yet paused the actual live task, closed its only interval, preserved its 20-minute sprint as paused, and remained singular after restart (`PromptResponseEffectRouter.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 492
     },
@@ -7781,8 +7785,8 @@
       "evidence_paths": [
         ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
       "audit_note": "The signed Today response paused the actual live task despite a different stale payload, recorded the durable `endingWorkday` reason, closed the interval, and restored with no active commitment after restart (`PromptResponseEffectRouter.swift`; `TaskExecutionStore.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 495
     },
@@ -7827,8 +7831,8 @@
       "evidence_paths": [
         ".audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e",
+      "last_verified_build": "zoid-coach-e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e-clean",
       "audit_note": "The focused coaching journey replays every response token from the notification surface after a dashboard response and produces no second mutation. The signed run then retained exactly four responses, four applied effects, two intervals, one sprint, and two pauses across app and helper restart, with all four decisions shown once in history (`PromptInboxStore.swift`; `PromptResponseEffectRouterTests.swift`; `.audit/runs/coaching-response-actions/e33558dbb2bcc4a6acbff2b5ffa992ad3f2ffc9e/REPORT.md`).",
       "tracker_line": 497
     },
@@ -8691,8 +8695,8 @@
       "evidence_paths": [
         ".audit/runs/timed-coaching-pause/b9f655b20d62d2455f5b78c6380da53fb4b72471/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "b9f655b20d62d2455f5b78c6380da53fb4b72471",
+      "last_verified_build": "zoid-coach-b9f655b20d62d2455f5b78c6380da53fb4b72471-clean",
       "audit_note": "The signed Settings action persisted an exact boundary sixty minutes later, displayed the Cairo resume time, and restored the same active pause and Resume Now action after relaunch (`AutomationPause`; `SettingsView.swift`; `.audit/runs/timed-coaching-pause/b9f655b20d62d2455f5b78c6380da53fb4b72471/REPORT.md`).",
       "tracker_line": 551
     },
@@ -8715,8 +8719,8 @@
       "evidence_paths": [
         ".audit/runs/timed-coaching-pause/b9f655b20d62d2455f5b78c6380da53fb4b72471/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "b9f655b20d62d2455f5b78c6380da53fb4b72471",
+      "last_verified_build": "zoid-coach-b9f655b20d62d2455f5b78c6380da53fb4b72471-clean",
       "audit_note": "The signed Settings action displayed the next local midnight and persisted `2026-07-13T21:00:00Z`, exactly 14 July at 12:00 AM in Africa/Cairo. Focused rules cover timezone-aware calendar day transitions (`AutomationPause`; `SettingsPolicyController.swift`; `.audit/runs/timed-coaching-pause/b9f655b20d62d2455f5b78c6380da53fb4b72471/REPORT.md`).",
       "tracker_line": 552
     },
@@ -8739,8 +8743,8 @@
       "evidence_paths": [
         ".audit/runs/timed-coaching-pause/b9f655b20d62d2455f5b78c6380da53fb4b72471/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "b9f655b20d62d2455f5b78c6380da53fb4b72471",
+      "last_verified_build": "zoid-coach-b9f655b20d62d2455f5b78c6380da53fb4b72471-clean",
       "audit_note": "Resume Now immediately persisted Running as the next agent-saved policy version, restored all pause choices, and preserved unrelated unsaved Settings draft values in focused persistence proof (`SettingsPolicyController.swift`; `SettingsPolicyDraftTests.swift`; `.audit/runs/timed-coaching-pause/b9f655b20d62d2455f5b78c6380da53fb4b72471/REPORT.md`).",
       "tracker_line": 553
     },
@@ -8763,8 +8767,8 @@
       "evidence_paths": [
         ".audit/runs/timed-coaching-pause/b9f655b20d62d2455f5b78c6380da53fb4b72471/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "b9f655b20d62d2455f5b78c6380da53fb4b72471",
+      "last_verified_build": "zoid-coach-b9f655b20d62d2455f5b78c6380da53fb4b72471-clean",
       "audit_note": "The signed card visibly distinguished Running, one-hour, next-midnight, and indefinite states, explained that tracking continues, exposed stable accessibility identifiers, and changed automatically from a shortened paused boundary to Running on its thirty-second refresh after expiry (`SettingsView.swift`; `.audit/runs/timed-coaching-pause/b9f655b20d62d2455f5b78c6380da53fb4b72471/REPORT.md`).",
       "tracker_line": 554
     },
@@ -9045,8 +9049,8 @@
       "evidence_paths": [
         ".audit/runs/daily-review-plan-outcomes/040a58fb9dbc96617dd9b303bf034fce55e1329a/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "040a58fb9dbc96617dd9b303bf034fce55e1329a",
+      "last_verified_build": "zoid-coach-040a58fb9dbc96617dd9b303bf034fce55e1329a-clean",
       "audit_note": "The signed installed Daily Review showed completed, unfinished, and not-designated main-objective states for three selected policy-local days, named the exact objective, excluded another day's completion, and reproduced the completed state after app relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-plan-outcomes/verifier/REPORT.md`).",
       "tracker_line": 572
     },
@@ -9069,8 +9073,8 @@
       "evidence_paths": [
         ".audit/runs/daily-review-plan-outcomes/040a58fb9dbc96617dd9b303bf034fce55e1329a/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "040a58fb9dbc96617dd9b303bf034fce55e1329a",
+      "last_verified_build": "zoid-coach-040a58fb9dbc96617dd9b303bf034fce55e1329a-clean",
       "audit_note": "The signed review showed one of two non-optional priorities completed, omitted a completed optional task, kept a priority completed the next day open for the selected day, exposed explicit zero-count and no-plan states, and reproduced the same count after relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-plan-outcomes/verifier/REPORT.md`).",
       "tracker_line": 573
     },
@@ -9135,7 +9139,6 @@
       ],
       "affected_capability": "review_and_learning",
       "evidence_paths": [
-        ".audit/runs/zc-041-005-daily-review-work-categories/final-window-navigation/REPORT.md",
         ".audit/runs/zc-041-005-work-categories/310686873ebbcf6e15a2ec7b9bf464dffe480ef9/REPORT.md"
       ],
       "last_verified_commit": null,
@@ -9228,8 +9231,8 @@
       "evidence_paths": [
         ".audit/runs/daily-review-highlights/d46af5253c18850ef34a5e583a8189bc3a0d6b74/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "d46af5253c18850ef34a5e583a8189bc3a0d6b74",
+      "last_verified_build": "zoid-coach-d46af5253c18850ef34a5e583a8189bc3a0d6b74-clean",
       "audit_note": "The signed review showed the longest corrected observed work session with app, duration, classification, and policy-local time; a corrected earlier YouTube block won a true five-minute tie over later Xcode, the empty state was explicit, and relaunch preserved the result (`DailyReview.swift`; `DailyReviewStore.swift`; `.audit/runs/daily-review-highlights/verifier/REPORT.md`).",
       "tracker_line": 580
     },
@@ -9252,8 +9255,8 @@
       "evidence_paths": [
         ".audit/runs/daily-review-highlights/d46af5253c18850ef34a5e583a8189bc3a0d6b74/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "d46af5253c18850ef34a5e583a8189bc3a0d6b74",
+      "last_verified_build": "zoid-coach-d46af5253c18850ef34a5e583a8189bc3a0d6b74-clean",
       "audit_note": "The signed review selected a three-minute Steam gaming episode over a two-minute Safari distraction, exposed factual corrected-observation copy and local time, showed an explicit not-observed state on an empty day, and preserved the result after relaunch (`DailyReview.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-highlights/verifier/REPORT.md`).",
       "tracker_line": 581
     },
@@ -9276,8 +9279,8 @@
       "evidence_paths": [
         ".audit/runs/daily-review-highlights/d46af5253c18850ef34a5e583a8189bc3a0d6b74/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "d46af5253c18850ef34a5e583a8189bc3a0d6b74",
+      "last_verified_build": "zoid-coach-d46af5253c18850ef34a5e583a8189bc3a0d6b74-clean",
       "audit_note": "The signed review showed applied, effect-pending, and unanswered behavior-coaching states with action, surface, and policy-local time, excluded an unrelated planning prompt, exposed a factual empty state, and reproduced the filtered history after relaunch (`DailyReviewStore.swift`; `DailyReviewView.swift`; `.audit/runs/daily-review-highlights/verifier/REPORT.md`).",
       "tracker_line": 582
     },
@@ -9459,8 +9462,8 @@
       "evidence_paths": [
         ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "The installed signed QA Reviews surface corrected a concrete Steam session from Unknown to Work, updated the visible category, and preserved the correction after relaunch (`DailyReviewView.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 593
     },
@@ -10154,8 +10157,8 @@
       "evidence_paths": [
         ".audit/runs/settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "aedc669a5cc5da5457684a670b690f8bcb060de4",
+      "last_verified_build": "zoid-coach-aedc669a5cc5da5457684a670b690f8bcb060de4-clean",
       "audit_note": "The installed signed-QA Settings flow exposed the full IANA picker, current UTC offset, Mac-zone comparison, and direct Mac-zone restore; `America/Los_Angeles` persisted through save, reopen, and app-plus-helper restart, while independent and overlapping concurrent policy edits preserved their correct values and required deliberate reapply only for the competing time-zone choice (`SettingsView.swift`; `SettingsPolicyDraft.swift`; `SettingsPolicyConflict.swift`; `.audit/runs/settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4/evidence.json`).",
       "tracker_line": 628
     },
@@ -10455,8 +10458,8 @@
       "evidence_paths": [
         ".audit/runs/behavior-grace-controls/signed-acceptance/da20828655cb53f5a7ee0e7093c57f985a183c80/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "da20828655cb53f5a7ee0e7093c57f985a183c80",
+      "last_verified_build": "zoid-coach-da20828655cb53f5a7ee0e7093c57f985a183c80-clean",
       "audit_note": "The installed signed Settings UI exposed explicit task-start and return-from-idle grace controls with stable accessibility descriptions, saved 12 and four minutes through the running agent as policy V2, restored both values after closing Settings and after restarting the app and helper, then saved a shorter 10-minute task-start grace as policy V3 without restarting the helper. An isolated signed-runtime seed inside the 12-minute task boundary created no prompt or quiet-drift record and preserved one active task, one open activity interval, and all ten behavior observations; focused policy, draft, conflict, legacy, bounds, and decision tests passed 67 of 67 (`SettingsView.swift`; `GamingDriftPromptService.swift`; `.audit/runs/behavior-grace-controls/signed-acceptance/da20828655cb53f5a7ee0e7093c57f985a183c80/evidence.json`).",
       "tracker_line": 645
     },
@@ -11189,8 +11192,8 @@
       "evidence_paths": [
         ".audit/runs/delete-reviews-learned-rules/73d56ca7199fd873bfb7501595ad33080ddc7b81/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "73d56ca7199fd873bfb7501595ad33080ddc7b81",
+      "last_verified_build": "zoid-coach-73d56ca7199fd873bfb7501595ad33080ddc7b81-clean",
       "audit_note": "Signed Settings now names every deleted category and preserved raw fact in the seven-record inventory, confirmation, positive result, and repeat-zero result. Native Cancel preserved all seven targets plus raw behavior and task state; Confirm atomically removed all seven targets while preserving both raw facts; refreshed inventory showed zero; repeat remained idempotent; and signed relaunch retained the exact zero-one-one state. Focused disclosure tests and the full privacy service group pass (`Sources/ZoidCoachCore/ReviewLearningDeletionDisclosure.swift`; `Sources/ZoidCoachInfrastructure/PrivacyDataService.swift`; `Sources/ZoidCoachInfrastructure/AgentMutationRouter.swift`; `Sources/ZoidCoachApp/Views/SettingsView.swift`; `.audit/runs/delete-reviews-learned-rules/73d56ca7199fd873bfb7501595ad33080ddc7b81/evidence.json`).",
       "tracker_line": 684
     },
@@ -11303,8 +11306,8 @@
       "evidence_paths": [
         ".audit/runs/screenwatch-path-last-record/5866ba0627ae99e9307922e58da639dcb314c71c/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "5866ba0627ae99e9307922e58da639dcb314c71c",
+      "last_verified_build": "zoid-coach-5866ba0627ae99e9307922e58da639dcb314c71c-clean",
       "audit_note": "Signed Settings visibly and accessibly showed the canonical selectable Screenwatch days-folder path and a locale-aware absolute latest schema-valid record time from a real isolated JSONL source. A later invalid line preserved the earlier valid timestamp under truthful incompatible-format health, relaunch recomputed the same evidence, and removing the log produced a truthful no-valid-record state that persisted across another relaunch (`Sources/ZoidCoachApp/Services/ScreenwatchSetupService.swift`; `Sources/ZoidCoachApp/Views/ScreenwatchConnectionView.swift`; `Sources/ZoidCoachApp/Views/ScreenwatchRecordEvidence.swift`; `.audit/runs/screenwatch-path-last-record/5866ba0627ae99e9307922e58da639dcb314c71c/evidence.json`).",
       "tracker_line": 692
     },
@@ -11419,8 +11422,8 @@
       "evidence_paths": [
         ".audit/runs/agent-lifecycle-recovery/328b7177984636b09a96f9936bed1077c02bd811/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "328b7177984636b09a96f9936bed1077c02bd811",
+      "last_verified_build": "zoid-coach-328b7177984636b09a96f9936bed1077c02bd811-clean",
       "audit_note": "The installed signed Background Agent window distinguished current, missing, and five-minute-stale runtime heartbeats instead of trusting registration alone. Repair, disable, re-enable, and launchd restart recovery all returned truthful visible states (`AgentLaunchService.swift`; `AgentLifecycleView.swift`; `.audit/runs/agent-lifecycle-recovery/verifier/REPORT.md`).",
       "tracker_line": 697
     },
@@ -11714,8 +11717,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
       "audit_note": "The fresh installed signed-QA denial journey continued through onboarding, opened the complete Today dashboard, exposed the paused-setup recovery strip, and resolved the canonical choice without touching the production notification center (`OnboardingRootView.swift`; `DashboardView.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 716
     },
@@ -11760,8 +11763,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
       "audit_note": "A fresh signed-QA run with notification permission denied created the canonical prompt, visibly reported Today Fallback, and displayed the same title, summary, and harmless actions in Today Decisions (`OnboardingTestPromptService.swift`; `DashboardView.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 718
     },
@@ -11828,8 +11831,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-test-prompt/signed-acceptance/a8db552bc734688a2af2b112fc43de041c53fc56/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "a8db552bc734688a2af2b112fc43de041c53fc56",
+      "last_verified_build": "zoid-coach-a8db552bc734688a2af2b112fc43de041c53fc56-clean",
       "audit_note": "The installed denial journey resolved Continue Setup directly from Today, removed the decision from the dashboard, persisted response surface `dashboard`, and returned to onboarding with the same resolved state and enabled continuation (`PromptInboxStore.swift`; `TodayDashboardXPC.swift`; `.audit/runs/onboarding-test-prompt/signed-acceptance/REPORT.md`).",
       "tracker_line": 721
     },
@@ -12403,8 +12406,8 @@
       "evidence_paths": [
         ".audit/runs/settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "aedc669a5cc5da5457684a670b690f8bcb060de4",
+      "last_verified_build": "zoid-coach-aedc669a5cc5da5457684a670b690f8bcb060de4-clean",
       "audit_note": "In the installed signed-QA app, a local task was created, started, completed, and retained visibly in Daily Review while the policy moved through Los Angeles, London, Tokyo, and back to the Mac's Cairo zone; the durable completion instant remained byte-identical at `2026-07-13T11:21:36Z` after the final app and helper restart (`SettingsPolicyDraftTests.swift`; `.audit/runs/settings-time-zone-policy/aedc669a5cc5da5457684a670b690f8bcb060de4/evidence.json`).",
       "tracker_line": 755
     },
@@ -12498,8 +12501,8 @@
       "evidence_paths": [
         ".audit/runs/planned-task-start-reminders/0b857b9fd456b76ae69a2bc951d1fdac4f34d35d/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "0b857b9fd456b76ae69a2bc951d1fdac4f34d35d",
+      "last_verified_build": "zoid-coach-0b857b9fd456b76ae69a2bc951d1fdac4f34d35d-clean",
       "audit_note": "The signed app accepted a two-block plan and scheduled exactly one `TASK_START` request at each block start, while the optional task produced none. Replanning retained the stable day-and-task identifier, replaced the second request's 09:40 time with 10:10 and revised its task copy, and app/helper restart preserved exactly two requests (`AgentPlanScheduler.swift`; `ActionCommandExecutor.swift`; `.audit/runs/planned-task-start-reminders/0b857b9fd456b76ae69a2bc951d1fdac4f34d35d/REPORT.md`).",
       "tracker_line": 762
     },
@@ -12544,8 +12547,8 @@
       "evidence_paths": [
         ".audit/runs/scheduled-review-reminders/680c8c8dc0eed1e45614188fa10b19f3a6f816ed/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "680c8c8dc0eed1e45614188fa10b19f3a6f816ed",
+      "last_verified_build": "zoid-coach-680c8c8dc0eed1e45614188fa10b19f3a6f816ed-clean",
       "audit_note": "The signed observation-mode helper scheduled `daily-review:2026-07-13` for the configured 14:06 work end, deferred it through quiet hours to exactly 14:07 Cairo, retained one stable current occurrence across helper restart, and delivered it at the boundary. The reminder copy directs the user to Reviews, where the signed app exposed the complete Daily Review correction and confirmation workflow (`ReviewReminderService.swift`; `AgentMain.swift`; `.audit/runs/scheduled-review-reminders/680c8c8dc0eed1e45614188fa10b19f3a6f816ed/evidence.json`).",
       "tracker_line": 764
     },
@@ -12568,8 +12571,8 @@
       "evidence_paths": [
         ".audit/runs/scheduled-review-reminders/680c8c8dc0eed1e45614188fa10b19f3a6f816ed/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "680c8c8dc0eed1e45614188fa10b19f3a6f816ed",
+      "last_verified_build": "zoid-coach-680c8c8dc0eed1e45614188fa10b19f3a6f816ed-clean",
       "audit_note": "The signed Monday-only schedule treated 14:06 as the final configured workday boundary, deferred `weekly-review:2026-W29` to exactly 14:07 Cairo, retained one stable current occurrence across helper restart, and delivered it at the boundary. The next ISO-week identifier was scheduled separately, and the signed Reviews surface exposed the weekly evidence summary without inventing conclusions (`ReviewReminderService.swift`; `AgentMain.swift`; `.audit/runs/scheduled-review-reminders/680c8c8dc0eed1e45614188fa10b19f3a6f816ed/evidence.json`).",
       "tracker_line": 765
     },
@@ -12636,8 +12639,8 @@
       "evidence_paths": [
         ".audit/runs/quiet-hours-delivery/7a216a88032234e5d7a442e46a8052a16b283b92/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "7a216a88032234e5d7a442e46a8052a16b283b92",
+      "last_verified_build": "zoid-coach-7a216a88032234e5d7a442e46a8052a16b283b92-clean",
       "audit_note": "Deterministic replacement integration retains one fixture notification when the same prompt is scheduled repeatedly, and the signed quiet-hours journey preserved exactly one queued prompt and one ledger delivery across app and helper restart. The stable request identifier prevents duplicate unresolved notifications while retaining updated delivery evidence (`PromptNotificationCoordinator.swift`; `NotificationDeliveryLedgerTests.swift`; `.audit/runs/quiet-hours-delivery/7a216a88032234e5d7a442e46a8052a16b283b92/REPORT.md`).",
       "tracker_line": 768
     },
@@ -12902,8 +12905,8 @@
       "evidence_paths": [
         ".audit/runs/reduced-motion-feedback/5d70aae75751e5b24c8cd59a9877875a569255c2/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "5d70aae75751e5b24c8cd59a9877875a569255c2",
+      "last_verified_build": "zoid-coach-5d70aae75751e5b24c8cd59a9877875a569255c2-clean",
       "audit_note": "All 29 owned Today and shared-control motion sites now consume one environment-backed policy that removes animation, pressed scaling, offset, scale, asymmetric, and reorder motion when Reduce Motion is enabled while preserving immediate labels, selection, counts, ordering, focus, and actions. A deterministic `NSHostingView` fixture exercised pressed feedback, plan insertion, usage switching, estimate confirmation, and reminder reordering with reduced motion, a standard-mode control retained restrained motion, six focused tests passed, and the exact signed release QA package launched with a complete accessibility tree without changing the user's macOS setting (`SumiTheme.swift`; `DashboardView.swift`; `TodayDashboardCommandOverview.swift`; `SumiThemeTests.swift`; `.audit/runs/reduced-motion-feedback/verifier/REPORT.md`).",
       "tracker_line": 783
     },
@@ -13138,8 +13141,8 @@
       "evidence_paths": [
         ".audit/runs/reduced-motion-feedback/5d70aae75751e5b24c8cd59a9877875a569255c2/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "5d70aae75751e5b24c8cd59a9877875a569255c2",
+      "last_verified_build": "zoid-coach-5d70aae75751e5b24c8cd59a9877875a569255c2-clean",
       "audit_note": "Shared actions, dropdowns, overlays, Today planning changes, usage filters, estimate confirmations, and reminder reorders now become immediate and non-spatial under Reduce Motion while retaining useful opacity, border, fill, label, selection, focus, and ordering feedback. The deterministic reduced-motion view host and standard-mode control passed, static inspection found no remaining unconditional spatial-motion pattern in the 29 owned sites, and the coherent signed release QA package launched successfully (`SumiTheme.swift`; `DashboardView.swift`; `TodayDashboardCommandOverview.swift`; `SumiThemeTests.swift`; `.audit/runs/reduced-motion-feedback/verifier/REPORT.md`).",
       "tracker_line": 797
     },
@@ -14788,8 +14791,8 @@
       "evidence_paths": [
         ".audit/runs/correction-to-rule/f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5",
+      "last_verified_build": "zoid-coach-f6a281efe9a6c19ea6a80f05d8c7c6136ba0b9a5-clean",
       "audit_note": "In the isolated signed QA app, a user corrected Steam from Unknown to Work, explicitly enabled and previewed future adaptation, saw the active rule survive relaunch, and the signed agent classified a later Screenwatch Steam observation as Work without rewriting the historical observation (`DailyReviewStore.swift`; `ScreenwatchArchive.swift`; `.audit/runs/correction-to-rule/f6a281e/REPORT.md`).",
       "tracker_line": 895
     },
@@ -14928,8 +14931,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The installed app is single-user and local-first with no team or remote-admin surface (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 904
     },
@@ -14953,8 +14956,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The product is a native local macOS app and has no public web dashboard (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 905
     },
@@ -14978,8 +14981,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "Screenwatch evidence remains local and no cloud screenshot-sync feature is exposed (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 906
     },
@@ -15003,8 +15006,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "No mobile companion or cross-device behavior surface exists (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 907
     },
@@ -15050,8 +15053,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "The app plans existing tasks and does not expose automatic decomposition into multiple new Reminders (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 909
     },
@@ -15075,8 +15078,8 @@
       "evidence_paths": [
         ".audit/runs/onboarding-visible/cfe7fbd3480191177d0a59b568061a0236101147/evidence.json"
       ],
-      "last_verified_commit": null,
-      "last_verified_build": null,
+      "last_verified_commit": "cfe7fbd3480191177d0a59b568061a0236101147",
+      "last_verified_build": "zoid-coach-cfe7fbd3480191177d0a59b568061a0236101147-clean",
       "audit_note": "No blocking controls or enforcement service are present (`.audit/runs/baseline/a068d27/REPORT.md`).",
       "tracker_line": 910
     },
