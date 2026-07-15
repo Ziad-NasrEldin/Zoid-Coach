@@ -10,7 +10,8 @@ readonly TASK_TITLE="QA invalid estimate matrix"
 readonly PRIVATE_NOTE="qa-zc011007-private-estimate-note"
 readonly DAY_KEY="${ZOID_666_QA_ZC011007_DAY:-$(date '+%Y-%m-%d')}"
 readonly DATABASE_SUFFIX="/Application Support/Zoid 666/zoid-coach.sqlite"
-readonly ROOT_MARKER_SUFFIX="/QA Control/zc011007-fixture-root"
+readonly ROOT_CONTROL_SUFFIX="/.zc011007-fixture-control"
+readonly ROOT_MARKER_SUFFIX="$ROOT_CONTROL_SUFFIX/owner"
 typeset -g CANONICAL_DATABASE=""
 typeset -g CANONICAL_DATABASE_ID=""
 
@@ -28,11 +29,36 @@ require_qa_database() {
         || fail "database must be the canonical file inside a ZC-011-007 isolated QA root"
     local qa_root="${resolved_database%$DATABASE_SUFFIX}"
     [[ "$qa_root" == "${qa_root:A}" ]] || fail "QA root must not traverse a symlink"
+    [[ "$(stat -f '%Lp' "$qa_root")" == "700" && "$(stat -f '%u' "$qa_root")" == "$(id -u)" ]] \
+        || fail "QA root must be fixture-exclusive mode 700 and owned by the current user"
+    local control="$qa_root$ROOT_CONTROL_SUFFIX"
+    [[ -d "$control" && ! -L "$control" && "${control:a}" == "${control:A}" ]] \
+        || fail "fixture control directory is missing or traverses a symlink"
+    [[ "$(stat -f '%Lp' "$control")" == "700" && "$(stat -f '%u' "$control")" == "$(id -u)" ]] \
+        || fail "fixture control directory must be mode 700 and owned by the current user"
     local marker="$qa_root$ROOT_MARKER_SUFFIX"
     [[ -f "$marker" && ! -L "$marker" && "$(<"$marker")" == "$qa_root" ]] \
         || fail "database root is not claimed by this ZC-011-007 fixture"
+    [[ "$(stat -f '%l' "$marker")" == "1" && "$(stat -f '%Lp' "$marker")" == "600" ]] \
+        || fail "fixture owner marker must be a private single-link file"
+    [[ "$(stat -f '%l' "$resolved_database")" == "1" ]] \
+        || fail "canonical database must be a single-link file"
     CANONICAL_DATABASE="$resolved_database"
     CANONICAL_DATABASE_ID="$(stat -f '%d:%i' "$CANONICAL_DATABASE")"
+}
+
+assert_qa_processes_stopped() {
+    local qa_root="$1"
+    local executable pid process_environment
+    for executable in ZoidCoachQA ZoidCoachAgentQA; do
+        for pid in ${(f)"$(pgrep -x "$executable" 2>/dev/null || true)"}; do
+            [[ -n "$pid" ]] || continue
+            process_environment="$(ps eww -p "$pid" -o command= 2>/dev/null || true)"
+            [[ " $process_environment " != *" ZOID_COACH_QA_RUN_ROOT=$qa_root "* ]] \
+                || fail "QA process must be stopped before mutating the fixture root: pid=$pid"
+        done
+    done
+    ! lsof "$qa_root$DATABASE_SUFFIX" >/dev/null 2>&1 || fail "fixture database has open file handles"
 }
 
 assert_database_identity() {
@@ -42,10 +68,12 @@ assert_database_identity() {
         || fail "canonical database resolved outside its owned root"
     [[ "$(stat -f '%d:%i' "$CANONICAL_DATABASE")" == "$CANONICAL_DATABASE_ID" ]] \
         || fail "canonical database identity changed during fixture operation"
+    [[ "$(stat -f '%l' "$CANONICAL_DATABASE")" == "1" ]] \
+        || fail "canonical database acquired another hard link"
 }
 
 usage() {
-    print -u2 -- "usage: $0 <prepare|assert-unmutated|assert-valid|cleanup|snapshot-root|restore-root|assert-root-restored|self-test> [database-or-root] [snapshot]"
+    print -u2 -- "usage: $0 <prepare|assert-unmutated|assert-valid|checkpoint|snapshot-root|restore-root|assert-root-restored|self-test> [database-or-root] [snapshot]"
     exit 2
 }
 
@@ -106,10 +134,19 @@ prepare() {
     assert_scalar "SELECT COUNT(*) FROM source_tasks WHERE source_id = '$TASK_ID';" "0" "unused source-task namespace"
     assert_scalar "SELECT COUNT(*) FROM daily_plan_entries WHERE reminder_id = '$TASK_ID';" "0" "unused plan namespace"
     assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE ended_at IS NULL;" "0" "clean active-session baseline"
+    local qa_root="${CANONICAL_DATABASE%$DATABASE_SUFFIX}"
+    assert_qa_processes_stopped "$qa_root"
     local timestamp
     timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
     assert_database_identity
-    sqlite3 -batch "$CANONICAL_DATABASE" <<SQL
+    local staged_database
+    staged_database="$(mktemp "${CANONICAL_DATABASE:h}/.zc011007-seed.XXXXXX")"
+    trap 'rm -f -- "${staged_database:-}"' EXIT
+    chmod 600 "$staged_database"
+    cp -p "$CANONICAL_DATABASE" "$staged_database"
+    [[ ! -L "$staged_database" && "$(stat -f '%l' "$staged_database")" == "1" ]] \
+        || fail "staged database must be a private single-link file"
+    sqlite3 -batch "$staged_database" <<SQL
 BEGIN IMMEDIATE;
 INSERT INTO source_tasks(source_id, title, due_at, priority, is_completed, updated_at, notes, list_id, list_name, modified_at, source_hash, source_kind)
 VALUES('$TASK_ID', '$TASK_TITLE', '$DAY_KEY' || 'T12:00:00Z', 1, 0, '$timestamp', '$PRIVATE_NOTE', NULL, 'Zoid 666 QA', '$timestamp', '$TASK_ID', 'local');
@@ -119,26 +156,22 @@ INSERT INTO task_execution_states(task_id, state, updated_at)
 VALUES('$TASK_ID', 'ready', '$timestamp');
 COMMIT;
 SQL
+    [[ "$(sqlite3 -batch -noheader "$staged_database" 'PRAGMA integrity_check;')" == "ok" ]] \
+        || fail "staged fixture database failed integrity check"
+    assert_database_identity
+    mv -f "$staged_database" "$CANONICAL_DATABASE"
+    staged_database=""
+    CANONICAL_DATABASE_ID="$(stat -f '%d:%i' "$CANONICAL_DATABASE")"
+    trap - EXIT
     assert_unmutated
 }
 
-cleanup() {
-    validate_schema
+checkpoint() {
+    local qa_root="${CANONICAL_DATABASE%$DATABASE_SUFFIX}"
+    assert_qa_processes_stopped "$qa_root"
     assert_database_identity
-    sqlite3 -batch "$CANONICAL_DATABASE" <<SQL
-PRAGMA foreign_keys = OFF;
-BEGIN IMMEDIATE;
-DELETE FROM task_activity_intervals WHERE task_id = '$TASK_ID';
-DELETE FROM task_execution_states WHERE task_id = '$TASK_ID';
-DELETE FROM daily_plan_entries WHERE reminder_id = '$TASK_ID';
-DELETE FROM source_tasks WHERE source_id = '$TASK_ID';
-COMMIT;
-PRAGMA foreign_keys = ON;
-SQL
-    assert_scalar "SELECT COUNT(*) FROM source_tasks WHERE source_id = '$TASK_ID';" "0" "owned source cleanup"
-    assert_scalar "SELECT COUNT(*) FROM daily_plan_entries WHERE reminder_id = '$TASK_ID';" "0" "owned plan cleanup"
-    assert_scalar "SELECT COUNT(*) FROM task_execution_states WHERE task_id = '$TASK_ID';" "0" "owned state cleanup"
-    assert_scalar "SELECT COUNT(*) FROM task_activity_intervals WHERE task_id = '$TASK_ID';" "0" "owned interval cleanup"
+    sqlite3 -batch "$CANONICAL_DATABASE" 'PRAGMA wal_checkpoint(TRUNCATE);' >/dev/null
+    assert_database_identity
 }
 
 assert_safe_root() {
@@ -161,16 +194,29 @@ root_manifest() {
 }
 
 snapshot_root() {
-    local qa_root="${ARGUMENT_ONE:A}"
+    local qa_root="${ARGUMENT_ONE:a}"
     local snapshot="${ARGUMENT_TWO:A}"
     assert_safe_root "$qa_root"
+    [[ "$qa_root" == "${ARGUMENT_ONE:A}" ]] || fail "QA root must not contain symlinked ancestors"
     [[ -d "$qa_root" ]] || fail "QA root does not exist: $qa_root"
+    [[ "$(stat -f '%Lp' "$qa_root")" == "700" && "$(stat -f '%u' "$qa_root")" == "$(id -u)" ]] \
+        || fail "fresh QA root must be mode 700 and owned by the current user"
     [[ "$snapshot" == /private/tmp/zoid-666-zc011007-* ]] || fail "snapshot must use isolated ZC-011-007 namespace"
     [[ ! -e "$snapshot" && ! -e "$snapshot.zc011007-target" ]] || fail "snapshot already exists"
+    local control="$qa_root$ROOT_CONTROL_SUFFIX"
+    mkdir -m 700 "$control" || fail "fixture control directory already exists"
     local marker="$qa_root$ROOT_MARKER_SUFFIX"
-    mkdir -p "${marker:h}"
-    [[ ! -L "$marker" ]] || fail "fixture root marker must not be a symlink"
+    set -o noclobber
     print -r -- "$qa_root" > "$marker"
+    set +o noclobber
+    chmod 600 "$marker"
+    [[ "$(stat -f '%l' "$marker")" == "1" ]] || fail "fixture marker must have one link"
+    local database="$qa_root$DATABASE_SUFFIX"
+    [[ -f "$database" && ! -L "$database" && "${database:a}" == "${database:A}" ]] \
+        || fail "canonical fixture database is missing or traverses a symlink"
+    [[ "$(stat -f '%l' "$database")" == "1" ]] || fail "canonical fixture database must have one link"
+    assert_qa_processes_stopped "$qa_root"
+    "$SCRIPT_PATH" checkpoint "$database"
     /usr/bin/ditto "$qa_root" "$snapshot"
     print -r -- "$qa_root" > "$snapshot.zc011007-target"
     root_manifest "$snapshot" > "$snapshot.zc011007-manifest"
@@ -179,9 +225,10 @@ snapshot_root() {
 }
 
 restore_root() {
-    local qa_root="${ARGUMENT_ONE:A}"
+    local qa_root="${ARGUMENT_ONE:a}"
     local snapshot="${ARGUMENT_TWO:A}"
     assert_safe_root "$qa_root"
+    [[ "$qa_root" == "${ARGUMENT_ONE:A}" ]] || fail "restore target must not contain symlinked ancestors"
     [[ -d "$snapshot" ]] || fail "snapshot does not exist: $snapshot"
     [[ -f "$snapshot.zc011007-target" ]] || fail "snapshot target marker is missing"
     [[ "$(<"$snapshot.zc011007-target")" == "$qa_root" ]] || fail "snapshot target does not match QA root"
@@ -193,9 +240,10 @@ restore_root() {
 }
 
 assert_root_restored() {
-    local qa_root="${ARGUMENT_ONE:A}"
+    local qa_root="${ARGUMENT_ONE:a}"
     local snapshot="${ARGUMENT_TWO:A}"
     assert_safe_root "$qa_root"
+    [[ "$qa_root" == "${ARGUMENT_ONE:A}" ]] || fail "restored target must not contain symlinked ancestors"
     [[ -f "$snapshot.zc011007-manifest" ]] || fail "snapshot manifest is missing"
     local current
     current="$(mktemp /private/tmp/zoid-666-zc011007-manifest.XXXXXX)"
@@ -216,9 +264,10 @@ self_test() {
     local timestamp="2026-07-15T06:00:00Z"
     local self_test_suffix="${SELF_TEST_ROOT:t}"
     local qa_root="/private/tmp/zoid-666-zc011007-fixture-self-test-root-$self_test_suffix"
+    local alias_root="/private/tmp/zoid-666-zc011007-fixture-alias-$self_test_suffix"
     local database_snapshot="/private/tmp/zoid-666-zc011007-fixture-db-snapshot-$self_test_suffix"
     local root_snapshot="/private/tmp/zoid-666-zc011007-fixture-root-snapshot-$self_test_suffix"
-    trap 'rm -rf -- "${SELF_TEST_ROOT:-}" "$qa_root" "$database_snapshot" "$database_snapshot".zc011007-*(N) "$root_snapshot" "$root_snapshot".zc011007-*(N) "$non_qa_database"' EXIT
+    trap 'rm -rf -- "${SELF_TEST_ROOT:-}" "$qa_root" "$alias_root" "$database_snapshot" "$database_snapshot".zc011007-*(N) "$root_snapshot" "$root_snapshot".zc011007-*(N) "$non_qa_database"' EXIT
     mkdir -p "${database:h}"
     sqlite3 -batch "$database" <<SQL
 CREATE TABLE source_tasks(source_id TEXT PRIMARY KEY, title TEXT NOT NULL, due_at TEXT, priority INTEGER NOT NULL DEFAULT 0, is_completed INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL, notes TEXT, list_id TEXT, list_name TEXT, modified_at TEXT, source_hash TEXT, source_kind TEXT NOT NULL DEFAULT 'reminders');
@@ -227,6 +276,27 @@ CREATE TABLE task_execution_states(task_id TEXT PRIMARY KEY, state TEXT NOT NULL
 CREATE TABLE task_activity_intervals(id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT);
 SQL
     "$SCRIPT_PATH" snapshot-root "$SELF_TEST_ROOT" "$database_snapshot"
+    local marker="$SELF_TEST_ROOT$ROOT_MARKER_SUFFIX"
+    local marker_hardlink="$SELF_TEST_ROOT/.marker-hardlink"
+    ln "$marker" "$marker_hardlink"
+    if "$SCRIPT_PATH" prepare "$database" >/dev/null 2>&1; then
+        fail "fixture accepted a hard-linked ownership marker"
+    fi
+    rm "$marker_hardlink"
+    local database_hardlink="$SELF_TEST_ROOT/.database-hardlink"
+    ln "$database" "$database_hardlink"
+    if "$SCRIPT_PATH" prepare "$database" >/dev/null 2>&1; then
+        fail "fixture accepted a hard-linked canonical database"
+    fi
+    rm "$database_hardlink"
+    ln -s "$SELF_TEST_ROOT" "$alias_root"
+    local canonical_hash_before="$(shasum -a 256 "$database" | awk '{print $1}')"
+    if "$SCRIPT_PATH" prepare "$alias_root$DATABASE_SUFFIX" >/dev/null 2>&1; then
+        fail "fixture accepted a symlinked QA-root ancestor"
+    fi
+    [[ "$(shasum -a 256 "$database" | awk '{print $1}')" == "$canonical_hash_before" ]] \
+        || fail "symlinked-parent rejection mutated the canonical database"
+    rm "$alias_root"
     cp "$database" "$unrelated_database"
     local unrelated_hash_before="$(shasum -a 256 "$unrelated_database" | awk '{print $1}')"
     if "$SCRIPT_PATH" prepare "$unrelated_database" >/dev/null 2>&1; then
@@ -251,19 +321,21 @@ SQL
         || fail "rejected symlink target was mutated"
     rm "$database"
     mv "$original_database" "$database"
+    sqlite3 -batch "$database" "INSERT INTO source_tasks(source_id, title, priority, is_completed, updated_at, source_kind) VALUES('$TASK_ID', 'collision', 0, 0, '$timestamp', 'local');"
+    local collision_hash_before="$(shasum -a 256 "$database" | awk '{print $1}')"
+    if "$SCRIPT_PATH" prepare "$database" >/dev/null 2>&1; then
+        fail "fixture accepted a colliding owned task ID"
+    fi
+    [[ "$(shasum -a 256 "$database" | awk '{print $1}')" == "$collision_hash_before" ]] \
+        || fail "collision rejection mutated the database"
+    sqlite3 -batch "$database" "DELETE FROM source_tasks WHERE source_id = '$TASK_ID';"
     "$SCRIPT_PATH" prepare "$database"
     "$SCRIPT_PATH" assert-unmutated "$database"
     sqlite3 -batch "$database" "UPDATE daily_plan_entries SET estimate_minutes = 25, updated_at = '$timestamp' WHERE reminder_id = '$TASK_ID';"
     "$SCRIPT_PATH" assert-valid "$database"
-    "$SCRIPT_PATH" cleanup "$database"
-    rm -rf -- "$qa_root" "$root_snapshot" "$root_snapshot".zc011007-*(N)
-    mkdir -p "$qa_root"
-    print -r -- "baseline" > "$qa_root/state"
-    "$SCRIPT_PATH" snapshot-root "$qa_root" "$root_snapshot"
-    print -r -- "changed" > "$qa_root/state"
-    "$SCRIPT_PATH" restore-root "$qa_root" "$root_snapshot"
-    "$SCRIPT_PATH" assert-root-restored "$qa_root" "$root_snapshot"
-    [[ "$(<"$qa_root/state")" == "baseline" ]] || fail "root restore did not recover original bytes"
+    "$SCRIPT_PATH" checkpoint "$database"
+    "$SCRIPT_PATH" restore-root "$SELF_TEST_ROOT" "$database_snapshot"
+    "$SCRIPT_PATH" assert-root-restored "$SELF_TEST_ROOT" "$database_snapshot"
     rm -rf -- "$SELF_TEST_ROOT" "$qa_root" "$database_snapshot" "$database_snapshot".zc011007-*(N) "$root_snapshot" "$root_snapshot".zc011007-*(N) "$non_qa_database"
     SELF_TEST_ROOT=""
     trap - EXIT
@@ -291,7 +363,7 @@ case "$COMMAND" in
     prepare) prepare ;;
     assert-unmutated) assert_unmutated ;;
     assert-valid) assert_valid ;;
-    cleanup) cleanup ;;
+    checkpoint) checkpoint ;;
     snapshot-root) snapshot_root ;;
     restore-root) restore_root ;;
     assert-root-restored) assert_root_restored ;;

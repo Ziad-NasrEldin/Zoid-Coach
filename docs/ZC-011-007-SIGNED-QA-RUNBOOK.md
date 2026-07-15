@@ -29,7 +29,7 @@ EXPECTED_SIGNED_COMMIT="FULL_40_CHARACTER_SIGNED_COMMIT"
 FIXTURE="$PWD/Scripts/qa-zc011007-invalid-estimate-fixture.sh"
 AX_PROBE="$PWD/Scripts/qa-zc011007-invalid-estimate-ax-probe.swift"
 PREFLIGHT="$PWD/Scripts/qa-zc011007-signed-preflight.sh"
-APPROVED_FINAL_VALIDATOR="/private/tmp/validate-zc011007-approved-final.sh"
+APPROVED_FINAL_VALIDATOR="/absolute/path/from/pinned-validator-worktree/validate-zc011007-approved-final.sh"
 READY_STATE="$PWD/Scripts/prepare-qa-ready-state.py"
 READY_MANIFEST="$PWD/Scripts/fixtures/qa-ready-state.example.json"
 WINDOW_PROBE="$PWD/Scripts/qa-window-content-probe.swift"
@@ -40,6 +40,7 @@ preflight() {
   "$APPROVED_FINAL_VALIDATOR" "$PREFLIGHT" "$@"
 }
 
+test -x "$APPROVED_FINAL_VALIDATOR"
 test "$(git rev-parse "$EXPECTED_SIGNED_COMMIT")" = "$EXPECTED_SIGNED_COMMIT"
 git merge-base --is-ancestor b97c2ce3177ccf89f60225c475062608db1920ad "$EXPECTED_SIGNED_COMMIT"
 "$PREFLIGHT" --self-test
@@ -88,7 +89,6 @@ swift "$WINDOW_PROBE" "$PID" --expect-today
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$APP_EXECUTABLE" --qa-unregister-agent
-sqlite3 "$DATABASE" 'PRAGMA wal_checkpoint(TRUNCATE);'
 "$FIXTURE" snapshot-root "$QA_ROOT" "$BASELINE_SNAPSHOT"
 ```
 
@@ -218,7 +218,7 @@ probe today --phase persisted
 The ordinary relaunch must restore exactly one main Today window and the same confirmed 25-minute estimate.
 The custom editor and every prior validation error must remain closed and absent.
 
-## Cleanup and byte restoration
+## Whole-root restoration and cleanup
 
 Stop both signed processes before cleanup and restoration.
 
@@ -226,14 +226,14 @@ Stop both signed processes before cleanup and restoration.
 kill "$PID"
 while kill -0 "$PID" 2>/dev/null; do sleep 0.1; done
 "$APP_EXECUTABLE" --qa-unregister-agent
-sqlite3 "$DATABASE" 'PRAGMA wal_checkpoint(TRUNCATE);'
-"$FIXTURE" cleanup "$DATABASE"
+"$FIXTURE" checkpoint "$DATABASE"
 "$FIXTURE" restore-root "$QA_ROOT" "$BASELINE_SNAPSHOT"
 "$FIXTURE" assert-root-restored "$QA_ROOT" "$BASELINE_SNAPSHOT"
 ```
 
-Cleanup removes every owned source, plan, execution, and interval row.
-Root restoration then recovers the exact original ready-state bytes and symlinks, including any replaced baseline plan.
+No SQL cleanup is allowed.
+Whole-root restoration recovers the exact fixture-owned ready-state bytes and symlinks, including the original database, after both signed processes stop.
+After proof is archived, delete the entire isolated QA root and installed QA bundle rather than deleting rows from a database.
 
 ## Acceptance boundary
 
