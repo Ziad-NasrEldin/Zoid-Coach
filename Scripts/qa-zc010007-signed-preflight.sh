@@ -63,7 +63,8 @@ assert_static_contract() {
     grep -Fq "'$.coverage', json_object(" <<< "$fixture" || fail "privacy sentinels do not use a decoded snapshot field"
     grep -Fq 'actual="$(scalar "$1")" || fail' <<< "$fixture" || fail "SQLite query failure propagation is missing"
     grep -Fq '_self-test-sqlite-failure' <<< "$fixture" || fail "SQLite failure negative self-test is missing"
-    grep -Fq 'assert_helper_stopped_before_mutation' <<< "$fixture" || fail "fixture does not require helper-off mutation isolation"
+    grep -Fq 'assert_mutation_isolation' <<< "$fixture" || fail "fixture does not require helper/app-off mutation isolation"
+    grep -Fq 'assert_read_isolation' <<< "$fixture" || fail "fixture does not bind read assertions to helper-off DB ownership"
     grep -Fq 'exact QA app process must exit before snapshot mutation' <<< "$fixture" \
         || fail "fixture does not require app-off mutation isolation"
     grep -Fq 'simulated active helper refresh overwrites and invalidates private sentinels' <<< "$fixture" \
@@ -71,6 +72,8 @@ assert_static_contract() {
     grep -Fq "'$.taskRows', \$task_rows" <<< "$fixture" || fail "active task row fixture binding is missing"
     grep -Fq 'mismatched active task row ID is rejected' <<< "$fixture" \
         || fail "active task row mismatch negative self-test is missing"
+    grep -Fq 'exact DB-owning foreground app may read but cannot mutate the fixture' <<< "$fixture" \
+        || fail "foreground read versus mutation isolation self-test is missing"
     ! grep -Fq '$.qaPrivateWindowTitle' <<< "$fixture" || fail "unknown private title field remains"
     ! grep -Fq '$.qaPrivateURL' <<< "$fixture" || fail "unknown private URL field remains"
 }

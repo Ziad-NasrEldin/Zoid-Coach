@@ -10,6 +10,8 @@ readonly LOCAL_DAY="${5:-$(date +%F)}"
 readonly PRIVATE_TITLE="qa-zc010007-private-window-title"
 readonly PRIVATE_URL="https://qa-zc010007-private.invalid/client"
 readonly AGENT_LABEL="qa.ziadnasreldin.ZoidCoach.agent"
+readonly SIMULATED_APP_PID="${ZOID_COACH_ZC010007_SIMULATED_APP_PID:-}"
+readonly SIMULATED_APP_OWNS_DATABASE="${ZOID_COACH_ZC010007_SIMULATED_APP_OWNS_DATABASE:-0}"
 
 fail() {
     print -u2 -- "FAIL: $*"
@@ -52,17 +54,47 @@ COMMIT;
 SQL
 }
 
-assert_helper_stopped_before_mutation() {
+assert_helper_stopped() {
     ! launchctl print "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1 \
-        || fail "exact QA helper must be unregistered before snapshot mutation"
+        || fail "exact QA helper must be unregistered during snapshot verification"
     [[ -z "$(pgrep -x ZoidCoachAgentQA 2>/dev/null || true)" ]] \
-        || fail "exact QA helper process must exit before snapshot mutation"
-    [[ -z "$(pgrep -x ZoidCoachQA 2>/dev/null || true)" ]] \
+        || fail "exact QA helper process must exit during snapshot verification"
+}
+
+active_qa_app_pids() {
+    if [[ "$COMMAND" == _self-test-* && -n "$SIMULATED_APP_PID" ]]; then
+        print -- "$SIMULATED_APP_PID"
+    else
+        pgrep -x ZoidCoachQA 2>/dev/null || true
+    fi
+}
+
+qa_app_owns_database() {
+    if [[ "$COMMAND" == _self-test-* && "$SIMULATED_APP_OWNS_DATABASE" == "1" ]]; then
+        return 0
+    fi
+    lsof -a -p "$1" "$DATABASE" >/dev/null 2>&1
+}
+
+assert_read_isolation() {
+    assert_helper_stopped
+    local pids=( ${(f)"$(active_qa_app_pids)"} )
+    (( ${#pids} <= 1 )) || fail "multiple QA app processes are active during snapshot assertion"
+    local pid
+    for pid in $pids; do
+        qa_app_owns_database "$pid" \
+            || fail "foreground QA app does not own the exact fixture database"
+    done
+}
+
+assert_mutation_isolation() {
+    assert_helper_stopped
+    [[ -z "$(active_qa_app_pids)" ]] \
         || fail "exact QA app process must exit before snapshot mutation"
 }
 
 prepare() {
-    assert_helper_stopped_before_mutation
+    assert_mutation_isolation
     validate_schema
     [[ ! -e "$BACKUP" ]] || fail "refusing to replace existing backup: $BACKUP"
     assert_scalar "SELECT COUNT(*) FROM today_snapshots WHERE day_key='$LOCAL_DAY' AND json_valid(CAST(payload AS TEXT));" "1" "valid current-day snapshot"
@@ -75,7 +107,7 @@ prepare() {
 }
 
 set_state() {
-    assert_helper_stopped_before_mutation
+    assert_mutation_isolation
     local mode active_task main_objective task_rows="json('[]')" remove_planning=0
     case "$STATE" in
         unplanned)
@@ -141,7 +173,7 @@ SQL
 }
 
 assert_state() {
-    assert_helper_stopped_before_mutation
+    assert_read_isolation
     validate_schema
     assert_scalar "SELECT COUNT(*) FROM today_snapshots WHERE day_key='$LOCAL_DAY' AND json_valid(CAST(payload AS TEXT));" "1" "valid fixture snapshot"
     assert_scalar "SELECT instr(json_extract(CAST(payload AS TEXT),'$.coverage.explanation'),'$PRIVATE_TITLE') > 0 FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "1" "decoded private title sentinel"
@@ -170,7 +202,7 @@ assert_state() {
 }
 
 cleanup() {
-    assert_helper_stopped_before_mutation
+    assert_mutation_isolation
     validate_schema
     restore_snapshot
     assert_scalar "SELECT hex(payload) FROM today_snapshots WHERE day_key='$LOCAL_DAY';" "$BACKUP_HEX" "exact payload restoration"
@@ -182,6 +214,14 @@ cleanup() {
 
 sqlite_failure_self_test() {
     assert_scalar "SELECT value FROM qa_zc010007_missing_table;" "" "intentional SQLite failure"
+}
+
+allowed_read_self_test() {
+    assert_read_isolation
+}
+
+forbidden_mutation_self_test() {
+    assert_mutation_isolation
 }
 
 self_test() {
@@ -198,6 +238,15 @@ self_test() {
 CREATE TABLE today_snapshots(day_key TEXT PRIMARY KEY, payload BLOB NOT NULL, updated_at TEXT NOT NULL);
 INSERT INTO today_snapshots VALUES('2026-07-15',CAST('{"localDate":"2026-07-15T08:00:00Z","planningStatus":{"mode":"invitation","resumesAt":null,"driftInterventionsAllowed":false},"activeTask":null,"mainObjective":null,"taskRows":[]}' AS BLOB),'2026-07-15T08:00:00Z');
 SQL
+    env ZOID_COACH_ZC010007_SIMULATED_APP_PID=31337 \
+        ZOID_COACH_ZC010007_SIMULATED_APP_OWNS_DATABASE=1 \
+        "$SCRIPT_PATH" _self-test-allowed-read unused "$database" unused "$day"
+    if env ZOID_COACH_ZC010007_SIMULATED_APP_PID=31337 \
+        ZOID_COACH_ZC010007_SIMULATED_APP_OWNS_DATABASE=1 \
+        "$SCRIPT_PATH" _self-test-forbidden-mutation unused "$database" unused "$day" >/dev/null 2>&1; then
+        fail "active foreground QA app was allowed to mutate the fixture"
+    fi
+    print -- "PASS: exact DB-owning foreground app may read but cannot mutate the fixture"
     "$SCRIPT_PATH" prepare unused "$database" "$backup" "$day"
     local state
     for state in unplanned planned invitation snoozed dismissed nil active-unplanned; do
@@ -242,6 +291,8 @@ case "$COMMAND" in
     assert) assert_state ;;
     cleanup) cleanup ;;
     _self-test-sqlite-failure) sqlite_failure_self_test ;;
+    _self-test-allowed-read) allowed_read_self_test ;;
+    _self-test-forbidden-mutation) forbidden_mutation_self_test ;;
     self-test) self_test ;;
     *) fail "usage: $0 {prepare|set|assert|cleanup|self-test} STATE DATABASE BACKUP [LOCAL_DAY]" ;;
 esac
