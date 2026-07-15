@@ -514,25 +514,8 @@ struct TodayDashboardCommandOverview: View {
         for taskID: String
     ) -> Binding<CustomEstimateEditorState> {
         Binding(
-            get: {
-                let state = customEstimateEditorStore[taskID]
-                ZC011007Trace.emit("parent.binding.get", [
-                    "task": taskID,
-                    "presented": String(state.isPresented),
-                    "input": state.input,
-                    "focusGeneration": String(state.focusRequest),
-                ])
-                return state
-            },
-            set: {
-                ZC011007Trace.emit("parent.binding.set", [
-                    "task": taskID,
-                    "presented": String($0.isPresented),
-                    "input": $0.input,
-                    "focusGeneration": String($0.focusRequest),
-                ])
-                customEstimateEditorStore[taskID] = $0
-            }
+            get: { customEstimateEditorStore[taskID] },
+            set: { customEstimateEditorStore[taskID] = $0 }
         )
     }
 
