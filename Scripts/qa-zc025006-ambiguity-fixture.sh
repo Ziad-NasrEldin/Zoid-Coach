@@ -47,7 +47,7 @@ require_database() {
     [[ -f "$DATABASE" ]] || fail "database does not exist: $DATABASE"
     command -v sqlite3 >/dev/null 2>&1 || fail "sqlite3 is required"
     local table
-    for table in source_tasks task_execution_states task_activity_intervals behavior_records prompt_episodes prompt_responses prompt_response_effects daily_review_corrections; do
+    for table in source_tasks task_execution_states task_activity_intervals behavior_records prompt_episodes prompt_responses prompt_response_effects daily_review_corrections baseline_observation_days; do
         assert_scalar "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '$table';" "1" "$table table"
     done
 }
@@ -142,6 +142,38 @@ PRAGMA foreign_keys = ON;
 SQL
 }
 
+complete_behavior_prompt_baseline() {
+    local recorded_at
+    recorded_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    sqlite3 -batch "$DATABASE" <<SQL
+BEGIN IMMEDIATE;
+WITH RECURSIVE baseline_day(n) AS (
+    VALUES(0)
+    UNION ALL SELECT n + 1 FROM baseline_day WHERE n < 6
+)
+INSERT INTO baseline_observation_days(
+    local_day, observed_minutes, work_minutes, gaming_minutes,
+    distracting_minutes, unknown_minutes, eligible_drift_count,
+    coverage, recorded_at_utc
+)
+SELECT date('2020-01-01', '+' || n || ' days'), 1, 1, 0, 0, 0, 0,
+       'complete', '$recorded_at'
+FROM baseline_day
+WHERE true
+ON CONFLICT(local_day) DO UPDATE SET
+    observed_minutes = excluded.observed_minutes,
+    work_minutes = excluded.work_minutes,
+    gaming_minutes = excluded.gaming_minutes,
+    distracting_minutes = excluded.distracting_minutes,
+    unknown_minutes = excluded.unknown_minutes,
+    eligible_drift_count = excluded.eligible_drift_count,
+    coverage = excluded.coverage,
+    recorded_at_utc = excluded.recorded_at_utc;
+COMMIT;
+SQL
+    assert_scalar "SELECT COUNT(*) FROM baseline_observation_days WHERE coverage = 'complete';" "7" "complete behavior-prompt baseline"
+}
+
 prepare_phase() {
     local phase="$ARGUMENT_ONE"
     require_database
@@ -150,6 +182,7 @@ prepare_phase() {
         *) fail "unsupported fixture phase: $phase" ;;
     esac
     clear_branch_state
+    complete_behavior_prompt_baseline
 
     local now latest count classification task_start source_day ingested_at first
     now="$(date '+%s')"
@@ -307,6 +340,7 @@ CREATE TABLE prompt_episodes(id TEXT PRIMARY KEY, decision_key TEXT NOT NULL, pr
 CREATE TABLE prompt_responses(id TEXT PRIMARY KEY, prompt_id TEXT NOT NULL, action_token TEXT NOT NULL, response TEXT NOT NULL, surface TEXT NOT NULL, responded_at_utc TEXT NOT NULL);
 CREATE TABLE prompt_response_effects(response_id TEXT PRIMARY KEY, prompt_id TEXT NOT NULL, effect_type TEXT NOT NULL, state TEXT NOT NULL, created_at_utc TEXT NOT NULL, updated_at_utc TEXT NOT NULL);
 CREATE TABLE daily_review_corrections(id TEXT PRIMARY KEY, source_day TEXT NOT NULL, start_epoch INTEGER NOT NULL, end_epoch INTEGER NOT NULL, classification TEXT NOT NULL, task_id TEXT, created_at_utc TEXT NOT NULL);
+CREATE TABLE baseline_observation_days(local_day TEXT PRIMARY KEY, observed_minutes INTEGER NOT NULL, work_minutes INTEGER NOT NULL, gaming_minutes INTEGER NOT NULL, distracting_minutes INTEGER NOT NULL, unknown_minutes INTEGER NOT NULL, eligible_drift_count INTEGER NOT NULL, coverage TEXT NOT NULL, recorded_at_utc TEXT NOT NULL);
 SQL
     "$SCRIPT_PATH" snapshot-root "$qa_root" "$snapshot"
     local fixture expected_rows expected_active expected_work
@@ -325,6 +359,8 @@ SQL
             || fail "$fixture self-test active-task state"
         [[ "$(sqlite3 "$database" "SELECT COUNT(*) FROM behavior_records WHERE classification = 'work';")" == "$expected_work" ]] \
             || fail "$fixture self-test certainty state"
+        [[ "$(sqlite3 "$database" "SELECT COUNT(*) FROM baseline_observation_days WHERE coverage = 'complete';")" == "7" ]] \
+            || fail "$fixture self-test behavior-prompt baseline"
     done
     local effect response classification task_value source_day start_epoch end_epoch
     for effect in work gaming unknown; do
