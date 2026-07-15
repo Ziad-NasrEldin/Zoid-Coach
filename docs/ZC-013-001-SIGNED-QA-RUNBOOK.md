@@ -164,6 +164,7 @@ wait_for_exact_database() {
 verify_state() {
   local fixture_state="$1"
   local expected_state="$2"
+  local expected_copy="$3"
   local candidate pid command_line
   stop_exact_app
   wait_for_database_quiescence "$DATABASE"
@@ -188,6 +189,7 @@ verify_state() {
     --pid "$pid" \
     --app-bundle "$APP" \
     --expected-state "$expected_state" \
+    --expected-copy "$expected_copy" \
     --reject "qa-zc013001-private-window-title" \
     --reject "qa-zc013001-private.invalid"
   "$FIXTURE" assert "$fixture_state" --database "$DATABASE" --backup "$BACKUP"
@@ -223,7 +225,7 @@ trap cleanup_on_exit EXIT INT TERM
 Verify the no-snapshot header first while the helper is still unregistered.
 
 ```zsh
-verify_state preparing "PREPARING TODAY" 2>&1 | tee "$EVIDENCE/preparing.log"
+verify_state preparing "PREPARING TODAY" "Local sources are still preparing the current day." 2>&1 | tee "$EVIDENCE/preparing.log"
 ```
 
 This proves that the date does not disappear while the local Today snapshot is unavailable.
@@ -232,12 +234,12 @@ It also proves that the fallback says the data is preparing instead of inventing
 Verify the full persisted planning lifecycle.
 
 ```zsh
-verify_state invitation "PLAN NEEDED" 2>&1 | tee "$EVIDENCE/invitation.log"
-verify_state snoozed "PLANNING SNOOZED" 2>&1 | tee "$EVIDENCE/snoozed.log"
-verify_state dismissed "PLANNING DISMISSED" 2>&1 | tee "$EVIDENCE/dismissed.log"
-verify_state planned "PLANNED DAY" 2>&1 | tee "$EVIDENCE/planned.log"
-verify_state unplanned "UNPLANNED DAY" 2>&1 | tee "$EVIDENCE/unplanned.log"
-verify_state active "ACTIVE WORK" 2>&1 | tee "$EVIDENCE/active-precedence.log"
+verify_state invitation "PLAN NEEDED" "No plan has been approved for today." 2>&1 | tee "$EVIDENCE/invitation.log"
+verify_state snoozed "PLANNING SNOOZED" "The planning invitation will return later." 2>&1 | tee "$EVIDENCE/snoozed.log"
+verify_state dismissed "PLANNING DISMISSED" "Planning is available whenever you want to return." 2>&1 | tee "$EVIDENCE/dismissed.log"
+verify_state planned "PLANNED DAY" "Today's commitments are ready." 2>&1 | tee "$EVIDENCE/planned.log"
+verify_state unplanned "UNPLANNED DAY" "Tasks remain available without an approved plan." 2>&1 | tee "$EVIDENCE/unplanned.log"
+verify_state active "ACTIVE WORK" "One task is currently tracking time." 2>&1 | tee "$EVIDENCE/active-precedence.log"
 ```
 
 The active fixture deliberately retains `unplanned` as its planning mode.
@@ -245,6 +247,7 @@ The visible `ACTIVE WORK` result therefore proves that active-task truth takes p
 
 Each probe requires exactly one `today.day-state` accessibility element.
 Each probe requires the locale-formatted current date, the literal `Day state` semantic label, and the expected state.
+Each probe also requires the exact state-specific explanatory copy and polls a freshly resolved unique main window until that complete label appears.
 Each probe rejects the private title and URL sentinels stored in the snapshot payload.
 
 ## Prove ordinary relaunch persistence
@@ -276,6 +279,7 @@ for relaunch in first second; do
     --pid "$pid" \
     --app-bundle "$APP" \
     --expected-state "PLANNED DAY" \
+    --expected-copy "Today's commitments are ready." \
     --reject "qa-zc013001-private-window-title" \
     --reject "qa-zc013001-private.invalid" \
     2>&1 | tee "$EVIDENCE/relaunch-$relaunch.log"

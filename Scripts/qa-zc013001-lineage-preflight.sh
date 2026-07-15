@@ -4,8 +4,8 @@ set -euo pipefail
 
 readonly ROOT="${0:A:h:h}"
 readonly CANONICAL_BASE="8b1782c6ee2c213a408360554f19bf231b0f3e19"
-readonly REVIEWED_PATCH_COUNT=11
-readonly TOTAL_LINEAGE_COMMIT_COUNT=12
+readonly REVIEWED_PATCH_COUNT=12
+readonly TOTAL_LINEAGE_COMMIT_COUNT=13
 
 readonly -a REQUIRED_PATCH_IDS=(
     56b15769cc032446b10cd2a37e03b72769df67c6
@@ -19,11 +19,12 @@ readonly -a REQUIRED_PATCH_IDS=(
     537fe7e1cb2c489487f45b2ce2e601d3974e0514
     f046c91276416b8580f95515d7d5b1606c6eaeb4
     b9cd8ba1869ba198c3f1d97ec8d8b823fc350821
+    8e3149e9d5881ec0ca6fec152da57a9942b96960
 )
 
 readonly -a REQUIRED_BLOBS=(
-    "8d736abc83e76aa8fe92613a7585eefcc0e09c09:Scripts/qa-zc013001-day-state-ax-probe.swift"
     "695a37111ff8c120b6bb891ad916129bd8718201:Scripts/qa-zc013001-day-state-fixture.sh"
+    "3bff01d0f0ed11d1439a65cddfbae8ef5d717d68:Scripts/qa-zc013001-runbook-self-test.sh"
     "9612a7787e3c25ada2a0be85ba66080348b03272:Sources/ZoidCoachApp/AppModel.swift"
     "7cd6443547efe6f2db659e84dd6f9a4a3c8c2719:Sources/ZoidCoachApp/MenuBarCoachView.swift"
     "cdda965919644e308180f55eeb804fa515cf49d0:Sources/ZoidCoachApp/ReadOnlyTodaySnapshotLoader.swift"
@@ -53,8 +54,8 @@ readonly -a INTENDED_PATHS=(
 )
 
 readonly -a HEAD_MAINTENANCE_PATHS=(
+    Scripts/qa-zc013001-day-state-ax-probe.swift
     Scripts/qa-zc013001-lineage-preflight.sh
-    Scripts/qa-zc013001-runbook-self-test.sh
     docs/ZC-013-001-SIGNED-QA-RUNBOOK.md
 )
 
