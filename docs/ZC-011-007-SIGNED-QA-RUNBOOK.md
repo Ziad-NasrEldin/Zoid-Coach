@@ -66,8 +66,8 @@ test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 ```
 
 The full signed commit must be repository HEAD.
-The diff from canonical base must contain exactly twenty-five reviewed commits, ending with the externally approved two-file final lineage candidate.
-The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, exclusive isolated database ownership, atomic fixture seeding, fail-closed whole-root restoration, scrubbed validator execution, the signed-runtime Dashboard reachability fix `ba087b3160098c9b37831ac42999889d3299a413`, and the mutually exclusive Today/Plan Editor mode fix `aa9166f3f9d46c7a8a628a6490ea13c3cc11acc4`.
+The diff from canonical base must contain exactly twenty-seven reviewed commits, ending with the externally approved two-file final lineage candidate.
+The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, exclusive isolated database ownership, atomic fixture seeding, fail-closed whole-root restoration, scrubbed validator execution, the signed-runtime Dashboard reachability fix `ba087b3160098c9b37831ac42999889d3299a413`, the mutually exclusive Today/Plan Editor mode fix `aa9166f3f9d46c7a8a628a6490ea13c3cc11acc4`, and the task-ID editor presentation aggregate `bc077c0b0eb769462e1564056ce77312538d0b8d`.
 The full candidate scope remains exactly eight files, and the final lineage commit edits only this runbook and the signed preflight.
 Tracker, registry, Lavish, backlog, parser, legacy parser-test, and unrelated verifier changes are rejected.
 The pinned validator re-executes under an explicit minimal environment and invokes the candidate preflight with the same fixed `/usr/bin:/bin` path, actual account home, `/private/tmp`, and Git configuration suppression.
