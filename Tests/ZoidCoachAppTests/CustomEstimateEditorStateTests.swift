@@ -7,7 +7,60 @@ import ZoidCoachCore
 @Suite("Custom estimate editor interaction state", .serialized)
 struct CustomEstimateEditorStateTests {
     @Test
-    func dashboardEstimateAffordanceRemainsReachableWithNonNilSnapshot() throws {
+    func estimateSurfaceModesMountExactlyOneSurface() {
+        #expect(EstimateSurfaceMode.today.showsToday)
+        #expect(!EstimateSurfaceMode.today.showsPlanEditor)
+        #expect(!EstimateSurfaceMode.planEditor.showsToday)
+        #expect(EstimateSurfaceMode.planEditor.showsPlanEditor)
+    }
+
+    @Test
+    func estimateSurfaceModesExposeStableAccessibilityContracts() {
+        #expect(EstimateSurfaceMode.today.accessibilityIdentifier == "today.mode.command")
+        #expect(EstimateSurfaceMode.today.accessibilityLabel == "Show Today command view")
+        #expect(EstimateSurfaceMode.planEditor.accessibilityIdentifier == "today.mode.plan-editor")
+        #expect(EstimateSurfaceMode.planEditor.accessibilityLabel == "Show Plan Editor estimate controls")
+    }
+
+    @Test
+    func estimateSurfaceSwitchingIsBlockedWhileAnEditorIsPresented() {
+        #expect(EstimateSurfaceMode.today.canSwitch(editorIsPresented: false))
+        #expect(!EstimateSurfaceMode.today.canSwitch(editorIsPresented: true))
+        #expect(EstimateSurfaceMode.planEditor.canSwitch(editorIsPresented: false))
+        #expect(!EstimateSurfaceMode.planEditor.canSwitch(editorIsPresented: true))
+    }
+
+    @Test
+    func editorStoreReportsPresentationUntilCancelOrSuccessfulSubmit() {
+        var store = CustomEstimateEditorStateStore()
+        #expect(!store.hasPresentedEditor)
+
+        var state = store["task"]
+        state.open(initialMinutes: nil)
+        store["task"] = state
+        #expect(store.hasPresentedEditor)
+
+        state = store["task"]
+        state.input = "0"
+        #expect(!state.submit { _ in Issue.record("invalid estimate persisted") })
+        store["task"] = state
+        #expect(store.hasPresentedEditor)
+
+        state = store["task"]
+        state.cancel()
+        store["task"] = state
+        #expect(!store.hasPresentedEditor)
+
+        state = store["task"]
+        state.open(initialMinutes: nil)
+        state.input = "25"
+        #expect(state.submit { _ in })
+        store["task"] = state
+        #expect(!store.hasPresentedEditor)
+    }
+
+    @Test
+    func planEditorEstimateAffordanceRemainsReachableWithNonNilSnapshot() throws {
         let main = DailyPlanEntry(
             reminderID: "main",
             rank: 1,
@@ -52,7 +105,7 @@ struct CustomEstimateEditorStateTests {
     }
 
     @Test
-    func dashboardEstimateAffordanceUsesLiveTitleForMissingEstimate() throws {
+    func planEditorEstimateAffordanceUsesLiveTitleForMissingEstimate() throws {
         let entry = DailyPlanEntry(
             reminderID: "local-task",
             rank: 2,
@@ -70,7 +123,7 @@ struct CustomEstimateEditorStateTests {
     }
 
     @Test
-    func dashboardPaddedValidEstimateRoutesExactlyOneMutation() throws {
+    func planEditorPaddedValidEstimateRoutesExactlyOneMutation() throws {
         let entry = DailyPlanEntry(
             reminderID: "main",
             rank: 1,
@@ -94,7 +147,7 @@ struct CustomEstimateEditorStateTests {
             }
         }
         let secondAccepted = editor.submit { _ in
-            Issue.record("closed Dashboard editor submitted twice")
+            Issue.record("closed Plan Editor submitted twice")
         }
 
         #expect(firstAccepted)

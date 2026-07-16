@@ -176,6 +176,10 @@ struct CustomEstimateEditorStateStore {
         hosts.count
     }
 
+    var hasPresentedEditor: Bool {
+        !states.isEmpty
+    }
+
     mutating func retain(taskIDs: Set<String>) {
         states = states.filter { taskIDs.contains($0.key) }
         hosts = hosts.filter { taskIDs.contains($0.key) }

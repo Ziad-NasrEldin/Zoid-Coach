@@ -7,7 +7,8 @@ It also proves exact corrective copy, keyboard Return submission, retained input
 The current canonical base is `2cba674f8370fc16f9555cdb6f115f18df1f8ced`.
 The exact patch-equivalent QA tooling replay is `c221005ea00f4be9efc895c8eccfd618a10501d1` with stable patch ID `54853a6c3d47fdbb9dec56ebc695e7143f7c5b92`.
 The reviewed shared-editor product fix is `180367af761c0bd1abcdb952bd12e3077b7f300b` with stable patch ID `ca93eecc45fe7b252b3678a029aee68e79cc0477`.
-The product fix introduces one shared custom-estimate editor interaction state and component used by both `DashboardView.swift` and `TodayDashboardCommandOverview.swift`.
+The product fix introduces one shared custom-estimate editor interaction state and component used by the mutually exclusive Today and Plan Editor surfaces in `DashboardView.swift` and `TodayDashboardCommandOverview.swift`.
+The visible mode control exposes stable accessibility labels and disables switching while either surface has a presented custom-estimate editor.
 `CustomEstimateEditorStateTests` bind ten invalid inputs, exact input and focus retention, active-path host exclusion, bounded single-mount re-render stability, independent surface state, exactly-once valid persistence, rapid resubmission, and legacy parser boundaries.
 The preflight rejects any product drift after that reviewed commit and keeps `TaskEstimateInput.swift` plus its legacy tests byte-identical to canonical.
 
@@ -192,7 +193,9 @@ probe today --phase submit --case valid-padded
 "$FIXTURE" assert-valid "$DATABASE"
 ```
 
-After restoring the baseline root and preparing the fixture again, repeat the same exact matrix on the Dashboard surface.
+After restoring the baseline root and preparing the fixture again, repeat the same exact matrix on the Plan Editor surface.
+The probe selects the visible `Show Plan Editor estimate controls` mode before opening the task-specific action.
+The command-line surface name remains `dashboard` for compatibility with the signed harness.
 
 ```sh
 probe dashboard --phase open

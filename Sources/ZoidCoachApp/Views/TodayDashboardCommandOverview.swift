@@ -23,11 +23,17 @@ struct TodayDashboardCommandOverview: View {
     @State private var snapshotConfirmedAt: Date
     @State private var customEstimateEditorStore = CustomEstimateEditorStateStore()
     private let now: () -> Date
+    private let estimateEditorPresentationChanged: (Bool) -> Void
     @FocusState private var isUsageFocused: Bool
 
-    init(snapshot: TodaySnapshot, now: @escaping () -> Date = Date.init) {
+    init(
+        snapshot: TodaySnapshot,
+        now: @escaping () -> Date = Date.init,
+        estimateEditorPresentationChanged: @escaping (Bool) -> Void = { _ in }
+    ) {
         self.snapshot = snapshot
         self.now = now
+        self.estimateEditorPresentationChanged = estimateEditorPresentationChanged
         _snapshotConfirmedAt = State(initialValue: now())
     }
 
@@ -66,6 +72,10 @@ struct TodayDashboardCommandOverview: View {
             snapshotConfirmedAt = now()
             customEstimateEditorStore.retain(taskIDs: Set(snapshot.taskRows.map(\.taskID)))
         }
+        .onChange(of: customEstimateEditorStore.hasPresentedEditor) { _, isPresented in
+            estimateEditorPresentationChanged(isPresented)
+        }
+        .onDisappear { estimateEditorPresentationChanged(false) }
         .alert("Switch active task?", isPresented: Binding(
             get: { pendingSwitchTask != nil },
             set: { if !$0 { pendingSwitchTask = nil } }
@@ -231,19 +241,6 @@ struct TodayDashboardCommandOverview: View {
                         .padding(.top, 14)
                 }
                 if let entry = planEntry(for: row) {
-                    TodayEstimateStrip(
-                        customEditor: customEstimateEditorBinding(for: row.taskID),
-                        hostPath: "focus",
-                        activateHost: { activateCustomEstimateHost(path: "focus", taskID: row.taskID) },
-                        isActiveHost: { isActiveCustomEstimateHost(path: "focus", taskID: row.taskID) },
-                        selectedMinutes: entry.estimateMinutes,
-                        isUnknown: entry.estimateIsUncertain,
-                        taskTitle: row.title,
-                        taskID: row.taskID,
-                        setEstimate: { model.setEstimate($0, for: entry) },
-                        setUnknown: { model.setEstimateUnknown(for: entry) }
-                    )
-                    .padding(.top, 14)
                     if let suggestion = row.learnedEstimateSuggestion {
                         LearnedEstimateSuggestionView(
                             taskID: row.taskID,

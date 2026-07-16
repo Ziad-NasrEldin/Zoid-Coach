@@ -60,8 +60,10 @@ private let scrollDownByPageAction = "AXScrollDownByPage"
 private let keyboardBindingSettleMicroseconds: useconds_t = 200_000
 
 private func customTriggerLabel(surfaceName: String) -> String {
-    "Enter a custom estimate for \(taskTitle) in \(surfaceName == "dashboard" ? "Dashboard" : "Today")"
+    "Enter a custom estimate for \(taskTitle) in \(surfaceName == "dashboard" ? "Plan Editor" : "Today")"
 }
+
+private let planEditorModeLabel = "Show Plan Editor estimate controls"
 
 private func exactAXText(_ actual: String, _ expected: String) -> Bool {
     actual.caseInsensitiveCompare(expected) == .orderedSame
@@ -209,7 +211,7 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
           estimateCase(named: "valid-padded")?.expectedError == nil,
           estimateCase(named: "missing") == nil,
           exactAXText(
-              "ENTER A CUSTOM ESTIMATE FOR QA INVALID ESTIMATE MATRIX IN DASHBOARD",
+              "ENTER A CUSTOM ESTIMATE FOR QA INVALID ESTIMATE MATRIX IN PLAN EDITOR",
               customTriggerLabel(surfaceName: "dashboard")
           ),
           exactAXText(
@@ -975,6 +977,21 @@ do {
     try assertPrivacy(window)
     switch phase {
     case "open":
+        if surfaceName == "dashboard" {
+            let current = try snapshot(in: window)
+            guard let modeButton = try uniqueAction(
+                in: current.elements,
+                window: window,
+                exactLabel: planEditorModeLabel
+            ) else {
+                throw ProbeError.failure("Plan Editor mode control is unavailable")
+            }
+            guard AXUIElementPerformAction(modeButton, kAXPressAction as CFString) == .success else {
+                throw ProbeError.failure("Plan Editor mode control could not be selected")
+            }
+            usleep(250_000)
+            try assertPrivacy(window)
+        }
         guard let trigger = try findUniqueActionWithBoundedScroll(
             in: window,
             exactLabel: customTriggerLabel(surfaceName: surfaceName)

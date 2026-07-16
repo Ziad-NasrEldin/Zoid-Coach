@@ -110,6 +110,59 @@ struct DashboardView: View {
     }
 }
 
+enum EstimateSurfaceMode: String, Equatable {
+    case today
+    case planEditor
+
+    var showsToday: Bool { self == .today }
+    var showsPlanEditor: Bool { self == .planEditor }
+
+    func canSwitch(editorIsPresented: Bool) -> Bool {
+        !editorIsPresented
+    }
+
+    var accessibilityIdentifier: String {
+        self == .today ? "today.mode.command" : "today.mode.plan-editor"
+    }
+
+    var accessibilityLabel: String {
+        self == .today
+            ? "Show Today command view"
+            : "Show Plan Editor estimate controls"
+    }
+}
+
+private struct EstimateSurfaceModeControl: View {
+    @Binding var selection: EstimateSurfaceMode
+    let switchingIsDisabled: Bool
+
+    var body: some View {
+        HStack(spacing: 0) {
+            modeButton(.today, title: "TODAY")
+            modeButton(.planEditor, title: "PLAN EDITOR")
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Sumi.softPaper)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.estimate-surface-mode")
+    }
+
+    private func modeButton(_ mode: EstimateSurfaceMode, title: String) -> some View {
+        Button(title) { selection = mode }
+            .buttonStyle(SumiActionButtonStyle(
+                role: selection == mode ? .primary : .quiet,
+                size: .compact
+            ))
+            .disabled(switchingIsDisabled || selection == mode)
+            .accessibilityLabel(mode.accessibilityLabel)
+            .accessibilityValue(selection == mode ? "Selected" : "Not selected")
+            .accessibilityIdentifier(mode.accessibilityIdentifier)
+    }
+}
+
 struct DashboardEstimatePlanningItem: Identifiable, Equatable {
     let entry: DailyPlanEntry
     let taskTitle: String
@@ -157,6 +210,7 @@ private struct DashboardEstimatePlanningLedger: View {
     @EnvironmentObject private var model: AppModel
     @State private var retainedTaskTitles: [String: String] = [:]
     let snapshot: TodaySnapshot
+    let editorPresentationChanged: (Bool) -> Void
 
     private var items: [DashboardEstimatePlanningItem] {
         DashboardEstimatePlanningState.items(
@@ -220,7 +274,8 @@ private struct DashboardEstimatePlanningLedger: View {
                                     model.setEstimate($0, for: $1)
                                 }
                             },
-                            selectUnknown: { model.setEstimateUnknown(for: item.entry) }
+                            selectUnknown: { model.setEstimateUnknown(for: item.entry) },
+                            presentationChanged: editorPresentationChanged
                         )
                     }
                     .padding(.horizontal, 28)
@@ -256,6 +311,9 @@ private struct TodayCommandView: View {
     let createLocalTask: () -> Void
     @StateObject private var endWorkdayFlow = DashboardEndWorkdayFlow()
     @State private var draggedReminderListID: String?
+    @State private var estimateSurfaceMode = EstimateSurfaceMode.today
+    @State private var todayEstimateEditorIsPresented = false
+    @State private var planEditorIsPresented = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -447,9 +505,26 @@ private struct TodayCommandView: View {
                 .padding(.vertical, 18)
 
             if let snapshot = model.todaySnapshot {
-                TodayDashboardCommandOverview(snapshot: snapshot)
+                EstimateSurfaceModeControl(
+                    selection: $estimateSurfaceMode,
+                    switchingIsDisabled: !estimateSurfaceMode.canSwitch(
+                        editorIsPresented: todayEstimateEditorIsPresented || planEditorIsPresented
+                    )
+                )
+                if estimateSurfaceMode.showsToday {
+                    TodayDashboardCommandOverview(
+                        snapshot: snapshot,
+                        estimateEditorPresentationChanged: {
+                            todayEstimateEditorIsPresented = $0
+                        }
+                    )
                     .accessibilityIdentifier("today.snapshot.ready")
-                DashboardEstimatePlanningLedger(snapshot: snapshot)
+                } else {
+                    DashboardEstimatePlanningLedger(
+                        snapshot: snapshot,
+                        editorPresentationChanged: { planEditorIsPresented = $0 }
+                    )
+                }
             } else {
                 TodayDayStateHeader(
                     date: Date(),
@@ -2255,6 +2330,7 @@ private struct TimeBlockSelector: View {
     let taskID: String
     let select: (Int) -> Void
     let selectUnknown: () -> Void
+    var presentationChanged: (Bool) -> Void = { _ in }
 
     private let durations = [15, 30, 45, 60, 90]
     @State private var isChanging = false
@@ -2333,10 +2409,10 @@ private struct TimeBlockSelector: View {
                 CustomEstimateEditor(
                     state: $customEditor,
                     taskTitle: taskTitle,
-                    inputIdentifier: "task-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
-                    saveIdentifier: "task-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
-                    cancelIdentifier: "task-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
-                    errorIdentifier: "task-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    inputIdentifier: "plan-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    saveIdentifier: "plan-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    cancelIdentifier: "plan-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
+                    errorIdentifier: "plan-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))",
                     errorFontSize: 11,
                     persist: { minutes in
                         CustomEstimateEditorTrace.record(
@@ -2369,8 +2445,8 @@ private struct TimeBlockSelector: View {
                     customEditor.open(initialMinutes: selectedMinutes)
                 }
                 .buttonStyle(TimeSlotButtonStyle())
-                .accessibilityLabel("Enter a custom estimate for \(taskTitle) in Dashboard")
-                .accessibilityIdentifier("task-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                .accessibilityLabel("Enter a custom estimate for \(taskTitle) in Plan Editor")
+                .accessibilityIdentifier("plan-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 Button("UNKNOWN") {
                     selectUnknown()
                     isChanging = false
@@ -2385,6 +2461,10 @@ private struct TimeBlockSelector: View {
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedMinutes)
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isChanging)
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: customEditor.isPresented)
+        .onChange(of: customEditor.isPresented) { _, isPresented in
+            presentationChanged(isPresented)
+        }
+        .onDisappear { presentationChanged(false) }
     }
 
     private func durationLabel(_ minutes: Int) -> String {
