@@ -41,10 +41,10 @@ if ! environment_is_scrubbed; then
 fi
 
 readonly EXPECTED_CANONICAL="2cba674f8370fc16f9555cdb6f115f18df1f8ced"
-readonly EXPECTED_CANDIDATE="14c6c2ae24442767e602c4a49c0043464537ee46"
-readonly EXPECTED_PARENT="ba087b3160098c9b37831ac42999889d3299a413"
-readonly EXPECTED_TREE="06865aaa3fa3868da995f60dea417bca855a7e48"
-readonly EXPECTED_RANGE_PATCH="93124cc3aaee14b8d98f2f041ad934949b7f0621"
+readonly EXPECTED_CANDIDATE="0c69459f440dfe6f298d55be6cb230ac858820c7"
+readonly EXPECTED_PARENT="aa9166f3f9d46c7a8a628a6490ea13c3cc11acc4"
+readonly EXPECTED_TREE="0d1a4af7960711aed504df8858b12b55e2b45da4"
+readonly EXPECTED_RANGE_PATCH="663a85ff81ff5f3d0141f55526243f29cb9f94d4"
 readonly EXPECTED_INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
 readonly EXPECTED_INPUT_TEST_BLOB="7858f5b20d1ddbb9f357a5f2d71beaeeb4c56180"
 
@@ -60,14 +60,14 @@ readonly EXPECTED_FILES=(
 )
 
 readonly EXPECTED_BLOBS=(
-    0a5682d4afcc4ce6d962e425acae8dd033365dc5
+    7c7d6cb7cdf6a7958cbb01cfb997bff3486bb36c
     7b60ebc4fd029a10f0f6d9f5b8fe20f624406974
-    c8db3953cacba59c81ada36c29cf64081dce30cc
-    9c53a127893a2b3944c6d1bc23117e9ac4a04df7
-    9b80b7cf8eb02dafb4025cbb2cdab7e64d8cf698
-    890b4f8d00ed6841e678e2dbdf1808c75001eb42
-    827f29c1d1c157569481b4fb4edf38c70492c5e4
-    d946c0a308c1a6aae2e9f1c29a84b1aed3850a06
+    c586e84d502836d11f24e47f3c5971550103758b
+    5ec8485fb6dcbd84d5fefde36c0652021a0c9820
+    9785fa3b72a0b595f8f0e8b9abc189ebe0c217fe
+    3278b7940015865d38ebc9c76668a61e89092e6c
+    db11fd5237daacf15add8f506638399bc04acd5d
+    97081ea4b05eb3599a56b9486bfc2ea9ce135613
 )
 
 readonly EXPECTED_COMMITS=(
@@ -94,6 +94,8 @@ readonly EXPECTED_COMMITS=(
     5d5626d469c0dca7520f074019b691d7747e613e
     ba087b3160098c9b37831ac42999889d3299a413
     14c6c2ae24442767e602c4a49c0043464537ee46
+    aa9166f3f9d46c7a8a628a6490ea13c3cc11acc4
+    0c69459f440dfe6f298d55be6cb230ac858820c7
 )
 
 readonly EXPECTED_COMMIT_PATCHES=(
@@ -120,6 +122,8 @@ readonly EXPECTED_COMMIT_PATCHES=(
     65cdb58a97aee1cc9a9d69d50d2e0b0212a8fc70
     be09fdb24cb96af3a6eb7d11ae212a961628e260
     05ab76739f95442608d70fd55672927e14cb873c
+    14827da591734eea318c45621fa6d3b4fbf7c71b
+    b4cf65a5e281adced6d6b3cef18194374cd2c2e6
 )
 
 fail() {
@@ -173,7 +177,7 @@ validate_repository() {
     assert_exact_candidate "$head"
     [[ "$(git -C "$repository" rev-parse 'HEAD^{tree}')" == "$EXPECTED_TREE" ]] || fail "candidate tree drifted"
     [[ "$(git -C "$repository" rev-parse 'HEAD^')" == "$EXPECTED_PARENT" ]] || fail "candidate parent drifted"
-    [[ "$(git -C "$repository" rev-list --count "$EXPECTED_CANONICAL..HEAD")" == "23" ]] || fail "candidate commit count drifted"
+    [[ "$(git -C "$repository" rev-list --count "$EXPECTED_CANONICAL..HEAD")" == "25" ]] || fail "candidate commit count drifted"
 
     local sequence="$(git -C "$repository" rev-list --reverse --first-parent "$EXPECTED_CANONICAL..HEAD")"
     [[ "$sequence" == "$(printf '%s\n' "${EXPECTED_COMMITS[@]}")" ]] || fail "candidate first-parent lineage drifted"
