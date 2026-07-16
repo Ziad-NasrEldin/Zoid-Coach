@@ -56,6 +56,7 @@ private let inputLabel = "Custom estimate for \(taskTitle) in minutes"
 private let maximumNodes = 6_000
 private let maximumPolls = 80
 private let maximumScrollPages = 18
+private let maximumStationaryScrollRetries = 3
 private let scrollDownByPageAction = "AXScrollDownByPage"
 private let keyboardBindingSettleMicroseconds: useconds_t = 200_000
 
@@ -278,6 +279,7 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--self-test" {
           mayPostPhysicalScroll(expectedPID: 123, frontmostPID: 123),
           !mayPostPhysicalScroll(expectedPID: 123, frontmostPID: 456),
           !mayPostPhysicalScroll(expectedPID: 123, frontmostPID: nil),
+          maximumStationaryScrollRetries == 3,
           keyboardBindingSettleMicroseconds == 200_000,
           containsForbidden(["private QA-ZC011007-private-estimate-note"], forbidden: ["qa-zc011007-private-estimate-note"]),
           !containsForbidden(["Time estimate confirmed: 25 MIN"], forbidden: ["qa-zc011007-private-estimate-note"])
@@ -527,8 +529,12 @@ private func uniqueAction(
 private func scrollNearestExactActionToVisible(
     in elements: [AXUIElement],
     window: AXUIElement,
-    exactLabel: String
+    exactLabel: String,
+    stationaryRetriesRemaining: Int = maximumStationaryScrollRetries
 ) throws -> Bool {
+    if try uniqueAction(in: elements, window: window, exactLabel: exactLabel) != nil {
+        return true
+    }
     guard let viewport = frame(window) else { return false }
     let matches = elements.filter { candidate in
         role(candidate) == (kAXButtonRole as String)
@@ -659,7 +665,28 @@ private func scrollNearestExactActionToVisible(
                 usleep(250_000)
                 throw ProbeError.failure("reverse physical scroll moved the exact Custom estimate action away from the window")
             case .unchanged:
-                throw ProbeError.failure("physical scroll did not move the exact Custom estimate action in either direction")
+                let settled = try snapshot(in: window)
+                if try uniqueAction(
+                    in: settled.elements,
+                    window: window,
+                    exactLabel: exactLabel
+                ) != nil {
+                    return true
+                }
+                if stationaryRetriesRemaining > 0 {
+                    usleep(250_000)
+                    let retrySnapshot = try snapshot(in: window)
+                    return try scrollNearestExactActionToVisible(
+                        in: retrySnapshot.elements,
+                        window: window,
+                        exactLabel: exactLabel,
+                        stationaryRetriesRemaining: stationaryRetriesRemaining - 1
+                    )
+                }
+                throw ProbeError.failure(
+                    "physical scroll did not move the exact Custom estimate action in either direction; "
+                        + "window=\(viewport) scroll=\(scrollFrame) target=\(targetFrame)"
+                )
             }
         }
     case .missing:
@@ -667,6 +694,55 @@ private func scrollNearestExactActionToVisible(
     case .ambiguous:
         throw ProbeError.failure("multiple equally near Custom estimate controls are ambiguous")
     }
+}
+
+private func physicallyClick(
+    _ element: AXUIElement,
+    in window: AXUIElement,
+    description: String
+) throws {
+    guard mayPostPhysicalScroll(
+        expectedPID: pid,
+        frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier
+    ) else {
+        throw ProbeError.failure("installed signed QA app is not frontmost before physical \(description) click")
+    }
+    guard bool(element, kAXEnabledAttribute as CFString) != false,
+          actionNames(element).contains(kAXPressAction as String),
+          let elementFrame = frame(element),
+          let windowFrame = frame(window),
+          elementFrame.width > 0,
+          elementFrame.height > 0,
+          elementFrame.intersects(windowFrame)
+    else {
+        throw ProbeError.failure("\(description) has no enabled in-window physical click target")
+    }
+    let hitPoint = CGPoint(x: elementFrame.midX, y: elementFrame.midY)
+    guard windowFrame.contains(hitPoint) else {
+        throw ProbeError.failure("\(description) physical hit point is outside the main window")
+    }
+    guard let move = CGEvent(
+        mouseEventSource: nil,
+        mouseType: .mouseMoved,
+        mouseCursorPosition: hitPoint,
+        mouseButton: .left
+    ), let down = CGEvent(
+        mouseEventSource: nil,
+        mouseType: .leftMouseDown,
+        mouseCursorPosition: hitPoint,
+        mouseButton: .left
+    ), let up = CGEvent(
+        mouseEventSource: nil,
+        mouseType: .leftMouseUp,
+        mouseCursorPosition: hitPoint,
+        mouseButton: .left
+    ) else {
+        throw ProbeError.failure("unable to construct physical \(description) click events")
+    }
+    move.post(tap: .cghidEventTap)
+    down.post(tap: .cghidEventTap)
+    up.post(tap: .cghidEventTap)
+    usleep(250_000)
 }
 
 private func findUniqueActionWithBoundedScroll(
@@ -886,6 +962,16 @@ private func waitForEditor(in window: AXUIElement) throws -> AXUIElement {
     throw ProbeError.failure("custom estimate editor did not appear")
 }
 
+private func waitForEditorFocus(_ field: AXUIElement) throws {
+    for _ in 0..<maximumPolls {
+        if bool(field, kAXFocusedAttribute as CFString) == true {
+            return
+        }
+        usleep(100_000)
+    }
+    throw ProbeError.failure("physically opened custom estimate field did not receive keyboard focus")
+}
+
 private func assertInvalidResult(
     _ estimateCase: EstimateCase,
     in window: AXUIElement
@@ -986,10 +1072,7 @@ do {
             ) else {
                 throw ProbeError.failure("Plan Editor mode control is unavailable")
             }
-            guard AXUIElementPerformAction(modeButton, kAXPressAction as CFString) == .success else {
-                throw ProbeError.failure("Plan Editor mode control could not be selected")
-            }
-            usleep(250_000)
+            try physicallyClick(modeButton, in: window, description: "Plan Editor mode control")
             try assertPrivacy(window)
         }
         guard let trigger = try findUniqueActionWithBoundedScroll(
@@ -998,11 +1081,9 @@ do {
         ) else {
             throw ProbeError.failure("task-specific Custom estimate action is unavailable")
         }
-        guard AXUIElementPerformAction(trigger, kAXPressAction as CFString) == .success else {
-            throw ProbeError.failure("task-specific Custom estimate action could not open")
-        }
+        try physicallyClick(trigger, in: window, description: "task-specific Custom estimate action")
         let field = try waitForEditor(in: window)
-        try setFocused(field)
+        try waitForEditorFocus(field)
         try assertPrivacy(window)
         print("PASS: task-specific custom estimate editor opened with accessible field and keyboard focus")
     case "submit":
