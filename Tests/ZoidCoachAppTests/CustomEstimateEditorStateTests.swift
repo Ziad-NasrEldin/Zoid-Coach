@@ -31,6 +31,68 @@ struct CustomEstimateEditorStateTests {
     }
 
     @Test
+    func planEditorKeepsSwitchingBlockedUntilEveryEditorCloses() {
+        var presentation = EstimateEditorPresentationState()
+        presentation.setPresented(true, taskID: "first")
+        presentation.setPresented(true, taskID: "second")
+
+        presentation.setPresented(false, taskID: "first")
+
+        #expect(presentation.presentedTaskIDs == ["second"])
+        #expect(presentation.hasPresentedEditor)
+        #expect(!EstimateSurfaceMode.planEditor.canSwitch(
+            editorIsPresented: presentation.hasPresentedEditor
+        ))
+
+        presentation.setPresented(false, taskID: "second")
+
+        #expect(!presentation.hasPresentedEditor)
+        #expect(EstimateSurfaceMode.planEditor.canSwitch(
+            editorIsPresented: presentation.hasPresentedEditor
+        ))
+    }
+
+    @Test
+    func planEditorRemovesPresentationForRowsThatDisappear() {
+        var presentation = EstimateEditorPresentationState()
+        presentation.setPresented(true, taskID: "removed")
+        presentation.setPresented(true, taskID: "retained")
+
+        presentation.retain(taskIDs: ["retained"])
+
+        #expect(presentation.presentedTaskIDs == ["retained"])
+        #expect(presentation.hasPresentedEditor)
+    }
+
+    @Test
+    func planEditorSnapshotRefreshClearsPresentationWhenNoRowsRemain() {
+        var presentation = EstimateEditorPresentationState()
+        presentation.setPresented(true, taskID: "expired")
+
+        presentation.retain(taskIDs: [])
+
+        #expect(presentation.presentedTaskIDs.isEmpty)
+        #expect(!presentation.hasPresentedEditor)
+    }
+
+    @Test
+    func closingOnePlanEditorDoesNotDiscardSiblingDraft() {
+        var presentation = EstimateEditorPresentationState()
+        var siblingDraft = CustomEstimateEditorState()
+        siblingDraft.open(initialMinutes: nil)
+        siblingDraft.input = " 25 "
+        presentation.setPresented(true, taskID: "closed")
+        presentation.setPresented(true, taskID: "sibling")
+
+        presentation.setPresented(false, taskID: "closed")
+
+        #expect(presentation.presentedTaskIDs == ["sibling"])
+        #expect(presentation.hasPresentedEditor)
+        #expect(siblingDraft.isPresented)
+        #expect(siblingDraft.input == " 25 ")
+    }
+
+    @Test
     func editorStoreReportsPresentationUntilCancelOrSuccessfulSubmit() {
         var store = CustomEstimateEditorStateStore()
         #expect(!store.hasPresentedEditor)

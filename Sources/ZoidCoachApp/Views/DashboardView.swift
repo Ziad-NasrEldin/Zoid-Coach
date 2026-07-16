@@ -177,6 +177,26 @@ struct DashboardEstimatePlanningItem: Identifiable, Equatable {
     }
 }
 
+struct EstimateEditorPresentationState: Equatable {
+    private(set) var presentedTaskIDs: Set<String> = []
+
+    var hasPresentedEditor: Bool {
+        !presentedTaskIDs.isEmpty
+    }
+
+    mutating func setPresented(_ isPresented: Bool, taskID: String) {
+        if isPresented {
+            presentedTaskIDs.insert(taskID)
+        } else {
+            presentedTaskIDs.remove(taskID)
+        }
+    }
+
+    mutating func retain(taskIDs: Set<String>) {
+        presentedTaskIDs.formIntersection(taskIDs)
+    }
+}
+
 enum DashboardEstimatePlanningState {
     static func items(
         dailyPlan: [DailyPlanEntry],
@@ -209,6 +229,7 @@ enum DashboardEstimatePlanningState {
 private struct DashboardEstimatePlanningLedger: View {
     @EnvironmentObject private var model: AppModel
     @State private var retainedTaskTitles: [String: String] = [:]
+    @State private var editorPresentationState = EstimateEditorPresentationState()
     let snapshot: TodaySnapshot
     let editorPresentationChanged: (Bool) -> Void
 
@@ -275,7 +296,15 @@ private struct DashboardEstimatePlanningLedger: View {
                                 }
                             },
                             selectUnknown: { model.setEstimateUnknown(for: item.entry) },
-                            presentationChanged: editorPresentationChanged
+                            presentationChanged: { isPresented in
+                                editorPresentationState.setPresented(
+                                    isPresented,
+                                    taskID: item.id
+                                )
+                                editorPresentationChanged(
+                                    editorPresentationState.hasPresentedEditor
+                                )
+                            }
                         )
                     }
                     .padding(.horizontal, 28)
@@ -289,6 +318,11 @@ private struct DashboardEstimatePlanningLedger: View {
             .onAppear(perform: retainCurrentTaskTitles)
             .onChange(of: snapshot) { _, _ in retainCurrentTaskTitles() }
             .onChange(of: model.reminderTasks) { _, _ in retainCurrentTaskTitles() }
+            .onChange(of: Set(items.map(\.id))) { _, taskIDs in
+                editorPresentationState.retain(taskIDs: taskIDs)
+                editorPresentationChanged(editorPresentationState.hasPresentedEditor)
+            }
+            .onDisappear { editorPresentationChanged(false) }
         }
     }
 
