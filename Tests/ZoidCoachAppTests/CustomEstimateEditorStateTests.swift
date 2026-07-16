@@ -2,9 +2,108 @@ import AppKit
 import SwiftUI
 import Testing
 @testable import ZoidCoachApp
+import ZoidCoachCore
 
 @Suite("Custom estimate editor interaction state", .serialized)
 struct CustomEstimateEditorStateTests {
+    @Test
+    func dashboardEstimateAffordanceRemainsReachableWithNonNilSnapshot() throws {
+        let main = DailyPlanEntry(
+            reminderID: "main",
+            rank: 1,
+            isMainObjective: true,
+            estimateMinutes: nil
+        )
+        let alreadyEstimated = DailyPlanEntry(
+            reminderID: "secondary",
+            rank: 2,
+            isMainObjective: false,
+            estimateMinutes: 45
+        )
+        let snapshot = dashboardEstimateSnapshot(rows: [
+            dashboardEstimateTask(id: "main", title: "Write proposal"),
+            dashboardEstimateTask(id: "secondary", title: "Send notes"),
+        ])
+
+        let missingEstimate = DashboardEstimatePlanningState.items(
+            dailyPlan: [alreadyEstimated, main],
+            snapshot: snapshot
+        )
+        let confirmedMain = DashboardEstimatePlanningState.items(
+            dailyPlan: [DailyPlanEntry(
+                reminderID: "main",
+                rank: 1,
+                isMainObjective: true,
+                estimateMinutes: 25
+            )],
+            snapshot: snapshot
+        )
+        let refreshedWithoutTransientRow = DashboardEstimatePlanningState.items(
+            dailyPlan: [main],
+            snapshot: dashboardEstimateSnapshot(rows: []),
+            liveTaskTitles: ["main": "Write proposal"]
+        )
+
+        #expect(missingEstimate.map(\.id) == ["main"])
+        #expect(missingEstimate.first?.taskTitle == "Write proposal")
+        #expect(confirmedMain.map(\.id) == ["main"])
+        #expect(confirmedMain.first?.entry.estimateMinutes == 25)
+        #expect(refreshedWithoutTransientRow.map(\.taskTitle) == ["Write proposal"])
+    }
+
+    @Test
+    func dashboardEstimateAffordanceUsesLiveTitleForMissingEstimate() throws {
+        let entry = DailyPlanEntry(
+            reminderID: "local-task",
+            rank: 2,
+            isMainObjective: false,
+            estimateMinutes: nil
+        )
+        let item = try #require(DashboardEstimatePlanningState.items(
+            dailyPlan: [entry],
+            snapshot: dashboardEstimateSnapshot(rows: []),
+            liveTaskTitles: ["local-task": "Local planning task"]
+        ).first)
+
+        #expect(item.id == "local-task")
+        #expect(item.taskTitle == "Local planning task")
+    }
+
+    @Test
+    func dashboardPaddedValidEstimateRoutesExactlyOneMutation() throws {
+        let entry = DailyPlanEntry(
+            reminderID: "main",
+            rank: 1,
+            isMainObjective: true,
+            estimateMinutes: nil
+        )
+        let item = try #require(DashboardEstimatePlanningState.items(
+            dailyPlan: [entry],
+            snapshot: dashboardEstimateSnapshot(rows: [
+                dashboardEstimateTask(id: "main", title: "Write proposal"),
+            ])
+        ).first)
+        var editor = CustomEstimateEditorState()
+        var mutations: [(Int, String)] = []
+        editor.open(initialMinutes: nil)
+        editor.input = " 25 "
+
+        let firstAccepted = editor.submit { minutes in
+            item.persist(minutes: minutes) { persistedMinutes, persistedEntry in
+                mutations.append((persistedMinutes, persistedEntry.reminderID))
+            }
+        }
+        let secondAccepted = editor.submit { _ in
+            Issue.record("closed Dashboard editor submitted twice")
+        }
+
+        #expect(firstAccepted)
+        #expect(!secondAccepted)
+        #expect(mutations.count == 1)
+        #expect(mutations.first?.0 == 25)
+        #expect(mutations.first?.1 == "main")
+    }
+
     @Test
     func tracePathRejectsTraversalOutsideQAContainment() {
         #expect(
@@ -800,4 +899,45 @@ struct CustomEstimateEditorStateTests {
         }
         return condition()
     }
+}
+
+private func dashboardEstimateTask(id: String, title: String) -> TodayTaskRow {
+    TodayTaskRow(
+        taskID: id,
+        title: title,
+        estimateMinutes: 25,
+        dueDate: nil,
+        urgency: .medium,
+        state: .ready,
+        isMainObjective: id == "main"
+    )
+}
+
+private func dashboardEstimateSnapshot(rows: [TodayTaskRow]) -> TodaySnapshot {
+    TodaySnapshot(
+        localDate: Date(timeIntervalSince1970: 1_800_000_000),
+        timeZoneIdentifier: "UTC",
+        mainObjective: rows.first(where: \.isMainObjective)?.title,
+        taskRows: rows,
+        activeTask: nil,
+        recommendation: NextTaskRecommendation(
+            taskID: rows.first?.taskID,
+            sentence: "Continue with the plan",
+            reasons: []
+        ),
+        behavior: BehaviorSummary(),
+        coverage: TelemetryCoverage(
+            isLimited: false,
+            explanation: "Current",
+            lastObservationAt: nil
+        ),
+        gaming: GamingStatus(
+            budgetMinutes: 60,
+            usedMinutes: 0,
+            unlockedRemainingMinutes: 0,
+            nextUnlockReason: "Complete the main objective",
+            confidenceIsLimited: false
+        ),
+        sourceFreshnessExplanation: "Current"
+    )
 }

@@ -110,6 +110,144 @@ struct DashboardView: View {
     }
 }
 
+struct DashboardEstimatePlanningItem: Identifiable, Equatable {
+    let entry: DailyPlanEntry
+    let taskTitle: String
+
+    var id: String { entry.reminderID }
+
+    func persist(
+        minutes: Int,
+        using mutation: (Int, DailyPlanEntry) -> Void
+    ) {
+        mutation(minutes, entry)
+    }
+}
+
+enum DashboardEstimatePlanningState {
+    static func items(
+        dailyPlan: [DailyPlanEntry],
+        snapshot: TodaySnapshot,
+        liveTaskTitles: [String: String] = [:]
+    ) -> [DashboardEstimatePlanningItem] {
+        let snapshotTitles = Dictionary(
+            snapshot.taskRows.map { ($0.taskID, $0.title) },
+            uniquingKeysWith: { current, _ in current }
+        )
+        let queuedTitles = Dictionary(
+            (snapshot.unplannedReminders ?? []).map { ($0.reminderID, $0.title) },
+            uniquingKeysWith: { current, _ in current }
+        )
+        return dailyPlan
+            .sorted { $0.rank < $1.rank }
+            .filter {
+                $0.isMainObjective || $0.estimateMinutes == nil || $0.estimateIsUncertain
+            }
+            .compactMap { entry in
+                guard let taskTitle = snapshotTitles[entry.reminderID]
+                    ?? liveTaskTitles[entry.reminderID]
+                    ?? queuedTitles[entry.reminderID]
+                else { return nil }
+                return DashboardEstimatePlanningItem(entry: entry, taskTitle: taskTitle)
+            }
+    }
+}
+
+private struct DashboardEstimatePlanningLedger: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var retainedTaskTitles: [String: String] = [:]
+    let snapshot: TodaySnapshot
+
+    private var items: [DashboardEstimatePlanningItem] {
+        DashboardEstimatePlanningState.items(
+            dailyPlan: model.dailyPlan,
+            snapshot: snapshot,
+            liveTaskTitles: Dictionary(
+                model.reminderTasks.map { ($0.id, $0.title) },
+                uniquingKeysWith: { current, _ in current }
+            ).merging(retainedTaskTitles) { current, _ in current }
+        )
+    }
+
+    var body: some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("PLAN ESTIMATES")
+                            .font(Sumi.label(10))
+                            .sumiLabelTracking()
+                        Text("Adjust planned time without repeating task execution details.")
+                            .font(Sumi.body(12))
+                            .foregroundStyle(Sumi.muted)
+                    }
+                    Spacer()
+                    Text("\(items.count) PLANNED")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.muted)
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
+                .background(Sumi.mist)
+                .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+                ForEach(items) { item in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(item.taskTitle)
+                                .font(Sumi.body(14))
+                                .foregroundStyle(Sumi.ink)
+                                .lineLimit(2)
+                            Spacer()
+                            if item.entry.isMainObjective {
+                                Text("MAIN")
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.paper)
+                                    .padding(.horizontal, 7)
+                                    .frame(height: 22)
+                                    .background(Sumi.seal)
+                            }
+                        }
+                        TimeBlockSelector(
+                            selectedMinutes: item.entry.estimateMinutes,
+                            isUnknown: item.entry.estimateIsUncertain,
+                            taskTitle: item.taskTitle,
+                            taskID: item.entry.reminderID,
+                            select: { minutes in
+                                item.persist(minutes: minutes) {
+                                    model.setEstimate($0, for: $1)
+                                }
+                            },
+                            selectUnknown: { model.setEstimateUnknown(for: item.entry) }
+                        )
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+                }
+            }
+            .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("dashboard.plan-estimates")
+            .onAppear(perform: retainCurrentTaskTitles)
+            .onChange(of: snapshot) { _, _ in retainCurrentTaskTitles() }
+            .onChange(of: model.reminderTasks) { _, _ in retainCurrentTaskTitles() }
+        }
+    }
+
+    private func retainCurrentTaskTitles() {
+        let current = Dictionary(
+            snapshot.taskRows.map { ($0.taskID, $0.title) }
+                + (snapshot.unplannedReminders ?? []).map { ($0.reminderID, $0.title) }
+                + model.reminderTasks.map { ($0.id, $0.title) },
+            uniquingKeysWith: { current, _ in current }
+        )
+        retainedTaskTitles.merge(current) { _, newest in newest }
+    }
+}
+
 private struct TodayCommandView: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var modalCoordinator: SumiModalCoordinator
@@ -311,6 +449,7 @@ private struct TodayCommandView: View {
             if let snapshot = model.todaySnapshot {
                 TodayDashboardCommandOverview(snapshot: snapshot)
                     .accessibilityIdentifier("today.snapshot.ready")
+                DashboardEstimatePlanningLedger(snapshot: snapshot)
             } else {
                 TodayDayStateHeader(
                     date: Date(),
