@@ -26,6 +26,7 @@ readonly RESTORE_LINEAGE_CANDIDATE="c6ab1eca0be18bfed96d036b56e733a4efa5bda6"
 readonly SAFE_PATH_CANDIDATE="1177f6a2f2215ae21c525bac3478d5df14f80e00"
 readonly PRIOR_FINAL_CANDIDATE="5d5626d469c0dca7520f074019b691d7747e613e"
 readonly DASHBOARD_REACHABILITY_CANDIDATE="ba087b3160098c9b37831ac42999889d3299a413"
+readonly ESTIMATE_SURFACE_MODE_CANDIDATE="aa9166f3f9d46c7a8a628a6490ea13c3cc11acc4"
 readonly TOOLING_PATCH_ID="54853a6c3d47fdbb9dec56ebc695e7143f7c5b92"
 readonly PRODUCT_PATCH_ID="ca93eecc45fe7b252b3678a029aee68e79cc0477"
 readonly INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
@@ -122,22 +123,18 @@ assert_lineage() {
     [[ "$(git -C "$REPOSITORY" rev-parse "$SAFE_PATH_CANDIDATE^")" == "$RESTORE_LINEAGE_CANDIDATE" ]] || fail "safe-PATH fix does not directly follow restore lineage candidate"
     [[ "$(git -C "$REPOSITORY" rev-parse "$PRIOR_FINAL_CANDIDATE^")" == "$SAFE_PATH_CANDIDATE" ]] || fail "prior final candidate does not directly follow safe-PATH fix"
     [[ "$(git -C "$REPOSITORY" rev-parse "$DASHBOARD_REACHABILITY_CANDIDATE^")" == "$PRIOR_FINAL_CANDIDATE" ]] || fail "Dashboard reachability fix does not directly follow prior final candidate"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$DASHBOARD_REACHABILITY_CANDIDATE" ]] || fail "final candidate does not directly follow Dashboard reachability fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$ESTIMATE_SURFACE_MODE_CANDIDATE^")" == "$DASHBOARD_REACHABILITY_CANDIDATE" ]] || fail "estimate surface mode fix does not directly follow Dashboard reachability fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$ESTIMATE_SURFACE_MODE_CANDIDATE" ]] || fail "final candidate does not directly follow estimate surface mode fix"
     [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] || fail "replayed QA tooling patch identity drifted"
     [[ "$(commit_patch_id "$PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] || fail "reviewed product patch identity drifted"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/TaskEstimateInput.swift")" == "$INPUT_BLOB" ]] || fail "TaskEstimateInput product blob changed"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Tests/ZoidCoachAppTests/TaskEstimateInputTests.swift")" == "$INPUT_TEST_BLOB" ]] || fail "focused product tests changed"
-    for file in Sources/ZoidCoachApp/Views/CustomEstimateEditor.swift Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift; do
-        [[ "$(git -C "$REPOSITORY" rev-parse "$expected:$file")" == "$(git -C "$REPOSITORY" rev-parse "$SAFETY_CANDIDATE:$file")" ]] \
-            || fail "final product file differs from QA safety candidate: $file"
+    for file in Sources/ZoidCoachApp/Views/CustomEstimateEditor.swift Sources/ZoidCoachApp/Views/DashboardView.swift Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift Scripts/qa-zc011007-invalid-estimate-ax-probe.swift; do
+        [[ "$(git -C "$REPOSITORY" rev-parse "$expected:$file")" == "$(git -C "$REPOSITORY" rev-parse "$ESTIMATE_SURFACE_MODE_CANDIDATE:$file")" ]] \
+            || fail "final mode-bound file differs from estimate surface mode fix: $file"
     done
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/Views/DashboardView.swift")" == "$(git -C "$REPOSITORY" rev-parse "$DASHBOARD_REACHABILITY_CANDIDATE:Sources/ZoidCoachApp/Views/DashboardView.swift")" ]] \
-        || fail "final Dashboard product file differs from reachability fix"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" == "$(git -C "$REPOSITORY" rev-parse "$SAFETY_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" ]] || fail "final AX probe differs from QA safety candidate"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" == "$(git -C "$REPOSITORY" rev-parse "$SAFE_PATH_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-fixture.sh")" ]] \
         || fail "final fixture differs from safe-PATH candidate"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift")" == "$(git -C "$REPOSITORY" rev-parse "$DASHBOARD_REACHABILITY_CANDIDATE:Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift")" ]] \
-        || fail "final focused tests differ from Dashboard reachability fix"
 
     reviewed_scope="$(printf '%s\n' "${TOOLING_FILES[@]}" "${PRODUCT_FILES[@]}")"
     scope="$(git -C "$REPOSITORY" diff --name-only "$CANONICAL_BASE" "$expected")" || fail "candidate scope is unavailable"
@@ -147,7 +144,7 @@ assert_lineage() {
     ! grep -Fqx 'docs/impl/666-BACKLOG.md' <<<"$scope" || fail "candidate unexpectedly includes shared backlog"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    [[ "$commit_count" == "23" ]] || fail "candidate must contain the exact twenty-two reviewed commits plus externally approved final candidate"
+    [[ "$commit_count" == "25" ]] || fail "candidate must contain the exact twenty-four reviewed commits plus externally approved final candidate"
     tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
     has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "QA tooling replay contains unrelated files"
     product_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$PRODUCT_CANDIDATE")"
@@ -191,6 +188,7 @@ assert_runbook_contract() {
     grep -Fq "$TOOLING_CANDIDATE" "$RUNBOOK" || fail "runbook omits tooling candidate"
     grep -Fq "$PRODUCT_CANDIDATE" "$RUNBOOK" || fail "runbook omits product candidate"
     grep -Fq "$DASHBOARD_REACHABILITY_CANDIDATE" "$RUNBOOK" || fail "runbook omits Dashboard reachability candidate"
+    grep -Fq "$ESTIMATE_SURFACE_MODE_CANDIDATE" "$RUNBOOK" || fail "runbook omits estimate surface mode candidate"
     grep -Fq "$TOOLING_PATCH_ID" "$RUNBOOK" || fail "runbook omits tooling patch identity"
     grep -Fq "$PRODUCT_PATCH_ID" "$RUNBOOK" || fail "runbook omits product patch identity"
     grep -Fq 'CustomEstimateEditorStateTests' "$RUNBOOK" || fail "runbook omits shared interaction-state tests"
