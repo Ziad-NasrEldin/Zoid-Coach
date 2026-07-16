@@ -26,9 +26,11 @@ readonly RESTORE_LINEAGE_CANDIDATE="c6ab1eca0be18bfed96d036b56e733a4efa5bda6"
 readonly SAFE_PATH_CANDIDATE="1177f6a2f2215ae21c525bac3478d5df14f80e00"
 readonly PRIOR_FINAL_CANDIDATE="5d5626d469c0dca7520f074019b691d7747e613e"
 readonly DASHBOARD_REACHABILITY_CANDIDATE="ba087b3160098c9b37831ac42999889d3299a413"
+readonly PRIOR_DASHBOARD_LINEAGE_CANDIDATE="14c6c2ae24442767e602c4a49c0043464537ee46"
 readonly ESTIMATE_SURFACE_MODE_CANDIDATE="aa9166f3f9d46c7a8a628a6490ea13c3cc11acc4"
 readonly PRIOR_MODE_LINEAGE_CANDIDATE="0c69459f440dfe6f298d55be6cb230ac858820c7"
 readonly EDITOR_PRESENTATION_AGGREGATE_CANDIDATE="bc077c0b0eb769462e1564056ce77312538d0b8d"
+readonly PRIOR_AGGREGATE_LINEAGE_CANDIDATE="41ce826ea533f537a7ed50c30069982b15aaff39"
 readonly TOOLING_PATCH_ID="54853a6c3d47fdbb9dec56ebc695e7143f7c5b92"
 readonly PRODUCT_PATCH_ID="ca93eecc45fe7b252b3678a029aee68e79cc0477"
 readonly INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
@@ -51,6 +53,35 @@ readonly PRODUCT_FILES=(
 readonly FINAL_CANDIDATE_FILES=(
     Scripts/qa-zc011007-signed-preflight.sh
     docs/ZC-011-007-SIGNED-QA-RUNBOOK.md
+)
+readonly EXPECTED_REVIEWED_COMMITS=(
+    c221005ea00f4be9efc895c8eccfd618a10501d1
+    180367af761c0bd1abcdb952bd12e3077b7f300b
+    917c653083727610005058d00e59bdab6efdb996
+    04cde2d83343b10a55e3551df2945a9627d28733
+    cae33ec99dca3ee4bbe500bab16bbcb4187edad2
+    3fc3c83b645083edc5bea8fbc925a073c0ad5234
+    e218cad2a1a252dfca0812c79b1b0b1f1f0a193d
+    3b4a920f0acf80052b71e0448ce16f72eaab5947
+    bbccded6d72e3529245f21c583551042c5f94855
+    1fa545dada749d3509cea1e10f8ea961ec8310d5
+    a552225d4c2866e1f37dacb11d36ed0acbfd205e
+    ab9dd8df55f456502a9bdbabe3062b65a381aba7
+    0aabac608845a23a2af92c65227d80a47dcf91a8
+    ec05a17970d21ea0ec5cd5d814a03d7c58bd5c74
+    53c5e0455efd30fbe886f817fcd5dc906cb9bbac
+    3338b5b4a14627c27c767e09285f52d09e441a5f
+    f5941ce9c70fe4576c1561afe5a03ff3a24a0511
+    b10af13f7c1fce32113f8c9e60872ac7695a6c25
+    c6ab1eca0be18bfed96d036b56e733a4efa5bda6
+    1177f6a2f2215ae21c525bac3478d5df14f80e00
+    5d5626d469c0dca7520f074019b691d7747e613e
+    ba087b3160098c9b37831ac42999889d3299a413
+    14c6c2ae24442767e602c4a49c0043464537ee46
+    aa9166f3f9d46c7a8a628a6490ea13c3cc11acc4
+    0c69459f440dfe6f298d55be6cb230ac858820c7
+    bc077c0b0eb769462e1564056ce77312538d0b8d
+    41ce826ea533f537a7ed50c30069982b15aaff39
 )
 
 APP="${1:-}"
@@ -97,6 +128,15 @@ commit_patch_id() {
     git -C "$REPOSITORY" show --pretty=format: --binary "$1" | git patch-id --stable | awk 'NR == 1 { print $1 }'
 }
 
+assert_full_first_parent_sequence() {
+    local expected="$1"
+    local actual_sequence expected_sequence
+    actual_sequence="$(git -C "$REPOSITORY" rev-list --reverse --first-parent "$CANONICAL_BASE..$expected")" \
+        || fail "candidate first-parent sequence is unavailable"
+    expected_sequence="$(printf '%s\n' "${EXPECTED_REVIEWED_COMMITS[@]}" "$expected")"
+    [[ "$actual_sequence" == "$expected_sequence" ]] || fail "candidate first-parent sequence drifted"
+}
+
 assert_lineage() {
     local expected="$1"
     local head scope reviewed_scope head_scope product_scope tooling_scope commit_count file
@@ -125,10 +165,13 @@ assert_lineage() {
     [[ "$(git -C "$REPOSITORY" rev-parse "$SAFE_PATH_CANDIDATE^")" == "$RESTORE_LINEAGE_CANDIDATE" ]] || fail "safe-PATH fix does not directly follow restore lineage candidate"
     [[ "$(git -C "$REPOSITORY" rev-parse "$PRIOR_FINAL_CANDIDATE^")" == "$SAFE_PATH_CANDIDATE" ]] || fail "prior final candidate does not directly follow safe-PATH fix"
     [[ "$(git -C "$REPOSITORY" rev-parse "$DASHBOARD_REACHABILITY_CANDIDATE^")" == "$PRIOR_FINAL_CANDIDATE" ]] || fail "Dashboard reachability fix does not directly follow prior final candidate"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$ESTIMATE_SURFACE_MODE_CANDIDATE^")" == "$DASHBOARD_REACHABILITY_CANDIDATE" ]] || fail "estimate surface mode fix does not directly follow Dashboard reachability fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$PRIOR_DASHBOARD_LINEAGE_CANDIDATE^")" == "$DASHBOARD_REACHABILITY_CANDIDATE" ]] || fail "prior Dashboard lineage does not directly follow Dashboard reachability fix"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$ESTIMATE_SURFACE_MODE_CANDIDATE^")" == "$PRIOR_DASHBOARD_LINEAGE_CANDIDATE" ]] || fail "estimate surface mode fix does not directly follow prior Dashboard lineage"
     [[ "$(git -C "$REPOSITORY" rev-parse "$PRIOR_MODE_LINEAGE_CANDIDATE^")" == "$ESTIMATE_SURFACE_MODE_CANDIDATE" ]] || fail "prior mode lineage does not directly follow estimate surface mode fix"
     [[ "$(git -C "$REPOSITORY" rev-parse "$EDITOR_PRESENTATION_AGGREGATE_CANDIDATE^")" == "$PRIOR_MODE_LINEAGE_CANDIDATE" ]] || fail "editor presentation aggregate does not directly follow prior mode lineage"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$EDITOR_PRESENTATION_AGGREGATE_CANDIDATE" ]] || fail "final candidate does not directly follow editor presentation aggregate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$PRIOR_AGGREGATE_LINEAGE_CANDIDATE^")" == "$EDITOR_PRESENTATION_AGGREGATE_CANDIDATE" ]] || fail "prior aggregate lineage does not directly follow editor presentation aggregate"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$PRIOR_AGGREGATE_LINEAGE_CANDIDATE" ]] || fail "final candidate does not directly follow prior aggregate lineage"
+    assert_full_first_parent_sequence "$expected"
     [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] || fail "replayed QA tooling patch identity drifted"
     [[ "$(commit_patch_id "$PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] || fail "reviewed product patch identity drifted"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/TaskEstimateInput.swift")" == "$INPUT_BLOB" ]] || fail "TaskEstimateInput product blob changed"
@@ -152,7 +195,7 @@ assert_lineage() {
     ! grep -Fqx 'docs/impl/666-BACKLOG.md' <<<"$scope" || fail "candidate unexpectedly includes shared backlog"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    [[ "$commit_count" == "27" ]] || fail "candidate must contain the exact twenty-six reviewed commits plus externally approved final candidate"
+    [[ "$commit_count" == "28" ]] || fail "candidate must contain the exact twenty-seven reviewed commits plus externally approved final candidate"
     tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
     has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "QA tooling replay contains unrelated files"
     product_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$PRODUCT_CANDIDATE")"
@@ -230,6 +273,7 @@ assert_probe_failure_is_not_masked() {
 }
 
 if [[ "$APP" == "--self-test" ]]; then
+    assert_full_first_parent_sequence "$(git -C "$REPOSITORY" rev-parse HEAD)"
     is_full_lowercase_sha "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a" || fail "valid SHA was rejected"
     ! is_full_lowercase_sha "B3FF3D3E8EFF70F60301C5BE3FAFFB9C00CCFC2A" || fail "uppercase SHA was accepted"
     ! is_full_lowercase_sha "b3ff3d3" || fail "abbreviated SHA was accepted"
