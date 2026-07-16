@@ -31,6 +31,8 @@ readonly ESTIMATE_SURFACE_MODE_CANDIDATE="aa9166f3f9d46c7a8a628a6490ea13c3cc11ac
 readonly PRIOR_MODE_LINEAGE_CANDIDATE="0c69459f440dfe6f298d55be6cb230ac858820c7"
 readonly EDITOR_PRESENTATION_AGGREGATE_CANDIDATE="bc077c0b0eb769462e1564056ce77312538d0b8d"
 readonly PRIOR_AGGREGATE_LINEAGE_CANDIDATE="41ce826ea533f537a7ed50c30069982b15aaff39"
+readonly PRIOR_COMPLETE_LINEAGE_CANDIDATE="376c6d1566b7a8dfc087268abf5fa9931f38d8e3"
+readonly POINTER_PROOF_CANDIDATE="ad5784d6095167d1b353975e770e8c5dbe55ee3b"
 readonly TOOLING_PATCH_ID="54853a6c3d47fdbb9dec56ebc695e7143f7c5b92"
 readonly PRODUCT_PATCH_ID="ca93eecc45fe7b252b3678a029aee68e79cc0477"
 readonly INPUT_BLOB="bed2a04559d1db66706622e9d8ec5288d458b138"
@@ -82,6 +84,8 @@ readonly EXPECTED_REVIEWED_COMMITS=(
     0c69459f440dfe6f298d55be6cb230ac858820c7
     bc077c0b0eb769462e1564056ce77312538d0b8d
     41ce826ea533f537a7ed50c30069982b15aaff39
+    376c6d1566b7a8dfc087268abf5fa9931f38d8e3
+    ad5784d6095167d1b353975e770e8c5dbe55ee3b
 )
 
 APP="${1:-}"
@@ -170,16 +174,20 @@ assert_lineage() {
     [[ "$(git -C "$REPOSITORY" rev-parse "$PRIOR_MODE_LINEAGE_CANDIDATE^")" == "$ESTIMATE_SURFACE_MODE_CANDIDATE" ]] || fail "prior mode lineage does not directly follow estimate surface mode fix"
     [[ "$(git -C "$REPOSITORY" rev-parse "$EDITOR_PRESENTATION_AGGREGATE_CANDIDATE^")" == "$PRIOR_MODE_LINEAGE_CANDIDATE" ]] || fail "editor presentation aggregate does not directly follow prior mode lineage"
     [[ "$(git -C "$REPOSITORY" rev-parse "$PRIOR_AGGREGATE_LINEAGE_CANDIDATE^")" == "$EDITOR_PRESENTATION_AGGREGATE_CANDIDATE" ]] || fail "prior aggregate lineage does not directly follow editor presentation aggregate"
-    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$PRIOR_AGGREGATE_LINEAGE_CANDIDATE" ]] || fail "final candidate does not directly follow prior aggregate lineage"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$PRIOR_COMPLETE_LINEAGE_CANDIDATE^")" == "$PRIOR_AGGREGATE_LINEAGE_CANDIDATE" ]] || fail "prior complete lineage does not directly follow prior aggregate lineage"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$POINTER_PROOF_CANDIDATE^")" == "$PRIOR_COMPLETE_LINEAGE_CANDIDATE" ]] || fail "pointer proof does not directly follow prior complete lineage"
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected^")" == "$POINTER_PROOF_CANDIDATE" ]] || fail "final candidate does not directly follow pointer proof"
     assert_full_first_parent_sequence "$expected"
     [[ "$(commit_patch_id "$TOOLING_CANDIDATE")" == "$TOOLING_PATCH_ID" ]] || fail "replayed QA tooling patch identity drifted"
     [[ "$(commit_patch_id "$PRODUCT_CANDIDATE")" == "$PRODUCT_PATCH_ID" ]] || fail "reviewed product patch identity drifted"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Sources/ZoidCoachApp/TaskEstimateInput.swift")" == "$INPUT_BLOB" ]] || fail "TaskEstimateInput product blob changed"
     [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Tests/ZoidCoachAppTests/TaskEstimateInputTests.swift")" == "$INPUT_TEST_BLOB" ]] || fail "focused product tests changed"
-    for file in Sources/ZoidCoachApp/Views/CustomEstimateEditor.swift Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift Scripts/qa-zc011007-invalid-estimate-ax-probe.swift; do
+    for file in Sources/ZoidCoachApp/Views/CustomEstimateEditor.swift Sources/ZoidCoachApp/Views/TodayDashboardCommandOverview.swift; do
         [[ "$(git -C "$REPOSITORY" rev-parse "$expected:$file")" == "$(git -C "$REPOSITORY" rev-parse "$ESTIMATE_SURFACE_MODE_CANDIDATE:$file")" ]] \
             || fail "final mode-bound file differs from estimate surface mode fix: $file"
     done
+    [[ "$(git -C "$REPOSITORY" rev-parse "$expected:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" == "$(git -C "$REPOSITORY" rev-parse "$POINTER_PROOF_CANDIDATE:Scripts/qa-zc011007-invalid-estimate-ax-probe.swift")" ]] \
+        || fail "final AX probe differs from pointer proof candidate"
     for file in Sources/ZoidCoachApp/Views/DashboardView.swift Tests/ZoidCoachAppTests/CustomEstimateEditorStateTests.swift; do
         [[ "$(git -C "$REPOSITORY" rev-parse "$expected:$file")" == "$(git -C "$REPOSITORY" rev-parse "$EDITOR_PRESENTATION_AGGREGATE_CANDIDATE:$file")" ]] \
             || fail "final presentation-bound file differs from editor presentation aggregate: $file"
@@ -195,7 +203,7 @@ assert_lineage() {
     ! grep -Fqx 'docs/impl/666-BACKLOG.md' <<<"$scope" || fail "candidate unexpectedly includes shared backlog"
 
     commit_count="$(git -C "$REPOSITORY" rev-list --count "$CANONICAL_BASE..$expected")"
-    [[ "$commit_count" == "28" ]] || fail "candidate must contain the exact twenty-seven reviewed commits plus externally approved final candidate"
+    [[ "$commit_count" == "30" ]] || fail "candidate must contain the exact twenty-nine reviewed commits plus externally approved final candidate"
     tooling_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$TOOLING_CANDIDATE")"
     has_exact_lines "$tooling_scope" "$(printf '%s\n' "${TOOLING_FILES[@]}")" || fail "QA tooling replay contains unrelated files"
     product_scope="$(git -C "$REPOSITORY" diff-tree --no-commit-id --name-only -r "$PRODUCT_CANDIDATE")"
@@ -241,6 +249,11 @@ assert_runbook_contract() {
     grep -Fq "$DASHBOARD_REACHABILITY_CANDIDATE" "$RUNBOOK" || fail "runbook omits Dashboard reachability candidate"
     grep -Fq "$ESTIMATE_SURFACE_MODE_CANDIDATE" "$RUNBOOK" || fail "runbook omits estimate surface mode candidate"
     grep -Fq "$EDITOR_PRESENTATION_AGGREGATE_CANDIDATE" "$RUNBOOK" || fail "runbook omits editor presentation aggregate candidate"
+    grep -Fq "$POINTER_PROOF_CANDIDATE" "$RUNBOOK" || fail "runbook omits pointer proof candidate"
+    grep -Fq 'trap - EXIT' "$RUNBOOK" || fail "runbook cleanup handler does not disarm recursive EXIT cleanup"
+    grep -Fq 'exit "$exit_code"' "$RUNBOOK" || fail "runbook cleanup handler does not explicitly preserve failure status"
+    grep -Fq 'ZC011007_INJECT_FAILURE_AFTER_INSTALL=1' "$RUNBOOK" || fail "runbook omits executable post-install cleanup injection"
+    grep -Fq 'physical pointer click' "$RUNBOOK" || fail "runbook omits physical pointer click proof"
     grep -Fq "$TOOLING_PATCH_ID" "$RUNBOOK" || fail "runbook omits tooling patch identity"
     grep -Fq "$PRODUCT_PATCH_ID" "$RUNBOOK" || fail "runbook omits product patch identity"
     grep -Fq 'CustomEstimateEditorStateTests' "$RUNBOOK" || fail "runbook omits shared interaction-state tests"

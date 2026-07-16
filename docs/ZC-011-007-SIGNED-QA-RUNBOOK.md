@@ -66,8 +66,8 @@ test "$(plutil -extract ZoidCoachQARunRoot raw -o - "$APP/Contents/Info.plist")"
 ```
 
 The full signed commit must be repository HEAD.
-The diff from canonical base must contain exactly twenty-eight reviewed commits, ending with the externally approved two-file final lineage candidate.
-The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, exclusive isolated database ownership, atomic fixture seeding, fail-closed whole-root restoration, scrubbed validator execution, the signed-runtime Dashboard reachability fix `ba087b3160098c9b37831ac42999889d3299a413` and its lineage binding `14c6c2ae24442767e602c4a49c0043464537ee46`, the mutually exclusive Today/Plan Editor mode fix `aa9166f3f9d46c7a8a628a6490ea13c3cc11acc4`, and the task-ID editor presentation aggregate `bc077c0b0eb769462e1564056ce77312538d0b8d`.
+The diff from canonical base must contain exactly thirty reviewed commits, ending with the externally approved two-file final lineage candidate.
+The cumulative candidate is bound through the rank-one fixture fix, shared confirmation accessibility fix, persisted-evidence probe fix, explicit Dashboard/Today surface selection, exact surface-specific accessibility labels, canonical trace-path containment, exclusive isolated database ownership, atomic fixture seeding, fail-closed whole-root restoration, scrubbed validator execution, the signed-runtime Dashboard reachability fix `ba087b3160098c9b37831ac42999889d3299a413` and its lineage binding `14c6c2ae24442767e602c4a49c0043464537ee46`, the mutually exclusive Today/Plan Editor mode fix `aa9166f3f9d46c7a8a628a6490ea13c3cc11acc4`, the task-ID editor presentation aggregate `bc077c0b0eb769462e1564056ce77312538d0b8d`, and the physical pointer and bounded-scroll proof `ad5784d6095167d1b353975e770e8c5dbe55ee3b`.
 The full candidate scope remains exactly eight files, and the final lineage commit edits only this runbook and the signed preflight.
 The preflight self-test compares the complete canonical-to-candidate first-parent sequence against every reviewed commit in order.
 Tracker, registry, Lavish, backlog, parser, legacy parser-test, and unrelated verifier changes are rejected.
@@ -154,6 +154,7 @@ probe today --phase open
 ```
 
 The open phase finds the exact task-specific Custom action through normal Today accessibility, opens it, and places keyboard focus in the labelled minutes field.
+Mode selection and Custom opening require an in-window CGEvent physical pointer click, followed by the expected editor field appearance and autonomous focus response.
 The editor must expose Save and Cancel without leaking fixture internals.
 
 ## Prove every invalid case with physical Return
@@ -237,6 +238,22 @@ The custom editor and every prior validation error must remain closed and absent
 ## Whole-root restoration and cleanup
 
 Stop both signed processes before cleanup and restoration.
+The executable matrix harness must save the original failure status, disarm its EXIT trap before cleanup, and explicitly exit with that saved status.
+
+```sh
+on_exit() {
+  local exit_code=$?
+  trap - EXIT
+  if (( SUCCESS == 0 )); then
+    failure_cleanup "$exit_code"
+  fi
+  exit "$exit_code"
+}
+trap on_exit EXIT
+```
+
+Before the acceptance run, execute the harness once with `ZC011007_INJECT_FAILURE_AFTER_INSTALL=1` immediately after signed install and package verification.
+That injected failure must return nonzero, emit the cleanup log, leave no QA app, root, snapshot, process, helper, or service, and preserve every protected before/after manifest byte-for-byte.
 
 ```sh
 kill "$PID"
