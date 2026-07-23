@@ -554,6 +554,14 @@ struct TodayDashboardCommandOverview: View {
                         feedbackButton("NOT NOW", kind: .notNow, row: row)
                         feedbackButton("WRONG PRIORITY", kind: .wrongPriority, row: row)
                         feedbackButton("TOO LARGE", kind: .tooLarge, row: row)
+                        recommendationActionButton("MARK BLOCKED", identifier: "mark-blocked") {
+                            blockReason = ""
+                            blockReasonTask = row
+                        }
+                        recommendationActionButton("ALREADY DONE", identifier: "already-done") {
+                            model.applyTaskCommand(.complete, taskID: row.taskID)
+                        }
+                        feedbackButton("HIDE FOR TODAY", kind: .hideToday, row: row)
                     }
                     .padding(.top, 12)
                     .accessibilityElement(children: .contain)
@@ -724,6 +732,17 @@ struct TodayDashboardCommandOverview: View {
         .disabled(model.pendingRecommendationFeedbackTaskID != nil)
         .accessibilityHint(kind.confirmationMessage)
         .accessibilityIdentifier("today.recommendation.feedback.\(kind.rawValue)")
+    }
+
+    private func recommendationActionButton(
+        _ title: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(title, action: action)
+            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+            .disabled(model.isAnyTaskCommandPending || model.pendingRecommendationFeedbackTaskID != nil)
+            .accessibilityIdentifier("today.recommendation.feedback.\(identifier)")
     }
 
     private func applyPrimaryCommand(to row: TodayTaskRow) {

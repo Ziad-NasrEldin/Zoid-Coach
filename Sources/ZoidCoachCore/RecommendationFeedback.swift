@@ -4,6 +4,7 @@ public enum RecommendationFeedbackKind: String, Codable, CaseIterable, Sendable 
     case notNow = "not_now"
     case wrongPriority = "wrong_priority"
     case tooLarge = "too_large"
+    case hideToday = "hide_today"
 
     public var confirmationMessage: String {
         switch self {
@@ -13,6 +14,8 @@ public enum RecommendationFeedbackKind: String, Codable, CaseIterable, Sendable 
             "Wrong priority recorded. Zoid 666 will choose another ready task for today."
         case .tooLarge:
             "Too large recorded. Zoid 666 will choose another ready task for today."
+        case .hideToday:
+            "Hidden for today. Zoid 666 will choose another ready task until tomorrow."
         }
     }
 }
