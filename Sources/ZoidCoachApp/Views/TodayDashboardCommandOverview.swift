@@ -1017,6 +1017,69 @@ struct OpenEndedElapsedTimePresentation: Equatable {
     }
 }
 
+struct OpenEndedElapsedTimePresentation: Equatable {
+    let elapsedMinutes: Int
+    let isLive: Bool
+
+    init?(
+        task: TodayTaskRow,
+        activeTask: ActiveTaskSnapshot?,
+        snapshotConfirmedAt: Date,
+        currentDate: Date
+    ) {
+        guard Self.isApplicable(to: task) else { return nil }
+
+        guard let activeTask,
+              activeTask.taskID == task.taskID,
+              let startedAt = activeTask.startedAt
+        else {
+            elapsedMinutes = task.elapsedMinutes
+            isLive = false
+            return
+        }
+
+        let confirmedOpenIntervalMinutes = max(
+            0,
+            Int(snapshotConfirmedAt.timeIntervalSince(startedAt) / 60)
+        )
+        let elapsedBeforeOpenInterval = max(
+            0,
+            task.elapsedMinutes - confirmedOpenIntervalMinutes
+        )
+        let currentOpenIntervalMinutes = max(
+            0,
+            Int(currentDate.timeIntervalSince(startedAt) / 60)
+        )
+        elapsedMinutes = max(
+            task.elapsedMinutes,
+            elapsedBeforeOpenInterval + currentOpenIntervalMinutes
+        )
+        isLive = true
+    }
+
+    static func isApplicable(to task: TodayTaskRow) -> Bool {
+        guard task.state == .active else { return false }
+        switch task.sprint?.state {
+        case .active, .paused, .expired, .finished:
+            return false
+        case .continuedOpenEnded, .none:
+            return true
+        }
+    }
+
+    var displayText: String {
+        "\(elapsedMinutes) MIN ELAPSED · \(isLive ? "LIVE" : "LAST REFRESH")"
+    }
+
+    var accessibilityLabel: String {
+        let unit = elapsedMinutes == 1 ? "minute" : "minutes"
+        if isLive {
+            return "Open-ended session, \(elapsedMinutes) \(unit) elapsed, updating while active."
+        }
+        return "Open-ended session, \(elapsedMinutes) \(unit) elapsed at the last refresh."
+    }
+}
+
 private struct GamingManualAdjustmentSheet: View {
     @State private var form: GamingManualAdjustmentForm
     let isSaving: Bool
