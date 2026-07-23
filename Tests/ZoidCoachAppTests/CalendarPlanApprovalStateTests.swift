@@ -418,6 +418,24 @@ struct CalendarPlanApprovalStateTests {
         )
     }
 
+    private func committedAudit(
+        _ id: String,
+        _ type: ActionCommandType,
+        entityID: String,
+        at date: Date
+    ) -> ActionAuditEntry {
+        ActionAuditEntry(
+            id: id,
+            actionType: type.rawValue,
+            entityID: entityID,
+            state: ActionCommandState.succeeded.rawValue,
+            attemptCount: 1,
+            createdAt: date,
+            updatedAt: date,
+            canUndo: true
+        )
+    }
+
     private func revision(commitments: [ZoidCoachApp.CalendarCommitment]) -> CalendarPlanAvailabilityRevision {
         CalendarPlanAvailabilityRevision(
             workIntervals: [

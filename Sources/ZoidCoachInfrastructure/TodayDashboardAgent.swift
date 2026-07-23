@@ -664,6 +664,38 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         return try snapshot(now: now)
     }
 
+    private func databaseHasCompetingWriteLock() -> Bool {
+        var probe: OpaquePointer?
+        guard sqlite3_open_v2(
+            databaseURL.path,
+            &probe,
+            SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX,
+            nil
+        ) == SQLITE_OK, let probe else {
+            return false
+        }
+        defer { sqlite3_close(probe) }
+        sqlite3_busy_timeout(probe, 5)
+        let result = sqlite3_exec(probe, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil)
+        if result == SQLITE_OK {
+            _ = sqlite3_exec(probe, "ROLLBACK;", nil, nil, nil)
+            return false
+        }
+        let primaryResult = result & 0xFF
+        return primaryResult == SQLITE_BUSY || primaryResult == SQLITE_LOCKED
+    }
+
+    private func waitForMutationWriteAvailability() throws {
+        var retryIndex = 0
+        while databaseHasCompetingWriteLock() {
+            guard retryIndex < mutationLockRetryDelays.count else {
+                throw TodayDashboardAgentError.databaseTemporarilyLocked
+            }
+            Thread.sleep(forTimeInterval: mutationLockRetryDelays[retryIndex])
+            retryIndex += 1
+        }
+    }
+
     public func startUnplannedTask(_ taskID: String, now: Date = Date()) throws -> TodaySnapshot {
         let policy = try userPolicyStore.current()?.policy ?? UserPolicy.defaults()
         let localDay = Self.localDayKey(now, timeZoneIdentifier: policy.schedule.timeZoneIdentifier)

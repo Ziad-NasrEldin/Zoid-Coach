@@ -533,6 +533,193 @@ func failedReminderCompletionCanBeRetriedExactlyOnceWithoutLosingHistory() throw
 }
 
 @Test
+func temporaryDatabaseLockRetriesTheCompleteUserMutationExactlyOnce() async throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-complete-lock-retry-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let taskID = "reminder:locked-completion"
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([ReminderSourceSnapshot(
+        id: taskID,
+        title: "Complete through a temporary lock",
+        dueDate: day,
+        priority: 9,
+        sourceKind: .reminders
+    )])
+    try AutonomousPlanStore(databaseURL: url).replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: taskID, title: "Complete through a temporary lock", rank: 1, estimateMinutes: 25, reason: "Due", score: 100)],
+            mainObjectiveTaskID: taskID,
+            plannedFocusMinutes: 25,
+            availableFocusMinutes: 60
+        ),
+        for: day
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url)
+    _ = try agent.apply(.start, taskID: taskID, now: day)
+
+    var rawBlocker: OpaquePointer?
+    #expect(sqlite3_open_v2(url.path, &rawBlocker, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK)
+    let blocker = try #require(rawBlocker)
+    defer { sqlite3_close(blocker) }
+    #expect(sqlite3_exec(blocker, "BEGIN EXCLUSIVE TRANSACTION;", nil, nil, nil) == SQLITE_OK)
+
+    let completion = Task.detached {
+        try agent.apply(.complete, taskID: taskID, now: day.addingTimeInterval(120))
+    }
+    try await Task.sleep(for: .milliseconds(80))
+    #expect(sqlite3_exec(blocker, "COMMIT;", nil, nil, nil) == SQLITE_OK)
+    let completed = try await completion.value
+
+    #expect(completed.taskRows.contains { $0.taskID == taskID } == false)
+    #expect(try TaskHistoryStore(databaseURL: url).completedEntries(for: day).map(\.taskID) == [taskID])
+    let completions = try ActionOutboxStore(databaseURL: url).recentCommands().filter {
+        $0.type == .completeReminder && $0.entityID == taskID
+    }
+    #expect(completions.count == 1)
+    #expect(try TaskExecutionStore(databaseURL: url).snapshot(for: [taskID], now: day.addingTimeInterval(180))[taskID]?.state == .completed)
+}
+
+@Test
+func persistentDatabaseLockFailsWithinTheMutationRetryBoundWithoutPartialCompletion() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-complete-lock-bound-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let taskID = "reminder:persistent-lock"
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([ReminderSourceSnapshot(
+        id: taskID,
+        title: "Keep the confirmed state",
+        dueDate: day,
+        priority: 9,
+        sourceKind: .reminders
+    )])
+    try AutonomousPlanStore(databaseURL: url).replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: taskID, title: "Keep the confirmed state", rank: 1, estimateMinutes: 25, reason: "Due", score: 100)],
+            mainObjectiveTaskID: taskID,
+            plannedFocusMinutes: 25,
+            availableFocusMinutes: 60
+        ),
+        for: day
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url, mutationLockRetryDelays: [0.01, 0.02])
+    _ = try agent.apply(.start, taskID: taskID, now: day)
+
+    var rawBlocker: OpaquePointer?
+    #expect(sqlite3_open_v2(url.path, &rawBlocker, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK)
+    let blocker = try #require(rawBlocker)
+    defer {
+        _ = sqlite3_exec(blocker, "ROLLBACK;", nil, nil, nil)
+        sqlite3_close(blocker)
+    }
+    #expect(sqlite3_exec(blocker, "BEGIN EXCLUSIVE TRANSACTION;", nil, nil, nil) == SQLITE_OK)
+
+    let startedAt = Date()
+    #expect(throws: (any Error).self) {
+        try agent.apply(.complete, taskID: taskID, now: day.addingTimeInterval(120))
+    }
+    #expect(Date().timeIntervalSince(startedAt) < 0.5)
+    #expect(sqlite3_exec(blocker, "ROLLBACK;", nil, nil, nil) == SQLITE_OK)
+    #expect(try TaskHistoryStore(databaseURL: url).completedEntries(for: day).isEmpty)
+    #expect(try ActionOutboxStore(databaseURL: url).recentCommands().allSatisfy { $0.entityID != taskID })
+}
+
+@Test
+func nonLockMutationFailureDoesNotEnterTheDatabaseRetrySchedule() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-complete-non-lock-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let agent = try TodayDashboardAgent(databaseURL: url, mutationLockRetryDelays: [1, 1])
+
+    let startedAt = Date()
+    #expect(throws: TaskExecutionStoreError.self) {
+        try agent.apply(.block, taskID: "task", blockedReason: "x", now: day)
+    }
+    #expect(Date().timeIntervalSince(startedAt) < 0.5)
+}
+
+@Test
+func downstreamFailureDoesNotDuplicateRawHistoryWhenTheUserRetries() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-complete-downstream-failure-\(UUID().uuidString).sqlite")
+    defer {
+        for suffix in ["", "-wal", "-shm"] {
+            try? FileManager.default.removeItem(atPath: url.path + suffix)
+        }
+    }
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    let taskID = "reminder:downstream-failure"
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([ReminderSourceSnapshot(
+        id: taskID,
+        title: "Complete once after a downstream failure",
+        dueDate: day,
+        priority: 9,
+        sourceKind: .reminders
+    )])
+    try AutonomousPlanStore(databaseURL: url).replaceDailyPlan(
+        DailyPlanProposal(
+            items: [PlannedTask(taskID: taskID, title: "Complete once after a downstream failure", rank: 1, estimateMinutes: 25, reason: "Due", score: 100)],
+            mainObjectiveTaskID: taskID,
+            plannedFocusMinutes: 25,
+            availableFocusMinutes: 60
+        ),
+        for: day
+    )
+    let agent = try TodayDashboardAgent(databaseURL: url)
+    _ = try agent.apply(.start, taskID: taskID, now: day)
+
+    var rawDatabase: OpaquePointer?
+    try #require(sqlite3_open_v2(url.path, &rawDatabase, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK)
+    let database = try #require(rawDatabase)
+    defer { sqlite3_close(database) }
+    try #require(sqlite3_exec(
+        database,
+        "CREATE TRIGGER fail_learning_sample BEFORE INSERT ON learning_samples BEGIN SELECT RAISE(ABORT, 'forced downstream failure'); END;",
+        nil,
+        nil,
+        nil
+    ) == SQLITE_OK)
+
+    #expect(throws: (any Error).self) {
+        try agent.apply(.complete, taskID: taskID, now: day.addingTimeInterval(120))
+    }
+    try #require(sqlite3_exec(database, "DROP TRIGGER fail_learning_sample;", nil, nil, nil) == SQLITE_OK)
+    _ = try agent.apply(.complete, taskID: taskID, now: day.addingTimeInterval(120))
+
+    var rawStatement: OpaquePointer?
+    try #require(sqlite3_prepare_v2(
+        database,
+        "SELECT COUNT(*) FROM task_history WHERE task_id = ? AND state = 'completed';",
+        -1,
+        &rawStatement,
+        nil
+    ) == SQLITE_OK)
+    let statement = try #require(rawStatement)
+    defer { sqlite3_finalize(statement) }
+    try taskID.withCString {
+        try #require(sqlite3_bind_text(statement, 1, $0, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self)) == SQLITE_OK)
+    }
+    try #require(sqlite3_step(statement) == SQLITE_ROW)
+    #expect(sqlite3_column_int(statement, 0) == 1)
+    #expect(try ActionOutboxStore(databaseURL: url).recentCommands().filter {
+        $0.type == .completeReminder && $0.entityID == taskID
+    }.count == 1)
+}
+
+@Test
 func agentPauseSwitchResumeAndCompletePausedJourneySurvivesRestart() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-666-task-lifecycle-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: url) }
