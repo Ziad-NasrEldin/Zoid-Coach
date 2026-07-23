@@ -249,6 +249,36 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 execution: current
             ))
         }
+        if let activeBeforeSourceRefresh,
+           let activeSourceSnapshot,
+           activeSourceSnapshot.sourceKind == .reminders,
+           activeSourceSnapshot.isCompleted,
+           !rows.contains(where: { $0.taskID == activeBeforeSourceRefresh.taskID }),
+           let current = try execution.snapshot(
+               for: [activeBeforeSourceRefresh.taskID],
+               now: now
+           )[activeBeforeSourceRefresh.taskID],
+           current.state == .completed {
+            rows.append(externallyCompletedReminderRow(
+                from: activeSourceSnapshot,
+                execution: current,
+                referenceDate: now
+            ))
+        }
+        if let activeBeforeSourceRefresh,
+           activeSourceSnapshot == nil,
+           let activeCompletionHistory,
+           !rows.contains(where: { $0.taskID == activeBeforeSourceRefresh.taskID }),
+           let current = try execution.snapshot(
+               for: [activeBeforeSourceRefresh.taskID],
+               now: now
+           )[activeBeforeSourceRefresh.taskID],
+           current.state == .completed {
+            rows.append(externallyCompletedReminderRow(
+                from: activeCompletionHistory,
+                execution: current
+            ))
+        }
         if let previousSnapshot {
             for previousRow in previousSnapshot.taskRows where !rows.contains(where: { $0.taskID == previousRow.taskID }) {
                 if let reminder = reminderByID[previousRow.taskID],
@@ -472,6 +502,47 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             sprint: current.sprint,
             isMainObjective: false,
             declaredContext: source.declaredContext
+        )
+    }
+
+    private func externallyCompletedReminderRow(
+        from history: CompletedTaskHistoryEntry,
+        execution current: TaskExecutionSnapshot
+    ) -> TodayTaskRow {
+        TodayTaskRow(
+            taskID: history.taskID,
+            title: history.title,
+            estimateMinutes: 30,
+            dueDate: nil,
+            urgency: .low,
+            state: .completed,
+            elapsedMinutes: current.elapsedMinutes,
+            completionReason: .appleReminderCompleted,
+            sprint: current.sprint,
+            isMainObjective: false
+        )
+    }
+
+    private func externallyCompletedReminderRow(
+        from source: ReminderSourceSnapshot,
+        execution current: TaskExecutionSnapshot,
+        referenceDate: Date
+    ) -> TodayTaskRow {
+        TodayTaskRow(
+            taskID: source.id,
+            title: source.title,
+            estimateMinutes: 30,
+            dueDate: source.dueDate,
+            urgency: TaskUrgency.resolve(
+                dueDate: source.dueDate,
+                priority: reminderPriority(source.priority),
+                referenceDate: referenceDate
+            ),
+            state: .completed,
+            elapsedMinutes: current.elapsedMinutes,
+            completionReason: .appleReminderCompleted,
+            sprint: current.sprint,
+            isMainObjective: false
         )
     }
 
