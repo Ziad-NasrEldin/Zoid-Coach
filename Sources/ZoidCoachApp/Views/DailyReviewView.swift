@@ -195,6 +195,7 @@ final class DailyReviewController: ObservableObject {
             successMessage = "The adjacent sessions were merged into one activity. The original observations remain unchanged."
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
