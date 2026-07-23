@@ -16,7 +16,6 @@ public enum GamingDriftSuppressionReason: String, Equatable, Sendable {
     case taskStartGrace
     case returnFromIdleGrace
     case neutralSupportingActivity
-    case alignedWorkResumed
     case gamingIsUnlocked
     case noIncompletePriorityWork
     case intentionalOverrideActive
@@ -140,10 +139,6 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         }
         if observation.isNeutralSupporting {
             return .suppressed(.neutralSupportingActivity)
-        }
-        if observation.isAlignedWork {
-            try dismissUnresolvedGamingDriftPrompts()
-            return .suppressed(.alignedWorkResumed)
         }
         guard let session = try currentGamingSession(localDay: localDay, now: date) else {
             return .suppressed(.noGamingSession)
@@ -387,10 +382,6 @@ public final class GamingDriftPromptService: @unchecked Sendable {
             ]
             let isFileDialog = fileDialogTitles.contains(normalizedTitle)
             return isFileDialog || normalizedURL.hasPrefix("file://")
-        }
-
-        var isAlignedWork: Bool {
-            classification == .work
         }
     }
 

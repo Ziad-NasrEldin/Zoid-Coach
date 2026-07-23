@@ -19,7 +19,6 @@ final class LocalTaskCreationController: ObservableObject {
     @Published var notes = ""
     @Published var estimateMinutes = 30
     @Published var addToToday = true
-    @Published var isTechnicalTask = false
     @Published private(set) var isSaving = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var hasPendingRetry = false
@@ -66,8 +65,7 @@ final class LocalTaskCreationController: ObservableObject {
             id: taskID,
             title: trimmedTitle,
             notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
-            estimateMinutes: estimateMinutes,
-            declaredContext: isTechnicalTask ? .technical : nil
+            estimateMinutes: estimateMinutes
         )
         pendingTask = task
         do {

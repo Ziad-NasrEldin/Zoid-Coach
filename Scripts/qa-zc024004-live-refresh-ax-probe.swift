@@ -179,40 +179,6 @@ private func performTodayScrollStep(
     }
 }
 
-private func selectTodayScrollArea(_ candidates: [TodayScrollAreaTraits]) -> TodayScrollAreaSelection {
-    let matches = candidates.indices.filter { candidates[$0].containsToday }
-    if matches.count == 1 { return .selected(matches[0]) }
-    return matches.isEmpty ? .missing : .ambiguous
-}
-
-private func todayScrollStep(
-    currentValue: Double,
-    maximumSteps: Int,
-    verticalScrollBarIsWritable: Bool,
-    minimumValue: Double,
-    maximumValue: Double
-) -> TodayScrollStep {
-    guard verticalScrollBarIsWritable,
-          maximumSteps > 0,
-          maximumValue > minimumValue
-    else { return .pageAction }
-    let boundedCurrent = min(max(currentValue, minimumValue), maximumValue)
-    let increment = (maximumValue - minimumValue) / Double(maximumSteps)
-    let nextValue = min(maximumValue, boundedCurrent + increment)
-    return nextValue > boundedCurrent ? .verticalScrollBar(nextValue) : .pageAction
-}
-
-private func performTodayScrollStep(
-    _ step: TodayScrollStep,
-    setScrollbar: (Double) -> Bool,
-    scrollPage: () -> Bool
-) -> Bool {
-    switch step {
-    case let .verticalScrollBar(value): return setScrollbar(value)
-    case .pageAction: return scrollPage()
-    }
-}
-
 private let mainWindowID = "zoid-666.main-window"
 private let privateSentinels = ["qa-zc024004", "private-url", "private-live", "private-settings", "private-background", "private-relaunch"]
 private let repositoryRoot = URL(fileURLWithPath: CommandLine.arguments[0]).standardizedFileURL

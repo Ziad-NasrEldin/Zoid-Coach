@@ -13,10 +13,6 @@ struct ApplicationLaunchPresentation: Equatable {
         launchesForBackgroundScheduling ? .backgroundScheduling : .ordinary
     }
 
-    var sceneCompositionPolicy: ApplicationSceneCompositionPolicy {
-        launchesForBackgroundScheduling ? .backgroundScheduling : .ordinary
-    }
-
     init(arguments: [String], packageMode: RuntimePackageMode?) {
         launchesForBackgroundScheduling = arguments.contains(Self.backgroundScheduleArgument)
         shouldOpenMainWindow = packageMode == .qa
@@ -47,47 +43,6 @@ enum ApplicationTerminationDecision: Equatable {
         case .permit: "permit"
         }
     }
-}
-
-enum ApplicationEntrypointSelection: Equatable {
-    case foreground
-    case background
-
-    static func select(arguments: [String], packageMode: RuntimePackageMode?) -> Self {
-        let presentation = ApplicationLaunchPresentation(
-            arguments: arguments,
-            packageMode: packageMode
-        )
-        return presentation.launchesForBackgroundScheduling ? .background : .foreground
-    }
-
-    var sceneCompositionPolicy: ApplicationSceneCompositionPolicy {
-        switch self {
-        case .foreground:
-            .foreground
-        case .background:
-            .background
-        }
-    }
-}
-
-struct ApplicationSceneCompositionPolicy: Equatable {
-    let includesMainWindowScene: Bool
-    let includesAgentWindowScene: Bool
-    let includesMenuBarScene: Bool
-
-    static let foreground = ApplicationSceneCompositionPolicy(
-        includesMainWindowScene: true,
-        includesAgentWindowScene: true,
-        includesMenuBarScene: true
-    )
-    static let background = ApplicationSceneCompositionPolicy(
-        includesMainWindowScene: false,
-        includesAgentWindowScene: false,
-        includesMenuBarScene: true
-    )
-    static let ordinary = foreground
-    static let backgroundScheduling = background
 }
 
 @MainActor

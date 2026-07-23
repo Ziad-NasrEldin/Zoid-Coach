@@ -47,7 +47,6 @@ final class DailyReviewController: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var successMessage: String?
-    @Published private(set) var correctionImpact: DailyReviewCorrectionImpact?
     @Published private(set) var unfinishedReview: UnfinishedDailyReview?
     @Published private(set) var classificationRules: [AppClassificationCorrectionRule] = []
     @Published private(set) var isRulesOnlyMode: Bool
@@ -107,7 +106,6 @@ final class DailyReviewController: ObservableObject {
 
     func load() {
         guard !isLoading else { return }
-        correctionImpact = nil
         isLoading = true
         defer { isLoading = false }
         do {
@@ -150,9 +148,7 @@ final class DailyReviewController: ObservableObject {
         splitAtMidpoint: Bool,
         applyToFuture: Bool
     ) -> Bool {
-        correctionImpact = nil
         do {
-            let before = snapshot
             let splitDate = splitAtMidpoint
                 ? session.start.addingTimeInterval(session.end.timeIntervalSince(session.start) / 2)
                 : nil
@@ -165,14 +161,6 @@ final class DailyReviewController: ObservableObject {
             )
             try refreshSnapshotAndResumeState()
             classificationRules = try service.classificationRules()
-            if let before, let after = snapshot {
-                correctionImpact = DailyReviewCorrectionImpact(
-                    before: before,
-                    after: after,
-                    affectedSession: session,
-                    requestedClassification: classification
-                )
-            }
             errorMessage = nil
             let action = session.classification == .unknown ? "classified" : "corrected"
             successMessage = applyToFuture
@@ -183,7 +171,7 @@ final class DailyReviewController: ObservableObject {
             return true
         } catch {
             errorMessage = error.localizedDescription
-            return
+            return false
         }
     }
 
@@ -193,20 +181,6 @@ final class DailyReviewController: ObservableObject {
             try refreshSnapshotAndResumeState()
             errorMessage = nil
             successMessage = "The adjacent sessions were merged into one activity. The original observations remain unchanged."
-        } catch {
-            errorMessage = error.localizedDescription
-            return false
-        }
-    }
-
-    func resetClassificationRules() {
-        do {
-            let removed = try service.resetClassificationRules()
-            classificationRules = try service.classificationRules()
-            errorMessage = nil
-            successMessage = removed == 1
-                ? "1 learned future rule was reset. Historical corrections are unchanged."
-                : "\(removed) learned future rules were reset. Historical corrections are unchanged."
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -223,6 +197,19 @@ final class DailyReviewController: ObservableObject {
             classificationRules = try service.classificationRules()
             errorMessage = nil
             successMessage = "The future rule for \(rule.application) was removed. Historical corrections are unchanged."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func resetClassificationRules() {
+        do {
+            let removed = try service.resetClassificationRules()
+            classificationRules = try service.classificationRules()
+            errorMessage = nil
+            successMessage = removed == 1
+                ? "1 learned future rule was reset. Historical corrections are unchanged."
+                : "\(removed) learned future rules were reset. Historical corrections are unchanged."
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -387,9 +374,6 @@ struct DailyReviewView: View {
                     .foregroundStyle(Sumi.okay)
                     .accessibilityIdentifier("reviews.success")
             }
-            if let correctionImpact = controller.correctionImpact {
-                correctionImpactCard(correctionImpact)
-            }
             if let snapshot = controller.snapshot {
                 let state = RulesOnlyReviewState(
                     isRulesOnly: controller.isRulesOnlyMode,
@@ -426,6 +410,8 @@ struct DailyReviewView: View {
                 .padding(.vertical, 8)
             WeeklyReviewView()
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reviews.daily")
         .padding(34)
         .frame(maxWidth: 980, alignment: .leading)
         .task { controller.load() }
@@ -441,31 +427,6 @@ struct DailyReviewView: View {
         } message: {
             Text("No review conclusions will be confirmed. Local activity, corrections, and notes stay available, and a later edit will reopen the review.")
         }
-        .accessibilityIdentifier("reviews.daily")
-    }
-
-    private func correctionImpactCard(_ impact: DailyReviewCorrectionImpact) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("REVIEW UPDATED")
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
-            if let classificationDetail = impact.classificationDetail {
-                Text(classificationDetail)
-                    .font(Sumi.body(12))
-            }
-            Text(impact.taskAlignmentDetail)
-                .font(Sumi.body(12))
-            Text(impact.reviewStatementDetail)
-                .font(Sumi.body(12))
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Sumi.softPaper)
-        .overlay(Rectangle().stroke(Sumi.okay, lineWidth: 1))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Review updated. \(impact.accessibilitySummary)")
-        .accessibilityIdentifier("reviews.correction-impact")
     }
 
     @ViewBuilder
@@ -542,7 +503,6 @@ struct DailyReviewView: View {
     @ViewBuilder
     private func snapshotContent(_ snapshot: DailyReviewSnapshot) -> some View {
         keyboardCorrectionToolbar(snapshot)
-        evidenceBoundary(snapshot)
         reviewCoverage(snapshot)
         evidenceLayers(DailyReviewEvidenceLayersState(snapshot: snapshot))
         planOutcomes(snapshot)
@@ -570,10 +530,6 @@ struct DailyReviewView: View {
             unknownSessionReview(sessionReview)
             classifiedSessionReview(sessionReview)
         }
-        FutureClassificationRulesSection(
-            rules: controller.classificationRules,
-            onRemove: controller.removeClassificationRule
-        )
         CompletedTaskHistorySection(entries: snapshot.completedTasks)
         OfflineWorkSection(
             entries: snapshot.offlineWork,
@@ -585,60 +541,6 @@ struct DailyReviewView: View {
         hypothesis(snapshot)
         personalNoteSection(snapshot)
         confirmation(snapshot)
-    }
-
-    private func evidenceBoundary(_ snapshot: DailyReviewSnapshot) -> some View {
-        let presentation = DailyReviewEvidencePresentation(snapshot: snapshot)
-        return VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("EVIDENCE BOUNDARY")
-                    .font(Sumi.label())
-                    .sumiLabelTracking()
-                    .foregroundStyle(Sumi.seal)
-                Text("Read what Zoid 666 observed separately from what you added and what it only proposes as an explanation.")
-                    .font(Sumi.body(12))
-                    .foregroundStyle(Sumi.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 220), spacing: 10, alignment: .top)],
-                alignment: .leading,
-                spacing: 10
-            ) {
-                ForEach(presentation.sections, id: \.kind) { section in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(section.title)
-                            .font(Sumi.label(9))
-                            .sumiLabelTracking()
-                            .foregroundStyle(Sumi.muted)
-                        Text(section.status)
-                            .font(Sumi.body(13))
-                            .foregroundStyle(Sumi.ink)
-                        Text(section.detail)
-                            .font(Sumi.body(11))
-                            .foregroundStyle(Sumi.muted)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
-                    .background(Sumi.paper)
-                    .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(section.title)
-                    .accessibilityValue(section.status)
-                    .accessibilityHint(section.detail)
-                    .accessibilityIdentifier("reviews.evidence-boundary.\(section.kind.rawValue)")
-                }
-            }
-        }
-        .padding(18)
-        .background(Sumi.softPaper)
-        .overlay(Rectangle().stroke(Sumi.seal, lineWidth: 1))
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Evidence boundary")
-        .accessibilityHint(presentation.accessibilitySummary)
-        .accessibilityIdentifier("reviews.evidence-boundary")
     }
 
     private func keyboardCorrectionToolbar(_ snapshot: DailyReviewSnapshot) -> some View {
@@ -1209,7 +1111,7 @@ struct DailyReviewView: View {
                         .frame(minHeight: 38)
                         .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
                         .accessibilityElement(children: .combine)
-                        .accessibilityIdentifier("reviews.plan.task.\(task.taskID)")
+                        .accessibilityIdentifier("reviews.plan.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: task.taskID))")
                     }
                 }
             }
@@ -1371,7 +1273,7 @@ struct DailyReviewView: View {
 
     private func hypothesis(_ snapshot: DailyReviewSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("HYPOTHESIS · POSSIBLE EXPLANATION")
+            Text("POSSIBLE EXPLANATION")
                 .font(Sumi.label())
                 .sumiLabelTracking()
             Text(snapshot.hypothesis ?? "There is not enough covered activity for an explanation.")
@@ -1450,7 +1352,7 @@ struct DailyReviewView: View {
 
     private func personalNoteSection(_ snapshot: DailyReviewSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("USER CONTEXT · PERSONAL NOTE")
+            Text("PERSONAL NOTE")
                 .font(Sumi.label())
                 .sumiLabelTracking()
             Text("Keep private context for this day. This note stays local and is not treated as observed behavior, a hypothesis, or a learned fact.")
@@ -1498,71 +1400,6 @@ struct DailyReviewView: View {
         .background(Sumi.sealWash)
         .overlay(Rectangle().stroke(Sumi.seal, lineWidth: 1))
         .accessibilityIdentifier("reviews.error")
-    }
-}
-
-private struct FutureClassificationRulesSection: View {
-    let rules: [AppClassificationCorrectionRule]
-    let onRemove: (AppClassificationCorrectionRule) -> Void
-
-    @State private var ruleToRemove: AppClassificationCorrectionRule?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("FUTURE APP RULES")
-                .font(Sumi.label())
-                .sumiLabelTracking()
-            Text("Rules created from your corrections affect only new Screenwatch observations. Historical activity and corrections stay unchanged.")
-                .font(Sumi.body(12))
-                .foregroundStyle(Sumi.muted)
-            if rules.isEmpty {
-                Text("No daily-review corrections are currently teaching future app classifications.")
-                    .font(Sumi.body(12))
-                    .foregroundStyle(Sumi.muted)
-                    .accessibilityIdentifier("reviews.future-rules.empty")
-            } else {
-                ForEach(rules) { rule in
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(rule.application)
-                                .font(Sumi.body(14))
-                            Text("\(rule.classification.rawValue.uppercased()) · FROM REVIEW \(rule.sourceDay)")
-                                .font(Sumi.label(8))
-                                .sumiLabelTracking()
-                                .foregroundStyle(Sumi.muted)
-                        }
-                        Spacer()
-                        Button("REMOVE RULE") { ruleToRemove = rule }
-                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-                            .accessibilityIdentifier("reviews.future-rules.remove.\(rule.normalizedApplication)")
-                    }
-                    .padding(12)
-                    .background(Sumi.paper)
-                    .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
-                    .accessibilityIdentifier("reviews.future-rules.rule.\(rule.normalizedApplication)")
-                }
-            }
-        }
-        .padding(18)
-        .background(Sumi.softPaper)
-        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
-        .accessibilityIdentifier("reviews.future-rules")
-        .confirmationDialog(
-            "Remove this future app rule?",
-            isPresented: Binding(
-                get: { ruleToRemove != nil },
-                set: { if !$0 { ruleToRemove = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Remove future rule", role: .destructive) {
-                if let ruleToRemove { onRemove(ruleToRemove) }
-                ruleToRemove = nil
-            }
-            Button("Cancel", role: .cancel) { ruleToRemove = nil }
-        } message: {
-            Text("Future observations will return to the normal Settings policy. Historical corrections will remain.")
-        }
     }
 }
 

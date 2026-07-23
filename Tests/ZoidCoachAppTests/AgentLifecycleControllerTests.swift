@@ -170,16 +170,6 @@ private final class StubAgentLifecycleService: AgentLifecycleServicing {
         return enabled
     }
 
-    func repairAndInspect() -> SourceHealth {
-        repairCalls += 1
-        return enabled
-    }
-
-    func repairAndInspect() -> SourceHealth {
-        repairCalls += 1
-        return enabled
-    }
-
     func disableAndInspect() -> SourceHealth {
         disableCalls += 1
         registrationStatus = .notRegistered

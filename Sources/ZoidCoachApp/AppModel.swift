@@ -148,7 +148,6 @@ final class AppModel: ObservableObject {
         eventStore: EventStore? = nil,
         calendarPlanApprovalReceiptStore: CalendarPlanApprovalReceiptStore? = nil,
         reminderListPolicyLoader: (@Sendable () throws -> ReminderListPolicy)? = nil,
-        recordSourceCheck: (@Sendable (SourceHealth, Date) async throws -> Void)? = nil,
         synchronizeReminderSnapshots: (@Sendable ([AgentReminderSnapshot]) async throws -> Void)? = nil,
         retryReminderCompletion: (@Sendable (String) async throws -> Void)? = nil,
         fetchReminderCompletionSync: (@Sendable (String) async throws -> ReminderCompletionSyncState)? = nil,
@@ -156,6 +155,7 @@ final class AppModel: ObservableObject {
         loadGamingManualAdjustments: (@Sendable (Date, String) throws -> [GamingManualAdjustment])? = nil,
         fetchAuthoritativeGamingSnapshot: (@Sendable () async throws -> TodaySnapshot)? = nil,
         loadCoachingRuntimeState: (@Sendable (Date) async throws -> CoachingRuntimeState)? = nil,
+        recordSourceCheck: (@Sendable (SourceHealth, Date) async throws -> Void)? = nil,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         let resolvedAgentLaunchService = agentLaunchService
@@ -430,6 +430,22 @@ final class AppModel: ObservableObject {
 
     func refreshTodaySnapshot() async {
         installTodaySnapshot(todaySnapshotLoader.load())
+        await refreshCoachingState()
+    }
+
+    func refreshCoachingState() async {
+        let generation = coachingStateRefreshGate.begin()
+        let loader = loadCoachingRuntimeState
+        let refreshDate = now()
+        let result = await Task.detached(priority: .utility) {
+            do {
+                return Result<CoachingRuntimeState, Error>.success(try await loader(refreshDate))
+            } catch {
+                return Result<CoachingRuntimeState, Error>.failure(error)
+            }
+        }.value
+        guard coachingStateRefreshGate.shouldInstall(generation) else { return }
+        coachingRuntimeState = (try? result.get()) ?? .unavailable
     }
 
     func setTodayLiveRefreshEnabled(_ isEnabled: Bool) {
@@ -1374,18 +1390,9 @@ final class AppModel: ObservableObject {
         for row in todaySnapshot?.taskRows ?? [] {
             titlesByReminderID[row.taskID] = row.title
         }
-        var executionStatesByReminderID = (todaySnapshot?.taskRows ?? []).reduce(
-            into: [String: TaskExecutionState]()
-        ) { states, row in
-            states[row.taskID] = row.state
-        }
-        for reminder in reminderTasks where executionStatesByReminderID[reminder.id] == nil {
-            executionStatesByReminderID[reminder.id] = .ready
-        }
         calendarPlanApproval.begin(
             entries: dailyPlan,
             titlesByReminderID: titlesByReminderID,
-            executionStatesByReminderID: executionStatesByReminderID,
             availableMinutes: planningCapacityState.availableMinutes,
             fixedCommitmentMinutes: planningFixedCommitmentMinutes,
             usesCalendarAvailability: planningCapacityUsesCalendar,
@@ -1884,6 +1891,15 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var sidebarAccessibilityIdentifier: String {
+        switch self {
+        case .today: "sidebar.navigation.today"
+        case .diagnostics: "sidebar.navigation.source-health"
+        case .reviews: "sidebar.navigation.reviews"
+        case .settings: "sidebar.navigation.settings"
+        }
+    }
+
     var symbol: String {
         switch self {
         case .today: "checklist"
@@ -1891,6 +1907,14 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .reviews: "doc.text.magnifyingglass"
         case .settings: "slider.horizontal.3"
         }
+    }
+}
+
+struct SidebarNavigationAction: Equatable {
+    let destination: AppSection
+
+    func perform(select: (AppSection) -> Void) {
+        select(destination)
     }
 }
 

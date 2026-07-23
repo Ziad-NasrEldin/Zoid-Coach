@@ -78,7 +78,7 @@ struct LearnedEstimateSuggestionView: View {
                     .font(Sumi.label(7))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
-                    .accessibilityIdentifier("today.estimate-learning.\(taskID).status")
+                    .accessibilityIdentifier("today.estimate-learning.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID)).status")
             } else {
                 HStack(spacing: 10) {
                     Button("USE \(suggestion.recommendedMinutes) MIN") {
@@ -86,12 +86,12 @@ struct LearnedEstimateSuggestionView: View {
                         decision = .used(suggestion.recommendedMinutes)
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("today.estimate-learning.\(taskID).use")
+                    .accessibilityIdentifier("today.estimate-learning.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID)).use")
                     Button(presentation.keepLabel) {
                         decision = .keptOriginal
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-                    .accessibilityIdentifier("today.estimate-learning.\(taskID).keep")
+                    .accessibilityIdentifier("today.estimate-learning.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID)).keep")
                 }
             }
         }
@@ -100,6 +100,6 @@ struct LearnedEstimateSuggestionView: View {
         .background(Sumi.softPaper)
         .overlay { Rectangle().stroke(Sumi.paleRule, lineWidth: 1) }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("today.estimate-learning.\(taskID)")
+        .accessibilityIdentifier("today.estimate-learning.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
     }
 }

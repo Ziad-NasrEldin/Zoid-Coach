@@ -186,62 +186,6 @@ func statusItemObservation(
     }
 }
 
-enum WindowSample: Equatable {
-    case availableEmpty
-    case availableNonempty
-    case unavailable
-}
-
-struct BackgroundVisibilityState {
-    static let stableWindowlessInterval: TimeInterval = 0.5
-
-    private(set) var sawWindow = false
-    private(set) var becameStablyWindowless = false
-    private(set) var retainedStatusItem = false
-    private var emptyStartedAt: TimeInterval?
-
-    mutating func observe(
-        windows: WindowSample,
-        hasStatusItem: Bool,
-        elapsed: TimeInterval
-    ) -> VisibilityProbeError? {
-        switch windows {
-        case .unavailable:
-            return .accessibilityUnavailable
-        case .availableNonempty:
-            if becameStablyWindowless {
-                return .backgroundWindowReappeared
-            }
-            sawWindow = true
-            emptyStartedAt = nil
-        case .availableEmpty:
-            if becameStablyWindowless, !hasStatusItem {
-                return .statusItemUnavailable
-            }
-            retainedStatusItem = retainedStatusItem || hasStatusItem
-            if emptyStartedAt == nil {
-                emptyStartedAt = elapsed
-            }
-            if let emptyStartedAt,
-               elapsed - emptyStartedAt >= Self.stableWindowlessInterval,
-               retainedStatusItem {
-                becameStablyWindowless = true
-            }
-        }
-        return nil
-    }
-
-    func finalError() -> VisibilityProbeError? {
-        if becameStablyWindowless { return nil }
-        if sawWindow { return .backgroundWindowPersisted }
-        return .statusItemUnavailable
-    }
-}
-
-private let maximumDiagnosticWindows = 24
-private let diagnosticTimeLimit: TimeInterval = 0.25
-private let knownWindowTitles = Set(["Zoid 666", "Zoid 666 QA", "Background Agent"])
-
 func value(_ element: AXUIElement, _ attribute: CFString) -> AnyObject? {
     var result: CFTypeRef?
     guard AXUIElementCopyAttributeValue(element, attribute, &result) == .success else { return nil }

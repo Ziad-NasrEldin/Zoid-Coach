@@ -124,7 +124,7 @@ public final class TaskExecutionStore: @unchecked Sendable {
     }
 
     public func startSprint(taskID: String, durationMinutes: Int, at date: Date = Date()) throws {
-        guard (1...480).contains(durationMinutes) else { throw TaskExecutionStoreError.invalidSprintDuration }
+        guard (1...240).contains(durationMinutes) else { throw TaskExecutionStoreError.invalidSprintDuration }
         try transaction {
             if let existing = try openInterval(), existing.taskID != taskID {
                 try upsertState(taskID: existing.taskID, state: .paused, at: date)
@@ -417,21 +417,6 @@ public final class TaskExecutionStore: @unchecked Sendable {
         bind(formatter.string(from: date), statement, 2)
         if let taskID { bind(taskID, statement, 3) }
         guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
-}
-
-    private func latestPause(taskID: String) throws -> (reason: TaskPauseReason, pausedAt: Date, resumedAt: Date?)? {
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(database, "SELECT reason, paused_at, resumed_at FROM task_pause_events WHERE task_id = ? ORDER BY paused_at DESC, id DESC LIMIT 1;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.read }
-        defer { sqlite3_finalize(statement) }
-        bind(taskID, statement, 1)
-        guard sqlite3_step(statement) == SQLITE_ROW,
-              let reasonText = sqlite3_column_text(statement, 0),
-              let pausedText = sqlite3_column_text(statement, 1),
-              let reason = TaskPauseReason(rawValue: String(cString: reasonText)),
-              let pausedAt = formatter.date(from: String(cString: pausedText))
-        else { return nil }
-        let resumedAt = sqlite3_column_text(statement, 2).flatMap { formatter.date(from: String(cString: $0)) }
-        return (reason, pausedAt, resumedAt)
     }
 
     private func recordPause(taskID: String, reason: TaskPauseReason, at date: Date) throws {
@@ -461,6 +446,21 @@ public final class TaskExecutionStore: @unchecked Sendable {
         bind(taskID, statement, 1)
         guard sqlite3_step(statement) == SQLITE_ROW, let value = sqlite3_column_text(statement, 0) else { return nil }
         return TaskPauseReason(rawValue: String(cString: value))
+    }
+
+    private func latestPause(taskID: String) throws -> (reason: TaskPauseReason, pausedAt: Date, resumedAt: Date?)? {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "SELECT reason, paused_at, resumed_at FROM task_pause_events WHERE task_id = ? ORDER BY paused_at DESC, id DESC LIMIT 1;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW,
+              let reasonText = sqlite3_column_text(statement, 0),
+              let pausedText = sqlite3_column_text(statement, 1),
+              let reason = TaskPauseReason(rawValue: String(cString: reasonText)),
+              let pausedAt = formatter.date(from: String(cString: pausedText))
+        else { return nil }
+        let resumedAt = sqlite3_column_text(statement, 2).flatMap { formatter.date(from: String(cString: $0)) }
+        return (reason, pausedAt, resumedAt)
     }
 
     private func openInterval() throws -> (taskID: String, startedAt: Date)? {

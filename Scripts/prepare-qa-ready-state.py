@@ -10,8 +10,12 @@ import re
 import shutil
 import sys
 import tempfile
+import time
+from copy import deepcopy
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 class ManifestError(ValueError):
@@ -219,10 +223,27 @@ def validate_manifest(raw: Any) -> dict[str, Any]:
             fail(f"notification {item['id']} status is invalid")
 
     screenwatch = require_object(manifest["screenwatch"], "manifest.screenwatch")
-    exact_keys(screenwatch, {"state", "days"}, set(), "manifest.screenwatch")
+    exact_keys(
+        screenwatch,
+        {"state", "days"},
+        {"rebaseToNow", "timeZoneIdentifier"},
+        "manifest.screenwatch",
+    )
     if screenwatch["state"] not in SCREENWATCH_STATES:
         fail("manifest.screenwatch.state is invalid")
     days = require_list(screenwatch["days"], "manifest.screenwatch.days")
+    rebase_to_now = screenwatch.get("rebaseToNow", False)
+    if not isinstance(rebase_to_now, bool):
+        fail("manifest.screenwatch.rebaseToNow must be boolean")
+    if rebase_to_now:
+        identifier = require_string(
+            screenwatch.get("timeZoneIdentifier"),
+            "manifest.screenwatch.timeZoneIdentifier",
+        )
+        try:
+            ZoneInfo(identifier)
+        except ZoneInfoNotFoundError:
+            fail("manifest.screenwatch.timeZoneIdentifier is invalid")
     if screenwatch["state"] in {"missing", "deferred"} and days:
         fail("missing or deferred Screenwatch state cannot contain days")
     if screenwatch["state"] in {"healthy", "stale"} and not days:
@@ -264,7 +285,30 @@ def write_json(path: Path, value: Any) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def build_root(staging: Path, manifest: dict[str, Any]) -> None:
+def rebased_screenwatch_days(screenwatch: dict[str, Any], now_epoch: int) -> list[dict[str, Any]]:
+    days = deepcopy(screenwatch["days"])
+    if not screenwatch.get("rebaseToNow", False):
+        return days
+    records = [record for day in days for record in day["records"]]
+    latest_epoch = max(record["epoch"] for record in records)
+    shift = now_epoch - 15 - latest_epoch
+    zone = ZoneInfo(screenwatch["timeZoneIdentifier"])
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for record in records:
+        record["epoch"] += shift
+        instant = datetime.fromtimestamp(record["epoch"], tz=timezone.utc)
+        record["t"] = instant.isoformat(timespec="seconds").replace("+00:00", "Z")
+        local_day = instant.astimezone(zone).date().isoformat()
+        grouped.setdefault(local_day, []).append(record)
+    if len(grouped) != 1:
+        fail("rebased Screenwatch records would cross the configured local-day boundary")
+    return [
+        {"date": day, "records": sorted(grouped[day], key=lambda record: record["epoch"])}
+        for day in sorted(grouped)
+    ]
+
+
+def build_root(staging: Path, manifest: dict[str, Any], now_epoch: int) -> None:
     onboarding = manifest["onboarding"]
     progress = {
         "version": 1,
@@ -295,10 +339,13 @@ def build_root(staging: Path, manifest: dict[str, Any]) -> None:
         "operation": "seed",
         "seed": seed,
     }
+    materialized_days = rebased_screenwatch_days(manifest["screenwatch"], now_epoch)
+    materialized_manifest = deepcopy(manifest)
+    materialized_manifest["screenwatch"]["days"] = materialized_days
     write_json(staging / "QA Control/os-fixture-request.json", control)
-    write_json(staging / "QA Control/ready-state-manifest.json", manifest)
+    write_json(staging / "QA Control/ready-state-manifest.json", materialized_manifest)
 
-    for day in manifest["screenwatch"]["days"]:
+    for day in materialized_days:
         path = staging / "Screenwatch/days" / day["date"] / "log.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
         lines = [json.dumps(record, sort_keys=True, separators=(",", ":")) for record in day["records"]]
@@ -310,6 +357,7 @@ def main() -> int:
     parser.add_argument("manifest", type=Path)
     parser.add_argument("qa_root", type=Path)
     parser.add_argument("--replace", action="store_true")
+    parser.add_argument("--now-epoch", type=int, default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     if not args.qa_root.is_absolute() or args.qa_root == Path("/"):
@@ -329,7 +377,11 @@ def main() -> int:
     staging = Path(tempfile.mkdtemp(prefix=f".{target.name}.staging-", dir=target.parent))
     backup: Path | None = None
     try:
-        build_root(staging, manifest)
+        build_root(
+            staging,
+            manifest,
+            args.now_epoch if args.now_epoch is not None else int(time.time()),
+        )
         if target.exists():
             backup = target.with_name(f".{target.name}.backup-{os.getpid()}")
             os.replace(target, backup)

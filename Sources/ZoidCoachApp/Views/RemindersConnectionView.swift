@@ -117,14 +117,6 @@ struct RemindersConnectionView: View {
         } message: {
             Text(removalConfirmation.message)
         }
-        .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
-            Task { await controller.applicationDidBecomeActive() }
-        }
-        .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
-            Task { await controller.applicationDidBecomeActive() }
-        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings.reminders.connection")
     }

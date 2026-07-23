@@ -206,11 +206,6 @@ struct TodayPromptInboxLedger: View {
             replayed: entry.isReplay
         )
         let interface = TodayPromptInboxLedgerPresentation.actions(for: entry)
-        let keyboardShortcutsEnabled = PromptKeyboardShortcut.isAvailable(
-            promptID: entry.id,
-            keyboardPromptID: timeline.awaitingResponse.first?.id,
-            actionsDisabled: presentation.actionsDisabled
-        )
         return VStack(alignment: .leading, spacing: 8) {
             promptHeading(entry, state: presentation.stateLabel)
             Text(entry.episode.summary).font(Sumi.body(12)).foregroundStyle(Sumi.muted)
@@ -231,12 +226,7 @@ struct TodayPromptInboxLedger: View {
                     .foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("today.prompt.\(entry.id).task-change-label")
                 ForEach(interface.taskChangeControls) { control in
-                    promptActionButton(
-                        control,
-                        episode: entry.episode,
-                        presentation: presentation,
-                        keyboardShortcutsEnabled: keyboardShortcutsEnabled
-                    )
+                    promptActionButton(control, episode: entry.episode, presentation: presentation)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -247,34 +237,14 @@ struct TodayPromptInboxLedger: View {
                     .foregroundStyle(Sumi.muted)
                     .accessibilityIdentifier("today.prompt.\(entry.id).recovery-label")
                 ForEach(interface.recoveryControls) { control in
-                    promptActionButton(
-                        control,
-                        episode: entry.episode,
-                        presentation: presentation,
-                        keyboardShortcutsEnabled: keyboardShortcutsEnabled
-                    )
+                    promptActionButton(control, episode: entry.episode, presentation: presentation)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             if entry.episode.allowsDismissal {
-                let shortcut = keyboardShortcutsEnabled ? PromptKeyboardShortcut.dismiss : nil
-                Button { model.dismissPrompt(entry.episode) } label: {
-                    HStack(spacing: 8) {
-                        Text("DISMISS")
-                        Spacer(minLength: 0)
-                        if let shortcut {
-                            Text(shortcut.displayLabel)
-                                .font(Sumi.label(8))
-                                .foregroundStyle(Sumi.muted)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                Button("DISMISS") { model.dismissPrompt(entry.episode) }
                     .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
                     .disabled(presentation.actionsDisabled)
-                    .coachingKeyboardShortcut(shortcut)
-                    .accessibilityHint(shortcut?.accessibilityHint ?? "")
                     .accessibilityIdentifier("today.prompt.\(entry.id).dismiss")
             }
         }
@@ -284,36 +254,20 @@ struct TodayPromptInboxLedger: View {
     private func promptActionButton(
         _ control: PromptActionPublicControl,
         episode: PromptEpisode,
-        presentation: PromptActionPresentation,
-        keyboardShortcutsEnabled: Bool
+        presentation: PromptActionPresentation
     ) -> some View {
-        let shortcut = keyboardShortcutsEnabled
-            ? PromptKeyboardShortcut.action(for: control.action)
-            : nil
-        let actionHint = control.action.kind == .markBlocked
-            ? "Opens a reason sheet. The coaching decision stays waiting until the blocker is saved."
-            : ""
-        let accessibilityHint = [actionHint, shortcut?.accessibilityHint]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        return Button { choose(control.action, for: episode) } label: {
+        Button { choose(control.action, for: episode) } label: {
             HStack(spacing: 8) {
                 Text(control.action.title.uppercased())
                 Spacer(minLength: 0)
-                if let shortcut {
-                    Text(shortcut.displayLabel)
-                        .font(Sumi.label(8))
-                        .foregroundStyle(Sumi.muted)
-                        .accessibilityHidden(true)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
             .buttonStyle(SumiActionButtonStyle(role: actionRole(control.action.role), size: .compact))
             .disabled(presentation.actionsDisabled)
-            .coachingKeyboardShortcut(shortcut)
-            .accessibilityHint(accessibilityHint)
+            .accessibilityHint(control.action.kind == .markBlocked
+                ? "Opens a reason sheet. The coaching decision stays waiting until the blocker is saved."
+                : "")
             .accessibilityIdentifier(control.accessibilityIdentifier)
     }
 

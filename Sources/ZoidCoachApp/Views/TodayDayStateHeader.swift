@@ -5,8 +5,6 @@ struct TodayDayStatePresentation: Equatable {
     enum Kind: Equatable {
         case preparing
         case active
-        case paused
-        case completed
         case planned
         case planning
         case invitation
@@ -20,17 +18,12 @@ struct TodayDayStatePresentation: Equatable {
     let title: String
     let detail: String
 
-    var accessibilityValue: String { kind.accessibilityComponent }
-
     static func resolve(snapshot: TodaySnapshot) -> TodayDayStatePresentation {
         resolve(
             snapshotIsAvailable: true,
             planningMode: snapshot.planningStatus?.mode,
             hasActiveTask: snapshot.activeTask != nil,
-            hasPlannedTasks: !snapshot.taskRows.isEmpty || snapshot.mainObjective != nil,
-            hasPausedTask: snapshot.taskRows.contains { $0.state == .paused },
-            allPlannedTasksCompleted: !snapshot.taskRows.isEmpty
-                && snapshot.taskRows.allSatisfy { $0.state == .completed }
+            hasPlannedTasks: !snapshot.taskRows.isEmpty || snapshot.mainObjective != nil
         )
     }
 
@@ -38,9 +31,7 @@ struct TodayDayStatePresentation: Equatable {
         snapshotIsAvailable: Bool,
         planningMode: PlanningDayMode?,
         hasActiveTask: Bool,
-        hasPlannedTasks: Bool,
-        hasPausedTask: Bool = false,
-        allPlannedTasksCompleted: Bool = false
+        hasPlannedTasks: Bool
     ) -> TodayDayStatePresentation {
         guard snapshotIsAvailable else {
             return .init(
@@ -54,20 +45,6 @@ struct TodayDayStatePresentation: Equatable {
                 kind: .active,
                 title: "ACTIVE WORK",
                 detail: "One task is currently tracking time."
-            )
-        }
-        if hasPausedTask {
-            return .init(
-                kind: .paused,
-                title: "WORK PAUSED",
-                detail: "A task is paused and ready to resume."
-            )
-        }
-        if allPlannedTasksCompleted {
-            return .init(
-                kind: .completed,
-                title: "WORK COMPLETED",
-                detail: "Every visible task for today is completed."
             )
         }
         switch planningMode {
@@ -125,24 +102,6 @@ struct TodayDayStatePresentation: Equatable {
     }
 }
 
-private extension TodayDayStatePresentation.Kind {
-    var accessibilityComponent: String {
-        switch self {
-        case .preparing: "preparing"
-        case .active: "active"
-        case .paused: "paused"
-        case .completed: "completed"
-        case .planned: "planned"
-        case .planning: "planning"
-        case .invitation: "invitation"
-        case .snoozed: "snoozed"
-        case .dismissed: "dismissed"
-        case .unplanned: "unplanned"
-        case .open: "open"
-        }
-    }
-}
-
 struct TodayDayStateHeader: View {
     let date: Date
     let presentation: TodayDayStatePresentation
@@ -180,7 +139,6 @@ struct TodayDayStateHeader: View {
         .padding(.vertical, 20)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(formattedDate). Day state: \(presentation.title). \(presentation.detail)")
-        .accessibilityValue(presentation.accessibilityValue)
         .accessibilityIdentifier("today.day-state")
     }
 

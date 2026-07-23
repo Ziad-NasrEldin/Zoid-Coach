@@ -73,29 +73,17 @@ public struct AgentReminderSnapshot: Equatable, Codable, Sendable {
     }
 }
 
-public enum DeclaredTaskContext: String, Codable, Equatable, Sendable {
-    case technical
-}
-
 public struct AgentLocalTask: Equatable, Codable, Sendable {
     public let id: String
     public let title: String
     public let notes: String?
     public let estimateMinutes: Int
-    public let declaredContext: DeclaredTaskContext?
 
-    public init(
-        id: String,
-        title: String,
-        notes: String?,
-        estimateMinutes: Int,
-        declaredContext: DeclaredTaskContext? = nil
-    ) {
+    public init(id: String, title: String, notes: String?, estimateMinutes: Int) {
         self.id = id
         self.title = title
         self.notes = notes
         self.estimateMinutes = estimateMinutes
-        self.declaredContext = declaredContext
     }
 }
 

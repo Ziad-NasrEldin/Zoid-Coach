@@ -3,13 +3,6 @@ import EventKit
 import SQLite3
 import ZoidCoachCore
 
-enum DeclaredTaskContextResolver {
-    static func taskType(declaredContext: DeclaredTaskContext?, title: String) -> String? {
-        declaredContext?.rawValue
-            ?? title.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).first.map { $0.lowercased() }
-    }
-}
-
 public final class TodayDashboardAgent: @unchecked Sendable {
     private let reminders: ReminderSnapshotStore
     private let plans: AutonomousPlanStore
@@ -78,13 +71,10 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             previousSnapshot?.taskRows.contains(where: { $0.taskID == active.taskID }) == true {
             try execution.pauseForDeletedReminder(taskID: active.taskID, at: now)
         }
-        let reminderListPolicy = try userPolicyStore.current()?.policy.reminderLists ?? .legacyAllLists
-        let reminderSnapshots = try reminders.loadIncomplete().filter { reminder in
-            reminder.sourceKind == .local || reminderListPolicy.includes(listID: reminder.listID)
-        }
+        let reminderSnapshots = try reminders.loadIncomplete()
         if let active = activeBeforeSourceRefresh,
-            (activeSourceSnapshot?.sourceKind == .reminders && activeSourceSnapshot?.isCompleted == true)
-                || activeCompletionHistory != nil {
+           (activeSourceSnapshot?.sourceKind == .reminders && activeSourceSnapshot?.isCompleted == true)
+            || activeCompletionHistory != nil {
             let previousRow = previousSnapshot?.taskRows.first(where: { $0.taskID == active.taskID })
             try execution.apply(.complete, taskID: active.taskID, at: now)
             if activeCompletionHistory == nil {
@@ -98,17 +88,12 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             }
         }
         let plan = try plans.loadDailyPlan(for: now)
-        var reminderByID: [String: ReminderSourceSnapshot] = [:]
-        for reminder in reminderSnapshots {
-            reminderByID[reminder.id] = reminder
-        }
+        let reminderByID = Dictionary(uniqueKeysWithValues: reminderSnapshots.map { ($0.id, $0) })
         let executionByID = try execution.snapshot(for: reminderSnapshots.map(\.id), now: now)
         let behaviorObservations = try archive.behaviorObservations(for: now)
         let behavior = BehaviorSessionizer().summarize(observations: behaviorObservations, now: now)
         let active = try execution.activeTask(now: now)
-        var seenPlannedReminderIDs: Set<String> = []
         var rows = plan.compactMap { entry -> TodayTaskRow? in
-            if !seenPlannedReminderIDs.insert(entry.reminderID).inserted { return nil }
             guard let reminder = reminderByID[entry.reminderID] else { return nil }
             let current = executionByID[entry.reminderID]
             guard current?.state != .completed else { return nil }
@@ -136,9 +121,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 learnedEstimateSuggestion: learnedEstimateSuggestion(
                     for: reminder,
                     currentEstimateMinutes: entry.estimateMinutes
-                ),
-                sourceNotes: reminder.notes,
-                sourceListName: reminder.listName
+                )
             )
         }
         let userPolicy = try userPolicyStore.current()?.policy ?? UserPolicy.defaults()
@@ -184,69 +167,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 learnedEstimateSuggestion: learnedEstimateSuggestion(
                     for: reminder,
                     currentEstimateMinutes: 30
-                ),
-                sourceNotes: reminder.notes,
-                sourceListName: reminder.listName
-            ))
-        }
-        if let activeBeforeSourceRefresh,
-           let activeSourceSnapshot,
-           activeSourceSnapshot.sourceKind == .reminders,
-           activeSourceSnapshot.isCompleted,
-           !rows.contains(where: { $0.taskID == activeBeforeSourceRefresh.taskID }),
-           let current = try execution.snapshot(
-               for: [activeBeforeSourceRefresh.taskID],
-               now: now
-           )[activeBeforeSourceRefresh.taskID],
-           current.state == .completed {
-            rows.append(externallyCompletedReminderRow(
-                from: activeSourceSnapshot,
-                execution: current,
-                referenceDate: now
-            ))
-        }
-        if let activeBeforeSourceRefresh,
-           activeSourceSnapshot == nil,
-           let activeCompletionHistory,
-           !rows.contains(where: { $0.taskID == activeBeforeSourceRefresh.taskID }),
-           let current = try execution.snapshot(
-               for: [activeBeforeSourceRefresh.taskID],
-               now: now
-           )[activeBeforeSourceRefresh.taskID],
-           current.state == .completed {
-            rows.append(externallyCompletedReminderRow(
-                from: activeCompletionHistory,
-                execution: current
-            ))
-        }
-        if let activeBeforeSourceRefresh,
-           let activeSourceSnapshot,
-           activeSourceSnapshot.sourceKind == .reminders,
-           activeSourceSnapshot.isCompleted,
-           !rows.contains(where: { $0.taskID == activeBeforeSourceRefresh.taskID }),
-           let current = try execution.snapshot(
-               for: [activeBeforeSourceRefresh.taskID],
-               now: now
-           )[activeBeforeSourceRefresh.taskID],
-           current.state == .completed {
-            rows.append(externallyCompletedReminderRow(
-                from: activeSourceSnapshot,
-                execution: current,
-                referenceDate: now
-            ))
-        }
-        if let activeBeforeSourceRefresh,
-           activeSourceSnapshot == nil,
-           let activeCompletionHistory,
-           !rows.contains(where: { $0.taskID == activeBeforeSourceRefresh.taskID }),
-           let current = try execution.snapshot(
-               for: [activeBeforeSourceRefresh.taskID],
-               now: now
-           )[activeBeforeSourceRefresh.taskID],
-           current.state == .completed {
-            rows.append(externallyCompletedReminderRow(
-                from: activeCompletionHistory,
-                execution: current
+                )
             ))
         }
         if let activeBeforeSourceRefresh,
@@ -430,9 +351,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             isOptional: previous.isOptional ?? false,
             blockedReason: previous.blockedReason,
             deferredUntil: previous.deferredUntil,
-            learnedEstimateSuggestion: previous.learnedEstimateSuggestion,
-            sourceNotes: previous.sourceNotes,
-            sourceListName: previous.sourceListName
+            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
         )
     }
 
@@ -455,9 +374,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             isOptional: previous.isOptional ?? false,
             blockedReason: previous.blockedReason,
             deferredUntil: previous.deferredUntil,
-            learnedEstimateSuggestion: previous.learnedEstimateSuggestion,
-            sourceNotes: previous.sourceNotes,
-            sourceListName: previous.sourceListName
+            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
         )
     }
 
@@ -498,10 +415,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             elapsedMinutes: current.elapsedMinutes,
             completionReason: .appleReminderCompleted,
             sprint: current.sprint,
-            isMainObjective: false,
-            sourceNotes: source.notes,
-            sourceListName: source.listName,
-            declaredContext: source.declaredContext
+            isMainObjective: false
         )
     }
 
@@ -658,13 +572,7 @@ public final class TodayDashboardAgent: @unchecked Sendable {
            try !mutationOperations.hasCompletedStep(operationID: operationID, step: "learning"),
            let row = previousSnapshot?.taskRows.first(where: { $0.taskID == taskID }) {
             let coverage = previousSnapshot?.coverage.isLimited == true ? 0.5 : 1.0
-            let context = EstimateLearningContext(
-                taskType: DeclaredTaskContextResolver.taskType(
-                    declaredContext: row.declaredContext,
-                    title: row.title
-                ),
-                project: reminderBefore?.listName
-            )
+            let context = EstimateLearningContext(taskType: taskType(for: row.title), project: reminderBefore?.listName)
             let sampleID = "task-completion:\(taskID):\(Int(now.timeIntervalSince1970))"
             let sample = EstimateLearningSample(
                 id: sampleID,
@@ -722,38 +630,6 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         try execution.startSprint(taskID: taskID, durationMinutes: durationMinutes, at: now)
         try taskHistory.record(taskID: taskID, state: .selected, at: now)
         return try snapshot(now: now)
-    }
-
-    private func databaseHasCompetingWriteLock() -> Bool {
-        var probe: OpaquePointer?
-        guard sqlite3_open_v2(
-            databaseURL.path,
-            &probe,
-            SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX,
-            nil
-        ) == SQLITE_OK, let probe else {
-            return false
-        }
-        defer { sqlite3_close(probe) }
-        sqlite3_busy_timeout(probe, 5)
-        let result = sqlite3_exec(probe, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil)
-        if result == SQLITE_OK {
-            _ = sqlite3_exec(probe, "ROLLBACK;", nil, nil, nil)
-            return false
-        }
-        let primaryResult = result & 0xFF
-        return primaryResult == SQLITE_BUSY || primaryResult == SQLITE_LOCKED
-    }
-
-    private func waitForMutationWriteAvailability() throws {
-        var retryIndex = 0
-        while databaseHasCompetingWriteLock() {
-            guard retryIndex < mutationLockRetryDelays.count else {
-                throw TodayDashboardAgentError.databaseTemporarilyLocked
-            }
-            Thread.sleep(forTimeInterval: mutationLockRetryDelays[retryIndex])
-            retryIndex += 1
-        }
     }
 
     public func startUnplannedTask(_ taskID: String, now: Date = Date()) throws -> TodaySnapshot {
@@ -845,15 +721,16 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         }
     }
 
+    private func taskType(for title: String) -> String? {
+        title.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).first.map { $0.lowercased() }
+    }
+
     private func learnedEstimateSuggestion(
         for reminder: ReminderSourceSnapshot,
         currentEstimateMinutes: Int
     ) -> LearnedEstimateSuggestion? {
         let context = EstimateLearningContext(
-            taskType: DeclaredTaskContextResolver.taskType(
-                declaredContext: reminder.declaredContext,
-                title: reminder.title
-            ),
+            taskType: taskType(for: reminder.title),
             project: reminder.listName
         )
         guard let aggregate = try? learning.estimateAggregate(for: context),
@@ -867,8 +744,13 @@ public final class TodayDashboardAgent: @unchecked Sendable {
               let minimumActualMinutes = eligibleActualMinutes.min(),
               let maximumActualMinutes = eligibleActualMinutes.max()
         else { return nil }
-        let recommendedMinutes = aggregate.proposal.recommendedEstimateMinutes
-        guard currentEstimateMinutes != recommendedMinutes else { return nil }
+        let policy = EstimateLearningPolicy()
+        let scaledMinutes = Double(max(1, currentEstimateMinutes)) * aggregate.proposal.appliedRatio
+        let roundedMinutes = Int((scaledMinutes / 5).rounded() * 5)
+        let recommendedMinutes = min(
+            max(roundedMinutes, policy.minimumRecommendedMinutes),
+            policy.maximumRecommendedMinutes
+        )
         return LearnedEstimateSuggestion(
             recommendedMinutes: recommendedMinutes,
             sampleCount: aggregate.proposal.sampleCount,
@@ -893,6 +775,31 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))
     }
 
+    private func databaseHasCompetingWriteLock() -> Bool {
+        var probe: OpaquePointer?
+        guard sqlite3_open_v2(databaseURL.path, &probe, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
+              let probe else { return false }
+        defer { sqlite3_close(probe) }
+        sqlite3_busy_timeout(probe, 5)
+        let result = sqlite3_exec(probe, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil)
+        if result == SQLITE_OK {
+            _ = sqlite3_exec(probe, "ROLLBACK;", nil, nil, nil)
+            return false
+        }
+        let primary = result & 0xFF
+        return primary == SQLITE_BUSY || primary == SQLITE_LOCKED
+    }
+
+    private func waitForMutationWriteAvailability() throws {
+        var retryIndex = 0
+        while databaseHasCompetingWriteLock() {
+            guard retryIndex < mutationLockRetryDelays.count else {
+                throw TodayDashboardAgentError.databaseTemporarilyLocked
+            }
+            Thread.sleep(forTimeInterval: mutationLockRetryDelays[retryIndex])
+            retryIndex += 1
+        }
+    }
 }
 
 public enum TodayDashboardAgentError: LocalizedError, Equatable {

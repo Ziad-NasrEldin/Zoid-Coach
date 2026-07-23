@@ -30,7 +30,6 @@ import ZoidCoachCore
 
     #expect(presentation.shouldOpenMainWindow)
     #expect(!presentation.launchesForBackgroundScheduling)
-    #expect(presentation.sceneCompositionPolicy == .ordinary)
 }
 
 @Test func productionPackageIgnoresTheQAOpenMainArgument() {
@@ -41,7 +40,6 @@ import ZoidCoachCore
 
     #expect(!presentation.shouldOpenMainWindow)
     #expect(!presentation.launchesForBackgroundScheduling)
-    #expect(presentation.sceneCompositionPolicy == .ordinary)
 }
 
 @Test func backgroundSchedulingNeverOpensThePrimaryWindow() {
@@ -53,7 +51,6 @@ import ZoidCoachCore
     #expect(presentation.launchesForBackgroundScheduling)
     #expect(!presentation.shouldOpenMainWindow)
     #expect(presentation.initialMainWindowPresentationPolicy == .backgroundScheduling)
-    #expect(presentation.sceneCompositionPolicy == .backgroundScheduling)
 }
 
 @Test func ordinaryQALaunchKeepsNormalSceneRestoration() {
@@ -64,58 +61,6 @@ import ZoidCoachCore
 
     #expect(!presentation.shouldOpenMainWindow)
     #expect(!presentation.launchesForBackgroundScheduling)
-    #expect(presentation.sceneCompositionPolicy == .ordinary)
-}
-
-@Test func backgroundSceneCompositionExcludesEveryNormalWindowScene() {
-    let policy = ApplicationSceneCompositionPolicy.backgroundScheduling
-
-    #expect(!policy.includesMainWindowScene)
-    #expect(!policy.includesAgentWindowScene)
-    #expect(policy.includesMenuBarScene)
-}
-
-@Test func ordinarySceneCompositionIncludesAllExistingScenes() {
-    let policy = ApplicationSceneCompositionPolicy.ordinary
-
-    #expect(policy.includesMainWindowScene)
-    #expect(policy.includesAgentWindowScene)
-    #expect(policy.includesMenuBarScene)
-}
-
-@Test func entrypointSelectionGivesBackgroundSchedulingAbsolutePriority() {
-    let selection = ApplicationEntrypointSelection.select(
-        arguments: ["ZoidCoachQA", "--background-schedule", "--qa-open-main"],
-        packageMode: .qa
-    )
-
-    #expect(selection == .background)
-    #expect(selection.sceneCompositionPolicy == .background)
-    #expect(!selection.sceneCompositionPolicy.includesMainWindowScene)
-    #expect(!selection.sceneCompositionPolicy.includesAgentWindowScene)
-    #expect(selection.sceneCompositionPolicy.includesMenuBarScene)
-}
-
-@Test func entrypointSelectionKeepsPositiveQAOnTheForegroundApp() {
-    let selection = ApplicationEntrypointSelection.select(
-        arguments: ["ZoidCoachQA", "--qa-open-main"],
-        packageMode: .qa
-    )
-
-    #expect(selection == .foreground)
-    #expect(selection.sceneCompositionPolicy == .foreground)
-}
-
-@Test func entrypointSelectionKeepsProductionOnTheForegroundApp() {
-    let selection = ApplicationEntrypointSelection.select(
-        arguments: ["ZoidCoach"],
-        packageMode: .production
-    )
-
-    #expect(selection == .foreground)
-    #expect(selection.sceneCompositionPolicy.includesMainWindowScene)
-    #expect(selection.sceneCompositionPolicy.includesAgentWindowScene)
-    #expect(selection.sceneCompositionPolicy.includesMenuBarScene)
 }
 
 @Test func mainWindowSelectionExcludesBackgroundAgentWhenBothWindowsExist() throws {

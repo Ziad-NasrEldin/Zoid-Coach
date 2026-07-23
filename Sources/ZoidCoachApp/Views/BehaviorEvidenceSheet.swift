@@ -17,7 +17,6 @@ struct BehaviorEvidenceSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     categoryLedger
-                    coachingBoundaryCard
                     workCategoryLedger
                     if !evidence.workUncertainties.isEmpty {
                         workUncertaintyLedger
@@ -102,44 +101,6 @@ struct BehaviorEvidenceSheet: View {
             categories: evidence.workCategories,
             detail: evidence.workCategoryDetail
         )
-    }
-
-    private var coachingBoundaryCard: some View {
-        let presentation = DriftCoachingEvidenceBoundaryPresentation(
-            hasSourceIssue: evidence.hasSourceIssue,
-            unknownMinutes: evidence.unknownMinutes
-        )
-
-        return VStack(alignment: .leading, spacing: 7) {
-            Text("DRIFT COACHING BOUNDARY")
-                .font(Sumi.label(8))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.muted)
-            Text(presentation.title)
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(
-                    evidence.hasSourceIssue || evidence.unknownMinutes > 0
-                        ? Sumi.sealDeep
-                        : Sumi.ink
-                )
-            Text(presentation.detail)
-                .font(Sumi.body(12))
-                .foregroundStyle(Sumi.ink)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(presentation.policyDetail)
-                .font(Sumi.body(11))
-                .foregroundStyle(Sumi.muted)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Sumi.softPaper)
-        .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(presentation.title). \(presentation.detail) \(presentation.policyDetail)")
-        .accessibilityValue(presentation.accessibilityValue)
-        .accessibilityIdentifier("today.behavior-evidence.coaching-boundary")
     }
 
     private var workUncertaintyLedger: some View {

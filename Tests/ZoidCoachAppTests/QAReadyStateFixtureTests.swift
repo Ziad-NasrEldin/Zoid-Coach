@@ -211,6 +211,63 @@ func qaReadyStateFixtureRejectsMismatchedNotificationIdentityBeforeReplacement()
     #expect(try FileManager.default.contentsOfDirectory(atPath: paths.runRoot.path) == ["sentinel.txt"])
 }
 
+@Test
+func zc029010ReadyStateMaterializesFreshTwentyMeaningfulGamingMinutes() throws {
+    let paths = try QAReadyStateTestPaths(label: "zc029010-fresh-gaming")
+    defer { paths.remove() }
+    let nowEpoch = 1_800_000_000
+    let manifest = paths.repositoryRoot.appendingPathComponent(
+        "Scripts/fixtures/zc-029-010-work-hours-gaming-maximum-ready-state.json"
+    )
+
+    let result = try runReadyStateScript(
+        manifest: manifest,
+        root: paths.runRoot,
+        nowEpoch: nowEpoch
+    )
+    #expect(result.status == 0)
+
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try #require(TimeZone(identifier: "Africa/Cairo"))
+    let day = calendar.dateComponents(
+        [.year, .month, .day],
+        from: Date(timeIntervalSince1970: TimeInterval(nowEpoch - 15))
+    )
+    let dayName = String(format: "%04d-%02d-%02d", day.year ?? 0, day.month ?? 0, day.day ?? 0)
+    let log = paths.runRoot.appendingPathComponent("Screenwatch/days/\(dayName)/log.jsonl")
+    let rows = try String(contentsOf: log, encoding: .utf8)
+        .split(separator: "\n")
+        .map { line -> [String: Any] in
+            try #require(
+                JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any]
+            )
+        }
+    let epochs = try rows.map { try #require($0["epoch"] as? Int) }
+    let observations = epochs.map {
+        BehaviorObservation(
+            observedAt: Date(timeIntervalSince1970: TimeInterval($0)),
+            application: "Steam",
+            classification: .gaming
+        )
+    }
+    let summary = BehaviorSessionizer().summarize(
+        observations: observations,
+        now: Date(timeIntervalSince1970: TimeInterval(nowEpoch))
+    )
+
+    #expect(rows.count == 5)
+    #expect(zip(epochs, epochs.dropFirst()).allSatisfy { pair in
+        pair.1 - pair.0 == 300
+    })
+    #expect(epochs.last == nowEpoch - 15)
+    #expect(summary.summary.meaningfulGamingMinutes == 20)
+    #expect(!summary.coverage.isLimited)
+    #expect(rows.allSatisfy {
+        ($0["window"] as? String) == "PRIVATE-ZC029010-WINDOW-SENTINEL"
+            && ($0["url"] as? String) == "https://private-zc029010.invalid/raw?secret=sentinel"
+    })
+}
+
 private struct QAReadyStateTestPaths {
     let repositoryRoot: URL
     let parent: URL
@@ -241,7 +298,8 @@ private struct QAReadyStateTestPaths {
 private func runReadyStateScript(
     manifest: URL,
     root: URL,
-    replace: Bool = false
+    replace: Bool = false,
+    nowEpoch: Int? = nil
 ) throws -> (status: Int32, stdout: String, stderr: String) {
     let repositoryRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -257,6 +315,7 @@ private func runReadyStateScript(
         manifest.path,
         root.path,
     ] + (replace ? ["--replace"] : [])
+        + (nowEpoch.map { ["--now-epoch", String($0)] } ?? [])
     process.standardOutput = stdout
     process.standardError = stderr
     try process.run()

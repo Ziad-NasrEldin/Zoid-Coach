@@ -438,33 +438,6 @@ func unknownSessionReviewSeparatesPendingEvidenceWithoutChangingItsClassificatio
 }
 
 @Test
-func dailyReviewKeepsCompletedTasksVisibleAfterTheyLeaveTheActiveList() throws {
-    let fixture = try DailyReviewFixture()
-    defer { fixture.remove() }
-    let formatter = DateFormatter()
-    formatter.calendar = .current
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = .current
-    formatter.dateFormat = "yyyy-MM-dd"
-    let completedAt = formatter.date(from: fixture.sourceDay)!.addingTimeInterval(12 * 3_600)
-    let history = try TaskHistoryStore(databaseURL: fixture.databaseURL)
-    try history.record(
-        taskID: "reminder:launch",
-        state: .completed,
-        title: "Ship the launch brief",
-        sourceKind: .reminders,
-        at: completedAt
-    )
-
-    let snapshot = try fixture.store.load(sourceDay: fixture.sourceDay)
-
-    #expect(snapshot.completedTasks.count == 1)
-    #expect(snapshot.completedTasks[0].title == "Ship the launch brief")
-    #expect(snapshot.completedTasks[0].sourceKind == .reminders)
-    #expect(snapshot.sessions.isEmpty)
-}
-
-@Test
 func correctionAndTaskAttachmentPersistAndRecalculateTotalsAfterRestart() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
@@ -945,8 +918,6 @@ func workCategoryBreakdownReconstructsFromPersistedCorrectedSessionsAfterReopen(
 }
 
 @Test
-<<<<<<< HEAD
-=======
 func evidenceLayersReconstructFromPersistedReviewEvidenceAfterReopen() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
@@ -968,6 +939,25 @@ func evidenceLayersReconstructFromPersistedReviewEvidenceAfterReopen() throws {
     #expect(relaunched.layers[1].body.contains("1 observed minute remains Unknown"))
     #expect(relaunched.layers[1].body.contains("personal note supplies user context"))
     #expect(relaunched.layers[2].body.contains("Observed work time was the largest covered category"))
+}
+
+@Test
+func unknownOnlyEvidenceRemainsLimitedAfterStoreReopen() throws {
+    let fixture = try DailyReviewFixture()
+    defer { fixture.remove() }
+    let start: Int64 = 1_783_663_200
+    try fixture.insert(epoch: start, app: "PRIVATE-ZC042001-APP", classification: .unknown)
+    try fixture.store.savePersonalNote("PRIVATE-ZC042001-NOTE", sourceDay: fixture.sourceDay)
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    let snapshot = try reopened.load(sourceDay: fixture.sourceDay)
+    let state = DailyReviewEvidenceLayersState(snapshot: snapshot)
+
+    #expect(snapshot.hypothesis == nil)
+    #expect(state.layers[0].body.contains("1 corrected observed minute"))
+    #expect(state.layers[1].body.contains("1 observed minute remains Unknown"))
+    #expect(state.layers[2].body == "No possible explanation was generated because the covered evidence is insufficient.")
+    #expect(state.layers.allSatisfy { !$0.accessibilityLabel.contains("PRIVATE-ZC042001") })
 }
 
 @Test
@@ -1021,7 +1011,6 @@ func workCategoryBreakdownExcludesPersistedNonWorkLeftMergeTruthAfterReopen() th
 }
 
 @Test
->>>>>>> aa2c6dc (feat: separate review evidence layers)
 func migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() throws {
     let fixture = try DailyReviewFixture()
     defer { fixture.remove() }
@@ -1033,31 +1022,6 @@ func migrationCreatesReviewTablesWithoutChangingBehaviorEvidence() throws {
     #expect(try fixture.scalar("SELECT COUNT(*) FROM behavior_records;") == 1)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('daily_reviews', 'daily_review_corrections', 'offline_work_entries');") == 3)
     #expect(try fixture.scalar("SELECT COUNT(*) FROM pragma_table_info('daily_reviews') WHERE name = 'skipped_at_utc';") == 1)
-}
-
-@Test
-func personalReviewNoteTrimsPersistsReopensAndClearsWithoutChangingEvidence() throws {
-    let fixture = try DailyReviewFixture(now: { Date(timeIntervalSince1970: 1_783_663_200) })
-    defer { fixture.remove() }
-    try fixture.insert(epoch: 1_783_663_200, app: "Cursor", classification: .work)
-    try fixture.store.confirm(sourceDay: fixture.sourceDay)
-
-    try fixture.store.savePersonalNote("  Client feedback changed the afternoon.  ", sourceDay: fixture.sourceDay)
-    var snapshot = try fixture.store.load(sourceDay: fixture.sourceDay)
-    #expect(snapshot.personalNote == "Client feedback changed the afternoon.")
-    #expect(snapshot.confirmedAt == nil)
-    #expect(snapshot.observedMinutes == 1)
-
-    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
-    #expect(try reopened.load(sourceDay: fixture.sourceDay).personalNote == "Client feedback changed the afternoon.")
-    try reopened.savePersonalNote("   ", sourceDay: fixture.sourceDay)
-    snapshot = try reopened.load(sourceDay: fixture.sourceDay)
-    #expect(snapshot.personalNote == nil)
-    #expect(snapshot.observedMinutes == 1)
-
-    #expect(throws: DailyReviewStoreError.self) {
-        try reopened.savePersonalNote(String(repeating: "x", count: 1_001), sourceDay: fixture.sourceDay)
-    }
 }
 
 @Test

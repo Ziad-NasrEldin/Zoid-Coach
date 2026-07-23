@@ -8,7 +8,6 @@ struct CalendarPlanApprovalItem: Codable, Equatable, Identifiable, Sendable {
     let estimateMinutes: Int
     let estimateIsUncertain: Bool?
     let isMainObjective: Bool
-    let executionState: TaskExecutionState?
 
     init(
         reminderID: String,
@@ -16,8 +15,7 @@ struct CalendarPlanApprovalItem: Codable, Equatable, Identifiable, Sendable {
         rank: Int,
         estimateMinutes: Int,
         estimateIsUncertain: Bool = false,
-        isMainObjective: Bool,
-        executionState: TaskExecutionState? = nil
+        isMainObjective: Bool
     ) {
         self.reminderID = reminderID
         self.title = title
@@ -25,32 +23,9 @@ struct CalendarPlanApprovalItem: Codable, Equatable, Identifiable, Sendable {
         self.estimateMinutes = estimateMinutes
         self.estimateIsUncertain = estimateIsUncertain
         self.isMainObjective = isMainObjective
-        self.executionState = executionState
     }
 
     var id: String { reminderID }
-
-    var isIncompletePriorityTask: Bool {
-        isMainObjective && executionState.map { $0 != .completed } == true
-    }
-
-    var priorityStateLabel: String? {
-        guard isMainObjective else { return nil }
-        return switch executionState {
-        case .completed: "PRIORITY · COMPLETE"
-        case .some: "PRIORITY · INCOMPLETE"
-        case nil: "PRIORITY · STATUS UNKNOWN"
-        }
-    }
-
-    var priorityStateAccessibilityValue: String? {
-        guard isMainObjective else { return nil }
-        return switch executionState {
-        case .completed: "Complete"
-        case .some: "Incomplete"
-        case nil: "Status unknown"
-        }
-    }
 }
 
 struct CalendarPlanAvailabilityRevision: Equatable, Sendable {
@@ -160,7 +135,6 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
     var writeState: CalendarPlanWriteState = .idle
     private(set) var receipt: CalendarPlanApprovalReceipt?
     private var presentationIsOpen = false
-    private(set) var queueRequestedAt: Date?
     private var reviewedAvailabilityRevision: CalendarPlanAvailabilityRevision?
 
     var isPresented: Bool { presentationIsOpen }
@@ -170,7 +144,6 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
     mutating func begin(
         entries: [DailyPlanEntry],
         titlesByReminderID: [String: String],
-        executionStatesByReminderID: [String: TaskExecutionState] = [:],
         availableMinutes: Int,
         fixedCommitmentMinutes: Int,
         usesCalendarAvailability: Bool,
@@ -186,15 +159,13 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
                 rank: entry.rank,
                 estimateMinutes: estimate,
                 estimateIsUncertain: entry.estimateIsUncertain,
-                isMainObjective: entry.isMainObjective,
-                executionState: executionStatesByReminderID[entry.reminderID]
+                isMainObjective: entry.isMainObjective
             )
         }.sorted { $0.rank < $1.rank }
         self.availableMinutes = availableMinutes
         self.fixedCommitmentMinutes = fixedCommitmentMinutes
         self.usesCalendarAvailability = usesCalendarAvailability
         reviewedAvailabilityRevision = availabilityRevision
-        queueRequestedAt = nil
         writeState = .reviewing
         presentationIsOpen = true
     }
@@ -262,37 +233,6 @@ struct CalendarPlanApprovalState: Equatable, Sendable {
     }
 
     mutating func reconcile(with audit: [ActionAuditEntry]) {
-        if receipt == nil,
-           case .queueing = writeState,
-           let queueRequestedAt {
-            let reviewedTaskIDs = Set(items.map(\.reminderID))
-            let scheduleActionTypes: Set<String> = [
-                ActionCommandType.reconcileCalendarBlock.rawValue,
-                ActionCommandType.scheduleNotification.rawValue,
-                ActionCommandType.setReminderPriority.rawValue,
-                ActionCommandType.setReminderDueDate.rawValue
-            ]
-            let committed = audit.filter {
-                $0.createdAt >= queueRequestedAt
-                    && reviewedTaskIDs.contains($0.entityID)
-                    && scheduleActionTypes.contains($0.actionType)
-            }
-            let requiredTaskActionTypes: Set<String> = [
-                ActionCommandType.reconcileCalendarBlock.rawValue,
-                ActionCommandType.scheduleNotification.rawValue,
-                ActionCommandType.setReminderPriority.rawValue
-            ]
-            let hasCompleteTaskCommandSet = reviewedTaskIDs.allSatisfy { taskID in
-                let taskActionTypes = Set(committed.lazy.filter { $0.entityID == taskID }.map(\.actionType))
-                return requiredTaskActionTypes.isSubset(of: taskActionTypes)
-            }
-            if hasCompleteTaskCommandSet, !committed.isEmpty {
-                queued(
-                    commandIDs: Array(Set(committed.map(\.id))).sorted(),
-                    approvedAt: queueRequestedAt
-                )
-            }
-        }
         guard case let .pending(commandIDs) = writeState else { return }
         let relevant = audit.filter { commandIDs.contains($0.id) }
         guard relevant.count == commandIDs.count else { return }

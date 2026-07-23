@@ -171,13 +171,13 @@ func customSprintAcceptsBoundedDurationAndRejectsMalformedBounds() throws {
         try store.startSprint(taskID: "task", durationMinutes: 0, at: start)
     }
     #expect(throws: TaskExecutionStoreError.self) {
-        try store.startSprint(taskID: "task", durationMinutes: 481, at: start)
+        try store.startSprint(taskID: "task", durationMinutes: 241, at: start)
     }
 
-    try store.startSprint(taskID: "task", durationMinutes: 480, at: start)
+    try store.startSprint(taskID: "task", durationMinutes: 37, at: start)
     let sprint = try #require(try store.activeTask(now: start.addingTimeInterval(120))?.sprint)
-    #expect(sprint.durationMinutes == 480)
-    #expect(sprint.remainingSeconds == 28_680)
+    #expect(sprint.durationMinutes == 37)
+    #expect(sprint.remainingSeconds == 2_100)
 }
 
 @Test

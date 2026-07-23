@@ -133,6 +133,6 @@ private func waitForRefreshCount(
         if await recorder.count == expectedCount {
             return
         }
-        try? await Task.sleep(for: .milliseconds(10))
+        await Task.yield()
     }
 }

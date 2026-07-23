@@ -37,27 +37,20 @@ enum MenuBarTaskAction: String, Hashable, Identifiable {
     case startBreak
     case complete
     case markBlocked
-    case switchTask
     case openToday
     case endWorkday
 
     var id: String { rawValue }
 
     var accessibilityLabel: String {
-        accessibilityLabel(locale: .current)
-    }
-
-    func accessibilityLabel(locale: Locale) -> String {
         switch self {
         case .start: "Start recommended task"
         case .pause: "Pause active task"
         case .resume: "Resume paused task"
         case .endBreak: "End break and resume task"
-        case .startBreak:
-            "Start a break lasting \(LocaleAwareDurationFormatter(locale: locale).wide(minutes: 15))"
+        case .startBreak: "Start a 15 minute break"
         case .complete: "Complete active task"
         case .markBlocked: "Mark task as blocked"
-        case .switchTask: "Switch to another task"
         case .openToday: "Open Today"
         case .endWorkday: "End the workday"
         }
@@ -98,7 +91,6 @@ struct MenuBarGamingWorkHoursPresentation: Equatable {
 
 struct MenuBarCoachState: Equatable {
     let snapshot: TodaySnapshot?
-    let locale: Locale
     let tone: MenuBarCoachTone
     let activeTask: TodayTaskRow?
     let pausedTask: TodayTaskRow?
@@ -114,24 +106,25 @@ struct MenuBarCoachState: Equatable {
     init(
         snapshot: TodaySnapshot?,
         snapshotConfirmedAt: Date? = nil,
-        locale: Locale = .current,
         coachingIsPaused: Bool = false,
         unresolvedPromptCount: Int = 0,
         notificationsUnavailable: Bool = false,
-        gamingWorkHoursContext: MenuBarGamingWorkHoursContext? = nil
+        gamingWorkHoursContext: MenuBarGamingWorkHoursContext? = nil,
+        authoritativeGamingStatus: GamingStatus? = nil,
+        gamingStatusIsConfirmed: Bool = true
     ) {
         self.snapshot = snapshot
         self.snapshotConfirmedAt = snapshotConfirmedAt
-        self.locale = locale
         self.coachingIsPaused = coachingIsPaused
         self.unresolvedPromptCount = max(0, unresolvedPromptCount)
         notificationFallbackIsActive = notificationsUnavailable && unresolvedPromptCount > 0
         if let context = gamingWorkHoursContext,
-           let gaming = snapshot?.gaming,
+           let gaming = authoritativeGamingStatus ?? snapshot?.gaming,
            gaming.budgetEnabled {
             let evaluation = gaming.workHoursMaximumEvaluation
             let shouldApply = context.maximumMinutes != nil && context.isWithinWorkWindow
-            let provenanceMatches = evaluation?.configuredMaximumMinutes == context.maximumMinutes
+            let provenanceMatches = gamingStatusIsConfirmed
+                && evaluation?.configuredMaximumMinutes == context.maximumMinutes
                 && evaluation?.isApplied == shouldApply
             if context.maximumMinutes == nil, provenanceMatches {
                 gamingWorkHours = nil
@@ -200,21 +193,9 @@ struct MenuBarCoachState: Equatable {
 
     var canEndWorkday: Bool { activeTask != nil }
 
-    var switchCandidates: [TodayTaskRow] {
-        guard activeTask != nil else { return [] }
-        return (snapshot?.taskRows ?? []).filter { row in
-            row.state == .ready && row.isOptional != true
-        }
-    }
-
     var availableTaskActions: [MenuBarTaskAction] {
         if activeTask != nil {
-            var actions: [MenuBarTaskAction] = [.pause, .startBreak, .complete, .markBlocked]
-            if !switchCandidates.isEmpty {
-                actions.append(.switchTask)
-            }
-            actions.append(contentsOf: [.openToday, .endWorkday])
-            return actions
+            return [.pause, .startBreak, .complete, .markBlocked, .openToday, .endWorkday]
         }
         if let pausedTask {
             return [pausedTask.acceptedBreak == nil ? .resume : .endBreak, .markBlocked, .openToday]
@@ -241,17 +222,15 @@ struct MenuBarCoachState: Equatable {
         return MenuBarActiveTimeComparison(
             elapsedMinutes: liveElapsedMinutes(for: activeTask, at: date),
             observedAlignedMinutes: comparison.observedAlignedMinutes,
-            evidenceExplanation: comparison.evidenceExplanation,
-            locale: locale
+            evidenceExplanation: comparison.evidenceExplanation
         )
     }
 
     var compactTaskFacts: [String] {
         guard let task = primaryTask else { return [] }
-        let duration = LocaleAwareDurationFormatter(locale: locale)
         var facts: [String] = []
         if task.isMainObjective { facts.append("Main objective") }
-        facts.append("\(duration.compact(minutes: task.estimateMinutes)) estimate")
+        facts.append("\(task.estimateMinutes) min estimate")
         facts.append("\(task.urgency.rawValue.capitalized) urgency")
         if let dueDate = task.dueDate {
             facts.append("Due \(dueDate.formatted(.dateTime.month(.abbreviated).day().hour().minute()))")
@@ -271,19 +250,18 @@ struct MenuBarCoachState: Equatable {
     var taskStatus: String { taskStatus(at: Date()) }
 
     func taskStatus(at date: Date) -> String {
-        let duration = LocaleAwareDurationFormatter(locale: locale)
         if let activeTask {
             let elapsedMinutes = liveElapsedMinutes(for: activeTask, at: date)
             guard let commitment = ActiveCommitmentPresentation(task: activeTask, at: date) else {
-                return "Active · \(duration.compact(minutes: elapsedMinutes)) tracked"
+                return "Active · \(elapsedMinutes) min tracked"
             }
             switch commitment.timingMode {
             case .openEnded:
-                return "Active · Open-ended · \(duration.compact(minutes: elapsedMinutes)) tracked"
+                return "Active · Open-ended · \(elapsedMinutes) min tracked"
             case let .bounded(_, remainingMinutes):
-                return "Active sprint · \(duration.compact(minutes: remainingMinutes)) left · \(duration.compact(minutes: elapsedMinutes)) tracked"
+                return "Active sprint · \(remainingMinutes) min left · \(elapsedMinutes) min tracked"
             case .continuedOpenEnded:
-                return "Active · Open-ended continuation · \(duration.compact(minutes: elapsedMinutes)) tracked"
+                return "Active · Open-ended continuation · \(elapsedMinutes) min tracked"
             case .sprintComplete:
                 return "Sprint complete · Task remains active"
             }
@@ -294,13 +272,7 @@ struct MenuBarCoachState: Equatable {
                 if remaining == 0 {
                     return "Accepted break ended · Resume when ready"
                 }
-                return "Accepted break · \(duration.compact(minutes: (remaining + 59) / 60)) left"
-            }
-            if workdayHasEnded {
-                return "Workday ended · Tracked time is saved"
-            }
-            if workdayHasEnded {
-                return "Workday ended · Tracked time is saved"
+                return "Accepted break · \((remaining + 59) / 60) min left"
             }
             if workdayHasEnded {
                 return "Workday ended · Tracked time is saved"
@@ -344,34 +316,23 @@ struct MenuBarActiveTimeComparison: Equatable {
     let elapsedMinutes: Int
     let observedAlignedMinutes: Int
     let evidenceExplanation: String
-    let locale: Locale
 
-    init(
-        elapsedMinutes: Int,
-        observedAlignedMinutes: Int,
-        evidenceExplanation: String,
-        locale: Locale = .current
-    ) {
+    init(elapsedMinutes: Int, observedAlignedMinutes: Int, evidenceExplanation: String) {
         self.elapsedMinutes = max(0, elapsedMinutes)
         self.observedAlignedMinutes = max(0, observedAlignedMinutes)
         self.evidenceExplanation = evidenceExplanation
-        self.locale = locale
     }
 
-    var elapsedText: String { "\(compactDuration(elapsedMinutes)) ELAPSED" }
-    var alignedText: String { "\(compactDuration(observedAlignedMinutes)) OBSERVED ALIGNED" }
-    var elapsedAccessibilityText: String { "Task elapsed, \(duration.wide(minutes: elapsedMinutes))" }
-    var alignedAccessibilityText: String { "Observed aligned, \(duration.wide(minutes: observedAlignedMinutes))" }
+    var elapsedText: String { "\(elapsedMinutes) MIN ELAPSED" }
+    var alignedText: String { "\(observedAlignedMinutes) MIN OBSERVED ALIGNED" }
+    var elapsedAccessibilityText: String { "Task elapsed, \(minuteDescription(elapsedMinutes))" }
+    var alignedAccessibilityText: String { "Observed aligned, \(minuteDescription(observedAlignedMinutes))" }
 
     var accessibilitySummary: String {
-        "Task elapsed \(duration.wide(minutes: elapsedMinutes)). Observed aligned \(duration.wide(minutes: observedAlignedMinutes)). \(evidenceExplanation)"
+        "Task elapsed \(minuteDescription(elapsedMinutes)). Observed aligned \(minuteDescription(observedAlignedMinutes)). \(evidenceExplanation)"
     }
 
-    private var duration: LocaleAwareDurationFormatter {
-        LocaleAwareDurationFormatter(locale: locale)
-    }
-
-    private func compactDuration(_ minutes: Int) -> String {
-        duration.compact(minutes: minutes).uppercased(with: locale)
+    private func minuteDescription(_ minutes: Int) -> String {
+        "\(minutes) \(minutes == 1 ? "minute" : "minutes")"
     }
 }

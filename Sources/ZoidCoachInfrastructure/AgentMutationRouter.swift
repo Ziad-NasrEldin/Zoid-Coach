@@ -68,7 +68,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
             switch error {
             case .invalidLocalTask, .localSourceCollision, .localTaskConflict,
                  .invalidExternalSourceKind, .duplicateOrInvalidExternalSourceID,
-                 .invalidStoredSourceKind, .invalidStoredDeclaredContext:
+                 .invalidStoredSourceKind:
                 throw error
             case .openDatabase, .schema, .read, .write:
                 writeCircuitBreaker.trip(reason: "agent_mutation_write_failed")
@@ -149,8 +149,7 @@ public final class AgentMutationRouter: @unchecked Sendable {
                     listID: "local:user",
                     listName: "Local Tasks",
                     modificationDate: day,
-                    sourceKind: .local,
-                    declaredContext: task.declaredContext
+                    sourceKind: .local
                 )
             )
             if addToToday {

@@ -30,23 +30,15 @@ import Testing
         kind: .tooLarge,
         occurredAt: now
     )
-    let hiddenToday = RecommendationFeedbackRequest(
-        requestID: "recommendation-feedback-v1:hidden-today",
-        taskID: "hidden",
-        recommendationSentence: "Start Hidden",
-        kind: .hideToday,
-        occurredAt: now
-    )
 
     _ = try store.record(notNow, timeZoneIdentifier: "UTC")
     _ = try store.record(wrongPriority, timeZoneIdentifier: "UTC")
     _ = try store.record(tooLarge, timeZoneIdentifier: "UTC")
-    _ = try store.record(hiddenToday, timeZoneIdentifier: "UTC")
     _ = try store.record(notNow, timeZoneIdentifier: "UTC")
 
-    #expect(try store.suppressedTaskIDs(at: now.addingTimeInterval(60), timeZoneIdentifier: "UTC") == Set(["later", "wrong", "large", "hidden"]))
-    #expect(try store.suppressedTaskIDs(at: now.addingTimeInterval(31 * 60), timeZoneIdentifier: "UTC") == Set(["wrong", "large", "hidden"]))
-    #expect(try store.records(localDay: "2026-07-14").count == 4)
+    #expect(try store.suppressedTaskIDs(at: now.addingTimeInterval(60), timeZoneIdentifier: "UTC") == Set(["later", "wrong", "large"]))
+    #expect(try store.suppressedTaskIDs(at: now.addingTimeInterval(31 * 60), timeZoneIdentifier: "UTC") == Set(["wrong", "large"]))
+    #expect(try store.records(localDay: "2026-07-14").count == 3)
 
     let conflictingReplay = RecommendationFeedbackRequest(
         requestID: notNow.requestID,

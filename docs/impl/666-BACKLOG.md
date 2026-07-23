@@ -176,32 +176,6 @@ Every completed item adds its commit, tests, end-to-end evidence, and affected s
 - `ZC-001-005` advances from Touches remaining to Fully implemented.
 - Verifier evidence is recorded in `.audit/runs/onboarding-system-of-record-copy/verifier/REPORT.md`.
 
-### Clock-safe task durations - candidate
-
-- Owns `ZC-053-011`.
-- Normalizes backward-clock interval closes so an end instant never precedes its start.
-- Caps one continuous interval at 24 hours while preserving additive elapsed time across legitimate separate sessions.
-- Keeps the normalized duration stable across database reopen.
-- Four focused backward, forward-jump, restart, pause/resume, and task-switch tests plus the release build pass.
-- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/clock-safe-task-durations/candidate/REPORT.md`.
-
-### Onboarding system-of-record positioning - candidate
-
-- Owns `ZC-001-005`.
-- States directly on the first welcome screen that Zoid 666 is a coach, not a replacement task manager.
-- Names Apple Reminders as the system of record for connected tasks and tells users which work remains in Reminders versus Today.
-- Preserves the non-punitive product boundary and exposes the complete positioning through one stable accessibility element.
-- Four focused copy, accessibility, onboarding-order, and restart tests plus the release build pass.
-- Candidate evidence and the signed verifier plan are recorded in `.audit/runs/onboarding-system-of-record-copy/candidate/REPORT.md`.
-
-### AI request budgets - candidate
-
-- Owns `ZC-046-006`.
-- Adds persisted daily and monthly general AI request limits to Settings with stable accessibility identifiers and explicit zero-limit behavior.
-- Enforces both UTC daily and calendar-month boundaries through one provider-independent budget and atomically reserves each allowed request before audited planning or structured generation begins.
-- Keeps deterministic planning available when a request limit is reached.
-- Focused Settings, ledger, and provider tests pass; candidate evidence is recorded in `.audit/runs/ai-request-budgets/candidate/REPORT.md`.
-
 ### Settings notification delivery test - candidate
 
 - Owns `ZC-044-012`.

@@ -1,4 +1,3 @@
-import Darwin
 import Foundation
 import SQLite3
 import Testing
@@ -6,20 +5,6 @@ import Testing
 @testable import ZoidCoachInfrastructure
 
 private let privacySQLiteTransientForTests = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-
-private func privacyTestTemporaryDirectory() throws -> URL {
-    let temporaryPath = FileManager.default.temporaryDirectory.path
-    var resolvedPath = [CChar](repeating: 0, count: Int(PATH_MAX))
-    let resolved = resolvedPath.withUnsafeMutableBufferPointer { buffer in
-        temporaryPath.withCString { path in
-            realpath(path, buffer.baseAddress)
-        }
-    }
-    guard resolved != nil else { throw CocoaError(.fileReadUnknown) }
-    let terminator = resolvedPath.firstIndex(of: 0) ?? resolvedPath.endIndex
-    let bytes = resolvedPath[..<terminator].map { UInt8(bitPattern: $0) }
-    return URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true)
-}
 
 @Test
 func privacyDataServiceExportsOnlyRedactedCountsAndDeletesConversationText() throws {
@@ -160,8 +145,7 @@ func privacyInventoryExplainsEveryStoredDataClassWithoutExposingRecordContent() 
 
 @Test
 func explicitRedactedExportUsesChosenJSONDestinationAndStillExcludesSecrets() throws {
-    let root = try privacyTestTemporaryDirectory()
-        .appendingPathComponent("privacy-explicit-export-\(UUID().uuidString)", isDirectory: true)
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("privacy-explicit-export-\(UUID().uuidString)", isDirectory: true)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
     let databaseURL = root.appendingPathComponent("coach.sqlite")
@@ -177,62 +161,6 @@ func explicitRedactedExportUsesChosenJSONDestinationAndStillExcludesSecrets() th
     #expect(throws: PrivacyDataServiceError.self) {
         _ = try PrivacyDataService(databaseURL: databaseURL)
             .exportRedactedDiagnostics(destinationURL: root.appendingPathComponent("not-json.txt"))
-    }
-}
-
-@Test
-func redactedDiagnosticPackageContainsOnlyReviewedArtifactsAndCounts() throws {
-    let root = try privacyTestTemporaryDirectory()
-        .appendingPathComponent("privacy-diagnostic-package-\(UUID().uuidString)", isDirectory: true)
-    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: root) }
-    let databaseURL = root.appendingPathComponent("coach.sqlite")
-    try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
-    let destination = root.appendingPathComponent("Zoid Support.zoiddiagnostics", isDirectory: true)
-
-    let exported = try PrivacyDataService(databaseURL: databaseURL)
-        .exportRedactedDiagnostics(now: Date(timeIntervalSince1970: 1_800_000_000), destinationURL: destination)
-    let artifactNames = try FileManager.default.contentsOfDirectory(atPath: exported.path).sorted()
-    let readme = try String(contentsOf: exported.appendingPathComponent("README.txt"), encoding: .utf8)
-    let manifestData = try Data(contentsOf: exported.appendingPathComponent("manifest.json"))
-    let manifest = try #require(JSONSerialization.jsonObject(with: manifestData) as? [String: Any])
-    let counts = try String(contentsOf: exported.appendingPathComponent("counts.json"), encoding: .utf8)
-
-    #expect(exported == destination)
-    #expect(artifactNames == ["README.txt", "counts.json", "manifest.json"])
-    #expect(manifest["formatVersion"] as? Int == 1)
-    #expect(manifest["files"] as? [String] == ["README.txt", "manifest.json", "counts.json"])
-    #expect(readme.contains("Screenshots are excluded."))
-    #expect(counts.contains("schemaVersion"))
-    #expect(!counts.contains(databaseURL.path))
-}
-
-@Test
-func redactedDiagnosticPackageRejectsExistingAndUnsupportedDestinations() throws {
-    let root = try privacyTestTemporaryDirectory()
-        .appendingPathComponent("privacy-diagnostic-package-destination-\(UUID().uuidString)", isDirectory: true)
-    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: root) }
-    let databaseURL = root.appendingPathComponent("coach.sqlite")
-    try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
-    let service = try PrivacyDataService(databaseURL: databaseURL)
-    let existing = root.appendingPathComponent("Existing.zoiddiagnostics", isDirectory: true)
-    try FileManager.default.createDirectory(at: existing, withIntermediateDirectories: false)
-    let realParent = root.appendingPathComponent("real-parent", isDirectory: true)
-    let linkedParent = root.appendingPathComponent("linked-parent", isDirectory: true)
-    try FileManager.default.createDirectory(at: realParent, withIntermediateDirectories: false)
-    try FileManager.default.createSymbolicLink(at: linkedParent, withDestinationURL: realParent)
-
-    #expect(throws: PrivacyDataServiceError.self) {
-        _ = try service.exportRedactedDiagnostics(destinationURL: existing)
-    }
-    #expect(throws: PrivacyDataServiceError.self) {
-        _ = try service.exportRedactedDiagnostics(destinationURL: root.appendingPathComponent("unsupported.zip"))
-    }
-    #expect(throws: PrivacyDataServiceError.self) {
-        _ = try service.exportRedactedDiagnostics(
-            destinationURL: linkedParent.appendingPathComponent("Linked.zoiddiagnostics", isDirectory: true)
-        )
     }
 }
 

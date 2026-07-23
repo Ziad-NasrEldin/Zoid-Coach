@@ -1,7 +1,6 @@
 import CryptoKit
 import Foundation
 import SQLite3
-import ZoidCoachCore
 
 public enum ReminderSourceKind: String, Codable, Equatable, Sendable {
     case reminders
@@ -19,9 +18,8 @@ public struct ReminderSourceSnapshot: Equatable, Sendable, Identifiable {
     public let modificationDate: Date?
     public let isCompleted: Bool
     public let sourceKind: ReminderSourceKind
-    public let declaredContext: DeclaredTaskContext?
 
-    public init(id: String, title: String, dueDate: Date?, priority: Int, notes: String? = nil, listID: String? = nil, listName: String? = nil, modificationDate: Date? = nil, isCompleted: Bool = false, sourceKind: ReminderSourceKind = .reminders, declaredContext: DeclaredTaskContext? = nil) {
+    public init(id: String, title: String, dueDate: Date?, priority: Int, notes: String? = nil, listID: String? = nil, listName: String? = nil, modificationDate: Date? = nil, isCompleted: Bool = false, sourceKind: ReminderSourceKind = .reminders) {
         self.id = id
         self.title = title
         self.dueDate = dueDate
@@ -32,7 +30,6 @@ public struct ReminderSourceSnapshot: Equatable, Sendable, Identifiable {
         self.modificationDate = modificationDate
         self.isCompleted = isCompleted
         self.sourceKind = sourceKind
-        self.declaredContext = declaredContext
     }
 }
 
@@ -131,8 +128,8 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
         }
         let sql = """
         INSERT INTO source_tasks
-        (source_id, title, notes, list_id, list_name, due_at, priority, is_completed, modified_at, source_hash, updated_at, source_kind, declared_context)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (source_id, title, notes, list_id, list_name, due_at, priority, is_completed, modified_at, source_hash, updated_at, source_kind)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(source_id) DO UPDATE SET
             title = excluded.title,
             notes = excluded.notes,
@@ -143,8 +140,7 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
             is_completed = excluded.is_completed,
             modified_at = excluded.modified_at,
             source_hash = excluded.source_hash,
-            updated_at = excluded.updated_at,
-            declared_context = excluded.declared_context;
+            updated_at = excluded.updated_at;
         """
         for reminder in reminders {
             let hash = incomingHashes[reminder.id] ?? ""
@@ -173,7 +169,6 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
             bind(hash, statement, 10)
             bind(formatter.string(from: observedAt), statement, 11)
             bind(ReminderSourceKind.reminders.rawValue, statement, 12)
-            bindOptional(reminder.declaredContext?.rawValue, statement, 13)
             guard sqlite3_step(statement) == SQLITE_DONE else { throw ReminderSnapshotStoreError.write }
             let wasInserted = existing[reminder.id] == nil
             if wasInserted { inserted += 1 } else { updated += 1 }
@@ -310,8 +305,8 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
 
         let sql = """
         INSERT INTO source_tasks
-        (source_id, title, notes, list_id, list_name, due_at, priority, is_completed, modified_at, source_hash, updated_at, source_kind, declared_context)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'local', ?)
+        (source_id, title, notes, list_id, list_name, due_at, priority, is_completed, modified_at, source_hash, updated_at, source_kind)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'local')
         ON CONFLICT(source_id) DO UPDATE SET
             title = excluded.title,
             notes = excluded.notes,
@@ -323,8 +318,7 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
             modified_at = excluded.modified_at,
             source_hash = excluded.source_hash,
             updated_at = excluded.updated_at,
-            source_kind = 'local',
-            declared_context = excluded.declared_context;
+            source_kind = 'local';
         """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
@@ -342,7 +336,6 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
         bindOptional(task.modificationDate.map(formatter.string(from:)), statement, 9)
         bind(hash, statement, 10)
         bind(formatter.string(from: observedAt), statement, 11)
-        bindOptional(task.declaredContext?.rawValue, statement, 12)
         guard sqlite3_step(statement) == SQLITE_DONE else { throw ReminderSnapshotStoreError.write }
         try appendSourceEvent(type: "source_task.local_upserted", taskID: task.id, hash: hash, observedAt: observedAt, timeZone: timeZone)
         guard sqlite3_exec(database, "COMMIT;", nil, nil, nil) == SQLITE_OK else {
@@ -398,7 +391,7 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
     public func snapshot(forID id: String) throws -> ReminderSourceSnapshot? {
         lock.lock()
         defer { lock.unlock() }
-        let sql = "SELECT source_id, title, due_at, priority, notes, list_id, list_name, modified_at, is_completed, source_kind, declared_context FROM source_tasks WHERE source_id = ?;"
+        let sql = "SELECT source_id, title, due_at, priority, notes, list_id, list_name, modified_at, is_completed, source_kind FROM source_tasks WHERE source_id = ?;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement
@@ -419,15 +412,14 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
             listName: text(statement, 6),
             modificationDate: text(statement, 7).flatMap(formatter.date(from:)),
             isCompleted: sqlite3_column_int(statement, 8) == 1,
-            sourceKind: try decodedSourceKind(text(statement, 9)),
-            declaredContext: try decodedDeclaredContext(text(statement, 10))
+            sourceKind: try decodedSourceKind(text(statement, 9))
         )
     }
 
     public func loadIncomplete() throws -> [ReminderSourceSnapshot] {
         lock.lock()
         defer { lock.unlock() }
-        let sql = "SELECT source_id, title, due_at, priority, notes, list_id, list_name, modified_at, is_completed, source_kind, declared_context FROM source_tasks WHERE is_completed = 0 ORDER BY due_at IS NULL, due_at ASC, title ASC;"
+        let sql = "SELECT source_id, title, due_at, priority, notes, list_id, list_name, modified_at, is_completed, source_kind FROM source_tasks WHERE is_completed = 0 ORDER BY due_at IS NULL, due_at ASC, title ASC;"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
               let statement
@@ -447,8 +439,7 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
                 listName: text(statement, 6),
                 modificationDate: text(statement, 7).flatMap(formatter.date(from:)),
                 isCompleted: sqlite3_column_int(statement, 8) == 1,
-                sourceKind: try decodedSourceKind(text(statement, 9)),
-                declaredContext: try decodedDeclaredContext(text(statement, 10))
+                sourceKind: try decodedSourceKind(text(statement, 9))
             ))
         }
         return reminders
@@ -537,14 +528,6 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
         return kind
     }
 
-    private func decodedDeclaredContext(_ rawValue: String?) throws -> DeclaredTaskContext? {
-        guard let rawValue else { return nil }
-        guard let context = DeclaredTaskContext(rawValue: rawValue) else {
-            throw ReminderSnapshotStoreError.invalidStoredDeclaredContext(rawValue)
-        }
-        return context
-    }
-
     private func sourceHash(_ reminder: ReminderSourceSnapshot) throws -> String {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -596,7 +579,6 @@ private struct HashableReminder: Codable {
     let listName: String?
     let modificationDate: Date?
     let isCompleted: Bool
-    let declaredContext: DeclaredTaskContext?
 
     init(_ reminder: ReminderSourceSnapshot) {
         id = reminder.id
@@ -608,7 +590,6 @@ private struct HashableReminder: Codable {
         listName = reminder.listName
         modificationDate = reminder.modificationDate
         isCompleted = reminder.isCompleted
-        declaredContext = reminder.declaredContext
     }
 }
 
@@ -623,7 +604,6 @@ public enum ReminderSnapshotStoreError: LocalizedError {
     case localTaskConflict(String)
     case duplicateOrInvalidExternalSourceID
     case invalidStoredSourceKind(String?)
-    case invalidStoredDeclaredContext(String)
 
     public var errorDescription: String? {
         switch self {
@@ -637,7 +617,6 @@ public enum ReminderSnapshotStoreError: LocalizedError {
         case let .localTaskConflict(id): "A different local task already owns identifier \(id)"
         case .duplicateOrInvalidExternalSourceID: "External reminder sync requires unique, non-empty source identifiers"
         case let .invalidStoredSourceKind(kind): "The stored task source kind is invalid: \(kind ?? "missing")"
-        case let .invalidStoredDeclaredContext(context): "The stored declared task context is invalid: \(context)"
         }
     }
 }

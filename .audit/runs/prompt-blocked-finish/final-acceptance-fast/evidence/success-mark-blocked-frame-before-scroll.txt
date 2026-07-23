@@ -1,1 +1,0 @@
-FRAME: today.prompt.qa-block-1.action.mark_blocked element={{977, 2061}, {905, 28}} visible={{738, 237}, {1164, 672}} center-visible=false

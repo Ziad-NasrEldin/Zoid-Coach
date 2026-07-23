@@ -73,12 +73,9 @@ final class LocalWakeWordDetector: ObservableObject {
         self.request = request
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
-        input.installTap(
-            onBus: 0,
-            bufferSize: 1_024,
-            format: format,
-            block: Self.makeAudioTapBlock(request: request)
-        )
+        input.installTap(onBus: 0, bufferSize: 1_024, format: format) { buffer, _ in
+            request.append(buffer)
+        }
         tapInstalled = true
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
@@ -121,14 +118,6 @@ final class LocalWakeWordDetector: ObservableObject {
         }
         if engine.isRunning {
             engine.stop()
-        }
-    }
-
-    nonisolated static func makeAudioTapBlock(
-        request: SFSpeechAudioBufferRecognitionRequest
-    ) -> AVAudioNodeTapBlock {
-        { buffer, _ in
-            request.append(buffer)
         }
     }
 }

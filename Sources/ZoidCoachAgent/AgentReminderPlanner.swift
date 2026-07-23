@@ -9,6 +9,12 @@ enum AgentPlanDraftResult: Equatable {
     case remindersAccessUnavailable
 }
 
+enum AgentReminderAvailabilityDecision: Equatable {
+    case draftWithoutSuggestions
+    case continueWithEligible(Int)
+    case unavailable
+}
+
 final class AgentReminderPlanner: @unchecked Sendable {
     private let eventStore: EKEventStore?
     private let fixtureAdapter: DeterministicOSFixtureAdapters?
@@ -39,6 +45,20 @@ final class AgentReminderPlanner: @unchecked Sendable {
         self.learningStore = learningStore
         self.advisorProvider = advisorProvider
         self.reminderListPolicyProvider = reminderListPolicyProvider
+    }
+
+    static func planningAvailabilityDecision(
+        sourceAccessAvailable: Bool,
+        availableReminderCount: Int,
+        eligibleReminderCount: Int
+    ) -> AgentReminderAvailabilityDecision {
+        precondition(availableReminderCount >= 0)
+        precondition(eligibleReminderCount >= 0)
+        precondition(eligibleReminderCount <= availableReminderCount)
+        if eligibleReminderCount > 0 {
+            return .continueWithEligible(eligibleReminderCount)
+        }
+        return sourceAccessAvailable ? .draftWithoutSuggestions : .unavailable
     }
 
     func draftPlan(
@@ -97,7 +117,18 @@ final class AgentReminderPlanner: @unchecked Sendable {
                 return .retainedExisting
             }
         }
-        guard !reminders.isEmpty else { return .remindersAccessUnavailable }
+        switch Self.planningAvailabilityDecision(
+            sourceAccessAvailable: fixtureAdapter != nil || hasFullAccess,
+            availableReminderCount: localReminders.count + unfilteredExternalReminders.count,
+            eligibleReminderCount: reminders.count
+        ) {
+        case .draftWithoutSuggestions:
+            return .drafted(itemCount: 0)
+        case .unavailable:
+            return .remindersAccessUnavailable
+        case .continueWithEligible:
+            break
+        }
         let history = try taskHistoryStore.evidence(for: reminders.map(\.id))
         var candidates = reminders.map {
             let taskHistory = history[$0.id] ?? TaskHistoryEvidence(selectionCount: 0, completionCount: 0, deferralCount: 0)

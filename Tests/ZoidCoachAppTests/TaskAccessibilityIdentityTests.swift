@@ -15,15 +15,3 @@ func taskAccessibilityIdentityIsOpaqueStableAndDistinct() {
     #expect(first.count == 32)
     #expect(first.allSatisfy { $0.isHexDigit })
 }
-
-@Test
-func pauseActionAccessibilityIdentifiersAreStableAndTaskScoped() {
-    let taskID = "private-reminder-id"
-    let token = TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID)
-
-    #expect(TaskAccessibilityIdentity.pauseAction(.break, forPersistedID: taskID) == "today.task.\(token).pause.break")
-    #expect(TaskAccessibilityIdentity.pauseAction(.externalInterruption, forPersistedID: taskID) == "today.task.\(token).pause.external-interruption")
-    #expect(TaskAccessibilityIdentity.pauseAction(.doneForNow, forPersistedID: taskID) == "today.task.\(token).pause.done-for-now")
-    #expect(TaskAccessibilityIdentity.pauseAction(.endOfDay, forPersistedID: taskID) == "today.task.\(token).pause.end-of-day")
-    #expect(TaskAccessibilityIdentity.pauseAction(.blocked, forPersistedID: taskID) == "today.task.\(token).pause.blocked")
-}

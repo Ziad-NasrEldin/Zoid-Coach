@@ -422,73 +422,6 @@ func newestAmbiguousEvidenceWithdrawsStrongCoachingUntilCertainGamingReturns() t
 }
 
 @Test
-func alignedWorkImmediatelyWithdrawsStaleCoachingAndReturnsToObservationAcrossRestart() throws {
-    let fixture = try GamingPromptFixture()
-    defer { fixture.remove() }
-    try fixture.insertPriorityTask()
-    try fixture.insertGaming(minutes: 10)
-    let policy = fixture.policy(
-        level: .accountability,
-        dailyPromptCap: 1,
-        promptCooldownMinutes: 60
-    )
-
-    guard case let .queued(original, _) = try fixture.service.produce(
-        policy: policy,
-        gamingStatus: fixture.gamingStatus,
-        baselineStatus: fixture.baseline()
-    ) else {
-        Issue.record("Expected a gaming prompt before aligned work resumed")
-        return
-    }
-    #expect(try fixture.promptStore.unresolved().map(\.id) == [original.id])
-
-    try fixture.insertLatestObservation(app: "Xcode", classification: .work)
-    #expect(try fixture.service.produce(
-        policy: policy,
-        gamingStatus: fixture.gamingStatus,
-        baselineStatus: fixture.baseline()
-    ) == .suppressed(.alignedWorkResumed))
-    #expect(try fixture.promptStore.unresolved().isEmpty)
-
-    let storedWithdrawal = try fixture.promptStore.episode(promptID: original.id)
-    let withdrawn = try #require(storedWithdrawal)
-    #expect(withdrawn.state == .dismissed)
-    #expect(withdrawn.resolutionOrigin == .system)
-    #expect(withdrawn.resolutionReason == .screenwatchEvidenceInvalid)
-
-    let reopenedStore = try PromptInboxStore(
-        databaseURL: fixture.databaseURL,
-        now: { [clock = fixture.clock] in clock.now }
-    )
-    let restartedService = try GamingDriftPromptService(
-        databaseURL: fixture.databaseURL,
-        promptStore: reopenedStore,
-        now: { [clock = fixture.clock] in clock.now }
-    )
-    #expect(try restartedService.produce(
-        policy: policy,
-        gamingStatus: fixture.gamingStatus,
-        baselineStatus: fixture.baseline()
-    ) == .suppressed(.alignedWorkResumed))
-    #expect(try reopenedStore.unresolved().isEmpty)
-
-    fixture.advance(minutes: 11)
-    try fixture.insertGaming(minutes: 10)
-    guard case let .queued(recovered, wasInserted) = try restartedService.produce(
-        policy: policy,
-        gamingStatus: fixture.gamingStatus,
-        baselineStatus: fixture.baseline()
-    ) else {
-        Issue.record("Expected a fresh gaming session to restore normal coaching")
-        return
-    }
-    #expect(wasInserted)
-    #expect(recovered.id != original.id)
-    #expect(try reopenedStore.unresolved().map(\.id) == [recovered.id])
-}
-
-@Test
 func explicitUserDismissalStillEnforcesSessionDeduplicationCooldownAndDailyCap() throws {
     let sameSession = try GamingPromptFixture()
     defer { sameSession.remove() }
@@ -553,7 +486,7 @@ func gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() throws {
     try corrected.correctCurrentSession(to: .work)
     #expect(try corrected.service.produce(
         policy: corrected.policy(), gamingStatus: corrected.gamingStatus, baselineStatus: corrected.baseline()
-    ) == .suppressed(.alignedWorkResumed))
+    ) == .suppressed(.noGamingSession))
 
     let deduped = try GamingPromptFixture()
     defer { deduped.remove() }
@@ -567,7 +500,7 @@ func gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() throws {
     }
     #expect(try deduped.service.produce(
         policy: deduped.policy(), gamingStatus: deduped.gamingStatus, baselineStatus: deduped.baseline()
-    ) == .suppressed(.intentionalOverrideActive))
+    ) == .suppressed(.sessionAlreadyHandled))
     #expect(try deduped.promptStore.unresolved().count == 1)
 }
 

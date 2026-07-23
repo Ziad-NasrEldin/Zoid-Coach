@@ -92,27 +92,11 @@ import ZoidCoachInfrastructure
     #expect(Set(state.availableTaskActions).count == state.availableTaskActions.count)
     #expect(state.availableTaskActions.map(\.accessibilityLabel) == [
         "Pause active task",
-        "Start a break lasting 15 minutes",
+        "Start a 15 minute break",
         "Complete active task",
         "Mark task as blocked",
         "Open Today",
         "End the workday"
-    ])
-}
-
-@Test func compactActiveTaskOffersOnlyUsableSwitchTargets() {
-    let active = menuTask(id: "active", title: "Current task", state: .active)
-    let ready = menuTask(id: "ready", title: "Next task", state: .ready)
-    let optional = menuTask(id: "optional", title: "Optional task", state: .ready, isOptional: true)
-    let blocked = menuTask(id: "blocked", title: "Blocked task", state: .blocked)
-    let state = MenuBarCoachState(snapshot: menuSnapshot(
-        rows: [active, ready, optional, blocked],
-        activeTask: .init(taskID: active.taskID, startedAt: nil, elapsedMinutes: 4)
-    ))
-
-    #expect(state.switchCandidates.map(\.taskID) == ["ready"])
-    #expect(state.availableTaskActions == [
-        .pause, .startBreak, .complete, .markBlocked, .switchTask, .openToday, .endWorkday,
     ])
 }
 
@@ -446,6 +430,39 @@ import ZoidCoachInfrastructure
 }
 
 @MainActor
+@Test func failedMenuRefreshLeavesWorkHoursAllowanceAwaitingConfirmation() async {
+    let gaming = GamingStatus(
+        budgetMinutes: 30,
+        usedMinutes: 20,
+        unlockedRemainingMinutes: 10,
+        nextUnlockReason: "Work-hours gaming is capped at 30 minutes.",
+        confidenceIsLimited: false,
+        workHoursMaximumEvaluation: .init(configuredMaximumMinutes: 30, isApplied: true)
+    )
+    let lastKnown = menuSnapshot(gaming: gaming)
+    let controller = MenuBarCoachController(
+        client: RecordingMenuBarTodayClient(
+            fetchResult: .failure(MenuBarClientError.failed),
+            applyResults: []
+        ),
+        loadTodaySnapshot: { nil }
+    )
+
+    controller.adoptLastKnownSnapshot(lastKnown)
+    await controller.refresh()
+    let presentation = MenuBarCoachState(
+        snapshot: controller.snapshot,
+        gamingWorkHoursContext: .init(maximumMinutes: 30, isWithinWorkWindow: true),
+        authoritativeGamingStatus: gaming,
+        gamingStatusIsConfirmed: controller.syncPresentation == .confirmed
+    ).gamingWorkHours
+
+    #expect(controller.syncPresentation == .stale)
+    #expect(presentation?.isAwaitingRefresh == true)
+    #expect(presentation?.status == "Current allowance is awaiting a work-hours policy refresh")
+}
+
+@MainActor
 @Test func compactMenuFallbackNeverOverwritesNewerControllerTruth() async {
     let staleReady = menuSnapshot(
         rows: [menuTask(id: "task", title: "Task", state: .ready)]
@@ -542,93 +559,6 @@ import ZoidCoachInfrastructure
     #expect(controller.state.activeTask == nil)
     #expect(controller.state.primaryTask == nil)
     #expect(controller.state.tone == .neutral)
-}
-
-@MainActor
-@Test func compactMenuPreservesTodayTaskWhenItsOwnHelperRefreshFails() async {
-    let active = menuSnapshot(
-        rows: [menuTask(id: "task", title: "Task", state: .active, elapsedMinutes: 9)],
-        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 9)
-    )
-    let client = RecordingMenuBarTodayClient(
-        fetchResult: .failure(MenuBarClientError.failed),
-        applyResults: []
-    )
-    let controller = MenuBarCoachController(client: client)
-
-    controller.adoptLastKnownSnapshot(active)
-    await controller.refresh()
-
-    #expect(controller.state.activeTask?.taskID == "task")
-    #expect(controller.state.taskStatus == "Active · Open-ended · 9 min tracked")
-    #expect(controller.syncPresentation == .stale)
-    #expect(controller.errorMessage == "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh.")
-}
-
-@MainActor
-@Test func compactMenuFallbackNeverOverwritesNewerControllerTruth() async {
-    let staleReady = menuSnapshot(
-        rows: [menuTask(id: "task", title: "Task", state: .ready)]
-    )
-    let confirmedActive = menuSnapshot(
-        rows: [menuTask(id: "task", title: "Task", state: .active, elapsedMinutes: 11)],
-        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 11)
-    )
-    let client = RecordingMenuBarTodayClient(
-        fetchResult: .success(confirmedActive),
-        applyResults: []
-    )
-    let controller = MenuBarCoachController(client: client)
-
-    await controller.refresh()
-    controller.adoptLastKnownSnapshot(staleReady)
-
-    #expect(controller.state.activeTask?.taskID == "task")
-    #expect(controller.state.taskStatus == "Active · Open-ended · 11 min tracked")
-    #expect(controller.syncPresentation == .confirmed)
-    #expect(controller.errorMessage == nil)
-}
-
-@MainActor
-@Test func compactMenuPreservesTodayTaskWhenItsOwnHelperRefreshFails() async {
-    let active = menuSnapshot(
-        rows: [menuTask(id: "task", title: "Task", state: .active, elapsedMinutes: 9)],
-        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 9)
-    )
-    let client = RecordingMenuBarTodayClient(
-        fetchResult: .failure(MenuBarClientError.failed),
-        applyResults: []
-    )
-    let controller = MenuBarCoachController(client: client)
-
-    controller.adoptLastKnownSnapshot(active)
-    await controller.refresh()
-
-    #expect(controller.state.activeTask?.taskID == "task")
-    #expect(controller.state.taskStatus == "Active · Open-ended · 9 min tracked")
-    #expect(controller.syncPresentation == .stale)
-    #expect(controller.errorMessage == "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh.")
-}
-
-@MainActor
-@Test func compactMenuPreservesTodayTaskWhenItsOwnHelperRefreshFails() async {
-    let active = menuSnapshot(
-        rows: [menuTask(id: "task", title: "Task", state: .active, elapsedMinutes: 9)],
-        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 9)
-    )
-    let client = RecordingMenuBarTodayClient(
-        fetchResult: .failure(MenuBarClientError.failed),
-        applyResults: []
-    )
-    let controller = MenuBarCoachController(client: client)
-
-    controller.adoptLastKnownSnapshot(active)
-    await controller.refresh()
-
-    #expect(controller.state.activeTask?.taskID == "task")
-    #expect(controller.state.taskStatus == "Active · Open-ended · 9 min tracked")
-    #expect(controller.syncPresentation == .stale)
-    #expect(controller.errorMessage == "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh.")
 }
 
 @MainActor
@@ -957,10 +887,17 @@ import ZoidCoachInfrastructure
     )
     #expect(paused.taskRows.first(where: { $0.taskID == "focus" })?.state == .paused)
 
-    let reopenedController = MenuBarCoachController(client: AgentMenuBarTodayClient(
-        agent: try TodayDashboardAgent(databaseURL: databaseURL),
-        now: startedAt.addingTimeInterval(120)
-    ))
+    let reopenedSnapshot = try TodaySnapshotStore(
+        databaseURL: databaseURL,
+        readOnly: true
+    ).load(for: startedAt.addingTimeInterval(120))
+    let reopenedController = MenuBarCoachController(
+        client: AgentMenuBarTodayClient(
+            agent: try TodayDashboardAgent(databaseURL: databaseURL),
+            now: startedAt.addingTimeInterval(120)
+        ),
+        loadTodaySnapshot: { reopenedSnapshot }
+    )
     await reopenedController.refresh()
 
     #expect(reopenedController.state.pausedTask?.taskID == "focus")
@@ -968,7 +905,7 @@ import ZoidCoachInfrastructure
     #expect(reopenedController.state.availableTaskActions == [.resume, .markBlocked, .openToday])
     #expect(reopenedController.state.taskStatus == "Paused because you are done for now")
     #expect(reopenedController.snapshot?.taskRows.contains(where: { $0.taskID == "queued" }) == false)
-    #expect(reopenedController.snapshot?.unplannedReminders.contains(where: { $0.reminderID == "queued" }) == true)
+    #expect(reopenedController.snapshot?.unplannedReminders?.contains(where: { $0.reminderID == "queued" }) == true)
 }
 
 private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
@@ -1004,48 +941,6 @@ private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
         blockCommands.append((taskID, reason))
         guard !blockResults.isEmpty else { throw MenuBarClientError.failed }
         return try blockResults.removeFirst().get()
-    }
-}
-
-private actor RecordingMenuBarCoachingPauseClient: MenuBarCoachingPauseClient {
-    var current: VersionedUserPolicy
-    let returnsInvalidReceipt: Bool
-    private(set) var requests: [PolicyMutationRequest] = []
-
-    init(current: VersionedUserPolicy, returnsInvalidReceipt: Bool = false) {
-        self.current = current
-        self.returnsInvalidReceipt = returnsInvalidReceipt
-    }
-
-    func loadCurrentPolicy() -> VersionedUserPolicy { current }
-
-    func savePolicyMutation(_ request: PolicyMutationRequest) throws -> AgentMutationReceipt {
-        requests.append(request)
-        if returnsInvalidReceipt {
-            return AgentMutationReceipt(accepted: true, message: "Missing durable receipt")
-        }
-
-        let resultingVersion = current.version + 1
-        let receipt = PolicyMutationReceipt(
-            requestID: request.requestID,
-            payloadDigest: try PolicyMutationRequest.canonicalPayloadDigest(for: request.policy),
-            expectedVersion: request.expectedVersion,
-            resultingVersion: resultingVersion,
-            origin: request.origin,
-            replayed: false
-        )
-        current = VersionedUserPolicy(
-            version: resultingVersion,
-            policy: request.policy,
-            createdAtUTC: Date(timeIntervalSince1970: TimeInterval(resultingVersion)),
-            isActive: true
-        )
-        return AgentMutationReceipt(
-            accepted: true,
-            message: "Saved",
-            policyVersion: resultingVersion,
-            policyMutationReceipt: receipt
-        )
     }
 }
 
@@ -1139,63 +1034,6 @@ private actor SwitchingMenuBarTodayClient: MenuBarTodayClient {
     }
 }
 
-private actor AgentMenuBarTodayClient: MenuBarTodayClient {
-    let agent: TodayDashboardAgent
-    var now: Date
-
-    init(agent: TodayDashboardAgent, now: Date) {
-        self.agent = agent
-        self.now = now
-    }
-
-    func fetchTodaySnapshot() throws -> TodaySnapshot {
-        try agent.snapshot(now: now)
-    }
-
-    func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
-        now = now.addingTimeInterval(60)
-        return try agent.apply(command, taskID: taskID, now: now)
-    }
-}
-
-private actor SwitchingMenuBarTodayClient: MenuBarTodayClient {
-    var snapshots: [TodaySnapshot]
-    var commands: [(TaskActivityCommand, String)] = []
-
-    init(snapshots: [TodaySnapshot]) {
-        self.snapshots = snapshots
-    }
-
-    func fetchTodaySnapshot() throws -> TodaySnapshot {
-        if snapshots.count > 1 { return snapshots.removeFirst() }
-        return snapshots[0]
-    }
-
-    func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
-        commands.append((command, taskID))
-        return snapshots[0]
-    }
-}
-
-private actor AgentMenuBarTodayClient: MenuBarTodayClient {
-    let agent: TodayDashboardAgent
-    var now: Date
-
-    init(agent: TodayDashboardAgent, now: Date) {
-        self.agent = agent
-        self.now = now
-    }
-
-    func fetchTodaySnapshot() throws -> TodaySnapshot {
-        try agent.snapshot(now: now)
-    }
-
-    func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
-        now = now.addingTimeInterval(60)
-        return try agent.apply(command, taskID: taskID, now: now)
-    }
-}
-
 private enum MenuBarClientError: Error { case failed }
 
 private func menuTask(
@@ -1232,7 +1070,14 @@ private func menuSnapshot(
     rows: [TodayTaskRow] = [],
     activeTask: ActiveTaskSnapshot? = nil,
     recommendation: NextTaskRecommendation = .init(taskID: nil, sentence: "Nothing ready", reasons: []),
-    sources: [SourceFreshnessSnapshot] = []
+    sources: [SourceFreshnessSnapshot] = [],
+    gaming: GamingStatus = GamingStatus(
+        budgetMinutes: 60,
+        usedMinutes: 0,
+        unlockedRemainingMinutes: 0,
+        nextUnlockReason: "Finish one priority task",
+        confidenceIsLimited: false
+    )
 ) -> TodaySnapshot {
     TodaySnapshot(
         localDate: Date(timeIntervalSince1970: 1_800_000_000),
@@ -1243,7 +1088,7 @@ private func menuSnapshot(
         recommendation: recommendation,
         behavior: BehaviorSummary(),
         coverage: TelemetryCoverage(isLimited: sources.contains { $0.state == "limited" }, explanation: "Fixture coverage", lastObservationAt: nil),
-        gaming: GamingStatus(budgetMinutes: 60, usedMinutes: 0, unlockedRemainingMinutes: 0, nextUnlockReason: "Finish one priority task", confidenceIsLimited: false),
+        gaming: gaming,
         sourceFreshnessExplanation: "Fixture sources",
         sources: sources
     )

@@ -176,7 +176,6 @@ struct BehaviorEvidenceStateTests {
 
         #expect(state.coverageTitle == "LIMITED COVERAGE")
         #expect(state.coverageDetail.contains("Screenwatch checkpoint is stale"))
-        #expect(state.coverageDetail.contains("Drift detection is suspended until Screenwatch coverage is current."))
         #expect(state.sourceIssueTitle == "Screenwatch")
         #expect(state.sourceIssueDetail == "No current observations are available.")
         #expect(state.categories.first { $0.classification == .idle }?.explanation.contains("Missing time is never silently counted as idle") == true)
@@ -197,7 +196,6 @@ struct BehaviorEvidenceStateTests {
         )
 
         #expect(state.coverageTitle == "CURRENT COVERAGE")
-        #expect(!state.coverageDetail.contains("Drift detection is suspended"))
         #expect(!state.hasSourceIssue)
         #expect(state.sourceIssueDetail == nil)
     }

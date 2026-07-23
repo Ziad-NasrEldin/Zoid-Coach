@@ -163,6 +163,7 @@ struct TodayDashboardCommandOverview: View {
                                 .sumiLabelTracking()
                                 .foregroundStyle(Sumi.ink)
                                 .accessibilityLabel(elapsed.accessibilityLabel)
+                                .accessibilityValue(elapsed.displayText)
                                 .accessibilityIdentifier("today.focus.open-ended-elapsed")
                         }
                     }
@@ -172,9 +173,6 @@ struct TodayDashboardCommandOverview: View {
                     detail("Estimate", planEntry(for: row)?.estimateMinutes.map { "\($0)m" } ?? "Choose")
                     detail("Deadline", deadlineLabel(row.dueDate))
                     detail("Urgency", "\(row.urgency.rawValue.capitalized)")
-                    detail("Status", MainObjectiveStatusPresentation(task: row).label)
-                        .accessibilityLabel(MainObjectiveStatusPresentation(task: row).accessibilityLabel)
-                        .accessibilityIdentifier("today.focus.status")
                     if let reason = row.completionReason {
                         detail("Completion", reason.userFacingLabel)
                     }
@@ -230,6 +228,15 @@ struct TodayDashboardCommandOverview: View {
                         .padding(.top, 14)
                 }
                 if let entry = planEntry(for: row) {
+                    TodayEstimateStrip(
+                        selectedMinutes: entry.estimateMinutes,
+                        isUnknown: entry.estimateIsUncertain,
+                        taskTitle: row.title,
+                        taskID: row.taskID,
+                        setEstimate: { model.setEstimate($0, for: entry) },
+                        setUnknown: { model.setEstimateUnknown(for: entry) }
+                    )
+                    .padding(.top, 14)
                     if let suggestion = row.learnedEstimateSuggestion {
                         LearnedEstimateSuggestionView(
                             taskID: row.taskID,
@@ -260,7 +267,7 @@ struct TodayDashboardCommandOverview: View {
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
                             .help("Record intentional work completed away from this Mac")
                             .accessibilityLabel("Add away-from-Mac work for \(row.title)")
-                            .accessibilityIdentifier("today.focus.offline-work.\(row.taskID)")
+                            .accessibilityIdentifier("today.focus.offline-work.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
                     }
                 }
                 .disabled(model.isAnyTaskCommandPending)
@@ -386,16 +393,6 @@ struct TodayDashboardCommandOverview: View {
                         .multilineTextAlignment(.trailing)
                         .frame(maxWidth: 100, alignment: .trailing)
                 }
-                if snapshot.gaming.budgetEnabled {
-                    Text("Base \(snapshot.gaming.budgetMinutes)m · Earned \(snapshot.gaming.earnedMinutes)m · Used \(snapshot.gaming.usedMinutes)m · Locked \(snapshot.gaming.lockedMinutes)m · Overage \(snapshot.gaming.debtMinutes)m")
-                        .font(Sumi.body(9))
-                        .foregroundStyle(Sumi.muted)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityIdentifier("today.gaming.breakdown")
-                    Text("Gaming sessions under 2 continuous minutes do not use the allowance.")
-                        .font(Sumi.body(9))
-                        .foregroundStyle(Sumi.muted)
-                }
                 .padding(.top, 12)
                 .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
                 .padding(.top, 10)
@@ -507,40 +504,6 @@ struct TodayDashboardCommandOverview: View {
         usageDismissTask = nil
     }
 
-    private func customEstimateEditorBinding(
-        for taskID: String
-    ) -> Binding<CustomEstimateEditorState> {
-        Binding(
-            get: { customEstimateEditorStore[taskID] },
-            set: {
-                CustomEstimateEditorTrace.record(
-                    "today.binding.set presented=\($0.isPresented) hasError=\($0.validationMessage != nil)"
-                )
-                customEstimateEditorStore[taskID] = $0
-            }
-        )
-    }
-
-    private func activateCustomEstimateHost(
-        path: String,
-        taskID: String
-    ) {
-        customEstimateEditorStore.activateHost(
-            path: path,
-            taskID: taskID
-        )
-    }
-
-    private func isActiveCustomEstimateHost(
-        path: String,
-        taskID: String
-    ) -> Bool {
-        customEstimateEditorStore.isActiveHost(
-            path: path,
-            taskID: taskID
-        )
-    }
-
     private var dayMap: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -556,13 +519,6 @@ struct TodayDashboardCommandOverview: View {
             .padding(.bottom, 13)
             ForEach(plannedRows) { row in
                 TodayPlanTaskRow(
-                    customEstimateEditor: customEstimateEditorBinding(for: row.taskID),
-                    activateCustomEstimateHost: { path in
-                        activateCustomEstimateHost(path: path, taskID: row.taskID)
-                    },
-                    isActiveCustomEstimateHost: { path in
-                        isActiveCustomEstimateHost(path: path, taskID: row.taskID)
-                    },
                     row: row,
                     entry: planEntry(for: row),
                     gaming: snapshot.gaming,
@@ -572,23 +528,9 @@ struct TodayDashboardCommandOverview: View {
                     applyCommand: { applyPrimaryCommand(to: row) },
                     makeMain: { planEntry(for: row).map(model.setMainObjective) },
                     setEstimate: { minutes in
-                        CustomEstimateEditorTrace.record(
-                            "today.persist.callback.begin minutes=\(minutes)"
-                        )
                         if let entry = planEntry(for: row) {
-                            CustomEstimateEditorTrace.record(
-                                "today.persist.callback.entryFound=true minutes=\(minutes)"
-                            )
                             model.setEstimate(minutes, for: entry)
-                            CustomEstimateEditorTrace.record(
-                                "today.persist.callback.modelReturned minutes=\(minutes)"
-                            )
-                        } else {
-                            CustomEstimateEditorTrace.record(
-                                "today.persist.callback.entryFound=false minutes=\(minutes)"
-                            )
                         }
-                        CustomEstimateEditorTrace.flush()
                     },
                     setUnknown: {
                         if let entry = planEntry(for: row) {
@@ -670,14 +612,6 @@ struct TodayDashboardCommandOverview: View {
                         feedbackButton("NOT NOW", kind: .notNow, row: row)
                         feedbackButton("WRONG PRIORITY", kind: .wrongPriority, row: row)
                         feedbackButton("TOO LARGE", kind: .tooLarge, row: row)
-                        recommendationActionButton("MARK BLOCKED", identifier: "mark-blocked") {
-                            blockReason = ""
-                            blockReasonTask = row
-                        }
-                        recommendationActionButton("ALREADY DONE", identifier: "already-done") {
-                            model.applyTaskCommand(.complete, taskID: row.taskID)
-                        }
-                        feedbackButton("HIDE FOR TODAY", kind: .hideToday, row: row)
                     }
                     .padding(.top, 12)
                     .accessibilityElement(children: .contain)
@@ -863,17 +797,6 @@ struct TodayDashboardCommandOverview: View {
         .accessibilityIdentifier("today.recommendation.feedback.\(kind.rawValue)")
     }
 
-    private func recommendationActionButton(
-        _ title: String,
-        identifier: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(title, action: action)
-            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-            .disabled(model.isAnyTaskCommandPending || model.pendingRecommendationFeedbackTaskID != nil)
-            .accessibilityIdentifier("today.recommendation.feedback.\(identifier)")
-    }
-
     private func applyPrimaryCommand(to row: TodayTaskRow) {
         switch row.state {
         case .active: model.applyTaskCommand(.complete, taskID: row.taskID)
@@ -891,19 +814,14 @@ struct TodayDashboardCommandOverview: View {
     private func pauseMenu(for row: TodayTaskRow) -> some View {
         Menu {
             Button("Take a break") { model.applyTaskCommand(.pauseForBreak, taskID: row.taskID) }
-                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.break, forPersistedID: row.taskID))
             Button("External interruption") { model.applyTaskCommand(.pauseForExternalInterruption, taskID: row.taskID) }
-                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.externalInterruption, forPersistedID: row.taskID))
             Button("Done for now") { model.applyTaskCommand(.pauseDoneForNow, taskID: row.taskID) }
-                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.doneForNow, forPersistedID: row.taskID))
             Button("End the workday") { model.applyTaskCommand(.pauseForEndOfDay, taskID: row.taskID) }
-                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.endOfDay, forPersistedID: row.taskID))
             Divider()
             Button("Task is blocked") {
                 blockReason = row.blockedReason ?? ""
                 blockReasonTask = row
             }
-            .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.blocked, forPersistedID: row.taskID))
         } label: {
             SumiSelectorLabel("PAUSE", systemImage: "pause.fill", size: .standard)
         }
@@ -915,14 +833,6 @@ struct TodayDashboardCommandOverview: View {
 
     private func sprintStartMenu(for row: TodayTaskRow) -> some View {
         Menu {
-            if let option = fullEstimateSprintOption(for: row) {
-                Button(option.menuTitle) {
-                    model.startSprint(taskID: row.taskID, durationMinutes: option.durationMinutes)
-                }
-                .accessibilityLabel(option.accessibilityLabel)
-                .accessibilityIdentifier("today.sprint.full-estimate.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
-                Divider()
-            }
             Button("10-minute recovery sprint") { model.applyTaskCommand(.startSprint10, taskID: row.taskID) }
             Button("20-minute work sprint") { model.applyTaskCommand(.startSprint20, taskID: row.taskID) }
             Button("25-minute focus sprint") { model.applyTaskCommand(.startSprint25, taskID: row.taskID) }
@@ -934,145 +844,9 @@ struct TodayDashboardCommandOverview: View {
         .menuStyle(.borderlessButton)
         .fixedSize()
         .disabled(model.isAnyTaskCommandPending)
-        .accessibilityIdentifier("today.sprint.start.\(row.taskID)")
+        .accessibilityIdentifier("today.sprint.start.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
         .accessibilityHint("Choose a time boundary. The task will stay incomplete when the sprint ends.")
     }
-
-    private func fullEstimateSprintOption(for row: TodayTaskRow) -> FullEstimateSprintOption? {
-        guard let entry = planEntry(for: row) else {
-            return FullEstimateSprintOption(estimateMinutes: row.estimateMinutes, isUncertain: false)
-        }
-        return FullEstimateSprintOption(
-            estimateMinutes: entry.estimateMinutes,
-            isUncertain: entry.estimateIsUncertain
-        )
-    }
-}
-
-struct OpenEndedElapsedTimePresentation: Equatable {
-    let elapsedMinutes: Int
-    let isLive: Bool
-
-    init?(
-        task: TodayTaskRow,
-        activeTask: ActiveTaskSnapshot?,
-        snapshotConfirmedAt: Date,
-        currentDate: Date
-    ) {
-        guard Self.isApplicable(to: task) else { return nil }
-
-        guard let activeTask,
-              activeTask.taskID == task.taskID,
-              let startedAt = activeTask.startedAt
-        else {
-            elapsedMinutes = task.elapsedMinutes
-            isLive = false
-            return
-        }
-
-        let confirmedOpenIntervalMinutes = max(
-            0,
-            Int(snapshotConfirmedAt.timeIntervalSince(startedAt) / 60)
-        )
-        let elapsedBeforeOpenInterval = max(
-            0,
-            task.elapsedMinutes - confirmedOpenIntervalMinutes
-        )
-        let currentOpenIntervalMinutes = max(
-            0,
-            Int(currentDate.timeIntervalSince(startedAt) / 60)
-        )
-        elapsedMinutes = max(
-            task.elapsedMinutes,
-            elapsedBeforeOpenInterval + currentOpenIntervalMinutes
-        )
-        isLive = true
-    }
-
-    static func isApplicable(to task: TodayTaskRow) -> Bool {
-        guard task.state == .active else { return false }
-        switch task.sprint?.state {
-        case .active, .paused, .expired, .finished:
-            return false
-        case .continuedOpenEnded, .none:
-            return true
-        }
-    }
-
-    var displayText: String {
-        "\(elapsedMinutes) MIN ELAPSED · \(isLive ? "LIVE" : "LAST REFRESH")"
-    }
-
-    var accessibilityLabel: String {
-        let unit = elapsedMinutes == 1 ? "minute" : "minutes"
-        if isLive {
-            return "Open-ended session, \(elapsedMinutes) \(unit) elapsed, updating while active."
-        }
-        return "Open-ended session, \(elapsedMinutes) \(unit) elapsed at the last refresh."
-    }
-}
-
-struct OpenEndedElapsedTimePresentation: Equatable {
-    let elapsedMinutes: Int
-    let isLive: Bool
-
-    init?(
-        task: TodayTaskRow,
-        activeTask: ActiveTaskSnapshot?,
-        snapshotConfirmedAt: Date,
-        currentDate: Date
-    ) {
-        guard Self.isApplicable(to: task) else { return nil }
-
-        guard let activeTask,
-              activeTask.taskID == task.taskID,
-              let startedAt = activeTask.startedAt
-        else {
-            elapsedMinutes = task.elapsedMinutes
-            isLive = false
-            return
-        }
-
-        let confirmedOpenIntervalMinutes = max(
-            0,
-            Int(snapshotConfirmedAt.timeIntervalSince(startedAt) / 60)
-        )
-        let elapsedBeforeOpenInterval = max(
-            0,
-            task.elapsedMinutes - confirmedOpenIntervalMinutes
-        )
-        let currentOpenIntervalMinutes = max(
-            0,
-            Int(currentDate.timeIntervalSince(startedAt) / 60)
-        )
-        elapsedMinutes = max(
-            task.elapsedMinutes,
-            elapsedBeforeOpenInterval + currentOpenIntervalMinutes
-        )
-        isLive = true
-    }
-
-    static func isApplicable(to task: TodayTaskRow) -> Bool {
-        guard task.state == .active else { return false }
-        switch task.sprint?.state {
-        case .active, .paused, .expired, .finished:
-            return false
-        case .continuedOpenEnded, .none:
-            return true
-        }
-    }
-
-    var displayText: String {
-        "\(elapsedMinutes) MIN ELAPSED · \(isLive ? "LIVE" : "LAST REFRESH")"
-    }
-
-    var accessibilityLabel: String {
-        let unit = elapsedMinutes == 1 ? "minute" : "minutes"
-        if isLive {
-            return "Open-ended session, \(elapsedMinutes) \(unit) elapsed, updating while active."
-        }
-        return "Open-ended session, \(elapsedMinutes) \(unit) elapsed at the last refresh."
-    }
 }
 
 struct OpenEndedElapsedTimePresentation: Equatable {
@@ -1247,528 +1021,6 @@ private struct GamingManualAdjustmentLedgerRow: View {
                 + "\(adjustment.note ?? "No note"), \(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))"
         )
         .accessibilityIdentifier("today.gaming.manual-adjustment.entry.\(adjustment.id)")
-    }
-}
-
-private struct GamingManualAdjustmentSheet: View {
-    @State private var form: GamingManualAdjustmentForm
-    let isSaving: Bool
-    let cancel: () -> Void
-    let save: (Int, String?) -> Void
-
-    init(
-        currentManualMinutes: Int,
-        isSaving: Bool,
-        cancel: @escaping () -> Void,
-        save: @escaping (Int, String?) -> Void
-    ) {
-        _form = State(initialValue: GamingManualAdjustmentForm(
-            currentManualMinutes: currentManualMinutes
-        ))
-        self.isSaving = isSaving
-        self.cancel = cancel
-        self.save = save
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("GAMING ALLOWANCE")
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
-            Text("Adjust manually granted time")
-                .font(Sumi.display(25))
-                .foregroundStyle(Sumi.ink)
-            Text("Observed gaming stays unchanged. This only changes today's manual allowance, and every change is saved as a separate local ledger entry.")
-                .font(Sumi.body(12))
-                .foregroundStyle(Sumi.muted)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Picker("Adjustment", selection: $form.direction) {
-                ForEach(GamingManualAdjustmentDirection.allCases) { direction in
-                    Text(direction.label).tag(direction)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("today.gaming.manual-adjustment.direction")
-
-            Stepper(value: $form.minutes, in: 5...240, step: 5) {
-                Text("\(form.minutes) minutes")
-                    .font(Sumi.body(13))
-            }
-            .accessibilityIdentifier("today.gaming.manual-adjustment.minutes")
-
-            TextField("Optional reason", text: $form.note)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityIdentifier("today.gaming.manual-adjustment.note")
-
-            if form.currentManualMinutes > 0 {
-                Text("Currently manually granted: \(form.currentManualMinutes) minutes")
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.muted)
-            }
-            if let validation = form.validationMessage {
-                Text(validation)
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.seal)
-                    .accessibilityIdentifier("today.gaming.manual-adjustment.validation")
-            }
-
-            HStack {
-                Button("Cancel", action: cancel)
-                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button(isSaving ? "SAVING" : form.direction == .add ? "ADD TIME" : "REMOVE TIME") {
-                    guard let signedMinutes = form.signedMinutes else { return }
-                    save(signedMinutes, form.normalizedNote)
-                }
-                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
-                .disabled(!form.canSubmit || isSaving)
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("today.gaming.manual-adjustment.save")
-            }
-        }
-        .padding(24)
-        .frame(width: 440)
-    }
-}
-
-private struct GamingManualAdjustmentLedgerRow: View {
-    let adjustment: GamingManualAdjustment
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(adjustment.minutes > 0 ? "+\(adjustment.minutes)m" : "\(adjustment.minutes)m")
-                .font(Sumi.label(8))
-                .foregroundStyle(adjustment.minutes > 0 ? Sumi.okay : Sumi.seal)
-                .frame(width: 42, alignment: .leading)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(adjustment.note ?? (adjustment.minutes > 0 ? "Manual grant" : "Manual removal"))
-                    .font(Sumi.body(9))
-                    .foregroundStyle(Sumi.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))
-                    .font(Sumi.body(8))
-                    .foregroundStyle(Sumi.muted)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(adjustment.minutes > 0 ? "Added" : "Removed") \(adjustment.minutes.magnitude) minutes, "
-                + "\(adjustment.note ?? "No note"), \(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))"
-        )
-        .accessibilityIdentifier("today.gaming.manual-adjustment.entry.\(adjustment.id)")
-    }
-}
-
-private struct GamingManualAdjustmentSheet: View {
-    @State private var form: GamingManualAdjustmentForm
-    let isSaving: Bool
-    let cancel: () -> Void
-    let save: (Int, String?) -> Void
-
-    init(
-        currentManualMinutes: Int,
-        isSaving: Bool,
-        cancel: @escaping () -> Void,
-        save: @escaping (Int, String?) -> Void
-    ) {
-        _form = State(initialValue: GamingManualAdjustmentForm(
-            currentManualMinutes: currentManualMinutes
-        ))
-        self.isSaving = isSaving
-        self.cancel = cancel
-        self.save = save
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("GAMING ALLOWANCE")
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
-            Text("Adjust manually granted time")
-                .font(Sumi.display(25))
-                .foregroundStyle(Sumi.ink)
-            Text("Observed gaming stays unchanged. This only changes today's manual allowance, and every change is saved as a separate local ledger entry.")
-                .font(Sumi.body(12))
-                .foregroundStyle(Sumi.muted)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Picker("Adjustment", selection: $form.direction) {
-                ForEach(GamingManualAdjustmentDirection.allCases) { direction in
-                    Text(direction.label).tag(direction)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("today.gaming.manual-adjustment.direction")
-
-            Stepper(value: $form.minutes, in: 5...240, step: 5) {
-                Text("\(form.minutes) minutes")
-                    .font(Sumi.body(13))
-            }
-            .accessibilityIdentifier("today.gaming.manual-adjustment.minutes")
-
-            TextField("Optional reason", text: $form.note)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityIdentifier("today.gaming.manual-adjustment.note")
-
-            if form.currentManualMinutes > 0 {
-                Text("Currently manually granted: \(form.currentManualMinutes) minutes")
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.muted)
-            }
-            if let validation = form.validationMessage {
-                Text(validation)
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.seal)
-                    .accessibilityIdentifier("today.gaming.manual-adjustment.validation")
-            }
-
-            HStack {
-                Button("Cancel", action: cancel)
-                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button(isSaving ? "SAVING" : form.direction == .add ? "ADD TIME" : "REMOVE TIME") {
-                    guard let signedMinutes = form.signedMinutes else { return }
-                    save(signedMinutes, form.normalizedNote)
-                }
-                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
-                .disabled(!form.canSubmit || isSaving)
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("today.gaming.manual-adjustment.save")
-            }
-        }
-        .padding(24)
-        .frame(width: 440)
-    }
-}
-
-private struct GamingManualAdjustmentLedgerRow: View {
-    let adjustment: GamingManualAdjustment
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(adjustment.minutes > 0 ? "+\(adjustment.minutes)m" : "\(adjustment.minutes)m")
-                .font(Sumi.label(8))
-                .foregroundStyle(adjustment.minutes > 0 ? Sumi.okay : Sumi.seal)
-                .frame(width: 42, alignment: .leading)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(adjustment.note ?? (adjustment.minutes > 0 ? "Manual grant" : "Manual removal"))
-                    .font(Sumi.body(9))
-                    .foregroundStyle(Sumi.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))
-                    .font(Sumi.body(8))
-                    .foregroundStyle(Sumi.muted)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(adjustment.minutes > 0 ? "Added" : "Removed") \(adjustment.minutes.magnitude) minutes, "
-                + "\(adjustment.note ?? "No note"), \(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))"
-        )
-        .accessibilityIdentifier("today.gaming.manual-adjustment.entry.\(adjustment.id)")
-    }
-}
-
-private struct GamingManualAdjustmentSheet: View {
-    @State private var form: GamingManualAdjustmentForm
-    let isSaving: Bool
-    let cancel: () -> Void
-    let save: (Int, String?) -> Void
-
-    init(
-        currentManualMinutes: Int,
-        isSaving: Bool,
-        cancel: @escaping () -> Void,
-        save: @escaping (Int, String?) -> Void
-    ) {
-        _form = State(initialValue: GamingManualAdjustmentForm(
-            currentManualMinutes: currentManualMinutes
-        ))
-        self.isSaving = isSaving
-        self.cancel = cancel
-        self.save = save
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("GAMING ALLOWANCE")
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
-            Text("Adjust manually granted time")
-                .font(Sumi.display(25))
-                .foregroundStyle(Sumi.ink)
-            Text("Observed gaming stays unchanged. This only changes today's manual allowance, and every change is saved as a separate local ledger entry.")
-                .font(Sumi.body(12))
-                .foregroundStyle(Sumi.muted)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Picker("Adjustment", selection: $form.direction) {
-                ForEach(GamingManualAdjustmentDirection.allCases) { direction in
-                    Text(direction.label).tag(direction)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("today.gaming.manual-adjustment.direction")
-
-            Stepper(value: $form.minutes, in: 5...240, step: 5) {
-                Text("\(form.minutes) minutes")
-                    .font(Sumi.body(13))
-            }
-            .accessibilityIdentifier("today.gaming.manual-adjustment.minutes")
-
-            TextField("Optional reason", text: $form.note)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityIdentifier("today.gaming.manual-adjustment.note")
-
-            if form.currentManualMinutes > 0 {
-                Text("Currently manually granted: \(form.currentManualMinutes) minutes")
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.muted)
-            }
-            if let validation = form.validationMessage {
-                Text(validation)
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.seal)
-                    .accessibilityIdentifier("today.gaming.manual-adjustment.validation")
-            }
-
-            HStack {
-                Button("Cancel", action: cancel)
-                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button(isSaving ? "SAVING" : form.direction == .add ? "ADD TIME" : "REMOVE TIME") {
-                    guard let signedMinutes = form.signedMinutes else { return }
-                    save(signedMinutes, form.normalizedNote)
-                }
-                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
-                .disabled(!form.canSubmit || isSaving)
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("today.gaming.manual-adjustment.save")
-            }
-        }
-        .padding(24)
-        .frame(width: 440)
-    }
-}
-
-private struct GamingManualAdjustmentLedgerRow: View {
-    let adjustment: GamingManualAdjustment
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(adjustment.minutes > 0 ? "+\(adjustment.minutes)m" : "\(adjustment.minutes)m")
-                .font(Sumi.label(8))
-                .foregroundStyle(adjustment.minutes > 0 ? Sumi.okay : Sumi.seal)
-                .frame(width: 42, alignment: .leading)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(adjustment.note ?? (adjustment.minutes > 0 ? "Manual grant" : "Manual removal"))
-                    .font(Sumi.body(9))
-                    .foregroundStyle(Sumi.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))
-                    .font(Sumi.body(8))
-                    .foregroundStyle(Sumi.muted)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(adjustment.minutes > 0 ? "Added" : "Removed") \(adjustment.minutes.magnitude) minutes, "
-                + "\(adjustment.note ?? "No note"), \(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))"
-        )
-        .accessibilityIdentifier("today.gaming.manual-adjustment.entry.\(adjustment.id)")
-    }
-}
-
-private struct GamingManualAdjustmentSheet: View {
-    @State private var form: GamingManualAdjustmentForm
-    let isSaving: Bool
-    let cancel: () -> Void
-    let save: (Int, String?) -> Void
-
-    init(
-        currentManualMinutes: Int,
-        isSaving: Bool,
-        cancel: @escaping () -> Void,
-        save: @escaping (Int, String?) -> Void
-    ) {
-        _form = State(initialValue: GamingManualAdjustmentForm(
-            currentManualMinutes: currentManualMinutes
-        ))
-        self.isSaving = isSaving
-        self.cancel = cancel
-        self.save = save
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("GAMING ALLOWANCE")
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
-            Text("Adjust manually granted time")
-                .font(Sumi.display(25))
-                .foregroundStyle(Sumi.ink)
-            Text("Observed gaming stays unchanged. This only changes today's manual allowance, and every change is saved as a separate local ledger entry.")
-                .font(Sumi.body(12))
-                .foregroundStyle(Sumi.muted)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Picker("Adjustment", selection: $form.direction) {
-                ForEach(GamingManualAdjustmentDirection.allCases) { direction in
-                    Text(direction.label).tag(direction)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("today.gaming.manual-adjustment.direction")
-
-            Stepper(value: $form.minutes, in: 5...240, step: 5) {
-                Text("\(form.minutes) minutes")
-                    .font(Sumi.body(13))
-            }
-            .accessibilityIdentifier("today.gaming.manual-adjustment.minutes")
-
-            TextField("Optional reason", text: $form.note)
-                .textFieldStyle(.roundedBorder)
-                .accessibilityIdentifier("today.gaming.manual-adjustment.note")
-
-            if form.currentManualMinutes > 0 {
-                Text("Currently manually granted: \(form.currentManualMinutes) minutes")
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.muted)
-            }
-            if let validation = form.validationMessage {
-                Text(validation)
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.seal)
-                    .accessibilityIdentifier("today.gaming.manual-adjustment.validation")
-            }
-
-            HStack {
-                Button("Cancel", action: cancel)
-                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
-                    .keyboardShortcut(.cancelAction)
-                Spacer()
-                Button(isSaving ? "SAVING" : form.direction == .add ? "ADD TIME" : "REMOVE TIME") {
-                    guard let signedMinutes = form.signedMinutes else { return }
-                    save(signedMinutes, form.normalizedNote)
-                }
-                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
-                .disabled(!form.canSubmit || isSaving)
-                .keyboardShortcut(.defaultAction)
-                .accessibilityIdentifier("today.gaming.manual-adjustment.save")
-            }
-        }
-        .padding(24)
-        .frame(width: 440)
-    }
-}
-
-private struct GamingManualAdjustmentLedgerRow: View {
-    let adjustment: GamingManualAdjustment
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(adjustment.minutes > 0 ? "+\(adjustment.minutes)m" : "\(adjustment.minutes)m")
-                .font(Sumi.label(8))
-                .foregroundStyle(adjustment.minutes > 0 ? Sumi.okay : Sumi.seal)
-                .frame(width: 42, alignment: .leading)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(adjustment.note ?? (adjustment.minutes > 0 ? "Manual grant" : "Manual removal"))
-                    .font(Sumi.body(9))
-                    .foregroundStyle(Sumi.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))
-                    .font(Sumi.body(8))
-                    .foregroundStyle(Sumi.muted)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(adjustment.minutes > 0 ? "Added" : "Removed") \(adjustment.minutes.magnitude) minutes, "
-                + "\(adjustment.note ?? "No note"), \(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))"
-        )
-        .accessibilityIdentifier("today.gaming.manual-adjustment.entry.\(adjustment.id)")
-    }
-}
-
-private struct ActiveTaskContextPanel: View {
-    let assessment: ActiveTaskContextAssessment
-
-    private var symbolName: String {
-        switch assessment.state {
-        case .aligned: "checkmark.circle"
-        case .uncertain: "questionmark.circle"
-        case .mismatched: "arrow.triangle.branch"
-        }
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: symbolName)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Sumi.seal)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(assessment.state.title.uppercased())
-                    .font(Sumi.label(8))
-                    .sumiLabelTracking()
-                    .foregroundStyle(Sumi.ink)
-                Text(assessment.explanation)
-                    .font(Sumi.body(10))
-                    .foregroundStyle(Sumi.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Sumi.paper)
-        .overlay { Rectangle().stroke(Sumi.paleRule, lineWidth: 1) }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("today.focus.context-assessment")
-    }
-}
-
-private struct ActiveTaskContextPanel: View {
-    let assessment: ActiveTaskContextAssessment
-
-    private var symbolName: String {
-        switch assessment.state {
-        case .aligned: "checkmark.circle"
-        case .uncertain: "questionmark.circle"
-        case .mismatched: "arrow.triangle.branch"
-        }
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: symbolName)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Sumi.seal)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(assessment.state.title.uppercased())
-                    .font(Sumi.label(8))
-                    .sumiLabelTracking()
-                    .foregroundStyle(Sumi.ink)
-                Text(assessment.explanation)
-                    .font(Sumi.body(10))
-                    .foregroundStyle(Sumi.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Sumi.paper)
-        .overlay { Rectangle().stroke(Sumi.paleRule, lineWidth: 1) }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("today.focus.context-assessment")
     }
 }
 
@@ -1818,7 +1070,7 @@ private struct CustomSprintDurationSheet: View {
 
     private var durationMinutes: Int? {
         guard let value = Int(durationText.trimmingCharacters(in: .whitespacesAndNewlines)),
-              (1...TaskEstimateInput.maximumMinutes).contains(value)
+              (1...240).contains(value)
         else { return nil }
         return value
     }
@@ -1833,14 +1085,14 @@ private struct CustomSprintDurationSheet: View {
                 .font(Sumi.display(24))
                 .foregroundStyle(Sumi.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Choose 1 to 480 minutes. When the timer reaches zero, the task stays active until you complete, pause, or continue it.")
+            Text("Choose 1 to 240 minutes. When the timer reaches zero, the task stays active until you complete, pause, or continue it.")
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
                 .fixedSize(horizontal: false, vertical: true)
             SumiTextField("DURATION IN MINUTES", placeholder: "30", text: $durationText)
                 .accessibilityIdentifier("today.sprint.custom.duration")
             if durationMinutes == nil {
-                Text("Enter a whole number from 1 to 480.")
+                Text("Enter a whole number from 1 to 240.")
                     .font(Sumi.body(10))
                     .foregroundStyle(Sumi.seal)
                     .accessibilityIdentifier("today.sprint.custom.error")
@@ -1907,14 +1159,14 @@ private struct SprintCommitmentPanel: View {
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .disabled(model.isAnyTaskCommandPending)
-                    .accessibilityIdentifier("today.sprint.continue.\(taskID)")
+                    .accessibilityIdentifier("today.sprint.continue.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
                 }
             }
             .padding(12)
             .background(Sumi.mist)
             .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("today.sprint.status.\(taskID)")
+            .accessibilityIdentifier("today.sprint.status.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
         }
     }
 
@@ -2272,9 +1524,6 @@ struct TodayPlanGamingUnlockControlState: Equatable, Sendable {
 
 private struct TodayPlanTaskRow: View {
     @SumiReduceMotion private var reduceMotion
-    @Binding var customEstimateEditor: CustomEstimateEditorState
-    let activateCustomEstimateHost: (String) -> Void
-    let isActiveCustomEstimateHost: (String) -> Bool
     let row: TodayTaskRow
     let entry: DailyPlanEntry?
     let gaming: GamingStatus
@@ -2329,29 +1578,25 @@ private struct TodayPlanTaskRow: View {
                         Text("BLOCKED - \(blockedReason)")
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.seal)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).blocked-reason")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).blocked-reason")
                     } else if let deferredUntil = entry.deferredUntil, deferredUntil > Date() {
                         Text("DEFERRED UNTIL \(deferredUntil.formatted(date: .abbreviated, time: .shortened)) - NOT INCLUDED IN CAPACITY OR CALENDAR")
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.seal)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).deferred-state")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).deferred-state")
                     } else if entry.isOptional {
                         Text("OPTIONAL - NOT INCLUDED IN CAPACITY OR CALENDAR")
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.muted)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).optional-state")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).optional-state")
                     }
                     if let conditionLabel = gamingUnlock.conditionLabel {
                         Text(conditionLabel)
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.sealDeep)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).gaming-unlock-condition")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).gaming-unlock-condition")
                     }
                     TodayEstimateStrip(
-                        customEditor: $customEstimateEditor,
-                        hostPath: "plan",
-                        activateHost: { activateCustomEstimateHost("plan") },
-                        isActiveHost: { isActiveCustomEstimateHost("plan") },
                         selectedMinutes: entry.estimateMinutes,
                         isUnknown: entry.estimateIsUncertain,
                         taskTitle: row.title,
@@ -2372,11 +1617,11 @@ private struct TodayPlanTaskRow: View {
                         Button("MOVE UP", action: moveUp)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .disabled(entry.rank <= 1)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).move-up")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).move-up")
                         Button("MOVE DOWN", action: moveDown)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .disabled(entry.rank >= planCount)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).move-down")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).move-down")
                         if !isMainObjective {
                             Button(gamingUnlock.makeMainTitle) {
                                 if gamingUnlock.requiresConfirmation {
@@ -2387,7 +1632,7 @@ private struct TodayPlanTaskRow: View {
                             }
                                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                                 .accessibilityHint(gamingUnlock.accessibilityHint)
-                                .accessibilityIdentifier("today.plan.\(row.taskID).make-main")
+                                .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).make-main")
                         }
                         Button("REMOVE", action: remove)
                             .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
@@ -2397,16 +1642,16 @@ private struct TodayPlanTaskRow: View {
                         Button(entry.isOptional ? "MAKE COMMITTED" : "MARK OPTIONAL", action: toggleOptional)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .disabled(entry.isMainObjective)
-                            .accessibilityIdentifier("today.plan.\(row.taskID).optional")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).optional")
                         Button(entry.deferredUntil == nil ? "DEFER TO TOMORROW" : "RETURN TO TODAY", action: toggleDeferral)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-                            .accessibilityIdentifier("today.plan.\(row.taskID).defer")
+                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).defer")
                         Button("MARK BLOCKED") {
                             blockReason = entry.blockedReason ?? ""
                             isBlockReasonPresented = true
                         }
                         .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
-                        .accessibilityIdentifier("today.plan.\(row.taskID).block")
+                        .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).block")
                     }
                 }
                 .padding(.leading, 50)
@@ -2461,10 +1706,6 @@ private struct TodayPlanTaskRow: View {
 
 private struct TodayEstimateStrip: View {
     @SumiReduceMotion private var reduceMotion
-    @Binding var customEditor: CustomEstimateEditorState
-    let hostPath: String
-    let activateHost: () -> Void
-    let isActiveHost: () -> Bool
     let selectedMinutes: Int?
     let isUnknown: Bool
     let taskTitle: String
@@ -2472,6 +1713,9 @@ private struct TodayEstimateStrip: View {
     let setEstimate: (Int) -> Void
     let setUnknown: () -> Void
     private let options = [15, 30, 45, 60, 90]
+    @State private var isEnteringCustom = false
+    @State private var customMinutes = ""
+    @State private var customError: String?
 
     var body: some View {
         HStack(spacing: 6) {
@@ -2504,37 +1748,45 @@ private struct TodayEstimateStrip: View {
                 .accessibilityLabel("Set \(taskTitle) estimate to unknown and use a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder")
                 .accessibilityValue(isUnknown ? "Selected" : "Not selected")
             Button("CUSTOM") {
-                activateHost()
-                customEditor.open(initialMinutes: selectedMinutes)
+                customMinutes = selectedMinutes.map(String.init) ?? ""
+                customError = nil
+                isEnteringCustom = true
             }
             .font(Sumi.label(8))
             .sumiLabelTracking()
             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
             .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
-            .accessibilityIdentifier("today-estimate-custom-\(taskID)")
-            if isActiveHost(), customEditor.isPresented {
-                CustomEstimateEditor(
-                    state: $customEditor,
-                    taskTitle: taskTitle,
-                    inputIdentifier: "today-estimate-custom-input-\(taskID)",
-                    saveIdentifier: "today-estimate-custom-save-\(taskID)",
-                    cancelIdentifier: "today-estimate-custom-cancel-\(taskID)",
-                    errorIdentifier: "today-estimate-custom-error-\(taskID)",
-                    errorFontSize: 10,
-                    persist: setEstimate,
-                    cancel: {}
-                )
+            .accessibilityIdentifier("today-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+            if isEnteringCustom {
+                TextField("Minutes", text: $customMinutes)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 78)
+                    .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
+                    .accessibilityIdentifier("today-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                    .onSubmit(saveCustomEstimate)
+                Button("SAVE", action: saveCustomEstimate)
+                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
+                    .accessibilityIdentifier("today-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                Button("CANCEL") {
+                    isEnteringCustom = false
+                    customError = nil
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
+                .keyboardShortcut(.cancelAction)
+                .accessibilityIdentifier("today-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                if let customError {
+                    Text(customError)
+                        .font(Sumi.body(10))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("today-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                }
             }
             if let selectedMinutes {
                 Text("\(selectedMinutes) MIN SELECTED")
                     .font(Sumi.label(7))
                     .sumiLabelTracking()
                     .foregroundStyle(Sumi.seal)
-                    .accessibilityLabel(
-                        CustomEstimateEditorState.confirmationAccessibilityLabel(
-                            minutes: selectedMinutes
-                        )
-                    )
                     .contentTransition(.numericText())
                     .transition(SumiMotion.transition(
                         reduceMotion: reduceMotion,
@@ -2549,7 +1801,18 @@ private struct TodayEstimateStrip: View {
             }
         }
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedMinutes)
-        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: customEditor.isPresented)
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isEnteringCustom)
+    }
+
+    private func saveCustomEstimate() {
+        switch TaskEstimateInput.parse(customMinutes) {
+        case let .success(minutes):
+            setEstimate(minutes)
+            isEnteringCustom = false
+            customError = nil
+        case let .failure(error):
+            customError = error.message
+        }
     }
 }
 

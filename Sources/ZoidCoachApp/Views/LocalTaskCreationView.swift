@@ -52,19 +52,6 @@ struct LocalTaskCreationView: View {
                 )
                 .accessibilityIdentifier("local-task-estimate")
                 .disabled(controller.hasPendingRetry)
-                Toggle(isOn: $controller.isTechnicalTask) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("TECHNICAL TASK")
-                            .font(Sumi.label(9))
-                            .sumiLabelTracking()
-                        Text("Declare this when the work is primarily software or technical implementation.")
-                            .font(Sumi.body(12))
-                            .foregroundStyle(Sumi.muted)
-                    }
-                }
-                .toggleStyle(.switch)
-                .accessibilityIdentifier("local-task-technical-context")
-                .disabled(controller.hasPendingRetry)
                 Toggle(isOn: $controller.addToToday) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("ADD TO TODAY'S PLAN")
