@@ -445,6 +445,16 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func setTodayLiveRefreshEnabled(_ isEnabled: Bool) {
+        guard isEnabled else {
+            todayLiveRefreshLoop.stop()
+            return
+        }
+        todayLiveRefreshLoop.start { [weak self] in
+            await self?.refreshTodaySnapshot()
+        }
+    }
+
     func recordGamingManualAdjustment(
         minutes: Int,
         note: String?,
