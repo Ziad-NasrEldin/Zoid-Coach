@@ -46,6 +46,10 @@ final class MenuBarCoachController: ObservableObject {
         )
     }
 
+    convenience init(runtimeEnvironment: RuntimeEnvironment) {
+        self.init(client: TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment))
+    }
+
     var state: MenuBarCoachState { MenuBarCoachState(snapshot: snapshot) }
 
     func adoptLastKnownSnapshot(_ lastKnownSnapshot: TodaySnapshot?) {
