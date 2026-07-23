@@ -645,6 +645,58 @@ func controlRequestResumesAfterAProcessingFailure() throws {
 }
 
 @Test
+func canonicalControlWriterProducesARequestConsumedByTheFixtureRuntime() throws {
+    let fixture = try signedQARuntime("canonical-control-writer")
+    defer { try? FileManager.default.removeItem(at: fixture.root) }
+    let request = fixture.root.deletingLastPathComponent()
+        .appendingPathComponent("object-form-control.json")
+    let objectForm = """
+    {
+      "requestID": "canonical-reschedule-seed",
+      "operation": "seed",
+      "seed": {
+        "permissions": {"reminders": "granted"},
+        "reminderLists": [{"id": "inbox", "name": "Inbox"}],
+        "reminders": [{
+          "id": "reschedule-task",
+          "title": "Reschedule me",
+          "listIdentifier": "inbox",
+          "priority": 1,
+          "isCompleted": false
+        }],
+        "calendarCommitments": [],
+        "notifications": []
+      }
+    }
+    """
+    try Data(objectForm.utf8).write(to: request, options: .atomic)
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = [
+        "python3",
+        repositoryRoot.appendingPathComponent("Scripts/write-qa-os-fixture-control.py").path,
+        request.path,
+        fixture.root.path,
+    ]
+    try process.run()
+    process.waitUntilExit()
+    #expect(process.terminationStatus == 0)
+
+    let snapshot = try QAFixtureOSComposition.makeAuthorizedAdapter(
+        runtimeEnvironment: fixture.environment,
+        clock: .fixed(fixture.now)
+    ).snapshot()
+    #expect(snapshot.permissions[.reminders] == .granted)
+    #expect(snapshot.reminders.map(\.id) == ["reschedule-task"])
+    #expect(!FileManager.default.fileExists(atPath: fixture.root
+        .appendingPathComponent(QAFixtureOSComposition.controlRelativePath).path))
+}
+
+@Test
 func controlRequestDoesNotReplayAfterCrashFollowingMutationCommit() async throws {
     let fixture = try signedQARuntime("control-after-mutation")
     defer { try? FileManager.default.removeItem(at: fixture.root) }
