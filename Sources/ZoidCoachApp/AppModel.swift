@@ -725,6 +725,26 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func startSprint(taskID: String, durationMinutes: Int) {
+        guard pendingTaskCommandIDs.isEmpty else { return }
+        guard (1...240).contains(durationMinutes) else {
+            taskCommandError = "Choose a sprint from 1 to 240 minutes."
+            return
+        }
+        pendingTaskCommandIDs.insert(taskID)
+        taskCommandError = nil
+        Task {
+            defer { pendingTaskCommandIDs.remove(taskID) }
+            do {
+                todaySnapshot = try await todayDashboardXPCClient.startSprint(taskID: taskID, durationMinutes: durationMinutes)
+                lastActionMessage = "\(durationMinutes)-minute sprint started."
+            } catch {
+                taskCommandError = error.localizedDescription
+                todaySnapshot = try? todaySnapshotStore?.load()
+            }
+        }
+    }
+
     var isAnyTaskCommandPending: Bool {
         pendingTaskCommandIDs.isEmpty == false
     }

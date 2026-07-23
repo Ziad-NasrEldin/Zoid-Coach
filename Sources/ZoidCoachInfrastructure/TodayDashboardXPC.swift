@@ -842,6 +842,12 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         }
     }
 
+    public func startSprint(taskID: String, durationMinutes: Int) async throws -> TodaySnapshot {
+        try await call { proxy, reply in
+            proxy.startSprint(taskID, durationMinutes: durationMinutes, withReply: reply)
+        }
+    }
+
     public func startUnplannedTask(_ taskID: String) async throws -> TodaySnapshot {
         try await call { proxy, reply in proxy.startUnplannedTask(taskID, withReply: reply) }
     }

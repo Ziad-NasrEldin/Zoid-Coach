@@ -149,6 +149,22 @@ public final class TaskExecutionStore: @unchecked Sendable {
         }
     }
 
+    public func startSprint(taskID: String, durationMinutes: Int, at date: Date = Date()) throws {
+        guard (1...240).contains(durationMinutes) else { throw TaskExecutionStoreError.invalidSprintDuration }
+        try transaction {
+            if let existing = try openInterval(), existing.taskID != taskID {
+                try upsertState(taskID: existing.taskID, state: .paused, at: date)
+                try recordPause(taskID: existing.taskID, reason: .switchingTasks, at: date)
+                try pauseSprint(taskID: existing.taskID, at: date)
+            }
+            try closeOpenInterval(at: date)
+            try closeOpenPause(taskID: taskID, at: date)
+            try upsertState(taskID: taskID, state: .active, at: date)
+            try openInterval(taskID: taskID, at: date)
+            try beginSprint(taskID: taskID, durationMinutes: durationMinutes, at: date)
+        }
+    }
+
     public func snapshot(for taskIDs: [String], now: Date = Date()) throws -> [String: TaskExecutionSnapshot] {
         let states = try states(for: taskIDs)
         let open = try openInterval()
