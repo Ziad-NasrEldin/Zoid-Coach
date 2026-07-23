@@ -1779,6 +1779,8 @@ private struct DailyPlanLedger: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
 
+            PlanningCapacityPanel(entries: entries)
+
             VStack(alignment: .leading, spacing: 5) {
                 Text("MAIN OBJECTIVE")
                     .font(Sumi.label(9))
