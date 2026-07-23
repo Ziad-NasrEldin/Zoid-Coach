@@ -51,7 +51,8 @@ enum TodayPlanPresentation {
             isOptional: entry.isOptional,
             blockedReason: entry.blockedReason,
             deferredUntil: entry.deferredUntil,
-            learnedEstimateSuggestion: snapshot.learnedEstimateSuggestion
+            learnedEstimateSuggestion: snapshot.learnedEstimateSuggestion,
+            declaredContext: snapshot.declaredContext
         )
     }
 

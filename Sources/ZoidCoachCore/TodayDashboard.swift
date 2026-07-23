@@ -237,6 +237,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let blockedReason: String?
     public let deferredUntil: Date?
     public let learnedEstimateSuggestion: LearnedEstimateSuggestion?
+    public let declaredContext: DeclaredTaskContext?
 
     public init(
         taskID: String,
@@ -280,6 +281,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         self.blockedReason = blockedReason
         self.deferredUntil = deferredUntil
         self.learnedEstimateSuggestion = learnedEstimateSuggestion
+        self.declaredContext = declaredContext
     }
 
     private enum CodingKeys: String, CodingKey {

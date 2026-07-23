@@ -66,6 +66,41 @@ func migration49AddsDurableDailyReviewSessionMerges() throws {
 }
 
 @Test
+func migration50AddsNullableDeclaredTaskContextWithoutChangingLegacyRows() throws {
+    let databaseURL = temporaryDatabaseURL("v50-declared-task-context")
+    defer { removeDatabaseFiles(at: databaseURL) }
+    try execute(databaseURL, """
+    CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+    INSERT INTO schema_migrations(version, applied_at) VALUES (49, '2026-07-15T00:00:00Z');
+    CREATE TABLE source_tasks (
+        source_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        due_at TEXT,
+        priority INTEGER NOT NULL DEFAULT 0,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL,
+        notes TEXT,
+        list_id TEXT,
+        list_name TEXT,
+        modified_at TEXT,
+        source_hash TEXT,
+        source_kind TEXT NOT NULL DEFAULT 'reminders'
+    );
+    INSERT INTO source_tasks(source_id, title, updated_at)
+    VALUES ('legacy-general', 'Legacy general task', '2026-07-15T00:00:00Z');
+    """)
+
+    let result = try AutonomousDatabaseMigrator(databaseURL: databaseURL).migrate()
+
+    #expect(result.previousVersion == 49)
+    #expect(result.appliedVersions == [50])
+    #expect(result.currentVersion == 50)
+    #expect(try columnExists(databaseURL, table: "source_tasks", column: "declared_context"))
+    #expect(try scalarText(databaseURL, "SELECT title FROM source_tasks WHERE source_id = 'legacy-general';") == "Legacy general task")
+    #expect(try scalarInt(databaseURL, "SELECT declared_context IS NULL FROM source_tasks WHERE source_id = 'legacy-general';") == 1)
+}
+
+@Test
 func migration46AddsDeletedReminderDecisionHistory() throws {
     let databaseURL = temporaryDatabaseURL("v46-deleted-reminder-decisions")
     defer { removeDatabaseFiles(at: databaseURL) }
