@@ -240,10 +240,16 @@ done < <(
     } | sort -u
 )
 
+verify_reviewed_lineage
+
 assert_contains "Sources/ZoidCoachApp/AppModel.swift" \
     "func setTodayLiveRefreshEnabled(_ isEnabled: Bool)"
 assert_contains "Sources/ZoidCoachApp/AppModel.swift" \
     "await self?.refreshTodaySnapshot()"
+assert_contains "Sources/ZoidCoachApp/AppModel.swift" \
+    "private let todaySnapshotLoader: ReadOnlyTodaySnapshotLoader"
+assert_contains "Sources/ZoidCoachApp/AppModel.swift" \
+    "installTodaySnapshot(todaySnapshotLoader.load())"
 assert_contains "Sources/ZoidCoachApp/ZoidCoachApp.swift" \
     "todayIsSelected: model.selectedSection == .today"
 assert_contains "Sources/ZoidCoachApp/ZoidCoachApp.swift" \
