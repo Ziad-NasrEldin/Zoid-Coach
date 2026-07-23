@@ -251,7 +251,7 @@ import ZoidCoachInfrastructure
         fetchResult: .success(active),
         applyResults: [.success(completed)]
     )
-    let controller = MenuBarCoachController(client: client)
+    let controller = MenuBarCoachController(client: client, loadTodaySnapshot: { active })
 
     await controller.refresh()
     await controller.apply(.complete, taskID: "task")
@@ -388,7 +388,7 @@ import ZoidCoachInfrastructure
         activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 0)
     )
     let client = RecordingMenuBarTodayClient(fetchResult: .success(ready), applyResults: [.success(active), .failure(MenuBarClientError.failed)])
-    let controller = MenuBarCoachController(client: client)
+    let controller = MenuBarCoachController(client: client, loadTodaySnapshot: { ready })
 
     await controller.refresh()
     #expect(controller.state.recommendedTask?.taskID == "task")
@@ -414,14 +414,14 @@ import ZoidCoachInfrastructure
         fetchResult: .failure(MenuBarClientError.failed),
         applyResults: []
     )
-    let controller = MenuBarCoachController(client: client)
+    let controller = MenuBarCoachController(client: client, loadTodaySnapshot: { nil })
 
     #expect(controller.syncPresentation == .loading)
     await controller.refresh()
 
     #expect(controller.snapshot == nil)
     #expect(controller.syncPresentation == .unavailable)
-    #expect(controller.errorMessage == "Task state is unavailable because Zoid 666 could not load a confirmed state from the background agent. Open Source Health, then refresh.")
+    #expect(controller.errorMessage == "Task state is unavailable because Zoid 666 has not prepared a confirmed state yet. Open Today or Source Health, then refresh.")
 }
 
 @MainActor
@@ -434,7 +434,7 @@ import ZoidCoachInfrastructure
         fetchResult: .failure(MenuBarClientError.failed),
         applyResults: []
     )
-    let controller = MenuBarCoachController(client: client)
+    let controller = MenuBarCoachController(client: client, loadTodaySnapshot: { nil })
 
     controller.adoptLastKnownSnapshot(active)
     await controller.refresh()
@@ -442,7 +442,7 @@ import ZoidCoachInfrastructure
     #expect(controller.state.activeTask?.taskID == "task")
     #expect(controller.state.taskStatus == "Active · Open-ended · 9 min tracked")
     #expect(controller.syncPresentation == .stale)
-    #expect(controller.errorMessage == "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh.")
+    #expect(controller.errorMessage == "Today has not prepared a newer confirmed state. The last confirmed task state remains visible. Open Source Health, then refresh.")
 }
 
 @MainActor
@@ -458,7 +458,7 @@ import ZoidCoachInfrastructure
         fetchResult: .success(confirmedActive),
         applyResults: []
     )
-    let controller = MenuBarCoachController(client: client)
+    let controller = MenuBarCoachController(client: client, loadTodaySnapshot: { confirmedActive })
 
     await controller.refresh()
     controller.adoptLastKnownSnapshot(staleReady)
@@ -566,7 +566,7 @@ import ZoidCoachInfrastructure
         applyResults: [],
         blockResults: [.success(blocked)]
     )
-    let controller = MenuBarCoachController(client: client)
+    let controller = MenuBarCoachController(client: client, loadTodaySnapshot: { active })
 
     await controller.refresh()
     await controller.block(taskID: "task", reason: "  Waiting for client approval  ")
@@ -593,7 +593,7 @@ import ZoidCoachInfrastructure
         applyResults: [],
         blockResults: [.success(active)]
     )
-    let controller = MenuBarCoachController(client: client)
+    let controller = MenuBarCoachController(client: client, loadTodaySnapshot: { active })
 
     await controller.refresh()
     await controller.block(taskID: "task", reason: "x")
@@ -634,7 +634,7 @@ import ZoidCoachInfrastructure
         fetchResult: .success(active),
         applyResults: [.success(onBreak), .success(resumed), .success(ended)]
     )
-    let controller = MenuBarCoachController(client: client)
+    let controller = MenuBarCoachController(client: client, loadTodaySnapshot: { active })
 
     await controller.refresh()
     await controller.apply(.pauseForBreak, taskID: "task")
@@ -663,8 +663,11 @@ import ZoidCoachInfrastructure
         rows: [menuTask(id: "second", title: "Second", state: .active)],
         activeTask: .init(taskID: "second", startedAt: Date(), elapsedMinutes: 1)
     )
-    let client = SwitchingMenuBarTodayClient(snapshots: [first, second])
-    let controller = MenuBarCoachController(client: client)
+    let client = SwitchingMenuBarTodayClient(snapshots: [second])
+    let controller = MenuBarCoachController(
+        client: client,
+        loadTodaySnapshot: { first }
+    )
 
     await controller.refresh()
     await controller.endWorkdayIfStillActive(taskID: "first")
@@ -702,6 +705,7 @@ import ZoidCoachInfrastructure
     #expect(commands.count == 1)
     #expect(commands.first?.0 == .start)
     #expect(commands.first?.1 == "focus")
+    #expect(await client.fetchCount == 1)
 }
 
 @MainActor
@@ -784,11 +788,16 @@ import ZoidCoachInfrastructure
         ),
         for: now
     )
+    let agent = try TodayDashboardAgent(databaseURL: databaseURL)
+    let initialSnapshot = try agent.snapshot(now: now)
     let client = AgentMenuBarTodayClient(
-        agent: try TodayDashboardAgent(databaseURL: databaseURL),
+        agent: agent,
         now: now
     )
-    let controller = MenuBarCoachController(client: client)
+    let controller = MenuBarCoachController(
+        client: client,
+        loadTodaySnapshot: { initialSnapshot }
+    )
 
     await controller.refresh()
     await controller.startRecommendedTaskIfStillReady(taskID: "focus")
@@ -816,10 +825,17 @@ import ZoidCoachInfrastructure
     #expect(restoredTask.latestPauseReason == .endingWorkday)
     #expect(restoredTask.acceptedBreak == nil)
 
-    let relaunchedController = MenuBarCoachController(client: AgentMenuBarTodayClient(
-        agent: try TodayDashboardAgent(databaseURL: databaseURL),
-        now: now.addingTimeInterval(360)
-    ))
+    let relaunchedSnapshot = try TodaySnapshotStore(
+        databaseURL: databaseURL,
+        readOnly: true
+    ).load(for: now.addingTimeInterval(360))
+    let relaunchedController = MenuBarCoachController(
+        client: AgentMenuBarTodayClient(
+            agent: try TodayDashboardAgent(databaseURL: databaseURL),
+            now: now.addingTimeInterval(360)
+        ),
+        loadTodaySnapshot: { relaunchedSnapshot }
+    )
     await relaunchedController.refresh()
     #expect(relaunchedController.state.primaryTask?.taskID == "focus")
     #expect(relaunchedController.state.availableTaskActions == [.resume, .markBlocked, .openToday])
@@ -832,6 +848,7 @@ private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
     var blockResults: [Result<TodaySnapshot, Error>]
     private(set) var commands: [(TaskActivityCommand, String)] = []
     private(set) var blockCommands: [(String, String)] = []
+    private(set) var fetchCount = 0
 
     init(
         fetchResult: Result<TodaySnapshot, Error>,
@@ -843,7 +860,10 @@ private actor RecordingMenuBarTodayClient: MenuBarTodayClient {
         self.blockResults = blockResults
     }
 
-    func fetchTodaySnapshot() async throws -> TodaySnapshot { try fetchResult.get() }
+    func fetchTodaySnapshot() async throws -> TodaySnapshot {
+        fetchCount += 1
+        return try fetchResult.get()
+    }
 
     func apply(_ command: TaskActivityCommand, taskID: String) async throws -> TodaySnapshot {
         commands.append((command, taskID))

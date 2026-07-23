@@ -542,6 +542,15 @@ private struct TodayCommandView: View {
                 TodayDashboardCommandOverview(snapshot: snapshot)
                     .accessibilityIdentifier("today.snapshot.ready")
             } else {
+                TodayDayStateHeader(
+                    date: Date(),
+                    presentation: .resolve(
+                        snapshotIsAvailable: false,
+                        planningMode: nil,
+                        hasActiveTask: false,
+                        hasPlannedTasks: false
+                    )
+                )
                 VStack(alignment: .leading, spacing: 7) {
                     Text("PLAN BEFORE MOTION")
                         .font(Sumi.label(9))
