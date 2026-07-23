@@ -209,6 +209,44 @@ func todayPromptPlacementRefreshesOnceAndKeepsResolvedHistoryVisible() throws {
 }
 
 @Test
+func todayPresentsPendingDecisionsBeforeTallPlanningSurfacesAndKeepsHistoryInPlace() throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let sourceURL = repositoryRoot
+        .appendingPathComponent("Sources/ZoidCoachApp/Views/DashboardView.swift")
+    let source = try String(contentsOf: sourceURL, encoding: .utf8)
+    let todayStart = try #require(source.range(of: "private struct TodayCommandView"))
+    let todaySource = source[todayStart.lowerBound...]
+    let pendingGuard = try #require(todaySource.range(
+        of: "if !model.promptInboxTimeline.awaitingResponse.isEmpty"
+    ))
+    let decisions = try #require(todaySource.range(of: "TodayPromptInboxLedger()"))
+    let planningInvitation = try #require(todaySource.range(of: "PlanningInvitationBanner()"))
+    let baseline = try #require(todaySource.range(of: "BaselineObservationView()"))
+    let commandOverview = try #require(todaySource.range(of: "TodayDashboardCommandOverview(snapshot: snapshot)"))
+    let taskError = try #require(todaySource.range(of: "if let taskError = model.taskCommandError"))
+    let historyGuard = try #require(todaySource.range(
+        of: "if model.promptInboxTimeline.awaitingResponse.isEmpty"
+    ))
+    let historyDecisions = try #require(todaySource.range(
+        of: "TodayPromptInboxLedger()",
+        range: historyGuard.upperBound..<todaySource.endIndex
+    ))
+    let meetingCandidates = try #require(todaySource.range(of: "MeetingCandidateLedger"))
+
+    #expect(pendingGuard.lowerBound < decisions.lowerBound)
+    #expect(decisions.lowerBound < planningInvitation.lowerBound)
+    #expect(decisions.lowerBound < baseline.lowerBound)
+    #expect(decisions.lowerBound < commandOverview.lowerBound)
+    #expect(taskError.lowerBound < historyGuard.lowerBound)
+    #expect(historyGuard.lowerBound < historyDecisions.lowerBound)
+    #expect(historyDecisions.lowerBound < meetingCandidates.lowerBound)
+    #expect(todaySource.components(separatedBy: "TodayPromptInboxLedger()").count - 1 == 2)
+}
+
+@Test
 func promptBlockFormRejectsEmptyInputAndPreventsDuplicateSubmission() throws {
     var form = PromptTaskBlockFormState()
 

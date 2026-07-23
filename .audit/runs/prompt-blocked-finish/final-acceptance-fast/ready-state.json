@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "onboarding": {
+    "coachingMode": "rulesOnly",
+    "remindersAccess": "granted",
+    "screenwatchAccess": "unavailable",
+    "notificationAccess": "granted",
+    "reminderListDecisions": [
+      {
+        "listID": "work",
+        "isIncluded": true
+      }
+    ]
+  },
+  "osFixture": {
+    "permissions": {
+      "reminders": "granted",
+      "calendar": "granted",
+      "notifications": "granted"
+    },
+    "reminderLists": [
+      {
+        "id": "work",
+        "name": "Work"
+      }
+    ],
+    "reminders": [],
+    "calendarCommitments": [],
+    "notifications": []
+  },
+  "screenwatch": {
+    "state": "missing",
+    "days": []
+  }
+}

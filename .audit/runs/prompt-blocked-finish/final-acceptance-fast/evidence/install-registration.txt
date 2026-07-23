@@ -1,0 +1,2 @@
+PASS: QA XPC runtime is writable and prompt timeline is available
+PASS: QA LaunchAgent registered and left enabled

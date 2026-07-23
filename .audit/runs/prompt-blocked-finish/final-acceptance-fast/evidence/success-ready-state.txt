@@ -1,0 +1,1 @@
+READY: isolated QA root prepared at /private/tmp/zoid-666-zc034011-fast-root
