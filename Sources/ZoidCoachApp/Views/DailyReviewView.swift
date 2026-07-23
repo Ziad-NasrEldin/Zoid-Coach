@@ -228,6 +228,22 @@ final class DailyReviewController: ObservableObject {
         }
     }
 
+    func classificationRule(for application: String) -> AppClassificationCorrectionRule? {
+        let normalized = BehaviorPolicy.normalize(application)
+        return classificationRules.first { $0.normalizedApplication == normalized }
+    }
+
+    func removeClassificationRule(_ rule: AppClassificationCorrectionRule) {
+        do {
+            try service.removeClassificationRule(normalizedApplication: rule.normalizedApplication)
+            classificationRules = try service.classificationRules()
+            errorMessage = nil
+            successMessage = "The future rule for \(rule.application) was removed. Historical corrections are unchanged."
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func setHypothesis(_ state: DailyReviewHypothesisState) {
         do {
             try service.setHypothesisState(state, sourceDay: sourceDay)
@@ -642,6 +658,10 @@ struct DailyReviewView: View {
             unknownSessionReview(sessionReview)
             classifiedSessionReview(sessionReview)
         }
+        FutureClassificationRulesSection(
+            rules: controller.classificationRules,
+            onRemove: controller.removeClassificationRule
+        )
         CompletedTaskHistorySection(entries: snapshot.completedTasks)
         OfflineWorkSection(
             entries: snapshot.offlineWork,
@@ -1566,6 +1586,71 @@ struct DailyReviewView: View {
         .background(Sumi.sealWash)
         .overlay(Rectangle().stroke(Sumi.seal, lineWidth: 1))
         .accessibilityIdentifier("reviews.error")
+    }
+}
+
+private struct FutureClassificationRulesSection: View {
+    let rules: [AppClassificationCorrectionRule]
+    let onRemove: (AppClassificationCorrectionRule) -> Void
+
+    @State private var ruleToRemove: AppClassificationCorrectionRule?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("FUTURE APP RULES")
+                .font(Sumi.label())
+                .sumiLabelTracking()
+            Text("Rules created from your corrections affect only new Screenwatch observations. Historical activity and corrections stay unchanged.")
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+            if rules.isEmpty {
+                Text("No daily-review corrections are currently teaching future app classifications.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .accessibilityIdentifier("reviews.future-rules.empty")
+            } else {
+                ForEach(rules) { rule in
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(rule.application)
+                                .font(Sumi.body(14))
+                            Text("\(rule.classification.rawValue.uppercased()) · FROM REVIEW \(rule.sourceDay)")
+                                .font(Sumi.label(8))
+                                .sumiLabelTracking()
+                                .foregroundStyle(Sumi.muted)
+                        }
+                        Spacer()
+                        Button("REMOVE RULE") { ruleToRemove = rule }
+                            .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
+                            .accessibilityIdentifier("reviews.future-rules.remove.\(rule.normalizedApplication)")
+                    }
+                    .padding(12)
+                    .background(Sumi.paper)
+                    .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                    .accessibilityIdentifier("reviews.future-rules.rule.\(rule.normalizedApplication)")
+                }
+            }
+        }
+        .padding(18)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.rule, lineWidth: 1))
+        .accessibilityIdentifier("reviews.future-rules")
+        .confirmationDialog(
+            "Remove this future app rule?",
+            isPresented: Binding(
+                get: { ruleToRemove != nil },
+                set: { if !$0 { ruleToRemove = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove future rule", role: .destructive) {
+                if let ruleToRemove { onRemove(ruleToRemove) }
+                ruleToRemove = nil
+            }
+            Button("Cancel", role: .cancel) { ruleToRemove = nil }
+        } message: {
+            Text("Future observations will return to the normal Settings policy. Historical corrections will remain.")
+        }
     }
 }
 
