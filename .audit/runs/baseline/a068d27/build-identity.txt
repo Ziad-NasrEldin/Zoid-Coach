@@ -1,0 +1,16 @@
+repository_head=a068d2786c7725204cefa270a736e02f1a910b52
+branch=codex/zc-baseline-verifier
+worktree_clean_at_start=true
+swift_tests=pass:188-tests:4-suites
+release_build=pass
+installed_path=/Users/ziadnasreldin/Applications/Zoid Coach.app
+installed_version=0.1.0
+installed_build=8
+bundle_identifier=com.ziadnasreldin.ZoidCoach
+app_signing_identifier=com.ziadnasreldin.ZoidCoach
+agent_signing_identifier=com.ziadnasreldin.ZoidCoach.agent
+team_identifier=377QC32T9T
+app_cdhash=d76e35fb38e52e8733f563e13a65450718fc8871
+agent_cdhash=3364ec2db4035e3b93700326a476621fdb129815
+package_verification=pass
+installed_git_commit=not-embedded
