@@ -795,6 +795,33 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.gaming.allowance-explanation")
             }
 
+            VStack(alignment: .leading, spacing: 12) {
+                Text("GAMING ALLOWANCE")
+                    .font(Sumi.label(10))
+                    .sumiLabelTracking()
+                SumiStepper(
+                    "BASE AVAILABLE EACH DAY",
+                    value: $controller.draft.gamingDailyBudgetMinutes,
+                    in: 0...1_440,
+                    step: 5,
+                    valueLabel: { "\($0) MIN" }
+                )
+                .accessibilityIdentifier("settings.gaming.daily-budget")
+                SumiStepper(
+                    "UNLOCK AFTER PRIORITY COMPLETION",
+                    value: $controller.draft.gamingPriorityTaskRewardMinutes,
+                    in: 0...1_440,
+                    step: 5,
+                    valueLabel: { "\($0) MIN" }
+                )
+                .accessibilityIdentifier("settings.gaming.priority-reward")
+                Text(gamingAllowanceExplanation)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.gaming.allowance-explanation")
+            }
+
             if let version = controller.previousPolicyVersion {
                 Button("ROLL BACK TO POLICY V\(version)") { presentConfirmation(.restorePolicy) }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
