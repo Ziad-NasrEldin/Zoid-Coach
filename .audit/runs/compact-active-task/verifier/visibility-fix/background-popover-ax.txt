@@ -1,0 +1,15 @@
+WINDOW|0|AXWindow|AXSystemDialog||1935,32,360,367
+NODE|0|AXGroup|menu-bar.coach||||1926,32,368,367
+NODE|0|AXGroup|menu-bar.status||Zoid 666 is ready||1953,46,327,31
+NODE|0|AXGroup|menu-bar.coaching-control||||1935,91,360,111
+NODE|0|AXStaticText|menu-bar.task.unavailable|||Task state is unavailable. Zoid 666 has not confirmed whether a task is active.|1949,203,304,28
+NODE|0|AXStaticText|menu-bar.error|||Task state is unavailable because Zoid 666 could not load a confirmed state from the background agent. Open Source Health, then refresh.|1949,240,312,39
+NODE|0|AXButton|menu-bar.open-source-health||SOURCE HEALTH||1975,308,109,28
+NODE|0|AXButton|menu-bar.open-settings||SETTINGS||2164,308,72,28
+NODE|0|AXStaticText||||ZOID 666 / NOW|1985,46,96,12
+NODE|0|AXStaticText||||Zoid 666 is ready|1985,61,104,16
+NODE|0|AXButton|menu-bar.refresh||Refresh menu bar state||2268,47,11,14
+NODE|0|AXStaticText||||COACHING RUNNING|1949,113,123,12
+NODE|0|AXStaticText||||Zoid 666 may offer evidence-based coaching while your workday is active. Quick Pause is set to an indefinite pause.|1949,128,269,39
+NODE|0|AXButton|menu-bar.coaching.pause||PAUSE COACHING INDEFINITELY||2228,105,52,28
+NODE|0|AXStaticText|menu-bar.coaching.error|||Coaching status is unavailable. Open Source Health and check the background agent.|1949,175,326,13

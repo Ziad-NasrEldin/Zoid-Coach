@@ -1,0 +1,9 @@
+Build: zoid-coach-aa6e87a3eece9131d99f8686a8f200cc06e42f04-clean
+Signed review: 13 July populated with 2 actual minutes, 1 work minute, Work and Distracting highlights
+Visible boundary: note stays local and is not observed behavior, a hypothesis, or a learned fact
+Accessibility: reviews.personal-note.editor, reviews.personal-note.save, review confirmation
+Entered value: Client feedback changed the afternoon.
+Visible validation: 38 / 1000 and Save enabled
+Blocker: ScreenCaptureKit -3811 on post-save capture and one bounded retry
+Database after stop: both notes absent; review days pending; evidence rows unchanged at 1 and 2
+Cleanup: exact helper unregistered and QA service absent

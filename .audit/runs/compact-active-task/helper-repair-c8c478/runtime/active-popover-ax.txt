@@ -1,0 +1,20 @@
+WINDOW|0|AXWindow|AXSystemDialog||0,1449,360,490
+NODE|0|AXGroup|menu-bar.coach||||-8,1449,368,490
+NODE|0|AXGroup|menu-bar.status||A task is active||20,1463,324,31
+NODE|0|AXGroup|menu-bar.coaching-control||||0,1508,360,90
+NODE|0|AXStaticText|menu-bar.task.summary|||Verify the ready-state journey. Active · Open-ended · 0 min tracked. 30 min estimate. Medium urgency|14,1645,188,30
+NODE|0|AXStaticText|menu-bar.attention|||reminders: Apple Reminders permission has not been granted; 1 normalized incomplete reminders|14,1793,332,26
+NODE|0|AXButton|menu-bar.open-source-health||SOURCE HEALTH||40,1848,109,28
+NODE|0|AXButton|menu-bar.open-settings||SETTINGS||229,1848,72,28
+NODE|0|AXStaticText||||ZOID 666 / NOW|50,1463,96,12
+NODE|0|AXStaticText||||A task is active|50,1478,90,16
+NODE|0|AXButton|menu-bar.refresh||Refresh menu bar state||333,1464,11,14
+NODE|0|AXStaticText||||COACHING RUNNING|14,1530,123,12
+NODE|0|AXStaticText||||Zoid 666 may offer evidence-based coaching while your workday is active. Quick Pause is set to an indefinite pause.|14,1545,269,39
+NODE|0|AXButton|menu-bar.coaching.pause||PAUSE COACHING INDEFINITELY||293,1522,52,28
+NODE|0|AXButton|menu-bar.task.pause||PAUSE ACTIVE TASK||69,1684,52,28
+NODE|0|AXButton|menu-bar.task.break||START A 15 MINUTE BREAK||230,1684,69,28
+NODE|0|AXButton|menu-bar.task.complete||COMPLETE ACTIVE TASK||56,1720,77,28
+NODE|0|AXButton|menu-bar.task.block||MARK TASK AS BLOCKED||230,1720,69,28
+NODE|0|AXButton|menu-bar.open-today||OPEN TODAY||51,1756,88,28
+NODE|0|AXButton|menu-bar.task.end-workday||END THE WORKDAY||216,1756,98,28
