@@ -110,6 +110,233 @@ struct DashboardView: View {
     }
 }
 
+enum EstimateSurfaceMode: String, Equatable {
+    case today
+    case planEditor
+
+    var showsToday: Bool { self == .today }
+    var showsPlanEditor: Bool { self == .planEditor }
+
+    func canSwitch(editorIsPresented: Bool) -> Bool {
+        !editorIsPresented
+    }
+
+    var accessibilityIdentifier: String {
+        self == .today ? "today.mode.command" : "today.mode.plan-editor"
+    }
+
+    var accessibilityLabel: String {
+        self == .today
+            ? "Show Today command view"
+            : "Show Plan Editor estimate controls"
+    }
+}
+
+private struct EstimateSurfaceModeControl: View {
+    @Binding var selection: EstimateSurfaceMode
+    let switchingIsDisabled: Bool
+
+    var body: some View {
+        HStack(spacing: 0) {
+            modeButton(.today, title: "TODAY")
+            modeButton(.planEditor, title: "PLAN EDITOR")
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Sumi.softPaper)
+        .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.estimate-surface-mode")
+    }
+
+    private func modeButton(_ mode: EstimateSurfaceMode, title: String) -> some View {
+        Button(title) { selection = mode }
+            .buttonStyle(SumiActionButtonStyle(
+                role: selection == mode ? .primary : .quiet,
+                size: .compact
+            ))
+            .disabled(switchingIsDisabled || selection == mode)
+            .accessibilityLabel(mode.accessibilityLabel)
+            .accessibilityValue(selection == mode ? "Selected" : "Not selected")
+            .accessibilityIdentifier(mode.accessibilityIdentifier)
+    }
+}
+
+struct DashboardEstimatePlanningItem: Identifiable, Equatable {
+    let entry: DailyPlanEntry
+    let taskTitle: String
+
+    var id: String { entry.reminderID }
+
+    func persist(
+        minutes: Int,
+        using mutation: (Int, DailyPlanEntry) -> Void
+    ) {
+        mutation(minutes, entry)
+    }
+}
+
+struct EstimateEditorPresentationState: Equatable {
+    private(set) var presentedTaskIDs: Set<String> = []
+
+    var hasPresentedEditor: Bool {
+        !presentedTaskIDs.isEmpty
+    }
+
+    mutating func setPresented(_ isPresented: Bool, taskID: String) {
+        if isPresented {
+            presentedTaskIDs.insert(taskID)
+        } else {
+            presentedTaskIDs.remove(taskID)
+        }
+    }
+
+    mutating func retain(taskIDs: Set<String>) {
+        presentedTaskIDs.formIntersection(taskIDs)
+    }
+}
+
+enum DashboardEstimatePlanningState {
+    static func items(
+        dailyPlan: [DailyPlanEntry],
+        snapshot: TodaySnapshot,
+        liveTaskTitles: [String: String] = [:]
+    ) -> [DashboardEstimatePlanningItem] {
+        let snapshotTitles = Dictionary(
+            snapshot.taskRows.map { ($0.taskID, $0.title) },
+            uniquingKeysWith: { current, _ in current }
+        )
+        let queuedTitles = Dictionary(
+            (snapshot.unplannedReminders ?? []).map { ($0.reminderID, $0.title) },
+            uniquingKeysWith: { current, _ in current }
+        )
+        return dailyPlan
+            .sorted { $0.rank < $1.rank }
+            .filter {
+                $0.isMainObjective || $0.estimateMinutes == nil || $0.estimateIsUncertain
+            }
+            .compactMap { entry in
+                guard let taskTitle = snapshotTitles[entry.reminderID]
+                    ?? liveTaskTitles[entry.reminderID]
+                    ?? queuedTitles[entry.reminderID]
+                else { return nil }
+                return DashboardEstimatePlanningItem(entry: entry, taskTitle: taskTitle)
+            }
+    }
+}
+
+private struct DashboardEstimatePlanningLedger: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var retainedTaskTitles: [String: String] = [:]
+    @State private var editorPresentationState = EstimateEditorPresentationState()
+    let snapshot: TodaySnapshot
+    let editorPresentationChanged: (Bool) -> Void
+
+    private var items: [DashboardEstimatePlanningItem] {
+        DashboardEstimatePlanningState.items(
+            dailyPlan: model.dailyPlan,
+            snapshot: snapshot,
+            liveTaskTitles: Dictionary(
+                model.reminderTasks.map { ($0.id, $0.title) },
+                uniquingKeysWith: { current, _ in current }
+            ).merging(retainedTaskTitles) { current, _ in current }
+        )
+    }
+
+    var body: some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("PLAN ESTIMATES")
+                            .font(Sumi.label(10))
+                            .sumiLabelTracking()
+                        Text("Adjust planned time without repeating task execution details.")
+                            .font(Sumi.body(12))
+                            .foregroundStyle(Sumi.muted)
+                    }
+                    Spacer()
+                    Text("\(items.count) PLANNED")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.muted)
+                }
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
+                .background(Sumi.mist)
+                .overlay(alignment: .bottom) { Rectangle().fill(Sumi.rule).frame(height: 1) }
+
+                ForEach(items) { item in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(item.taskTitle)
+                                .font(Sumi.body(14))
+                                .foregroundStyle(Sumi.ink)
+                                .lineLimit(2)
+                            Spacer()
+                            if item.entry.isMainObjective {
+                                Text("MAIN")
+                                    .font(Sumi.label(8))
+                                    .sumiLabelTracking()
+                                    .foregroundStyle(Sumi.paper)
+                                    .padding(.horizontal, 7)
+                                    .frame(height: 22)
+                                    .background(Sumi.seal)
+                            }
+                        }
+                        TimeBlockSelector(
+                            selectedMinutes: item.entry.estimateMinutes,
+                            isUnknown: item.entry.estimateIsUncertain,
+                            taskTitle: item.taskTitle,
+                            taskID: item.entry.reminderID,
+                            select: { minutes in
+                                item.persist(minutes: minutes) {
+                                    model.setEstimate($0, for: $1)
+                                }
+                            },
+                            selectUnknown: { model.setEstimateUnknown(for: item.entry) },
+                            presentationChanged: { isPresented in
+                                editorPresentationState.setPresented(
+                                    isPresented,
+                                    taskID: item.id
+                                )
+                                editorPresentationChanged(
+                                    editorPresentationState.hasPresentedEditor
+                                )
+                            }
+                        )
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Sumi.paleRule).frame(height: 1) }
+                }
+            }
+            .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("dashboard.plan-estimates")
+            .onAppear(perform: retainCurrentTaskTitles)
+            .onChange(of: snapshot) { _, _ in retainCurrentTaskTitles() }
+            .onChange(of: model.reminderTasks) { _, _ in retainCurrentTaskTitles() }
+            .onChange(of: Set(items.map(\.id))) { _, taskIDs in
+                editorPresentationState.retain(taskIDs: taskIDs)
+                editorPresentationChanged(editorPresentationState.hasPresentedEditor)
+            }
+            .onDisappear { editorPresentationChanged(false) }
+        }
+    }
+
+    private func retainCurrentTaskTitles() {
+        let current = Dictionary(
+            snapshot.taskRows.map { ($0.taskID, $0.title) }
+                + (snapshot.unplannedReminders ?? []).map { ($0.reminderID, $0.title) }
+                + model.reminderTasks.map { ($0.id, $0.title) },
+            uniquingKeysWith: { current, _ in current }
+        )
+        retainedTaskTitles.merge(current) { _, newest in newest }
+    }
+}
+
 private struct TodayCommandView: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var modalCoordinator: SumiModalCoordinator
@@ -118,6 +345,9 @@ private struct TodayCommandView: View {
     let createLocalTask: () -> Void
     @StateObject private var endWorkdayFlow = DashboardEndWorkdayFlow()
     @State private var draggedReminderListID: String?
+    @State private var estimateSurfaceMode = EstimateSurfaceMode.today
+    @State private var todayEstimateEditorIsPresented = false
+    @State private var planEditorIsPresented = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -2087,12 +2317,11 @@ private struct TimeBlockSelector: View {
     let taskID: String
     let select: (Int) -> Void
     let selectUnknown: () -> Void
+    var presentationChanged: (Bool) -> Void = { _ in }
 
     private let durations = [15, 30, 45, 60, 90]
     @State private var isChanging = false
-    @State private var isEnteringCustom = false
-    @State private var customMinutes = ""
-    @State private var customError: String?
+    @State private var customEditor = CustomEstimateEditorState()
 
     var body: some View {
         HStack(spacing: 7) {
@@ -2133,7 +2362,11 @@ private struct TimeBlockSelector: View {
                 .padding(.horizontal, 7)
                 .frame(height: 22)
                 .background(Sumi.seal)
-                .accessibilityLabel("Time estimate confirmed: \(durationLabel(selectedMinutes))")
+                    .accessibilityLabel(
+                        CustomEstimateEditorState.confirmationAccessibilityLabel(
+                            minutes: selectedMinutes
+                        )
+                    )
                 .transition(SumiMotion.transition(
                     reduceMotion: reduceMotion,
                     normal: .scale(scale: 0.9).combined(with: .opacity)
@@ -2200,9 +2433,7 @@ private struct TimeBlockSelector: View {
                     .accessibilityLabel("Set \(taskTitle) estimate to \(durationLabel(minutes))")
                 }
                 Button("CUSTOM") {
-                    customMinutes = selectedMinutes.map(String.init) ?? ""
-                    customError = nil
-                    isEnteringCustom = true
+                    customEditor.open(initialMinutes: selectedMinutes)
                 }
                 .buttonStyle(TimeSlotButtonStyle())
                 .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
@@ -2210,7 +2441,7 @@ private struct TimeBlockSelector: View {
                 Button("UNKNOWN") {
                     selectUnknown()
                     isChanging = false
-                    isEnteringCustom = false
+                    customEditor.cancel()
                 }
                 .buttonStyle(TimeSlotButtonStyle())
                 .accessibilityLabel("Set \(taskTitle) estimate to unknown and use a conservative \(PlanningCapacityState.unknownEstimatePlaceholderMinutes) minute placeholder")
@@ -2220,19 +2451,11 @@ private struct TimeBlockSelector: View {
         }
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: selectedMinutes)
         .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isChanging)
-        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: isEnteringCustom)
-    }
-
-    private func saveCustomEstimate() {
-        switch TaskEstimateInput.parse(customMinutes) {
-        case let .success(minutes):
-            select(minutes)
-            isChanging = false
-            isEnteringCustom = false
-            customError = nil
-        case let .failure(error):
-            customError = error.message
+        .animation(SumiMotion.animation(reduceMotion: reduceMotion, duration: 0.2), value: customEditor.isPresented)
+        .onChange(of: customEditor.isPresented) { _, isPresented in
+            presentationChanged(isPresented)
         }
+        .onDisappear { presentationChanged(false) }
     }
 
     private func durationLabel(_ minutes: Int) -> String {
