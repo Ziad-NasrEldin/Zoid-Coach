@@ -731,13 +731,8 @@ public final class TodayDashboardAgent: @unchecked Sendable {
               let minimumActualMinutes = eligibleActualMinutes.min(),
               let maximumActualMinutes = eligibleActualMinutes.max()
         else { return nil }
-        let policy = EstimateLearningPolicy()
-        let scaledMinutes = Double(max(1, currentEstimateMinutes)) * aggregate.proposal.appliedRatio
-        let roundedMinutes = Int((scaledMinutes / 5).rounded() * 5)
-        let recommendedMinutes = min(
-            max(roundedMinutes, policy.minimumRecommendedMinutes),
-            policy.maximumRecommendedMinutes
-        )
+        let recommendedMinutes = aggregate.proposal.recommendedEstimateMinutes
+        guard currentEstimateMinutes != recommendedMinutes else { return nil }
         return LearnedEstimateSuggestion(
             recommendedMinutes: recommendedMinutes,
             sampleCount: aggregate.proposal.sampleCount,
