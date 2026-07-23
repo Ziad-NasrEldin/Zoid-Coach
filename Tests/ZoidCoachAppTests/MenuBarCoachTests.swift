@@ -92,7 +92,7 @@ import ZoidCoachInfrastructure
     #expect(Set(state.availableTaskActions).count == state.availableTaskActions.count)
     #expect(state.availableTaskActions.map(\.accessibilityLabel) == [
         "Pause active task",
-        "Start a 15 minute break",
+        "Start a break lasting 15 minutes",
         "Complete active task",
         "Mark task as blocked",
         "Open Today",
