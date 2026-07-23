@@ -249,6 +249,105 @@ func todayQueueIncludesOverdueTodayAndUndatedButExcludesUnselectedFutureTasks() 
 }
 
 @Test
+func todayQueueUsesReminderListPolicyForPlannedAndUnplannedReminders() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-list-policy-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(
+            id: "included",
+            title: "Included due today",
+            dueDate: now,
+            priority: 1,
+            listID: "work",
+            listName: "Work",
+            sourceKind: .reminders
+        ),
+        ReminderSourceSnapshot(
+            id: "excluded",
+            title: "Excluded due today",
+            dueDate: now,
+            priority: 1,
+            listID: "personal",
+            listName: "Personal",
+            sourceKind: .reminders
+        ),
+        ReminderSourceSnapshot(
+            id: "undated-local",
+            title: "Local fallback",
+            dueDate: nil,
+            priority: 1,
+            listID: "zoid-local",
+            listName: "Zoid 666",
+            sourceKind: .local
+        )
+    ])
+    let policies = try PolicyStore(databaseURL: url)
+    let configuredPolicy = UserPolicy.defaults(timeZoneIdentifier: "UTC").replacingReminderListPolicy(
+        .init(
+            isConfigured: true,
+            decisions: [
+                ReminderListDecision(listID: "work", isIncluded: true),
+                ReminderListDecision(listID: "personal", isIncluded: false)
+            ]
+        )
+    )
+    _ = try policies.saveSystemMaintenancePolicy(configuredPolicy)
+    let plans = try AutonomousPlanStore(databaseURL: url)
+    try plans.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [
+                PlannedTask(taskID: "included", title: "Included due today", rank: 1, estimateMinutes: 30, reason: "Due", score: 1),
+                PlannedTask(taskID: "excluded", title: "Excluded due today", rank: 2, estimateMinutes: 20, reason: "Due", score: 1),
+                PlannedTask(taskID: "undated-local", title: "Local fallback", rank: 3, estimateMinutes: 20, reason: "Local", score: 1)
+            ],
+            mainObjectiveTaskID: "included",
+            plannedFocusMinutes: 70,
+            availableFocusMinutes: 90
+        ),
+        for: now
+    )
+
+    let snapshot = try TodayDashboardAgent(databaseURL: url).snapshot(now: now)
+    #expect(snapshot.taskRows.map(\.taskID).sorted() == ["included", "undated-local"])
+    #expect(snapshot.taskRows.contains(where: { $0.taskID == "excluded" }) == false)
+}
+
+@Test
+func todayQueueDeduplicatesDuplicatePlanIDsInTaskRows() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("zoid-666-dupe-plan-\(UUID().uuidString).sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let reminders = try ReminderSnapshotStore(databaseURL: url)
+    try reminders.replace([
+        ReminderSourceSnapshot(id: "dupe", title: "Duplicate reminder", dueDate: now, priority: 1),
+        ReminderSourceSnapshot(id: "single", title: "Single reminder", dueDate: now, priority: 1)
+    ])
+    let plan = try AutonomousPlanStore(databaseURL: url)
+    try plan.replaceDailyPlan(
+        DailyPlanProposal(
+            items: [
+                PlannedTask(taskID: "dupe", title: "Duplicate reminder", rank: 1, estimateMinutes: 30, reason: "Due", score: 100),
+                PlannedTask(taskID: "dupe", title: "Duplicate reminder", rank: 2, estimateMinutes: 30, reason: "Due", score: 99),
+                PlannedTask(taskID: "single", title: "Single reminder", rank: 3, estimateMinutes: 30, reason: "Due", score: 1),
+            ],
+            mainObjectiveTaskID: "dupe",
+            plannedFocusMinutes: 90,
+            availableFocusMinutes: 90
+        ),
+        for: now
+    )
+    let policy = UserPolicy.defaults(timeZoneIdentifier: "UTC")
+    _ = try PolicyStore(databaseURL: url).saveSystemMaintenancePolicy(policy)
+
+    let snapshot = try TodayDashboardAgent(databaseURL: url).snapshot(now: now)
+    #expect(snapshot.taskRows.filter { $0.taskID == "dupe" }.count == 1)
+}
+
+@Test
 func gamingRewardLedgerAppliesOnlyOncePerDayAndPolicy() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("zoid-coach-gaming-ledger-\(UUID().uuidString).sqlite")
     defer { try? FileManager.default.removeItem(at: url) }
