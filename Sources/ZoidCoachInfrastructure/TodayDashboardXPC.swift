@@ -183,6 +183,14 @@ private final class XPCDataReplyBox: @unchecked Sendable {
     }
 }
 
+private final class XPCDataReplyBox: @unchecked Sendable {
+    let reply: (Data?, String?) -> Void
+
+    init(_ reply: @escaping (Data?, String?) -> Void) {
+        self.reply = reply
+    }
+}
+
 public struct TodayDashboardXPCConfiguration: Equatable, Sendable {
     public let machServiceName: String
     public let allowedSigningIdentifiers: Set<String>
