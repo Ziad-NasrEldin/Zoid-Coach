@@ -762,6 +762,14 @@ struct TodayDashboardCommandOverview: View {
 
     private func sprintStartMenu(for row: TodayTaskRow) -> some View {
         Menu {
+            if let option = fullEstimateSprintOption(for: row) {
+                Button(option.menuTitle) {
+                    model.startSprint(taskID: row.taskID, durationMinutes: option.durationMinutes)
+                }
+                .accessibilityLabel(option.accessibilityLabel)
+                .accessibilityIdentifier("today.sprint.full-estimate.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
+                Divider()
+            }
             Button("10-minute recovery sprint") { model.applyTaskCommand(.startSprint10, taskID: row.taskID) }
             Button("20-minute work sprint") { model.applyTaskCommand(.startSprint20, taskID: row.taskID) }
             Button("25-minute focus sprint") { model.applyTaskCommand(.startSprint25, taskID: row.taskID) }
@@ -775,6 +783,16 @@ struct TodayDashboardCommandOverview: View {
         .disabled(model.isAnyTaskCommandPending)
         .accessibilityIdentifier("today.sprint.start.\(row.taskID)")
         .accessibilityHint("Choose a time boundary. The task will stay incomplete when the sprint ends.")
+    }
+
+    private func fullEstimateSprintOption(for row: TodayTaskRow) -> FullEstimateSprintOption? {
+        guard let entry = planEntry(for: row) else {
+            return FullEstimateSprintOption(estimateMinutes: row.estimateMinutes, isUncertain: false)
+        }
+        return FullEstimateSprintOption(
+            estimateMinutes: entry.estimateMinutes,
+            isUncertain: entry.estimateIsUncertain
+        )
     }
 }
 
