@@ -479,6 +479,35 @@ public final class TaskExecutionStore: @unchecked Sendable {
         return (reason, pausedAt, resumedAt)
     }
 
+    private func recordPause(taskID: String, reason: TaskPauseReason, at date: Date) throws {
+        try closeOpenPause(taskID: taskID, at: date)
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "INSERT INTO task_pause_events(task_id, reason, paused_at, resumed_at) VALUES (?, ?, ?, NULL);", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        bind(reason.rawValue, statement, 2)
+        bind(formatter.string(from: date), statement, 3)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
+    }
+
+    private func closeOpenPause(taskID: String, at date: Date) throws {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "UPDATE task_pause_events SET resumed_at = ? WHERE task_id = ? AND resumed_at IS NULL;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.write }
+        defer { sqlite3_finalize(statement) }
+        bind(formatter.string(from: date), statement, 1)
+        bind(taskID, statement, 2)
+        guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
+    }
+
+    private func latestPauseReason(taskID: String) throws -> TaskPauseReason? {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "SELECT reason FROM task_pause_events WHERE task_id = ? ORDER BY paused_at DESC, id DESC LIMIT 1;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.read }
+        defer { sqlite3_finalize(statement) }
+        bind(taskID, statement, 1)
+        guard sqlite3_step(statement) == SQLITE_ROW, let value = sqlite3_column_text(statement, 0) else { return nil }
+        return TaskPauseReason(rawValue: String(cString: value))
+    }
+
     private func openInterval() throws -> (taskID: String, startedAt: Date)? {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, "SELECT task_id, started_at FROM task_activity_intervals WHERE ended_at IS NULL LIMIT 1;", -1, &statement, nil) == SQLITE_OK, let statement else { throw TaskExecutionStoreError.read }
