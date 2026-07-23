@@ -14,6 +14,7 @@ struct CalendarPlanApprovalStateTests {
                 DailyPlanEntry(reminderID: "a", rank: 1, isMainObjective: true, estimateMinutes: 60)
             ],
             titlesByReminderID: ["a": "Write proposal", "b": "Review budget"],
+            executionStatesByReminderID: ["a": .ready, "b": .ready],
             availableMinutes: 180,
             fixedCommitmentMinutes: 45,
             usesCalendarAvailability: true,
@@ -22,6 +23,9 @@ struct CalendarPlanApprovalStateTests {
 
         #expect(state.writeState == .reviewing)
         #expect(state.items.map(\.title) == ["Write proposal", "Review budget"])
+        #expect(state.items.map(\.isIncompletePriorityTask) == [true, false])
+        #expect(state.items.map(\.priorityStateLabel) == ["PRIORITY · INCOMPLETE", nil])
+        #expect(state.items.map(\.priorityStateAccessibilityValue) == ["Incomplete", nil])
         #expect(state.plannedMinutes == 90)
         #expect(state.remainingMinutes == 90)
         #expect(state.fixedCommitmentMinutes == 45)
@@ -101,6 +105,7 @@ struct CalendarPlanApprovalStateTests {
         state.begin(
             entries: [DailyPlanEntry(reminderID: "main", rank: 1, isMainObjective: true, estimateMinutes: 60)],
             titlesByReminderID: ["main": "Write proposal"],
+            executionStatesByReminderID: ["main": .ready],
             availableMinutes: 240,
             fixedCommitmentMinutes: 0,
             usesCalendarAvailability: false
@@ -111,6 +116,8 @@ struct CalendarPlanApprovalStateTests {
         #expect(state.writeState == .applied(commandCount: 0))
         let receipt = try #require(state.receipt)
         #expect(receipt.items.map(\.title) == ["Write proposal"])
+        #expect(receipt.items.map(\.isIncompletePriorityTask) == [true])
+        #expect(receipt.items.map(\.priorityStateLabel) == ["PRIORITY · INCOMPLETE"])
         #expect(receipt.commandIDs.isEmpty)
         #expect(receipt.commandCount == 0)
         #expect(!receipt.usesCalendarAvailability)
@@ -121,7 +128,70 @@ struct CalendarPlanApprovalStateTests {
         restored.restore(receipt)
         #expect(restored.writeState == .applied(commandCount: 0))
         #expect(restored.items.map(\.title) == ["Write proposal"])
+        #expect(restored.items.map(\.isIncompletePriorityTask) == [true])
+        #expect(restored.items.map(\.priorityStateAccessibilityValue) == ["Incomplete"])
         #expect(!restored.isPresented)
+    }
+
+    @Test("legacy receipts decode without inventing task completion state")
+    func legacyReceiptDecoding() throws {
+        let data = try #require(
+            """
+            {
+              "items": [{
+                "reminderID": "main",
+                "title": "Write proposal",
+                "rank": 1,
+                "estimateMinutes": 60,
+                "isMainObjective": true
+              }],
+              "availableMinutes": 240,
+              "fixedCommitmentMinutes": 0,
+              "usesCalendarAvailability": false,
+              "commandIDs": [],
+              "outcome": "applied",
+              "commandCount": 0,
+              "approvedAt": 0
+            }
+            """.data(using: .utf8)
+        )
+
+        let receipt = try JSONDecoder().decode(CalendarPlanApprovalReceipt.self, from: data)
+        #expect(receipt.items[0].executionState == nil)
+        #expect(!receipt.items[0].isIncompletePriorityTask)
+        #expect(receipt.items[0].priorityStateLabel == "PRIORITY · STATUS UNKNOWN")
+    }
+
+    @Test("only an explicitly incomplete priority task is identified")
+    func incompletePriorityBoundary() {
+        var state = CalendarPlanApprovalState()
+        state.begin(
+            entries: [
+                DailyPlanEntry(reminderID: "ready-main", rank: 1, isMainObjective: true, estimateMinutes: 60),
+                DailyPlanEntry(reminderID: "done-main", rank: 2, isMainObjective: true, estimateMinutes: 30),
+                DailyPlanEntry(reminderID: "ready-support", rank: 3, isMainObjective: false, estimateMinutes: 15)
+            ],
+            titlesByReminderID: [
+                "ready-main": "Write proposal",
+                "done-main": "Send proposal",
+                "ready-support": "Review notes"
+            ],
+            executionStatesByReminderID: [
+                "ready-main": .ready,
+                "done-main": .completed,
+                "ready-support": .ready
+            ],
+            availableMinutes: 240,
+            fixedCommitmentMinutes: 0,
+            usesCalendarAvailability: false
+        )
+
+        #expect(state.items.map(\.isIncompletePriorityTask) == [true, false, false])
+        #expect(state.items.map(\.priorityStateLabel) == [
+            "PRIORITY · INCOMPLETE",
+            "PRIORITY · COMPLETE",
+            nil
+        ])
     }
 
     @Test("local approval is refused when Calendar-backed write review is available")

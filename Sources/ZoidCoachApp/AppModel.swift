@@ -1347,9 +1347,18 @@ final class AppModel: ObservableObject {
         for row in todaySnapshot?.taskRows ?? [] {
             titlesByReminderID[row.taskID] = row.title
         }
+        var executionStatesByReminderID = (todaySnapshot?.taskRows ?? []).reduce(
+            into: [String: TaskExecutionState]()
+        ) { states, row in
+            states[row.taskID] = row.state
+        }
+        for reminder in reminderTasks where executionStatesByReminderID[reminder.id] == nil {
+            executionStatesByReminderID[reminder.id] = .ready
+        }
         calendarPlanApproval.begin(
             entries: dailyPlan,
             titlesByReminderID: titlesByReminderID,
+            executionStatesByReminderID: executionStatesByReminderID,
             availableMinutes: planningCapacityState.availableMinutes,
             fixedCommitmentMinutes: planningFixedCommitmentMinutes,
             usesCalendarAvailability: planningCapacityUsesCalendar,
