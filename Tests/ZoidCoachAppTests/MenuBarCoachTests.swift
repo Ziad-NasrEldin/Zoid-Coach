@@ -611,6 +611,27 @@ import ZoidCoachInfrastructure
 }
 
 @MainActor
+@Test func compactMenuPreservesTodayTaskWhenItsOwnHelperRefreshFails() async {
+    let active = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Task", state: .active, elapsedMinutes: 9)],
+        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 9)
+    )
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .failure(MenuBarClientError.failed),
+        applyResults: []
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    controller.adoptLastKnownSnapshot(active)
+    await controller.refresh()
+
+    #expect(controller.state.activeTask?.taskID == "task")
+    #expect(controller.state.taskStatus == "Active · Open-ended · 9 min tracked")
+    #expect(controller.syncPresentation == .stale)
+    #expect(controller.errorMessage == "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh.")
+}
+
+@MainActor
 @Test func activeTaskCanBeMarkedBlockedWithARequiredReasonAndConfirmedSnapshot() async {
     let activeRow = menuTask(id: "task", title: "Write proposal", state: .active)
     let active = menuSnapshot(
