@@ -20,7 +20,15 @@ struct TodayDashboardCommandOverview: View {
     @State private var blockReasonTask: TodayTaskRow?
     @State private var blockReason = ""
     @State private var gamingAdjustmentPresentation: GamingManualAdjustmentPresentation?
+    @State private var snapshotConfirmedAt: Date
+    private let now: () -> Date
     @FocusState private var isUsageFocused: Bool
+
+    init(snapshot: TodaySnapshot, now: @escaping () -> Date = Date.init) {
+        self.snapshot = snapshot
+        self.now = now
+        _snapshotConfirmedAt = State(initialValue: now())
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -67,6 +75,9 @@ struct TodayDashboardCommandOverview: View {
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 20)
+        .onChange(of: snapshot) { _, _ in
+            snapshotConfirmedAt = now()
+        }
         .alert("Switch active task?", isPresented: Binding(
             get: { pendingSwitchTask != nil },
             set: { if !$0 { pendingSwitchTask = nil } }
@@ -123,10 +134,12 @@ struct TodayDashboardCommandOverview: View {
 
     private var focusCommitment: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(primaryFocusHeading)
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
+            TimelineView(.periodic(from: snapshotConfirmedAt, by: 60)) { context in
+                Text(primaryFocusHeading(at: context.date))
+                    .font(Sumi.label(9))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+            }
             Text(primaryFocusRow?.title ?? snapshot.mainObjective ?? snapshot.recommendation.sentence)
                 .font(Sumi.display(28))
                 .tracking(-0.7)
@@ -147,8 +160,28 @@ struct TodayDashboardCommandOverview: View {
                     }
                     .padding(.top, 10)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel(activeCommitment.accessibilitySummary)
+                    .accessibilityLabel(
+                        "\(activeCommitment.taskTitle). \(activeCommitment.modeLabel). \(activeCommitment.detail)"
+                    )
                     .accessibilityIdentifier("today.active-commitment.timing-mode")
+                }
+                if OpenEndedElapsedTimePresentation.isApplicable(to: row) {
+                    TimelineView(.periodic(from: snapshotConfirmedAt, by: 60)) { context in
+                        if let elapsed = OpenEndedElapsedTimePresentation(
+                            task: row,
+                            activeTask: snapshot.activeTask,
+                            snapshotConfirmedAt: snapshotConfirmedAt,
+                            currentDate: context.date
+                        ) {
+                            Text(elapsed.displayText)
+                                .font(Sumi.label(9))
+                                .sumiLabelTracking()
+                                .foregroundStyle(Sumi.ink)
+                                .accessibilityLabel(elapsed.accessibilityLabel)
+                                .accessibilityIdentifier("today.focus.open-ended-elapsed")
+                        }
+                    }
+                    .padding(.top, 10)
                 }
                 HStack(spacing: 14) {
                     detail("Estimate", planEntry(for: row)?.estimateMinutes.map { "\($0)m" } ?? "Choose")
@@ -166,14 +199,22 @@ struct TodayDashboardCommandOverview: View {
                 }
                 .padding(.top, 12)
                 if row.state == .active || row.state == .paused {
-                    TaskEstimateProgressView(
-                        progress: TaskEstimateProgress(
-                            elapsedMinutes: row.elapsedMinutes,
-                            estimateMinutes: row.estimateMinutes
-                        ),
-                        isRunning: row.state == .active,
-                        identifier: "today.focus.estimate-progress"
-                    )
+                    TimelineView(.periodic(from: snapshotConfirmedAt, by: 60)) { context in
+                        let openEndedElapsed = OpenEndedElapsedTimePresentation(
+                            task: row,
+                            activeTask: snapshot.activeTask,
+                            snapshotConfirmedAt: snapshotConfirmedAt,
+                            currentDate: context.date
+                        )
+                        TaskEstimateProgressView(
+                            progress: TaskEstimateProgress(
+                                elapsedMinutes: openEndedElapsed?.elapsedMinutes ?? row.elapsedMinutes,
+                                estimateMinutes: row.estimateMinutes
+                            ),
+                            isRunning: row.state == .active && openEndedElapsed == nil,
+                            identifier: "today.focus.estimate-progress"
+                        )
+                    }
                     .padding(.top, 14)
                 }
                 if let comparison = row.activeTimeComparison {
@@ -684,12 +725,25 @@ struct TodayDashboardCommandOverview: View {
             ?? recommendedRow
     }
 
-    private var primaryFocusHeading: String {
+    private func primaryFocusHeading(at date: Date) -> String {
         guard let row = primaryFocusRow else { return "MAIN OBJECTIVE" }
         if let reason = row.completionReason {
             return reason.userFacingLabel.uppercased()
         }
-        if let activeCommitment = ActiveCommitmentPresentation(task: row) {
+        if let activeCommitment = ActiveCommitmentPresentation(task: row, at: date) {
+            if let elapsed = OpenEndedElapsedTimePresentation(
+                task: row,
+                activeTask: snapshot.activeTask,
+                snapshotConfirmedAt: snapshotConfirmedAt,
+                currentDate: date
+            ) {
+                switch activeCommitment.timingMode {
+                case .openEnded, .continuedOpenEnded:
+                    return "ACTIVE COMMITMENT · OPEN-ENDED · \(elapsed.elapsedMinutes) MIN TRACKED"
+                case .bounded, .sprintComplete:
+                    break
+                }
+            }
             return activeCommitment.dashboardHeading
         }
         if row.state == .paused, let reason = row.latestPauseReason {
@@ -866,6 +920,69 @@ struct TodayDashboardCommandOverview: View {
             estimateMinutes: entry.estimateMinutes,
             isUncertain: entry.estimateIsUncertain
         )
+    }
+}
+
+struct OpenEndedElapsedTimePresentation: Equatable {
+    let elapsedMinutes: Int
+    let isLive: Bool
+
+    init?(
+        task: TodayTaskRow,
+        activeTask: ActiveTaskSnapshot?,
+        snapshotConfirmedAt: Date,
+        currentDate: Date
+    ) {
+        guard Self.isApplicable(to: task) else { return nil }
+
+        guard let activeTask,
+              activeTask.taskID == task.taskID,
+              let startedAt = activeTask.startedAt
+        else {
+            elapsedMinutes = task.elapsedMinutes
+            isLive = false
+            return
+        }
+
+        let confirmedOpenIntervalMinutes = max(
+            0,
+            Int(snapshotConfirmedAt.timeIntervalSince(startedAt) / 60)
+        )
+        let elapsedBeforeOpenInterval = max(
+            0,
+            task.elapsedMinutes - confirmedOpenIntervalMinutes
+        )
+        let currentOpenIntervalMinutes = max(
+            0,
+            Int(currentDate.timeIntervalSince(startedAt) / 60)
+        )
+        elapsedMinutes = max(
+            task.elapsedMinutes,
+            elapsedBeforeOpenInterval + currentOpenIntervalMinutes
+        )
+        isLive = true
+    }
+
+    static func isApplicable(to task: TodayTaskRow) -> Bool {
+        guard task.state == .active else { return false }
+        switch task.sprint?.state {
+        case .active, .paused, .expired, .finished:
+            return false
+        case .continuedOpenEnded, .none:
+            return true
+        }
+    }
+
+    var displayText: String {
+        "\(elapsedMinutes) MIN ELAPSED · \(isLive ? "LIVE" : "LAST REFRESH")"
+    }
+
+    var accessibilityLabel: String {
+        let unit = elapsedMinutes == 1 ? "minute" : "minutes"
+        if isLive {
+            return "Open-ended session, \(elapsedMinutes) \(unit) elapsed, updating while active."
+        }
+        return "Open-ended session, \(elapsedMinutes) \(unit) elapsed at the last refresh."
     }
 }
 
