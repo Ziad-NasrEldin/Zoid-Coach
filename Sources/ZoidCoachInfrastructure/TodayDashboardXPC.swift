@@ -134,6 +134,45 @@ private final class XPCDataReplyBox: @unchecked Sendable {
     init(_ reply: @escaping (Data?, String?) -> Void) {
         self.reply = reply
     }
+
+    public func calendarPlanRequest(day: Date) -> CalendarPlanMutationRequest {
+        Self.sharedLock.withLock {
+            let key = calendarPlanStorageKey
+            if let data = defaults.data(forKey: key),
+               let request = try? decoder.decode(CalendarPlanMutationRequest.self, from: data) {
+                return request
+            }
+            let request = CalendarPlanMutationRequest(operationID: UUID(), day: day)
+            if let data = try? encoder.encode(request) { defaults.set(data, forKey: key) }
+            return request
+        }
+    }
+
+    public func pendingCalendarPlanRequests() -> [CalendarPlanMutationRequest] {
+        Self.sharedLock.withLock {
+            guard let data = defaults.data(forKey: calendarPlanStorageKey),
+                  let request = try? decoder.decode(CalendarPlanMutationRequest.self, from: data) else {
+                return []
+            }
+            return [request]
+        }
+    }
+
+    public func completeCalendarPlan(_ request: CalendarPlanMutationRequest) {
+        Self.sharedLock.withLock {
+            guard let data = defaults.data(forKey: calendarPlanStorageKey),
+                  let stored = try? decoder.decode(CalendarPlanMutationRequest.self, from: data),
+                  stored.operationID == request.operationID else { return }
+            defaults.removeObject(forKey: calendarPlanStorageKey)
+        }
+    }
+
+    private func storageKey(command: TaskActivityCommand, taskID: String) -> String {
+        "\(taskStoragePrefix)\(command.rawValue).\(taskID)"
+    }
+
+    private var taskStoragePrefix: String { "zoid666.pending-task-mutation.\(namespace)." }
+    private var calendarPlanStorageKey: String { "zoid666.pending-calendar-plan.\(namespace)" }
 }
 
 private final class XPCDataReplyBox: @unchecked Sendable {
