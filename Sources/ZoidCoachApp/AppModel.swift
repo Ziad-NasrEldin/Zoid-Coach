@@ -652,6 +652,43 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func recordRecommendationFeedback(
+        _ kind: RecommendationFeedbackKind,
+        taskID: String,
+        recommendationSentence: String
+    ) {
+        guard pendingRecommendationFeedbackTaskID == nil else { return }
+        pendingRecommendationFeedbackTaskID = taskID
+        recommendationFeedbackMessage = nil
+        recommendationFeedbackError = nil
+        let request = RecommendationFeedbackRequest(
+            requestID: "recommendation-feedback-v1:\(UUID().uuidString.lowercased())",
+            taskID: taskID,
+            recommendationSentence: recommendationSentence,
+            kind: kind
+        )
+        Task {
+            defer { pendingRecommendationFeedbackTaskID = nil }
+            do {
+                let receipt = try await todayDashboardXPCClient.apply(
+                    .recordRecommendationFeedback(request)
+                )
+                guard receipt.accepted else {
+                    recommendationFeedbackError = receipt.message
+                    return
+                }
+                recommendationFeedbackMessage = receipt.message
+                do {
+                    todaySnapshot = try await todayDashboardXPCClient.fetchTodaySnapshot()
+                } catch {
+                    recommendationFeedbackError = "Feedback was saved, but the next recommendation could not be refreshed. Refresh Today to see the current choice."
+                }
+            } catch {
+                recommendationFeedbackError = "Feedback was not saved. The current recommendation is still active. Check Agent source health and try again."
+            }
+        }
+    }
+
     func reconcileAcceptedBreakReminder(taskID: String) async {
         guard let row = todaySnapshot?.taskRows.first(where: { $0.taskID == taskID }),
               let acceptedBreak = row.acceptedBreak
