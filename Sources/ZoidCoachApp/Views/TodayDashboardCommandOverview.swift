@@ -2388,6 +2388,9 @@ private struct TodayEstimateStrip: View {
     let setEstimate: (Int) -> Void
     let setUnknown: () -> Void
     private let options = [15, 30, 45, 60, 90]
+    @State private var isEnteringCustom = false
+    @State private var customMinutes = ""
+    @State private var customError: String?
 
     var body: some View {
         HStack(spacing: 6) {
