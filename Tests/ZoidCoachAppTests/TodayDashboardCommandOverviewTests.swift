@@ -5,6 +5,24 @@ import ZoidCoachCore
 
 @Suite("Today open-ended elapsed time")
 struct TodayDashboardCommandOverviewTests {
+    @Test("main objective status is explicit for every task state")
+    func mainObjectiveStatusIsExplicitForEveryTaskState() {
+        let expected: [TaskExecutionState: String] = [
+            .ready: "Ready",
+            .active: "Active",
+            .paused: "Paused",
+            .blocked: "Blocked",
+            .completed: "Completed",
+            .rescheduled: "Rescheduled",
+        ]
+
+        for state in TaskExecutionState.allCases {
+            let presentation = MainObjectiveStatusPresentation(task: taskRow(state: state, elapsedMinutes: 0))
+            #expect(presentation.label == expected[state])
+            #expect(presentation.accessibilityLabel == "Main objective status: \(expected[state] ?? "")")
+        }
+    }
+
     @Test("active open-ended time advances from the canonical open interval")
     func activeOpenEndedTimeAdvancesFromCurrentDate() throws {
         let confirmedAt = Date(timeIntervalSince1970: 1_800_000_000)

@@ -173,6 +173,9 @@ struct TodayDashboardCommandOverview: View {
                     detail("Estimate", planEntry(for: row)?.estimateMinutes.map { "\($0)m" } ?? "Choose")
                     detail("Deadline", deadlineLabel(row.dueDate))
                     detail("Urgency", "\(row.urgency.rawValue.capitalized)")
+                    detail("Status", MainObjectiveStatusPresentation(task: row).label)
+                        .accessibilityLabel(MainObjectiveStatusPresentation(task: row).accessibilityLabel)
+                        .accessibilityIdentifier("today.focus.status")
                     if let reason = row.completionReason {
                         detail("Completion", reason.userFacingLabel)
                     }
@@ -846,6 +849,16 @@ struct TodayDashboardCommandOverview: View {
         .disabled(model.isAnyTaskCommandPending)
         .accessibilityIdentifier("today.sprint.start.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
         .accessibilityHint("Choose a time boundary. The task will stay incomplete when the sprint ends.")
+    }
+}
+
+struct MainObjectiveStatusPresentation: Equatable {
+    let label: String
+    let accessibilityLabel: String
+
+    init(task: TodayTaskRow) {
+        label = task.userFacingStateLabel(defaultLabel: task.state.rawValue.capitalized)
+        accessibilityLabel = "Main objective status: \(label)"
     }
 }
 
