@@ -1,4 +1,7 @@
+import AppKit
+import ApplicationServices
 import Foundation
+import SwiftUI
 import Testing
 @testable import ZoidCoachApp
 @testable import ZoidCoachCore
@@ -280,4 +283,129 @@ private func promptEpisode(
         payload: payload,
         createdAt: Date()
     )
+}
+
+private struct DelayedPromptTodayFixture: View {
+    @State private var timeline = PromptInboxTimeline.empty
+    let loadedTimeline: PromptInboxTimeline
+
+    var body: some View {
+        ScrollView {
+            TodayPromptInboxLedger(
+                timeline: timeline,
+                refreshInbox: { timeline = loadedTimeline }
+            )
+        }
+    }
+}
+
+@MainActor
+private final class PromptPlacementFixtureState: ObservableObject {
+    @Published var timeline = PromptInboxTimeline.empty
+    private(set) var refreshCount = 0
+    private let waitingEpisode: PromptEpisode
+
+    init(waitingEpisode: PromptEpisode) {
+        self.waitingEpisode = waitingEpisode
+    }
+
+    func refresh() async {
+        refreshCount += 1
+        guard refreshCount == 1 else { return }
+        timeline = PromptInboxTimeline(
+            awaitingResponse: [.init(episode: waitingEpisode)]
+        )
+    }
+
+    func resolveAsBlocked() {
+        let respondedAt = Date()
+        let resolvedEpisode = PromptEpisode(
+            id: waitingEpisode.id,
+            decisionKey: waitingEpisode.decisionKey,
+            type: waitingEpisode.type,
+            state: .responded,
+            title: waitingEpisode.title,
+            summary: waitingEpisode.summary,
+            actions: waitingEpisode.actions,
+            payload: waitingEpisode.payload,
+            createdAt: waitingEpisode.createdAt,
+            presentedAt: waitingEpisode.presentedAt,
+            resolvedAt: respondedAt
+        )
+        timeline = PromptInboxTimeline(
+            recent: [
+                .init(
+                    episode: resolvedEpisode,
+                    response: PromptResponse(
+                        id: "response-qa-placement-1",
+                        promptID: waitingEpisode.id,
+                        action: .markBlocked,
+                        actionToken: PromptResponseToken.make(
+                            promptID: waitingEpisode.id,
+                            action: .markBlocked
+                        ),
+                        surface: .dashboard,
+                        respondedAt: respondedAt
+                    )
+                )
+            ]
+        )
+    }
+}
+
+private struct PromptConditionalPlacementFixture: View {
+    @ObservedObject var state: PromptPlacementFixtureState
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if !state.timeline.awaitingResponse.isEmpty {
+                    ledger
+                }
+                Text("TODAY DETAIL")
+                if state.timeline.awaitingResponse.isEmpty {
+                    ledger
+                }
+            }
+        }
+    }
+
+    private var ledger: some View {
+        TodayPromptInboxLedger(
+            timeline: state.timeline,
+            refreshInbox: state.refresh
+        )
+    }
+}
+
+@MainActor
+private final class PromptRenderNoopAgentRegistration: AgentServiceRegistration {
+    var status: AgentRegistrationStatus = .notRegistered
+    func register() { status = .enabled }
+    func unregister() { status = .notRegistered }
+}
+
+private func promptRenderAXAttribute(_ element: AXUIElement, _ name: CFString) -> AnyObject? {
+    var result: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, name, &result) == .success else { return nil }
+    return result
+}
+
+private func promptRenderAXString(_ element: AXUIElement, _ name: CFString) -> String {
+    promptRenderAXAttribute(element, name) as? String ?? ""
+}
+
+private func promptRenderAXDescendants() -> [AXUIElement] {
+    var result: [AXUIElement] = []
+    var queue = [AXUIElementCreateApplication(getpid())]
+    var seen = Set<CFHashCode>()
+    while !queue.isEmpty, result.count < 4_000 {
+        let element = queue.removeFirst()
+        guard seen.insert(CFHash(element)).inserted else { continue }
+        result.append(element)
+        for attribute in [kAXChildrenAttribute as CFString, kAXWindowsAttribute as CFString] {
+            queue.append(contentsOf: promptRenderAXAttribute(element, attribute) as? [AXUIElement] ?? [])
+        }
+    }
+    return result
 }
