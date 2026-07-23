@@ -610,6 +610,29 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         )
     }
 
+    private func externallyCompletedReminderRow(
+        from previous: TodayTaskRow,
+        execution current: TaskExecutionSnapshot
+    ) -> TodayTaskRow {
+        TodayTaskRow(
+            taskID: previous.taskID,
+            title: previous.title,
+            estimateMinutes: previous.estimateMinutes,
+            dueDate: previous.dueDate,
+            urgency: previous.urgency,
+            state: .completed,
+            elapsedMinutes: current.elapsedMinutes,
+            completionReason: .appleReminderCompleted,
+            sprint: current.sprint,
+            isMainObjective: previous.isMainObjective,
+            isLocked: previous.isLocked,
+            isOptional: previous.isOptional ?? false,
+            blockedReason: previous.blockedReason,
+            deferredUntil: previous.deferredUntil,
+            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
+        )
+    }
+
     @discardableResult
     public func apply(
         _ command: TaskActivityCommand,
