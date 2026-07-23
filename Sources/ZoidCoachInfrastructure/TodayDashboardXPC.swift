@@ -820,6 +820,10 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         }
     }
 
+    public func blockTask(taskID: String, reason: String) async throws -> TodaySnapshot {
+        try await call { proxy, reply in proxy.blockTask(taskID, reason: reason, withReply: reply) }
+    }
+
     public func fetchReminderCompletionSync(taskID: String) async throws -> ReminderCompletionSyncState {
         try await callData { proxy, reply in
             proxy.fetchReminderCompletionSync(taskID, withReply: reply)
