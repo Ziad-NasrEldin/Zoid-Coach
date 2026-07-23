@@ -973,6 +973,36 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func startUnplannedTask(_ task: ReminderTask) {
+        guard pendingTaskCommandIDs.isEmpty else { return }
+        pendingTaskCommandIDs.insert(task.id)
+        taskCommandError = nil
+        Task {
+            defer { pendingTaskCommandIDs.remove(task.id) }
+            do {
+                todaySnapshot = try await todayDashboardXPCClient.startUnplannedTask(task.id)
+                lastActionMessage = "Unplanned work started. Zoid 666 will track this task without claiming that it violates a plan."
+                await refreshPromptInbox()
+            } catch {
+                taskCommandError = error.localizedDescription
+                todaySnapshot = try? todaySnapshotStore?.load()
+            }
+        }
+    }
+
+    func skipPlanning() {
+        guard pendingTaskCommandIDs.isEmpty else { return }
+        Task {
+            do {
+                todaySnapshot = try await todayDashboardXPCClient.skipPlanning()
+                lastActionMessage = "Planning is skipped for now. You can still start any available task or return to planning later."
+                await refreshPromptInbox()
+            } catch {
+                taskCommandError = "Unplanned mode could not be saved. The previous day state is still shown."
+            }
+        }
+    }
+
     func addToDailyPlan(_ task: ReminderTask) {
         guard !isLoadingDailyPlan,
               dailyPlan.count < 5,

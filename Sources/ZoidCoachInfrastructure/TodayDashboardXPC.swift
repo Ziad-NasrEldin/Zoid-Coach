@@ -856,6 +856,14 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         try await call { proxy, reply in proxy.skipPlanning(withReply: reply) }
     }
 
+    public func startUnplannedTask(_ taskID: String) async throws -> TodaySnapshot {
+        try await call { proxy, reply in proxy.startUnplannedTask(taskID, withReply: reply) }
+    }
+
+    public func skipPlanning() async throws -> TodaySnapshot {
+        try await call { proxy, reply in proxy.skipPlanning(withReply: reply) }
+    }
+
     public func fetchPromptInbox() async throws -> [PromptEpisode] {
         try await callData { proxy, reply in proxy.fetchPromptInbox(withReply: reply) }
     }

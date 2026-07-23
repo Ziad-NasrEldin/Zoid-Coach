@@ -1101,4 +1101,30 @@ public enum TodayDashboardAgentError: LocalizedError, Equatable {
             message
         }
     }
+
+    private static func localDayKey(_ date: Date, timeZoneIdentifier: String) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    private static func endOfDay(_ date: Date, timeZoneIdentifier: String) -> Date? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
+        return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))
+    }
+}
+
+public enum TodayDashboardAgentError: LocalizedError, Equatable {
+    case unavailableTask
+
+    public var errorDescription: String? {
+        switch self {
+        case .unavailableTask:
+            "That Reminder is no longer available. Refresh tasks and choose another one."
+        }
+    }
 }
