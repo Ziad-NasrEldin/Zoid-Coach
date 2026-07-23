@@ -37,6 +37,7 @@ enum MenuBarTaskAction: String, Hashable, Identifiable {
     case startBreak
     case complete
     case markBlocked
+    case switchTask
     case openToday
     case endWorkday
 
@@ -51,6 +52,7 @@ enum MenuBarTaskAction: String, Hashable, Identifiable {
         case .startBreak: "Start a 15 minute break"
         case .complete: "Complete active task"
         case .markBlocked: "Mark task as blocked"
+        case .switchTask: "Switch to another task"
         case .openToday: "Open Today"
         case .endWorkday: "End the workday"
         }
@@ -135,9 +137,21 @@ struct MenuBarCoachState: Equatable {
 
     var canEndWorkday: Bool { activeTask != nil }
 
+    var switchCandidates: [TodayTaskRow] {
+        guard activeTask != nil else { return [] }
+        return (snapshot?.taskRows ?? []).filter { row in
+            row.state == .ready && row.isOptional != true
+        }
+    }
+
     var availableTaskActions: [MenuBarTaskAction] {
         if activeTask != nil {
-            return [.pause, .startBreak, .complete, .markBlocked, .openToday, .endWorkday]
+            var actions: [MenuBarTaskAction] = [.pause, .startBreak, .complete, .markBlocked]
+            if !switchCandidates.isEmpty {
+                actions.append(.switchTask)
+            }
+            actions.append(contentsOf: [.openToday, .endWorkday])
+            return actions
         }
         if let pausedTask {
             return [pausedTask.acceptedBreak == nil ? .resume : .endBreak, .markBlocked, .openToday]

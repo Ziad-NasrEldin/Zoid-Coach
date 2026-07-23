@@ -115,6 +115,43 @@ final class MenuBarCoachController: ObservableObject {
         }
     }
 
+    func switchTask(from activeTaskID: String, to targetTaskID: String) async {
+        guard !isApplying else { return }
+        isApplying = true
+        defer { isApplying = false }
+        do {
+            let latest = try await client.fetchTodaySnapshot()
+            snapshot = latest
+            syncPresentation = .confirmed
+            lastConfirmedAt = Date()
+            let latestState = MenuBarCoachState(snapshot: latest)
+            guard latestState.activeTask?.taskID == activeTaskID,
+                  latestState.switchCandidates.contains(where: { $0.taskID == targetTaskID })
+            else {
+                errorMessage = "The active task or switch target changed before confirmation. Nothing was switched. Review the current menu state and try again."
+                return
+            }
+
+            let updated = try await client.apply(.start, taskID: targetTaskID)
+            let updatedState = MenuBarCoachState(snapshot: updated)
+            guard updatedState.activeTask?.taskID == targetTaskID,
+                  updated.taskRows.first(where: { $0.taskID == activeTaskID })?.state == .paused
+            else {
+                errorMessage = "The background agent did not confirm the complete task switch. Refresh before trying again."
+                syncPresentation = .stale
+                return
+            }
+
+            snapshot = updated
+            errorMessage = nil
+            syncPresentation = .confirmed
+            lastConfirmedAt = Date()
+        } catch {
+            errorMessage = "The task switch was not saved. The last confirmed state is still shown."
+            syncPresentation = snapshot == nil ? .unavailable : .stale
+        }
+    }
+
     func startRecommendedTaskIfStillReady(taskID: String) async {
         guard !isApplying else { return }
         isApplying = true
@@ -185,6 +222,7 @@ struct MenuBarCoachView: View {
     @StateObject private var pauseController: MenuBarCoachingPauseController
     @State private var pendingEndWorkdayTask: TodayTaskRow?
     @State private var pendingBlockedTask: TodayTaskRow?
+    @State private var pendingSwitchTask: TodayTaskRow?
     @State private var blockReason = ""
 
     @MainActor
@@ -272,6 +310,30 @@ struct MenuBarCoachView: View {
                     await appModel.refreshTodaySnapshot()
                 }
             }
+        }
+        .confirmationDialog(
+            "SWITCH ACTIVE TASK?",
+            isPresented: switchConfirmationIsPresented,
+            titleVisibility: .visible
+        ) {
+            Button("SWITCH TASK") {
+                guard let activeTask = menuState.activeTask,
+                      let targetTask = pendingSwitchTask
+                else { return }
+                pendingSwitchTask = nil
+                Task {
+                    await controller.switchTask(
+                        from: activeTask.taskID,
+                        to: targetTask.taskID
+                    )
+                    await appModel.refreshTodaySnapshot()
+                }
+            }
+            Button("KEEP CURRENT TASK", role: .cancel) {
+                pendingSwitchTask = nil
+            }
+        } message: {
+            Text("The current task will pause as Switching tasks. Its tracked time will be preserved, and \"\(pendingSwitchTask?.title ?? "the selected task")\" will start.")
         }
     }
 
@@ -570,6 +632,20 @@ struct MenuBarCoachView: View {
             .disabled(controller.isApplying)
             .accessibilityLabel(action.accessibilityLabel)
             .accessibilityIdentifier("menu-bar.task.block")
+        case .switchTask:
+            Menu("SWITCH") {
+                ForEach(menuState.switchCandidates) { candidate in
+                    Button(candidate.title) {
+                        pendingSwitchTask = candidate
+                    }
+                    .accessibilityLabel("Switch to \(candidate.title)")
+                }
+            }
+            .menuStyle(.borderlessButton)
+            .frame(maxWidth: .infinity)
+            .disabled(controller.isApplying)
+            .accessibilityLabel(action.accessibilityLabel)
+            .accessibilityIdentifier("menu-bar.task.switch")
         case .openToday:
             taskButton("OPEN TODAY", role: .quiet, identifier: "menu-bar.open-today") {
                 open(.today)
@@ -667,6 +743,15 @@ struct MenuBarCoachView: View {
             get: { pendingEndWorkdayTask != nil },
             set: { isPresented in
                 if !isPresented { pendingEndWorkdayTask = nil }
+            }
+        )
+    }
+
+    private var switchConfirmationIsPresented: Binding<Bool> {
+        Binding(
+            get: { pendingSwitchTask != nil },
+            set: { isPresented in
+                if !isPresented { pendingSwitchTask = nil }
             }
         )
     }

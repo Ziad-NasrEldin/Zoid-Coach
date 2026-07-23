@@ -100,6 +100,22 @@ import ZoidCoachInfrastructure
     ])
 }
 
+@Test func compactActiveTaskOffersOnlyUsableSwitchTargets() {
+    let active = menuTask(id: "active", title: "Current task", state: .active)
+    let ready = menuTask(id: "ready", title: "Next task", state: .ready)
+    let optional = menuTask(id: "optional", title: "Optional task", state: .ready, isOptional: true)
+    let blocked = menuTask(id: "blocked", title: "Blocked task", state: .blocked)
+    let state = MenuBarCoachState(snapshot: menuSnapshot(
+        rows: [active, ready, optional, blocked],
+        activeTask: .init(taskID: active.taskID, startedAt: nil, elapsedMinutes: 4)
+    ))
+
+    #expect(state.switchCandidates.map(\.taskID) == ["ready"])
+    #expect(state.availableTaskActions == [
+        .pause, .startBreak, .complete, .markBlocked, .switchTask, .openToday, .endWorkday,
+    ])
+}
+
 @Test func compactActiveElapsedTimeAdvancesFromTheLastConfirmedSnapshot() {
     let confirmedAt = Date(timeIntervalSince1970: 1_800_000_000)
     let row = menuTask(id: "active", title: "Write proposal", state: .active, elapsedMinutes: 32)
