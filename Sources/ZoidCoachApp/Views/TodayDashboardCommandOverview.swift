@@ -1762,6 +1762,43 @@ private struct ActiveTaskContextPanel: View {
     }
 }
 
+private struct ActiveTaskContextPanel: View {
+    let assessment: ActiveTaskContextAssessment
+
+    private var symbolName: String {
+        switch assessment.state {
+        case .aligned: "checkmark.circle"
+        case .uncertain: "questionmark.circle"
+        case .mismatched: "arrow.triangle.branch"
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: symbolName)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Sumi.seal)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(assessment.state.title.uppercased())
+                    .font(Sumi.label(8))
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.ink)
+                Text(assessment.explanation)
+                    .font(Sumi.body(10))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Sumi.paper)
+        .overlay { Rectangle().stroke(Sumi.paleRule, lineWidth: 1) }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("today.focus.context-assessment")
+    }
+}
+
 private struct CustomSprintDurationSheet: View {
     let taskTitle: String
     let isPending: Bool
