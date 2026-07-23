@@ -100,6 +100,22 @@ import ZoidCoachInfrastructure
     ])
 }
 
+@Test func compactActiveTaskOffersOnlyUsableSwitchTargets() {
+    let active = menuTask(id: "active", title: "Current task", state: .active)
+    let ready = menuTask(id: "ready", title: "Next task", state: .ready)
+    let optional = menuTask(id: "optional", title: "Optional task", state: .ready, isOptional: true)
+    let blocked = menuTask(id: "blocked", title: "Blocked task", state: .blocked)
+    let state = MenuBarCoachState(snapshot: menuSnapshot(
+        rows: [active, ready, optional, blocked],
+        activeTask: .init(taskID: active.taskID, startedAt: nil, elapsedMinutes: 4)
+    ))
+
+    #expect(state.switchCandidates.map(\.taskID) == ["ready"])
+    #expect(state.availableTaskActions == [
+        .pause, .startBreak, .complete, .markBlocked, .switchTask, .openToday, .endWorkday,
+    ])
+}
+
 @Test func compactActiveElapsedTimeAdvancesFromTheLastConfirmedSnapshot() {
     let confirmedAt = Date(timeIntervalSince1970: 1_800_000_000)
     let row = menuTask(id: "active", title: "Write proposal", state: .active, elapsedMinutes: 32)
@@ -537,6 +553,63 @@ import ZoidCoachInfrastructure
     #expect(controller.state.activeTask?.taskID == "second")
     #expect(controller.state.pausedTask?.taskID == "first")
     #expect(controller.snapshot?.taskRows.filter { $0.state == .active }.map(\.taskID) == ["second"])
+}
+
+@MainActor
+@Test func menuBarSwitchRechecksFreshStateAndConfirmsBothSidesOfTheTransition() async {
+    let first = menuSnapshot(
+        rows: [
+            menuTask(id: "first", title: "First task", state: .active, elapsedMinutes: 8),
+            menuTask(id: "second", title: "Second task", state: .ready),
+        ],
+        activeTask: .init(taskID: "first", startedAt: nil, elapsedMinutes: 8)
+    )
+    let switched = menuSnapshot(
+        rows: [
+            menuTask(id: "first", title: "First task", state: .paused, elapsedMinutes: 8, pauseReason: .switchingTasks),
+            menuTask(id: "second", title: "Second task", state: .active),
+        ],
+        activeTask: .init(taskID: "second", startedAt: nil, elapsedMinutes: 0)
+    )
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(first),
+        applyResults: [.success(switched)]
+    )
+    let controller = MenuBarCoachController(client: client, loadTodaySnapshot: { first })
+
+    await controller.refresh()
+    await controller.switchTask(from: "first", to: "second")
+
+    #expect(controller.state.activeTask?.taskID == "second")
+    #expect(controller.state.pausedTask?.taskID == "first")
+    #expect(controller.state.pausedTask?.latestPauseReason == .switchingTasks)
+    #expect(controller.syncPresentation == .confirmed)
+    #expect(controller.errorMessage == nil)
+    #expect(await client.fetchCount == 1)
+    #expect(await client.commands.map(\.0) == [.start])
+    #expect(await client.commands.map(\.1) == ["second"])
+}
+
+@MainActor
+@Test func menuBarSwitchRefusesStaleTargetWithoutMutatingAnything() async {
+    let changed = menuSnapshot(
+        rows: [
+            menuTask(id: "replacement", title: "Replacement", state: .active),
+            menuTask(id: "second", title: "Second task", state: .ready),
+        ],
+        activeTask: .init(taskID: "replacement", startedAt: nil, elapsedMinutes: 1)
+    )
+    let client = RecordingMenuBarTodayClient(
+        fetchResult: .success(changed),
+        applyResults: []
+    )
+    let controller = MenuBarCoachController(client: client)
+
+    await controller.switchTask(from: "first", to: "second")
+
+    #expect(controller.state.activeTask?.taskID == "replacement")
+    #expect(controller.errorMessage?.contains("Nothing was switched") == true)
+    #expect(await client.commands.isEmpty)
 }
 
 @MainActor
