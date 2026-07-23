@@ -154,6 +154,41 @@ func deferredRemindersRemainDeferredAcrossForegroundChecksWithoutPrompting() asy
 
 @MainActor
 @Test
+func deferredRemindersCanContinueToNextStepWithoutAdditionalPermissionRequests() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
+    var requestCount = 0
+    let dependencies = OnboardingDependencies(
+        inspectReminders: { SelfHealth.remindersDenied },
+        requestReminders: {
+            requestCount += 1
+            return .init(health: SelfHealth.remindersDenied, decision: .denied)
+        },
+        inspectScreenwatch: { SelfHealth.screenwatchMissing },
+        inspectScreenwatchSetup: { SelfScreenwatch.missing },
+        selectScreenwatchDirectory: { _ in SelfScreenwatch.healthy },
+        useDefaultScreenwatchDirectory: { SelfScreenwatch.missing },
+        inspectNotifications: { SelfHealth.notificationsDenied },
+        requestNotifications: { .init(health: SelfHealth.notificationsDenied, decision: .denied) },
+        loadInventory: { .init(items: [], warning: nil) },
+        testDelivery: { .init(state: .unavailable, message: "Notifications are disabled") },
+        loadPolicy: { nil },
+        applyPolicyMutation: { try successfulPolicyMutation($0) },
+        prepareFirstDailyPlan: { preparedFirstPlan },
+        openSystemSettings: { _ in true }
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    coordinator.deferAccess(for: .reminders)
+    #expect(requestCount == 0)
+    #expect(coordinator.progress.remindersAccess == .deferred)
+
+    try await coordinator.continueFromCurrentStep()
+    #expect(requestCount == 0)
+    #expect(coordinator.progress.currentStep == .screenwatch)
+}
+
+@MainActor
+@Test
 func reminderListDiscoveryFailureBlocksGrantedSetupUntilRetrySucceeds() async throws {
     let store = RecordingOnboardingStore(progress: try progressAt(.reminders))
     let recorder = PolicyRecorder()
