@@ -1576,6 +1576,118 @@ private struct GamingManualAdjustmentLedgerRow: View {
     }
 }
 
+private struct GamingManualAdjustmentSheet: View {
+    @State private var form: GamingManualAdjustmentForm
+    let isSaving: Bool
+    let cancel: () -> Void
+    let save: (Int, String?) -> Void
+
+    init(
+        currentManualMinutes: Int,
+        isSaving: Bool,
+        cancel: @escaping () -> Void,
+        save: @escaping (Int, String?) -> Void
+    ) {
+        _form = State(initialValue: GamingManualAdjustmentForm(
+            currentManualMinutes: currentManualMinutes
+        ))
+        self.isSaving = isSaving
+        self.cancel = cancel
+        self.save = save
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("GAMING ALLOWANCE")
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
+            Text("Adjust manually granted time")
+                .font(Sumi.display(25))
+                .foregroundStyle(Sumi.ink)
+            Text("Observed gaming stays unchanged. This only changes today's manual allowance, and every change is saved as a separate local ledger entry.")
+                .font(Sumi.body(12))
+                .foregroundStyle(Sumi.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Picker("Adjustment", selection: $form.direction) {
+                ForEach(GamingManualAdjustmentDirection.allCases) { direction in
+                    Text(direction.label).tag(direction)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("today.gaming.manual-adjustment.direction")
+
+            Stepper(value: $form.minutes, in: 5...240, step: 5) {
+                Text("\(form.minutes) minutes")
+                    .font(Sumi.body(13))
+            }
+            .accessibilityIdentifier("today.gaming.manual-adjustment.minutes")
+
+            TextField("Optional reason", text: $form.note)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("today.gaming.manual-adjustment.note")
+
+            if form.currentManualMinutes > 0 {
+                Text("Currently manually granted: \(form.currentManualMinutes) minutes")
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.muted)
+            }
+            if let validation = form.validationMessage {
+                Text(validation)
+                    .font(Sumi.body(11))
+                    .foregroundStyle(Sumi.seal)
+                    .accessibilityIdentifier("today.gaming.manual-adjustment.validation")
+            }
+
+            HStack {
+                Button("Cancel", action: cancel)
+                    .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
+                    .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button(isSaving ? "SAVING" : form.direction == .add ? "ADD TIME" : "REMOVE TIME") {
+                    guard let signedMinutes = form.signedMinutes else { return }
+                    save(signedMinutes, form.normalizedNote)
+                }
+                .buttonStyle(SumiActionButtonStyle(role: .primary, size: .standard))
+                .disabled(!form.canSubmit || isSaving)
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("today.gaming.manual-adjustment.save")
+            }
+        }
+        .padding(24)
+        .frame(width: 440)
+    }
+}
+
+private struct GamingManualAdjustmentLedgerRow: View {
+    let adjustment: GamingManualAdjustment
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(adjustment.minutes > 0 ? "+\(adjustment.minutes)m" : "\(adjustment.minutes)m")
+                .font(Sumi.label(8))
+                .foregroundStyle(adjustment.minutes > 0 ? Sumi.okay : Sumi.seal)
+                .frame(width: 42, alignment: .leading)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(adjustment.note ?? (adjustment.minutes > 0 ? "Manual grant" : "Manual removal"))
+                    .font(Sumi.body(9))
+                    .foregroundStyle(Sumi.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))
+                    .font(Sumi.body(8))
+                    .foregroundStyle(Sumi.muted)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(adjustment.minutes > 0 ? "Added" : "Removed") \(adjustment.minutes.magnitude) minutes, "
+                + "\(adjustment.note ?? "No note"), \(adjustment.recordedAt.formatted(date: .omitted, time: .shortened))"
+        )
+        .accessibilityIdentifier("today.gaming.manual-adjustment.entry.\(adjustment.id)")
+    }
+}
+
 private struct ActiveTaskContextPanel: View {
     let assessment: ActiveTaskContextAssessment
 
