@@ -154,6 +154,9 @@ struct TodayDashboardCommandOverview: View {
                     detail("Estimate", planEntry(for: row)?.estimateMinutes.map { "\($0)m" } ?? "Choose")
                     detail("Deadline", deadlineLabel(row.dueDate))
                     detail("Urgency", "\(row.urgency.rawValue.capitalized)")
+                    detail("Status", MainObjectiveStatusPresentation(task: row).label)
+                        .accessibilityLabel(MainObjectiveStatusPresentation(task: row).accessibilityLabel)
+                        .accessibilityIdentifier("today.focus.status")
                     if let reason = row.completionReason {
                         detail("Completion", reason.userFacingLabel)
                     }
