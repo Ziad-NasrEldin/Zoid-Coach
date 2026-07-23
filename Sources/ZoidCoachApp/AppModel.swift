@@ -127,6 +127,7 @@ final class AppModel: ObservableObject {
     private let fetchAuthoritativeGamingSnapshot: @Sendable () async throws -> TodaySnapshot
     private let loadCoachingRuntimeState: @Sendable (Date) async throws -> CoachingRuntimeState
     private let now: @Sendable () -> Date
+    private let todayLiveRefreshLoop = TodayLiveRefreshLoop()
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
     private var sourceChecksInFlight: Set<SourceID> = []
@@ -431,6 +432,16 @@ final class AppModel: ObservableObject {
             installTodaySnapshot(try await todayDashboardXPCClient.fetchTodaySnapshot())
         } catch {
             installTodaySnapshot(try? todaySnapshotStore?.load())
+        }
+    }
+
+    func setTodayLiveRefreshEnabled(_ isEnabled: Bool) {
+        guard isEnabled else {
+            todayLiveRefreshLoop.stop()
+            return
+        }
+        todayLiveRefreshLoop.start { [weak self] in
+            await self?.refreshTodaySnapshot()
         }
     }
 
