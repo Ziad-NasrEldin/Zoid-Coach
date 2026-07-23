@@ -358,6 +358,16 @@ struct SettingsView: View {
         }
     }
 
+    private func notificationTestResultTitle(_ state: OnboardingDeliveryResult.State) -> String {
+        switch state {
+        case .delivered: "TEST DELIVERED"
+        case .scheduled: "TEST SCHEDULED"
+        case .unavailable: "TEST UNAVAILABLE - USE TODAY"
+        case .failed: "TEST FAILED - USE TODAY"
+        case .todayFallback: "AVAILABLE IN TODAY"
+        }
+    }
+
     private var remindersConnectionSection: some View {
         SettingsCard(
             title: "APPLE REMINDERS CONNECTION",
