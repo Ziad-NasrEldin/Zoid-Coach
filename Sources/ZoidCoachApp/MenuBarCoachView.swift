@@ -261,6 +261,7 @@ struct MenuBarCoachView: View {
             coachHeader
             notificationFallbackSection
             coachingPauseSection
+            gamingWorkHoursSection
 
             if pauseController.usesManualWorkday {
                 manualWorkdaySection
@@ -350,12 +351,17 @@ struct MenuBarCoachView: View {
     }
 
     private var menuState: MenuBarCoachState {
+        menuState(at: Date())
+    }
+
+    private func menuState(at date: Date) -> MenuBarCoachState {
         MenuBarCoachState(
             snapshot: controller.snapshot,
             snapshotConfirmedAt: controller.lastConfirmedAt,
             coachingIsPaused: pauseController.isPaused,
             unresolvedPromptCount: appModel.promptEpisodes.count,
-            notificationsUnavailable: notificationsUnavailable
+            notificationsUnavailable: notificationsUnavailable,
+            gamingWorkHoursContext: appModel.menuBarGamingWorkHoursContext(at: date)
         )
     }
 

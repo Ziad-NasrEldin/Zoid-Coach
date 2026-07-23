@@ -1820,6 +1820,16 @@ final class AppModel: ObservableObject {
         catch { return UserPolicy.defaults() }
     }
 
+    func menuBarGamingWorkHoursContext(at date: Date) -> MenuBarGamingWorkHoursContext? {
+        guard let policyStore,
+              let policy = try? policyStore.current()?.policy
+        else { return nil }
+        return MenuBarGamingWorkHoursContext(
+            maximumMinutes: policy.gaming.workHoursDailyMaximumMinutes,
+            isWithinWorkWindow: policy.schedule.isWithinWorkWindow(at: date)
+        )
+    }
+
     private func refreshPlanningCapacity() {
         let schedule = currentPolicy().schedule
         let workIntervals = schedule.workIntervals(on: Date())

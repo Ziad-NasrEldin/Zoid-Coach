@@ -111,7 +111,7 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         guard !baselineStatus.suppressesBehaviorPrompts else {
             return .suppressed(.observingBaseline)
         }
-        guard Self.isWithinWorkWindow(date, policy: policy, timeZone: timeZone) else {
+        guard policy.schedule.isWithinWorkWindow(at: date) else {
             return .suppressed(.outsideWorkWindow)
         }
         switch try openPauseReason() {
@@ -843,22 +843,6 @@ public final class GamingDriftPromptService: @unchecked Sendable {
         return formatter.string(from: date)
     }
 
-    private static func isWithinWorkWindow(_ date: Date, policy: UserPolicy, timeZone: TimeZone) -> Bool {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
-        guard let weekday = Weekday(rawValue: calendar.component(.weekday, from: date)) else { return false }
-        let localTime = LocalTime(
-            hour: calendar.component(.hour, from: date),
-            minute: calendar.component(.minute, from: date)
-        )
-        return policy.schedule.workWindows.contains { window in
-            guard window.weekdays.contains(weekday) else { return false }
-            if window.end < window.start {
-                return localTime >= window.start || localTime <= window.end
-            }
-            return localTime >= window.start && localTime <= window.end
-        }
-    }
 }
 
 public enum GamingDriftPromptServiceError: LocalizedError, Sendable {
