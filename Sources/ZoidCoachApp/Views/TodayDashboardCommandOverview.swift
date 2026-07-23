@@ -585,6 +585,11 @@ struct TodayDashboardCommandOverview: View {
                             model.setEstimateUnknown(for: entry)
                         }
                     },
+                    setUnknown: {
+                        if let entry = planEntry(for: row) {
+                            model.setEstimateUnknown(for: entry)
+                        }
+                    },
                     moveUp: { planEntry(for: row).map { model.moveDailyPlanEntry($0, by: -1) } },
                     moveDown: { planEntry(for: row).map { model.moveDailyPlanEntry($0, by: 1) } },
                     toggleOptional: { planEntry(for: row).map(model.toggleOptional) },
