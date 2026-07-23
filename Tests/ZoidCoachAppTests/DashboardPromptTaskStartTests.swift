@@ -149,3 +149,72 @@ func dashboardPromptStartOutcomeUsesHonestFallbackAndIgnoresOtherActions() {
         activeTaskID: "task"
     ) == nil)
 }
+
+@Test
+func dashboardAmbiguityOutcomesConfirmExactlyWhatChanged() {
+    let episode = PromptEpisode(
+        id: "ambiguity-prompt",
+        decisionKey: "ambiguous-activity:2026-07-15:1:task",
+        type: AmbiguousActivityPromptService.promptType,
+        title: "Did this support Ship proposal?",
+        summary: "Application and duration alone cannot show intent.",
+        actions: [],
+        payload: ["taskID": "task", "taskTitle": "Ship proposal"],
+        createdAt: Date(timeIntervalSince1970: 1_800_000_000)
+    )
+
+    #expect(DashboardPromptActionOutcome.successMessage(
+        for: episode,
+        action: .classifyAsSupportingWork,
+        activeTaskID: "task"
+    ) == "The observed session is now counted as supporting work for Ship proposal.")
+    #expect(DashboardPromptActionOutcome.successMessage(
+        for: episode,
+        action: .classifyAsGaming,
+        activeTaskID: "task"
+    ) == "The observed session is now counted as gaming.")
+    #expect(DashboardPromptActionOutcome.successMessage(
+        for: episode,
+        action: .keepActivityUnknown,
+        activeTaskID: "task"
+    ) == "The observed session remains unknown. Coaching was not changed.")
+    #expect(DashboardPromptActionOutcome.successMessage(
+        for: episode,
+        action: .ignore,
+        activeTaskID: "task"
+    ) == nil)
+}
+
+@Test
+func dashboardAmbiguityOutcomeUsesHonestTaskFallbackAndDoesNotAffectOtherPrompts() {
+    let ambiguity = PromptEpisode(
+        id: "ambiguity-prompt",
+        decisionKey: "ambiguous-activity:2026-07-15:1:task",
+        type: AmbiguousActivityPromptService.promptType,
+        title: "Was this supporting work?",
+        summary: "Application and duration alone cannot show intent.",
+        actions: [],
+        payload: ["taskID": "task", "taskTitle": "   "],
+        createdAt: Date(timeIntervalSince1970: 1_800_000_000)
+    )
+    let unrelated = PromptEpisode(
+        id: "other",
+        decisionKey: "other",
+        type: "OTHER",
+        title: "Other",
+        summary: "Other decision.",
+        actions: [],
+        createdAt: Date(timeIntervalSince1970: 1_800_000_000)
+    )
+
+    #expect(DashboardPromptActionOutcome.successMessage(
+        for: ambiguity,
+        action: .classifyAsSupportingWork,
+        activeTaskID: nil
+    ) == "The observed session is now counted as supporting work for the active task.")
+    #expect(DashboardPromptActionOutcome.successMessage(
+        for: unrelated,
+        action: .classifyAsGaming,
+        activeTaskID: nil
+    ) == nil)
+}

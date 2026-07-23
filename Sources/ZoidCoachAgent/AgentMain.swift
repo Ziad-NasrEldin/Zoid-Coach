@@ -149,6 +149,10 @@ struct ZoidCoachAgentMain {
                 databaseURL: configuration.databaseURL,
                 promptStore: promptStore
             )
+            let ambiguousActivityPrompts = try AmbiguousActivityPromptService(
+                databaseURL: configuration.databaseURL,
+                promptStore: promptStore
+            )
             let gamingManualAdjustments = try GamingManualAdjustmentStore(
                 databaseURL: configuration.databaseURL
             )
@@ -170,6 +174,7 @@ struct ZoidCoachAgentMain {
                 promptStore: promptStore,
                 planningInvitations: planningInvitations,
                 taskExecution: coachingTaskExecutionStore,
+                ambiguousActivityPrompts: ambiguousActivityPrompts,
                 schedulingCalendarIdentifier: {
                     try policyStore.current()?.policy.calendar.schedulingCalendarIdentifier
                 }
@@ -693,6 +698,11 @@ struct ZoidCoachAgentMain {
                     if let dashboardSnapshot {
                         await acceptedBreakReminders.reconcile(taskRows: dashboardSnapshot.taskRows, now: now)
                     }
+                    if policy.operatingMode != .observe,
+                       !policy.automationPause.isPaused,
+                       (try? baselineObservationStore.status().suppressesBehaviorPrompts) == false {
+                        _ = try? ambiguousActivityPrompts.produce()
+                    }
                     if let snapshot = dashboardSnapshot,
                        let adjustedGamingStatus = try? gamingManualAdjustments.gamingStatus(
                            applyingAdjustmentsFor: snapshot.localDate,
@@ -940,6 +950,11 @@ struct ZoidCoachAgentMain {
                 let dashboardSnapshot = try? todayDashboardAgent.snapshot(now: baselineNow)
                 if let dashboardSnapshot {
                     await acceptedBreakReminders.reconcile(taskRows: dashboardSnapshot.taskRows, now: baselineNow)
+                }
+                if initialPolicy.operatingMode != .observe,
+                   !initialPolicy.automationPause.isPaused,
+                   (try? baselineObservationStore.status().suppressesBehaviorPrompts) == false {
+                    _ = try? ambiguousActivityPrompts.produce()
                 }
                 if let snapshot = dashboardSnapshot,
                    let adjustedGamingStatus = try? gamingManualAdjustments.gamingStatus(
