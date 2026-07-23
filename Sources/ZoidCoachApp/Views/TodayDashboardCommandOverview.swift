@@ -386,6 +386,16 @@ struct TodayDashboardCommandOverview: View {
                         .multilineTextAlignment(.trailing)
                         .frame(maxWidth: 100, alignment: .trailing)
                 }
+                if snapshot.gaming.budgetEnabled {
+                    Text("Base \(snapshot.gaming.budgetMinutes)m · Earned \(snapshot.gaming.earnedMinutes)m · Used \(snapshot.gaming.usedMinutes)m · Locked \(snapshot.gaming.lockedMinutes)m · Overage \(snapshot.gaming.debtMinutes)m")
+                        .font(Sumi.body(9))
+                        .foregroundStyle(Sumi.muted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("today.gaming.breakdown")
+                    Text("Gaming sessions under 2 continuous minutes do not use the allowance.")
+                        .font(Sumi.body(9))
+                        .foregroundStyle(Sumi.muted)
+                }
                 .padding(.top, 12)
                 .overlay(alignment: .top) { Rectangle().fill(Sumi.rule).frame(height: 1) }
                 .padding(.top, 10)

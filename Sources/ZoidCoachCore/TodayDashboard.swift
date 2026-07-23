@@ -759,6 +759,25 @@ public struct GamingStatus: Equatable, Codable, Sendable {
             workHoursMaximumEvaluation: try container.decodeIfPresent(GamingWorkHoursMaximumEvaluation.self, forKey: .workHoursMaximumEvaluation)
         )
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case budgetMinutes, earnedMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, debtMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            budgetMinutes: try container.decode(Int.self, forKey: .budgetMinutes),
+            earnedMinutes: try container.decodeIfPresent(Int.self, forKey: .earnedMinutes) ?? 0,
+            usedMinutes: try container.decode(Int.self, forKey: .usedMinutes),
+            unlockedRemainingMinutes: try container.decode(Int.self, forKey: .unlockedRemainingMinutes),
+            lockedMinutes: try container.decodeIfPresent(Int.self, forKey: .lockedMinutes) ?? 0,
+            debtMinutes: try container.decodeIfPresent(Int.self, forKey: .debtMinutes) ?? 0,
+            nextUnlockReason: try container.decode(String.self, forKey: .nextUnlockReason),
+            confidenceIsLimited: try container.decode(Bool.self, forKey: .confidenceIsLimited),
+            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
+        )
+    }
 }
 
 public struct ActiveTaskSnapshot: Equatable, Codable, Sendable {
