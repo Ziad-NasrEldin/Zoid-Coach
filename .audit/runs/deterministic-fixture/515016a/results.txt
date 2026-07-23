@@ -1,0 +1,14 @@
+integrated_commit=515016a5e9cba03b0a2bada9f63066c99c26cd39
+branch=codex/zc-foundation-reverify
+started_clean=true
+clean_debug_rebuild=pass
+focused_fixture_tests=pass:9
+independent_transient_probes=pass:7
+full_swift_tests=pass:202-tests:4-suites
+clean_release_build=pass
+production_data_or_services_touched=false
+critical_findings=0
+high_findings=0
+medium_findings=0
+low_findings=0
+merge_recommendation=retain-integrated-foundation
