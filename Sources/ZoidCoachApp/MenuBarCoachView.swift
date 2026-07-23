@@ -273,6 +273,25 @@ final class MenuBarCoachController: ObservableObject {
             syncPresentation = snapshot == nil ? .unavailable : .stale
         }
     }
+
+    func endWorkdayIfStillActive(taskID: String) async {
+        guard !isApplying else { return }
+        isApplying = true
+        defer { isApplying = false }
+        do {
+            let latest = try await client.fetchTodaySnapshot()
+            snapshot = latest
+            let activeID = MenuBarCoachState(snapshot: latest).activeTask?.taskID
+            guard activeID == taskID else {
+                errorMessage = "The active task changed before confirmation. Nothing was paused. Review the current task and try again."
+                return
+            }
+            snapshot = try await client.apply(.pauseForEndOfDay, taskID: taskID)
+            errorMessage = nil
+        } catch {
+            errorMessage = "The task change was not saved. The last confirmed state is still shown."
+        }
+    }
 }
 
 struct MenuBarCoachView: View {

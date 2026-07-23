@@ -302,6 +302,12 @@ struct MenuBarCoachState: Equatable {
         return ([task.title, taskStatus(at: date)] + compactTaskFacts).joined(separator: ". ")
     }
 
+    var canStartBreak: Bool { activeTask != nil }
+
+    var canEndWorkday: Bool { activeTask != nil }
+
+    var workdayHasEnded: Bool { pausedTask?.latestPauseReason == .endingWorkday }
+
     var taskStatus: String { taskStatus(at: Date()) }
 
     func taskStatus(at date: Date) -> String {
@@ -329,6 +335,9 @@ struct MenuBarCoachState: Equatable {
                     return "Accepted break ended · Resume when ready"
                 }
                 return "Accepted break · \(duration.compact(minutes: (remaining + 59) / 60)) left"
+            }
+            if workdayHasEnded {
+                return "Workday ended · Tracked time is saved"
             }
             if workdayHasEnded {
                 return "Workday ended · Tracked time is saved"

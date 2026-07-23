@@ -1139,6 +1139,44 @@ private actor SwitchingMenuBarTodayClient: MenuBarTodayClient {
     }
 }
 
+private actor AgentMenuBarTodayClient: MenuBarTodayClient {
+    let agent: TodayDashboardAgent
+    var now: Date
+
+    init(agent: TodayDashboardAgent, now: Date) {
+        self.agent = agent
+        self.now = now
+    }
+
+    func fetchTodaySnapshot() throws -> TodaySnapshot {
+        try agent.snapshot(now: now)
+    }
+
+    func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
+        now = now.addingTimeInterval(60)
+        return try agent.apply(command, taskID: taskID, now: now)
+    }
+}
+
+private actor SwitchingMenuBarTodayClient: MenuBarTodayClient {
+    var snapshots: [TodaySnapshot]
+    var commands: [(TaskActivityCommand, String)] = []
+
+    init(snapshots: [TodaySnapshot]) {
+        self.snapshots = snapshots
+    }
+
+    func fetchTodaySnapshot() throws -> TodaySnapshot {
+        if snapshots.count > 1 { return snapshots.removeFirst() }
+        return snapshots[0]
+    }
+
+    func apply(_ command: TaskActivityCommand, taskID: String) throws -> TodaySnapshot {
+        commands.append((command, taskID))
+        return snapshots[0]
+    }
+}
+
 private enum MenuBarClientError: Error { case failed }
 
 private func menuTask(
