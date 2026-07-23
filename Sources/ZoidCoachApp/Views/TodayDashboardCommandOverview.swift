@@ -954,7 +954,7 @@ private struct CustomSprintDurationSheet: View {
 
     private var durationMinutes: Int? {
         guard let value = Int(durationText.trimmingCharacters(in: .whitespacesAndNewlines)),
-              (1...240).contains(value)
+              (1...TaskEstimateInput.maximumMinutes).contains(value)
         else { return nil }
         return value
     }
@@ -969,14 +969,14 @@ private struct CustomSprintDurationSheet: View {
                 .font(Sumi.display(24))
                 .foregroundStyle(Sumi.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Choose 1 to 240 minutes. When the timer reaches zero, the task stays active until you complete, pause, or continue it.")
+            Text("Choose 1 to 480 minutes. When the timer reaches zero, the task stays active until you complete, pause, or continue it.")
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
                 .fixedSize(horizontal: false, vertical: true)
             SumiTextField("DURATION IN MINUTES", placeholder: "30", text: $durationText)
                 .accessibilityIdentifier("today.sprint.custom.duration")
             if durationMinutes == nil {
-                Text("Enter a whole number from 1 to 240.")
+                Text("Enter a whole number from 1 to 480.")
                     .font(Sumi.body(10))
                     .foregroundStyle(Sumi.seal)
                     .accessibilityIdentifier("today.sprint.custom.error")

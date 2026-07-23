@@ -124,7 +124,7 @@ public final class TaskExecutionStore: @unchecked Sendable {
     }
 
     public func startSprint(taskID: String, durationMinutes: Int, at date: Date = Date()) throws {
-        guard (1...240).contains(durationMinutes) else { throw TaskExecutionStoreError.invalidSprintDuration }
+        guard (1...480).contains(durationMinutes) else { throw TaskExecutionStoreError.invalidSprintDuration }
         try transaction {
             if let existing = try openInterval(), existing.taskID != taskID {
                 try upsertState(taskID: existing.taskID, state: .paused, at: date)

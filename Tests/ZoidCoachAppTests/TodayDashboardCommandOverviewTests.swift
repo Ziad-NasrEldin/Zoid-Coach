@@ -5,6 +5,30 @@ import ZoidCoachCore
 
 @Suite("Today open-ended elapsed time")
 struct TodayDashboardCommandOverviewTests {
+    @Test("full-estimate sprint names the exact confident estimate")
+    func fullEstimateSprintUsesConfidentEstimate() throws {
+        let option = try #require(FullEstimateSprintOption(
+            estimateMinutes: 90,
+            estimateIsUncertain: false
+        ))
+
+        #expect(option.durationMinutes == 90)
+        #expect(option.menuTitle == "90-minute full estimate")
+        #expect(option.accessibilityHint.contains("full 90-minute estimate"))
+    }
+
+    @Test("full-estimate sprint is unavailable for missing or uncertain estimates")
+    func fullEstimateSprintRequiresConfidentEstimate() {
+        #expect(FullEstimateSprintOption(
+            estimateMinutes: nil,
+            estimateIsUncertain: false
+        ) == nil)
+        #expect(FullEstimateSprintOption(
+            estimateMinutes: 45,
+            estimateIsUncertain: true
+        ) == nil)
+    }
+
     @Test("active open-ended time advances from the canonical open interval")
     func activeOpenEndedTimeAdvancesFromCurrentDate() throws {
         let confirmedAt = Date(timeIntervalSince1970: 1_800_000_000)
