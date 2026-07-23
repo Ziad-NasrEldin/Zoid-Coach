@@ -1,0 +1,48 @@
+Building for debugging...
+[0/18] /Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid runner.swift
+[1/18] Write sources
+[3/18] Write ZoidCoachAgent-entitlement.plist
+[3/18] Write ZoidCoach-entitlement.plist
+[9/18] Write swift-version--58304C5D6DBC2206.txt
+[11/40] Emitting module ZoidCoachCore
+[12/60] Compiling ZoidCoachCore ActionCommand.swift
+[13/60] Compiling ZoidCoachCore ActionSources.swift
+[14/60] Compiling ZoidCoachCore AdaptiveLearning.swift
+[15/60] Compiling ZoidCoachCore AgentLivenessPolicy.swift
+[16/60] Compiling ZoidCoachCore AgentMutationCommand.swift
+[17/60] Compiling ZoidCoachCore AutonomousPlanner.swift
+[18/60] Compiling ZoidCoachCore BaselineObservation.swift
+[19/60] Compiling ZoidCoachCore CalendarBlockScheduler.swift
+[20/60] Compiling ZoidCoachCore ContextualAppClassification.swift
+[21/60] Compiling ZoidCoachCore DailyReview.swift
+[22/60] Compiling ZoidCoachCore DailySourceCoverage.swift
+[23/60] Compiling ZoidCoachCore DeterministicOSFixtures.swift
+[24/60] Compiling ZoidCoachCore DeterministicReplay.swift
+[25/60] Compiling ZoidCoachCore DeterministicTestControl.swift
+[26/60] Compiling ZoidCoachCore DomainEvent.swift
+[27/60] Compiling ZoidCoachCore GamingManualAdjustment.swift
+[28/60] Compiling ZoidCoachCore MeetingCandidateExtractor.swift
+[29/60] Compiling ZoidCoachCore MeetingCandidatePolicy.swift
+[30/60] Compiling ZoidCoachCore ModelRun.swift
+[31/60] Compiling ZoidCoachCore NightlyPlanningSchedule.swift
+[32/60] Compiling ZoidCoachCore OCRText.swift
+[33/60] Compiling ZoidCoachCore OnboardingProgress.swift
+[34/60] Compiling ZoidCoachCore PlanningInvitation.swift
+[35/60] Compiling ZoidCoachCore PromptInbox.swift
+[36/60] Compiling ZoidCoachCore RecommendationFeedback.swift
+[37/60] Compiling ZoidCoachCore ReminderCompletionSyncState.swift
+[38/60] Compiling ZoidCoachCore ReminderRescheduleSyncState.swift
+[39/60] Compiling ZoidCoachCore ReviewLearningDeletionDisclosure.swift
+[40/60] Compiling ZoidCoachCore RuntimeEnvironment.swift
+[41/60] Compiling ZoidCoachCore ScreenwatchIngestionControl.swift
+[42/60] Compiling ZoidCoachCore ScreenwatchObservation.swift
+[43/60] Compiling ZoidCoachCore StructuredGeneration.swift
+[44/60] Compiling ZoidCoachCore TaskEstimateProgress.swift
+[45/60] Compiling ZoidCoachCore TodayDashboard.swift
+[46/60] Compiling ZoidCoachCore UserPolicy.swift
+[47/60] Compiling ZoidCoachCore UserPolicyPlanning.swift
+[48/60] Compiling ZoidCoachCore VoiceDomain.swift
+[49/60] Compiling ZoidCoachCore WakeUpPolicy.swift
+[50/60] Compiling ZoidCoachCore WeeklyReview.swift
+[51/60] Compiling ZoidCoachCore WorkCategory.swift
+[52/60] Compiling ZoidCoachCore ZoidCoachStorage.swift
