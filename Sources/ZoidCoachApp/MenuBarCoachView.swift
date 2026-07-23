@@ -459,6 +459,13 @@ struct MenuBarCoachView: View {
         .accessibilityIdentifier("menu-bar.voice-controls")
     }
 
+    private var menuState: MenuBarCoachState {
+        MenuBarCoachState(
+            snapshot: controller.snapshot,
+            coachingIsPaused: pauseController.isPaused
+        )
+    }
+
     private var coachHeader: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: menuState.menuBarSymbol)

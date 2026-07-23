@@ -1049,6 +1049,48 @@ private actor RecordingMenuBarCoachingPauseClient: MenuBarCoachingPauseClient {
     }
 }
 
+private actor RecordingMenuBarCoachingPauseClient: MenuBarCoachingPauseClient {
+    var current: VersionedUserPolicy
+    let returnsInvalidReceipt: Bool
+    private(set) var requests: [PolicyMutationRequest] = []
+
+    init(current: VersionedUserPolicy, returnsInvalidReceipt: Bool = false) {
+        self.current = current
+        self.returnsInvalidReceipt = returnsInvalidReceipt
+    }
+
+    func loadCurrentPolicy() -> VersionedUserPolicy { current }
+
+    func savePolicyMutation(_ request: PolicyMutationRequest) throws -> AgentMutationReceipt {
+        requests.append(request)
+        if returnsInvalidReceipt {
+            return AgentMutationReceipt(accepted: true, message: "Missing durable receipt")
+        }
+
+        let resultingVersion = current.version + 1
+        let receipt = PolicyMutationReceipt(
+            requestID: request.requestID,
+            payloadDigest: try PolicyMutationRequest.canonicalPayloadDigest(for: request.policy),
+            expectedVersion: request.expectedVersion,
+            resultingVersion: resultingVersion,
+            origin: request.origin,
+            replayed: false
+        )
+        current = VersionedUserPolicy(
+            version: resultingVersion,
+            policy: request.policy,
+            createdAtUTC: Date(timeIntervalSince1970: TimeInterval(resultingVersion)),
+            isActive: true
+        )
+        return AgentMutationReceipt(
+            accepted: true,
+            message: "Saved",
+            policyVersion: resultingVersion,
+            policyMutationReceipt: receipt
+        )
+    }
+}
+
 private actor AgentMenuBarTodayClient: MenuBarTodayClient {
     let agent: TodayDashboardAgent
     var now: Date
