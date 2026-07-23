@@ -129,7 +129,9 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 learnedEstimateSuggestion: learnedEstimateSuggestion(
                     for: reminder,
                     currentEstimateMinutes: entry.estimateMinutes
-                )
+                ),
+                sourceNotes: reminder.notes,
+                sourceListName: reminder.listName
             )
         }
         let gamingPolicy = try userPolicyStore.currentGamingPolicy()
@@ -173,7 +175,9 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 learnedEstimateSuggestion: learnedEstimateSuggestion(
                     for: reminder,
                     currentEstimateMinutes: 30
-                )
+                ),
+                sourceNotes: reminder.notes,
+                sourceListName: reminder.listName
             ))
         }
         if let activeBeforeSourceRefresh,
@@ -328,7 +332,9 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             isOptional: previous.isOptional ?? false,
             blockedReason: previous.blockedReason,
             deferredUntil: previous.deferredUntil,
-            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
+            learnedEstimateSuggestion: previous.learnedEstimateSuggestion,
+            sourceNotes: previous.sourceNotes,
+            sourceListName: previous.sourceListName
         )
     }
 
@@ -351,7 +357,9 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             isOptional: previous.isOptional ?? false,
             blockedReason: previous.blockedReason,
             deferredUntil: previous.deferredUntil,
-            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
+            learnedEstimateSuggestion: previous.learnedEstimateSuggestion,
+            sourceNotes: previous.sourceNotes,
+            sourceListName: previous.sourceListName
         )
     }
 
@@ -369,7 +377,9 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             elapsedMinutes: current.elapsedMinutes,
             completionReason: .appleReminderCompleted,
             sprint: current.sprint,
-            isMainObjective: false
+            isMainObjective: false,
+            sourceNotes: source.notes,
+            sourceListName: source.listName
         )
     }
 

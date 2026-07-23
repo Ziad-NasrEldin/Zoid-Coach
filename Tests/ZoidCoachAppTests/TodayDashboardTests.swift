@@ -43,6 +43,34 @@ func ordinaryLocalCompletionKeepsGenericCompletedCopy() {
 }
 
 @Test
+func reminderOwnedDetailsRemainVisibleWithoutChangingTheLocalEstimate() {
+    let row = TodayTaskRow(
+        taskID: "reminder-1",
+        title: "Prepare launch notes",
+        estimateMinutes: 45,
+        dueDate: nil,
+        urgency: .medium,
+        state: .ready,
+        sourceNotes: "Include the rollout checklist",
+        sourceListName: "Launch"
+    )
+
+    #expect(row.estimateMinutes == 45)
+    #expect(row.sourceNotes == "Include the rollout checklist")
+    #expect(row.sourceListName == "Launch")
+}
+
+@Test
+func legacyTodayTaskRowDecodesWithoutReminderOwnedDetails() throws {
+    let data = Data(#"{"taskID":"legacy","title":"Legacy task","estimateMinutes":30,"dueDate":null,"urgency":"medium","state":"ready","elapsedMinutes":0,"activeTimeComparison":null,"completionReason":null,"latestPauseReason":null,"acceptedBreak":null,"sprint":null,"isMainObjective":false,"isLocked":false,"isOptional":false,"blockedReason":null,"deferredUntil":null,"learnedEstimateSuggestion":null}"#.utf8)
+
+    let row = try JSONDecoder().decode(TodayTaskRow.self, from: data)
+
+    #expect(row.sourceNotes == nil)
+    #expect(row.sourceListName == nil)
+}
+
+@Test
 func activeTaskTimeComparisonSeparatesElapsedTimeFromObservedAlignment() {
     let now = Date(timeIntervalSince1970: 1_750_000_000)
     let activeSince = now.addingTimeInterval(-180)
