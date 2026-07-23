@@ -28,22 +28,13 @@ final class MenuBarCoachController: ObservableObject {
     @Published private(set) var lastConfirmedAt: Date?
 
     private let client: any MenuBarTodayClient
-    private let loadTodaySnapshot: @Sendable () -> TodaySnapshot?
 
-    init(
-        client: any MenuBarTodayClient,
-        loadTodaySnapshot: @escaping @Sendable () -> TodaySnapshot? = { nil }
-    ) {
+    init(client: any MenuBarTodayClient) {
         self.client = client
-        self.loadTodaySnapshot = loadTodaySnapshot
     }
 
     convenience init(runtimeEnvironment: RuntimeEnvironment) {
-        let loader = ReadOnlyTodaySnapshotLoader(runtimeEnvironment: runtimeEnvironment)
-        self.init(
-            client: TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment),
-            loadTodaySnapshot: loader.load
-        )
+        self.init(client: TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment))
     }
 
     var state: MenuBarCoachState { MenuBarCoachState(snapshot: snapshot) }
@@ -60,30 +51,22 @@ final class MenuBarCoachController: ObservableObject {
         }
     }
 
-    func synchronizeWithToday(_ confirmedSnapshot: TodaySnapshot?) {
-        guard let confirmedSnapshot, confirmedSnapshot != snapshot else { return }
-        snapshot = confirmedSnapshot
-        errorMessage = nil
-        syncPresentation = .confirmed
-        lastConfirmedAt = Date()
-    }
-
     func refresh() async {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-        if let latest = loadTodaySnapshot() {
-            snapshot = latest
+        do {
+            snapshot = try await client.fetchTodaySnapshot()
             errorMessage = nil
             syncPresentation = .confirmed
             lastConfirmedAt = Date()
-        } else {
+        } catch {
             if snapshot == nil {
                 syncPresentation = .unavailable
-                errorMessage = "Task state is unavailable because Zoid 666 has not prepared a confirmed state yet. Open Today or Source Health, then refresh."
+                errorMessage = "Task state is unavailable because Zoid 666 could not load a confirmed state from the background agent. Open Source Health, then refresh."
             } else {
                 syncPresentation = .stale
-                errorMessage = "Today has not prepared a newer confirmed state. The last confirmed task state remains visible. Open Source Health, then refresh."
+                errorMessage = "Today could not be refreshed. The last confirmed task state remains visible. Open Source Health, then refresh."
             }
         }
     }
@@ -222,7 +205,6 @@ struct MenuBarCoachView: View {
             coachHeader
             notificationFallbackSection
             coachingPauseSection
-            gamingWorkHoursSection
 
             if pauseController.usesManualWorkday {
                 manualWorkdaySection
@@ -257,7 +239,7 @@ struct MenuBarCoachView: View {
             await appModel.refreshTodaySnapshot()
         }
         .onChange(of: appModel.todaySnapshot) { _, snapshot in
-            controller.synchronizeWithToday(snapshot)
+            controller.adoptLastKnownSnapshot(snapshot)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("menu-bar.coach")
@@ -294,37 +276,13 @@ struct MenuBarCoachView: View {
     }
 
     private var menuState: MenuBarCoachState {
-        menuState(at: Date())
-    }
-
-    private func menuState(at date: Date) -> MenuBarCoachState {
         MenuBarCoachState(
             snapshot: controller.snapshot,
             snapshotConfirmedAt: controller.lastConfirmedAt,
             coachingIsPaused: pauseController.isPaused,
             unresolvedPromptCount: appModel.promptEpisodes.count,
-            notificationsUnavailable: notificationsUnavailable,
-            gamingWorkHoursContext: appModel.menuBarGamingWorkHoursContext(at: date),
-            authoritativeGamingStatus: appModel.todaySnapshot?.gaming,
-            gamingStatusIsConfirmed: menuGamingStatusIsConfirmed
+            notificationsUnavailable: notificationsUnavailable
         )
-    }
-
-    private var menuGamingStatusIsConfirmed: Bool {
-        guard controller.syncPresentation == .confirmed,
-              let confirmed = controller.snapshot,
-              let authoritative = appModel.todaySnapshot,
-              confirmed.localDate == authoritative.localDate,
-              confirmed.timeZoneIdentifier == authoritative.timeZoneIdentifier
-        else { return false }
-        let confirmedGaming = confirmed.gaming
-        let authoritativeGaming = authoritative.gaming
-        return confirmedGaming.budgetMinutes == authoritativeGaming.budgetMinutes
-            && confirmedGaming.earnedMinutes == authoritativeGaming.earnedMinutes
-            && confirmedGaming.usedMinutes == authoritativeGaming.usedMinutes
-            && confirmedGaming.lockedMinutes == authoritativeGaming.lockedMinutes
-            && confirmedGaming.budgetEnabled == authoritativeGaming.budgetEnabled
-            && confirmedGaming.workHoursMaximumEvaluation == authoritativeGaming.workHoursMaximumEvaluation
     }
 
     private var notificationsUnavailable: Bool {
@@ -453,36 +411,6 @@ struct MenuBarCoachView: View {
             return "Your workday is active. Use End Workday below when you are finished; fixed hours will not end it for you."
         }
         return "Your workday begins only when you start or resume a task. Fixed hours will not start it for you."
-    }
-
-    private var gamingWorkHoursSection: some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
-            if let gaming = menuState(at: context.date).gamingWorkHours {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("WORK-HOURS GAMING")
-                        .font(Sumi.label(9))
-                        .sumiLabelTracking()
-                        .foregroundStyle(Sumi.sealDeep)
-                    Text(gaming.maximumLabel)
-                        .font(Sumi.body(13))
-                        .foregroundStyle(Sumi.ink)
-                        .accessibilityIdentifier("menu-bar.gaming.work-hours.maximum")
-                    Text(gaming.status)
-                        .font(Sumi.body(11))
-                        .foregroundStyle(Sumi.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("menu-bar.gaming.work-hours.status")
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(gaming.isCappedNow ? Sumi.sealWash : Sumi.softPaper)
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel(gaming.accessibilitySummary)
-                .accessibilityIdentifier("menu-bar.gaming.work-hours")
-
-                Divider().overlay(Sumi.rule)
-            }
-        }
     }
 
     @ViewBuilder

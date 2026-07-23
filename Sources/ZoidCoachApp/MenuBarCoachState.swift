@@ -57,38 +57,6 @@ enum MenuBarTaskAction: String, Hashable, Identifiable {
     }
 }
 
-struct MenuBarGamingWorkHoursContext: Equatable {
-    let maximumMinutes: Int?
-    let isWithinWorkWindow: Bool
-}
-
-struct MenuBarGamingWorkHoursPresentation: Equatable {
-    let maximumMinutes: Int?
-    let isWithinWorkWindow: Bool
-    let isCappedNow: Bool
-    let isAwaitingRefresh: Bool
-    let remainingMinutes: Int
-
-    var maximumLabel: String {
-        maximumMinutes.map { "\($0) MIN MAXIMUM" } ?? "MAXIMUM UPDATE"
-    }
-
-    var status: String {
-        if isAwaitingRefresh {
-            return "Current allowance is awaiting a work-hours policy refresh"
-        }
-        if isCappedNow {
-            return "Active in the current work window · \(remainingMinutes)m remaining"
-        }
-        return "Not active now · Normal allowance has \(remainingMinutes)m remaining"
-    }
-
-    var accessibilitySummary: String {
-        let maximum = maximumMinutes.map { "\($0) minutes" } ?? "being updated"
-        return "Work-hours gaming maximum, \(maximum). \(status)"
-    }
-}
-
 struct MenuBarCoachState: Equatable {
     let snapshot: TodaySnapshot?
     let tone: MenuBarCoachTone
@@ -101,45 +69,19 @@ struct MenuBarCoachState: Equatable {
     let unresolvedPromptCount: Int
     let notificationFallbackIsActive: Bool
     let snapshotConfirmedAt: Date?
-    let gamingWorkHours: MenuBarGamingWorkHoursPresentation?
 
     init(
         snapshot: TodaySnapshot?,
         snapshotConfirmedAt: Date? = nil,
         coachingIsPaused: Bool = false,
         unresolvedPromptCount: Int = 0,
-        notificationsUnavailable: Bool = false,
-        gamingWorkHoursContext: MenuBarGamingWorkHoursContext? = nil,
-        authoritativeGamingStatus: GamingStatus? = nil,
-        gamingStatusIsConfirmed: Bool = true
+        notificationsUnavailable: Bool = false
     ) {
         self.snapshot = snapshot
         self.snapshotConfirmedAt = snapshotConfirmedAt
         self.coachingIsPaused = coachingIsPaused
         self.unresolvedPromptCount = max(0, unresolvedPromptCount)
         notificationFallbackIsActive = notificationsUnavailable && unresolvedPromptCount > 0
-        if let context = gamingWorkHoursContext,
-           let gaming = authoritativeGamingStatus ?? snapshot?.gaming,
-           gaming.budgetEnabled {
-            let evaluation = gaming.workHoursMaximumEvaluation
-            let shouldApply = context.maximumMinutes != nil && context.isWithinWorkWindow
-            let provenanceMatches = gamingStatusIsConfirmed
-                && evaluation?.configuredMaximumMinutes == context.maximumMinutes
-                && evaluation?.isApplied == shouldApply
-            if context.maximumMinutes == nil, provenanceMatches {
-                gamingWorkHours = nil
-            } else {
-                gamingWorkHours = MenuBarGamingWorkHoursPresentation(
-                    maximumMinutes: context.maximumMinutes ?? evaluation?.configuredMaximumMinutes,
-                    isWithinWorkWindow: context.isWithinWorkWindow,
-                    isCappedNow: provenanceMatches && shouldApply,
-                    isAwaitingRefresh: !provenanceMatches,
-                    remainingMinutes: gaming.unlockedRemainingMinutes
-                )
-            }
-        } else {
-            gamingWorkHours = nil
-        }
         let rows = snapshot?.taskRows ?? []
         activeTask = snapshot?.activeTask.flatMap { active in
             rows.first { $0.taskID == active.taskID }

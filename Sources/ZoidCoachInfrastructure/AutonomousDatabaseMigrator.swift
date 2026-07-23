@@ -17,7 +17,7 @@ public struct AutonomousMigrationResult: Equatable, Sendable {
 }
 
 public final class AutonomousDatabaseMigrator: @unchecked Sendable {
-    public static let currentVersion = 50
+    public static let currentVersion = 49
 
     private let databaseURL: URL
     private let fileManager: FileManager
@@ -1248,27 +1248,7 @@ private extension AutonomousDatabaseMigrator {
         );
         CREATE INDEX IF NOT EXISTS daily_review_session_merges_day_time
         ON daily_review_session_merges(source_day, left_start_epoch, right_start_epoch);
-        """)]),
-        Migration(version: 50, isDestructive: false, operations: [.sqlIfTableExists(
-            table: "task_pause_events",
-            sql: """
-            CREATE TABLE task_pause_events_v50 (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                task_id TEXT NOT NULL,
-                reason TEXT NOT NULL CHECK(reason IN ('unspecified', 'break', 'switchingTasks', 'externalInterruption', 'doneForNow', 'endingWorkday', 'blocked', 'reminderDeleted')),
-                paused_at TEXT NOT NULL,
-                resumed_at TEXT
-            );
-            INSERT INTO task_pause_events_v50(id, task_id, reason, paused_at, resumed_at)
-            SELECT id, task_id, reason, paused_at, resumed_at FROM task_pause_events;
-            DROP TABLE task_pause_events;
-            ALTER TABLE task_pause_events_v50 RENAME TO task_pause_events;
-            CREATE INDEX task_pause_events_task_time
-            ON task_pause_events(task_id, paused_at DESC);
-            CREATE UNIQUE INDEX task_pause_events_one_open
-            ON task_pause_events(task_id) WHERE resumed_at IS NULL;
-            """
-        )])
+        """)])
     ]
 }
 

@@ -66,6 +66,9 @@ public final class PlanningInvitationService: @unchecked Sendable {
         if latest.state.isUnresolved, latest.payload["followUpKind"] != nil {
             return PlanningDayStatus(mode: .invitation)
         }
+        if hasPlan {
+            return PlanningDayStatus(mode: .planning, driftInterventionsAllowed: false)
+        }
         if let response = try store.responses(promptID: latest.id).last {
             switch response.action {
             case .workUnplanned:
@@ -78,9 +81,6 @@ public final class PlanningInvitationService: @unchecked Sendable {
             default:
                 break
             }
-        }
-        if hasPlan {
-            return PlanningDayStatus(mode: .planning, driftInterventionsAllowed: false)
         }
         return PlanningDayStatus(mode: .invitation)
     }

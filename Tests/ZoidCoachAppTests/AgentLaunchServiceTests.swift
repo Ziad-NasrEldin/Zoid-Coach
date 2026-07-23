@@ -218,36 +218,6 @@ struct AgentLaunchServiceTests {
 
     @MainActor
     @Test
-    func externalUnregistrationPreventsForegroundReregistration() throws {
-        let suiteName = "zoid-external-unregistration-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let bundleURL = URL(fileURLWithPath: "/Users/test/Applications/Zoid 666 QA E2E.app")
-        let registration = RecordingAgentServiceRegistration(status: .notRegistered)
-
-        AgentLaunchService.recordSuccessfulExternalRegistration(
-            userDefaults: defaults,
-            bundleURL: bundleURL,
-            buildVersion: "8"
-        )
-        AgentLaunchService.recordSuccessfulExternalUnregistration(userDefaults: defaults)
-
-        let foreground = AgentLaunchService(
-            service: registration,
-            userDefaults: defaults,
-            bundleURL: bundleURL,
-            buildVersion: "8",
-            heartbeat: { nil }
-        )
-
-        _ = foreground.reconcileAtLaunchAndInspect()
-
-        #expect(registration.unregisterCount == 0)
-        #expect(registration.registerCount == 0)
-    }
-
-    @MainActor
-    @Test
     func forcedRepairReregistersEvenWhenRegistrationLooksEnabled() {
         let registration = RecordingAgentServiceRegistration(status: .enabled)
         let service = AgentLaunchService(

@@ -58,8 +58,6 @@ enum SettingsPolicyConflictResolver {
         apply(\.operatingMode, label: "Operating mode")
         apply(\.coachingLevel, label: "Coaching level")
         apply(\.gamingDailyBudgetMinutes, label: "Gaming daily budget")
-        apply(\.gamingWorkHoursMaximumEnabled, label: "Work-hours gaming maximum enabled")
-        apply(\.gamingWorkHoursDailyMaximumMinutes, label: "Work-hours gaming maximum minutes")
         apply(\.gamingPriorityTaskRewardMinutes, label: "Gaming priority reward")
         apply(\.gamingIntentionalOverrideMinutes, label: "Intentional gaming override")
         apply(\.gamingDailyPromptCap, label: "Daily coaching prompt cap")

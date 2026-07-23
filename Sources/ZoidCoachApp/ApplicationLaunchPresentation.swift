@@ -260,12 +260,8 @@ struct QAMainWindowOpeningCoordinator {
     }
 
     func open() {
-        activateApplication()
-        if let mainWindow = MainApplicationWindowSelector.select(from: availableWindows()) {
-            foregroundWindow(mainWindow.windowNumber)
-            return
-        }
         requestMainWindow()
+        activateApplication()
         foregroundMainWindow(attempt: 1)
     }
 

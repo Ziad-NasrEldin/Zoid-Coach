@@ -59,8 +59,7 @@ struct AppMeetingEvidenceCipherFactory {
 @MainActor
 final class AppModel: ObservableObject {
     @Published var selectedSection: AppSection = .today
-    @Published private(set) var coachingRuntimeState: CoachingRuntimeState = .unavailable
-    var coachingState: CoachingState { coachingRuntimeState.state }
+    @Published var coachingState: CoachingState = .observation
     @Published var sources: [SourceHealth] = SourceHealth.initial
     @Published var reminderTasks: [ReminderTask] = []
     @Published var dailyPlan: [DailyPlanEntry] = []
@@ -111,11 +110,10 @@ final class AppModel: ObservableObject {
     private let eventStore: EventStore
     private let meetingArchive: ScreenwatchArchive?
     private let meetingEvidenceCipherFactory: () throws -> any EvidenceCiphering
-    private let todaySnapshotLoader: ReadOnlyTodaySnapshotLoader
+    private let todaySnapshotStore: TodaySnapshotStore?
     private let policyStore: PolicyStore?
     private let reminderListPolicyLoader: @Sendable () throws -> ReminderListPolicy
     private let todayDashboardXPCClient: TodayDashboardXPCClient
-    private let recordSourceCheck: @Sendable (SourceHealth, Date) async throws -> Void
     private let calendarPlanApprovalReceiptStore: CalendarPlanApprovalReceiptStore
     private let synchronizeReminderSnapshots: @Sendable ([AgentReminderSnapshot]) async throws -> Void
     private var dailyPlanPersistenceTask: Task<Bool, Never>?
@@ -125,15 +123,11 @@ final class AppModel: ObservableObject {
     private let saveGamingManualAdjustment: @Sendable (GamingManualAdjustmentRequest) async throws -> AgentMutationReceipt
     private let loadGamingManualAdjustments: @Sendable (Date, String) throws -> [GamingManualAdjustment]
     private let fetchAuthoritativeGamingSnapshot: @Sendable () async throws -> TodaySnapshot
-    private let loadCoachingRuntimeState: @Sendable (Date) async throws -> CoachingRuntimeState
     private let now: @Sendable () -> Date
-    private let todayLiveRefreshLoop = TodayLiveRefreshLoop()
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
     private var sourceChecksInFlight: Set<SourceID> = []
-    private var sourceInspectionGenerations: [SourceID: Int] = [:]
     private var planningCalendarRevision: CalendarPlanAvailabilityRevision?
-    private var coachingStateRefreshGate = CoachingStateRefreshGate()
 
     init(
         runtimeEnvironment: RuntimeEnvironment = .current(),
@@ -154,8 +148,6 @@ final class AppModel: ObservableObject {
         saveGamingManualAdjustment: (@Sendable (GamingManualAdjustmentRequest) async throws -> AgentMutationReceipt)? = nil,
         loadGamingManualAdjustments: (@Sendable (Date, String) throws -> [GamingManualAdjustment])? = nil,
         fetchAuthoritativeGamingSnapshot: (@Sendable () async throws -> TodaySnapshot)? = nil,
-        loadCoachingRuntimeState: (@Sendable (Date) async throws -> CoachingRuntimeState)? = nil,
-        recordSourceCheck: (@Sendable (SourceHealth, Date) async throws -> Void)? = nil,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         let resolvedAgentLaunchService = agentLaunchService
@@ -164,16 +156,6 @@ final class AppModel: ObservableObject {
             runtimeEnvironment: runtimeEnvironment
         )
         todayDashboardXPCClient = resolvedTodayDashboardXPCClient
-        self.recordSourceCheck = recordSourceCheck ?? { health, checkedAt in
-            let receipt = try await resolvedTodayDashboardXPCClient.apply(.recordSourceCheck(
-                sourceID: health.id.rawValue,
-                state: health.state.rawValue,
-                detail: health.detail,
-                evidence: health.evidence,
-                checkedAt: checkedAt
-            ))
-            guard receipt.accepted else { throw AppModelPersistenceError.rejected }
-        }
         self.synchronizeReminderSnapshots = synchronizeReminderSnapshots ?? { snapshots in
             _ = try await resolvedTodayDashboardXPCClient.apply(
                 .synchronizeReminderSnapshots(snapshots)
@@ -250,27 +232,12 @@ final class AppModel: ObservableObject {
             try meetingEvidenceCipherFactory.makeCipher(for: runtimeEnvironment)
         }
         meetingArchive = try? ScreenwatchArchive(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
-        todaySnapshotLoader = ReadOnlyTodaySnapshotLoader(runtimeEnvironment: runtimeEnvironment)
+        todaySnapshotStore = try? TodaySnapshotStore(databaseURL: runtimeEnvironment.databaseURL, readOnly: true)
         let resolvedPolicyStore = try? PolicyStore(
             databaseURL: runtimeEnvironment.databaseURL,
             readOnly: true
         )
         policyStore = resolvedPolicyStore
-        let resolvedBaselineStore = try? BaselineObservationStore(
-            databaseURL: runtimeEnvironment.databaseURL
-        )
-        self.loadCoachingRuntimeState = loadCoachingRuntimeState ?? { date in
-            guard let resolvedPolicyStore, let resolvedBaselineStore else {
-                throw AppModelCoachingStateError.authoritativeSourceUnavailable
-            }
-            let policy = try resolvedPolicyStore.current()?.policy ?? UserPolicy.defaults()
-            return CoachingRuntimeState.resolve(
-                automationPause: policy.automationPause,
-                baselineStatus: try resolvedBaselineStore.status(),
-                coachingLevel: policy.gaming.coachingLevel,
-                now: date
-            )
-        }
         self.reminderListPolicyLoader = reminderListPolicyLoader ?? {
             guard let resolvedPolicyStore else {
                 throw AppModelPolicyError.policyStoreUnavailable
@@ -304,7 +271,7 @@ final class AppModel: ObservableObject {
             await reloadDailyPlan()
             await reloadReminderListOrder()
             reloadMeetingCandidates()
-            await inspectSource(.notifications) { await self.notificationService.inspect() }
+            updateSource(await self.notificationService.inspect())
             await refreshTodaySnapshot()
             await refreshPromptInbox()
             await refreshActionAudit()
@@ -327,12 +294,15 @@ final class AppModel: ObservableObject {
 
         Task {
             try? await Task.sleep(for: .milliseconds(320))
-            await inspectSource(.reminders) { await remindersService.inspect() }
-            await inspectSource(.calendar) { await calendarService.inspect() }
+            let reminders = await remindersService.inspect()
+            updateSource(reminders)
+            let calendar = await calendarService.inspect()
+            updateSource(calendar)
             refreshPlanningCapacity()
-            await inspectSource(.agent) { agentLaunchService.inspect() }
-            await inspectSource(.notifications) { await notificationService.inspect() }
-            await inspectSource(.screenwatch) { await screenwatchReader.inspect() }
+            updateSource(agentLaunchService.inspect())
+            updateSource(await notificationService.inspect())
+            let screenwatch = await screenwatchReader.inspect()
+            updateSource(screenwatch)
             lastCheckAt = Date()
             isCheckingSources = false
         }
@@ -340,7 +310,6 @@ final class AppModel: ObservableObject {
 
     func checkSource(_ sourceID: SourceID) {
         guard sourceChecksInFlight.insert(sourceID).inserted else { return }
-        sourceInspectionGenerations[sourceID, default: 0] += 1
         markSourceChecking(sourceID)
         switch sourceID {
         case .screenwatch:
@@ -429,32 +398,10 @@ final class AppModel: ObservableObject {
     }
 
     func refreshTodaySnapshot() async {
-        installTodaySnapshot(todaySnapshotLoader.load())
-        await refreshCoachingState()
-    }
-
-    func refreshCoachingState() async {
-        let generation = coachingStateRefreshGate.begin()
-        let loader = loadCoachingRuntimeState
-        let refreshDate = now()
-        let result = await Task.detached(priority: .utility) {
-            do {
-                return Result<CoachingRuntimeState, Error>.success(try await loader(refreshDate))
-            } catch {
-                return Result<CoachingRuntimeState, Error>.failure(error)
-            }
-        }.value
-        guard coachingStateRefreshGate.shouldInstall(generation) else { return }
-        coachingRuntimeState = (try? result.get()) ?? .unavailable
-    }
-
-    func setTodayLiveRefreshEnabled(_ isEnabled: Bool) {
-        guard isEnabled else {
-            todayLiveRefreshLoop.stop()
-            return
-        }
-        todayLiveRefreshLoop.start { [weak self] in
-            await self?.refreshTodaySnapshot()
+        do {
+            installTodaySnapshot(try await todayDashboardXPCClient.fetchTodaySnapshot())
+        } catch {
+            installTodaySnapshot(try? todaySnapshotStore?.load())
         }
     }
 
@@ -516,7 +463,7 @@ final class AppModel: ObservableObject {
                 gamingManualAdjustmentMessage = receipt.message
             } catch {
                 gamingManualAdjustmentError = error.localizedDescription
-                installTodaySnapshot(todaySnapshotLoader.load())
+                installTodaySnapshot(try? todaySnapshotStore?.load())
             }
         }
     }
@@ -572,7 +519,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshMenuBarPromptFallback() async {
-        await inspectSource(.notifications) { await notificationService.inspect() }
+        updateSource(await notificationService.inspect())
         await refreshPromptInbox()
     }
 
@@ -592,7 +539,7 @@ final class AppModel: ObservableObject {
                 }
             } catch {
                 taskCommandError = "The task change could not be saved. The last confirmed state is still shown. Try again after checking Agent source health."
-                installTodaySnapshot(todaySnapshotLoader.load())
+                installTodaySnapshot(try? todaySnapshotStore?.load())
             }
         }
     }
@@ -665,7 +612,7 @@ final class AppModel: ObservableObject {
                 lastActionMessage = "\(durationMinutes)-minute sprint started."
             } catch {
                 taskCommandError = error.localizedDescription
-                installTodaySnapshot(todaySnapshotLoader.load())
+                installTodaySnapshot(try? todaySnapshotStore?.load())
             }
         }
     }
@@ -880,7 +827,7 @@ final class AppModel: ObservableObject {
                 await refreshPromptInbox()
             } catch {
                 taskCommandError = error.localizedDescription
-                installTodaySnapshot(todaySnapshotLoader.load())
+                installTodaySnapshot(try? todaySnapshotStore?.load())
             }
         }
     }
@@ -1236,7 +1183,7 @@ final class AppModel: ObservableObject {
         } catch {
             taskCommandError = "The blocker was not saved. The last confirmed task and plan state are still shown."
             await reloadDailyPlan()
-            installTodaySnapshot(todaySnapshotLoader.load())
+            installTodaySnapshot(try? todaySnapshotStore?.load())
             return false
         }
     }
@@ -1581,12 +1528,15 @@ final class AppModel: ObservableObject {
     }
 
     private func refreshAllSources() async {
-        await inspectSource(.reminders) { await remindersService.inspect() }
-        await inspectSource(.calendar) { await calendarService.inspect() }
+        let reminders = await remindersService.inspect()
+        updateSource(reminders)
+        let calendar = await calendarService.inspect()
+        updateSource(calendar)
         refreshPlanningCapacity()
-        await inspectSource(.agent) { agentLaunchService.inspect() }
-        await inspectSource(.notifications) { await notificationService.inspect() }
-        await inspectSource(.screenwatch) { await screenwatchReader.inspect() }
+        updateSource(agentLaunchService.inspect())
+        updateSource(await notificationService.inspect())
+        let screenwatch = await screenwatchReader.inspect()
+        updateSource(screenwatch)
         lastCheckAt = Date()
     }
 
@@ -1759,24 +1709,18 @@ final class AppModel: ObservableObject {
         let checkedAt = Date()
         Task {
             do {
-                try await recordSourceCheck(result, checkedAt)
+                let receipt = try await todayDashboardXPCClient.apply(.recordSourceCheck(
+                    sourceID: result.id.rawValue,
+                    state: result.state.rawValue,
+                    detail: result.detail,
+                    evidence: result.evidence,
+                    checkedAt: checkedAt
+                ))
+                guard receipt.accepted else { throw AppModelPersistenceError.rejected }
             } catch {
                 persistenceMessage = "Source health was checked, but its audit record was not saved."
             }
         }
-    }
-
-    private func inspectSource(
-        _ sourceID: SourceID,
-        operation: () async -> SourceHealth
-    ) async {
-        guard !sourceChecksInFlight.contains(sourceID) else { return }
-        let generation = sourceInspectionGenerations[sourceID, default: 0]
-        let result = await operation()
-        guard !sourceChecksInFlight.contains(sourceID),
-              sourceInspectionGenerations[sourceID, default: 0] == generation
-        else { return }
-        updateSource(result)
     }
 
     private func recordTaskHistory(_ taskID: String, state: AgentTaskHistoryState) {
@@ -1796,16 +1740,6 @@ final class AppModel: ObservableObject {
         guard let policyStore else { return UserPolicy.defaults() }
         do { return try policyStore.current()?.policy ?? UserPolicy.defaults() }
         catch { return UserPolicy.defaults() }
-    }
-
-    func menuBarGamingWorkHoursContext(at date: Date) -> MenuBarGamingWorkHoursContext? {
-        guard let policyStore,
-              let policy = try? policyStore.current()?.policy
-        else { return nil }
-        return MenuBarGamingWorkHoursContext(
-            maximumMinutes: policy.gaming.workHoursDailyMaximumMinutes,
-            isWithinWorkWindow: policy.schedule.isWithinWorkWindow(at: date)
-        )
     }
 
     private func refreshPlanningCapacity() {
@@ -1868,10 +1802,6 @@ private enum AppModelPolicyError: Error {
     case policyStoreUnavailable
 }
 
-private enum AppModelCoachingStateError: Error {
-    case authoritativeSourceUnavailable
-}
-
 private enum AppModelPersistenceError: Error {
     case rejected
 }
@@ -1891,15 +1821,6 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var sidebarAccessibilityIdentifier: String {
-        switch self {
-        case .today: "sidebar.navigation.today"
-        case .diagnostics: "sidebar.navigation.source-health"
-        case .reviews: "sidebar.navigation.reviews"
-        case .settings: "sidebar.navigation.settings"
-        }
-    }
-
     var symbol: String {
         switch self {
         case .today: "checklist"
@@ -1910,12 +1831,10 @@ enum AppSection: String, CaseIterable, Identifiable {
     }
 }
 
-struct SidebarNavigationAction: Equatable {
-    let destination: AppSection
-
-    func perform(select: (AppSection) -> Void) {
-        select(destination)
-    }
+enum CoachingState: String {
+    case observation = "Observation week"
+    case accountability = "Level 2 coaching"
+    case paused = "Coaching paused"
 }
 
 struct SourceHealth: Identifiable, Equatable, Sendable {

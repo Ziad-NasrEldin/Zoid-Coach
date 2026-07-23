@@ -8,10 +8,7 @@ readonly VERIFIER_BASE="0068cd2d9da540818feea90ff1e39fc5270b97ee"
 readonly APP="${1:-}"
 readonly DATABASE="${2:-}"
 readonly EXPECTED_COMMIT="${3:-}"
-shift $(( $# < 3 ? $# : 3 ))
-REQUIRE_QA_OPEN_MAIN=0
-REQUIRE_HELPER_UNREGISTERED=0
-EXPECTED_APP_PID=""
+readonly PRESENTATION_REQUIREMENT="${4:-}"
 
 fail() {
     print -u2 -- "FAIL: $*"
@@ -28,35 +25,6 @@ command_has_exact_argument() {
     [[ " $command " == *" $expected_argument "* ]]
 }
 
-launch_order_is_valid() {
-    local foreground_line="$1"
-    local register_line="$2"
-    [[ "$foreground_line" == <-> && "$register_line" == <-> && foreground_line -lt register_line ]]
-}
-
-assert_runbook_launch_order() {
-    local runbook="$REPOSITORY/docs/ZC-044-004-SIGNED-QA-RUNBOOK.md"
-    local ready_line foreground_line register_line
-    ready_line="$(grep -nF '"$READY_STATE" "$READY_MANIFEST" "$PRIVATE_ROOT" --replace' "$runbook" | head -n 1 | cut -d: -f1)"
-    foreground_line="$(awk -v start="$ready_line" 'NR > start && /open "\$APP" --args --qa-open-main/ { print NR; exit }' "$runbook")"
-    register_line="$(awk -v start="$ready_line" 'NR > start && /"\$APP_EXECUTABLE" --qa-register-agent/ { print NR; exit }' "$runbook")"
-    launch_order_is_valid "$foreground_line" "$register_line" \
-        || fail "runbook must launch and bind the foreground QA app before registering the helper"
-}
-
-assert_runbook_shell_blocks_fail_fast() {
-    local runbook="$REPOSITORY/docs/ZC-044-004-SIGNED-QA-RUNBOOK.md"
-    awk '
-        /^```sh$/ { checking = 1; next }
-        checking && /^[[:space:]]*$/ { next }
-        checking {
-            if ($0 != "set -euo pipefail") { exit 1 }
-            checking = 0
-        }
-        END { if (checking) { exit 1 } }
-    ' "$runbook" || fail "every runbook shell block must abort on errors, unset variables, and pipeline failures"
-}
-
 if [[ "$APP" == "--self-test" ]]; then
     is_full_lowercase_sha "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a" \
         || fail "valid SHA was rejected without extendedglob"
@@ -67,39 +35,14 @@ if [[ "$APP" == "--self-test" ]]; then
         || fail "exact QA foreground argument was rejected"
     ! command_has_exact_argument "/tmp/ZoidCoachQA --qa-open-main-extra" "--qa-open-main" \
         || fail "prefixed QA foreground argument was accepted"
-    launch_order_is_valid 20 30 || fail "valid foreground-before-helper order was rejected"
-    ! launch_order_is_valid 30 20 || fail "helper-before-foreground order was accepted"
-    assert_runbook_launch_order
-    assert_runbook_shell_blocks_fail_fast
     print -- "PASS: ZC-044-004 signed preflight validation self-test"
     exit 0
 fi
 
-while (( $# > 0 )); do
-    case "$1" in
-        --require-qa-open-main)
-            REQUIRE_QA_OPEN_MAIN=1
-            shift
-            ;;
-        --require-helper-unregistered)
-            REQUIRE_HELPER_UNREGISTERED=1
-            shift
-            ;;
-        --expected-app-pid)
-            (( $# >= 2 )) || fail "--expected-app-pid requires a PID"
-            EXPECTED_APP_PID="$2"
-            shift 2
-            ;;
-        *)
-            fail "unsupported preflight option: $1"
-            ;;
-    esac
-done
-[[ "$EXPECTED_APP_PID" == "" || "$EXPECTED_APP_PID" == <-> ]] || fail "expected app PID must be numeric"
+[[ -z "$PRESENTATION_REQUIREMENT" || "$PRESENTATION_REQUIREMENT" == "--require-qa-open-main" ]] \
+    || fail "unsupported presentation requirement: $PRESENTATION_REQUIREMENT"
 [[ -d "$APP" ]] || fail "signed app does not exist: $APP"
-if (( ! REQUIRE_HELPER_UNREGISTERED )); then
-    [[ -f "$DATABASE" ]] || fail "isolated database does not exist: $DATABASE"
-fi
+[[ -f "$DATABASE" ]] || fail "isolated database does not exist: $DATABASE"
 is_full_lowercase_sha "$EXPECTED_COMMIT" || fail "expected commit must be a full 40-character lowercase SHA"
 
 readonly CANONICAL_APP="${APP:A}"
@@ -154,42 +97,23 @@ matching_app_pid() {
 
 app_pid="$(matching_app_pid)" || fail "app is not running from the expected installed bundle"
 readonly APP_PID="$app_pid"
-if [[ -n "$EXPECTED_APP_PID" && "$APP_PID" != "$EXPECTED_APP_PID" ]]; then
-    fail "foreground app PID changed: expected $EXPECTED_APP_PID, got $APP_PID"
-fi
-if (( REQUIRE_QA_OPEN_MAIN )); then
+if [[ "$PRESENTATION_REQUIREMENT" == "--require-qa-open-main" ]]; then
     readonly APP_COMMAND="$(ps -ww -p "$APP_PID" -o command=)"
     command_has_exact_argument "$APP_COMMAND" "--qa-open-main" \
         || fail "installed QA app was not launched through the supported foreground main-window argument"
 fi
-if (( REQUIRE_HELPER_UNREGISTERED )); then
-    if launchctl print "gui/$(id -u)/$AGENT_LABEL" >/dev/null 2>&1; then
-        fail "helper registered before the foreground app was launched and bound"
-    fi
-    for helper_pid in ${(f)"$(pgrep -x "${AGENT_EXECUTABLE:t}" 2>/dev/null || true)"}; do
-        if lsof -Fn -a -p "$helper_pid" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$AGENT_EXECUTABLE"; then
-            fail "helper executable is running before registration"
-        fi
-    done
-    readonly HELPER_PID="UNREGISTERED"
-else
-    service="$(launchctl print "gui/$(id -u)/$AGENT_LABEL" 2>/dev/null)" \
-        || fail "installed helper service is unavailable: $AGENT_LABEL"
-    readonly SERVICE="$service"
-    readonly HELPER_PID="$(awk '/pid =/{print $3; exit}' <<<"$SERVICE")"
-    [[ "$HELPER_PID" == <-> ]] || fail "installed helper has no running PID"
-    lsof -Fn -a -p "$HELPER_PID" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$AGENT_EXECUTABLE" \
-        || fail "helper is not running from the expected installed bundle"
-    lsof -a -p "$HELPER_PID" "$CANONICAL_DATABASE" >/dev/null 2>&1 \
-        || fail "helper does not hold the exact isolated database open"
-fi
+service="$(launchctl print "gui/$(id -u)/$AGENT_LABEL" 2>/dev/null)" \
+    || fail "installed helper service is unavailable: $AGENT_LABEL"
+readonly SERVICE="$service"
+readonly HELPER_PID="$(awk '/pid =/{print $3; exit}' <<<"$SERVICE")"
+[[ "$HELPER_PID" == <-> ]] || fail "installed helper has no running PID"
+lsof -Fn -a -p "$HELPER_PID" -d txt 2>/dev/null | sed -n 's/^n//p' | grep -Fqx "$AGENT_EXECUTABLE" \
+    || fail "helper is not running from the expected installed bundle"
+lsof -a -p "$HELPER_PID" "$CANONICAL_DATABASE" >/dev/null 2>&1 \
+    || fail "helper does not hold the exact isolated database open"
 
 print -- "APP_PID=$APP_PID"
 print -- "HELPER_PID=$HELPER_PID"
 print -- "DATABASE=$CANONICAL_DATABASE"
 print -- "BUILD_COMMIT=$EXPECTED_COMMIT"
-if (( REQUIRE_HELPER_UNREGISTERED )); then
-    print -- "PASS: signed foreground app is bound before helper registration"
-else
-    print -- "PASS: signed candidate identity, executable paths, and isolated app/helper runtime are bound"
-fi
+print -- "PASS: signed candidate identity, executable paths, and isolated app/helper runtime are bound"

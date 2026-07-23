@@ -2,7 +2,6 @@ import Foundation
 import Testing
 @testable import ZoidCoachApp
 import ZoidCoachCore
-@testable import ZoidCoachInfrastructure
 
 @Suite("Daily review evidence layers")
 struct DailyReviewEvidenceLayersStateTests {
@@ -63,57 +62,6 @@ struct DailyReviewEvidenceLayersStateTests {
         #expect(state.layers[2].body == "No possible explanation was generated because the covered evidence is insufficient.")
     }
 
-    @Test("unknown-only and zero-minute totals do not invent a work hypothesis")
-    func limitedEvidenceHasNoHypothesis() {
-        let unknownOnly = DailyReviewStore.hypothesis(for: [
-            DailyReviewTotal(classification: .unknown, minutes: 5),
-        ])
-        let allZero = DailyReviewStore.hypothesis(for: [
-            DailyReviewTotal(classification: .work, minutes: 0),
-            DailyReviewTotal(classification: .distracting, minutes: 0),
-            DailyReviewTotal(classification: .unknown, minutes: 0),
-        ])
-
-        #expect(unknownOnly == nil)
-        #expect(allZero == nil)
-
-        let state = DailyReviewEvidenceLayersState(snapshot: DailyReviewSnapshot(
-            sourceDay: "2026-07-14",
-            sessions: [session(application: "Private Browser", classification: .unknown, start: Date(), minutes: 5)],
-            totals: [DailyReviewTotal(classification: .unknown, minutes: 5)],
-            hypothesis: unknownOnly,
-            hypothesisState: .pending,
-            confirmedAt: nil,
-            personalNote: "PRIVATE-NOTE-CONTENT"
-        ))
-        #expect(state.layers[1].body.contains("5 observed minutes remain Unknown"))
-        #expect(state.layers[1].body.contains("personal note supplies user context"))
-        #expect(state.layers[2].body == "No possible explanation was generated because the covered evidence is insufficient.")
-        #expect(state.layers.allSatisfy { !$0.accessibilityLabel.contains("PRIVATE-NOTE-CONTENT") })
-        #expect(state.layers.allSatisfy { !$0.accessibilityLabel.contains("Private Browser") })
-    }
-
-    @Test("positive work and drift evidence produce only their supported hypotheses")
-    func positiveEvidenceSupportsHypotheses() {
-        let work = DailyReviewStore.hypothesis(for: [
-            DailyReviewTotal(classification: .work, minutes: 8),
-            DailyReviewTotal(classification: .unknown, minutes: 2),
-        ])
-        let drift = DailyReviewStore.hypothesis(for: [
-            DailyReviewTotal(classification: .work, minutes: 2),
-            DailyReviewTotal(classification: .distracting, minutes: 8),
-            DailyReviewTotal(classification: .unknown, minutes: 1),
-        ])
-        let limitedMajority = DailyReviewStore.hypothesis(for: [
-            DailyReviewTotal(classification: .work, minutes: 2),
-            DailyReviewTotal(classification: .unknown, minutes: 8),
-        ])
-
-        #expect(work?.contains("Observed work time was the largest covered category") == true)
-        #expect(drift?.contains("Observed gaming and distracting time exceeded observed work time") == true)
-        #expect(limitedMajority == nil)
-    }
-
     @Test("all three layers expose stable accessibility contracts")
     func accessibilityContracts() throws {
         let root = URL(fileURLWithPath: #filePath)
@@ -134,7 +82,6 @@ struct DailyReviewEvidenceLayersStateTests {
         ))
 
         #expect(source.contains("reviews.evidence-layers"))
-        #expect(source.contains(".accessibilityElement(children: .ignore)"))
         #expect(state.layers.map(\.accessibilityIdentifier) == [
             "reviews.evidence-layers.facts",
             "reviews.evidence-layers.context",

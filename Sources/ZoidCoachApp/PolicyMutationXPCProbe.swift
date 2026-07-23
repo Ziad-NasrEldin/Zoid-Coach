@@ -85,9 +85,6 @@ enum PolicyMutationXPCProbe {
         let service = SMAppServiceAgentRegistration(plistName: runtime.identity.launchAgentPlistName)
         do {
             try QAAgentRegistrationLifecycle.uninstall(service: service)
-            AgentLaunchService.recordSuccessfulExternalUnregistration(
-                userDefaults: runtime.makeUserDefaults()
-            )
             print("PASS: QA LaunchAgent unregistered")
             return 0
         } catch {

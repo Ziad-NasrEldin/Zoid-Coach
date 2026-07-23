@@ -16,7 +16,6 @@ import ZoidCoachCore
     #expect(source.contains("MenuBarExtra {"))
     #expect(source.contains("Label(\"Zoid 666\", systemImage: menuBarState.menuBarSymbol)"))
     #expect(source.contains(".labelStyle(.iconOnly)"))
-    #expect(source.contains(".accessibilityLabel(menuBarState.menuBarLabel)"))
     #expect(source.contains(".accessibilityValue(menuBarState.menuBarLabel)"))
     #expect(source.contains(".accessibilityIdentifier(\"menu-bar.status-item\")"))
     #expect(!source.contains("MenuBarExtra(isInserted:"))
@@ -86,7 +85,7 @@ import ZoidCoachCore
 }
 
 @MainActor
-@Test func qaMainWindowLaunchReusesExistingMainWithoutRequestingDuplicate() {
+@Test func qaMainWindowLaunchIsForegroundedExactlyOnce() {
     var events: [String] = []
     let backgroundWindow = applicationWindow(
         number: 41,
@@ -114,7 +113,7 @@ import ZoidCoachCore
     gate.openIfNeeded(shouldOpenMainWindow: true, coordinator: coordinator)
     gate.openIfNeeded(shouldOpenMainWindow: true, coordinator: coordinator)
 
-    #expect(events == ["activate", "foreground-42"])
+    #expect(events == ["request-main", "activate", "foreground-42"])
     #expect(gate.hasOpenedMainWindow)
 }
 
@@ -438,7 +437,7 @@ import ZoidCoachCore
         activateApplication: { events.append("activate") },
         availableWindows: {
             polls += 1
-            return polls <= 2 ? [backgroundWindow] : [backgroundWindow, mainWindow]
+            return polls == 1 ? [backgroundWindow] : [backgroundWindow, mainWindow]
         },
         foregroundWindow: { events.append("foreground-\($0)") },
         scheduleRetry: { action in
@@ -449,8 +448,8 @@ import ZoidCoachCore
 
     coordinator.open()
 
-    #expect(events == ["activate", "request-main", "retry", "foreground-42"])
-    #expect(polls == 3)
+    #expect(events == ["request-main", "activate", "retry", "foreground-42"])
+    #expect(polls == 2)
 }
 
 @MainActor
@@ -479,7 +478,7 @@ import ZoidCoachCore
 
     coordinator.open()
 
-    #expect(polls == 4)
+    #expect(polls == 3)
     #expect(retries == 2)
     #expect(foregroundedWindows.isEmpty)
 }

@@ -20,22 +20,29 @@ struct TodayDashboardCommandOverview: View {
     @State private var blockReasonTask: TodayTaskRow?
     @State private var blockReason = ""
     @State private var gamingAdjustmentPresentation: GamingManualAdjustmentPresentation?
-    @State private var snapshotConfirmedAt: Date
-    private let now: () -> Date
     @FocusState private var isUsageFocused: Bool
-
-    init(snapshot: TodaySnapshot, now: @escaping () -> Date = Date.init) {
-        self.snapshot = snapshot
-        self.now = now
-        _snapshotConfirmedAt = State(initialValue: now())
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            TodayDayStateHeader(
-                date: snapshot.localDate,
-                presentation: .resolve(snapshot: snapshot)
-            )
+            HStack(alignment: .lastTextBaseline) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("TODAY / ONE DELIBERATE MOVE")
+                        .font(Sumi.label(9))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.seal)
+                    Text(snapshot.localDate.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                        .font(Sumi.display(30))
+                        .foregroundStyle(Sumi.ink)
+                }
+                Spacer(minLength: 20)
+                Text("One working surface for the next commitment, its time, and the choices still waiting for you.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .frame(maxWidth: 300, alignment: .trailing)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 20)
 
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 0) {
@@ -60,9 +67,6 @@ struct TodayDashboardCommandOverview: View {
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 20)
-        .onChange(of: snapshot) { _, _ in
-            snapshotConfirmedAt = now()
-        }
         .alert("Switch active task?", isPresented: Binding(
             get: { pendingSwitchTask != nil },
             set: { if !$0 { pendingSwitchTask = nil } }
@@ -119,12 +123,10 @@ struct TodayDashboardCommandOverview: View {
 
     private var focusCommitment: some View {
         VStack(alignment: .leading, spacing: 0) {
-            TimelineView(.periodic(from: snapshotConfirmedAt, by: 60)) { context in
-                Text(primaryFocusHeading(at: context.date))
-                    .font(Sumi.label(9))
-                    .sumiLabelTracking()
-                    .foregroundStyle(Sumi.seal)
-            }
+            Text(primaryFocusHeading)
+                .font(Sumi.label(9))
+                .sumiLabelTracking()
+                .foregroundStyle(Sumi.seal)
             Text(primaryFocusRow?.title ?? snapshot.mainObjective ?? snapshot.recommendation.sentence)
                 .font(Sumi.display(28))
                 .tracking(-0.7)
@@ -145,29 +147,8 @@ struct TodayDashboardCommandOverview: View {
                     }
                     .padding(.top, 10)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel(
-                        "\(activeCommitment.taskTitle). \(activeCommitment.modeLabel). \(activeCommitment.detail)"
-                    )
+                    .accessibilityLabel(activeCommitment.accessibilitySummary)
                     .accessibilityIdentifier("today.active-commitment.timing-mode")
-                }
-                if OpenEndedElapsedTimePresentation.isApplicable(to: row) {
-                    TimelineView(.periodic(from: snapshotConfirmedAt, by: 60)) { context in
-                        if let elapsed = OpenEndedElapsedTimePresentation(
-                            task: row,
-                            activeTask: snapshot.activeTask,
-                            snapshotConfirmedAt: snapshotConfirmedAt,
-                            currentDate: context.date
-                        ) {
-                            Text(elapsed.displayText)
-                                .font(Sumi.label(9))
-                                .sumiLabelTracking()
-                                .foregroundStyle(Sumi.ink)
-                                .accessibilityLabel(elapsed.accessibilityLabel)
-                                .accessibilityValue(elapsed.displayText)
-                                .accessibilityIdentifier("today.focus.open-ended-elapsed")
-                        }
-                    }
-                    .padding(.top, 10)
                 }
                 HStack(spacing: 14) {
                     detail("Estimate", planEntry(for: row)?.estimateMinutes.map { "\($0)m" } ?? "Choose")
@@ -182,22 +163,14 @@ struct TodayDashboardCommandOverview: View {
                 }
                 .padding(.top, 12)
                 if row.state == .active || row.state == .paused {
-                    TimelineView(.periodic(from: snapshotConfirmedAt, by: 60)) { context in
-                        let openEndedElapsed = OpenEndedElapsedTimePresentation(
-                            task: row,
-                            activeTask: snapshot.activeTask,
-                            snapshotConfirmedAt: snapshotConfirmedAt,
-                            currentDate: context.date
-                        )
-                        TaskEstimateProgressView(
-                            progress: TaskEstimateProgress(
-                                elapsedMinutes: openEndedElapsed?.elapsedMinutes ?? row.elapsedMinutes,
-                                estimateMinutes: row.estimateMinutes
-                            ),
-                            isRunning: row.state == .active && openEndedElapsed == nil,
-                            identifier: "today.focus.estimate-progress"
-                        )
-                    }
+                    TaskEstimateProgressView(
+                        progress: TaskEstimateProgress(
+                            elapsedMinutes: row.elapsedMinutes,
+                            estimateMinutes: row.estimateMinutes
+                        ),
+                        isRunning: row.state == .active,
+                        identifier: "today.focus.estimate-progress"
+                    )
                     .padding(.top, 14)
                 }
                 if let comparison = row.activeTimeComparison {
@@ -267,7 +240,7 @@ struct TodayDashboardCommandOverview: View {
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .large))
                             .help("Record intentional work completed away from this Mac")
                             .accessibilityLabel("Add away-from-Mac work for \(row.title)")
-                            .accessibilityIdentifier("today.focus.offline-work.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
+                            .accessibilityIdentifier("today.focus.offline-work.\(row.taskID)")
                     }
                 }
                 .disabled(model.isAnyTaskCommandPending)
@@ -281,33 +254,6 @@ struct TodayDashboardCommandOverview: View {
 
     private var behaviorState: some View {
         VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(coachingPresentation.statusLabel)
-                        .font(Sumi.label(8))
-                        .sumiLabelTracking()
-                        .foregroundStyle(Sumi.seal)
-                    Text(coachingPresentation.explanation)
-                        .font(Sumi.body(10))
-                        .foregroundStyle(Sumi.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if let pauseReason = coachingPresentation.pauseReason {
-                        Text(pauseReason)
-                            .font(Sumi.body(10))
-                            .foregroundStyle(Sumi.muted)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    if let recoveryHint = coachingPresentation.recoveryHint {
-                        Text(recoveryHint)
-                            .font(Sumi.body(10))
-                            .foregroundStyle(Sumi.sealDeep)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(coachingPresentation.accessibilityLabel)
-                .accessibilityIdentifier("today.coaching.status")
-                .padding(.bottom, 16)
-
                 Text("BEHAVIOR, SINCE MIDNIGHT")
                     .font(Sumi.label(8))
                     .sumiLabelTracking()
@@ -478,10 +424,6 @@ struct TodayDashboardCommandOverview: View {
             return "Allowance unavailable"
         }
         return "\(snapshot.gaming.unlockedRemainingMinutes)m left"
-    }
-
-    private var coachingPresentation: CoachingStatePresentation {
-        CoachingStatePresentation(runtimeState: model.coachingRuntimeState)
     }
 
     private func scheduleUsageDismissal() {
@@ -685,25 +627,12 @@ struct TodayDashboardCommandOverview: View {
             ?? recommendedRow
     }
 
-    private func primaryFocusHeading(at date: Date) -> String {
+    private var primaryFocusHeading: String {
         guard let row = primaryFocusRow else { return "MAIN OBJECTIVE" }
         if let reason = row.completionReason {
             return reason.userFacingLabel.uppercased()
         }
-        if let activeCommitment = ActiveCommitmentPresentation(task: row, at: date) {
-            if let elapsed = OpenEndedElapsedTimePresentation(
-                task: row,
-                activeTask: snapshot.activeTask,
-                snapshotConfirmedAt: snapshotConfirmedAt,
-                currentDate: date
-            ) {
-                switch activeCommitment.timingMode {
-                case .openEnded, .continuedOpenEnded:
-                    return "ACTIVE COMMITMENT · OPEN-ENDED · \(elapsed.elapsedMinutes) MIN TRACKED"
-                case .bounded, .sprintComplete:
-                    break
-                }
-            }
+        if let activeCommitment = ActiveCommitmentPresentation(task: row) {
             return activeCommitment.dashboardHeading
         }
         if row.state == .paused, let reason = row.latestPauseReason {
@@ -844,71 +773,8 @@ struct TodayDashboardCommandOverview: View {
         .menuStyle(.borderlessButton)
         .fixedSize()
         .disabled(model.isAnyTaskCommandPending)
-        .accessibilityIdentifier("today.sprint.start.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
+        .accessibilityIdentifier("today.sprint.start.\(row.taskID)")
         .accessibilityHint("Choose a time boundary. The task will stay incomplete when the sprint ends.")
-    }
-}
-
-struct OpenEndedElapsedTimePresentation: Equatable {
-    let elapsedMinutes: Int
-    let isLive: Bool
-
-    init?(
-        task: TodayTaskRow,
-        activeTask: ActiveTaskSnapshot?,
-        snapshotConfirmedAt: Date,
-        currentDate: Date
-    ) {
-        guard Self.isApplicable(to: task) else { return nil }
-
-        guard let activeTask,
-              activeTask.taskID == task.taskID,
-              let startedAt = activeTask.startedAt
-        else {
-            elapsedMinutes = task.elapsedMinutes
-            isLive = false
-            return
-        }
-
-        let confirmedOpenIntervalMinutes = max(
-            0,
-            Int(snapshotConfirmedAt.timeIntervalSince(startedAt) / 60)
-        )
-        let elapsedBeforeOpenInterval = max(
-            0,
-            task.elapsedMinutes - confirmedOpenIntervalMinutes
-        )
-        let currentOpenIntervalMinutes = max(
-            0,
-            Int(currentDate.timeIntervalSince(startedAt) / 60)
-        )
-        elapsedMinutes = max(
-            task.elapsedMinutes,
-            elapsedBeforeOpenInterval + currentOpenIntervalMinutes
-        )
-        isLive = true
-    }
-
-    static func isApplicable(to task: TodayTaskRow) -> Bool {
-        guard task.state == .active else { return false }
-        switch task.sprint?.state {
-        case .active, .paused, .expired, .finished:
-            return false
-        case .continuedOpenEnded, .none:
-            return true
-        }
-    }
-
-    var displayText: String {
-        "\(elapsedMinutes) MIN ELAPSED · \(isLive ? "LIVE" : "LAST REFRESH")"
-    }
-
-    var accessibilityLabel: String {
-        let unit = elapsedMinutes == 1 ? "minute" : "minutes"
-        if isLive {
-            return "Open-ended session, \(elapsedMinutes) \(unit) elapsed, updating while active."
-        }
-        return "Open-ended session, \(elapsedMinutes) \(unit) elapsed at the last refresh."
     }
 }
 
@@ -1159,14 +1025,14 @@ private struct SprintCommitmentPanel: View {
                     }
                     .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .standard))
                     .disabled(model.isAnyTaskCommandPending)
-                    .accessibilityIdentifier("today.sprint.continue.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                    .accessibilityIdentifier("today.sprint.continue.\(taskID)")
                 }
             }
             .padding(12)
             .background(Sumi.mist)
             .overlay { Rectangle().stroke(Sumi.rule, lineWidth: 1) }
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("today.sprint.status.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+            .accessibilityIdentifier("today.sprint.status.\(taskID)")
         }
     }
 
@@ -1578,23 +1444,23 @@ private struct TodayPlanTaskRow: View {
                         Text("BLOCKED - \(blockedReason)")
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.seal)
-                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).blocked-reason")
+                            .accessibilityIdentifier("today.plan.\(row.taskID).blocked-reason")
                     } else if let deferredUntil = entry.deferredUntil, deferredUntil > Date() {
                         Text("DEFERRED UNTIL \(deferredUntil.formatted(date: .abbreviated, time: .shortened)) - NOT INCLUDED IN CAPACITY OR CALENDAR")
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.seal)
-                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).deferred-state")
+                            .accessibilityIdentifier("today.plan.\(row.taskID).deferred-state")
                     } else if entry.isOptional {
                         Text("OPTIONAL - NOT INCLUDED IN CAPACITY OR CALENDAR")
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.muted)
-                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).optional-state")
+                            .accessibilityIdentifier("today.plan.\(row.taskID).optional-state")
                     }
                     if let conditionLabel = gamingUnlock.conditionLabel {
                         Text(conditionLabel)
                             .font(Sumi.body(10))
                             .foregroundStyle(Sumi.sealDeep)
-                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).gaming-unlock-condition")
+                            .accessibilityIdentifier("today.plan.\(row.taskID).gaming-unlock-condition")
                     }
                     TodayEstimateStrip(
                         selectedMinutes: entry.estimateMinutes,
@@ -1617,11 +1483,11 @@ private struct TodayPlanTaskRow: View {
                         Button("MOVE UP", action: moveUp)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .disabled(entry.rank <= 1)
-                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).move-up")
+                            .accessibilityIdentifier("today.plan.\(row.taskID).move-up")
                         Button("MOVE DOWN", action: moveDown)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .disabled(entry.rank >= planCount)
-                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).move-down")
+                            .accessibilityIdentifier("today.plan.\(row.taskID).move-down")
                         if !isMainObjective {
                             Button(gamingUnlock.makeMainTitle) {
                                 if gamingUnlock.requiresConfirmation {
@@ -1632,7 +1498,7 @@ private struct TodayPlanTaskRow: View {
                             }
                                 .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                                 .accessibilityHint(gamingUnlock.accessibilityHint)
-                                .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).make-main")
+                                .accessibilityIdentifier("today.plan.\(row.taskID).make-main")
                         }
                         Button("REMOVE", action: remove)
                             .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
@@ -1642,16 +1508,16 @@ private struct TodayPlanTaskRow: View {
                         Button(entry.isOptional ? "MAKE COMMITTED" : "MARK OPTIONAL", action: toggleOptional)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
                             .disabled(entry.isMainObjective)
-                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).optional")
+                            .accessibilityIdentifier("today.plan.\(row.taskID).optional")
                         Button(entry.deferredUntil == nil ? "DEFER TO TOMORROW" : "RETURN TO TODAY", action: toggleDeferral)
                             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
-                            .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).defer")
+                            .accessibilityIdentifier("today.plan.\(row.taskID).defer")
                         Button("MARK BLOCKED") {
                             blockReason = entry.blockedReason ?? ""
                             isBlockReasonPresented = true
                         }
                         .buttonStyle(SumiActionButtonStyle(role: .destructive, size: .compact))
-                        .accessibilityIdentifier("today.plan.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).block")
+                        .accessibilityIdentifier("today.plan.\(row.taskID).block")
                     }
                 }
                 .padding(.leading, 50)
@@ -1756,30 +1622,30 @@ private struct TodayEstimateStrip: View {
             .sumiLabelTracking()
             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
             .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
-            .accessibilityIdentifier("today-estimate-custom-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+            .accessibilityIdentifier("today-estimate-custom-\(taskID)")
             if isEnteringCustom {
                 TextField("Minutes", text: $customMinutes)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 78)
                     .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
-                    .accessibilityIdentifier("today-estimate-custom-input-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                    .accessibilityIdentifier("today-estimate-custom-input-\(taskID)")
                     .onSubmit(saveCustomEstimate)
                 Button("SAVE", action: saveCustomEstimate)
                     .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("today-estimate-custom-save-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                    .accessibilityIdentifier("today-estimate-custom-save-\(taskID)")
                 Button("CANCEL") {
                     isEnteringCustom = false
                     customError = nil
                 }
                 .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
                 .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("today-estimate-custom-cancel-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                .accessibilityIdentifier("today-estimate-custom-cancel-\(taskID)")
                 if let customError {
                     Text(customError)
                         .font(Sumi.body(10))
                         .foregroundStyle(Sumi.sealDeep)
                         .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("today-estimate-custom-error-\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: taskID))")
+                        .accessibilityIdentifier("today-estimate-custom-error-\(taskID)")
                 }
             }
             if let selectedMinutes {

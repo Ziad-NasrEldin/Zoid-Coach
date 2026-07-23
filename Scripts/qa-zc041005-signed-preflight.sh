@@ -5,13 +5,11 @@ readonly SCRIPT_DIR="${0:A:h}"
 readonly REPOSITORY="${SCRIPT_DIR:h}"
 readonly PRODUCT_CANDIDATE="330fe53ba2bebb819686a688a961eb3c5a5acf50"
 readonly VERIFIER_BASE="be9cba13d83d9e46380c65adf2a88c38c4ccee54"
-readonly MAIN_WINDOW_PROBE="$SCRIPT_DIR/qa-zc041005-work-categories-ax-probe.swift"
 readonly APP="${1:-}"
 readonly DATABASE="${2:-}"
 readonly EXPECTED_COMMIT="${3:-}"
 shift $(( $# < 3 ? $# : 3 ))
 REQUIRE_QA_OPEN_MAIN=0
-REQUIRE_ORDINARY_OPEN=0
 REQUIRE_HELPER_UNREGISTERED=0
 EXPECTED_APP_PID=""
 
@@ -54,28 +52,6 @@ assert_runbook_launch_order() {
         || fail "runbook must launch and bind the foreground QA app before registering the helper"
 }
 
-assert_runbook_relaunches_are_ordinary() {
-    local runbook="$REPOSITORY/docs/ZC-041-005-SIGNED-QA-RUNBOOK.md"
-    local relaunch_start qa_relaunch_count ordinary_open_count ordinary_binding_count
-    relaunch_start="$(grep -nF '## Prove the honest non-work empty state' "$runbook" | head -n 1 | cut -d: -f1)"
-    qa_relaunch_count="$(awk -v start="$relaunch_start" '
-        NR > start && /^[[:space:]]*open "\$APP" --args --qa-open-main[[:space:]]*$/ { count += 1 }
-        END { print count + 0 }
-    ' "$runbook")"
-    ordinary_open_count="$(awk -v start="$relaunch_start" '
-        NR > start && /^[[:space:]]*open "\$APP"[[:space:]]*$/ { count += 1 }
-        END { print count + 0 }
-    ' "$runbook")"
-    ordinary_binding_count="$(awk -v start="$relaunch_start" '
-        NR > start && /--require-ordinary-open/ { count += 1 }
-        END { print count + 0 }
-    ' "$runbook")"
-    [[ "$qa_relaunch_count" == "0" ]] \
-        || fail "runbook relaunch phases must not request --qa-open-main"
-    [[ "$ordinary_open_count" == "3" && "$ordinary_binding_count" == "3" ]] \
-        || fail "runbook must bind all three fixture relaunches as ordinary scene-restoring opens"
-}
-
 if [[ "$APP" == "--self-test" ]]; then
     is_full_lowercase_sha "b3ff3d3e8eff70f60301c5be3faffb9c00ccfc2a" \
         || fail "valid SHA was rejected"
@@ -86,12 +62,9 @@ if [[ "$APP" == "--self-test" ]]; then
         || fail "exact QA foreground argument was rejected"
     ! command_has_exact_argument "/tmp/Zoid666QA --qa-open-main-extra" "--qa-open-main" \
         || fail "prefixed QA foreground argument was accepted"
-    ! command_has_exact_argument "/tmp/Zoid666QA" "--qa-open-main" \
-        || fail "ordinary app launch was mistaken for a QA foreground launch"
     launch_order_is_valid 10 20 30 40 50 || fail "valid foreground-before-helper order was rejected"
     ! launch_order_is_valid 10 50 30 40 20 || fail "helper-before-foreground order was accepted"
     assert_runbook_launch_order
-    assert_runbook_relaunches_are_ordinary
     print -- "PASS: ZC-041-005 signed preflight validation self-test"
     exit 0
 fi
@@ -106,10 +79,6 @@ while (( $# > 0 )); do
             REQUIRE_HELPER_UNREGISTERED=1
             shift
             ;;
-        --require-ordinary-open)
-            REQUIRE_ORDINARY_OPEN=1
-            shift
-            ;;
         --expected-app-pid)
             (( $# >= 2 )) || fail "--expected-app-pid requires a PID"
             EXPECTED_APP_PID="$2"
@@ -121,8 +90,6 @@ while (( $# > 0 )); do
     esac
 done
 
-(( ! REQUIRE_QA_OPEN_MAIN || ! REQUIRE_ORDINARY_OPEN )) \
-    || fail "foreground and ordinary launch requirements are mutually exclusive"
 [[ "$EXPECTED_APP_PID" == "" || "$EXPECTED_APP_PID" == <-> ]] || fail "expected app PID must be numeric"
 [[ -d "$APP" ]] || fail "signed app does not exist: $APP"
 if (( ! REQUIRE_HELPER_UNREGISTERED )); then
@@ -189,13 +156,6 @@ if (( REQUIRE_QA_OPEN_MAIN )); then
     readonly APP_COMMAND="$(ps -ww -p "$APP_PID" -o command=)"
     command_has_exact_argument "$APP_COMMAND" "--qa-open-main" \
         || fail "installed QA app was not launched through the supported foreground main-window argument"
-fi
-if (( REQUIRE_ORDINARY_OPEN )); then
-    readonly APP_COMMAND="$(ps -ww -p "$APP_PID" -o command=)"
-    ! command_has_exact_argument "$APP_COMMAND" "--qa-open-main" \
-        || fail "ordinary relaunch unexpectedly retained the QA foreground main-window argument"
-    swift "$MAIN_WINDOW_PROBE" --pid "$APP_PID" --phase window >/dev/null \
-        || fail "ordinary relaunch did not restore exactly one visible main window"
 fi
 
 if (( REQUIRE_HELPER_UNREGISTERED )); then

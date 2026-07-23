@@ -705,26 +705,6 @@ struct SettingsView: View {
                 )
                 .accessibilityIdentifier("settings.gaming.daily-budget")
                 .disabled(!controller.draft.gamingBudgetEnabled)
-                Toggle("Use a separate maximum during configured work hours", isOn: $controller.draft.gamingWorkHoursMaximumEnabled)
-                    .toggleStyle(.switch)
-                    .disabled(!controller.draft.gamingBudgetEnabled)
-                    .accessibilityIdentifier("settings.gaming.work-hours-maximum-enabled")
-                SumiStepper(
-                    "MAXIMUM DURING WORK HOURS",
-                    value: $controller.draft.gamingWorkHoursDailyMaximumMinutes,
-                    in: 0...1_440,
-                    step: 5,
-                    valueLabel: { "\($0) MIN" }
-                )
-                .disabled(!controller.draft.gamingBudgetEnabled || !controller.draft.gamingWorkHoursMaximumEnabled)
-                .accessibilityIdentifier("settings.gaming.work-hours-maximum")
-                Text(controller.draft.gamingWorkHoursMaximumEnabled
-                     ? "During configured work windows, the total daily allowance, including base and unlocked rewards, cannot exceed this maximum. Outside work hours, the normal daily allowance applies."
-                     : "No separate work-hours maximum is applied. The normal daily allowance applies all day.")
-                    .font(Sumi.body(11))
-                    .foregroundStyle(Sumi.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("settings.gaming.work-hours-maximum-detail")
                 SumiStepper(
                     "UNLOCK AFTER PRIORITY COMPLETION",
                     value: $controller.draft.gamingPriorityTaskRewardMinutes,

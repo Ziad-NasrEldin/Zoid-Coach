@@ -118,18 +118,6 @@ func keyboardReviewNavigationShortcutIsVisibleAndRoutesOnlyToReviews() {
     #expect(DailyReviewNavigationCommandState(isAvailable: false).destination == nil)
 }
 
-@Test
-func sidebarReviewsAccessibilityActionHasStableIdentityAndChangesRoute() {
-    let action = SidebarNavigationAction(destination: .reviews)
-    var selectedSection = AppSection.today
-
-    action.perform { selectedSection = $0 }
-
-    #expect(selectedSection == .reviews)
-    #expect(action.destination.sidebarAccessibilityIdentifier == "sidebar.navigation.reviews")
-    #expect(Set(AppSection.allCases.map(\.sidebarAccessibilityIdentifier)).count == AppSection.allCases.count)
-}
-
 private func reviewSession(
     idOffset: TimeInterval,
     application: String,

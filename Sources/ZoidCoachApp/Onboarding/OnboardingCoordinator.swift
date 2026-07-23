@@ -685,7 +685,6 @@ final class OnboardingCoordinator: ObservableObject {
         dependencies: OnboardingDependencies
     ) throws {
         guard activePolicyVersion == 0,
-              try store.load().persistenceRevision == base.persistenceRevision,
               let versioned = try dependencies.loadPolicy(),
               versioned.version > 0 else {
             return

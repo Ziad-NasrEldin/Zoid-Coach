@@ -9,7 +9,6 @@ ROOT = Path(__file__).resolve().parents[2]
 LIBRARY = ROOT / "Scripts/lib/signed-qa-runtime-lifecycle.sh"
 INSTALLER = ROOT / "Scripts/install-signed-qa-runtime.sh"
 REGISTRATION_PROBE = ROOT / "Sources/ZoidCoachApp/PolicyMutationXPCProbe.swift"
-FOREGROUND_RUNBOOK = ROOT / "docs/ZC-041-005-SIGNED-QA-RUNBOOK.md"
 
 
 class SignedQARuntimeLifecycleTests(unittest.TestCase):
@@ -25,18 +24,6 @@ class SignedQARuntimeLifecycleTests(unittest.TestCase):
             text=True,
             capture_output=True,
         )
-
-    def test_installer_recovers_only_delayed_exact_helper_readiness(self) -> None:
-        result = subprocess.run(
-            [str(INSTALLER), "--self-test"],
-            cwd=ROOT,
-            check=True,
-            text=True,
-            capture_output=True,
-        )
-
-        self.assertIn("PASS: signed QA installer readiness self-tests", result.stdout)
-        self.assertIn("command_status=5", result.stderr)
 
     def test_app_replacement_changes_the_bundled_helper_path_atomically(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -124,7 +111,6 @@ class SignedQARuntimeLifecycleTests(unittest.TestCase):
     def test_install_acceptance_requires_writable_xpc_prompt_timeline_and_heartbeat(self) -> None:
         installer = INSTALLER.read_text()
         probe = REGISTRATION_PROBE.read_text()
-        runbook = FOREGROUND_RUNBOOK.read_text()
 
         self.assertIn(
             "PASS: QA XPC runtime is writable and prompt timeline is available",
@@ -134,28 +120,8 @@ class SignedQARuntimeLifecycleTests(unittest.TestCase):
         self.assertIn("source_id = 'agent-runtime'", installer)
         self.assertLess(
             installer.index("--qa-register-agent"),
-            installer.index(
-                'qa_wait_for_launchservices_readiness "$INSTALLED_APP" "$APP_EXECUTABLE"'
-            ),
+            installer.index('open "$INSTALLED_APP"'),
         )
-        self.assertLess(
-            installer.index("source_id = 'agent-runtime'"),
-            installer.index(
-                'qa_wait_for_launchservices_readiness "$INSTALLED_APP" "$APP_EXECUTABLE"'
-            ),
-        )
-        unregister = runbook.index('"$APP_EXECUTABLE" --qa-unregister-agent')
-        foreground = runbook.index('open "$APP" --args --qa-open-main', unregister)
-        unregistered_binding = runbook.index(
-            "--require-qa-open-main --require-helper-unregistered",
-            foreground,
-        )
-        register = runbook.index('"$APP_EXECUTABLE" --qa-register-agent', unregistered_binding)
-        registered_binding = runbook.index('PREFLIGHT_OUTPUT=', register)
-        self.assertLess(unregister, foreground)
-        self.assertLess(foreground, unregistered_binding)
-        self.assertLess(unregistered_binding, register)
-        self.assertLess(register, registered_binding)
         self.assertIn("fetchRuntimeSafety", probe)
         self.assertIn("fetchPromptInboxTimeline", probe)
         self.assertIn("readAgentHeartbeat", probe)

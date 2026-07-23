@@ -124,15 +124,13 @@ public final class TodayDashboardAgent: @unchecked Sendable {
                 )
             )
         }
-        let userPolicy = try userPolicyStore.current()?.policy ?? UserPolicy.defaults()
-        let gamingPolicy = userPolicy.gaming
+        let gamingPolicy = try userPolicyStore.currentGamingPolicy()
         let rewardMinutes = try snapshots.priorityRewardMinutes(policy: gamingPolicy, day: now)
         let gaming = GamingStatusCalculator().status(
             policy: gamingPolicy,
             gamingMinutes: behavior.summary.meaningfulGamingMinutes,
             appliedRewardMinutes: rewardMinutes,
-            coverage: behavior.coverage,
-            isWithinWorkWindow: userPolicy.schedule.isWithinWorkWindow(at: now)
+            coverage: behavior.coverage
         )
         let activeIsUnplanned = active.map { active in
             !plan.contains(where: { $0.reminderID == active.taskID })
@@ -202,35 +200,6 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         }
         if let previousSnapshot {
             for previousRow in previousSnapshot.taskRows where !rows.contains(where: { $0.taskID == previousRow.taskID }) {
-                if let reminder = reminderByID[previousRow.taskID],
-                   let current = executionByID[previousRow.taskID],
-                   current.state == .paused,
-                   previousRow.state == .active || previousRow.state == .paused,
-                   try execution.latestIntervalStartedAt(taskID: previousRow.taskID, endingAt: now) != nil {
-                    rows.append(TodayTaskRow(
-                        taskID: reminder.id,
-                        title: reminder.title,
-                        estimateMinutes: previousRow.estimateMinutes,
-                        dueDate: reminder.dueDate,
-                        urgency: TaskUrgency.resolve(
-                            dueDate: reminder.dueDate,
-                            priority: reminderPriority(reminder.priority),
-                            referenceDate: now
-                        ),
-                        state: .paused,
-                        elapsedMinutes: current.elapsedMinutes,
-                        latestPauseReason: current.latestPauseReason,
-                        acceptedBreak: current.acceptedBreak,
-                        sprint: current.sprint,
-                        isMainObjective: previousRow.isMainObjective,
-                        isLocked: previousRow.isLocked,
-                        isOptional: previousRow.isOptional ?? false,
-                        blockedReason: previousRow.blockedReason,
-                        deferredUntil: previousRow.deferredUntil,
-                        learnedEstimateSuggestion: previousRow.learnedEstimateSuggestion
-                    ))
-                    continue
-                }
                 guard reminderByID[previousRow.taskID] == nil,
                       let current = try execution.snapshot(for: [previousRow.taskID], now: now)[previousRow.taskID]
                 else { continue }

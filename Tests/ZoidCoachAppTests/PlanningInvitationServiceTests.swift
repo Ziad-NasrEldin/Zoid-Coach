@@ -126,58 +126,6 @@ func explicitUnplannedChoicePersistsAndGatesDriftUntilWorkStarts() throws {
     ) == PlanningDayStatus(mode: .unplanned, driftInterventionsAllowed: true))
 }
 
-@Test
-func explicitWorkUnplannedOverridesRetainedPlanAndSurvivesRestart() throws {
-    let url = planningTestURL("retained-plan-unplanned")
-    defer { removePlanningTestDatabase(url) }
-    let clock = PlanningTestClock(Date(timeIntervalSince1970: 1_800_300_000))
-    let ids = PlanningTestIDs(["prompt-1", "response-1"])
-    let store = try PromptInboxStore(
-        databaseURL: url,
-        now: { clock.now },
-        makeID: { ids.next() }
-    )
-    let service = PlanningInvitationService(store: store, now: { clock.now })
-
-    _ = try service.beginUnplannedDay(
-        localDay: "2027-01-18",
-        itemCount: 1,
-        expiresAt: clock.now.addingTimeInterval(86_400)
-    )
-    #expect(try service.status(
-        localDay: "2027-01-18",
-        hasPlan: true,
-        hasActiveUnplannedTask: false
-    ) == PlanningDayStatus(mode: .unplanned, driftInterventionsAllowed: false))
-
-    let reopened = PlanningInvitationService(
-        store: try PromptInboxStore(databaseURL: url, now: { clock.now }),
-        now: { clock.now }
-    )
-    #expect(try reopened.status(
-        localDay: "2027-01-18",
-        hasPlan: true,
-        hasActiveUnplannedTask: false
-    ) == PlanningDayStatus(mode: .unplanned, driftInterventionsAllowed: false))
-}
-
-@Test
-func retainedPlanWithoutExplicitUnplannedChoiceRemainsPlanned() throws {
-    let url = planningTestURL("retained-plan")
-    defer { removePlanningTestDatabase(url) }
-    let clock = PlanningTestClock(Date(timeIntervalSince1970: 1_800_400_000))
-    let service = PlanningInvitationService(
-        store: try PromptInboxStore(databaseURL: url, now: { clock.now }),
-        now: { clock.now }
-    )
-
-    #expect(try service.status(
-        localDay: "2027-01-19",
-        hasPlan: true,
-        hasActiveUnplannedTask: false
-    ) == PlanningDayStatus(mode: .planning, driftInterventionsAllowed: false))
-}
-
 private final class PlanningTestClock: @unchecked Sendable {
     private let lock = NSLock()
     private var value: Date

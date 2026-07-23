@@ -149,10 +149,6 @@ struct ZoidCoachAgentMain {
                 databaseURL: configuration.databaseURL,
                 promptStore: promptStore
             )
-            let ambiguousActivityPrompts = try AmbiguousActivityPromptService(
-                databaseURL: configuration.databaseURL,
-                promptStore: promptStore
-            )
             let gamingManualAdjustments = try GamingManualAdjustmentStore(
                 databaseURL: configuration.databaseURL
             )
@@ -174,7 +170,6 @@ struct ZoidCoachAgentMain {
                 promptStore: promptStore,
                 planningInvitations: planningInvitations,
                 taskExecution: coachingTaskExecutionStore,
-                ambiguousActivityPrompts: ambiguousActivityPrompts,
                 schedulingCalendarIdentifier: {
                     try policyStore.current()?.policy.calendar.schedulingCalendarIdentifier
                 }
@@ -474,81 +469,59 @@ struct ZoidCoachAgentMain {
             )
             xpcService.resume()
             let previousHeartbeat = try checkpointStore.checkpoint(sourceID: "agent-runtime")?.lastSuccessAt
-            let previousNightlyRecovery = try checkpointStore.checkpoint(sourceID: "nightly-plan")
             let startupDate = Date()
-            if let previousHeartbeat {
-                let recovery = try await MissedPlanningInvitationRecoveryService().recover(
-                    request: MissedPlanningInvitationRecoveryRequest(
-                        previousHeartbeat: previousHeartbeat,
-                        startupAt: startupDate,
-                        timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier,
-                        planningTime: initialPolicy.schedule.nightlyPlanningTime,
-                        lastRecoveredLocalDay: previousNightlyRecovery?.lastScheduledLocalDay,
-                        lastRecoveredTimeZoneIdentifier: previousNightlyRecovery?.lastScheduledTimeZone
-                    ),
-                    preparePlan: { targetDay in
-                        let behavior = try archive.recentBehaviorEvidence(
-                            since: startupDate.addingTimeInterval(-7 * 24 * 60 * 60)
-                        )
-                        let result = try await reminderPlanner.draftPlan(
-                            for: targetDay,
-                            recentBehavior: behavior,
-                            availableFocusMinutes: await Self.availableFocusMinutes(
-                                policy: initialPolicy,
-                                day: targetDay,
-                                calendar: calendarSource
-                            )
-                        )
-                        switch result {
-                        case let .drafted(itemCount):
-                            await Self.enqueuePlanActions(
-                                scheduler: planScheduler,
-                                day: targetDay,
-                                policy: initialPolicy,
-                                policyVersion: initialVersionedPolicy.version,
-                                checkpoints: checkpointStore,
-                                trustGate: trustGateStore,
-                                itemCount: itemCount,
-                                outbox: actionOutbox,
-                                plans: planStore
-                            )
-                            return .drafted(itemCount: itemCount)
-                        case .retainedExisting:
-                            return .retainedExisting(
-                                itemCount: try planStore.loadDailyPlan(for: targetDay).count
-                            )
-                        case .remindersAccessUnavailable:
-                            return .sourceUnavailable
-                        }
-                    },
-                    enqueueInvitation: { targetDay, itemCount, timeZoneIdentifier in
-                        try promptStore.enqueue(Self.planReadyPrompt(
-                            for: targetDay,
-                            itemCount: itemCount,
-                            timeZoneIdentifier: timeZoneIdentifier
-                        )).episode
-                    },
-                    persistCheckpoint: { targetLocalDay, recoveredAt, missedTriggerAt, timeZoneIdentifier in
-                        try checkpointStore.recordSuccess(
-                            sourceID: "nightly-plan",
-                            at: recoveredAt,
-                            scheduledLocalDay: targetLocalDay,
-                            timeZoneIdentifier: timeZoneIdentifier,
-                            missedTriggerAt: missedTriggerAt
+            try checkpointStore.recordSuccess(sourceID: "agent-runtime", at: startupDate)
+            if let previousHeartbeat,
+               let recovery = MissedNightlyRunCalculator().recoveryRun(
+                   sleepStartedAt: previousHeartbeat,
+                   wokeAt: startupDate,
+                   policy: NightlyReplayPolicy(
+                       timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier,
+                       planningTime: initialPolicy.schedule.nightlyPlanningTime
+                   )
+               ),
+               let targetDay = Self.date(localDay: recovery.targetLocalDay, timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier),
+               try planStore.hasPlan(for: targetDay) == false {
+                let behavior = try archive.recentBehaviorEvidence(since: startupDate.addingTimeInterval(-7 * 24 * 60 * 60))
+                let result = try await reminderPlanner.draftPlan(
+                    for: targetDay,
+                    recentBehavior: behavior,
+                    availableFocusMinutes: await Self.availableFocusMinutes(policy: initialPolicy, day: targetDay, calendar: calendarSource)
+                )
+                if case let .drafted(itemCount) = result {
+                    await Self.enqueuePlanActions(
+                        scheduler: planScheduler,
+                        day: targetDay,
+                        policy: initialPolicy,
+                        policyVersion: initialVersionedPolicy.version,
+                        checkpoints: checkpointStore,
+                        trustGate: trustGateStore,
+                        itemCount: itemCount,
+                        outbox: actionOutbox,
+                        plans: planStore
+                    )
+                    let prompt = try promptStore.enqueue(Self.planReadyPrompt(
+                        for: targetDay,
+                        itemCount: itemCount,
+                        timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier
+                    ))
+                    if prompt.wasInserted {
+                        await Self.schedulePlanPrompt(
+                            prompt.episode,
+                            policy: initialPolicy,
+                            notifications: notificationCoordinator
                         )
                     }
-                )
-                if case let .recovered(recovered) = recovery {
-                    await Self.schedulePlanPrompt(
-                        recovered.notificationEpisode,
-                        policy: initialPolicy,
-                        notifications: notificationCoordinator,
-                        now: startupDate
+                    try checkpointStore.recordSuccess(
+                        sourceID: "nightly-plan",
+                        at: startupDate,
+                        scheduledLocalDay: recovery.targetLocalDay,
+                        timeZoneIdentifier: initialPolicy.schedule.timeZoneIdentifier,
+                        missedTriggerAt: previousHeartbeat
                     )
                     print("Zoid 666 agent: recovered delayed overnight plan after wake")
                 }
             }
-            try checkpointStore.recordSuccess(sourceID: "agent-runtime", at: startupDate)
             if configuration.draftPlan {
                 let targetDay = configuration.planTomorrow ? Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date() : Date()
                 let behavior = try archive.recentBehaviorEvidence(since: Date().addingTimeInterval(-7 * 24 * 60 * 60))
@@ -697,11 +670,6 @@ struct ZoidCoachAgentMain {
                     let dashboardSnapshot = try? todayDashboardAgent.snapshot(now: now)
                     if let dashboardSnapshot {
                         await acceptedBreakReminders.reconcile(taskRows: dashboardSnapshot.taskRows, now: now)
-                    }
-                    if policy.operatingMode != .observe,
-                       !policy.automationPause.isPaused,
-                       (try? baselineObservationStore.status().suppressesBehaviorPrompts) == false {
-                        _ = try? ambiguousActivityPrompts.produce()
                     }
                     if let snapshot = dashboardSnapshot,
                        let adjustedGamingStatus = try? gamingManualAdjustments.gamingStatus(
@@ -950,11 +918,6 @@ struct ZoidCoachAgentMain {
                 let dashboardSnapshot = try? todayDashboardAgent.snapshot(now: baselineNow)
                 if let dashboardSnapshot {
                     await acceptedBreakReminders.reconcile(taskRows: dashboardSnapshot.taskRows, now: baselineNow)
-                }
-                if initialPolicy.operatingMode != .observe,
-                   !initialPolicy.automationPause.isPaused,
-                   (try? baselineObservationStore.status().suppressesBehaviorPrompts) == false {
-                    _ = try? ambiguousActivityPrompts.produce()
                 }
                 if let snapshot = dashboardSnapshot,
                    let adjustedGamingStatus = try? gamingManualAdjustments.gamingStatus(

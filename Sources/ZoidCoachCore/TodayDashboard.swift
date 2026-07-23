@@ -587,7 +587,6 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
     public let taskStartGraceMinutes: Int
     public let returnFromIdleGraceMinutes: Int
     public let budgetEnabled: Bool
-    public let workHoursDailyMaximumMinutes: Int?
 
     public init(
         version: Int = 1,
@@ -599,8 +598,7 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
         promptCooldownMinutes: Int? = nil,
         taskStartGraceMinutes: Int = 3,
         returnFromIdleGraceMinutes: Int = 1,
-        budgetEnabled: Bool = true,
-        workHoursDailyMaximumMinutes: Int? = nil
+        budgetEnabled: Bool = true
     ) {
         self.version = version
         self.dailyBudgetMinutes = max(0, dailyBudgetMinutes)
@@ -612,11 +610,10 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
         self.taskStartGraceMinutes = max(0, taskStartGraceMinutes)
         self.returnFromIdleGraceMinutes = max(0, returnFromIdleGraceMinutes)
         self.budgetEnabled = budgetEnabled
-        self.workHoursDailyMaximumMinutes = workHoursDailyMaximumMinutes.map { max(0, $0) }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes, dailyPromptCap, promptCooldownMinutes, taskStartGraceMinutes, returnFromIdleGraceMinutes, budgetEnabled, workHoursDailyMaximumMinutes
+        case version, dailyBudgetMinutes, priorityTaskRewardMinutes, coachingLevel, intentionalOverrideMinutes, dailyPromptCap, promptCooldownMinutes, taskStartGraceMinutes, returnFromIdleGraceMinutes, budgetEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -631,19 +628,8 @@ public struct GamingPolicy: Equatable, Codable, Sendable {
             promptCooldownMinutes: try container.decodeIfPresent(Int.self, forKey: .promptCooldownMinutes),
             taskStartGraceMinutes: try container.decodeIfPresent(Int.self, forKey: .taskStartGraceMinutes) ?? 3,
             returnFromIdleGraceMinutes: try container.decodeIfPresent(Int.self, forKey: .returnFromIdleGraceMinutes) ?? 1,
-            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true,
-            workHoursDailyMaximumMinutes: try container.decodeIfPresent(Int.self, forKey: .workHoursDailyMaximumMinutes)
+            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
         )
-    }
-}
-
-public struct GamingWorkHoursMaximumEvaluation: Equatable, Codable, Sendable {
-    public let configuredMaximumMinutes: Int?
-    public let isApplied: Bool
-
-    public init(configuredMaximumMinutes: Int?, isApplied: Bool) {
-        self.configuredMaximumMinutes = configuredMaximumMinutes.map { max(0, $0) }
-        self.isApplied = isApplied
     }
 }
 
@@ -659,9 +645,8 @@ public struct GamingStatus: Equatable, Codable, Sendable {
     public let nextUnlockReason: String
     public let confidenceIsLimited: Bool
     public let budgetEnabled: Bool
-    public let workHoursMaximumEvaluation: GamingWorkHoursMaximumEvaluation?
 
-    public init(budgetMinutes: Int, earnedMinutes: Int = 0, manualAdjustmentMinutes: Int = 0, usedMinutes: Int, unlockedRemainingMinutes: Int, lockedMinutes: Int = 0, overageMinutes: Int = 0, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true, workHoursMaximumEvaluation: GamingWorkHoursMaximumEvaluation? = nil) {
+    public init(budgetMinutes: Int, earnedMinutes: Int = 0, manualAdjustmentMinutes: Int = 0, usedMinutes: Int, unlockedRemainingMinutes: Int, lockedMinutes: Int = 0, overageMinutes: Int = 0, nextUnlockReason: String, confidenceIsLimited: Bool, budgetEnabled: Bool = true) {
         self.budgetMinutes = max(0, budgetMinutes)
         self.earnedMinutes = max(0, earnedMinutes)
         self.manualAdjustmentMinutes = max(0, manualAdjustmentMinutes)
@@ -672,7 +657,6 @@ public struct GamingStatus: Equatable, Codable, Sendable {
         self.nextUnlockReason = nextUnlockReason
         self.confidenceIsLimited = confidenceIsLimited
         self.budgetEnabled = budgetEnabled
-        self.workHoursMaximumEvaluation = workHoursMaximumEvaluation
     }
 
     public var allowanceBreakdown: String {
@@ -694,13 +678,12 @@ public struct GamingStatus: Equatable, Codable, Sendable {
             overageMinutes: max(0, usedMinutes - allowance),
             nextUnlockReason: nextUnlockReason,
             confidenceIsLimited: confidenceIsLimited,
-            budgetEnabled: budgetEnabled,
-            workHoursMaximumEvaluation: workHoursMaximumEvaluation
+            budgetEnabled: budgetEnabled
         )
     }
 
     private enum CodingKeys: String, CodingKey {
-        case budgetMinutes, earnedMinutes, manualAdjustmentMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, overageMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled, workHoursMaximumEvaluation
+        case budgetMinutes, earnedMinutes, manualAdjustmentMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, overageMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -715,8 +698,7 @@ public struct GamingStatus: Equatable, Codable, Sendable {
             overageMinutes: try container.decodeIfPresent(Int.self, forKey: .overageMinutes) ?? 0,
             nextUnlockReason: try container.decode(String.self, forKey: .nextUnlockReason),
             confidenceIsLimited: try container.decode(Bool.self, forKey: .confidenceIsLimited),
-            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true,
-            workHoursMaximumEvaluation: try container.decodeIfPresent(GamingWorkHoursMaximumEvaluation.self, forKey: .workHoursMaximumEvaluation)
+            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
         )
     }
 }
@@ -976,13 +958,12 @@ public struct NextTaskRecommender: Sendable {
 public struct GamingStatusCalculator: Sendable {
     public init() {}
 
-    public func status(policy: GamingPolicy, gamingMinutes: Int, rewardApplied: Bool, coverage: TelemetryCoverage, isWithinWorkWindow: Bool = false) -> GamingStatus {
+    public func status(policy: GamingPolicy, gamingMinutes: Int, rewardApplied: Bool, coverage: TelemetryCoverage) -> GamingStatus {
         status(
             policy: policy,
             gamingMinutes: gamingMinutes,
             appliedRewardMinutes: rewardApplied ? policy.priorityTaskRewardMinutes : nil,
-            coverage: coverage,
-            isWithinWorkWindow: isWithinWorkWindow
+            coverage: coverage
         )
     }
 
@@ -990,8 +971,7 @@ public struct GamingStatusCalculator: Sendable {
         policy: GamingPolicy,
         gamingMinutes: Int,
         appliedRewardMinutes: Int?,
-        coverage: TelemetryCoverage,
-        isWithinWorkWindow: Bool = false
+        coverage: TelemetryCoverage
     ) -> GamingStatus {
         guard policy.budgetEnabled else {
             return GamingStatus(
@@ -1000,29 +980,13 @@ public struct GamingStatusCalculator: Sendable {
                 unlockedRemainingMinutes: 0,
                 nextUnlockReason: "Observation only. No gaming budget, unlock, debt, or coaching prompt is applied.",
                 confidenceIsLimited: coverage.isLimited,
-                budgetEnabled: false,
-                workHoursMaximumEvaluation: GamingWorkHoursMaximumEvaluation(
-                    configuredMaximumMinutes: policy.workHoursDailyMaximumMinutes,
-                    isApplied: false
-                )
+                budgetEnabled: false
             )
         }
-        let configuredRewardMinutes = max(0, appliedRewardMinutes ?? 0)
-        let uncappedAllowance = policy.dailyBudgetMinutes + configuredRewardMinutes
-        let workHoursMaximum = isWithinWorkWindow ? policy.workHoursDailyMaximumMinutes : nil
-        let allowance = workHoursMaximum.map { min(uncappedAllowance, $0) } ?? uncappedAllowance
-        let baseMinutes = min(policy.dailyBudgetMinutes, allowance)
-        let rewardMinutes = max(0, allowance - baseMinutes)
-        let potentialAllowance = workHoursMaximum.map {
-            min(policy.dailyBudgetMinutes + policy.priorityTaskRewardMinutes, $0)
-        } ?? (policy.dailyBudgetMinutes + policy.priorityTaskRewardMinutes)
-        let lockedRewardMinutes = appliedRewardMinutes == nil
-            ? max(0, potentialAllowance - baseMinutes)
-            : 0
+        let rewardMinutes = max(0, appliedRewardMinutes ?? 0)
+        let allowance = policy.dailyBudgetMinutes + rewardMinutes
         let nextUnlockReason: String
-        if let workHoursMaximum, potentialAllowance < policy.dailyBudgetMinutes + policy.priorityTaskRewardMinutes {
-            nextUnlockReason = "Work-hours gaming is capped at \(workHoursMaximum) minutes. The normal daily allowance returns outside configured work hours."
-        } else if rewardMinutes > 0 {
+        if rewardMinutes > 0 {
             nextUnlockReason = "Priority-task reward already applied today."
         } else if policy.priorityTaskRewardMinutes == 0 {
             nextUnlockReason = "This policy uses a fixed daily gaming budget."
@@ -1030,18 +994,14 @@ public struct GamingStatusCalculator: Sendable {
             nextUnlockReason = "Finish one priority task to unlock a one-time reward."
         }
         return GamingStatus(
-            budgetMinutes: baseMinutes,
+            budgetMinutes: policy.dailyBudgetMinutes,
             earnedMinutes: rewardMinutes,
             usedMinutes: gamingMinutes,
             unlockedRemainingMinutes: max(0, allowance - gamingMinutes),
-            lockedMinutes: lockedRewardMinutes,
+            lockedMinutes: rewardMinutes == 0 ? policy.priorityTaskRewardMinutes : 0,
             overageMinutes: max(0, gamingMinutes - allowance),
             nextUnlockReason: nextUnlockReason,
-            confidenceIsLimited: coverage.isLimited,
-            workHoursMaximumEvaluation: GamingWorkHoursMaximumEvaluation(
-                configuredMaximumMinutes: policy.workHoursDailyMaximumMinutes,
-                isApplied: workHoursMaximum != nil
-            )
+            confidenceIsLimited: coverage.isLimited
         )
     }
 }
