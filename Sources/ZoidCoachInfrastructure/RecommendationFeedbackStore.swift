@@ -79,7 +79,7 @@ public final class RecommendationFeedbackStore: @unchecked Sendable {
                 date.timeIntervalSince(record.occurredAt) < Self.notNowSuppression
                     ? record.taskID
                     : nil
-            case .wrongPriority, .tooLarge:
+            case .wrongPriority, .tooLarge, .hideToday:
                 record.taskID
             }
         })
