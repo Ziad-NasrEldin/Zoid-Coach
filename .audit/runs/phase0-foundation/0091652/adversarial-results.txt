@@ -1,0 +1,20 @@
+Runtime resolver adversarial probe
+baseline=0091652ff15ca9e7f31e6428e4220f71d06348c9
+temporary_paths_only=true
+production_data_touched=false
+
+PASS defense: direct outside database path rejected.
+PASS defense: parent traversal path rejected.
+PASS defense: sibling-prefix path rejected.
+PASS defense: relative QA root rejected.
+PASS defense: filesystem root did not treat every absolute candidate as contained.
+
+ESCAPE confirmed: run/link was an existing symlink to temporary outside/.
+ESCAPE confirmed: run/link/escaped.sqlite was accepted because the final file did not exist.
+ESCAPE confirmed: writing through the accepted URL created outside/escaped.sqlite.
+
+COLLISION accepted: /Users/tester/Library was accepted as a QA root and derived /Users/tester/Library/Application Support/Zoid Coach/zoid-coach.sqlite.
+IDENTITY accepted: com.ziadnasreldin.ZoidCoach was accepted as the QA UserDefaults suite.
+
+The four transient Swift Testing probes passed after documenting the actual accepted and rejected behavior.
+The transient probe source was removed before evidence commit.
