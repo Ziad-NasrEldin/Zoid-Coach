@@ -843,6 +843,73 @@ func lateInspectionCannotOverwriteANewerExplicitDecision() async throws {
 
 @MainActor
 @Test
+func returningFromSystemSettingsRepairsDeniedNotificationsWithoutASecondPrompt() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.notifications))
+    let base = testDependencies()
+    var requestCount = 0
+    var inspectCount = 0
+    let dependencies = OnboardingDependencies(
+        inspectReminders: base.inspectReminders,
+        requestReminders: base.requestReminders,
+        discoverReminderLists: base.discoverReminderLists,
+        inspectScreenwatch: base.inspectScreenwatch,
+        inspectScreenwatchSetup: base.inspectScreenwatchSetup,
+        selectScreenwatchDirectory: base.selectScreenwatchDirectory,
+        useDefaultScreenwatchDirectory: base.useDefaultScreenwatchDirectory,
+        inspectNotifications: {
+            inspectCount += 1
+            return SelfHealth.notificationsHealthy
+        },
+        requestNotifications: {
+            requestCount += 1
+            return .init(health: SelfHealth.notificationsDenied, decision: .denied)
+        },
+        loadInventory: base.loadInventory,
+        testDelivery: base.testDelivery,
+        createTestPrompt: base.createTestPrompt,
+        loadTestPrompt: base.loadTestPrompt,
+        respondToTestPrompt: base.respondToTestPrompt,
+        loadPolicy: base.loadPolicy,
+        applyPolicyMutation: base.applyPolicyMutation,
+        prepareFirstDailyPlan: base.prepareFirstDailyPlan,
+        openSystemSettings: { $0 == .notifications }
+    )
+    let coordinator = OnboardingCoordinator(store: store, dependencies: dependencies)
+
+    await coordinator.requestAccess(for: .notifications)
+    #expect(coordinator.progress.notificationAccess == .denied)
+    coordinator.openSystemSettings(for: .notifications)
+    await coordinator.applicationDidBecomeActive()
+
+    #expect(requestCount == 1)
+    #expect(inspectCount == 1)
+    #expect(coordinator.progress.notificationAccess == .granted)
+    #expect(coordinator.errorMessage == nil)
+}
+
+@MainActor
+@Test
+func deniedNotificationPermissionCanStillContinueWithInAppPrompts() async throws {
+    let store = RecordingOnboardingStore(progress: try progressAt(.notifications))
+    let coordinator = OnboardingCoordinator(
+        store: store,
+        dependencies: testDependencies(
+            inspectNotifications: { SelfHealth.notificationsHealthy },
+            requestNotifications: { .init(health: SelfHealth.notificationsDenied, decision: .denied) }
+        )
+    )
+
+    await coordinator.requestAccess(for: .notifications)
+    #expect(coordinator.progress.notificationAccess == .denied)
+    #expect(coordinator.canContinue)
+    try await coordinator.continueFromCurrentStep()
+
+    #expect(coordinator.progress.currentStep == .applicationInventory)
+    #expect(store.saved?.notificationAccess == .denied)
+}
+
+@MainActor
+@Test
 func inFlightDeliveryBlocksNavigationAndOtherStepMutations() async throws {
     let gate = DeliveryRequestGate()
     let store = RecordingOnboardingStore(
@@ -1453,6 +1520,15 @@ private enum SelfHealth {
         detail: "Notifications are unavailable",
         evidence: "Use Today for coaching choices",
         actionTitle: "Repair"
+    )
+    static let notificationsHealthy = SourceHealth(
+        id: .notifications,
+        title: "macOS Notifications",
+        eyebrow: "Delivery",
+        state: .healthy,
+        detail: "Notifications are available",
+        evidence: "Notifications can now deliver timely prompts",
+        actionTitle: "Inspect"
     )
 }
 
