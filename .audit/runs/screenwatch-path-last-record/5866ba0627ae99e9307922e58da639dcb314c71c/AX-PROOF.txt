@@ -1,3 +1,0 @@
-Signed Settings showed the canonical Screenwatch days-folder path and localized absolute latest-valid record time from a real isolated JSONL source.
-A later invalid record did not replace or erase the valid timestamp.
-Relaunch recomputed the same evidence, and the no-record state remained truthful after Recheck and another relaunch.
