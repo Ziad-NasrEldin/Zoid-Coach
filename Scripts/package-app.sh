@@ -46,6 +46,7 @@ BUILD_IDENTITY_AFTER="$("$ROOT/Scripts/stamp-build-identity.sh" --print "$ROOT")
 rm -rf "$APP_ROOT"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources" "$CONTENTS/Library/LaunchAgents"
 cp "$ROOT/App/Info.plist" "$CONTENTS/Info.plist"
+cp "$ROOT/App/AppIcon.icns" "$CONTENTS/Resources/AppIcon.icns"
 cp "$ROOT/App/LaunchAgents/com.ziadnasreldin.ZoidCoach.agent.plist" "$CONTENTS/Library/LaunchAgents/$LAUNCH_AGENT_PLIST_NAME"
 "$ROOT/Scripts/configure-package-plists.py" \
     --mode "$PACKAGE_MODE" \

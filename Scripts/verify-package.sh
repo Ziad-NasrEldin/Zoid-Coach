@@ -43,6 +43,7 @@ fail() {
 [[ -d "$APP_ROOT" ]] || fail "app bundle is missing: $APP_ROOT"
 [[ -x "$APP_EXECUTABLE" ]] || fail "main executable is missing or not executable"
 [[ -x "$AGENT_EXECUTABLE" ]] || fail "agent executable is missing or not executable"
+[[ -f "$CONTENTS/Resources/AppIcon.icns" ]] || fail "application icon is missing"
 plutil -lint "$PLIST" "$AGENT_PLIST" >/dev/null
 
 [[ "$(plutil -extract CFBundleIdentifier raw -o - "$PLIST")" == "$APP_BUNDLE_IDENTIFIER" ]] \

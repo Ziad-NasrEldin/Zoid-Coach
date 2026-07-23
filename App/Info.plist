@@ -13,6 +13,8 @@
     <string>Zoid 666</string>
     <key>CFBundleExecutable</key>
     <string>ZoidCoach</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.ziadnasreldin.ZoidCoach</string>
     <key>CFBundleInfoDictionaryVersion</key>
