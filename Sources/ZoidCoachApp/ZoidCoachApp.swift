@@ -577,4 +577,19 @@ struct ZoidCoachForegroundApplication: App {
             )
         }
     }
+
+    private func reconcileTaskAfterWake() {
+        guard onboarding.route == .today else { return }
+        Task {
+            await model.refreshTodaySnapshot()
+            let activeTaskID = model.todaySnapshot?.activeTask?.taskID
+            let activeTaskTitle = model.todaySnapshot?.taskRows.first(where: {
+                $0.taskID == activeTaskID
+            })?.title
+            wakeTaskReconfirmation.reconcileActivation(
+                activeTaskID: activeTaskID,
+                taskTitle: activeTaskTitle
+            )
+        }
+    }
 }
