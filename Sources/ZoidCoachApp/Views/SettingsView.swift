@@ -30,6 +30,7 @@ struct SettingsView: View {
     @State private var captureConfiguration = (try? NativeCaptureConfigurationStore().load()) ?? .legacy
     @State private var captureConfigurationMessage: String?
     @State private var showsRemoteEvidencePreview = false
+    @State private var advancedGamingLimitsExpanded = false
     private let xpcClient = TodayDashboardXPCClient(
         runtimeEnvironment: RuntimeEnvironment.current()
     )
@@ -723,41 +724,7 @@ struct SettingsView: View {
                 )
                 .accessibilityIdentifier("settings.gaming.intentional-override")
                 .disabled(!controller.draft.gamingBudgetEnabled)
-                SumiStepper(
-                    "DAILY COACHING PROMPT CAP",
-                    value: $controller.draft.gamingDailyPromptCap,
-                    in: 1...10,
-                    valueLabel: { "\($0) PROMPT\($0 == 1 ? "" : "S")" }
-                )
-                .accessibilityIdentifier("settings.gaming.daily-prompt-cap")
-                .disabled(!controller.draft.gamingBudgetEnabled)
-                SumiStepper(
-                    "BETWEEN SEPARATE PROMPTS",
-                    value: $controller.draft.gamingPromptCooldownMinutes,
-                    in: 5...1_440,
-                    step: 5,
-                    valueLabel: { "\($0) MIN" }
-                )
-                .accessibilityIdentifier("settings.gaming.prompt-cooldown")
-                .disabled(!controller.draft.gamingBudgetEnabled)
-                SumiStepper(
-                    "AFTER STARTING A TASK",
-                    value: $controller.draft.gamingTaskStartGraceMinutes,
-                    in: 0...60,
-                    valueLabel: { $0 == 0 ? "NO GRACE" : "\($0) MIN GRACE" }
-                )
-                .accessibilityIdentifier("settings.gaming.task-start-grace")
-                .accessibilityHint("Normal behavior coaching waits this long after a task starts. Sustained high-confidence gaming that began before the task can still bypass the grace.")
-                .disabled(!controller.draft.gamingBudgetEnabled)
-                SumiStepper(
-                    "AFTER RETURNING FROM IDLE",
-                    value: $controller.draft.gamingReturnFromIdleGraceMinutes,
-                    in: 0...30,
-                    valueLabel: { $0 == 0 ? "NO GRACE" : "\($0) MIN GRACE" }
-                )
-                .accessibilityIdentifier("settings.gaming.return-from-idle-grace")
-                .accessibilityHint("Behavior coaching waits this long after reliable idle activity or a telemetry gap ends.")
-                .disabled(!controller.draft.gamingBudgetEnabled)
+                advancedGamingLimitsSection
                 Text(gamingAllowanceExplanation)
                     .font(Sumi.body(11))
                     .foregroundStyle(Sumi.muted)
@@ -823,6 +790,120 @@ struct SettingsView: View {
             return "Up to \(base) minutes are available each day. Completing the priority objective does not add more time. Continue intentionally pauses equivalent prompts for \(override) minutes."
         }
         return "Start with \(base) minutes each day. Completing the priority objective unlocks \(reward) additional minutes once; used gaming time is never erased. Continue intentionally pauses equivalent prompts for \(override) minutes."
+    }
+
+    private var advancedGamingLimitsSection: some View {
+        let presentation = GamingSettingsDisclosurePresentation(
+            isExpanded: advancedGamingLimitsExpanded
+        )
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Button {
+                advancedGamingLimitsExpanded.toggle()
+            } label: {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(presentation.title)
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.ink)
+                        Text(presentation.detail)
+                            .font(Sumi.body(10))
+                            .foregroundStyle(Sumi.muted)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: presentation.symbolName)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Sumi.sealDeep)
+                        .frame(width: 16, height: 16)
+                        .accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.vertical, 10)
+            .overlay(alignment: .top) {
+                Divider().overlay(Sumi.rule)
+            }
+            .accessibilityLabel(presentation.title.capitalized)
+            .accessibilityValue(presentation.accessibilityValue)
+            .accessibilityHint(presentation.accessibilityHint)
+            .accessibilityIdentifier("settings.gaming.advanced-limits.toggle")
+
+            if advancedGamingLimitsExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("WORK-HOURS BOUNDARY")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.sealDeep)
+                    Toggle("Use a separate maximum during configured work hours", isOn: $controller.draft.gamingWorkHoursMaximumEnabled)
+                        .toggleStyle(.switch)
+                        .disabled(!controller.draft.gamingBudgetEnabled)
+                        .accessibilityIdentifier("settings.gaming.work-hours-maximum-enabled")
+                    SumiStepper(
+                        "MAXIMUM DURING WORK HOURS",
+                        value: $controller.draft.gamingWorkHoursDailyMaximumMinutes,
+                        in: 0...1_440,
+                        step: 5,
+                        valueLabel: { "\($0) MIN" }
+                    )
+                    .disabled(!controller.draft.gamingBudgetEnabled || !controller.draft.gamingWorkHoursMaximumEnabled)
+                    .accessibilityIdentifier("settings.gaming.work-hours-maximum")
+                    Text(controller.draft.gamingWorkHoursMaximumEnabled
+                         ? "During configured work windows, the total daily allowance, including base and unlocked rewards, cannot exceed this maximum. Outside work hours, the normal daily allowance applies."
+                         : "No separate work-hours maximum is applied. The normal daily allowance applies all day.")
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("settings.gaming.work-hours-maximum-detail")
+
+                    Divider().overlay(Sumi.rule)
+                    Text("PROMPT TIMING")
+                        .font(Sumi.label(8))
+                        .sumiLabelTracking()
+                        .foregroundStyle(Sumi.sealDeep)
+                    SumiStepper(
+                        "DAILY COACHING PROMPT CAP",
+                        value: $controller.draft.gamingDailyPromptCap,
+                        in: 1...10,
+                        valueLabel: { "\($0) PROMPT\($0 == 1 ? "" : "S")" }
+                    )
+                    .accessibilityIdentifier("settings.gaming.daily-prompt-cap")
+                    .disabled(!controller.draft.gamingBudgetEnabled)
+                    SumiStepper(
+                        "BETWEEN SEPARATE PROMPTS",
+                        value: $controller.draft.gamingPromptCooldownMinutes,
+                        in: 5...1_440,
+                        step: 5,
+                        valueLabel: { "\($0) MIN" }
+                    )
+                    .accessibilityIdentifier("settings.gaming.prompt-cooldown")
+                    .disabled(!controller.draft.gamingBudgetEnabled)
+                    SumiStepper(
+                        "AFTER STARTING A TASK",
+                        value: $controller.draft.gamingTaskStartGraceMinutes,
+                        in: 0...60,
+                        valueLabel: { $0 == 0 ? "NO GRACE" : "\($0) MIN GRACE" }
+                    )
+                    .accessibilityIdentifier("settings.gaming.task-start-grace")
+                    .accessibilityHint("Normal behavior coaching waits this long after a task starts. Sustained high-confidence gaming that began before the task can still bypass the grace.")
+                    .disabled(!controller.draft.gamingBudgetEnabled)
+                    SumiStepper(
+                        "AFTER RETURNING FROM IDLE",
+                        value: $controller.draft.gamingReturnFromIdleGraceMinutes,
+                        in: 0...30,
+                        valueLabel: { $0 == 0 ? "NO GRACE" : "\($0) MIN GRACE" }
+                    )
+                    .accessibilityIdentifier("settings.gaming.return-from-idle-grace")
+                    .accessibilityHint("Behavior coaching waits this long after reliable idle activity or a telemetry gap ends.")
+                    .disabled(!controller.draft.gamingBudgetEnabled)
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("settings.gaming.advanced-limits.content")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings.gaming.advanced-limits")
     }
 
     private var scheduleSection: some View {
