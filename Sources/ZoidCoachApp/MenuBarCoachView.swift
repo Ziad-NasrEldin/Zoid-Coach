@@ -218,6 +218,38 @@ final class MenuBarCoachController: ObservableObject {
         }
     }
 
+    func startRecommendedTaskIfStillReady(taskID: String) async {
+        guard !isApplying else { return }
+        isApplying = true
+        defer { isApplying = false }
+        do {
+            let latest = try await client.fetchTodaySnapshot()
+            snapshot = latest
+            let latestState = MenuBarCoachState(snapshot: latest)
+            guard latestState.activeTask == nil,
+                  latestState.pausedTask == nil,
+                  latestState.recommendedTask?.taskID == taskID
+            else {
+                errorMessage = "The recommended task changed before Start. Nothing was started. Review the current menu state and try again."
+                return
+            }
+
+            let updated = try await client.apply(.start, taskID: taskID)
+            let updatedState = MenuBarCoachState(snapshot: updated)
+            guard updatedState.activeTask?.taskID == taskID,
+                  updated.taskRows.first(where: { $0.taskID == taskID })?.state == .active
+            else {
+                errorMessage = "The background agent did not confirm that the task started. Refresh before trying again."
+                return
+            }
+
+            snapshot = updated
+            errorMessage = nil
+        } catch {
+            errorMessage = "The task was not started. The last confirmed state is still shown."
+        }
+    }
+
     func endWorkdayIfStillActive(taskID: String) async {
         guard !isApplying else { return }
         isApplying = true
