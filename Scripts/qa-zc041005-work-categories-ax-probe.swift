@@ -76,6 +76,17 @@ private func bool(_ element: AXUIElement, _ name: CFString) -> Bool? {
     (attribute(element, name) as? NSNumber)?.boolValue
 }
 
+private func number(_ element: AXUIElement, _ name: CFString) -> Double? {
+    (attribute(element, name) as? NSNumber)?.doubleValue
+}
+
+private func element(_ element: AXUIElement, _ name: CFString) -> AXUIElement? {
+    guard let value = attribute(element, name),
+          CFGetTypeID(value) == AXUIElementGetTypeID()
+    else { return nil }
+    return unsafeBitCast(value, to: AXUIElement.self)
+}
+
 private func labels(_ element: AXUIElement) -> [String] {
     [kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute, kAXHelpAttribute]
         .compactMap { string(element, $0 as CFString) }
@@ -149,19 +160,71 @@ private func findIdentifierByScrolling(
             return element
         }
         guard page < maximumScrollPages else { break }
-        var scrollAreas: [AXUIElement] = []
-        _ = try walk(root: window) { element in
-            if role(element) == (kAXScrollAreaRole as String) { scrollAreas.append(element) }
-            return false
-        }
-        guard scrollAreas.reversed().contains(where: {
-            AXUIElementPerformAction($0, "AXScrollDownByPage" as CFString) == .success
-        }) else {
+        let scrollArea = try reviewsScrollArea(in: window)
+        guard scrollReviews(scrollArea, page: page) else {
             throw ProbeError.failure("could not scroll Daily Review toward \(expected)")
         }
         Thread.sleep(forTimeInterval: 0.15)
     }
     throw ProbeError.failure("required Daily Review target is unavailable after bounded scrolling: \(expected)")
+}
+
+private func reviewsScrollArea(in window: AXUIElement) throws -> AXUIElement {
+    var scrollAreas: [AXUIElement] = []
+    _ = try walk(root: window) { candidate in
+        if role(candidate) == (kAXScrollAreaRole as String) { scrollAreas.append(candidate) }
+        return false
+    }
+    let matches = try scrollAreas.filter { scrollArea in
+        try walk(root: scrollArea, matching: { identifier($0) == "reviews.daily" }) != nil
+    }
+    guard matches.count == 1, let match = matches.first else {
+        throw ProbeError.failure(
+            matches.isEmpty
+                ? "Daily Review content scroll area is unavailable"
+                : "Daily Review content scroll area is ambiguous"
+        )
+    }
+    return match
+}
+
+private func scrollReviews(_ scrollArea: AXUIElement, page: Int) -> Bool {
+    let verticalScrollBar = element(scrollArea, kAXVerticalScrollBarAttribute as CFString)
+    var scrollBarIsWritable = DarwinBoolean(false)
+    if let verticalScrollBar {
+        _ = AXUIElementIsAttributeSettable(
+            verticalScrollBar,
+            kAXValueAttribute as CFString,
+            &scrollBarIsWritable
+        )
+    }
+    let minimumValue = verticalScrollBar.flatMap {
+        number($0, kAXMinValueAttribute as CFString)
+    } ?? 0
+    let maximumValue = verticalScrollBar.flatMap {
+        number($0, kAXMaxValueAttribute as CFString)
+    } ?? 1
+
+    switch reviewScrollStep(
+        page: page,
+        maximumPages: maximumScrollPages,
+        verticalScrollBarIsWritable: scrollBarIsWritable.boolValue,
+        minimumValue: minimumValue,
+        maximumValue: maximumValue
+    ) {
+    case let .verticalScrollBar(value):
+        guard let verticalScrollBar else { return false }
+        return AXUIElementSetAttributeValue(
+            verticalScrollBar,
+            kAXValueAttribute as CFString,
+            NSNumber(value: value)
+        ) == .success
+    case .pageAction:
+        return AXUIElementPerformAction(
+            scrollArea,
+            "AXScrollDownByPage" as CFString
+        ) == .success
+    }
 }
 
 private func subtreeSnapshot(_ root: AXUIElement) throws -> (identifiers: [String], strings: [String]) {
