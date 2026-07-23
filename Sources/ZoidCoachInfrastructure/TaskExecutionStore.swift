@@ -417,7 +417,7 @@ public final class TaskExecutionStore: @unchecked Sendable {
         bind(formatter.string(from: date), statement, 2)
         if let taskID { bind(taskID, statement, 3) }
         guard sqlite3_step(statement) == SQLITE_DONE else { throw TaskExecutionStoreError.write }
-    }
+}
 
     private func recordPause(taskID: String, reason: TaskPauseReason, at date: Date) throws {
         try closeOpenPause(taskID: taskID, at: date)
