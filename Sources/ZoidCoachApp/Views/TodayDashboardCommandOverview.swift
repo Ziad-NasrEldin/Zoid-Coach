@@ -833,6 +833,16 @@ struct TodayDashboardCommandOverview: View {
 
     private func sprintStartMenu(for row: TodayTaskRow) -> some View {
         Menu {
+            if let fullEstimate = FullEstimateSprintOption(
+                estimateMinutes: planEntry(for: row)?.estimateMinutes,
+                estimateIsUncertain: planEntry(for: row)?.estimateIsUncertain ?? true
+            ) {
+                Button(fullEstimate.menuTitle) {
+                    model.startSprint(taskID: row.taskID, durationMinutes: fullEstimate.durationMinutes)
+                }
+                .accessibilityHint(fullEstimate.accessibilityHint)
+                Divider()
+            }
             Button("10-minute recovery sprint") { model.applyTaskCommand(.startSprint10, taskID: row.taskID) }
             Button("20-minute work sprint") { model.applyTaskCommand(.startSprint20, taskID: row.taskID) }
             Button("25-minute focus sprint") { model.applyTaskCommand(.startSprint25, taskID: row.taskID) }
@@ -846,6 +856,24 @@ struct TodayDashboardCommandOverview: View {
         .disabled(model.isAnyTaskCommandPending)
         .accessibilityIdentifier("today.sprint.start.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID))")
         .accessibilityHint("Choose a time boundary. The task will stay incomplete when the sprint ends.")
+    }
+}
+
+struct FullEstimateSprintOption: Equatable {
+    let durationMinutes: Int
+
+    init?(estimateMinutes: Int?, estimateIsUncertain: Bool) {
+        guard let estimateMinutes,
+              (1...TaskEstimateInput.maximumMinutes).contains(estimateMinutes),
+              !estimateIsUncertain
+        else { return nil }
+        durationMinutes = estimateMinutes
+    }
+
+    var menuTitle: String { "\(durationMinutes)-minute full estimate" }
+
+    var accessibilityHint: String {
+        "Starts a bounded block matching the full \(durationMinutes)-minute estimate. The task stays incomplete when time ends."
     }
 }
 
@@ -1070,7 +1098,7 @@ private struct CustomSprintDurationSheet: View {
 
     private var durationMinutes: Int? {
         guard let value = Int(durationText.trimmingCharacters(in: .whitespacesAndNewlines)),
-              (1...240).contains(value)
+              (1...TaskEstimateInput.maximumMinutes).contains(value)
         else { return nil }
         return value
     }
@@ -1085,14 +1113,14 @@ private struct CustomSprintDurationSheet: View {
                 .font(Sumi.display(24))
                 .foregroundStyle(Sumi.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Choose 1 to 240 minutes. When the timer reaches zero, the task stays active until you complete, pause, or continue it.")
+            Text("Choose 1 to 480 minutes. When the timer reaches zero, the task stays active until you complete, pause, or continue it.")
                 .font(Sumi.body(11))
                 .foregroundStyle(Sumi.muted)
                 .fixedSize(horizontal: false, vertical: true)
             SumiTextField("DURATION IN MINUTES", placeholder: "30", text: $durationText)
                 .accessibilityIdentifier("today.sprint.custom.duration")
             if durationMinutes == nil {
-                Text("Enter a whole number from 1 to 240.")
+                Text("Enter a whole number from 1 to 480.")
                     .font(Sumi.body(10))
                     .foregroundStyle(Sumi.seal)
                     .accessibilityIdentifier("today.sprint.custom.error")
