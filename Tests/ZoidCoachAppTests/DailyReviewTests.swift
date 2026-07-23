@@ -1033,6 +1033,31 @@ func personalReviewNoteTrimsPersistsReopensAndClearsWithoutChangingEvidence() th
     }
 }
 
+@Test
+func personalReviewNoteTrimsPersistsReopensAndClearsWithoutChangingEvidence() throws {
+    let fixture = try DailyReviewFixture(now: { Date(timeIntervalSince1970: 1_783_663_200) })
+    defer { fixture.remove() }
+    try fixture.insert(epoch: 1_783_663_200, app: "Cursor", classification: .work)
+    try fixture.store.confirm(sourceDay: fixture.sourceDay)
+
+    try fixture.store.savePersonalNote("  Client feedback changed the afternoon.  ", sourceDay: fixture.sourceDay)
+    var snapshot = try fixture.store.load(sourceDay: fixture.sourceDay)
+    #expect(snapshot.personalNote == "Client feedback changed the afternoon.")
+    #expect(snapshot.confirmedAt == nil)
+    #expect(snapshot.observedMinutes == 1)
+
+    let reopened = try DailyReviewStore(databaseURL: fixture.databaseURL)
+    #expect(try reopened.load(sourceDay: fixture.sourceDay).personalNote == "Client feedback changed the afternoon.")
+    try reopened.savePersonalNote("   ", sourceDay: fixture.sourceDay)
+    snapshot = try reopened.load(sourceDay: fixture.sourceDay)
+    #expect(snapshot.personalNote == nil)
+    #expect(snapshot.observedMinutes == 1)
+
+    #expect(throws: DailyReviewStoreError.self) {
+        try reopened.savePersonalNote(String(repeating: "x", count: 1_001), sourceDay: fixture.sourceDay)
+    }
+}
+
 private final class DailyReviewFixture {
     let databaseURL: URL
     let sourceDay = "2026-07-10"
