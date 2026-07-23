@@ -613,6 +613,7 @@ struct DailyReviewView: View {
     @ViewBuilder
     private func snapshotContent(_ snapshot: DailyReviewSnapshot) -> some View {
         keyboardCorrectionToolbar(snapshot)
+        evidenceBoundary(snapshot)
         reviewCoverage(snapshot)
         evidenceLayers(DailyReviewEvidenceLayersState(snapshot: snapshot))
         planOutcomes(snapshot)
@@ -651,6 +652,60 @@ struct DailyReviewView: View {
         hypothesis(snapshot)
         personalNoteSection(snapshot)
         confirmation(snapshot)
+    }
+
+    private func evidenceBoundary(_ snapshot: DailyReviewSnapshot) -> some View {
+        let presentation = DailyReviewEvidencePresentation(snapshot: snapshot)
+        return VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("EVIDENCE BOUNDARY")
+                    .font(Sumi.label())
+                    .sumiLabelTracking()
+                    .foregroundStyle(Sumi.seal)
+                Text("Read what Zoid 666 observed separately from what you added and what it only proposes as an explanation.")
+                    .font(Sumi.body(12))
+                    .foregroundStyle(Sumi.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 220), spacing: 10, alignment: .top)],
+                alignment: .leading,
+                spacing: 10
+            ) {
+                ForEach(presentation.sections, id: \.kind) { section in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(section.title)
+                            .font(Sumi.label(9))
+                            .sumiLabelTracking()
+                            .foregroundStyle(Sumi.muted)
+                        Text(section.status)
+                            .font(Sumi.body(13))
+                            .foregroundStyle(Sumi.ink)
+                        Text(section.detail)
+                            .font(Sumi.body(11))
+                            .foregroundStyle(Sumi.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
+                    .background(Sumi.paper)
+                    .overlay(Rectangle().stroke(Sumi.paleRule, lineWidth: 1))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(section.title)
+                    .accessibilityValue(section.status)
+                    .accessibilityHint(section.detail)
+                    .accessibilityIdentifier("reviews.evidence-boundary.\(section.kind.rawValue)")
+                }
+            }
+        }
+        .padding(18)
+        .background(Sumi.softPaper)
+        .overlay(Rectangle().stroke(Sumi.seal, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Evidence boundary")
+        .accessibilityHint(presentation.accessibilitySummary)
+        .accessibilityIdentifier("reviews.evidence-boundary")
     }
 
     private func keyboardCorrectionToolbar(_ snapshot: DailyReviewSnapshot) -> some View {
@@ -1383,7 +1438,7 @@ struct DailyReviewView: View {
 
     private func hypothesis(_ snapshot: DailyReviewSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("POSSIBLE EXPLANATION")
+            Text("HYPOTHESIS · POSSIBLE EXPLANATION")
                 .font(Sumi.label())
                 .sumiLabelTracking()
             Text(snapshot.hypothesis ?? "There is not enough covered activity for an explanation.")
@@ -1462,7 +1517,7 @@ struct DailyReviewView: View {
 
     private func personalNoteSection(_ snapshot: DailyReviewSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("PERSONAL NOTE")
+            Text("USER CONTEXT · PERSONAL NOTE")
                 .font(Sumi.label())
                 .sumiLabelTracking()
             Text("Keep private context for this day. This note stays local and is not treated as observed behavior, a hypothesis, or a learned fact.")
