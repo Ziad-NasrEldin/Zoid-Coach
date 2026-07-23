@@ -1,0 +1,523 @@
+{
+  "": {
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/primary.swiftdeps"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AIProviderCapabilities.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AIProviderCapabilities.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AIProviderCapabilities.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AIProviderCapabilities~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AIProviderCapabilities.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AIProviderCapabilities.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AcceptedBreakReminderService.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AcceptedBreakReminderService.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AcceptedBreakReminderService.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AcceptedBreakReminderService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AcceptedBreakReminderService.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AcceptedBreakReminderService.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ActionCommandExecutor.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionCommandExecutor.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionCommandExecutor.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionCommandExecutor~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionCommandExecutor.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionCommandExecutor.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ActionOutboxStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionOutboxStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionOutboxStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionOutboxStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionOutboxStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ActionOutboxStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AgentCaptureHealth.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentCaptureHealth.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentCaptureHealth.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentCaptureHealth~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentCaptureHealth.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentCaptureHealth.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AgentMutationRouter.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentMutationRouter.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentMutationRouter.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentMutationRouter~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentMutationRouter.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentMutationRouter.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AgentOwnedStateStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentOwnedStateStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentOwnedStateStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentOwnedStateStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentOwnedStateStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentOwnedStateStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AgentPlanScheduler.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentPlanScheduler.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentPlanScheduler.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentPlanScheduler~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentPlanScheduler.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AgentPlanScheduler.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AmbiguousActivityPromptService.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AmbiguousActivityPromptService.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AmbiguousActivityPromptService.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AmbiguousActivityPromptService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AmbiguousActivityPromptService.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AmbiguousActivityPromptService.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AuditedPlanningAdvisor.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AuditedPlanningAdvisor.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AuditedPlanningAdvisor.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AuditedPlanningAdvisor~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AuditedPlanningAdvisor.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AuditedPlanningAdvisor.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AutonomousDatabaseMigrator.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousDatabaseMigrator.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousDatabaseMigrator.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousDatabaseMigrator~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousDatabaseMigrator.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousDatabaseMigrator.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/AutonomousPlanStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousPlanStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousPlanStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousPlanStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousPlanStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/AutonomousPlanStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/BaselineObservationStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/BaselineObservationStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/BaselineObservationStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/BaselineObservationStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/BaselineObservationStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/BaselineObservationStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/CalendarPlanOperationStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CalendarPlanOperationStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CalendarPlanOperationStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CalendarPlanOperationStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CalendarPlanOperationStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CalendarPlanOperationStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ChiefOfStaffToolExecutor.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ChiefOfStaffToolExecutor.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ChiefOfStaffToolExecutor.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ChiefOfStaffToolExecutor~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ChiefOfStaffToolExecutor.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ChiefOfStaffToolExecutor.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/CodexCLIPlanningAdvisor.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexCLIPlanningAdvisor.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexCLIPlanningAdvisor.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexCLIPlanningAdvisor~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexCLIPlanningAdvisor.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexCLIPlanningAdvisor.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/CodexJobCoordinator.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexJobCoordinator.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexJobCoordinator.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexJobCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexJobCoordinator.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/CodexJobCoordinator.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/DailyReviewStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailyReviewStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailyReviewStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailyReviewStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailyReviewStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailyReviewStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/DailySourceCoverageStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailySourceCoverageStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailySourceCoverageStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailySourceCoverageStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailySourceCoverageStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DailySourceCoverageStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/DatabaseWriteCircuitBreaker.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DatabaseWriteCircuitBreaker.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DatabaseWriteCircuitBreaker.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DatabaseWriteCircuitBreaker~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DatabaseWriteCircuitBreaker.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DatabaseWriteCircuitBreaker.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/DescriptorRelativeStateDirectory.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DescriptorRelativeStateDirectory.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DescriptorRelativeStateDirectory.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DescriptorRelativeStateDirectory~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DescriptorRelativeStateDirectory.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DescriptorRelativeStateDirectory.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/DeterministicOSFixtureAdapters.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DeterministicOSFixtureAdapters.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DeterministicOSFixtureAdapters.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DeterministicOSFixtureAdapters~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DeterministicOSFixtureAdapters.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DeterministicOSFixtureAdapters.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/DomainEventStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DomainEventStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DomainEventStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DomainEventStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DomainEventStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/DomainEventStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/EventKitActionSources.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/EventKitActionSources.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/EventKitActionSources.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/EventKitActionSources~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/EventKitActionSources.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/EventKitActionSources.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/GamingDriftPromptService.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingDriftPromptService.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingDriftPromptService.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingDriftPromptService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingDriftPromptService.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingDriftPromptService.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/GamingManualAdjustmentStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingManualAdjustmentStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingManualAdjustmentStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingManualAdjustmentStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingManualAdjustmentStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GamingManualAdjustmentStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/GeminiAPIKeyStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiAPIKeyStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiAPIKeyStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiAPIKeyStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiAPIKeyStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiAPIKeyStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/GeminiLiveTransport.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiLiveTransport.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiLiveTransport.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiLiveTransport~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiLiveTransport.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/GeminiLiveTransport.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/LearningAggregateStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LearningAggregateStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LearningAggregateStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LearningAggregateStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LearningAggregateStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LearningAggregateStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/LocalEvidenceCipher.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LocalEvidenceCipher.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LocalEvidenceCipher.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LocalEvidenceCipher~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LocalEvidenceCipher.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/LocalEvidenceCipher.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/MacChiefOfStaffActions.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MacChiefOfStaffActions.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MacChiefOfStaffActions.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MacChiefOfStaffActions~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MacChiefOfStaffActions.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MacChiefOfStaffActions.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/MeetingPromptBuilder.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MeetingPromptBuilder.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MeetingPromptBuilder.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MeetingPromptBuilder~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MeetingPromptBuilder.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MeetingPromptBuilder.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/MissedPlanningInvitationRecoveryService.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MissedPlanningInvitationRecoveryService.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MissedPlanningInvitationRecoveryService.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MissedPlanningInvitationRecoveryService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MissedPlanningInvitationRecoveryService.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/MissedPlanningInvitationRecoveryService.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ModelRunStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ModelRunStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ModelRunStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ModelRunStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ModelRunStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ModelRunStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/NotificationDeliveryLedger.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/NotificationDeliveryLedger.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/NotificationDeliveryLedger.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/NotificationDeliveryLedger~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/NotificationDeliveryLedger.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/NotificationDeliveryLedger.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/OllamaPlanningAdvisor.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OllamaPlanningAdvisor.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OllamaPlanningAdvisor.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OllamaPlanningAdvisor~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OllamaPlanningAdvisor.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OllamaPlanningAdvisor.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/OnboardingProgressStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingProgressStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingProgressStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingProgressStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingProgressStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingProgressStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/OnboardingTestPromptService.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingTestPromptService.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingTestPromptService.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingTestPromptService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingTestPromptService.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/OnboardingTestPromptService.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PlanScheduleRequestStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanScheduleRequestStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanScheduleRequestStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanScheduleRequestStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanScheduleRequestStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanScheduleRequestStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PlanUndoRequestStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanUndoRequestStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanUndoRequestStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanUndoRequestStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanUndoRequestStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanUndoRequestStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PlannerTrustGateStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlannerTrustGateStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlannerTrustGateStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlannerTrustGateStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlannerTrustGateStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlannerTrustGateStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PlanningInvitationService.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanningInvitationService.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanningInvitationService.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanningInvitationService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanningInvitationService.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PlanningInvitationService.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PolicyStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PolicyStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PolicyStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PolicyStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PolicyStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PolicyStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PrivacyDataService.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PrivacyDataService.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PrivacyDataService.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PrivacyDataService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PrivacyDataService.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PrivacyDataService.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ProcessingCheckpointStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ProcessingCheckpointStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ProcessingCheckpointStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ProcessingCheckpointStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ProcessingCheckpointStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ProcessingCheckpointStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PromptInboxStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptInboxStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptInboxStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptInboxStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptInboxStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptInboxStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PromptNotificationCoordinator.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationCoordinator.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationCoordinator.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationCoordinator.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationCoordinator.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PromptNotificationRelevance.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationRelevance.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationRelevance.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationRelevance~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationRelevance.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptNotificationRelevance.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/PromptResponseEffectRouter.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptResponseEffectRouter.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptResponseEffectRouter.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptResponseEffectRouter~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptResponseEffectRouter.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/PromptResponseEffectRouter.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/QAFixtureOSComposition.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QAFixtureOSComposition.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QAFixtureOSComposition.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QAFixtureOSComposition~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QAFixtureOSComposition.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QAFixtureOSComposition.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/QANotificationReplacementProbe.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QANotificationReplacementProbe.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QANotificationReplacementProbe.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QANotificationReplacementProbe~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QANotificationReplacementProbe.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QANotificationReplacementProbe.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/QuietHoursDeliveryBoundary.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QuietHoursDeliveryBoundary.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QuietHoursDeliveryBoundary.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QuietHoursDeliveryBoundary~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QuietHoursDeliveryBoundary.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/QuietHoursDeliveryBoundary.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/RecommendationFeedbackStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/RecommendationFeedbackStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/RecommendationFeedbackStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/RecommendationFeedbackStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/RecommendationFeedbackStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/RecommendationFeedbackStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ReminderSnapshotStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReminderSnapshotStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReminderSnapshotStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReminderSnapshotStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReminderSnapshotStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReminderSnapshotStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ReviewHypothesisPromotionStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewHypothesisPromotionStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewHypothesisPromotionStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewHypothesisPromotionStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewHypothesisPromotionStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewHypothesisPromotionStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ReviewReminderService.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewReminderService.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewReminderService.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewReminderService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewReminderService.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ReviewReminderService.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ScreenContextSelector.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenContextSelector.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenContextSelector.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenContextSelector~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenContextSelector.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenContextSelector.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ScreenshotTextRecognizer.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenshotTextRecognizer.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenshotTextRecognizer.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenshotTextRecognizer~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenshotTextRecognizer.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenshotTextRecognizer.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ScreenwatchArchive.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchArchive.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchArchive.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchArchive~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchArchive.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchArchive.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ScreenwatchMaintenanceService.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchMaintenanceService.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchMaintenanceService.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchMaintenanceService~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchMaintenanceService.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchMaintenanceService.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/ScreenwatchSourceRepository.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchSourceRepository.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchSourceRepository.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchSourceRepository~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchSourceRepository.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/ScreenwatchSourceRepository.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/StructuredGenerationProviders.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/StructuredGenerationProviders.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/StructuredGenerationProviders.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/StructuredGenerationProviders~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/StructuredGenerationProviders.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/StructuredGenerationProviders.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/TaskExecutionStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskExecutionStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskExecutionStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskExecutionStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskExecutionStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskExecutionStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/TaskHistoryStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskHistoryStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskHistoryStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskHistoryStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskHistoryStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskHistoryStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/TaskMutationOperationStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskMutationOperationStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskMutationOperationStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskMutationOperationStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskMutationOperationStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TaskMutationOperationStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/TimeZonePlanMoveInspector.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TimeZonePlanMoveInspector.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TimeZonePlanMoveInspector.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TimeZonePlanMoveInspector~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TimeZonePlanMoveInspector.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TimeZonePlanMoveInspector.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/TodayDashboardAgent.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardAgent.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardAgent.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardAgent~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardAgent.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardAgent.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/TodayDashboardXPC.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardXPC.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardXPC.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardXPC~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardXPC.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodayDashboardXPC.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/TodaySnapshotStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodaySnapshotStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodaySnapshotStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodaySnapshotStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodaySnapshotStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/TodaySnapshotStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/UserNotificationActionSource.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/UserNotificationActionSource.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/UserNotificationActionSource.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/UserNotificationActionSource~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/UserNotificationActionSource.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/UserNotificationActionSource.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/VoiceAgentController.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceAgentController.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceAgentController.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceAgentController~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceAgentController.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceAgentController.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/VoicePersistenceStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoicePersistenceStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoicePersistenceStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoicePersistenceStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoicePersistenceStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoicePersistenceStore.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/VoiceToolRouter.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceToolRouter.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceToolRouter.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceToolRouter~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceToolRouter.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/VoiceToolRouter.dia"
+  },
+  "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/Sources/ZoidCoachInfrastructure/WeeklyReviewStore.swift": {
+    "dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/WeeklyReviewStore.d",
+    "object": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/WeeklyReviewStore.swift.o",
+    "swiftmodule": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/WeeklyReviewStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/WeeklyReviewStore.swiftdeps",
+    "diagnostics": "/Users/ziadnasreldin/.codex/worktrees/5913591f-692b-4c4e-9ca3-a8cec4f285f3/Zoid Coach/.audit/runs/swarm/section-018/swiftpm-build/arm64-apple-macosx/debug/ZoidCoachInfrastructure.build/WeeklyReviewStore.dia"
+  }
+}
