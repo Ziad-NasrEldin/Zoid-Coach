@@ -557,6 +557,12 @@ struct ZoidCoachForegroundApplication: App {
         ).apply(policy: initialMainWindowPresentationPolicy)
     }
 
+    private func dismissInitialWindowsForBackgroundScheduling() {
+        for window in NSApp.windows where window.level == .normal {
+            window.orderOut(nil)
+        }
+    }
+
     private func reconcileTaskAfterWake() {
         guard onboarding.route == .today else { return }
         Task {
