@@ -1,0 +1,82 @@
+# Zoid 666 Active Work Ledger
+
+This file is owned by the root integrator.
+
+Builders and verifiers must read it before editing, but must not modify it unless explicitly assigned ownership.
+
+## Integration state
+
+| Field | Value |
+| --- | --- |
+| Integration branch | `codex/full-system` |
+| Current integration baseline | `349d975` after strict proof, isolated QA identities, deterministic OS fixtures, hardened onboarding persistence, canonical Screenwatch consumption, durable gaming policy, complete first-plan persistence, idempotent policy saga, macOS-safe capture storage, and identifier-based Reminder-list onboarding |
+| Program | `docs/ZOID-COACH-666-IMPLEMENTATION-PROGRAM.md` |
+| Acceptance tracker | `docs/zoid-coach-product-scenario-tracker.md` |
+| Phase | Phase 1: first-launch onboarding and first daily-plan usability |
+
+## Active assignments
+
+| Lane | Branch | Worktree | Scope | Status |
+| --- | --- | --- | --- | --- |
+| First-launch acceptance audit | Read-only root audit | Root checkout at `a8c8420` | Map the 12-step first-launch journey to scenario IDs, UI/service gaps, and E2E hooks | Complete, with no status upgrades |
+| Integrated OS-fixture verification | Read-only root verification | Root checkout at `a8c8420` | Reproduce full suites, signed packaging, bounded agent behavior, and exactly-once replay | Passed: 321 Swift, 38 Python, 666 registry, release, signed QA replay |
+| First-launch builder | `codex/zc-onboarding-ui` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/onboarding-ui` | Implement resumable 12-step onboarding and first daily-plan handoff | Merged fail-closed at `3f9a13c`; integration seams remain |
+| Screenwatch setup builder | `codex/zc-screenwatch-setup` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/screenwatch-setup` | Add privacy-safe default and security-scoped alternate-folder setup with repair and restart persistence | Merged at `1d4cfd3`; root gates passed |
+| Gaming policy backend builder | `codex/zc-gaming-policy` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/gaming-policy` | Persist onboarding gaming posture in versioned user policy and consume it in Today | Merged at `5557c4e`; root gates passed |
+| Onboarding policy saga builder | `codex/zc-onboarding-policy-saga` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/onboarding-policy-saga` | Add migration 25, idempotent policy receipts, CAS, and onboarding reconciliation | Merged at `72c802c`; root and signed QA XPC gates passed |
+| Canonical Screenwatch source builder | `codex/zc-screenwatch-canonical-source` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/screenwatch-canonical-source` | Make alternate selection a shared no-follow source consumed by app and agent | Merged at `5b76dd0`; root gates passed |
+| First daily-plan builder | `codex/zc-onboarding-first-plan` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/onboarding-first-plan` | Add migration 26, durable local tasks, atomic plan installation, and real onboarding plan preparation | Merged at `e57f4bd`; root gates passed after capture-store fix |
+| Reminder-list onboarding builder | `codex/zc-reminder-list-onboarding` | `/Users/ziadnasreldin/Documents/GitHub/Zoid-Coach-Worktrees/reminder-list-onboarding` | Discover, select, persist, edit, and consistently apply Reminder-list inclusion | Merged at `349d975`; root gates passed |
+
+## Exclusive file locks
+
+| Path | Owner | Intended change | Baseline | Expires |
+| --- | --- | --- | --- | --- |
+| `Sources/ZoidCoachApp/AppModel.swift` | Root integrator | Runtime composition integrated; future composition remains serialized | `4a2bd85` | Permanent unless temporarily granted |
+| `Sources/ZoidCoachAgent/AgentMain.swift` | Root integrator | QA OS-adapter refusal integrated; future composition remains serialized | `46f635f` | Permanent unless temporarily granted |
+| `Sources/ZoidCoachApp/Voice/VoiceConversationModel.swift` | Root integrator | QA external-boundary refusal integrated | `46f635f` | Permanent unless temporarily granted |
+| `Sources/ZoidCoachCore/ZoidCoachStorage.swift` | Root integrator | Runtime storage helper integrated | `e9aecdb` | Permanent unless temporarily granted |
+| QA package scripts, copied plist identities, XPC identity composition, Settings XPC consumers, notification IDs, and parent launcher | Root integrator | Integrated dedicated QA identity plane | `61b3e43` | Permanent unless temporarily granted |
+| Deterministic OS fixture adapters and composition wiring | Root integrator | Integrated signed-QA Reminders, Calendar, notification, permission, and action fixtures | `a8c8420` | Permanent unless temporarily granted |
+| `.audit/runs/phase0-proof/` | Root integrator | Immutable independent proof evidence | `8ce11dc` | Permanent |
+| Onboarding progress model, store, and descriptor-relative state directory | Root integrator | Integrated hardened resumable persistence | `712ff71` | Permanent unless temporarily granted |
+| Onboarding coordinator, dependencies, views, and focused tests | Root integrator | Integrated complete UI with fail-closed gaming and first-plan seams | `3f9a13c` | Permanent unless temporarily granted |
+| `Sources/ZoidCoachApp/ZoidCoachApp.swift` root-view hunk only | Root integrator | Gate Dashboard behind persisted onboarding completion | `3f9a13c` | Permanent unless temporarily granted |
+| Screenwatch onboarding setup service and focused tests | Root integrator | Integrated health, bookmark, repair, QA-isolation, freshness, and no-follow boundaries | `1d4cfd3` | Permanent unless temporarily granted |
+| Gaming policy model, migration 24, agent mutation, reward ledger, and Today consumers | Root integrator | Integrated backward-compatible durable policy and exact reward semantics | `5557c4e` | Permanent unless temporarily granted |
+| Migration 25, policy mutation receipts, onboarding effect receipts, Settings CAS, and saga coordinator files | Root integrator | Integrated crash-safe idempotent cross-store orchestration | `72c802c` | Permanent unless temporarily granted |
+| AppModel, AgentMain, and Screenwatch source/setup/reader/archive/maintenance files | Root integrator | Integrated shared canonical source lease and app-agent consumption | `5b76dd0` | Permanent unless temporarily granted |
+| Migration 26, Reminder local-task origin, atomic plan installation, and onboarding first-plan service/tests | Root integrator | Integrated a persisted visible first plan for granted and degraded source states | `e57f4bd` | Permanent unless temporarily granted |
+| UserPolicy schema 5 Reminder-list selection, Reminders list inventory, onboarding/Settings controls, filtering consumers, and tests | Root integrator | Integrated durable identifier-based list inclusion without name inference | `349d975` | Permanent unless temporarily granted |
+| Runtime preference, keychain, export, capture, OS-adapter, and evidence-cipher consumers | Root integrator | Integrated and independently reviewed | `4a2bd85` | Permanent unless temporarily granted |
+| `Scripts/scenario_registry.py`, registry schema, and registry tests | Root integrator | Strict proof coherence integrated | `1223680` | Permanent unless temporarily granted |
+| `.audit/runs/deterministic-fixture/515016a/` | Root integrator | Immutable independent evidence | `3031040` | Permanent |
+| `docs/zoid-coach-product-scenario-tracker.md` | Root integrator | Authoritative status and later stable-ID composition | `a068d27` | Permanent |
+| `Package.swift` | Root integrator | Integration and future UI-test composition | `a068d27` | Permanent unless temporarily granted |
+| Migration registration and schema versions | Root integrator | Serialized append-only migrations | `a068d27` | Permanent unless temporarily granted |
+
+## Runtime leases
+
+| Runtime | Owner | Permission |
+| --- | --- | --- |
+| Production installed app and user data | Root integrator | Read-only verification unless the user explicitly authorizes a controlled mutation |
+| Signed clean QA package | Root integrator and assigned verifier | Deterministic fixture-backed E2E only within the embedded run-specific QA root |
+| Real Reminders and Calendar | None | No destructive or test mutations |
+| TCC and System Settings | None | No permission changes during this wave |
+
+## Handoff gate
+
+A lane is not ready for merge until it provides:
+
+- Final commit SHA
+- Clean worktree status
+- Files changed
+- Focused test output
+- Full test output where applicable
+- Release build output where applicable
+- Known gaps
+- Exact integration instructions
+- Evidence path
+- Rollback instructions
+
+The root merges one lane at a time and reruns the integrated gates after each merge.
