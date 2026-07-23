@@ -45,6 +45,45 @@ enum ApplicationTerminationDecision: Equatable {
     }
 }
 
+enum ApplicationEntrypointSelection: Equatable {
+    case foreground
+    case background
+
+    static func select(arguments: [String], packageMode: RuntimePackageMode?) -> Self {
+        let presentation = ApplicationLaunchPresentation(
+            arguments: arguments,
+            packageMode: packageMode
+        )
+        return presentation.launchesForBackgroundScheduling ? .background : .foreground
+    }
+
+    var sceneCompositionPolicy: ApplicationSceneCompositionPolicy {
+        switch self {
+        case .foreground:
+            .foreground
+        case .background:
+            .background
+        }
+    }
+}
+
+struct ApplicationSceneCompositionPolicy: Equatable {
+    let includesMainWindowScene: Bool
+    let includesAgentWindowScene: Bool
+    let includesMenuBarScene: Bool
+
+    static let foreground = ApplicationSceneCompositionPolicy(
+        includesMainWindowScene: true,
+        includesAgentWindowScene: true,
+        includesMenuBarScene: true
+    )
+    static let background = ApplicationSceneCompositionPolicy(
+        includesMainWindowScene: false,
+        includesAgentWindowScene: false,
+        includesMenuBarScene: true
+    )
+}
+
 @MainActor
 final class BackgroundApplicationLifecycleHook {
     static let backgroundStartupTerminationProtectionDuration: TimeInterval = 6

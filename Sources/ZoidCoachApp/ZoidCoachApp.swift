@@ -65,6 +65,99 @@ final class ApplicationActivationMonitor: NSObject, ObservableObject {
 }
 
 @MainActor
+private struct ZoidCoachApplicationLaunchContext {
+    let runtimeEnvironment: RuntimeEnvironment
+    let launchPresentation: ApplicationLaunchPresentation
+    let entrypointSelection: ApplicationEntrypointSelection
+
+    init() {
+        let runtimeEnvironment = RuntimeEnvironment.current()
+        self.runtimeEnvironment = runtimeEnvironment
+        launchPresentation = ApplicationLaunchPresentation(
+            arguments: CommandLine.arguments,
+            packageMode: runtimeEnvironment.packageMode
+        )
+        entrypointSelection = ApplicationEntrypointSelection.select(
+            arguments: CommandLine.arguments,
+            packageMode: runtimeEnvironment.packageMode
+        )
+    }
+}
+
+@MainActor
+private final class ZoidCoachApplicationDependencies {
+    let model: AppModel
+    let voiceModel: VoiceConversationModel
+    let onboarding: OnboardingCoordinator
+    let agentLifecycle: AgentLifecycleController
+    let wakeTaskReconfirmation: WakeTaskReconfirmationController
+    let menuBarCoach: MenuBarCoachController
+    let menuBarCoachingPause: MenuBarCoachingPauseController
+
+    init(runtimeEnvironment: RuntimeEnvironment) {
+        model = AppModel(runtimeEnvironment: runtimeEnvironment)
+        voiceModel = VoiceConversationModel()
+        onboarding = OnboardingCoordinator()
+        agentLifecycle = AgentLifecycleController()
+        wakeTaskReconfirmation = WakeTaskReconfirmationController()
+        menuBarCoach = MenuBarCoachController(runtimeEnvironment: runtimeEnvironment)
+        menuBarCoachingPause = MenuBarCoachingPauseController(
+            runtimeEnvironment: runtimeEnvironment
+        )
+    }
+}
+
+@MainActor
+private enum ZoidCoachApplicationBootstrap {
+    static let context = ZoidCoachApplicationLaunchContext()
+    static let dependencies = ZoidCoachApplicationDependencies(
+        runtimeEnvironment: context.runtimeEnvironment
+    )
+}
+
+@main
+enum ZoidCoachApplicationEntrypoint {
+    @MainActor
+    static func main() {
+        if let exitCode = acceptanceProbeExitCode() {
+            fflush(stdout)
+            fflush(stderr)
+            Darwin.exit(exitCode)
+        }
+
+        switch ZoidCoachApplicationBootstrap.context.entrypointSelection {
+        case .foreground:
+            ZoidCoachForegroundApplication.main()
+        case .background:
+            ZoidCoachBackgroundApplication.main()
+        }
+    }
+
+    @MainActor
+    private static func acceptanceProbeExitCode() -> Int32? {
+        if CommandLine.arguments.contains(ZC052005AcceptanceProbe.argument) {
+            return ZC052005AcceptanceProbe.run()
+        }
+        if CommandLine.arguments.contains(ReminderCompletionSyncXPCProbe.argument) {
+            return ReminderCompletionSyncXPCProbe.run()
+        }
+        if CommandLine.arguments.contains(ManualLocalTaskXPCProbe.argument) {
+            return ManualLocalTaskXPCProbe.run()
+        }
+        if CommandLine.arguments.contains(PolicyMutationXPCProbe.registerAgentArgument) {
+            return PolicyMutationXPCProbe.registerAgent()
+        }
+        if CommandLine.arguments.contains(PolicyMutationXPCProbe.unregisterAgentArgument) {
+            return PolicyMutationXPCProbe.unregisterAgent()
+        }
+        if CommandLine.arguments.contains(PolicyMutationXPCProbe.argument) {
+            return PolicyMutationXPCProbe.run()
+        }
+        return nil
+    }
+}
+
+@MainActor
 final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
     private static let automaticTerminationReason = "Zoid 666 background scheduling menu"
     private static let lifecycleLogger = Logger(
@@ -74,11 +167,7 @@ final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
     private let lifecycleHook: BackgroundApplicationLifecycleHook
 
     override init() {
-        let runtimeEnvironment = RuntimeEnvironment.current()
-        let launchPresentation = ApplicationLaunchPresentation(
-            arguments: CommandLine.arguments,
-            packageMode: runtimeEnvironment.packageMode
-        )
+        let launchPresentation = ZoidCoachApplicationBootstrap.context.launchPresentation
         lifecycleHook = BackgroundApplicationLifecycleHook(
             policy: launchPresentation.initialMainWindowPresentationPolicy,
             isAccessoryActivationPolicySet: {
@@ -160,8 +249,56 @@ final class ZoidCoachApplicationDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-@main
-struct ZoidCoachApplication: App {
+struct ZoidCoachBackgroundApplication: App {
+    @NSApplicationDelegateAdaptor(ZoidCoachApplicationDelegate.self)
+    private var applicationDelegate
+    @StateObject private var model: AppModel
+    @StateObject private var voiceModel: VoiceConversationModel
+    @StateObject private var menuBarCoach: MenuBarCoachController
+    @StateObject private var menuBarCoachingPause: MenuBarCoachingPauseController
+
+    init() {
+        let dependencies = ZoidCoachApplicationBootstrap.dependencies
+        _model = StateObject(wrappedValue: dependencies.model)
+        _voiceModel = StateObject(wrappedValue: dependencies.voiceModel)
+        _menuBarCoach = StateObject(wrappedValue: dependencies.menuBarCoach)
+        _menuBarCoachingPause = StateObject(wrappedValue: dependencies.menuBarCoachingPause)
+    }
+
+    var body: some Scene {
+        MenuBarExtra {
+            MenuBarCoachView(
+                appModel: model,
+                voiceModel: voiceModel,
+                controller: menuBarCoach,
+                pauseController: menuBarCoachingPause
+            )
+        } label: {
+            Image(systemName: menuBarState.menuBarSymbol)
+                .accessibilityLabel(menuBarState.menuBarLabel)
+        }
+        .menuBarExtraStyle(.window)
+    }
+
+    private var menuBarState: MenuBarCoachState {
+        MenuBarCoachState(
+            snapshot: model.todaySnapshot,
+            unresolvedPromptCount: model.promptEpisodes.count,
+            notificationsUnavailable: notificationsUnavailable
+        )
+    }
+
+    private var notificationsUnavailable: Bool {
+        guard let notifications = model.sources.first(where: { $0.id == .notifications }) else {
+            return false
+        }
+        return notifications.state == .attention
+            || notifications.state == .notConnected
+            || notifications.state == .unavailable
+    }
+}
+
+struct ZoidCoachForegroundApplication: App {
     @NSApplicationDelegateAdaptor(ZoidCoachApplicationDelegate.self)
     private var applicationDelegate
     @Environment(\.scenePhase) private var scenePhase
@@ -177,47 +314,9 @@ struct ZoidCoachApplication: App {
     private let shouldOpenMainWindow: Bool
 
     init() {
-        if CommandLine.arguments.contains(ZC052005AcceptanceProbe.argument) {
-            let exitCode = ZC052005AcceptanceProbe.run()
-            fflush(stdout)
-            fflush(stderr)
-            Darwin.exit(exitCode)
-        }
-        if CommandLine.arguments.contains(ReminderCompletionSyncXPCProbe.argument) {
-            let exitCode = ReminderCompletionSyncXPCProbe.run()
-            fflush(stdout)
-            fflush(stderr)
-            Darwin.exit(exitCode)
-        }
-        if CommandLine.arguments.contains(ManualLocalTaskXPCProbe.argument) {
-            let exitCode = ManualLocalTaskXPCProbe.run()
-            fflush(stdout)
-            fflush(stderr)
-            Darwin.exit(exitCode)
-        }
-        if CommandLine.arguments.contains(PolicyMutationXPCProbe.registerAgentArgument) {
-            let exitCode = PolicyMutationXPCProbe.registerAgent()
-            fflush(stdout)
-            fflush(stderr)
-            Darwin.exit(exitCode)
-        }
-        if CommandLine.arguments.contains(PolicyMutationXPCProbe.unregisterAgentArgument) {
-            let exitCode = PolicyMutationXPCProbe.unregisterAgent()
-            fflush(stdout)
-            fflush(stderr)
-            Darwin.exit(exitCode)
-        }
-        if CommandLine.arguments.contains(PolicyMutationXPCProbe.argument) {
-            let exitCode = PolicyMutationXPCProbe.run()
-            fflush(stdout)
-            fflush(stderr)
-            Darwin.exit(exitCode)
-        }
-        let runtimeEnvironment = RuntimeEnvironment.current()
-        let launchPresentation = ApplicationLaunchPresentation(
-            arguments: CommandLine.arguments,
-            packageMode: runtimeEnvironment.packageMode
-        )
+        let context = ZoidCoachApplicationBootstrap.context
+        let dependencies = ZoidCoachApplicationBootstrap.dependencies
+        let launchPresentation = context.launchPresentation
         initialMainWindowPresentationPolicy = launchPresentation.initialMainWindowPresentationPolicy
         shouldOpenMainWindow = launchPresentation.shouldOpenMainWindow
         _model = StateObject(wrappedValue: AppModel(runtimeEnvironment: runtimeEnvironment))
