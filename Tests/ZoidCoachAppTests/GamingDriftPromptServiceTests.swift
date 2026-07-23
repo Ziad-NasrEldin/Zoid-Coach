@@ -567,7 +567,7 @@ func gamingDriftUsesCorrectionsAndDoesNotRepeatTheSameSession() throws {
     }
     #expect(try deduped.service.produce(
         policy: deduped.policy(), gamingStatus: deduped.gamingStatus, baselineStatus: deduped.baseline()
-    ) == .suppressed(.sessionAlreadyHandled))
+    ) == .suppressed(.intentionalOverrideActive))
     #expect(try deduped.promptStore.unresolved().count == 1)
 }
 
