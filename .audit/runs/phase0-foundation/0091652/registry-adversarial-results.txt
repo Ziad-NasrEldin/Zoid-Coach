@@ -1,0 +1,29 @@
+Scenario registry adversarial validation
+baseline=0091652ff15ca9e7f31e6428e4220f71d06348c9
+
+schema_version_999: ACCEPTED
+evil_schema_uri: ACCEPTED
+wrong_tracker_path: ACCEPTED
+unexpected_top_level: ACCEPTED
+nonexistent_verified_commit deadbee: ACCEPTED
+arbitrary_verified_build anything: ACCEPTED
+out_of_range_evidence_line Sources/ZoidCoachApp/ZoidCoachApp.swift:999999: ACCEPTED
+
+Positive controls:
+duplicate scenario ID: REJECTED by existing test
+tracker wording drift: REJECTED by existing test
+scenario count 665: REJECTED by existing test
+invalid delivery status: REJECTED by existing test
+invalid disposition: REJECTED by existing test
+absolute evidence path: REJECTED by existing test
+
+Committed-registry facts:
+scenario_count=666
+unique_ids=666
+sections=65
+checked=6
+unchecked=660
+checked_with_empty_evidence_paths=6
+unchecked_with_verification_metadata=15
+tracker_sha256=2732d57baef4a31a86507b858cd9660a3f3dfcef167fb4d87fa65c4c4326710a
+registry_tracker_sha256=2732d57baef4a31a86507b858cd9660a3f3dfcef167fb4d87fa65c4c4326710a
