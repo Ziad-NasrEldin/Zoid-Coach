@@ -114,6 +114,7 @@ final class AppModel: ObservableObject {
     private let policyStore: PolicyStore?
     private let reminderListPolicyLoader: @Sendable () throws -> ReminderListPolicy
     private let todayDashboardXPCClient: TodayDashboardXPCClient
+    private let recordSourceCheck: @Sendable (SourceHealth, Date) async throws -> Void
     private let calendarPlanApprovalReceiptStore: CalendarPlanApprovalReceiptStore
     private let synchronizeReminderSnapshots: @Sendable ([AgentReminderSnapshot]) async throws -> Void
     private var dailyPlanPersistenceTask: Task<Bool, Never>?
@@ -127,6 +128,7 @@ final class AppModel: ObservableObject {
     private(set) var qaOSFixtureAdapter: DeterministicOSFixtureAdapters?
     private var reminderTasksAreAvailable = false
     private var sourceChecksInFlight: Set<SourceID> = []
+    private var sourceInspectionGenerations: [SourceID: Int] = [:]
     private var planningCalendarRevision: CalendarPlanAvailabilityRevision?
 
     init(
@@ -156,6 +158,16 @@ final class AppModel: ObservableObject {
             runtimeEnvironment: runtimeEnvironment
         )
         todayDashboardXPCClient = resolvedTodayDashboardXPCClient
+        self.recordSourceCheck = recordSourceCheck ?? { health, checkedAt in
+            let receipt = try await resolvedTodayDashboardXPCClient.apply(.recordSourceCheck(
+                sourceID: health.id.rawValue,
+                state: health.state.rawValue,
+                detail: health.detail,
+                evidence: health.evidence,
+                checkedAt: checkedAt
+            ))
+            guard receipt.accepted else { throw AppModelPersistenceError.rejected }
+        }
         self.synchronizeReminderSnapshots = synchronizeReminderSnapshots ?? { snapshots in
             _ = try await resolvedTodayDashboardXPCClient.apply(
                 .synchronizeReminderSnapshots(snapshots)
@@ -271,7 +283,7 @@ final class AppModel: ObservableObject {
             await reloadDailyPlan()
             await reloadReminderListOrder()
             reloadMeetingCandidates()
-            updateSource(await self.notificationService.inspect())
+            await inspectSource(.notifications) { await self.notificationService.inspect() }
             await refreshTodaySnapshot()
             await refreshPromptInbox()
             await refreshActionAudit()
@@ -294,15 +306,12 @@ final class AppModel: ObservableObject {
 
         Task {
             try? await Task.sleep(for: .milliseconds(320))
-            let reminders = await remindersService.inspect()
-            updateSource(reminders)
-            let calendar = await calendarService.inspect()
-            updateSource(calendar)
+            await inspectSource(.reminders) { await remindersService.inspect() }
+            await inspectSource(.calendar) { await calendarService.inspect() }
             refreshPlanningCapacity()
-            updateSource(agentLaunchService.inspect())
-            updateSource(await notificationService.inspect())
-            let screenwatch = await screenwatchReader.inspect()
-            updateSource(screenwatch)
+            await inspectSource(.agent) { agentLaunchService.inspect() }
+            await inspectSource(.notifications) { await notificationService.inspect() }
+            await inspectSource(.screenwatch) { await screenwatchReader.inspect() }
             lastCheckAt = Date()
             isCheckingSources = false
         }
@@ -310,6 +319,7 @@ final class AppModel: ObservableObject {
 
     func checkSource(_ sourceID: SourceID) {
         guard sourceChecksInFlight.insert(sourceID).inserted else { return }
+        sourceInspectionGenerations[sourceID, default: 0] += 1
         markSourceChecking(sourceID)
         switch sourceID {
         case .screenwatch:
@@ -519,7 +529,7 @@ final class AppModel: ObservableObject {
     }
 
     func refreshMenuBarPromptFallback() async {
-        updateSource(await notificationService.inspect())
+        await inspectSource(.notifications) { await notificationService.inspect() }
         await refreshPromptInbox()
     }
 
@@ -1528,15 +1538,12 @@ final class AppModel: ObservableObject {
     }
 
     private func refreshAllSources() async {
-        let reminders = await remindersService.inspect()
-        updateSource(reminders)
-        let calendar = await calendarService.inspect()
-        updateSource(calendar)
+        await inspectSource(.reminders) { await remindersService.inspect() }
+        await inspectSource(.calendar) { await calendarService.inspect() }
         refreshPlanningCapacity()
-        updateSource(agentLaunchService.inspect())
-        updateSource(await notificationService.inspect())
-        let screenwatch = await screenwatchReader.inspect()
-        updateSource(screenwatch)
+        await inspectSource(.agent) { agentLaunchService.inspect() }
+        await inspectSource(.notifications) { await notificationService.inspect() }
+        await inspectSource(.screenwatch) { await screenwatchReader.inspect() }
         lastCheckAt = Date()
     }
 
@@ -1709,18 +1716,24 @@ final class AppModel: ObservableObject {
         let checkedAt = Date()
         Task {
             do {
-                let receipt = try await todayDashboardXPCClient.apply(.recordSourceCheck(
-                    sourceID: result.id.rawValue,
-                    state: result.state.rawValue,
-                    detail: result.detail,
-                    evidence: result.evidence,
-                    checkedAt: checkedAt
-                ))
-                guard receipt.accepted else { throw AppModelPersistenceError.rejected }
+                try await recordSourceCheck(result, checkedAt)
             } catch {
                 persistenceMessage = "Source health was checked, but its audit record was not saved."
             }
         }
+    }
+
+    private func inspectSource(
+        _ sourceID: SourceID,
+        operation: () async -> SourceHealth
+    ) async {
+        guard !sourceChecksInFlight.contains(sourceID) else { return }
+        let generation = sourceInspectionGenerations[sourceID, default: 0]
+        let result = await operation()
+        guard !sourceChecksInFlight.contains(sourceID),
+              sourceInspectionGenerations[sourceID, default: 0] == generation
+        else { return }
+        updateSource(result)
     }
 
     private func recordTaskHistory(_ taskID: String, state: AgentTaskHistoryState) {
