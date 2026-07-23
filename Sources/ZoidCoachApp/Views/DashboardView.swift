@@ -1043,6 +1043,7 @@ private struct TodayTaskRowView: View {
                     isBlockReasonPresented = true
                     dismiss()
                 }
+                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.blocked, forPersistedID: row.taskID))
                 if row.state == .paused {
                     SumiDropdownOption("Complete paused task", systemImage: "checkmark.circle") {
                         model.applyTaskCommand(.complete, taskID: row.taskID)
@@ -1227,9 +1228,13 @@ private struct TodayTaskRowView: View {
     private var pauseMenu: some View {
         Menu {
             Button("Take a break") { model.applyTaskCommand(.pauseForBreak, taskID: row.taskID) }
+                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.break, forPersistedID: row.taskID))
             Button("External interruption") { model.applyTaskCommand(.pauseForExternalInterruption, taskID: row.taskID) }
+                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.externalInterruption, forPersistedID: row.taskID))
             Button("Done for now") { model.applyTaskCommand(.pauseDoneForNow, taskID: row.taskID) }
+                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.doneForNow, forPersistedID: row.taskID))
             Button("End the workday") { model.applyTaskCommand(.pauseForEndOfDay, taskID: row.taskID) }
+                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.endOfDay, forPersistedID: row.taskID))
         } label: {
             SumiSelectorLabel("PAUSE", systemImage: "pause.fill", size: .compact)
         }

@@ -743,14 +743,19 @@ struct TodayDashboardCommandOverview: View {
     private func pauseMenu(for row: TodayTaskRow) -> some View {
         Menu {
             Button("Take a break") { model.applyTaskCommand(.pauseForBreak, taskID: row.taskID) }
+                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.break, forPersistedID: row.taskID))
             Button("External interruption") { model.applyTaskCommand(.pauseForExternalInterruption, taskID: row.taskID) }
+                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.externalInterruption, forPersistedID: row.taskID))
             Button("Done for now") { model.applyTaskCommand(.pauseDoneForNow, taskID: row.taskID) }
+                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.doneForNow, forPersistedID: row.taskID))
             Button("End the workday") { model.applyTaskCommand(.pauseForEndOfDay, taskID: row.taskID) }
+                .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.endOfDay, forPersistedID: row.taskID))
             Divider()
             Button("Task is blocked") {
                 blockReason = row.blockedReason ?? ""
                 blockReasonTask = row
             }
+            .accessibilityIdentifier(TaskAccessibilityIdentity.pauseAction(.blocked, forPersistedID: row.taskID))
         } label: {
             SumiSelectorLabel("PAUSE", systemImage: "pause.fill", size: .standard)
         }
