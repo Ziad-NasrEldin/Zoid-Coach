@@ -1,0 +1,116 @@
+WINDOW|0|AXWindow|AXStandardWindow|Zoid 666|730,193,1180,760
+NODE|0|AXWindow|main-AppWindow-1|Zoid 666|||730,193,1180,760
+NODE|0|AXButton|||||738,201,16,16
+NODE|0|AXButton|||||784,201,16,16
+NODE|0|AXButton|||||761,201,16,16
+NODE|0|AXStaticText||||ZOID 666|748,253,107,31
+NODE|0|AXStaticText||||LOCAL COMMAND|748,288,106,12
+NODE|0|AXStaticText||||OPERATIONS|748,330,76,12
+NODE|0|AXButton|||Today||730,350,218,42
+NODE|0|AXButton|||Source health||730,392,218,42
+NODE|0|AXButton|||Reviews||730,434,218,42
+NODE|0|AXButton|||Settings||730,476,218,42
+NODE|0|AXStaticText||||LOCAL ONLY|762,900,75,12
+NODE|0|AXStaticText||||Build 8 · Autonomous runtime|748,921,173,14
+NODE|0|AXStaticText||||TODAY / INBOX|977,239,91,12
+NODE|0|AXStaticText||||A deliberate day, grounded in real reminders|977,255,272,16
+NODE|0|AXButton|||DRAFT TODAY'S SUGGESTED PLAN||1506,237,107,36
+NODE|0|AXButton|planning-capacity-accept||ACCEPT PROPOSED WORK BLOCKS AND RESERVE THEM IN APPLE CALENDAR||1627,237,121,36
+NODE|0|AXButton|||REFRESH REMINDERS||1763,237,119,36
+NODE|0|AXGroup|planning.invitation.banner||||949,285,961,90
+NODE|0|AXGroup|baseline.observation||||976,392,906,353
+NODE|0|AXStaticText||||TODAY / ONE DELIBERATE MOVE|1005,783,193,12
+NODE|0|AXStaticText||||Tuesday, 14 July|1005,800,206,36
+NODE|0|AXStaticText||||One working surface for the next commitment, its time, and the choices still waiting for you.|1566,804,287,28
+NODE|0|AXStaticText||||MAIN OBJECTIVE|1001,880,101,12
+NODE|0|AXStaticText||||BEHAVIOR, SINCE MIDNIGHT|1636,880,158,10
+NODE|0|AXStaticText||||No ready planned task remains.|1001,906,373,34
+NODE|0|AXButton|||Working time, 0 minutes|App usage details hidden|1694,902,105,105
+NODE|0|AXStaticText||||Limited coverage: Screenwatch has no observations today.|1645,1020,203,26
+NODE|0|AXButton|today.behavior-evidence.open||VIEW ALL ACTIVITY||1683,1054,127,28
+NODE|0|AXStaticText||||GAMING BUDGET|1636,1104,93,10
+NODE|0|AXStaticText||||60m left|1636,1117,73,23
+NODE|0|AXStaticText||||Finish one priority task to unlock a one-time reward.|1758,1128,99,12
+NODE|0|AXStaticText|today.gaming.breakdown|||Base 60m · Earned 0m · Used 0m · Locked 15m · Remaining 60m · Same-day overage 0m|1636,1140,210,24
+NODE|0|AXStaticText||||Gaming sessions under 2 continuous minutes are observed but do not use the allowance.|1636,1164,218,24
+NODE|0|AXStaticText||||DAY MAP|1001,1236,53,12
+NODE|0|AXStaticText||||0 PLANNED BLOCKS|1499,1237,108,10
+NODE|0|AXStaticText||||DO THIS NEXT|1656,1236,86,12
+NODE|0|AXStaticText||||No ready planned task remains.|1656,1261,173,52
+NODE|0|AXStaticText||||No ready planned task remains.|1656,1321,166,13
+NODE|0|AXStaticText||||Keep the queue visible, then choose one item when you are ready to plan.|1656,1390,196,26
+NODE|0|AXGroup|planning-capacity-panel||||949,1460,961,112
+NODE|0|AXGroup|today.prompt-inbox||||949,1572,961,58
+NODE|0|AXStaticText||||AUTOMATIC ACTIONS|977,1652,128,12
+NODE|0|AXStaticText||||AUDITED / REVERSIBLE WHEN SAFE|1686,1653,196,10
+NODE|0|AXStaticText||||SCHEDULENOTIFICATION|977,1685,151,12
+NODE|0|AXStaticText||||FINAL|1849,1694,33,10
+NODE|0|AXStaticText||||SUCCEEDED · 14 Jul 2026 at 6:26 AM · attempt 1|977,1700,247,13
+NODE|0|AXStaticText||||SCHEDULENOTIFICATION|977,1735,151,12
+NODE|0|AXStaticText||||REVERSIBLE|1752,1744,67,10
+NODE|0|AXStaticText||||PENDING · 14 Jul 2026 at 6:26 AM · attempt 0|977,1750,233,13
+NODE|0|AXButton|||UNDO SCHEDULENOTIFICATION||1832,1735,50,28
+NODE|0|AXStaticText||||MACOS PERMISSIONS|977,1784,127,12
+NODE|0|AXStaticText||||Screen Recording|977,1817,107,16
+NODE|0|AXStaticText||||REPAIR REQUIRED|1712,1828,100,10
+NODE|0|AXStaticText||||Required for native visual context capture across displays.|977,1836,303,13
+NODE|0|AXButton|||REPAIR SCREEN RECORDING PERMISSION||1824,1819,58,28
+NODE|0|AXStaticText||||Accessibility|977,1871,77,16
+NODE|0|AXStaticText||||HEALTHY|1831,1882,51,10
+NODE|0|AXStaticText||||Required to inspect the active application and support reliable context transitions.|977,1890,431,13
+NODE|0|AXStaticText||||Automation|977,1925,73,16
+NODE|0|AXStaticText||||VERIFY IN SETTINGS|1650,1936,114,10
+NODE|0|AXStaticText||||Managed per target app by macOS. Calendar and Reminders health rows verify actual access.|977,1944,488,13
+NODE|0|AXButton|||REPAIR AUTOMATION PERMISSION||1776,1927,106,28
+NODE|0|AXStaticText||||FULL INVENTORY / UNPLANNED TASKS|977,1987,249,13
+NODE|0|AXButton|create-local-task||NEW LOCAL TASK||1685,1980,114,28
+NODE|0|AXStaticText||||1 AVAILABLE|1807,1988,74,12
+NODE|0|AXStaticText||||WORK, 1 TASKS. DRAG TO REORDER THIS REMINDER LIST.|999,2030,36,12
+NODE|0|AXStaticText||||WORK, 1 TASKS. DRAG TO REORDER THIS REMINDER LIST.|1845,2031,36,10
+NODE|0|AXButton|circle||Complete Verify the ready-state journey||982,2075,18,18
+NODE|0|AXStaticText||||Verify the ready-state journey|1019,2068,206,18
+NODE|0|AXStaticText||||WORK|1019,2090,33,10
+NODE|0|AXButton|planning.unplanned.start.qa-ready-task||START VERIFY THE READY-STATE JOURNEY WITHOUT PLANNING THE DAY||1768,2070,52,28
+NODE|0|AXButton|||ADD VERIFY THE READY-STATE JOURNEY TO TODAY'S PLAN||1835,2070,47,28
+NODE|0|AXStaticText||||MOVE REMINDER LIST TO THE FINAL POSITION|948,2115,962,35
+NODE|0|AXStaticText||||SOURCE FRESHNESS|977,2164,120,12
+NODE|0|AXStaticText||||Reminders|977,2184,62,14
+NODE|0|AXStaticText||||NOT_CONNECTED|1318,2186,96,10
+NODE|0|AXStaticText||||Apple Reminders permission has not been granted; 1 normalized incomplete reminders|1423,2184,459,13
+NODE|0|AXStaticText||||Calendar|977,2206,52,14
+NODE|0|AXStaticText||||NOT_CONNECTED|1520,2208,96,10
+NODE|0|AXStaticText||||Apple Calendar permission has not been granted|1624,2206,257,13
+NODE|0|AXStaticText||||Screenwatch|977,2228,72,14
+NODE|0|AXStaticText||||LIMITED|1522,2230,47,10
+NODE|0|AXStaticText||||Limited coverage: Screenwatch has no observations today.|1577,2228,305,13
+NODE|0|AXStaticText||||Agent|977,2250,34,14
+NODE|0|AXStaticText||||RUNNING|1578,2252,51,10
+NODE|0|AXStaticText||||Today snapshot generated by ZoidCoachAgent|1637,2250,244,13
+NODE|0|AXStaticText||||DAY STATE / UNPLANNED|977,299,150,12
+NODE|0|AXStaticText||||Your day is still open.|977,316,211,26
+NODE|0|AXStaticText||||Make a small plan, start one available task explicitly, or come back later. Drift coaching stays off until you choose.|977,347,641,14
+NODE|0|AXButton|planning.invitation.plan-now||PLAN NOW||1676,299,76,28
+NODE|0|AXButton|planning.invitation.work-unplanned||WORK UNPLANNED||1760,299,121,28
+NODE|0|AXStaticText||||FIRST-WEEK OBSERVATION|997,413,173,13
+NODE|0|AXStaticText||||Learn quietly before coaching gets louder|997,432,411,26
+NODE|0|AXStaticText||||Zoid 666 records eligible drift and coverage during seven complete local days. Behavior-triggered prompts stay off until the baseline is complete. Planning and manual task controls remain available.|997,464,753,32
+NODE|0|AXButton|baseline.refresh||REFRESH||1794,413,67,28
+NODE|0|AXStaticText|baseline.progress|||0 / 7 COMPLETE DAYS|1013,530,186,22
+NODE|0|AXStaticText|baseline.progress|||OBSERVATION MODE|1723,538,122,12
+NODE|0|AXProgressIndicator|baseline.progress||Baseline progress||1013,564,833,20
+NODE|0|AXStaticText|baseline.progress|||Accountability prompts are paused for 7 more complete days. Eligible drift is still counted so the later review reflects what actually happened.|1013,596,747,32
+NODE|0|AXStaticText|baseline.progress|||0 eligible drift episodes observed without interruption|1013,640,309,14
+NODE|0|AXStaticText||||DAY-BY-DAY COVERAGE|997,688,150,13
+NODE|0|AXStaticText|baseline.day.2026-07-13|||2026-07-13, LIMITED, 1m observed · 0 eligible drift|997,711,865,14
+NODE|0|AXStaticText||||FOCUS CAPACITY|977,1474,103,12
+NODE|0|AXStaticText||||0 MIN PLANNED / 378 MIN AVAILABLE|1657,1474,224,12
+NODE|0|AXUnknown|planning-capacity-focused-work||0 minutes of focused work planned||977,1496,87,36
+NODE|0|AXUnknown|planning-capacity-buffer||378 minutes remain unplanned as buffer||1438,1496,97,36
+NODE|0|AXStaticText||||Add a task to compare planned work with today's configured focus capacity.|977,1542,463,16
+NODE|0|AXStaticText||||DECISIONS|977,1582,65,12
+NODE|0|AXStaticText||||0 WAITING|1822,1583,60,10
+NODE|0|AXStaticText|today.prompt-inbox.empty|||No decisions are waiting and no recent coaching choices are recorded yet.|977,1616,419,14
+NODE|0|AXButton|||||1893,225,0,0
+NODE|0|AXButton|||||1893,225,0,0
+NODE|0|AXButton|||||1901,488,6,454
+NODE|0|AXButton|||||1901,228,6,0
