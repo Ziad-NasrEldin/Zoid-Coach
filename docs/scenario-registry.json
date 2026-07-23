@@ -4651,7 +4651,9 @@
         "ui_automation"
       ],
       "affected_capability": "task_execution",
-      "evidence_paths": [],
+      "evidence_paths": [
+        ".audit/runs/external-reminder-completion/unplanned-verifier/REPORT.md"
+      ],
       "last_verified_commit": null,
       "last_verified_build": null,
       "audit_note": "The signed installed journey already proved that the unplanned completed row persists across helper refresh, app relaunch, and later source deletion while another Reminder stays available, with one ended interval, zero open intervals, one Reminder completion history row, and zero duplicate completion commands. The narrow reason-UI follow-up now presents `Ended because the Apple Reminder was completed` for externally completed rows while ordinary local completion remains `Completed`, and five focused UI, lifecycle, persistence, and deletion-ordering tests plus one QA release package pass. The capped independent signed follow-up consumed the isolated fixture completion but canonical source synchronization did not propagate before relaunch, so no externally ended row existed on which to verify the new copy, local completion copy, or the full tombstone journey in one run. The end-user acceptance bar therefore remains incomplete (`TodayDashboard.swift`; `TodayDashboardAgent.swift`; `.audit/runs/external-reminder-completion/unplanned-verifier/REPORT.md`; `.audit/runs/external-reminder-completion/reason-ui-verifier/REPORT.md`).",
