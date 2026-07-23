@@ -86,23 +86,8 @@ struct ApplicationSceneCompositionPolicy: Equatable {
         includesAgentWindowScene: false,
         includesMenuBarScene: true
     )
-}
-
-struct ApplicationSceneCompositionPolicy: Equatable {
-    let includesMainWindowScene: Bool
-    let includesAgentWindowScene: Bool
-    let includesMenuBarScene: Bool
-
-    static let ordinary = ApplicationSceneCompositionPolicy(
-        includesMainWindowScene: true,
-        includesAgentWindowScene: true,
-        includesMenuBarScene: true
-    )
-    static let backgroundScheduling = ApplicationSceneCompositionPolicy(
-        includesMainWindowScene: false,
-        includesAgentWindowScene: false,
-        includesMenuBarScene: true
-    )
+    static let ordinary = foreground
+    static let backgroundScheduling = background
 }
 
 @MainActor

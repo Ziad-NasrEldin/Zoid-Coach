@@ -28,22 +28,6 @@ struct CalendarPlanApprovalItem: Codable, Equatable, Identifiable, Sendable {
         self.executionState = executionState
     }
 
-    init(
-        reminderID: String,
-        title: String,
-        rank: Int,
-        estimateMinutes: Int,
-        estimateIsUncertain: Bool = false,
-        isMainObjective: Bool
-    ) {
-        self.reminderID = reminderID
-        self.title = title
-        self.rank = rank
-        self.estimateMinutes = estimateMinutes
-        self.estimateIsUncertain = estimateIsUncertain
-        self.isMainObjective = isMainObjective
-    }
-
     var id: String { reminderID }
 
     var isIncompletePriorityTask: Bool {

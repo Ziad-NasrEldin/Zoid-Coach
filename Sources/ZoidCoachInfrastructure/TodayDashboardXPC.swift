@@ -134,61 +134,6 @@ private final class XPCDataReplyBox: @unchecked Sendable {
     init(_ reply: @escaping (Data?, String?) -> Void) {
         self.reply = reply
     }
-
-    public func calendarPlanRequest(day: Date) -> CalendarPlanMutationRequest {
-        Self.sharedLock.withLock {
-            let key = calendarPlanStorageKey
-            if let data = defaults.data(forKey: key),
-               let request = try? decoder.decode(CalendarPlanMutationRequest.self, from: data) {
-                return request
-            }
-            let request = CalendarPlanMutationRequest(operationID: UUID(), day: day)
-            if let data = try? encoder.encode(request) { defaults.set(data, forKey: key) }
-            return request
-        }
-    }
-
-    public func pendingCalendarPlanRequests() -> [CalendarPlanMutationRequest] {
-        Self.sharedLock.withLock {
-            guard let data = defaults.data(forKey: calendarPlanStorageKey),
-                  let request = try? decoder.decode(CalendarPlanMutationRequest.self, from: data) else {
-                return []
-            }
-            return [request]
-        }
-    }
-
-    public func completeCalendarPlan(_ request: CalendarPlanMutationRequest) {
-        Self.sharedLock.withLock {
-            guard let data = defaults.data(forKey: calendarPlanStorageKey),
-                  let stored = try? decoder.decode(CalendarPlanMutationRequest.self, from: data),
-                  stored.operationID == request.operationID else { return }
-            defaults.removeObject(forKey: calendarPlanStorageKey)
-        }
-    }
-
-    private func storageKey(command: TaskActivityCommand, taskID: String) -> String {
-        "\(taskStoragePrefix)\(command.rawValue).\(taskID)"
-    }
-
-    private var taskStoragePrefix: String { "zoid666.pending-task-mutation.\(namespace)." }
-    private var calendarPlanStorageKey: String { "zoid666.pending-calendar-plan.\(namespace)" }
-}
-
-private final class XPCDataReplyBox: @unchecked Sendable {
-    let reply: (Data?, String?) -> Void
-
-    init(_ reply: @escaping (Data?, String?) -> Void) {
-        self.reply = reply
-    }
-}
-
-private final class XPCDataReplyBox: @unchecked Sendable {
-    let reply: (Data?, String?) -> Void
-
-    init(_ reply: @escaping (Data?, String?) -> Void) {
-        self.reply = reply
-    }
 }
 
 public struct TodayDashboardXPCConfiguration: Equatable, Sendable {
@@ -828,10 +773,6 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         }
     }
 
-    public func blockTask(taskID: String, reason: String) async throws -> TodaySnapshot {
-        try await call { proxy, reply in proxy.blockTask(taskID, reason: reason, withReply: reply) }
-    }
-
     public func fetchReminderCompletionSync(taskID: String) async throws -> ReminderCompletionSyncState {
         try await callData { proxy, reply in
             proxy.fetchReminderCompletionSync(taskID, withReply: reply)
@@ -848,20 +789,6 @@ public final class TodayDashboardXPCClient: @unchecked Sendable {
         try await call { proxy, reply in
             proxy.startSprint(taskID, durationMinutes: durationMinutes, withReply: reply)
         }
-    }
-
-    public func startSprint(taskID: String, durationMinutes: Int) async throws -> TodaySnapshot {
-        try await call { proxy, reply in
-            proxy.startSprint(taskID, durationMinutes: durationMinutes, withReply: reply)
-        }
-    }
-
-    public func startUnplannedTask(_ taskID: String) async throws -> TodaySnapshot {
-        try await call { proxy, reply in proxy.startUnplannedTask(taskID, withReply: reply) }
-    }
-
-    public func skipPlanning() async throws -> TodaySnapshot {
-        try await call { proxy, reply in proxy.skipPlanning(withReply: reply) }
     }
 
     public func startUnplannedTask(_ taskID: String) async throws -> TodaySnapshot {

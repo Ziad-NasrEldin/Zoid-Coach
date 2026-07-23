@@ -595,11 +595,6 @@ struct TodayDashboardCommandOverview: View {
                             model.setEstimateUnknown(for: entry)
                         }
                     },
-                    setUnknown: {
-                        if let entry = planEntry(for: row) {
-                            model.setEstimateUnknown(for: entry)
-                        }
-                    },
                     moveUp: { planEntry(for: row).map { model.moveDailyPlanEntry($0, by: -1) } },
                     moveDown: { planEntry(for: row).map { model.moveDailyPlanEntry($0, by: 1) } },
                     toggleOptional: { planEntry(for: row).map(model.toggleOptional) },
@@ -2477,9 +2472,6 @@ private struct TodayEstimateStrip: View {
     let setEstimate: (Int) -> Void
     let setUnknown: () -> Void
     private let options = [15, 30, 45, 60, 90]
-    @State private var isEnteringCustom = false
-    @State private var customMinutes = ""
-    @State private var customError: String?
 
     var body: some View {
         HStack(spacing: 6) {
@@ -2520,30 +2512,18 @@ private struct TodayEstimateStrip: View {
             .buttonStyle(SumiActionButtonStyle(role: .quiet, size: .compact))
             .accessibilityLabel("Enter a custom estimate for \(taskTitle)")
             .accessibilityIdentifier("today-estimate-custom-\(taskID)")
-            if isEnteringCustom {
-                TextField("Minutes", text: $customMinutes)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 78)
-                    .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
-                    .accessibilityIdentifier("today-estimate-custom-input-\(taskID)")
-                    .onSubmit(saveCustomEstimate)
-                Button("SAVE", action: saveCustomEstimate)
-                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("today-estimate-custom-save-\(taskID)")
-                Button("CANCEL") {
-                    isEnteringCustom = false
-                    customError = nil
-                }
-                .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("today-estimate-custom-cancel-\(taskID)")
-                if let customError {
-                    Text(customError)
-                        .font(Sumi.body(10))
-                        .foregroundStyle(Sumi.sealDeep)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("today-estimate-custom-error-\(taskID)")
-                }
+            if isActiveHost(), customEditor.isPresented {
+                CustomEstimateEditor(
+                    state: $customEditor,
+                    taskTitle: taskTitle,
+                    inputIdentifier: "today-estimate-custom-input-\(taskID)",
+                    saveIdentifier: "today-estimate-custom-save-\(taskID)",
+                    cancelIdentifier: "today-estimate-custom-cancel-\(taskID)",
+                    errorIdentifier: "today-estimate-custom-error-\(taskID)",
+                    errorFontSize: 10,
+                    persist: setEstimate,
+                    cancel: {}
+                )
             }
             if let selectedMinutes {
                 Text("\(selectedMinutes) MIN SELECTED")

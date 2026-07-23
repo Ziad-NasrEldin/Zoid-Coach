@@ -475,161 +475,33 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             elapsedMinutes: current.elapsedMinutes,
             completionReason: .appleReminderCompleted,
             sprint: current.sprint,
+            isMainObjective: false
+        )
+    }
+
+    private func externallyCompletedReminderRow(
+        from source: ReminderSourceSnapshot,
+        execution current: TaskExecutionSnapshot,
+        referenceDate: Date
+    ) -> TodayTaskRow {
+        TodayTaskRow(
+            taskID: source.id,
+            title: source.title,
+            estimateMinutes: 30,
+            dueDate: source.dueDate,
+            urgency: TaskUrgency.resolve(
+                dueDate: source.dueDate,
+                priority: reminderPriority(source.priority),
+                referenceDate: referenceDate
+            ),
+            state: .completed,
+            elapsedMinutes: current.elapsedMinutes,
+            completionReason: .appleReminderCompleted,
+            sprint: current.sprint,
             isMainObjective: false,
             sourceNotes: source.notes,
-            sourceListName: source.listName
-        )
-    }
-
-    private func externallyCompletedReminderRow(
-        from source: ReminderSourceSnapshot,
-        execution current: TaskExecutionSnapshot,
-        referenceDate: Date
-    ) -> TodayTaskRow {
-        TodayTaskRow(
-            taskID: source.id,
-            title: source.title,
-            estimateMinutes: 30,
-            dueDate: source.dueDate,
-            urgency: TaskUrgency.resolve(
-                dueDate: source.dueDate,
-                priority: reminderPriority(source.priority),
-                referenceDate: referenceDate
-            ),
-            state: .completed,
-            elapsedMinutes: current.elapsedMinutes,
-            completionReason: .appleReminderCompleted,
-            sprint: current.sprint,
-            isMainObjective: false,
+            sourceListName: source.listName,
             declaredContext: source.declaredContext
-        )
-    }
-
-    private func externallyCompletedReminderRow(
-        from history: CompletedTaskHistoryEntry,
-        execution current: TaskExecutionSnapshot
-    ) -> TodayTaskRow {
-        TodayTaskRow(
-            taskID: history.taskID,
-            title: history.title,
-            estimateMinutes: 30,
-            dueDate: nil,
-            urgency: .low,
-            state: .completed,
-            elapsedMinutes: current.elapsedMinutes,
-            completionReason: .appleReminderCompleted,
-            sprint: current.sprint,
-            isMainObjective: false
-        )
-    }
-
-    private func externallyCompletedReminderRow(
-        from source: ReminderSourceSnapshot,
-        execution current: TaskExecutionSnapshot,
-        referenceDate: Date
-    ) -> TodayTaskRow {
-        TodayTaskRow(
-            taskID: source.id,
-            title: source.title,
-            estimateMinutes: 30,
-            dueDate: source.dueDate,
-            urgency: TaskUrgency.resolve(
-                dueDate: source.dueDate,
-                priority: reminderPriority(source.priority),
-                referenceDate: referenceDate
-            ),
-            state: .completed,
-            elapsedMinutes: current.elapsedMinutes,
-            completionReason: .appleReminderCompleted,
-            sprint: current.sprint,
-            isMainObjective: false
-        )
-    }
-
-    private func externallyCompletedReminderRow(
-        from history: CompletedTaskHistoryEntry,
-        execution current: TaskExecutionSnapshot
-    ) -> TodayTaskRow {
-        TodayTaskRow(
-            taskID: history.taskID,
-            title: history.title,
-            estimateMinutes: 30,
-            dueDate: nil,
-            urgency: .low,
-            state: .completed,
-            elapsedMinutes: current.elapsedMinutes,
-            completionReason: .appleReminderCompleted,
-            sprint: current.sprint,
-            isMainObjective: false
-        )
-    }
-
-    private func externallyCompletedReminderRow(
-        from source: ReminderSourceSnapshot,
-        execution current: TaskExecutionSnapshot,
-        referenceDate: Date
-    ) -> TodayTaskRow {
-        TodayTaskRow(
-            taskID: source.id,
-            title: source.title,
-            estimateMinutes: 30,
-            dueDate: source.dueDate,
-            urgency: TaskUrgency.resolve(
-                dueDate: source.dueDate,
-                priority: reminderPriority(source.priority),
-                referenceDate: referenceDate
-            ),
-            state: .completed,
-            elapsedMinutes: current.elapsedMinutes,
-            completionReason: .appleReminderCompleted,
-            sprint: current.sprint,
-            isMainObjective: false
-        )
-    }
-
-    private func externallyCompletedReminderRow(
-        from previous: TodayTaskRow,
-        execution current: TaskExecutionSnapshot
-    ) -> TodayTaskRow {
-        TodayTaskRow(
-            taskID: previous.taskID,
-            title: previous.title,
-            estimateMinutes: previous.estimateMinutes,
-            dueDate: previous.dueDate,
-            urgency: previous.urgency,
-            state: .completed,
-            elapsedMinutes: current.elapsedMinutes,
-            completionReason: .appleReminderCompleted,
-            sprint: current.sprint,
-            isMainObjective: previous.isMainObjective,
-            isLocked: previous.isLocked,
-            isOptional: previous.isOptional ?? false,
-            blockedReason: previous.blockedReason,
-            deferredUntil: previous.deferredUntil,
-            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
-        )
-    }
-
-    private func externallyCompletedReminderRow(
-        from previous: TodayTaskRow,
-        execution current: TaskExecutionSnapshot
-    ) -> TodayTaskRow {
-        TodayTaskRow(
-            taskID: previous.taskID,
-            title: previous.title,
-            estimateMinutes: previous.estimateMinutes,
-            dueDate: previous.dueDate,
-            urgency: previous.urgency,
-            state: .completed,
-            elapsedMinutes: current.elapsedMinutes,
-            completionReason: .appleReminderCompleted,
-            sprint: current.sprint,
-            isMainObjective: previous.isMainObjective,
-            isLocked: previous.isLocked,
-            isOptional: previous.isOptional ?? false,
-            blockedReason: previous.blockedReason,
-            deferredUntil: previous.deferredUntil,
-            learnedEstimateSuggestion: previous.learnedEstimateSuggestion
         )
     }
 
@@ -1006,41 +878,6 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         )
     }
 
-    private func learnedEstimateSuggestion(
-        for reminder: ReminderSourceSnapshot,
-        currentEstimateMinutes: Int
-    ) -> LearnedEstimateSuggestion? {
-        let context = EstimateLearningContext(
-            taskType: taskType(for: reminder.title),
-            project: reminder.listName
-        )
-        guard let aggregate = try? learning.estimateAggregate(for: context),
-              let samples = try? learning.estimateEvidenceSamples(for: context)
-        else { return nil }
-        let evidenceIDs = Set(aggregate.proposal.evidenceIDs)
-        let eligibleActualMinutes = samples
-            .filter { evidenceIDs.contains($0.id) }
-            .map(\.actualAlignedMinutes)
-        guard eligibleActualMinutes.count == aggregate.proposal.sampleCount,
-              let minimumActualMinutes = eligibleActualMinutes.min(),
-              let maximumActualMinutes = eligibleActualMinutes.max()
-        else { return nil }
-        let policy = EstimateLearningPolicy()
-        let scaledMinutes = Double(max(1, currentEstimateMinutes)) * aggregate.proposal.appliedRatio
-        let roundedMinutes = Int((scaledMinutes / 5).rounded() * 5)
-        let recommendedMinutes = min(
-            max(roundedMinutes, policy.minimumRecommendedMinutes),
-            policy.maximumRecommendedMinutes
-        )
-        return LearnedEstimateSuggestion(
-            recommendedMinutes: recommendedMinutes,
-            sampleCount: aggregate.proposal.sampleCount,
-            minimumActualMinutes: minimumActualMinutes,
-            maximumActualMinutes: maximumActualMinutes,
-            confidence: aggregate.confidence
-        )
-    }
-
     private static func localDayKey(_ date: Date, timeZoneIdentifier: String) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
@@ -1056,31 +893,6 @@ public final class TodayDashboardAgent: @unchecked Sendable {
         return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))
     }
 
-    private func databaseHasCompetingWriteLock() -> Bool {
-        var probe: OpaquePointer?
-        guard sqlite3_open_v2(databaseURL.path, &probe, SQLITE_OPEN_READWRITE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
-              let probe else { return false }
-        defer { sqlite3_close(probe) }
-        sqlite3_busy_timeout(probe, 5)
-        let result = sqlite3_exec(probe, "BEGIN IMMEDIATE TRANSACTION;", nil, nil, nil)
-        if result == SQLITE_OK {
-            _ = sqlite3_exec(probe, "ROLLBACK;", nil, nil, nil)
-            return false
-        }
-        let primary = result & 0xFF
-        return primary == SQLITE_BUSY || primary == SQLITE_LOCKED
-    }
-
-    private func waitForMutationWriteAvailability() throws {
-        var retryIndex = 0
-        while databaseHasCompetingWriteLock() {
-            guard retryIndex < mutationLockRetryDelays.count else {
-                throw TodayDashboardAgentError.databaseTemporarilyLocked
-            }
-            Thread.sleep(forTimeInterval: mutationLockRetryDelays[retryIndex])
-            retryIndex += 1
-        }
-    }
 }
 
 public enum TodayDashboardAgentError: LocalizedError, Equatable {
@@ -1099,32 +911,6 @@ public enum TodayDashboardAgentError: LocalizedError, Equatable {
             "The local database is still busy. The last confirmed task state is unchanged. Try again in a moment."
         case let .validationFailed(message):
             message
-        }
-    }
-
-    private static func localDayKey(_ date: Date, timeZoneIdentifier: String) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
-    }
-
-    private static func endOfDay(_ date: Date, timeZoneIdentifier: String) -> Date? {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? .current
-        return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))
-    }
-}
-
-public enum TodayDashboardAgentError: LocalizedError, Equatable {
-    case unavailableTask
-
-    public var errorDescription: String? {
-        switch self {
-        case .unavailableTask:
-            "That Reminder is no longer available. Refresh tasks and choose another one."
         }
     }
 }

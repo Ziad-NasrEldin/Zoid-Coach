@@ -2449,31 +2449,21 @@ private struct TimeBlockSelector: View {
                 .contentShape(Rectangle())
                 .accessibilityLabel("Change \(taskTitle) estimate from \(durationLabel(selectedMinutes))")
                 .help("Change time estimate")
-            } else if isEnteringCustom {
-                TextField("Minutes", text: $customMinutes)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 78)
-                    .accessibilityLabel("Custom estimate for \(taskTitle) in minutes")
-                    .accessibilityIdentifier("task-estimate-custom-input-\(taskID)")
-                    .onSubmit(saveCustomEstimate)
-                Button("SAVE", action: saveCustomEstimate)
-                    .buttonStyle(SumiActionButtonStyle(role: .primary, size: .compact))
-                    .accessibilityIdentifier("task-estimate-custom-save-\(taskID)")
-                Button("CANCEL") {
-                    isEnteringCustom = false
-                    isChanging = false
-                    customError = nil
-                }
-                .buttonStyle(SumiActionButtonStyle(role: .text, size: .compact))
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("task-estimate-custom-cancel-\(taskID)")
-                if let customError {
-                    Text(customError)
-                        .font(Sumi.body(11))
-                        .foregroundStyle(Sumi.sealDeep)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("task-estimate-custom-error-\(taskID)")
-                }
+            } else if customEditor.isPresented {
+                CustomEstimateEditor(
+                    state: $customEditor,
+                    taskTitle: taskTitle,
+                    inputIdentifier: "task-estimate-custom-input-\(taskID)",
+                    saveIdentifier: "task-estimate-custom-save-\(taskID)",
+                    cancelIdentifier: "task-estimate-custom-cancel-\(taskID)",
+                    errorIdentifier: "task-estimate-custom-error-\(taskID)",
+                    errorFontSize: 11,
+                    persist: { minutes in
+                        select(minutes)
+                        isChanging = false
+                    },
+                    cancel: { isChanging = false }
+                )
             } else {
                 ForEach(durations, id: \.self) { minutes in
                     Button {

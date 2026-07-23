@@ -196,40 +196,6 @@ struct MenuBarCoachState: Equatable {
         return "Notifications are unavailable. \(unresolvedPromptCount) \(decision) waiting in Today. Task controls remain available here."
     }
 
-    var menuBarSymbol: String {
-        notificationFallbackIsActive ? "exclamationmark.bubble.fill" : tone.symbol
-    }
-
-    var menuBarLabel: String {
-        guard notificationFallbackIsActive else { return tone.label }
-        return unresolvedPromptCount == 1
-            ? "One decision is waiting in Today"
-            : "\(unresolvedPromptCount) decisions are waiting in Today"
-    }
-
-    var notificationFallbackDetail: String? {
-        guard notificationFallbackIsActive else { return nil }
-        let decision = unresolvedPromptCount == 1 ? "decision" : "decisions"
-        return "Notifications are unavailable. \(unresolvedPromptCount) \(decision) waiting in Today. Task controls remain available here."
-    }
-
-    var menuBarSymbol: String {
-        notificationFallbackIsActive ? "exclamationmark.bubble.fill" : tone.symbol
-    }
-
-    var menuBarLabel: String {
-        guard notificationFallbackIsActive else { return tone.label }
-        return unresolvedPromptCount == 1
-            ? "One decision is waiting in Today"
-            : "\(unresolvedPromptCount) decisions are waiting in Today"
-    }
-
-    var notificationFallbackDetail: String? {
-        guard notificationFallbackIsActive else { return nil }
-        let decision = unresolvedPromptCount == 1 ? "decision" : "decisions"
-        return "Notifications are unavailable. \(unresolvedPromptCount) \(decision) waiting in Today. Task controls remain available here."
-    }
-
     var canStartBreak: Bool { activeTask != nil }
 
     var canEndWorkday: Bool { activeTask != nil }
@@ -301,18 +267,6 @@ struct MenuBarCoachState: Equatable {
         guard let task = primaryTask else { return nil }
         return ([task.title, taskStatus(at: date)] + compactTaskFacts).joined(separator: ". ")
     }
-
-    var canStartBreak: Bool { activeTask != nil }
-
-    var canEndWorkday: Bool { activeTask != nil }
-
-    var workdayHasEnded: Bool { pausedTask?.latestPauseReason == .endingWorkday }
-
-    var canStartBreak: Bool { activeTask != nil }
-
-    var canEndWorkday: Bool { activeTask != nil }
-
-    var workdayHasEnded: Bool { pausedTask?.latestPauseReason == .endingWorkday }
 
     var taskStatus: String { taskStatus(at: Date()) }
 

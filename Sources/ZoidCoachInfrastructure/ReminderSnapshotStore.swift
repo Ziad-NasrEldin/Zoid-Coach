@@ -284,27 +284,6 @@ public final class ReminderSnapshotStore: @unchecked Sendable {
     }
 
     @discardableResult
-    public func createLocal(_ task: ReminderSourceSnapshot, observedAt: Date = Date(), timeZone: TimeZone = .current) throws -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        guard task.sourceKind == .local,
-              !task.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !task.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        else { throw ReminderSnapshotStoreError.invalidLocalTask }
-        if try sourceKind(for: task.id) == .reminders {
-            throw ReminderSnapshotStoreError.localSourceCollision(task.id)
-        }
-        let hash = try sourceHash(task)
-        if let storedHash = try storedHash(for: task.id) {
-            guard storedHash == hash else {
-                throw ReminderSnapshotStoreError.localTaskConflict(task.id)
-            }
-            return false
-        }
-        return try upsertLocal(task, observedAt: observedAt, timeZone: timeZone)
-    }
-
-    @discardableResult
     public func upsertLocal(_ task: ReminderSourceSnapshot, observedAt: Date = Date(), timeZone: TimeZone = .current) throws -> Bool {
         lock.lock()
         defer { lock.unlock() }

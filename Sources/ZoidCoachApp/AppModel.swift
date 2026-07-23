@@ -148,6 +148,7 @@ final class AppModel: ObservableObject {
         eventStore: EventStore? = nil,
         calendarPlanApprovalReceiptStore: CalendarPlanApprovalReceiptStore? = nil,
         reminderListPolicyLoader: (@Sendable () throws -> ReminderListPolicy)? = nil,
+        recordSourceCheck: (@Sendable (SourceHealth, Date) async throws -> Void)? = nil,
         synchronizeReminderSnapshots: (@Sendable ([AgentReminderSnapshot]) async throws -> Void)? = nil,
         retryReminderCompletion: (@Sendable (String) async throws -> Void)? = nil,
         fetchReminderCompletionSync: (@Sendable (String) async throws -> ReminderCompletionSyncState)? = nil,
@@ -441,36 +442,6 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func setTodayLiveRefreshEnabled(_ isEnabled: Bool) {
-        guard isEnabled else {
-            todayLiveRefreshLoop.stop()
-            return
-        }
-        todayLiveRefreshLoop.start { [weak self] in
-            await self?.refreshTodaySnapshot()
-        }
-    }
-
-    func setTodayLiveRefreshEnabled(_ isEnabled: Bool) {
-        guard isEnabled else {
-            todayLiveRefreshLoop.stop()
-            return
-        }
-        todayLiveRefreshLoop.start { [weak self] in
-            await self?.refreshTodaySnapshot()
-        }
-    }
-
-    func setTodayLiveRefreshEnabled(_ isEnabled: Bool) {
-        guard isEnabled else {
-            todayLiveRefreshLoop.stop()
-            return
-        }
-        todayLiveRefreshLoop.start { [weak self] in
-            await self?.refreshTodaySnapshot()
-        }
-    }
-
     func recordGamingManualAdjustment(
         minutes: Int,
         note: String?,
@@ -589,11 +560,6 @@ final class AppModel: ObservableObject {
         await refreshPromptInbox()
     }
 
-    func refreshMenuBarPromptFallback() async {
-        updateSource(await notificationService.inspect())
-        await refreshPromptInbox()
-    }
-
     func applyTaskCommand(_ command: TaskActivityCommand, taskID: String) {
         guard pendingTaskCommandIDs.isEmpty else { return }
         pendingTaskCommandIDs.insert(taskID)
@@ -652,43 +618,6 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func recordRecommendationFeedback(
-        _ kind: RecommendationFeedbackKind,
-        taskID: String,
-        recommendationSentence: String
-    ) {
-        guard pendingRecommendationFeedbackTaskID == nil else { return }
-        pendingRecommendationFeedbackTaskID = taskID
-        recommendationFeedbackMessage = nil
-        recommendationFeedbackError = nil
-        let request = RecommendationFeedbackRequest(
-            requestID: "recommendation-feedback-v1:\(UUID().uuidString.lowercased())",
-            taskID: taskID,
-            recommendationSentence: recommendationSentence,
-            kind: kind
-        )
-        Task {
-            defer { pendingRecommendationFeedbackTaskID = nil }
-            do {
-                let receipt = try await todayDashboardXPCClient.apply(
-                    .recordRecommendationFeedback(request)
-                )
-                guard receipt.accepted else {
-                    recommendationFeedbackError = receipt.message
-                    return
-                }
-                recommendationFeedbackMessage = receipt.message
-                do {
-                    todaySnapshot = try await todayDashboardXPCClient.fetchTodaySnapshot()
-                } catch {
-                    recommendationFeedbackError = "Feedback was saved, but the next recommendation could not be refreshed. Refresh Today to see the current choice."
-                }
-            } catch {
-                recommendationFeedbackError = "Feedback was not saved. The current recommendation is still active. Check Agent source health and try again."
-            }
-        }
-    }
-
     func reconcileAcceptedBreakReminder(taskID: String) async {
         guard let row = todaySnapshot?.taskRows.first(where: { $0.taskID == taskID }),
               let acceptedBreak = row.acceptedBreak
@@ -721,26 +650,6 @@ final class AppModel: ObservableObject {
             } catch {
                 taskCommandError = error.localizedDescription
                 installTodaySnapshot(todaySnapshotLoader.load())
-            }
-        }
-    }
-
-    func startSprint(taskID: String, durationMinutes: Int) {
-        guard pendingTaskCommandIDs.isEmpty else { return }
-        guard (1...240).contains(durationMinutes) else {
-            taskCommandError = "Choose a sprint from 1 to 240 minutes."
-            return
-        }
-        pendingTaskCommandIDs.insert(taskID)
-        taskCommandError = nil
-        Task {
-            defer { pendingTaskCommandIDs.remove(taskID) }
-            do {
-                todaySnapshot = try await todayDashboardXPCClient.startSprint(taskID: taskID, durationMinutes: durationMinutes)
-                lastActionMessage = "\(durationMinutes)-minute sprint started."
-            } catch {
-                taskCommandError = error.localizedDescription
-                todaySnapshot = try? todaySnapshotStore?.load()
             }
         }
     }
@@ -965,36 +874,6 @@ final class AppModel: ObservableObject {
         Task {
             do {
                 installTodaySnapshot(try await todayDashboardXPCClient.skipPlanning())
-                lastActionMessage = "Planning is skipped for now. You can still start any available task or return to planning later."
-                await refreshPromptInbox()
-            } catch {
-                taskCommandError = "Unplanned mode could not be saved. The previous day state is still shown."
-            }
-        }
-    }
-
-    func startUnplannedTask(_ task: ReminderTask) {
-        guard pendingTaskCommandIDs.isEmpty else { return }
-        pendingTaskCommandIDs.insert(task.id)
-        taskCommandError = nil
-        Task {
-            defer { pendingTaskCommandIDs.remove(task.id) }
-            do {
-                todaySnapshot = try await todayDashboardXPCClient.startUnplannedTask(task.id)
-                lastActionMessage = "Unplanned work started. Zoid 666 will track this task without claiming that it violates a plan."
-                await refreshPromptInbox()
-            } catch {
-                taskCommandError = error.localizedDescription
-                todaySnapshot = try? todaySnapshotStore?.load()
-            }
-        }
-    }
-
-    func skipPlanning() {
-        guard pendingTaskCommandIDs.isEmpty else { return }
-        Task {
-            do {
-                todaySnapshot = try await todayDashboardXPCClient.skipPlanning()
                 lastActionMessage = "Planning is skipped for now. You can still start any available task or return to planning later."
                 await refreshPromptInbox()
             } catch {
@@ -2013,12 +1892,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .settings: "slider.horizontal.3"
         }
     }
-}
-
-enum CoachingState: String {
-    case observation = "Observation week"
-    case accountability = "Level 2 coaching"
-    case paused = "Coaching paused"
 }
 
 struct SourceHealth: Identifiable, Equatable, Sendable {

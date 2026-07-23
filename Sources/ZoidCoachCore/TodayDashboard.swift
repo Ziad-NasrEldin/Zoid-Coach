@@ -259,7 +259,8 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         deferredUntil: Date? = nil,
         learnedEstimateSuggestion: LearnedEstimateSuggestion? = nil,
         sourceNotes: String? = nil,
-        sourceListName: String? = nil
+        sourceListName: String? = nil,
+        declaredContext: DeclaredTaskContext? = nil
     ) {
         self.taskID = taskID
         self.title = title
@@ -287,7 +288,7 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case taskID, title, sourceNotes, sourceListName, estimateMinutes, dueDate, urgency, state
         case elapsedMinutes, activeTimeComparison, completionReason, latestPauseReason, acceptedBreak, sprint
-        case isMainObjective, isLocked, isOptional, blockedReason, deferredUntil, learnedEstimateSuggestion
+        case isMainObjective, isLocked, isOptional, blockedReason, deferredUntil, learnedEstimateSuggestion, declaredContext
     }
 
     public init(from decoder: Decoder) throws {
@@ -312,7 +313,8 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
             deferredUntil: try values.decodeIfPresent(Date.self, forKey: .deferredUntil),
             learnedEstimateSuggestion: try values.decodeIfPresent(LearnedEstimateSuggestion.self, forKey: .learnedEstimateSuggestion),
             sourceNotes: try values.decodeIfPresent(String.self, forKey: .sourceNotes),
-            sourceListName: try values.decodeIfPresent(String.self, forKey: .sourceListName)
+            sourceListName: try values.decodeIfPresent(String.self, forKey: .sourceListName),
+            declaredContext: try values.decodeIfPresent(DeclaredTaskContext.self, forKey: .declaredContext)
         )
     }
 
@@ -760,24 +762,6 @@ public struct GamingStatus: Equatable, Codable, Sendable {
         )
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case budgetMinutes, earnedMinutes, usedMinutes, unlockedRemainingMinutes, lockedMinutes, debtMinutes, nextUnlockReason, confidenceIsLimited, budgetEnabled
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(
-            budgetMinutes: try container.decode(Int.self, forKey: .budgetMinutes),
-            earnedMinutes: try container.decodeIfPresent(Int.self, forKey: .earnedMinutes) ?? 0,
-            usedMinutes: try container.decode(Int.self, forKey: .usedMinutes),
-            unlockedRemainingMinutes: try container.decode(Int.self, forKey: .unlockedRemainingMinutes),
-            lockedMinutes: try container.decodeIfPresent(Int.self, forKey: .lockedMinutes) ?? 0,
-            debtMinutes: try container.decodeIfPresent(Int.self, forKey: .debtMinutes) ?? 0,
-            nextUnlockReason: try container.decode(String.self, forKey: .nextUnlockReason),
-            confidenceIsLimited: try container.decode(Bool.self, forKey: .confidenceIsLimited),
-            budgetEnabled: try container.decodeIfPresent(Bool.self, forKey: .budgetEnabled) ?? true
-        )
-    }
 }
 
 public struct ActiveTaskSnapshot: Equatable, Codable, Sendable {

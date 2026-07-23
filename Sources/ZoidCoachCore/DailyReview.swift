@@ -450,37 +450,6 @@ public enum CompletedTaskSourceKind: String, Equatable, Sendable {
     case unknown
 }
 
-public struct CompletedTaskHistoryEntry: Identifiable, Equatable, Sendable {
-    public let id: Int64
-    public let taskID: String
-    public let title: String
-    public let sourceKind: CompletedTaskSourceKind
-    public let completedAt: Date
-    public let lastPauseReason: TaskPauseReason?
-
-    public init(
-        id: Int64,
-        taskID: String,
-        title: String,
-        sourceKind: CompletedTaskSourceKind,
-        completedAt: Date,
-        lastPauseReason: TaskPauseReason?
-    ) {
-        self.id = id
-        self.taskID = taskID
-        self.title = title
-        self.sourceKind = sourceKind
-        self.completedAt = completedAt
-        self.lastPauseReason = lastPauseReason
-    }
-}
-
-public enum CompletedTaskSourceKind: String, Equatable, Sendable {
-    case reminders
-    case local
-    case unknown
-}
-
 public enum DailyReviewSessionizer {
     public struct Observation: Equatable, Sendable {
         public let sourceDay: String

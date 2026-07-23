@@ -46,18 +46,6 @@ final class MenuBarCoachController: ObservableObject {
         )
     }
 
-    convenience init(runtimeEnvironment: RuntimeEnvironment) {
-        self.init(client: TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment))
-    }
-
-    convenience init(runtimeEnvironment: RuntimeEnvironment) {
-        self.init(client: TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment))
-    }
-
-    convenience init(runtimeEnvironment: RuntimeEnvironment) {
-        self.init(client: TodayDashboardXPCClient(runtimeEnvironment: runtimeEnvironment))
-    }
-
     var state: MenuBarCoachState { MenuBarCoachState(snapshot: snapshot) }
 
     func adoptLastKnownSnapshot(_ lastKnownSnapshot: TodaySnapshot?) {
@@ -218,38 +206,6 @@ final class MenuBarCoachController: ObservableObject {
         }
     }
 
-    func startRecommendedTaskIfStillReady(taskID: String) async {
-        guard !isApplying else { return }
-        isApplying = true
-        defer { isApplying = false }
-        do {
-            let latest = try await client.fetchTodaySnapshot()
-            snapshot = latest
-            let latestState = MenuBarCoachState(snapshot: latest)
-            guard latestState.activeTask == nil,
-                  latestState.pausedTask == nil,
-                  latestState.recommendedTask?.taskID == taskID
-            else {
-                errorMessage = "The recommended task changed before Start. Nothing was started. Review the current menu state and try again."
-                return
-            }
-
-            let updated = try await client.apply(.start, taskID: taskID)
-            let updatedState = MenuBarCoachState(snapshot: updated)
-            guard updatedState.activeTask?.taskID == taskID,
-                  updated.taskRows.first(where: { $0.taskID == taskID })?.state == .active
-            else {
-                errorMessage = "The background agent did not confirm that the task started. Refresh before trying again."
-                return
-            }
-
-            snapshot = updated
-            errorMessage = nil
-        } catch {
-            errorMessage = "The task was not started. The last confirmed state is still shown."
-        }
-    }
-
     func endWorkdayIfStillActive(taskID: String) async {
         guard !isApplying else { return }
         isApplying = true
@@ -274,24 +230,6 @@ final class MenuBarCoachController: ObservableObject {
         }
     }
 
-    func endWorkdayIfStillActive(taskID: String) async {
-        guard !isApplying else { return }
-        isApplying = true
-        defer { isApplying = false }
-        do {
-            let latest = try await client.fetchTodaySnapshot()
-            snapshot = latest
-            let activeID = MenuBarCoachState(snapshot: latest).activeTask?.taskID
-            guard activeID == taskID else {
-                errorMessage = "The active task changed before confirmation. Nothing was paused. Review the current task and try again."
-                return
-            }
-            snapshot = try await client.apply(.pauseForEndOfDay, taskID: taskID)
-            errorMessage = nil
-        } catch {
-            errorMessage = "The task change was not saved. The last confirmed state is still shown."
-        }
-    }
 }
 
 struct MenuBarCoachView: View {
@@ -476,13 +414,6 @@ struct MenuBarCoachView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("menu-bar.voice-controls")
-    }
-
-    private var menuState: MenuBarCoachState {
-        MenuBarCoachState(
-            snapshot: controller.snapshot,
-            coachingIsPaused: pauseController.isPaused
-        )
     }
 
     private var coachHeader: some View {

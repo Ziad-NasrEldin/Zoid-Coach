@@ -183,7 +183,7 @@ final class DailyReviewController: ObservableObject {
             return true
         } catch {
             errorMessage = error.localizedDescription
-            return false
+            return
         }
     }
 
@@ -196,22 +196,6 @@ final class DailyReviewController: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
             return false
-        }
-    }
-
-    func classificationRule(for application: String) -> AppClassificationCorrectionRule? {
-        let normalized = BehaviorPolicy.normalize(application)
-        return classificationRules.first { $0.normalizedApplication == normalized }
-    }
-
-    func removeClassificationRule(_ rule: AppClassificationCorrectionRule) {
-        do {
-            try service.removeClassificationRule(normalizedApplication: rule.normalizedApplication)
-            classificationRules = try service.classificationRules()
-            errorMessage = nil
-            successMessage = "The future rule for \(rule.application) was removed. Historical corrections are unchanged."
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 
@@ -458,78 +442,6 @@ struct DailyReviewView: View {
             Text("No review conclusions will be confirmed. Local activity, corrections, and notes stay available, and a later edit will reopen the review.")
         }
         .accessibilityIdentifier("reviews.daily")
-    }
-
-    private func correctionImpactCard(_ impact: DailyReviewCorrectionImpact) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("REVIEW UPDATED")
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
-            if let classificationDetail = impact.classificationDetail {
-                Text(classificationDetail)
-                    .font(Sumi.body(12))
-            }
-            Text(impact.taskAlignmentDetail)
-                .font(Sumi.body(12))
-            Text(impact.reviewStatementDetail)
-                .font(Sumi.body(12))
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Sumi.softPaper)
-        .overlay(Rectangle().stroke(Sumi.okay, lineWidth: 1))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Review updated. \(impact.accessibilitySummary)")
-        .accessibilityIdentifier("reviews.correction-impact")
-    }
-
-    private func correctionImpactCard(_ impact: DailyReviewCorrectionImpact) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("REVIEW UPDATED")
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
-            if let classificationDetail = impact.classificationDetail {
-                Text(classificationDetail)
-                    .font(Sumi.body(12))
-            }
-            Text(impact.taskAlignmentDetail)
-                .font(Sumi.body(12))
-            Text(impact.reviewStatementDetail)
-                .font(Sumi.body(12))
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Sumi.softPaper)
-        .overlay(Rectangle().stroke(Sumi.okay, lineWidth: 1))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Review updated. \(impact.accessibilitySummary)")
-        .accessibilityIdentifier("reviews.correction-impact")
-    }
-
-    private func correctionImpactCard(_ impact: DailyReviewCorrectionImpact) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("REVIEW UPDATED")
-                .font(Sumi.label(9))
-                .sumiLabelTracking()
-                .foregroundStyle(Sumi.seal)
-            if let classificationDetail = impact.classificationDetail {
-                Text(classificationDetail)
-                    .font(Sumi.body(12))
-            }
-            Text(impact.taskAlignmentDetail)
-                .font(Sumi.body(12))
-            Text(impact.reviewStatementDetail)
-                .font(Sumi.body(12))
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Sumi.softPaper)
-        .overlay(Rectangle().stroke(Sumi.okay, lineWidth: 1))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Review updated. \(impact.accessibilitySummary)")
-        .accessibilityIdentifier("reviews.correction-impact")
     }
 
     private func correctionImpactCard(_ impact: DailyReviewCorrectionImpact) -> some View {
