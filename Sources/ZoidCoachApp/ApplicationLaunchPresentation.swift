@@ -13,6 +13,10 @@ struct ApplicationLaunchPresentation: Equatable {
         launchesForBackgroundScheduling ? .backgroundScheduling : .ordinary
     }
 
+    var sceneCompositionPolicy: ApplicationSceneCompositionPolicy {
+        launchesForBackgroundScheduling ? .backgroundScheduling : .ordinary
+    }
+
     init(arguments: [String], packageMode: RuntimePackageMode?) {
         launchesForBackgroundScheduling = arguments.contains(Self.backgroundScheduleArgument)
         shouldOpenMainWindow = packageMode == .qa
@@ -78,6 +82,23 @@ struct ApplicationSceneCompositionPolicy: Equatable {
         includesMenuBarScene: true
     )
     static let background = ApplicationSceneCompositionPolicy(
+        includesMainWindowScene: false,
+        includesAgentWindowScene: false,
+        includesMenuBarScene: true
+    )
+}
+
+struct ApplicationSceneCompositionPolicy: Equatable {
+    let includesMainWindowScene: Bool
+    let includesAgentWindowScene: Bool
+    let includesMenuBarScene: Bool
+
+    static let ordinary = ApplicationSceneCompositionPolicy(
+        includesMainWindowScene: true,
+        includesAgentWindowScene: true,
+        includesMenuBarScene: true
+    )
+    static let backgroundScheduling = ApplicationSceneCompositionPolicy(
         includesMainWindowScene: false,
         includesAgentWindowScene: false,
         includesMenuBarScene: true

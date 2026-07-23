@@ -311,6 +311,7 @@ struct ZoidCoachForegroundApplication: App {
     @StateObject private var menuBarCoach: MenuBarCoachController
     @StateObject private var menuBarCoachingPause: MenuBarCoachingPauseController
     private let initialMainWindowPresentationPolicy: InitialMainWindowPresentationPolicy
+    private let sceneCompositionPolicy: ApplicationSceneCompositionPolicy
     private let shouldOpenMainWindow: Bool
 
     init() {
@@ -318,6 +319,7 @@ struct ZoidCoachForegroundApplication: App {
         let dependencies = ZoidCoachApplicationBootstrap.dependencies
         let launchPresentation = context.launchPresentation
         initialMainWindowPresentationPolicy = launchPresentation.initialMainWindowPresentationPolicy
+        sceneCompositionPolicy = launchPresentation.sceneCompositionPolicy
         shouldOpenMainWindow = launchPresentation.shouldOpenMainWindow
         _model = StateObject(wrappedValue: AppModel(runtimeEnvironment: runtimeEnvironment))
         _applicationActivation = StateObject(wrappedValue: ApplicationActivationMonitor())
@@ -334,6 +336,18 @@ struct ZoidCoachForegroundApplication: App {
     }
 
     var body: some Scene {
+        if sceneCompositionPolicy.includesMainWindowScene {
+            mainWindowScene
+        }
+        if sceneCompositionPolicy.includesAgentWindowScene {
+            agentWindowScene
+        }
+        if sceneCompositionPolicy.includesMenuBarScene {
+            menuBarScene
+        }
+    }
+
+    private var mainWindowScene: some Scene {
         WindowGroup("Zoid 666", id: "main") {
             Group {
                 if onboarding.route == .onboarding {
@@ -456,12 +470,16 @@ struct ZoidCoachForegroundApplication: App {
             DailyReviewNavigationCommands(model: model, isAvailable: onboarding.route == .today)
             AgentLifecycleCommands()
         }
+    }
 
+    private var agentWindowScene: some Scene {
         Window("Background Agent", id: "agent-lifecycle") {
             AgentLifecycleView(controller: agentLifecycle)
         }
         .defaultSize(width: 760, height: 660)
+    }
 
+    private var menuBarScene: some Scene {
         MenuBarExtra {
             MenuBarCoachView(
                 appModel: model,
