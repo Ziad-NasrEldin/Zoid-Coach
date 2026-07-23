@@ -1,0 +1,8 @@
+Build: zoid-coach-6294c64a01af31df3bc79b85a7cd6b5d5522d2aa-clean
+Signed Settings: ingestion toggle ON with accessibility identifier settings.screenwatch.ingestion-enabled
+Visible copy: existing Zoid 666 history and source-owned files remain unchanged
+Initial source status: EXPECTED FOLDER, WAITING FOR TODAY'S LOG
+QA fixture: one valid observation in isolated Screenwatch/days/2026-07-13/log.jsonl
+Bounded result: source lines 1, behavior_records 0, canonical source checkpoints 0
+Decision: runtime pause and resume path not claimed
+Cleanup: exact helper unregistered and QA service absent

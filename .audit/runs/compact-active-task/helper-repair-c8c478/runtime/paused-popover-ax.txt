@@ -1,0 +1,15 @@
+WINDOW|0|AXWindow|AXSystemDialog||0,1449,360,370
+NODE|0|AXGroup|menu-bar.coach||||-8,1449,368,370
+NODE|0|AXGroup|menu-bar.status||A source needs attention||17,1463,327,31
+NODE|0|AXGroup|menu-bar.coaching-control||||0,1508,360,90
+NODE|0|AXStaticText|menu-bar.task.empty|||No task is active or ready. Open Today to plan the next deliberate move.|14,1599,311,28
+NODE|0|AXButton|menu-bar.open-today||OPEN TODAY||136,1636,88,28
+NODE|0|AXStaticText|menu-bar.attention|||reminders: Apple Reminders permission has not been granted; 1 normalized incomplete reminders|14,1673,332,26
+NODE|0|AXButton|menu-bar.open-source-health||SOURCE HEALTH||40,1728,109,28
+NODE|0|AXButton|menu-bar.open-settings||SETTINGS||229,1728,72,28
+NODE|0|AXStaticText||||ZOID 666 / NOW|50,1463,96,12
+NODE|0|AXStaticText||||A source needs attention|50,1478,152,16
+NODE|0|AXButton|menu-bar.refresh||Refresh menu bar state||333,1464,11,14
+NODE|0|AXStaticText||||COACHING RUNNING|14,1530,123,12
+NODE|0|AXStaticText||||Zoid 666 may offer evidence-based coaching while your workday is active. Quick Pause is set to an indefinite pause.|14,1545,269,39
+NODE|0|AXButton|menu-bar.coaching.pause||PAUSE COACHING INDEFINITELY||293,1522,52,28
