@@ -85,6 +85,49 @@ func learnedEstimateAppearsOnlyAfterEnoughEligibleHistoryAndSurvivesRestart() th
     let restarted = try TodayDashboardAgent(databaseURL: url).snapshot(now: day.addingTimeInterval(60))
     #expect(restarted.taskRows[0].estimateMinutes == 30)
     #expect(restarted.taskRows[0].learnedEstimateSuggestion == suggestion)
+
+    try AutonomousPlanStore(databaseURL: url).replaceDailyPlan(
+        DailyPlanProposal(
+            items: [
+                PlannedTask(
+                    taskID: "proposal",
+                    title: "Write proposal",
+                    rank: 1,
+                    estimateMinutes: suggestion.recommendedMinutes,
+                    reason: "Accepted learned estimate",
+                    score: 100
+                )
+            ],
+            mainObjectiveTaskID: "proposal",
+            plannedFocusMinutes: suggestion.recommendedMinutes,
+            availableFocusMinutes: 90
+        ),
+        for: day
+    )
+
+    let afterAcceptedSuggestion = try TodayDashboardAgent(databaseURL: url)
+        .snapshot(now: day.addingTimeInterval(120))
+    #expect(afterAcceptedSuggestion.taskRows[0].estimateMinutes == 50)
+    #expect(afterAcceptedSuggestion.taskRows[0].learnedEstimateSuggestion == nil)
+}
+
+@Test
+func learnedEstimateRejectsHistoryWithInsufficientTrackingCoverage() throws {
+    let day = Date(timeIntervalSince1970: 1_752_408_000)
+    let context = EstimateLearningContext(taskType: "write", project: "Work")
+    let learner = EstimateLearner(clock: FixedReplayClock(now: day))
+    let samples = (0..<8).map { index in
+        EstimateLearningSample(
+            id: "low-coverage-\(index)",
+            context: context,
+            estimatedMinutes: 30,
+            actualAlignedMinutes: 50,
+            trackingCoverage: 0.74,
+            completedAt: day.addingTimeInterval(Double(-index) * 86_400)
+        )
+    }
+
+    #expect(learner.proposal(for: context, currentEstimateMinutes: 30, samples: samples) == nil)
 }
 
 @Test
