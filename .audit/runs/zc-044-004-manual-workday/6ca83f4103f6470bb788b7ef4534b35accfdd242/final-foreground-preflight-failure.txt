@@ -1,0 +1,3 @@
+FAILED_PID=57664
+/private/tmp/zoid-666-zc044004-final-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachQA --background-schedule
+EXPECTED_ARGUMENT=--qa-open-main

@@ -1,0 +1,11 @@
+The focused command was swift test --filter SumiThemeTests.
+Six focused tests passed after the verifier fix.
+The reduced-motion NSHostingView fixture exercised pressed action feedback, plan insertion, usage switching, estimate confirmation, and reminder reordering.
+Every reduced-motion interaction disabled animation and spatial movement while preserving the final visible state.
+The standard-mode representative retained restrained animation, pressed scale, opacity feedback, and its pressed label.
+The release command was CONFIGURATION=release ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-reduced-motion-qa Scripts/package-app.sh.
+The release package ran exactly once.
+Both release products built successfully.
+The package, nested executables, LaunchAgent, Mach service, signing identities, and designated requirements passed verification.
+The exact signed package launched successfully and exposed the accessibility snapshot recorded beside this file.
+The package process and disposable QA root were removed after inspection.

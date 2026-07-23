@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "run_id": "zc-017-007-open-ended-elapsed/81937fd46828ce27786f668a004cd9248307b88a",
+  "verified_commit": "81937fd46828ce27786f668a004cd9248307b88a",
+  "build_identity": "zoid-coach-81937fd46828ce27786f668a004cd9248307b88a-clean",
+  "fixture": "Active open-ended elapsed minute, ordinary relaunch and live advance, clock rollback, missing-interval fallback, bounded and paused exclusions, privacy rejection, exact root and external-preference restoration, and uninstall",
+  "qa_root": "/private/tmp/zoid-666-zc017007-runtime",
+  "registry_path": "docs/scenario-registry.json",
+  "registry_sha256": "69d5da71895a83eca4376dcf5e362a6d5b9f177e62d974a4f4812a0397ff4e61",
+  "scenario_ids": [
+    "ZC-017-007"
+  ],
+  "required_proof_classes": [
+    "installed_app_e2e",
+    "ui_automation",
+    "unit_rule"
+  ],
+  "status": "passed",
+  "started_at": "2026-07-15T12:39:13+00:00",
+  "completed_at": "2026-07-15T12:41:01+00:00",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "sha256": "992aa9dcd0af51f3c2b581d950ff6a2e64c14591fbc1277dc189c77e407dfa6f"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "The installed signed Today interface exposed one visible and semantic live elapsed value that advanced exactly one minute after an ordinary relaunch without timed-phase interaction",
+      "result": "passed"
+    },
+    {
+      "name": "Clock rollback retained nine confirmed live minutes while missing open-interval metadata exposed an honest nine-minute last-refresh fallback",
+      "result": "passed"
+    },
+    {
+      "name": "Bounded and paused tasks excluded the indicator and the complete accessibility tree excluded the private fixture sentinel",
+      "result": "passed"
+    },
+    {
+      "name": "The isolated QA root and external QA preferences were restored exactly before complete QA uninstall and sustained process isolation",
+      "result": "passed"
+    },
+    {
+      "name": "Production process identities, executable hashes, the canonical index, and the protected original Lavish artifact remained exact",
+      "result": "passed"
+    }
+  ],
+  "commands": [
+    "swift test --filter TodayDashboardCommandOverviewTests",
+    "swift build -c release --product ZoidCoach",
+    "swift build -c release --product ZoidCoachAgent",
+    "Scripts/qa-zc017007-open-ended-elapsed-fixture.sh self-test",
+    "swift Scripts/qa-zc017007-open-ended-elapsed-ax-probe.swift --self-test",
+    "Scripts/qa-zc017007-runbook-self-test.sh",
+    "Scripts/qa-zc017007-signed-preflight.sh --self-test",
+    "CONFIGURATION=release ZOID_COACH_PACKAGE_MODE=qa ZOID_COACH_QA_RUN_ROOT=/private/tmp/zoid-666-zc017007-runtime Scripts/package-app.sh",
+    "ZOID_COACH_PACKAGE_MODE=qa Scripts/verify-package.sh <app> --expected-commit 81937fd46828ce27786f668a004cd9248307b88a --require-clean",
+    "Signed installed matrix: bootstrap, live advance, ordinary relaunch, rollback, fallback, bounded exclusion, paused exclusion, privacy, exact restoration, and uninstall"
+  ]
+}

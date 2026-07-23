@@ -1,0 +1,9 @@
+Signed build: zoid-coach-f7a7b1ccb586cbaf59d0c0c46d1bb6f07183148a-clean
+Installed helper: /private/tmp/zoid-666-prompt-task-block-install/Zoid 666 QA E2E.app/Contents/MacOS/ZoidCoachAgentQA
+Fixture tasks: Ship client proposal active and main; Prepare launch notes ready and next
+Stored prompt: qa-block-1 | presented | GAMING_DRIFT | 6 actions
+Visible state after relaunch: DECISIONS 1 WAITING; Gaming drift detected; summary visible
+Accessibility state: collection exposed with AXScrollToTop and AXScrollToBottom, but no actionable children
+Rendered state: no action buttons appeared between the prompt summary and Automatic Actions
+Acceptance result: stopped at UI cap because Mark blocked was unreachable
+Cleanup result: QA service absent after unregister, process stop, and isolated-root removal
