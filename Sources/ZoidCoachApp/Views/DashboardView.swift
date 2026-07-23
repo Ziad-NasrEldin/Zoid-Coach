@@ -1063,6 +1063,14 @@ private struct TodayTaskRowView: View {
                 Text(row.title).font(Sumi.body(14)).foregroundStyle(Sumi.ink)
                 Text(taskDetail)
                     .font(Sumi.body(11)).foregroundStyle(Sumi.muted)
+                if let sourceNotes = row.sourceNotes?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !sourceNotes.isEmpty {
+                    Text(sourceNotes)
+                        .font(Sumi.body(11))
+                        .foregroundStyle(Sumi.muted)
+                        .lineLimit(2)
+                        .accessibilityIdentifier("today.task.\(TaskAccessibilityIdentity.opaqueToken(forPersistedID: row.taskID)).reminder-notes")
+                }
                 if let blockedReason = row.blockedReason, !blockedReason.isEmpty {
                     Text("BLOCKED - \(blockedReason)")
                         .font(Sumi.body(11))
@@ -1272,6 +1280,10 @@ private struct TodayTaskRowView: View {
             ?? row.state.rawValue.capitalized
         let stateLabel = row.userFacingStateLabel(defaultLabel: defaultStateLabel)
         var parts = ["\(row.estimateMinutes)m", relativeDeadline(row.dueDate), "\(row.urgency.rawValue.capitalized) urgency", stateLabel]
+        if let sourceListName = row.sourceListName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !sourceListName.isEmpty {
+            parts.insert(sourceListName, at: 0)
+        }
         if row.elapsedMinutes > 0 { parts.append("\(row.elapsedMinutes)m tracked") }
         if let reason = row.latestPauseReason {
             parts.append(row.state == .paused ? reason.userFacingLabel : "Last pause: \(reason.userFacingLabel.lowercased())")

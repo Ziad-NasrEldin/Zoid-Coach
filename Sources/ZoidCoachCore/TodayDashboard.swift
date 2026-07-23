@@ -219,6 +219,8 @@ public struct ActiveTaskTimeComparison: Equatable, Codable, Sendable {
 public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
     public let taskID: String
     public let title: String
+    public let sourceNotes: String?
+    public let sourceListName: String?
     public let estimateMinutes: Int
     public let dueDate: Date?
     public let urgency: TaskUrgency
@@ -254,10 +256,14 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         isOptional: Bool = false,
         blockedReason: String? = nil,
         deferredUntil: Date? = nil,
-        learnedEstimateSuggestion: LearnedEstimateSuggestion? = nil
+        learnedEstimateSuggestion: LearnedEstimateSuggestion? = nil,
+        sourceNotes: String? = nil,
+        sourceListName: String? = nil
     ) {
         self.taskID = taskID
         self.title = title
+        self.sourceNotes = sourceNotes
+        self.sourceListName = sourceListName
         self.estimateMinutes = max(1, estimateMinutes)
         self.dueDate = dueDate
         self.urgency = urgency
@@ -274,6 +280,38 @@ public struct TodayTaskRow: Identifiable, Equatable, Codable, Sendable {
         self.blockedReason = blockedReason
         self.deferredUntil = deferredUntil
         self.learnedEstimateSuggestion = learnedEstimateSuggestion
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case taskID, title, sourceNotes, sourceListName, estimateMinutes, dueDate, urgency, state
+        case elapsedMinutes, activeTimeComparison, completionReason, latestPauseReason, acceptedBreak, sprint
+        case isMainObjective, isLocked, isOptional, blockedReason, deferredUntil, learnedEstimateSuggestion
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            taskID: try values.decode(String.self, forKey: .taskID),
+            title: try values.decode(String.self, forKey: .title),
+            estimateMinutes: try values.decode(Int.self, forKey: .estimateMinutes),
+            dueDate: try values.decodeIfPresent(Date.self, forKey: .dueDate),
+            urgency: try values.decode(TaskUrgency.self, forKey: .urgency),
+            state: try values.decode(TaskExecutionState.self, forKey: .state),
+            elapsedMinutes: try values.decodeIfPresent(Int.self, forKey: .elapsedMinutes) ?? 0,
+            activeTimeComparison: try values.decodeIfPresent(ActiveTaskTimeComparison.self, forKey: .activeTimeComparison),
+            completionReason: try values.decodeIfPresent(TaskCompletionReason.self, forKey: .completionReason),
+            latestPauseReason: try values.decodeIfPresent(TaskPauseReason.self, forKey: .latestPauseReason),
+            acceptedBreak: try values.decodeIfPresent(AcceptedBreakSnapshot.self, forKey: .acceptedBreak),
+            sprint: try values.decodeIfPresent(SprintSnapshot.self, forKey: .sprint),
+            isMainObjective: try values.decodeIfPresent(Bool.self, forKey: .isMainObjective) ?? false,
+            isLocked: try values.decodeIfPresent(Bool.self, forKey: .isLocked) ?? false,
+            isOptional: try values.decodeIfPresent(Bool.self, forKey: .isOptional) ?? false,
+            blockedReason: try values.decodeIfPresent(String.self, forKey: .blockedReason),
+            deferredUntil: try values.decodeIfPresent(Date.self, forKey: .deferredUntil),
+            learnedEstimateSuggestion: try values.decodeIfPresent(LearnedEstimateSuggestion.self, forKey: .learnedEstimateSuggestion),
+            sourceNotes: try values.decodeIfPresent(String.self, forKey: .sourceNotes),
+            sourceListName: try values.decodeIfPresent(String.self, forKey: .sourceListName)
+        )
     }
 
     public var id: String { taskID }
