@@ -51,6 +51,14 @@ final class MenuBarCoachController: ObservableObject {
         }
     }
 
+    func synchronizeWithToday(_ confirmedSnapshot: TodaySnapshot?) {
+        guard let confirmedSnapshot, confirmedSnapshot != snapshot else { return }
+        snapshot = confirmedSnapshot
+        errorMessage = nil
+        syncPresentation = .confirmed
+        lastConfirmedAt = Date()
+    }
+
     func refresh() async {
         guard !isLoading else { return }
         isLoading = true
@@ -272,7 +280,7 @@ struct MenuBarCoachView: View {
             await appModel.refreshTodaySnapshot()
         }
         .onChange(of: appModel.todaySnapshot) { _, snapshot in
-            controller.adoptLastKnownSnapshot(snapshot)
+            controller.synchronizeWithToday(snapshot)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("menu-bar.coach")

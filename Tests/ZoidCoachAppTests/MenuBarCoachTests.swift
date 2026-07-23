@@ -470,6 +470,81 @@ import ZoidCoachInfrastructure
 }
 
 @MainActor
+@Test func todayStartImmediatelyReplacesTheMenuFallbackWithTheSameSingleActiveTask() async {
+    let ready = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Write proposal", state: .ready)]
+    )
+    let active = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Write proposal", state: .active, elapsedMinutes: 1)],
+        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 1)
+    )
+    let controller = MenuBarCoachController(
+        client: RecordingMenuBarTodayClient(fetchResult: .success(ready), applyResults: []),
+        loadTodaySnapshot: { ready }
+    )
+
+    await controller.refresh()
+    controller.synchronizeWithToday(active)
+
+    #expect(controller.state.activeTask?.taskID == "task")
+    #expect(controller.state.recommendedTask == nil)
+    #expect(controller.snapshot?.taskRows.filter { $0.state == .active }.count == 1)
+    #expect(controller.syncPresentation == .confirmed)
+    #expect(controller.errorMessage == nil)
+}
+
+@MainActor
+@Test func todaySwitchReplacesTheMenuTaskWithoutLeavingTwoActiveRows() async {
+    let first = menuSnapshot(
+        rows: [
+            menuTask(id: "first", title: "First task", state: .active),
+            menuTask(id: "second", title: "Second task", state: .ready),
+        ],
+        activeTask: .init(taskID: "first", startedAt: nil, elapsedMinutes: 8)
+    )
+    let switched = menuSnapshot(
+        rows: [
+            menuTask(id: "first", title: "First task", state: .paused),
+            menuTask(id: "second", title: "Second task", state: .active),
+        ],
+        activeTask: .init(taskID: "second", startedAt: nil, elapsedMinutes: 1)
+    )
+    let controller = MenuBarCoachController(
+        client: RecordingMenuBarTodayClient(fetchResult: .success(first), applyResults: []),
+        loadTodaySnapshot: { first }
+    )
+
+    await controller.refresh()
+    controller.synchronizeWithToday(switched)
+
+    #expect(controller.state.activeTask?.taskID == "second")
+    #expect(controller.state.pausedTask?.taskID == "first")
+    #expect(controller.snapshot?.taskRows.filter { $0.state == .active }.map(\.taskID) == ["second"])
+}
+
+@MainActor
+@Test func todayCompletionClearsTheSameActiveTaskFromTheMenu() async {
+    let active = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Write proposal", state: .active)],
+        activeTask: .init(taskID: "task", startedAt: nil, elapsedMinutes: 14)
+    )
+    let completed = menuSnapshot(
+        rows: [menuTask(id: "task", title: "Write proposal", state: .completed)]
+    )
+    let controller = MenuBarCoachController(
+        client: RecordingMenuBarTodayClient(fetchResult: .success(active), applyResults: []),
+        loadTodaySnapshot: { active }
+    )
+
+    await controller.refresh()
+    controller.synchronizeWithToday(completed)
+
+    #expect(controller.state.activeTask == nil)
+    #expect(controller.state.primaryTask == nil)
+    #expect(controller.state.tone == .neutral)
+}
+
+@MainActor
 @Test func activeTaskCanBeMarkedBlockedWithARequiredReasonAndConfirmedSnapshot() async {
     let activeRow = menuTask(id: "task", title: "Write proposal", state: .active)
     let active = menuSnapshot(
