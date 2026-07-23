@@ -71,10 +71,13 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             previousSnapshot?.taskRows.contains(where: { $0.taskID == active.taskID }) == true {
             try execution.pauseForDeletedReminder(taskID: active.taskID, at: now)
         }
-        let reminderSnapshots = try reminders.loadIncomplete()
+        let reminderListPolicy = try userPolicyStore.current()?.policy.reminderLists ?? .legacyAllLists
+        let reminderSnapshots = try reminders.loadIncomplete().filter { reminder in
+            reminder.sourceKind == .local || reminderListPolicy.includes(listID: reminder.listID)
+        }
         if let active = activeBeforeSourceRefresh,
-           (activeSourceSnapshot?.sourceKind == .reminders && activeSourceSnapshot?.isCompleted == true)
-            || activeCompletionHistory != nil {
+            (activeSourceSnapshot?.sourceKind == .reminders && activeSourceSnapshot?.isCompleted == true)
+                || activeCompletionHistory != nil {
             let previousRow = previousSnapshot?.taskRows.first(where: { $0.taskID == active.taskID })
             try execution.apply(.complete, taskID: active.taskID, at: now)
             if activeCompletionHistory == nil {
@@ -88,12 +91,17 @@ public final class TodayDashboardAgent: @unchecked Sendable {
             }
         }
         let plan = try plans.loadDailyPlan(for: now)
-        let reminderByID = Dictionary(uniqueKeysWithValues: reminderSnapshots.map { ($0.id, $0) })
+        var reminderByID: [String: ReminderSourceSnapshot] = [:]
+        for reminder in reminderSnapshots {
+            reminderByID[reminder.id] = reminder
+        }
         let executionByID = try execution.snapshot(for: reminderSnapshots.map(\.id), now: now)
         let behaviorObservations = try archive.behaviorObservations(for: now)
         let behavior = BehaviorSessionizer().summarize(observations: behaviorObservations, now: now)
         let active = try execution.activeTask(now: now)
+        var seenPlannedReminderIDs: Set<String> = []
         var rows = plan.compactMap { entry -> TodayTaskRow? in
+            if !seenPlannedReminderIDs.insert(entry.reminderID).inserted { return nil }
             guard let reminder = reminderByID[entry.reminderID] else { return nil }
             let current = executionByID[entry.reminderID]
             guard current?.state != .completed else { return nil }
