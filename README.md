@@ -1,12 +1,5 @@
 # Zoid 666
 
-<p align="center">
-  <img src=".audit/runs/dark-appearance/verifier/light-today.jpeg" alt="Zoid 666 Today" width="900">
-</p>
-<p align="center">
-  <img src=".audit/runs/contextual-app-classification/verification/signed-today.png" alt="Zoid 666 signed Today" width="900">
-</p>
-
 A local-first macOS productivity coach that plans the day from Apple Reminders, watches real work through Screenwatch, and puts the next action on a Today dashboard — even after you close the app.
 
 Built for you on your own Mac: software, design, client work, and admin in one day, without sending behavioral data to a cloud coach.
