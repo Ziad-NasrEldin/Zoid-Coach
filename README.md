@@ -1,110 +1,37 @@
 # Zoid 666
 
-Zoid 666 is a local-first macOS productivity coach built on Screenwatch, Apple Reminders, Apple Calendar, notifications, and an action-first Today dashboard.
-Its background agent prepares and maintains a daily plan, compares intended work with observed behavior, and exposes an action-first Today dashboard even when the main app has been closed.
+A local-first macOS productivity coach that plans the day from Apple Reminders, watches real work through Screenwatch, and puts the next action on a Today dashboard — even after you close the app.
 
-## Current capabilities
+Built for you on your own Mac: software, design, client work, and admin in one day, without sending behavioral data to a cloud coach.
 
-- Daily and nightly planning with missed-run recovery after sleep or downtime.
-- A persistent active-task lifecycle with elapsed work intervals and deterministic next-task recommendations.
-- Screenwatch behavior sessionization, telemetry coverage warnings, and source freshness.
-- Audited and idempotent Calendar and Reminder actions with recovery and undo support.
-- Local WhatsApp screenshot OCR for meeting proposals, conflict checks, and exact-once Calendar creation after confirmation.
-- Estimate and preferred-work-window learning from completed work.
-- Gaming budgets and rewards backed by a durable ledger.
-- Notifications and the Today dashboard backed by the same agent-owned snapshot over launchd XPC.
-- Privacy retention, deletion, redacted export, policy rollback, permission health, and low-power or thermal throttling.
-- An always-available menu-bar voice host with a local wake phrase, global shortcut, Gemini Live conversation, typed tools, approval gates, local fallback, and a hard monthly cost cap.
+- Start the priority task earlier, with a persistent active-task clock and a deterministic next recommendation
+- Notice drift from Screenwatch sessions, then recover without shame copy or fake focus scores
+- Let the background agent keep the daily plan after sleep, reboot, or a closed window
+- Confirm Calendar and Reminder writes (or stay in observe/suggest) with audited, undoable actions
+- Talk to Zoid Voice from the menu bar when you want it — local by default, Gemini Live only with a Keychain key and a hard monthly cap
 
-Zoid 666 reads Screenwatch's source archive but never deletes Screenwatch-owned files.
+## Try it
 
-## Requirements
-
-- macOS 14 or later.
-- Swift 6 toolchain.
-- Screenwatch installed with its `com.screenwatch` and `com.screenwatch.timer` user LaunchAgents.
-- A valid Apple Development signing identity when packaging the app.
-- Reminders and Calendar access for the actions you enable.
-- Screen Recording access for Screenwatch.
-- Microphone and Speech Recognition access for Zoid Voice.
-- A Gemini API key stored in macOS Keychain when cloud conversation is enabled.
-
-## Build and test
+Needs macOS 14+, Swift 6, Screenwatch with its two user LaunchAgents, and an Apple Development signing identity to package the app.
 
 ```sh
 swift test
 swift build --configuration release
-```
-
-Package, sign, install, and open the native app with:
-
-```sh
 ./Scripts/install-app.sh
 ```
 
-The default install destination is `~/Applications/Zoid 666.app`.
-Set `ZOID_COACH_INSTALL_ROOT` to choose another destination and `SIGNING_IDENTITY` to override the development identity used by the package script.
+The default install is `~/Applications/Zoid 666.app`. After first open, the `com.ziadnasreldin.ZoidCoach.agent` launchd service stays up with the UI closed.
 
-## Background startup
+Verify the Screenwatch + Zoid background chain with `./Scripts/verify-background-services.sh`.
 
-The packaged app contains a launchd agent named `com.ziadnasreldin.ZoidCoach.agent` with both `RunAtLoad` and `KeepAlive` enabled.
-Opening the installed app registers that service through `SMAppService`, after which the agent continues while the UI is closed and starts again after login or reboot.
+Build, voice, rollout modes, trust gates, and storage notes live in [`docs/SETUP.md`](docs/SETUP.md). Product specs stay in [`docs/`](docs/).
 
-Screenwatch is a separate service and must also have its two LaunchAgents installed, enabled, and configured with `RunAtLoad` and `KeepAlive`.
-After installation or a restart, verify the complete background chain with:
+## How it works
 
-```sh
-./Scripts/verify-background-services.sh
-```
+A Swift package: `ZoidCoachApp` (Today dashboard and settings), `ZoidCoachAgent` (launchd planner), `ZoidCoachCore`, and `ZoidCoachInfrastructure`. Screenwatch is read-only source material. Durable state is a local SQLite store under Application Support. Remote models stay off until you enable them.
 
-The verification checks that Screenwatch and Zoid 666 are loaded and running, that today's Screenwatch log is fresh, and that Zoid 666 ingestion is keeping up.
-If macOS reports that the Zoid 666 agent requires approval, enable it under System Settings > General > Login Items and run the verification again.
+---
 
-## Zoid Voice
+Built by [Ziad Ahmed](https://github.com/Ziad-NasrEldin) at [MaVoid](https://mavoid.com).
 
-Open the menu-bar waveform or press Control-Option-Space to start a visible Gemini Live session.
-The local phrase "Hey Zoid" also starts a session when on-device speech recognition is available.
-Add or remove the Gemini API key from Settings > Intelligence or the menu-bar panel.
-The key is stored only in macOS Keychain.
-
-Gemini Live has a non-overridable $20 monthly cap.
-Zoid warns at $14 and $18, finishes the current short response at the cap, and then keeps bounded local commands available through on-device speech recognition and system speech.
-Raw microphone audio is never persisted.
-
-See [Zoid Voice architecture and operation](docs/ZOID-VOICE.md) for the tool, privacy, and runtime contracts.
-
-## Rollout modes
-
-The shared policy store exposes four explicit operating modes:
-
-1. `observe` ingests evidence and records proposed actions without performing external writes.
-2. `suggest` presents plans and meeting candidates without automatic Apple writes.
-3. `assist` performs writes only after plan-level confirmation.
-4. `autonomous` maintains Zoid-owned Reminder fields and Calendar blocks automatically.
-
-Older persisted values are migrated when decoded: `suggestionsOnly` becomes `suggest`, `approvalRequired` becomes `assist`, and `fullyAutomatic` becomes `autonomous`.
-The one-step automation pause remains independent of the selected mode and prevents new autonomous actions without deleting plans or evidence.
-
-## Trust gates
-
-Automatic plan writes remain disabled until seven qualifying shadow planning cycles have completed with external writes suppressed and capacity rules respected.
-Wake interventions have a separate fourteen-cycle trust gate and still require deliberate user activation.
-These gates are safety prerequisites, not substitutes for selecting the desired rollout mode.
-
-## Storage and privacy
-
-Zoid 666 stores its durable state at `~/Library/Application Support/Zoid 666/zoid-coach.sqlite`.
-Screenwatch normally writes observations under `~/screenwatch/days/YYYY-MM-DD/`.
-The app stores normalized evidence and derived coaching state in its own database and treats the Screenwatch archive as read-only source material.
-
-Remote model use is never silently enabled.
-The default provider policy is local, and privacy controls define screenshot analysis and retention behavior.
-
-## Documentation
-
-- [Autonomous coach specification](docs/AUTONOMOUS-COACH-SPEC.md)
-- [Autonomous coach implementation plan](docs/AUTONOMOUS-COACH-IMPLEMENTATION-PLAN.md)
-- [Daily dashboard agent delta](docs/DAILY-DASHBOARD-AGENT-DELTA.md)
-- [Full product specification](docs/ZOID-COACH-PRODUCT-SPEC.md)
-- [MVP specification](docs/ZOID-COACH-MVP.md)
-- [Visual MVP specification](docs/zoid-coach-mvp.html)
+[Website](https://mavoid.com) · [LinkedIn](https://linkedin.com/in/ziad-ahmed-634202332) · [GitHub](https://github.com/Ziad-NasrEldin)
