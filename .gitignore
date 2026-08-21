@@ -2,3 +2,8 @@
 .build/
 .swiftpm/
 .DS_Store
+
+# Junk / non-production files
+*.log
+*.plan.md
+.audit/
